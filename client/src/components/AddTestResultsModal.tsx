@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Edit, Upload as UploadIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ALL_BIOMARKERS, type BiomarkerOption } from '@/lib/biomarker-config';
+import { ALL_BIOMARKERS, BIOMARKER_CONFIGS, type BiomarkerOption } from '@/lib/biomarker-config';
 
 interface AddTestResultsModalProps {
   isOpen: boolean;
@@ -15,16 +15,42 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
   const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
   const [selectedBiomarker, setSelectedBiomarker] = useState('');
   const [value, setValue] = useState('');
+  const [unit, setUnit] = useState('');
   const [testDate, setTestDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
+
+  // Get selected biomarker details
+  const selectedBiomarkerData = useMemo(() => {
+    if (!selectedBiomarker) return null;
+    const biomarker = ALL_BIOMARKERS.find(b => b.id === selectedBiomarker);
+    if (!biomarker) return null;
+    const config = BIOMARKER_CONFIGS[biomarker.name];
+    return {
+      name: biomarker.name,
+      unit: config.unit,
+      min: config.min,
+      max: config.max,
+    };
+  }, [selectedBiomarker]);
+
+  // Update unit when biomarker is selected
+  const handleBiomarkerChange = (biomarkerId: string) => {
+    setSelectedBiomarker(biomarkerId);
+    const biomarker = ALL_BIOMARKERS.find(b => b.id === biomarkerId);
+    if (biomarker) {
+      const config = BIOMARKER_CONFIGS[biomarker.name];
+      setUnit(config.unit);
+    }
+  };
 
   const handleSubmit = () => {
     // TODO: Implement submission logic
     console.log({
       biomarker: selectedBiomarker,
       value,
+      unit,
       testDate,
     });
     onClose();
@@ -77,7 +103,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
                 <label className="text-sm font-medium text-white/70">
                   Biomarker
                 </label>
-                <Select value={selectedBiomarker} onValueChange={setSelectedBiomarker}>
+                <Select value={selectedBiomarker} onValueChange={handleBiomarkerChange}>
                   <SelectTrigger
                     className="w-full bg-white/5 border-white/10 text-white rounded-xl h-12"
                     data-testid="select-biomarker"
@@ -112,7 +138,39 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
                   className="w-full bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl h-12"
                   data-testid="input-value"
                 />
+                {/* Optimal Range - shown when biomarker is selected */}
+                {selectedBiomarkerData && (
+                  <p className="text-xs text-white/40 mt-1" data-testid="text-optimal-range">
+                    Optimal range: {selectedBiomarkerData.min} - {selectedBiomarkerData.max} {selectedBiomarkerData.unit}
+                  </p>
+                )}
               </div>
+
+              {/* Unit of Measure - shown when biomarker is selected */}
+              {selectedBiomarkerData && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-white/70">
+                    Unit of Measure
+                  </label>
+                  <Select value={unit} onValueChange={setUnit}>
+                    <SelectTrigger
+                      className="w-full bg-white/5 border-cyan-500/50 text-white rounded-xl h-12"
+                      data-testid="select-unit"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1a1f3a] border-white/10 text-white">
+                      <SelectItem
+                        value={selectedBiomarkerData.unit}
+                        className="text-white hover:bg-white/10"
+                        data-testid={`option-unit-${selectedBiomarkerData.unit}`}
+                      >
+                        {selectedBiomarkerData.unit}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Test Date */}
               <div className="space-y-2">
