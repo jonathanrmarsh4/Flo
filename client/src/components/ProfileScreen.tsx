@@ -1,5 +1,5 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
+import { format, setMonth, setYear, getMonth, getYear } from 'date-fns';
 
 interface ProfileScreenProps {
   isDark: boolean;
@@ -31,9 +31,35 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [newFocusArea, setNewFocusArea] = useState('');
   const [newGoal, setNewGoal] = useState('');
   
+  // Local state for number inputs to prevent buggy behavior
+  const [localWeight, setLocalWeight] = useState<string>('');
+  const [localHeight, setLocalHeight] = useState<string>('');
+  const [localSleep, setLocalSleep] = useState<string>('');
+  
+  // Calendar navigation state
+  const [calendarMonth, setCalendarMonth] = useState<Date>(
+    profile?.dateOfBirth ? new Date(profile.dateOfBirth) : new Date()
+  );
+  
   // Safe defaults to prevent spreading undefined
   const currentHealthBaseline = profile?.healthBaseline ?? {};
   const currentAIPersonalization = profile?.aiPersonalization ?? {};
+
+  // Sync calendar month with profile date of birth
+  useEffect(() => {
+    if (profile?.dateOfBirth) {
+      setCalendarMonth(new Date(profile.dateOfBirth));
+    }
+  }, [profile?.dateOfBirth]);
+
+  // Sync local number inputs with profile data
+  useEffect(() => {
+    if (profile) {
+      setLocalWeight(profile.weight?.toString() ?? '');
+      setLocalHeight(profile.height?.toString() ?? '');
+      setLocalSleep(profile.healthBaseline?.sleepHours?.toString() ?? '');
+    }
+  }, [profile]);
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: Date | string | null | undefined): number | null => {
@@ -187,16 +213,57 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
-                    <CalendarComponent
-                      mode="single"
-                      selected={profile?.dateOfBirth ? new Date(profile.dateOfBirth) : undefined}
-                      onSelect={(date) => {
-                        if (date) {
-                          updateDemographics.mutate({ dateOfBirth: date });
-                        }
-                      }}
-                      initialFocus
-                    />
+                    <div className="p-3 space-y-3">
+                      {/* Year and Month Selectors */}
+                      <div className="flex gap-2">
+                        <Select
+                          value={getYear(calendarMonth).toString()}
+                          onValueChange={(value) => {
+                            setCalendarMonth(setYear(calendarMonth, parseInt(value)));
+                          }}
+                        >
+                          <SelectTrigger className="flex-1" data-testid="select-year">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                              <SelectItem key={year} value={year.toString()}>
+                                {year}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getMonth(calendarMonth).toString()}
+                          onValueChange={(value) => {
+                            setCalendarMonth(setMonth(calendarMonth, parseInt(value)));
+                          }}
+                        >
+                          <SelectTrigger className="flex-1" data-testid="select-month">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, idx) => (
+                              <SelectItem key={idx} value={idx.toString()}>
+                                {month}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <CalendarComponent
+                        mode="single"
+                        selected={profile?.dateOfBirth ? new Date(profile.dateOfBirth) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            updateDemographics.mutate({ dateOfBirth: date });
+                          }
+                        }}
+                        month={calendarMonth}
+                        onMonthChange={setCalendarMonth}
+                        initialFocus
+                      />
+                    </div>
                   </PopoverContent>
                 </Popover>
               ) : (
@@ -216,7 +283,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               </div>
               {isEditing ? (
                 <Select
-                  value={profile?.sex || ''}
+                  value={profile?.sex ?? ''}
                   onValueChange={(value) => updateDemographics.mutate({ sex: value as 'Male' | 'Female' | 'Other' })}
                 >
                   <SelectTrigger className="w-32" data-testid="select-sex">
@@ -246,18 +313,20 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   <Input
                     type="number"
                     placeholder="70"
-                    value={profile?.weight || ''}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      if (!isNaN(value)) {
-                        updateDemographics.mutate({ weight: value, weightUnit: profile?.weightUnit || 'kg' });
+                    value={localWeight}
+                    onChange={(e) => setLocalWeight(e.target.value)}
+                    onBlur={() => {
+                      const value = parseFloat(localWeight);
+                      if (!isNaN(value) && value !== profile?.weight) {
+                        updateDemographics.mutate({ weight: value, weightUnit: profile?.weightUnit ?? 'kg' });
                       }
                     }}
+                    disabled={updateDemographics.isPending}
                     className="w-20"
                     data-testid="input-weight"
                   />
                   <Select
-                    value={profile?.weightUnit || 'kg'}
+                    value={profile?.weightUnit ?? 'kg'}
                     onValueChange={(value) => updateDemographics.mutate({ weightUnit: value as 'kg' | 'lbs' })}
                   >
                     <SelectTrigger className="w-20" data-testid="select-weight-unit">
@@ -271,7 +340,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 </div>
               ) : (
                 <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-weight">
-                  {profile?.weight ? `${profile.weight!} ${profile.weightUnit || 'kg'}` : 'Not set'}
+                  {profile?.weight != null ? `${profile.weight} ${profile.weightUnit ?? 'kg'}` : 'Not set'}
                 </span>
               )}
             </div>
@@ -287,18 +356,20 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   <Input
                     type="number"
                     placeholder="170"
-                    value={profile?.height || ''}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      if (!isNaN(value)) {
-                        updateDemographics.mutate({ height: value, heightUnit: profile?.heightUnit || 'cm' });
+                    value={localHeight}
+                    onChange={(e) => setLocalHeight(e.target.value)}
+                    onBlur={() => {
+                      const value = parseFloat(localHeight);
+                      if (!isNaN(value) && value !== profile?.height) {
+                        updateDemographics.mutate({ height: value, heightUnit: profile?.heightUnit ?? 'cm' });
                       }
                     }}
+                    disabled={updateDemographics.isPending}
                     className="w-20"
                     data-testid="input-height"
                   />
                   <Select
-                    value={profile?.heightUnit || 'cm'}
+                    value={profile?.heightUnit ?? 'cm'}
                     onValueChange={(value) => updateDemographics.mutate({ heightUnit: value as 'cm' | 'in' })}
                   >
                     <SelectTrigger className="w-20" data-testid="select-height-unit">
@@ -312,7 +383,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 </div>
               ) : (
                 <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-height">
-                  {profile?.height ? `${profile.height!} ${profile.heightUnit || 'cm'}` : 'Not set'}
+                  {profile?.height != null ? `${profile.height} ${profile.heightUnit ?? 'cm'}` : 'Not set'}
                 </span>
               )}
             </div>
@@ -376,10 +447,11 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                     min="0"
                     max="24"
                     step="0.5"
-                    value={profile?.healthBaseline?.sleepHours ?? ''}
-                    onChange={(e) => {
-                      const value = parseFloat(e.target.value);
-                      if (!isNaN(value)) {
+                    value={localSleep}
+                    onChange={(e) => setLocalSleep(e.target.value)}
+                    onBlur={() => {
+                      const value = parseFloat(localSleep);
+                      if (!isNaN(value) && value !== profile?.healthBaseline?.sleepHours) {
                         updateHealthBaseline.mutate({ 
                           healthBaseline: {
                             ...currentHealthBaseline,
@@ -388,6 +460,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                         });
                       }
                     }}
+                    disabled={updateHealthBaseline.isPending}
                     className="w-20"
                     data-testid="input-sleep"
                   />
