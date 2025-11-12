@@ -1,38 +1,72 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import type { User as UserType } from '@shared/schema';
+import { useProfile } from '@/hooks/useProfile';
 
 interface ProfileScreenProps {
   isDark: boolean;
   onClose: () => void;
+  user: UserType;
 }
 
-export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
+export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
   
-  // Mock user data
-  const [profile, setProfile] = useState({
-    demographics: {
-      age: 49,
-      sex: 'Male',
-      weight: 82,
-      weightUnit: 'kg',
-      height: 178,
-      heightUnit: 'cm'
-    },
-    healthBaseline: {
-      activityLevel: 'Moderate',
-      sleepHours: 7.5,
-      dietType: 'Balanced',
-      smokingStatus: 'Never',
-      alcoholIntake: 'Occasional'
-    },
-    goals: ['Longevity', 'Cardiovascular Health', 'Metabolic Optimization'],
-    aiPersonalization: {
-      tone: 'Professional',
-      insightsFrequency: 'Weekly',
-      focusAreas: ['Heart Health', 'Inflammation', 'Metabolic Health']
+  // Fetch profile data from backend
+  const { data: profile, isLoading, error } = useProfile();
+
+  // Calculate age from date of birth
+  const calculateAge = (dateOfBirth: Date | string | null | undefined): number | null => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
     }
-  });
+    return age;
+  };
+
+  const age = calculateAge(profile?.dateOfBirth);
+  const userName = user.firstName && user.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user.firstName || user.lastName || 'User';
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className={`h-full flex items-center justify-center transition-colors ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      }`}>
+        <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className={`h-full flex flex-col items-center justify-center p-4 transition-colors ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      }`}>
+        <p className={`text-sm ${isDark ? 'text-red-400' : 'text-red-600'} mb-4`}>
+          Failed to load profile
+        </p>
+        <button 
+          onClick={onClose}
+          className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
+          data-testid="button-back-error"
+        >
+          ← Back
+        </button>
+      </div>
+    );
+  }
 
   const activityLevels = ['Sedentary', 'Light', 'Moderate', 'Active', 'Very Active'];
   const dietTypes = ['Balanced', 'Low Carb', 'Mediterranean', 'Vegetarian', 'Vegan', 'Keto', 'Paleo'];
@@ -74,21 +108,31 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
 
       {/* Content */}
       <div className="px-4 py-6 space-y-4">
-        {/* Profile Avatar */}
+        {/* Profile Avatar & User Info */}
         <div className="flex flex-col items-center mb-6">
           <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-3 border-4 ${
             isDark 
               ? 'bg-gradient-to-br from-teal-500/20 to-blue-500/20 border-white/10' 
               : 'bg-gradient-to-br from-teal-100 to-blue-100 border-white'
           }`}>
-            <User className={`w-12 h-12 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+            {user.profileImageUrl ? (
+              <img src={user.profileImageUrl} alt={userName} className="w-full h-full rounded-full object-cover" />
+            ) : (
+              <User className={`w-12 h-12 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+            )}
           </div>
-          <div className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-profile-title">
-            Your Health Profile
+          <div className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-user-name">
+            {userName}
           </div>
-          <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`} data-testid="text-age-summary">
-            Bio Age: 46 • Chronological: 49
+          <div className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'} flex items-center gap-2 mt-1`} data-testid="text-user-email">
+            <Mail className="w-4 h-4" />
+            {user.email || 'No email'}
           </div>
+          {age && (
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'} mt-2`} data-testid="text-age-summary">
+              Age: {age} years
+            </div>
+          )}
         </div>
 
         {/* Core Demographics */}
@@ -108,10 +152,12 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <Calendar className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
-                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Age</span>
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Date of Birth</span>
               </div>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-age">
-                {profile.demographics.age} years
+              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-dob">
+                {profile?.dateOfBirth 
+                  ? new Date(profile.dateOfBirth!).toLocaleDateString()
+                  : 'Not set'}
               </span>
             </div>
 
@@ -121,7 +167,7 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Sex</span>
               </div>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sex">
-                {profile.demographics.sex}
+                {profile?.sex || 'Not set'}
               </span>
             </div>
 
@@ -131,7 +177,7 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Weight</span>
               </div>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-weight">
-                {profile.demographics.weight} {profile.demographics.weightUnit}
+                {profile?.weight ? `${profile.weight!} ${profile.weightUnit || 'kg'}` : 'Not set'}
               </span>
             </div>
 
@@ -141,7 +187,7 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Height</span>
               </div>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-height">
-                {profile.demographics.height} {profile.demographics.heightUnit}
+                {profile?.height ? `${profile.height!} ${profile.heightUnit || 'cm'}` : 'Not set'}
               </span>
             </div>
           </div>
@@ -162,7 +208,7 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Activity Level</span>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-activity">
-                {profile.healthBaseline.activityLevel}
+                {profile?.healthBaseline?.activityLevel ?? 'Not set'}
               </span>
             </div>
 
@@ -172,28 +218,28 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Sleep</span>
               </div>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sleep">
-                {profile.healthBaseline.sleepHours} hours/night
+                {profile?.healthBaseline?.sleepHours ? `${profile.healthBaseline.sleepHours!} hours/night` : 'Not set'}
               </span>
             </div>
 
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Diet Type</span>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-diet">
-                {profile.healthBaseline.dietType}
+                {profile?.healthBaseline?.dietType ?? 'Not set'}
               </span>
             </div>
 
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Smoking</span>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-smoking">
-                {profile.healthBaseline.smokingStatus}
+                {profile?.healthBaseline?.smokingStatus ?? 'Not set'}
               </span>
             </div>
 
             <div className="flex items-center justify-between py-3">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Alcohol</span>
               <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-alcohol">
-                {profile.healthBaseline.alcoholIntake}
+                {profile?.healthBaseline?.alcoholIntake ?? 'Not set'}
               </span>
             </div>
           </div>
@@ -211,19 +257,25 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {profile.goals.map((goal, idx) => (
-              <div 
-                key={idx}
-                className={`px-3 py-2 rounded-full text-xs ${
-                  isDark 
-                    ? 'bg-gradient-to-r from-teal-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30' 
-                    : 'bg-gradient-to-r from-teal-100 to-blue-100 text-cyan-700 border border-cyan-200'
-                }`}
-                data-testid={`badge-goal-${idx}`}
-              >
-                {goal}
-              </div>
-            ))}
+            {(profile?.goals ?? []).length > 0 ? (
+              (profile?.goals ?? []).map((goal, idx) => (
+                <div 
+                  key={idx}
+                  className={`px-3 py-2 rounded-full text-xs ${
+                    isDark 
+                      ? 'bg-gradient-to-r from-teal-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30' 
+                      : 'bg-gradient-to-r from-teal-100 to-blue-100 text-cyan-700 border border-cyan-200'
+                  }`}
+                  data-testid={`badge-goal-${idx}`}
+                >
+                  {goal}
+                </div>
+              ))
+            ) : (
+              <span className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                No goals set
+              </span>
+            )}
           </div>
         </div>
 
@@ -249,7 +301,7 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
                   <button
                     key={tone}
                     className={`flex-1 py-2 px-3 rounded-xl text-xs transition-all ${
-                      profile.aiPersonalization.tone === tone
+                      profile?.aiPersonalization?.tone === tone
                         ? isDark 
                           ? 'bg-gradient-to-r from-teal-500 to-blue-500 text-white'
                           : 'bg-gradient-to-r from-teal-500 to-blue-500 text-white'
@@ -278,7 +330,7 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
                   <button
                     key={freq}
                     className={`py-2 px-3 rounded-xl text-xs transition-all ${
-                      profile.aiPersonalization.insightsFrequency === freq
+                      profile?.aiPersonalization?.insightsFrequency === freq
                         ? isDark 
                           ? 'bg-gradient-to-r from-teal-500 to-blue-500 text-white'
                           : 'bg-gradient-to-r from-teal-500 to-blue-500 text-white'
@@ -300,19 +352,25 @@ export function ProfileScreen({ isDark, onClose }: ProfileScreenProps) {
                 Focus Areas
               </label>
               <div className="flex flex-wrap gap-2">
-                {profile.aiPersonalization.focusAreas.map((area, idx) => (
-                  <div 
-                    key={idx}
-                    className={`px-3 py-1.5 rounded-full text-xs ${
-                      isDark 
-                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
-                        : 'bg-purple-100 text-purple-700 border border-purple-200'
-                    }`}
-                    data-testid={`badge-focus-${idx}`}
-                  >
-                    {area}
-                  </div>
-                ))}
+                {(profile?.aiPersonalization?.focusAreas ?? []).length > 0 ? (
+                  (profile?.aiPersonalization?.focusAreas ?? []).map((area, idx) => (
+                    <div 
+                      key={idx}
+                      className={`px-3 py-1.5 rounded-full text-xs ${
+                        isDark 
+                          ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
+                          : 'bg-purple-100 text-purple-700 border border-purple-200'
+                      }`}
+                      data-testid={`badge-focus-${idx}`}
+                    >
+                      {area}
+                    </div>
+                  ))
+                ) : (
+                  <span className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    No focus areas set
+                  </span>
+                )}
               </div>
               <button className={`mt-2 text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} data-testid="button-customize-focus">
                 + Customize focus areas

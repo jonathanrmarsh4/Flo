@@ -1,10 +1,17 @@
 // Reference: javascript_database and javascript_log_in_with_replit blueprints
 import {
   users,
+  profiles,
   bloodWorkRecords,
   analysisResults,
   type User,
   type UpsertUser,
+  type Profile,
+  type InsertProfile,
+  type UpdateDemographics,
+  type UpdateHealthBaseline,
+  type UpdateGoals,
+  type UpdateAIPersonalization,
   type BloodWorkRecord,
   type InsertBloodWorkRecord,
   type AnalysisResult,
@@ -18,6 +25,14 @@ export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Profile operations
+  getProfile(userId: string): Promise<Profile | undefined>;
+  upsertProfile(userId: string, data: Partial<InsertProfile>): Promise<Profile>;
+  updateDemographics(userId: string, data: UpdateDemographics): Promise<Profile>;
+  updateHealthBaseline(userId: string, data: UpdateHealthBaseline): Promise<Profile>;
+  updateGoals(userId: string, data: UpdateGoals): Promise<Profile>;
+  updateAIPersonalization(userId: string, data: UpdateAIPersonalization): Promise<Profile>;
   
   // Blood work operations
   createBloodWorkRecord(record: InsertBloodWorkRecord): Promise<BloodWorkRecord>;
@@ -51,6 +66,49 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  // Profile operations
+  async getProfile(userId: string): Promise<Profile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId));
+    return profile;
+  }
+
+  async upsertProfile(userId: string, data: Partial<InsertProfile>): Promise<Profile> {
+    const [profile] = await db
+      .insert(profiles)
+      .values({
+        userId,
+        ...data,
+      })
+      .onConflictDoUpdate({
+        target: profiles.userId,
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return profile;
+  }
+
+  async updateDemographics(userId: string, data: UpdateDemographics): Promise<Profile> {
+    return await this.upsertProfile(userId, data);
+  }
+
+  async updateHealthBaseline(userId: string, data: UpdateHealthBaseline): Promise<Profile> {
+    return await this.upsertProfile(userId, data);
+  }
+
+  async updateGoals(userId: string, data: UpdateGoals): Promise<Profile> {
+    return await this.upsertProfile(userId, data);
+  }
+
+  async updateAIPersonalization(userId: string, data: UpdateAIPersonalization): Promise<Profile> {
+    return await this.upsertProfile(userId, data);
   }
 
   // Blood work operations

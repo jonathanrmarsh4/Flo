@@ -5,6 +5,13 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { analyzeBloodWork } from "./openai";
+import { 
+  updateDemographicsSchema, 
+  updateHealthBaselineSchema, 
+  updateGoalsSchema, 
+  updateAIPersonalizationSchema 
+} from "@shared/schema";
+import { fromError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -202,6 +209,114 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error fetching blood work record:", error);
       res.status(500).json({ error: "Failed to fetch blood work record" });
+    }
+  });
+
+  // Profile routes
+  // Get user profile
+  app.get("/api/profile", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const profile = await storage.getProfile(userId);
+      
+      if (!profile) {
+        return res.json(null);
+      }
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ error: "Failed to fetch profile" });
+    }
+  });
+
+  // Update demographics
+  app.patch("/api/profile/demographics", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Parse dateOfBirth if present
+      const requestData = {
+        ...req.body,
+        dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : undefined,
+      };
+      
+      // Validate with Zod schema
+      const validationResult = updateDemographicsSchema.safeParse(requestData);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const profile = await storage.updateDemographics(userId, validationResult.data);
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error updating demographics:", error);
+      res.status(500).json({ error: "Failed to update demographics" });
+    }
+  });
+
+  // Update health baseline
+  app.patch("/api/profile/baseline", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Validate with Zod schema
+      const validationResult = updateHealthBaselineSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const profile = await storage.updateHealthBaseline(userId, validationResult.data);
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error updating health baseline:", error);
+      res.status(500).json({ error: "Failed to update health baseline" });
+    }
+  });
+
+  // Update goals
+  app.patch("/api/profile/goals", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Validate with Zod schema
+      const validationResult = updateGoalsSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const profile = await storage.updateGoals(userId, validationResult.data);
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error updating goals:", error);
+      res.status(500).json({ error: "Failed to update goals" });
+    }
+  });
+
+  // Update AI personalization
+  app.patch("/api/profile/personalization", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Validate with Zod schema
+      const validationResult = updateAIPersonalizationSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const profile = await storage.updateAIPersonalization(userId, validationResult.data);
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error updating AI personalization:", error);
+      res.status(500).json({ error: "Failed to update AI personalization" });
     }
   });
 
