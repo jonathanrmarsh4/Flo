@@ -109,3 +109,40 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   'IL-6': { unit: 'pg/mL', min: 0, max: 5, category: 'Inflammation & Immune Markers' },
   'TNF-alpha': { unit: 'pg/mL', min: 0, max: 8.1, category: 'Inflammation & Immune Markers' },
 };
+
+// Derived types for type safety
+export type BiomarkerKey = keyof typeof BIOMARKER_CONFIGS;
+export type BiomarkerCategory = (typeof CATEGORIES)[number];
+
+// Biomarker structure for dropdowns and display
+export interface BiomarkerOption {
+  id: string;
+  name: string;
+  unit: string;
+  category: string;
+}
+
+// Precomputed biomarkers by category for efficient rendering
+export const BIOMARKERS_BY_CATEGORY = Object.freeze(
+  CATEGORIES.filter(cat => cat !== 'All').map(category => ({
+    category,
+    biomarkers: Object.entries(BIOMARKER_CONFIGS)
+      .filter(([_, config]) => config.category === category)
+      .map(([name, config]) => ({
+        id: name.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, ''),
+        name,
+        unit: config.unit,
+        category: config.category,
+      }))
+  }))
+);
+
+// Flat array of all biomarkers for search/selection
+export const ALL_BIOMARKERS = Object.freeze(
+  Object.entries(BIOMARKER_CONFIGS).map(([name, config]) => ({
+    id: name.toLowerCase().replace(/\s+/g, '_').replace(/[()]/g, ''),
+    name,
+    unit: config.unit,
+    category: config.category,
+  }))
+);

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { User, Lightbulb, Plus } from "lucide-react";
 import { FloLogo } from "./FloLogo";
+import { AddTestResultsModal } from "./AddTestResultsModal";
 
 export function FloBottomNav() {
   const [location] = useLocation();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const isActive = (path: string) => location === path;
 
@@ -25,17 +28,16 @@ export function FloBottomNav() {
           </Link>
 
           {/* Add (Center) */}
-          <Link href="/upload">
-            <button
-              data-testid="nav-add"
-              className="flex flex-col items-center -mt-6"
-            >
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00d4aa] via-[#00a8ff] to-[#0066ff] flex items-center justify-center shadow-lg">
-                <Plus className="w-8 h-8 text-white" />
-              </div>
-              <span className="text-xs font-medium text-gray-400 mt-1">Add</span>
-            </button>
-          </Link>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            data-testid="nav-add"
+            className="flex flex-col items-center -mt-6"
+          >
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00d4aa] via-[#00a8ff] to-[#0066ff] flex items-center justify-center shadow-lg">
+              <Plus className="w-8 h-8 text-white" />
+            </div>
+            <span className="text-xs font-medium text-gray-400 mt-1">Add</span>
+          </button>
 
           {/* Insights */}
           <Link href="/insights">
@@ -51,6 +53,12 @@ export function FloBottomNav() {
           </Link>
         </div>
       </div>
+
+      {/* Add Test Results Modal */}
+      <AddTestResultsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </nav>
   );
 }
