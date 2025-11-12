@@ -17,7 +17,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "RBC",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "M/μL",
         displayUnitPreference: "M/μL",
         precision: 2,
@@ -61,7 +61,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "WBC",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "K/μL",
         displayUnitPreference: "K/μL",
         precision: 1,
@@ -95,7 +95,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Hemoglobin",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "g/dL",
         displayUnitPreference: "g/dL",
         precision: 1,
@@ -158,7 +158,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Hematocrit",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "%",
         displayUnitPreference: "%",
         precision: 1,
@@ -202,7 +202,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "MCV",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "fL",
         displayUnitPreference: "fL",
         precision: 1,
@@ -235,7 +235,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "MCH",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "pg",
         displayUnitPreference: "pg",
         precision: 1,
@@ -268,7 +268,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Platelets",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "K/μL",
         displayUnitPreference: "K/μL",
         precision: 0,
@@ -302,7 +302,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Glucose",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -357,7 +357,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Calcium",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -410,7 +410,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Sodium",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mEq/L",
         displayUnitPreference: "mEq/L",
         precision: 0,
@@ -443,7 +443,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Potassium",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mEq/L",
         displayUnitPreference: "mEq/L",
         precision: 1,
@@ -476,7 +476,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "CO2",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mEq/L",
         displayUnitPreference: "mEq/L",
         precision: 0,
@@ -510,7 +510,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Chloride",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mEq/L",
         displayUnitPreference: "mEq/L",
         precision: 0,
@@ -543,7 +543,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "BUN",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -596,7 +596,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Creatinine",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 2,
@@ -659,7 +659,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "ALT",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "U/L",
         displayUnitPreference: "U/L",
         precision: 0,
@@ -692,7 +692,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "AST",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "U/L",
         displayUnitPreference: "U/L",
         precision: 0,
@@ -725,7 +725,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "ALP",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "U/L",
         displayUnitPreference: "U/L",
         precision: 0,
@@ -758,7 +758,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Bilirubin",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -810,7 +810,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Total Protein",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "g/dL",
         displayUnitPreference: "g/dL",
         precision: 1,
@@ -862,7 +862,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Albumin",
-        category: "Basic",
+        category: "Basic Panels",
         canonicalUnit: "g/dL",
         displayUnitPreference: "g/dL",
         precision: 1,
@@ -916,7 +916,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Total Cholesterol",
-        category: "Lipid",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -969,7 +969,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "HDL",
-        category: "Lipid",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -1022,7 +1022,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "LDL",
-        category: "Lipid",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -1075,7 +1075,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Triglycerides",
-        category: "Lipid",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -1127,7 +1127,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Non-HDL Cholesterol",
-        category: "Lipid",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -1178,7 +1178,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "ApoA1",
-        category: "Cardiovascular",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 0,
@@ -1212,7 +1212,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "ApoB",
-        category: "Cardiovascular",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 0,
@@ -1245,7 +1245,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Lipoprotein(a)",
-        category: "Cardiovascular",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -1277,7 +1277,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "hs-CRP",
-        category: "Cardiovascular",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "mg/L",
         displayUnitPreference: "mg/L",
         precision: 2,
@@ -1329,7 +1329,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Homocysteine",
-        category: "Cardiovascular",
+        category: "Lipid & Cardiovascular Health",
         canonicalUnit: "μmol/L",
         displayUnitPreference: "μmol/L",
         precision: 1,
@@ -1363,7 +1363,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "TSH",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "mIU/L",
         displayUnitPreference: "mIU/L",
         precision: 2,
@@ -1397,7 +1397,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Free T3",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "pg/mL",
         displayUnitPreference: "pg/mL",
         precision: 2,
@@ -1431,7 +1431,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Free T4",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "ng/dL",
         displayUnitPreference: "ng/dL",
         precision: 2,
@@ -1465,7 +1465,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Reverse T3",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "ng/dL",
         displayUnitPreference: "ng/dL",
         precision: 1,
@@ -1498,7 +1498,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Anti-TPO",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "IU/mL",
         displayUnitPreference: "IU/mL",
         precision: 0,
@@ -1531,7 +1531,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Anti-TG",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "IU/mL",
         displayUnitPreference: "IU/mL",
         precision: 0,
@@ -1564,7 +1564,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Total Testosterone",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "ng/dL",
         displayUnitPreference: "ng/dL",
         precision: 0,
@@ -1625,7 +1625,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Free Testosterone",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "pg/mL",
         displayUnitPreference: "pg/mL",
         precision: 1,
@@ -1666,7 +1666,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "SHBG",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "nmol/L",
         displayUnitPreference: "nmol/L",
         precision: 1,
@@ -1699,7 +1699,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Estradiol (E2)",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "pg/mL",
         displayUnitPreference: "pg/mL",
         precision: 1,
@@ -1742,7 +1742,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "DHEA-S",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "μg/dL",
         displayUnitPreference: "μg/dL",
         precision: 0,
@@ -1775,7 +1775,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Cortisol (AM)",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "μg/dL",
         displayUnitPreference: "μg/dL",
         precision: 1,
@@ -1828,7 +1828,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Cortisol (PM)",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "μg/dL",
         displayUnitPreference: "μg/dL",
         precision: 1,
@@ -1881,7 +1881,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Insulin",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "μIU/mL",
         displayUnitPreference: "μIU/mL",
         precision: 1,
@@ -1914,7 +1914,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "C-Peptide",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "ng/mL",
         displayUnitPreference: "ng/mL",
         precision: 2,
@@ -1947,7 +1947,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "LH",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "mIU/mL",
         displayUnitPreference: "mIU/mL",
         precision: 2,
@@ -1979,7 +1979,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "FSH",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "mIU/mL",
         displayUnitPreference: "mIU/mL",
         precision: 2,
@@ -2011,7 +2011,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Prolactin",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "ng/mL",
         displayUnitPreference: "ng/mL",
         precision: 1,
@@ -2043,7 +2043,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "IGF-1",
-        category: "Hormonal",
+        category: "Hormonal & Endocrine",
         canonicalUnit: "ng/mL",
         displayUnitPreference: "ng/mL",
         precision: 0,
@@ -2077,7 +2077,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Fasting Glucose",
-        category: "Metabolic",
+        category: "Metabolic & Diabetes",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -2131,7 +2131,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "HbA1c",
-        category: "Metabolic",
+        category: "Metabolic & Diabetes",
         canonicalUnit: "%",
         displayUnitPreference: "%",
         precision: 2,
@@ -2186,7 +2186,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "HOMA-IR",
-        category: "Metabolic",
+        category: "Metabolic & Diabetes",
         canonicalUnit: "score",
         displayUnitPreference: "score",
         precision: 2,
@@ -2218,7 +2218,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Fructosamine",
-        category: "Metabolic",
+        category: "Metabolic & Diabetes",
         canonicalUnit: "μmol/L",
         displayUnitPreference: "μmol/L",
         precision: 0,
@@ -2252,7 +2252,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "GGT",
-        category: "Liver",
+        category: "Liver & Kidney Function",
         canonicalUnit: "U/L",
         displayUnitPreference: "U/L",
         precision: 0,
@@ -2285,7 +2285,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "eGFR",
-        category: "Kidney",
+        category: "Liver & Kidney Function",
         canonicalUnit: "mL/min",
         displayUnitPreference: "mL/min",
         precision: 1,
@@ -2318,7 +2318,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Uric Acid",
-        category: "Kidney",
+        category: "Liver & Kidney Function",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 1,
@@ -2372,7 +2372,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Vitamin D (25-OH)",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "ng/mL",
         displayUnitPreference: "ng/mL",
         precision: 1,
@@ -2426,7 +2426,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Vitamin B12",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "pg/mL",
         displayUnitPreference: "pg/mL",
         precision: 0,
@@ -2478,7 +2478,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Folate (B9)",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "ng/mL",
         displayUnitPreference: "ng/mL",
         precision: 1,
@@ -2511,7 +2511,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Ferritin",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "ng/mL",
         displayUnitPreference: "ng/mL",
         precision: 0,
@@ -2544,7 +2544,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Iron",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "μg/dL",
         displayUnitPreference: "μg/dL",
         precision: 0,
@@ -2597,7 +2597,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "TIBC",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "μg/dL",
         displayUnitPreference: "μg/dL",
         precision: 0,
@@ -2630,7 +2630,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Transferrin Saturation",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "%",
         displayUnitPreference: "%",
         precision: 1,
@@ -2664,7 +2664,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Magnesium",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "mg/dL",
         displayUnitPreference: "mg/dL",
         precision: 2,
@@ -2716,7 +2716,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Zinc",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "μg/dL",
         displayUnitPreference: "μg/dL",
         precision: 0,
@@ -2749,7 +2749,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Copper",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "μg/dL",
         displayUnitPreference: "μg/dL",
         precision: 0,
@@ -2782,7 +2782,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Selenium",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "μg/L",
         displayUnitPreference: "μg/L",
         precision: 0,
@@ -2814,7 +2814,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "Omega-3 Index",
-        category: "Nutritional",
+        category: "Nutritional & Vitamin Status",
         canonicalUnit: "%",
         displayUnitPreference: "%",
         precision: 1,
@@ -2848,7 +2848,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "CRP",
-        category: "Inflammation",
+        category: "Inflammation & Immune Markers",
         canonicalUnit: "mg/L",
         displayUnitPreference: "mg/L",
         precision: 2,
@@ -2899,7 +2899,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "ESR",
-        category: "Inflammation",
+        category: "Inflammation & Immune Markers",
         canonicalUnit: "mm/hr",
         displayUnitPreference: "mm/hr",
         precision: 0,
@@ -2932,7 +2932,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "IL-6",
-        category: "Inflammation",
+        category: "Inflammation & Immune Markers",
         canonicalUnit: "pg/mL",
         displayUnitPreference: "pg/mL",
         precision: 2,
@@ -2964,7 +2964,7 @@ async function seedBiomarkers() {
       .insert(biomarkers)
       .values({
         name: "TNF-alpha",
-        category: "Inflammation",
+        category: "Inflammation & Immune Markers",
         canonicalUnit: "pg/mL",
         displayUnitPreference: "pg/mL",
         precision: 2,
