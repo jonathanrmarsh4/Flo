@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { FloLogo } from '@/components/FloLogo';
 import { FloBottomNav } from '@/components/FloBottomNav';
+import { TrendChart } from '@/components/TrendChart';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   mapAnalysisToBiomarkerReadings, 
@@ -58,6 +59,12 @@ export default function Dashboard() {
   const isInRange = (biomarker: string, value: number) => {
     const config = BIOMARKER_CONFIGS[biomarker];
     return value >= config.min && value <= config.max;
+  };
+
+  const getBiomarkerHistory = (biomarker: string) => {
+    return readings
+      .filter(r => r.biomarker === biomarker)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   return (
@@ -204,6 +211,17 @@ export default function Dashboard() {
                     <div className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
                       Optimal: {config.min} - {config.max} {config.unit}
                     </div>
+                    
+                    {/* Trend Chart */}
+                    {getBiomarkerHistory(biomarker).length >= 2 && (
+                      <TrendChart 
+                        history={getBiomarkerHistory(biomarker)}
+                        min={config.min}
+                        max={config.max}
+                        biomarker={biomarker}
+                        isDark={isDark}
+                      />
+                    )}
                   </div>
                 </Link>
               );
