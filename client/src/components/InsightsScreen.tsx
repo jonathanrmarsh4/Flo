@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Brain, Heart, Sparkles, ChevronRight } from 'lucide-react';
+import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Brain, Heart, Sparkles, ChevronRight, Lightbulb, AlertTriangle } from 'lucide-react';
 
 export interface BiologicalAgeData {
   biologicalAge: number;
@@ -56,7 +56,7 @@ export function InsightsScreen({
   const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
   
   return (
-    <div className={`h-full overflow-y-auto transition-colors ${
+    <div className={`h-full overflow-y-auto pb-20 transition-colors ${
       isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
@@ -70,6 +70,7 @@ export function InsightsScreen({
             <button 
               onClick={onClose}
               className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
+              data-testid="button-back"
             >
               ← Back
             </button>
@@ -87,6 +88,7 @@ export function InsightsScreen({
             isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
           }`}
           style={{ minHeight: '420px' }}
+          data-testid="card-biological-age"
         >
           {/* Ambient glow background */}
           <div className="absolute inset-0 opacity-30">
@@ -103,7 +105,7 @@ export function InsightsScreen({
                 isDark ? 'bg-green-500/20 border border-green-500/30' : 'bg-green-100 border border-green-200'
               }`}>
                 <TrendingDown className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
-                <span className={`${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                <span className={`${isDark ? 'text-green-400' : 'text-green-600'}`} data-testid="text-age-difference">
                   {ageDifference.toFixed(1)} years younger than chronological age
                 </span>
               </div>
@@ -163,7 +165,7 @@ export function InsightsScreen({
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <div className={`text-7xl mb-2 bg-gradient-to-br from-teal-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent ${
                     isDark ? '' : 'drop-shadow-lg'
-                  }`} style={{ fontWeight: 600, lineHeight: 1 }}>
+                  }`} style={{ fontWeight: 600, lineHeight: 1 }} data-testid="text-biological-age">
                     {biologicalAge}
                   </div>
                   <span className={`text-lg ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
@@ -171,7 +173,7 @@ export function InsightsScreen({
                   </span>
                   
                   {/* vs chronological age */}
-                  <div className={`mt-4 text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                  <div className={`mt-4 text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`} data-testid="text-chronological-age">
                     vs. {chronologicalAge.toFixed(1)} chronological
                   </div>
                 </div>
@@ -196,6 +198,7 @@ export function InsightsScreen({
           className={`backdrop-blur-xl rounded-3xl border p-6 transition-all hover:scale-[1.01] ${
             isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
           }`}
+          data-testid="card-top-biomarkers"
         >
           <div className="flex items-start justify-between mb-4">
             <div>
@@ -220,6 +223,7 @@ export function InsightsScreen({
                   className={`p-4 rounded-2xl border ${
                     isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
                   }`}
+                  data-testid={`card-biomarker-${biomarker.name.toLowerCase()}`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
@@ -305,6 +309,7 @@ export function InsightsScreen({
           className={`backdrop-blur-xl rounded-3xl border p-6 transition-all hover:scale-[1.01] ${
             isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
           }`}
+          data-testid="card-ai-insights"
         >
           <div className="flex items-start gap-3 mb-4">
             <div className={`p-2 rounded-xl ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
@@ -322,11 +327,11 @@ export function InsightsScreen({
 
           <div className={`p-4 rounded-2xl mb-4 ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
             <div className="flex gap-2 mb-3">
-              <span className="text-2xl">🧠</span>
-              <span className="text-2xl">💡</span>
-              <span className="text-2xl">❤️</span>
+              <Brain className={`w-6 h-6 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+              <Lightbulb className={`w-6 h-6 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+              <Heart className={`w-6 h-6 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
             </div>
-            <p className={`text-sm leading-relaxed ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+            <p className={`text-sm leading-relaxed ${isDark ? 'text-white/80' : 'text-gray-700'}`} data-testid="text-ai-insight">
               {aiInsight}
             </p>
           </div>
@@ -338,6 +343,7 @@ export function InsightsScreen({
                 : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
             }`}
             onClick={onOpenFullReport}
+            data-testid="button-full-report"
           >
             <Sparkles className="w-4 h-4" />
             <span>See full report</span>
@@ -345,10 +351,11 @@ export function InsightsScreen({
         </div>
 
         {/* Disclaimer */}
-        <div className={`p-4 rounded-2xl text-xs ${
+        <div className={`p-4 rounded-2xl text-xs flex gap-2 ${
           isDark ? 'bg-white/5 text-white/40' : 'bg-white/60 text-gray-500'
         }`}>
-          ⚠️ These AI-generated insights are for educational purposes only and should not replace professional medical advice. Always consult with qualified healthcare providers before making changes to your health regimen.
+          <AlertTriangle className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+          <span>These AI-generated insights are for educational purposes only and should not replace professional medical advice. Always consult with qualified healthcare providers before making changes to your health regimen.</span>
         </div>
       </div>
     </div>
