@@ -1,4 +1,4 @@
-# Design Guidelines: Blood Work Tracker MVP
+# Design Guidelines: Flō MVP
 
 ## Design Approach
 **Selected System**: Apple Human Interface Guidelines (HIG)

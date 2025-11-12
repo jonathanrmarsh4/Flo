@@ -6,12 +6,12 @@ export default {
   theme: {
     extend: {
       borderRadius: {
-        lg: ".5625rem", /* 9px */
+        lg: "0.75rem", /* 12px for iOS-style cards */
         md: ".375rem", /* 6px */
         sm: ".1875rem", /* 3px */
       },
       colors: {
-        // Flat / base colors (regular buttons)
+        // Health-focused color palette with iOS aesthetic
         background: "hsl(var(--background) / <alpha-value>)",
         foreground: "hsl(var(--foreground) / <alpha-value>)",
         border: "hsl(var(--border) / <alpha-value>)",
@@ -51,6 +51,10 @@ export default {
           foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
           border: "var(--destructive-border)",
         },
+        success: {
+          DEFAULT: "hsl(var(--success) / <alpha-value>)",
+          foreground: "hsl(var(--success-foreground) / <alpha-value>)",
+        },
         ring: "hsl(var(--ring) / <alpha-value>)",
         chart: {
           "1": "hsl(var(--chart-1) / <alpha-value>)",
@@ -83,9 +87,21 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["var(--font-sans)"],
-        serif: ["var(--font-serif)"],
-        mono: ["var(--font-mono)"],
+        sans: ["-apple-system", "BlinkMacSystemFont", "SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
+        serif: ["Georgia", "serif"],
+        mono: ["SF Mono", "Monaco", "Menlo", "monospace"],
+      },
+      fontSize: {
+        'title-large': ['34px', { lineHeight: '41px', fontWeight: '700' }], // iOS Large Title
+        'title-1': ['28px', { lineHeight: '34px', fontWeight: '400' }],
+        'title-2': ['22px', { lineHeight: '28px', fontWeight: '600' }],
+        'title-3': ['20px', { lineHeight: '25px', fontWeight: '600' }],
+        'body': ['17px', { lineHeight: '22px', fontWeight: '400' }],
+        'callout': ['16px', { lineHeight: '21px', fontWeight: '400' }],
+        'subheadline': ['15px', { lineHeight: '20px', fontWeight: '400' }],
+        'footnote': ['13px', { lineHeight: '18px', fontWeight: '400' }],
+        'caption-1': ['12px', { lineHeight: '16px', fontWeight: '400' }],
+        'caption-2': ['11px', { lineHeight: '13px', fontWeight: '400' }],
       },
       keyframes: {
         "accordion-down": {
