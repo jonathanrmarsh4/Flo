@@ -9,9 +9,13 @@ import {
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
   updateGoalsSchema, 
-  updateAIPersonalizationSchema 
+  updateAIPersonalizationSchema,
+  updateUserRoleSchema,
+  updateUserStatusSchema,
 } from "@shared/schema";
 import { fromError } from "zod-validation-error";
+import { requireAdmin } from "./middleware/rbac";
+import Stripe from "stripe";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -317,6 +321,129 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error updating AI personalization:", error);
       res.status(500).json({ error: "Failed to update AI personalization" });
+    }
+  });
+
+  // Admin routes - User management
+  app.get("/api/admin/users", requireAdmin, async (req: any, res) => {
+    try {
+      const { q, role, status, limit = 50, offset = 0 } = req.query;
+
+      const result = await storage.listUsers({
+        query: q as string,
+        role: role as string,
+        status: status as string,
+        limit: Number(limit),
+        offset: Number(offset),
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error listing users:", error);
+      res.status(500).json({ error: "Failed to list users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/role", requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const userId = req.params.id;
+
+      const validationResult = updateUserRoleSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const user = await storage.updateUserRole(userId, validationResult.data, adminId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/status", requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const userId = req.params.id;
+
+      const validationResult = updateUserStatusSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const user = await storage.updateUserStatus(userId, validationResult.data, adminId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ error: "Failed to update user status" });
+    }
+  });
+
+  app.get("/api/admin/users/:userId/billing", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const billingInfo = await storage.getBillingInfo(userId);
+      res.json(billingInfo);
+    } catch (error) {
+      console.error("Error fetching billing info:", error);
+      res.status(500).json({ error: "Failed to fetch billing info" });
+    }
+  });
+
+  // Stripe billing routes (referenced from javascript_stripe blueprint)
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: "2024-06-20",
+  });
+
+  app.post("/api/create-payment-intent", isAuthenticated, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100),
+        currency: "usd",
+        payment_method_types: ["card", "apple_pay"],
+      });
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      res.status(500).json({ error: "Error creating payment intent: " + error.message });
+    }
+  });
+
+  app.post("/api/create-subscription", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || !user.email) {
+        return res.status(400).json({ error: "User email required" });
+      }
+
+      const { priceId } = req.body;
+      if (!priceId) {
+        return res.status(400).json({ error: "priceId required" });
+      }
+
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: `${user.firstName} ${user.lastName}`,
+      });
+
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [{ price: priceId }],
+        payment_behavior: "default_incomplete",
+        expand: ["latest_invoice.payment_intent"],
+      });
+
+      res.json({
+        subscriptionId: subscription.id,
+        clientSecret: (subscription.latest_invoice as any)?.payment_intent?.client_secret,
+      });
+    } catch (error: any) {
+      return res.status(400).json({ error: error.message });
     }
   });
 
