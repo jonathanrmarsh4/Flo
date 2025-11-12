@@ -10,6 +10,7 @@ import {
   real,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -308,7 +309,9 @@ export const biomarkerTestSessions = pgTable("biomarker_test_sessions", {
   testDate: timestamp("test_date").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_biomarker_test_sessions_user_date").on(table.userId, table.testDate),
+]);
 
 export const biomarkerMeasurements = pgTable("biomarker_measurements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -325,7 +328,11 @@ export const biomarkerMeasurements = pgTable("biomarker_measurements", {
   warnings: text("warnings").array(),
   normalizationContext: jsonb("normalization_context"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_biomarker_measurements_session").on(table.sessionId),
+  index("idx_biomarker_measurements_biomarker").on(table.biomarkerId),
+  uniqueIndex("idx_biomarker_measurements_unique_session_biomarker").on(table.sessionId, table.biomarkerId),
+]);
 
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({

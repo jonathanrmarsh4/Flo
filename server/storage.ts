@@ -12,6 +12,8 @@ import {
   biomarkerSynonyms,
   biomarkerUnits,
   biomarkerReferenceRanges,
+  biomarkerTestSessions,
+  biomarkerMeasurements,
   type User,
   type UpsertUser,
   type Profile,
@@ -33,6 +35,10 @@ import {
   type BiomarkerSynonym,
   type BiomarkerUnit,
   type BiomarkerReferenceRange,
+  type BiomarkerTestSession,
+  type BiomarkerMeasurement,
+  type InsertBiomarkerTestSession,
+  type InsertBiomarkerMeasurement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql } from "drizzle-orm";
@@ -76,6 +82,27 @@ export interface IStorage {
   getUnitConversions(biomarkerId: string): Promise<BiomarkerUnit[]>;
   getReferenceRanges(biomarkerId: string): Promise<BiomarkerReferenceRange[]>;
   getAllBiomarkerData(): Promise<{ biomarkers: Biomarker[]; synonyms: BiomarkerSynonym[]; units: BiomarkerUnit[]; ranges: BiomarkerReferenceRange[] }>;
+  
+  // Biomarker measurements operations
+  createTestSession(session: InsertBiomarkerTestSession): Promise<BiomarkerTestSession>;
+  createMeasurement(measurement: InsertBiomarkerMeasurement): Promise<BiomarkerMeasurement>;
+  createMeasurementWithSession(params: {
+    userId: string;
+    biomarkerId: string;
+    value: number;
+    unit: string;
+    testDate: Date;
+    valueCanonical: number;
+    unitCanonical: string;
+    valueDisplay: string;
+    referenceLow: number | null;
+    referenceHigh: number | null;
+    flags: string[];
+    warnings: string[];
+    normalizationContext: any;
+  }): Promise<{ session: BiomarkerTestSession; measurement: BiomarkerMeasurement }>;
+  getTestSessionsByUser(userId: string): Promise<BiomarkerTestSession[]>;
+  getMeasurementsBySession(sessionId: string): Promise<BiomarkerMeasurement[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -386,6 +413,109 @@ export class DatabaseStorage implements IStorage {
       units,
       ranges,
     };
+  }
+
+  async createTestSession(session: InsertBiomarkerTestSession): Promise<BiomarkerTestSession> {
+    const [newSession] = await db
+      .insert(biomarkerTestSessions)
+      .values(session)
+      .returning();
+    return newSession;
+  }
+
+  async createMeasurement(measurement: InsertBiomarkerMeasurement): Promise<BiomarkerMeasurement> {
+    const [newMeasurement] = await db
+      .insert(biomarkerMeasurements)
+      .values(measurement)
+      .returning();
+    return newMeasurement;
+  }
+
+  async getTestSessionsByUser(userId: string): Promise<BiomarkerTestSession[]> {
+    return await db
+      .select()
+      .from(biomarkerTestSessions)
+      .where(eq(biomarkerTestSessions.userId, userId))
+      .orderBy(desc(biomarkerTestSessions.testDate));
+  }
+
+  async getMeasurementsBySession(sessionId: string): Promise<BiomarkerMeasurement[]> {
+    return await db
+      .select()
+      .from(biomarkerMeasurements)
+      .where(eq(biomarkerMeasurements.sessionId, sessionId));
+  }
+
+  async createMeasurementWithSession(params: {
+    userId: string;
+    biomarkerId: string;
+    value: number;
+    unit: string;
+    testDate: Date;
+    valueCanonical: number;
+    unitCanonical: string;
+    valueDisplay: string;
+    referenceLow: number | null;
+    referenceHigh: number | null;
+    flags: string[];
+    warnings: string[];
+    normalizationContext: any;
+  }): Promise<{ session: BiomarkerTestSession; measurement: BiomarkerMeasurement }> {
+    return await db.transaction(async (tx) => {
+      const testDateStart = new Date(params.testDate);
+      testDateStart.setHours(0, 0, 0, 0);
+      const testDateEnd = new Date(params.testDate);
+      testDateEnd.setHours(23, 59, 59, 999);
+
+      const [existingSession] = await tx
+        .select()
+        .from(biomarkerTestSessions)
+        .where(
+          and(
+            eq(biomarkerTestSessions.userId, params.userId),
+            eq(biomarkerTestSessions.source, "manual"),
+            sql`${biomarkerTestSessions.testDate} >= ${testDateStart}`,
+            sql`${biomarkerTestSessions.testDate} <= ${testDateEnd}`
+          )
+        )
+        .orderBy(desc(biomarkerTestSessions.createdAt))
+        .limit(1);
+
+      let session: BiomarkerTestSession;
+      if (existingSession) {
+        session = existingSession;
+      } else {
+        const [newSession] = await tx
+          .insert(biomarkerTestSessions)
+          .values({
+            userId: params.userId,
+            source: "manual",
+            testDate: params.testDate,
+          })
+          .returning();
+        session = newSession;
+      }
+
+      const [measurement] = await tx
+        .insert(biomarkerMeasurements)
+        .values({
+          sessionId: session.id,
+          biomarkerId: params.biomarkerId,
+          valueRaw: params.value,
+          unitRaw: params.unit,
+          valueCanonical: params.valueCanonical,
+          unitCanonical: params.unitCanonical,
+          valueDisplay: params.valueDisplay,
+          referenceLow: params.referenceLow,
+          referenceHigh: params.referenceHigh,
+          flags: params.flags,
+          warnings: params.warnings,
+          normalizationContext: params.normalizationContext,
+        })
+        .returning();
+
+      return { session, measurement };
+    });
   }
 }
 

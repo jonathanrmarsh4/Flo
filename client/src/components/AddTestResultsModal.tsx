@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
 interface Biomarker {
   id: string;
@@ -90,45 +91,34 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     if (!selectedBiomarkerData || !value || !unit) return;
 
     try {
-      // Parse the value as a number
       const numericValue = parseFloat(value);
       if (isNaN(numericValue)) {
         console.error("Invalid numeric value");
         return;
       }
 
-      // Call normalization API to convert to canonical units
-      const response = await fetch("/api/normalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: selectedBiomarkerData.name,
-          value: numericValue,
-          unit: unit,
-        }),
+      const response = await apiRequest("POST", "/api/measurements", {
+        biomarkerId: selectedBiomarker,
+        value: numericValue,
+        unit: unit,
+        testDate: new Date(testDate).toISOString(),
       });
 
       if (!response.ok) {
-        console.error("Normalization failed");
+        console.error("Failed to save measurement");
         return;
       }
 
-      const normalizedResult = await response.json();
+      const result = await response.json();
       
-      // TODO: Save to database when endpoint is available
       console.log({
-        biomarker: selectedBiomarker,
-        biomarkerName: selectedBiomarkerData.name,
-        originalValue: numericValue,
-        originalUnit: unit,
-        normalizedValue: normalizedResult.value_canonical,
-        canonicalUnit: normalizedResult.unit_canonical,
-        displayValue: normalizedResult.value_display,
-        referenceRange: normalizedResult.ref_range,
-        flags: normalizedResult.flags,
-        warnings: normalizedResult.warnings,
-        testDate,
+        session: result.session,
+        measurement: result.measurement,
+        normalized: result.normalized,
       });
+
+      queryClient.invalidateQueries({ queryKey: ['/api/measurements'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/blood-work'] });
 
       onClose();
     } catch (error) {

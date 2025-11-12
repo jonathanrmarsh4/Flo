@@ -18,6 +18,7 @@ import {
   getBiomarkerUnitsQuerySchema,
   getBiomarkerReferenceRangeQuerySchema,
 } from "@shared/schema";
+import { z } from "zod";
 import { fromError } from "zod-validation-error";
 import { requireAdmin } from "./middleware/rbac";
 import Stripe from "stripe";
@@ -657,6 +658,73 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error fetching reference range:", error);
       res.status(500).json({ error: "Failed to fetch reference range" });
+    }
+  });
+
+  // Biomarker measurement persistence routes
+  app.post("/api/measurements", isAuthenticated, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        biomarkerId: z.string().uuid(),
+        value: z.number().finite(),
+        unit: z.string().min(1),
+        testDate: z.string().datetime(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { biomarkerId, value, unit, testDate } = validationResult.data;
+      const userId = req.user.claims.sub;
+
+      const { biomarkers, synonyms, units, ranges } = await storage.getAllBiomarkerData();
+
+      const biomarker = biomarkers.find(b => b.id === biomarkerId);
+      if (!biomarker) {
+        return res.status(404).json({ error: "Biomarker not found" });
+      }
+
+      const { normalizeMeasurement } = await import("@shared/domain/biomarkers");
+
+      const normalized = normalizeMeasurement(
+        {
+          name: biomarker.name,
+          value,
+          unit,
+        },
+        biomarkers,
+        synonyms,
+        units,
+        ranges
+      );
+
+      const result = await storage.createMeasurementWithSession({
+        userId,
+        biomarkerId,
+        value,
+        unit,
+        testDate: new Date(testDate),
+        valueCanonical: normalized.value_canonical,
+        unitCanonical: normalized.unit_canonical,
+        valueDisplay: normalized.value_display,
+        referenceLow: normalized.ref_range.low,
+        referenceHigh: normalized.ref_range.high,
+        flags: normalized.flags,
+        warnings: normalized.warnings,
+        normalizationContext: normalized.context_used,
+      });
+
+      res.json({
+        session: result.session,
+        measurement: result.measurement,
+        normalized,
+      });
+    } catch (error) {
+      console.error("Error creating measurement:", error);
+      res.status(500).json({ error: "Failed to create measurement" });
     }
   });
 
