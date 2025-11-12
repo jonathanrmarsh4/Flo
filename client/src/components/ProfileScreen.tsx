@@ -29,6 +29,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   
   // Local state for custom focus area input
   const [newFocusArea, setNewFocusArea] = useState('');
+  
+  // Safe defaults to prevent spreading undefined
+  const currentHealthBaseline = profile?.healthBaseline ?? {};
+  const currentAIPersonalization = profile?.aiPersonalization ?? {};
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: Date | string | null | undefined): number | null => {
@@ -326,42 +330,166 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
 
           <div className="space-y-3">
+            {/* Activity Level */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Activity Level</span>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-activity">
-                {profile?.healthBaseline?.activityLevel ?? 'Not set'}
-              </span>
+              {isEditing ? (
+                <Select
+                  value={profile?.healthBaseline?.activityLevel ?? ''}
+                  onValueChange={(value) => updateHealthBaseline.mutate({ 
+                    healthBaseline: {
+                      ...currentHealthBaseline,
+                      activityLevel: value as 'Sedentary' | 'Light' | 'Moderate' | 'Active' | 'Very Active'
+                    }
+                  })}
+                >
+                  <SelectTrigger className="w-40" data-testid="select-activity">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Sedentary">Sedentary</SelectItem>
+                    <SelectItem value="Light">Light</SelectItem>
+                    <SelectItem value="Moderate">Moderate</SelectItem>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Very Active">Very Active</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-activity">
+                  {profile?.healthBaseline?.activityLevel ?? 'Not set'}
+                </span>
+              )}
             </div>
 
+            {/* Sleep */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <Moon className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Sleep</span>
               </div>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sleep">
-                {profile?.healthBaseline?.sleepHours ? `${profile.healthBaseline.sleepHours!} hours/night` : 'Not set'}
-              </span>
+              {isEditing ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    placeholder="7"
+                    min="0"
+                    max="24"
+                    step="0.5"
+                    value={profile?.healthBaseline?.sleepHours ?? ''}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        updateHealthBaseline.mutate({ 
+                          healthBaseline: {
+                            ...currentHealthBaseline,
+                            sleepHours: value
+                          }
+                        });
+                      }
+                    }}
+                    className="w-20"
+                    data-testid="input-sleep"
+                  />
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>hrs/night</span>
+                </div>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sleep">
+                  {profile?.healthBaseline?.sleepHours ? `${profile.healthBaseline.sleepHours!} hours/night` : 'Not set'}
+                </span>
+              )}
             </div>
 
+            {/* Diet Type */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Diet Type</span>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-diet">
-                {profile?.healthBaseline?.dietType ?? 'Not set'}
-              </span>
+              {isEditing ? (
+                <Select
+                  value={profile?.healthBaseline?.dietType ?? ''}
+                  onValueChange={(value) => updateHealthBaseline.mutate({ 
+                    healthBaseline: {
+                      ...currentHealthBaseline,
+                      dietType: value as 'Omnivore' | 'Vegetarian' | 'Vegan' | 'Pescatarian' | 'Keto' | 'Paleo' | 'Mediterranean' | 'Other'
+                    }
+                  })}
+                >
+                  <SelectTrigger className="w-40" data-testid="select-diet">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Omnivore">Omnivore</SelectItem>
+                    <SelectItem value="Vegetarian">Vegetarian</SelectItem>
+                    <SelectItem value="Vegan">Vegan</SelectItem>
+                    <SelectItem value="Pescatarian">Pescatarian</SelectItem>
+                    <SelectItem value="Keto">Keto</SelectItem>
+                    <SelectItem value="Paleo">Paleo</SelectItem>
+                    <SelectItem value="Mediterranean">Mediterranean</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-diet">
+                  {profile?.healthBaseline?.dietType ?? 'Not set'}
+                </span>
+              )}
             </div>
 
+            {/* Smoking */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Smoking</span>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-smoking">
-                {profile?.healthBaseline?.smokingStatus ?? 'Not set'}
-              </span>
+              {isEditing ? (
+                <Select
+                  value={profile?.healthBaseline?.smokingStatus ?? ''}
+                  onValueChange={(value) => updateHealthBaseline.mutate({ 
+                    healthBaseline: {
+                      ...currentHealthBaseline,
+                      smokingStatus: value as 'Never' | 'Former' | 'Current'
+                    }
+                  })}
+                >
+                  <SelectTrigger className="w-32" data-testid="select-smoking">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Never">Never</SelectItem>
+                    <SelectItem value="Former">Former</SelectItem>
+                    <SelectItem value="Current">Current</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-smoking">
+                  {profile?.healthBaseline?.smokingStatus ?? 'Not set'}
+                </span>
+              )}
             </div>
 
+            {/* Alcohol */}
             <div className="flex items-center justify-between py-3">
               <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Alcohol</span>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-alcohol">
-                {profile?.healthBaseline?.alcoholIntake ?? 'Not set'}
-              </span>
+              {isEditing ? (
+                <Select
+                  value={profile?.healthBaseline?.alcoholIntake ?? ''}
+                  onValueChange={(value) => updateHealthBaseline.mutate({ 
+                    healthBaseline: {
+                      ...currentHealthBaseline,
+                      alcoholIntake: value as 'None' | 'Occasionally' | 'Moderately' | 'Heavily'
+                    }
+                  })}
+                >
+                  <SelectTrigger className="w-32" data-testid="select-alcohol">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="None">None</SelectItem>
+                    <SelectItem value="Occasionally">Occasionally</SelectItem>
+                    <SelectItem value="Moderately">Moderately</SelectItem>
+                    <SelectItem value="Heavily">Heavily</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-alcohol">
+                  {profile?.healthBaseline?.alcoholIntake ?? 'Not set'}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -425,7 +553,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                       if (isEditing) {
                         updateAIPersonalization.mutate({
                           aiPersonalization: {
-                            ...profile?.aiPersonalization,
+                            ...currentAIPersonalization,
                             tone: tone as 'Casual' | 'Professional' | 'Scientific'
                           }
                         });
@@ -465,7 +593,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                       if (isEditing) {
                         updateAIPersonalization.mutate({
                           aiPersonalization: {
-                            ...profile?.aiPersonalization,
+                            ...currentAIPersonalization,
                             insightsFrequency: freq as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'
                           }
                         });
@@ -514,7 +642,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                             const newAreas = currentAreas.filter((_, i) => i !== idx);
                             updateAIPersonalization.mutate({
                               aiPersonalization: {
-                                ...profile?.aiPersonalization,
+                                ...currentAIPersonalization,
                                 focusAreas: newAreas
                               }
                             });
@@ -544,7 +672,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                         const currentAreas = profile?.aiPersonalization?.focusAreas ?? [];
                         updateAIPersonalization.mutate({
                           aiPersonalization: {
-                            ...profile?.aiPersonalization,
+                            ...currentAIPersonalization,
                             focusAreas: [...currentAreas, newFocusArea.trim()]
                           }
                         });
@@ -561,7 +689,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                         const currentAreas = profile?.aiPersonalization?.focusAreas ?? [];
                         updateAIPersonalization.mutate({
                           aiPersonalization: {
-                            ...profile?.aiPersonalization,
+                            ...currentAIPersonalization,
                             focusAreas: [...currentAreas, newFocusArea.trim()]
                           }
                         });
