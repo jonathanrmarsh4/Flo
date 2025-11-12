@@ -27,8 +27,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const updateGoals = useUpdateGoals();
   const updateAIPersonalization = useUpdateAIPersonalization();
   
-  // Local state for custom focus area input
+  // Local state for custom focus area input and health goal input
   const [newFocusArea, setNewFocusArea] = useState('');
+  const [newGoal, setNewGoal] = useState('');
   
   // Safe defaults to prevent spreading undefined
   const currentHealthBaseline = profile?.healthBaseline ?? {};
@@ -505,19 +506,32 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
             </h2>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-2">
             {(profile?.goals ?? []).length > 0 ? (
               (profile?.goals ?? []).map((goal, idx) => (
                 <div 
                   key={idx}
-                  className={`px-3 py-2 rounded-full text-xs ${
+                  className={`px-3 py-2 rounded-full text-xs flex items-center gap-2 ${
                     isDark 
                       ? 'bg-gradient-to-r from-teal-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30' 
                       : 'bg-gradient-to-r from-teal-100 to-blue-100 text-cyan-700 border border-cyan-200'
                   }`}
                   data-testid={`badge-goal-${idx}`}
                 >
-                  {goal}
+                  <span>{goal}</span>
+                  {isEditing && (
+                    <button
+                      onClick={() => {
+                        const currentGoals = profile?.goals ?? [];
+                        const newGoals = currentGoals.filter((_, i) => i !== idx);
+                        updateGoals.mutate({ goals: newGoals });
+                      }}
+                      className="hover:opacity-70"
+                      data-testid={`button-remove-goal-${idx}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               ))
             ) : (
@@ -526,6 +540,37 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               </span>
             )}
           </div>
+          {isEditing && (
+            <div className="flex gap-2 mt-2">
+              <Input
+                placeholder="e.g., Improve Sleep Quality, Lower Cholesterol"
+                value={newGoal}
+                onChange={(e) => setNewGoal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newGoal.trim()) {
+                    const currentGoals = profile?.goals ?? [];
+                    updateGoals.mutate({ goals: [...currentGoals, newGoal.trim()] });
+                    setNewGoal('');
+                  }
+                }}
+                className="flex-1"
+                data-testid="input-new-goal"
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (newGoal.trim()) {
+                    const currentGoals = profile?.goals ?? [];
+                    updateGoals.mutate({ goals: [...currentGoals, newGoal.trim()] });
+                    setNewGoal('');
+                  }
+                }}
+                data-testid="button-add-goal"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* AI Personalization */}
