@@ -4,7 +4,6 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { BottomNav } from "@/components/BottomNav";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -21,7 +20,8 @@ export default function UploadPage() {
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
       // Get upload URL and object path
-      const { uploadURL, objectPath } = await apiRequest("POST", "/api/objects/upload", {});
+      const uploadRes = await apiRequest("POST", "/api/objects/upload", {});
+      const { uploadURL, objectPath } = await uploadRes.json();
 
       // Upload file
       setUploadProgress(0);
@@ -40,10 +40,11 @@ export default function UploadPage() {
       setUploadProgress(100);
 
       // Analyze the file using the object path
-      return await apiRequest("POST", "/api/blood-work/analyze", {
+      const analyzeRes = await apiRequest("POST", "/api/blood-work/analyze", {
         fileUrl: objectPath,
         fileName: file.name,
       });
+      return await analyzeRes.json();
     },
     onSuccess: () => {
       setUploadProgress(null);
@@ -208,8 +209,6 @@ export default function UploadPage() {
           </ol>
         </Card>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

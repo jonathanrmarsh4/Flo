@@ -4,7 +4,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BottomNav } from "@/components/BottomNav";
 import { TrendingUp, TrendingDown, Activity, Heart, Droplet, Zap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import type { BloodWorkRecord, AnalysisResult } from "@shared/schema";
@@ -152,8 +151,6 @@ export default function Home() {
           </div>
         )}
       </div>
-
-      <BottomNav />
     </div>
   );
 }
