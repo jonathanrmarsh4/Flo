@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { FloBottomNav } from "@/components/FloBottomNav";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
@@ -209,6 +210,7 @@ export default function UploadPage() {
           </ol>
         </Card>
       </div>
+      <FloBottomNav />
     </div>
   );
 }

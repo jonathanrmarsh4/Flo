@@ -3,6 +3,7 @@ import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown } f
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { FloLogo } from '@/components/FloLogo';
+import { FloBottomNav } from '@/components/FloBottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   mapAnalysisToBiomarkerReadings, 
@@ -211,15 +212,7 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Floating Action Button */}
-      <Link href="/upload">
-        <button 
-          className="fixed bottom-24 right-4 w-14 h-14 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white rounded-full shadow-lg shadow-cyan-500/50 hover:scale-110 transition-transform flex items-center justify-center"
-          data-testid="button-add-blood-work"
-        >
-          <Plus className="w-6 h-6" />
-        </button>
-      </Link>
+      <FloBottomNav />
     </div>
   );
 }

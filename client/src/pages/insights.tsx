@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { InsightsScreen } from '@/components/InsightsScreen';
+import { FloBottomNav } from '@/components/FloBottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   mapAnalysisToBiomarkerReadings,
@@ -52,6 +53,7 @@ export default function Insights() {
         topBiomarkers={topBiomarkers}
         aiInsight={aiInsight}
       />
+      <FloBottomNav />
     </div>
   );
 }

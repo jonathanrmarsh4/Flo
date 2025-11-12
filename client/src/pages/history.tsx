@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FloBottomNav } from "@/components/FloBottomNav";
 import { Clock, FileText, TrendingUp, TrendingDown } from "lucide-react";
 import { format } from "date-fns";
 import type { BloodWorkRecord, AnalysisResult } from "@shared/schema";
@@ -114,6 +115,7 @@ export default function History() {
           </Card>
         )}
       </div>
+      <FloBottomNav />
     </div>
   );
 }

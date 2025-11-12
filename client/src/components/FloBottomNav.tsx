@@ -1,0 +1,56 @@
+import { Link, useLocation } from "wouter";
+import { User, Lightbulb, Plus } from "lucide-react";
+import { FloLogo } from "./FloLogo";
+
+export function FloBottomNav() {
+  const [location] = useLocation();
+
+  const isActive = (path: string) => location === path;
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1f3a] border-t border-white/10 pb-safe">
+      <div className="max-w-md mx-auto px-6 py-3">
+        <div className="flex items-center justify-between">
+          {/* Profile */}
+          <Link href="/profile">
+            <button
+              data-testid="nav-profile"
+              className={`flex flex-col items-center gap-1 min-w-[60px] ${
+                isActive("/profile") ? "text-[#00d4aa]" : "text-gray-400"
+              }`}
+            >
+              <User className="w-6 h-6" />
+              <span className="text-xs font-medium">Profile</span>
+            </button>
+          </Link>
+
+          {/* Add (Center) */}
+          <Link href="/upload">
+            <button
+              data-testid="nav-add"
+              className="flex flex-col items-center -mt-6"
+            >
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00d4aa] via-[#00a8ff] to-[#0066ff] flex items-center justify-center shadow-lg">
+                <Plus className="w-8 h-8 text-white" />
+              </div>
+              <span className="text-xs font-medium text-gray-400 mt-1">Add</span>
+            </button>
+          </Link>
+
+          {/* Insights */}
+          <Link href="/insights">
+            <button
+              data-testid="nav-insights"
+              className={`flex flex-col items-center gap-1 min-w-[60px] ${
+                isActive("/insights") ? "text-[#00d4aa]" : "text-gray-400"
+              }`}
+            >
+              <Lightbulb className="w-6 h-6" />
+              <span className="text-xs font-medium">Insights</span>
+            </button>
+          </Link>
+        </div>
+      </div>
+    </nav>
+  );
+}

@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { FloBottomNav } from "@/components/FloBottomNav";
 import { User, Mail, LogOut, Shield } from "lucide-react";
 
 export default function Profile() {
@@ -91,6 +92,7 @@ export default function Profile() {
           Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
         </p>
       </div>
+      <FloBottomNav />
     </div>
   );
 }

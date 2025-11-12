@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { FullReportScreen } from '@/components/FullReportScreen';
+import { FloBottomNav } from '@/components/FloBottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { getFullReportData } from '@/lib/flo-data-adapters';
 import type { AnalysisResult } from '@shared/schema';
@@ -37,6 +38,7 @@ export default function Report() {
         onClose={handleBack}
         reportData={reportData}
       />
+      <FloBottomNav />
     </div>
   );
 }
