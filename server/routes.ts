@@ -10,8 +10,8 @@ import {
   updateHealthBaselineSchema, 
   updateGoalsSchema, 
   updateAIPersonalizationSchema,
-  updateUserRoleSchema,
-  updateUserStatusSchema,
+  listUsersQuerySchema,
+  updateUserSchema,
 } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { requireAdmin } from "./middleware/rbac";
@@ -327,14 +327,21 @@ Inflammation Markers:
   // Admin routes - User management
   app.get("/api/admin/users", requireAdmin, async (req: any, res) => {
     try {
-      const { q, role, status, limit = 50, offset = 0 } = req.query;
+      // Validate query parameters
+      const validationResult = listUsersQuerySchema.safeParse(req.query);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { q, role, status, limit, offset } = validationResult.data;
 
       const result = await storage.listUsers({
-        query: q as string,
-        role: role as string,
-        status: status as string,
-        limit: Number(limit),
-        offset: Number(offset),
+        query: q,
+        role,
+        status,
+        limit,
+        offset,
       });
 
       res.json(result);
@@ -344,41 +351,29 @@ Inflammation Markers:
     }
   });
 
-  app.patch("/api/admin/users/:id/role", requireAdmin, async (req: any, res) => {
+  // Consolidated PATCH endpoint for updating user role and/or status
+  app.patch("/api/admin/users/:id", requireAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
       const userId = req.params.id;
 
-      const validationResult = updateUserRoleSchema.safeParse(req.body);
+      // Validate request body
+      const validationResult = updateUserSchema.safeParse(req.body);
       if (!validationResult.success) {
         const validationError = fromError(validationResult.error);
         return res.status(400).json({ error: validationError.toString() });
       }
 
-      const user = await storage.updateUserRole(userId, validationResult.data, adminId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error updating user role:", error);
-      res.status(500).json({ error: "Failed to update user role" });
-    }
-  });
-
-  app.patch("/api/admin/users/:id/status", requireAdmin, async (req: any, res) => {
-    try {
-      const adminId = req.user.claims.sub;
-      const userId = req.params.id;
-
-      const validationResult = updateUserStatusSchema.safeParse(req.body);
-      if (!validationResult.success) {
-        const validationError = fromError(validationResult.error);
-        return res.status(400).json({ error: validationError.toString() });
+      const user = await storage.updateUser(userId, validationResult.data, adminId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
       }
-
-      const user = await storage.updateUserStatus(userId, validationResult.data, adminId);
+      
       res.json(user);
     } catch (error) {
-      console.error("Error updating user status:", error);
-      res.status(500).json({ error: "Failed to update user status" });
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Failed to update user" });
     }
   });
 

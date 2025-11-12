@@ -20,8 +20,7 @@ import {
   type InsertBloodWorkRecord,
   type AnalysisResult,
   type InsertAnalysisResult,
-  type UpdateUserRole,
-  type UpdateUserStatus,
+  type UpdateUser,
   type BillingCustomer,
   type Subscription,
   type Payment,
@@ -57,12 +56,11 @@ export interface IStorage {
   
   // Admin operations
   listUsers(params: { query?: string; role?: string; status?: string; limit?: number; offset?: number }): Promise<{ users: User[]; total: number }>;
-  updateUserRole(userId: string, data: UpdateUserRole, adminId: string): Promise<User>;
-  updateUserStatus(userId: string, data: UpdateUserStatus, adminId: string): Promise<User>;
+  updateUser(userId: string, data: UpdateUser, adminId: string): Promise<User | null>;
   
   // Billing operations
   getBillingInfo(userId: string): Promise<{ customer?: BillingCustomer; subscription?: Subscription; lastPayment?: Payment }>;
-  createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any }): Promise<void>;
+  createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any; actionMetadata?: any }): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -234,35 +232,31 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async updateUserRole(userId: string, data: UpdateUserRole, adminId: string): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({ role: data.role as any, updatedAt: new Date() })
-      .where(eq(users.id, userId))
-      .returning();
-    
-    await this.createAuditLog({
-      adminId,
-      targetUserId: userId,
-      action: 'update_role',
-      changes: { role: data.role },
-    });
-    
-    return user;
-  }
+  async updateUser(userId: string, data: UpdateUser, adminId: string): Promise<User | null> {
+    const updateData: any = { updatedAt: new Date() };
+    if (data.role !== undefined) {
+      updateData.role = data.role;
+    }
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+    }
 
-  async updateUserStatus(userId: string, data: UpdateUserStatus, adminId: string): Promise<User> {
     const [user] = await db
       .update(users)
-      .set({ status: data.status as any, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(users.id, userId))
       .returning();
+    
+    if (!user) {
+      return null;
+    }
     
     await this.createAuditLog({
       adminId,
       targetUserId: userId,
-      action: 'update_status',
-      changes: { status: data.status },
+      action: 'update_user',
+      changes: data,
+      actionMetadata: { role: data.role, status: data.status },
     });
     
     return user;
@@ -300,12 +294,13 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any }): Promise<void> {
+  async createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any; actionMetadata?: any }): Promise<void> {
     await db.insert(auditLogs).values({
       adminId: log.adminId,
       targetUserId: log.targetUserId,
       action: log.action,
       changes: log.changes,
+      actionMetadata: log.actionMetadata,
     });
   }
 }

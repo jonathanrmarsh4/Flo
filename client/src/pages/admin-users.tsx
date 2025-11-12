@@ -18,7 +18,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Shield, User } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Shield, User, Users } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { User as UserType } from "@shared/schema";
@@ -43,41 +44,22 @@ export default function AdminUsers() {
     },
   });
 
-  const updateRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/role`, { role });
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ userId, data }: { userId: string; data: { role?: string; status?: string } }) => {
+      return apiRequest("PATCH", `/api/admin/users/${userId}`, data);
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      const updated = variables.data.role ? "role" : "status";
       toast({
-        title: "Role Updated",
-        description: "User role has been successfully updated",
+        title: `User ${updated} updated`,
+        description: `User ${updated} has been successfully updated`,
       });
     },
     onError: () => {
       toast({
         title: "Update Failed",
-        description: "Failed to update user role",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
-      return apiRequest("PATCH", `/api/admin/users/${userId}/status`, { status });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "Status Updated",
-        description: "User status has been successfully updated",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Update Failed",
-        description: "Failed to update user status",
+        description: "Failed to update user",
         variant: "destructive",
       });
     },
@@ -152,15 +134,61 @@ export default function AdminUsers() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    Loading users...
-                  </TableCell>
-                </TableRow>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="w-4 h-4 rounded-full" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-48" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-9 w-[120px]" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-9 w-[120px]" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-24" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Skeleton className="h-8 w-28 ml-auto" />
+                    </TableCell>
+                  </TableRow>
+                ))
               ) : data?.users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
-                    No users found
+                  <TableCell colSpan={6} className="py-16">
+                    <div className="flex flex-col items-center justify-center gap-3 text-center">
+                      <div className="rounded-full bg-muted p-4">
+                        <Users className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-semibold">No users found</h3>
+                        <p className="text-sm text-muted-foreground max-w-sm">
+                          {searchQuery || roleFilter || statusFilter
+                            ? "Try adjusting your search filters to find what you're looking for."
+                            : "No users have been registered yet. Users will appear here once they sign up."}
+                        </p>
+                      </div>
+                      {(searchQuery || roleFilter || statusFilter) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setRoleFilter("");
+                            setStatusFilter("");
+                          }}
+                          data-testid="button-clear-filters"
+                        >
+                          Clear Filters
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -177,9 +205,9 @@ export default function AdminUsers() {
                       <Select
                         value={user.role}
                         onValueChange={(role) =>
-                          updateRoleMutation.mutate({ userId: user.id, role })
+                          updateUserMutation.mutate({ userId: user.id, data: { role } })
                         }
-                        disabled={updateRoleMutation.isPending}
+                        disabled={updateUserMutation.isPending}
                       >
                         <SelectTrigger className="w-[120px]" data-testid={`select-role-${user.id}`}>
                           <SelectValue />
@@ -195,9 +223,9 @@ export default function AdminUsers() {
                       <Select
                         value={user.status}
                         onValueChange={(status) =>
-                          updateStatusMutation.mutate({ userId: user.id, status })
+                          updateUserMutation.mutate({ userId: user.id, data: { status } })
                         }
-                        disabled={updateStatusMutation.isPending}
+                        disabled={updateUserMutation.isPending}
                       >
                         <SelectTrigger className="w-[120px]" data-testid={`select-status-${user.id}`}>
                           <SelectValue />

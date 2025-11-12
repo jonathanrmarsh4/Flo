@@ -225,6 +225,8 @@ export const payments = pgTable("payments", {
   paymentMethod: text("payment_method"),
   last4: varchar("last4", { length: 4 }),
   brand: varchar("brand"),
+  applePayTransactionId: varchar("apple_pay_transaction_id"),
+  walletType: varchar("wallet_type"),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -236,6 +238,7 @@ export const auditLogs = pgTable("audit_logs", {
   targetUserId: varchar("target_user_id").references(() => users.id),
   action: text("action").notNull(),
   changes: jsonb("changes"),
+  actionMetadata: jsonb("action_metadata"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -349,7 +352,51 @@ export const updateUserStatusSchema = z.object({
 
 export type UpdateUserRole = z.infer<typeof updateUserRoleSchema>;
 export type UpdateUserStatus = z.infer<typeof updateUserStatusSchema>;
+
+// Billing schemas
+export const insertBillingCustomerSchema = createInsertSchema(billingCustomers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBillingCustomer = z.infer<typeof insertBillingCustomerSchema>;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type BillingCustomer = typeof billingCustomers.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+
+// Query params validation schemas
+export const listUsersQuerySchema = z.object({
+  q: z.string().optional(),
+  role: UserRoleEnum.optional(),
+  status: UserStatusEnum.optional(),
+  limit: z.coerce.number().min(1).max(100).optional().default(50),
+  offset: z.coerce.number().min(0).optional().default(0),
+});
+
+export const updateUserSchema = z.object({
+  role: UserRoleEnum.optional(),
+  status: UserStatusEnum.optional(),
+}).refine(data => data.role !== undefined || data.status !== undefined, {
+  message: "At least one of 'role' or 'status' must be provided",
+});
+
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
+export type UpdateUser = z.infer<typeof updateUserSchema>;

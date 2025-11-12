@@ -15,7 +15,11 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   }
   
   const user = req.user as User;
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role === undefined || user.role === null) {
+    return res.status(403).json({ error: 'Forbidden - Invalid user role' });
+  }
+  
+  if (user.role !== 'admin') {
     return res.status(403).json({ error: 'Forbidden - Admin access required' });
   }
   

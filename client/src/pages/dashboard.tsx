@@ -83,15 +83,15 @@ export default function Dashboard() {
             <FloLogo size={32} showText={true} className={isDark ? 'text-white' : 'text-gray-900'} />
             <div className="flex items-center gap-2">
               {user?.role === 'admin' && (
-                <Link href="/admin/users">
-                  <button 
-                    className={`p-2 rounded-lg transition-colors ${
-                      isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                    }`}
-                    data-testid="button-admin"
-                  >
-                    <Shield className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-                  </button>
+                <Link 
+                  href="/admin/users"
+                  className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
+                    isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                  }`}
+                  data-testid="link-admin"
+                  aria-label="Admin User Management"
+                >
+                  <Shield className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 </Link>
               )}
               <button 
