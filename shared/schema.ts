@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { relations } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -38,6 +39,11 @@ export const smokingStatusEnum = pgEnum("smoking_status", ["Never", "Former", "C
 export const alcoholIntakeEnum = pgEnum("alcohol_intake", ["None", "Occasional", "Moderate", "Heavy"]);
 export const communicationToneEnum = pgEnum("communication_tone", ["Casual", "Professional", "Scientific"]);
 export const insightsFrequencyEnum = pgEnum("insights_frequency", ["Daily", "Weekly", "Bi-weekly", "Monthly"]);
+
+// Biomarker enums
+export const decimalsPolicyEnum = pgEnum("decimals_policy", ["ceil", "floor", "round"]);
+export const conversionTypeEnum = pgEnum("conversion_type", ["ratio", "affine"]);
+export const referenceSexEnum = pgEnum("reference_sex", ["any", "male", "female"]);
 
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
@@ -82,6 +88,10 @@ export const FocusAreaEnum = z.enum([
   "Nutrition",
   "Immunity"
 ]);
+
+export const DecimalsPolicyEnum = z.enum(["ceil", "floor", "round"]);
+export const ConversionTypeEnum = z.enum(["ratio", "affine"]);
+export const ReferenceSexEnum = z.enum(["any", "male", "female"]);
 
 // Health baseline schema (for JSONB validation)
 export const healthBaselineSchema = z.object({
@@ -242,6 +252,55 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Biomarker dictionary tables
+export const biomarkers = pgTable("biomarkers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  canonicalUnit: text("canonical_unit").notNull(),
+  displayUnitPreference: text("display_unit_preference"),
+  precision: integer("precision").default(1),
+  decimalsPolicy: decimalsPolicyEnum("decimals_policy").default("round"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const biomarkerSynonyms = pgTable("biomarker_synonyms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  exact: boolean("exact").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const biomarkerUnits = pgTable("biomarker_units", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  fromUnit: text("from_unit").notNull(),
+  toUnit: text("to_unit").notNull(),
+  conversionType: conversionTypeEnum("conversion_type").notNull(),
+  multiplier: real("multiplier").notNull(),
+  offset: real("offset").default(0).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const biomarkerReferenceRanges = pgTable("biomarker_reference_ranges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  unit: text("unit").notNull(),
+  sex: referenceSexEnum("sex").default("any"),
+  ageMinY: real("age_min_y"),
+  ageMaxY: real("age_max_y"),
+  context: jsonb("context"),
+  low: real("low"),
+  high: real("high"),
+  criticalLow: real("critical_low"),
+  criticalHigh: real("critical_high"),
+  labId: text("lab_id"),
+  source: text("source"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
@@ -273,6 +332,33 @@ export const analysisResultsRelations = relations(analysisResults, ({ one }) => 
   record: one(bloodWorkRecords, {
     fields: [analysisResults.recordId],
     references: [bloodWorkRecords.id],
+  }),
+}));
+
+export const biomarkersRelations = relations(biomarkers, ({ many }) => ({
+  synonyms: many(biomarkerSynonyms),
+  units: many(biomarkerUnits),
+  referenceRanges: many(biomarkerReferenceRanges),
+}));
+
+export const biomarkerSynonymsRelations = relations(biomarkerSynonyms, ({ one }) => ({
+  biomarker: one(biomarkers, {
+    fields: [biomarkerSynonyms.biomarkerId],
+    references: [biomarkers.id],
+  }),
+}));
+
+export const biomarkerUnitsRelations = relations(biomarkerUnits, ({ one }) => ({
+  biomarker: one(biomarkers, {
+    fields: [biomarkerUnits.biomarkerId],
+    references: [biomarkers.id],
+  }),
+}));
+
+export const biomarkerReferenceRangesRelations = relations(biomarkerReferenceRanges, ({ one }) => ({
+  biomarker: one(biomarkers, {
+    fields: [biomarkerReferenceRanges.biomarkerId],
+    references: [biomarkers.id],
   }),
 }));
 
@@ -400,3 +486,86 @@ export const updateUserSchema = z.object({
 
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
+
+// Biomarker schemas
+export const insertBiomarkerSchema = createInsertSchema(biomarkers, {
+  name: z.string().min(1),
+  category: z.string().min(1),
+  canonicalUnit: z.string().min(1),
+  displayUnitPreference: z.string().optional(),
+  precision: z.number().int().min(0).optional(),
+  decimalsPolicy: DecimalsPolicyEnum.optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBiomarkerSynonymSchema = createInsertSchema(biomarkerSynonyms, {
+  biomarkerId: z.string().uuid(),
+  label: z.string().min(1),
+  exact: z.boolean().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBiomarkerUnitSchema = createInsertSchema(biomarkerUnits, {
+  biomarkerId: z.string().uuid(),
+  fromUnit: z.string().min(1),
+  toUnit: z.string().min(1),
+  conversionType: ConversionTypeEnum,
+  multiplier: z.number().finite("Multiplier must be a finite number"),
+  offset: z.number().finite("Offset must be a finite number").optional(),
+  notes: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBiomarkerReferenceRangeSchema = createInsertSchema(biomarkerReferenceRanges, {
+  biomarkerId: z.string().uuid(),
+  unit: z.string().min(1),
+  sex: ReferenceSexEnum.optional(),
+  ageMinY: z.number().min(0).optional(),
+  ageMaxY: z.number().min(0).optional(),
+  context: z.record(z.any()).optional(),
+  low: z.number().optional(),
+  high: z.number().optional(),
+  criticalLow: z.number().optional(),
+  criticalHigh: z.number().optional(),
+  labId: z.string().optional(),
+  source: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBiomarker = z.infer<typeof insertBiomarkerSchema>;
+export type InsertBiomarkerSynonym = z.infer<typeof insertBiomarkerSynonymSchema>;
+export type InsertBiomarkerUnit = z.infer<typeof insertBiomarkerUnitSchema>;
+export type InsertBiomarkerReferenceRange = z.infer<typeof insertBiomarkerReferenceRangeSchema>;
+
+export type Biomarker = typeof biomarkers.$inferSelect;
+export type BiomarkerSynonym = typeof biomarkerSynonyms.$inferSelect;
+export type BiomarkerUnit = typeof biomarkerUnits.$inferSelect;
+export type BiomarkerReferenceRange = typeof biomarkerReferenceRanges.$inferSelect;
+
+// Normalization schemas
+export const normalizationInputSchema = z.object({
+  name: z.string().min(1, "Biomarker name is required"),
+  value: z.number().finite("Value must be a finite number"),
+  unit: z.string().min(1, "Unit is required"),
+  sex: z.enum(["male", "female"]).optional(),
+  age_years: z.number().min(0).max(150).optional(),
+  fasting: z.boolean().optional(),
+  pregnancy: z.boolean().optional(),
+  method: z.string().optional(),
+  lab_id: z.string().optional(),
+});
+
+export const bulkNormalizationInputSchema = z.object({
+  measurements: z.array(normalizationInputSchema).min(1, "At least one measurement is required"),
+});
+
+export type NormalizationInput = z.infer<typeof normalizationInputSchema>;
+export type BulkNormalizationInput = z.infer<typeof bulkNormalizationInputSchema>;

@@ -8,6 +8,10 @@ import {
   subscriptions,
   payments,
   auditLogs,
+  biomarkers,
+  biomarkerSynonyms,
+  biomarkerUnits,
+  biomarkerReferenceRanges,
   type User,
   type UpsertUser,
   type Profile,
@@ -25,6 +29,10 @@ import {
   type Subscription,
   type Payment,
   type AuditLog,
+  type Biomarker,
+  type BiomarkerSynonym,
+  type BiomarkerUnit,
+  type BiomarkerReferenceRange,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql } from "drizzle-orm";
@@ -61,6 +69,13 @@ export interface IStorage {
   // Billing operations
   getBillingInfo(userId: string): Promise<{ customer?: BillingCustomer; subscription?: Subscription; lastPayment?: Payment }>;
   createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any; actionMetadata?: any }): Promise<void>;
+  
+  // Biomarker operations
+  getBiomarkers(): Promise<Biomarker[]>;
+  getBiomarkerBySynonym(name: string): Promise<{ biomarker: Biomarker; synonyms: BiomarkerSynonym[]; units: BiomarkerUnit[]; ranges: BiomarkerReferenceRange[] } | null>;
+  getUnitConversions(biomarkerId: string): Promise<BiomarkerUnit[]>;
+  getReferenceRanges(biomarkerId: string): Promise<BiomarkerReferenceRange[]>;
+  getAllBiomarkerData(): Promise<{ biomarkers: Biomarker[]; synonyms: BiomarkerSynonym[]; units: BiomarkerUnit[]; ranges: BiomarkerReferenceRange[] }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -302,6 +317,75 @@ export class DatabaseStorage implements IStorage {
       changes: log.changes,
       actionMetadata: log.actionMetadata,
     });
+  }
+
+  // Biomarker operations
+  async getBiomarkers(): Promise<Biomarker[]> {
+    return await db.select().from(biomarkers);
+  }
+
+  async getBiomarkerBySynonym(name: string): Promise<{ biomarker: Biomarker; synonyms: BiomarkerSynonym[]; units: BiomarkerUnit[]; ranges: BiomarkerReferenceRange[] } | null> {
+    // Import the normalization function
+    const { resolveBiomarker, BiomarkerNotFoundError } = await import("@shared/domain/biomarkers");
+    
+    // Get all biomarkers and synonyms
+    const allBiomarkers = await this.getBiomarkers();
+    const allSynonyms = await db.select().from(biomarkerSynonyms);
+    
+    // Resolve the biomarker (throws BiomarkerNotFoundError if not found)
+    let biomarker;
+    try {
+      biomarker = resolveBiomarker(name, allBiomarkers, allSynonyms);
+    } catch (error) {
+      if (error instanceof BiomarkerNotFoundError) {
+        return null;
+      }
+      throw error;
+    }
+    
+    // Get all related data for this biomarker
+    const [synonyms, units, ranges] = await Promise.all([
+      db.select().from(biomarkerSynonyms).where(eq(biomarkerSynonyms.biomarkerId, biomarker.id)),
+      db.select().from(biomarkerUnits).where(eq(biomarkerUnits.biomarkerId, biomarker.id)),
+      db.select().from(biomarkerReferenceRanges).where(eq(biomarkerReferenceRanges.biomarkerId, biomarker.id)),
+    ]);
+    
+    return {
+      biomarker,
+      synonyms,
+      units,
+      ranges,
+    };
+  }
+
+  async getUnitConversions(biomarkerId: string): Promise<BiomarkerUnit[]> {
+    return await db
+      .select()
+      .from(biomarkerUnits)
+      .where(eq(biomarkerUnits.biomarkerId, biomarkerId));
+  }
+
+  async getReferenceRanges(biomarkerId: string): Promise<BiomarkerReferenceRange[]> {
+    return await db
+      .select()
+      .from(biomarkerReferenceRanges)
+      .where(eq(biomarkerReferenceRanges.biomarkerId, biomarkerId));
+  }
+
+  async getAllBiomarkerData(): Promise<{ biomarkers: Biomarker[]; synonyms: BiomarkerSynonym[]; units: BiomarkerUnit[]; ranges: BiomarkerReferenceRange[] }> {
+    const [biomarkersData, synonyms, units, ranges] = await Promise.all([
+      db.select().from(biomarkers),
+      db.select().from(biomarkerSynonyms),
+      db.select().from(biomarkerUnits),
+      db.select().from(biomarkerReferenceRanges),
+    ]);
+    
+    return {
+      biomarkers: biomarkersData,
+      synonyms,
+      units,
+      ranges,
+    };
   }
 }
 

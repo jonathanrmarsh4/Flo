@@ -12,6 +12,8 @@ import {
   updateAIPersonalizationSchema,
   listUsersQuerySchema,
   updateUserSchema,
+  normalizationInputSchema,
+  bulkNormalizationInputSchema,
 } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { requireAdmin } from "./middleware/rbac";
@@ -321,6 +323,115 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error updating AI personalization:", error);
       res.status(500).json({ error: "Failed to update AI personalization" });
+    }
+  });
+
+  // Biomarker normalization routes
+  // Single measurement normalization
+  app.post("/api/normalize", isAuthenticated, async (req: any, res) => {
+    try {
+      // Validate input
+      const validationResult = normalizationInputSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      // Get all biomarker data
+      const { biomarkers, synonyms, units, ranges } = await storage.getAllBiomarkerData();
+
+      // Import normalization function
+      const { normalizeMeasurement, BiomarkerNotFoundError, UnitConversionError } = 
+        await import("@shared/domain/biomarkers");
+
+      // Normalize the measurement
+      const result = normalizeMeasurement(
+        validationResult.data,
+        biomarkers,
+        synonyms,
+        units,
+        ranges
+      );
+
+      res.json(result);
+    } catch (error) {
+      // Import error classes for instanceof checks
+      const { BiomarkerNotFoundError, UnitConversionError } = 
+        await import("@shared/domain/biomarkers");
+      
+      if (error instanceof BiomarkerNotFoundError) {
+        return res.status(404).json({ error: error.message });
+      }
+      if (error instanceof UnitConversionError) {
+        return res.status(400).json({ error: error.message });
+      }
+      console.error("Error normalizing measurement:", error);
+      res.status(500).json({ error: "Failed to normalize measurement" });
+    }
+  });
+
+  // Bulk measurement normalization
+  app.post("/api/bulk-normalize", isAuthenticated, async (req: any, res) => {
+    try {
+      // Validate input
+      const validationResult = bulkNormalizationInputSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      // Get all biomarker data once for efficiency
+      const { biomarkers, synonyms, units, ranges } = await storage.getAllBiomarkerData();
+
+      // Import normalization function
+      const { normalizeMeasurement } = await import("@shared/domain/biomarkers");
+
+      // Normalize all measurements
+      const results = validationResult.data.measurements.map((input, index) => {
+        try {
+          const result = normalizeMeasurement(
+            input,
+            biomarkers,
+            synonyms,
+            units,
+            ranges
+          );
+          return { success: true, data: result, index };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+            input,
+            index,
+          };
+        }
+      });
+
+      // Calculate success/failure counts
+      const totalCount = results.length;
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+
+      // Determine HTTP status code based on success/failure ratio
+      let statusCode = 200;
+      if (failureCount === totalCount) {
+        // All failed
+        statusCode = 400;
+      } else if (failureCount > 0) {
+        // Some failed (partial success)
+        statusCode = 207; // Multi-Status
+      }
+      // If all succeeded (failureCount === 0), keep 200
+
+      res.status(statusCode).json({
+        totalCount,
+        successCount,
+        failureCount,
+        results,
+      });
+    } catch (error) {
+      console.error("Error in bulk normalization:", error);
+      res.status(500).json({ error: "Failed to normalize measurements" });
     }
   });
 
