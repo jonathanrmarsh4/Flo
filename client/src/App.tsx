@@ -13,6 +13,7 @@ import UploadPage from "@/pages/upload";
 import History from "@/pages/history";
 import Results from "@/pages/results";
 import Profile from "@/pages/profile";
+import AdminUsers from "@/pages/admin-users";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -40,6 +41,7 @@ function Router() {
           <Route path="/history" component={History} />
           <Route path="/results/:id" component={Results} />
           <Route path="/profile" component={Profile} />
+          <Route path="/admin/users" component={AdminUsers} />
         </>
       )}
       <Route component={NotFound} />

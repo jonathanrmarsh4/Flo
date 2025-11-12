@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { FloLogo } from '@/components/FloLogo';
@@ -82,6 +82,18 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <FloLogo size={32} showText={true} className={isDark ? 'text-white' : 'text-gray-900'} />
             <div className="flex items-center gap-2">
+              {user?.role === 'admin' && (
+                <Link href="/admin/users">
+                  <button 
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                    }`}
+                    data-testid="button-admin"
+                  >
+                    <Shield className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                  </button>
+                </Link>
+              )}
               <button 
                 onClick={() => setIsDark(!isDark)}
                 className={`p-2 rounded-lg transition-colors ${
