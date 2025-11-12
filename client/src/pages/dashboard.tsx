@@ -5,6 +5,7 @@ import { Link, useLocation } from 'wouter';
 import { FloLogo } from '@/components/FloLogo';
 import { FloBottomNav } from '@/components/FloBottomNav';
 import { TrendChart } from '@/components/TrendChart';
+import { AddTestResultsModal } from '@/components/AddTestResultsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   mapAnalysisToBiomarkerReadings, 
@@ -31,7 +32,7 @@ export default function Dashboard() {
     window.location.href = '/api/logout';
   };
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
 
   const { data: latestAnalysis } = useQuery<any>({
@@ -149,14 +150,13 @@ export default function Dashboard() {
             <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
               Upload your first blood work to get started with AI-powered insights
             </p>
-            <Link href="/upload">
-              <button 
-                className="bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl hover:scale-105 transition-transform"
-                data-testid="button-upload-first"
-              >
-                Upload Blood Work
-              </button>
-            </Link>
+            <button 
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl hover:scale-105 transition-transform"
+              data-testid="button-upload-first"
+            >
+              Upload Blood Work
+            </button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -231,6 +231,12 @@ export default function Dashboard() {
       </main>
 
       <FloBottomNav />
+      
+      {/* Add Test Results Modal */}
+      <AddTestResultsModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+      />
     </div>
   );
 }
