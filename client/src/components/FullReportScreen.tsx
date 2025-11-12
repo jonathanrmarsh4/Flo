@@ -3,12 +3,62 @@ import { useState } from 'react';
 import type { BiologicalAgeData } from './InsightsScreen';
 
 export interface FullReportData {
+  generated_at: string;
   summary_header: {
     biological_age_years: number;
     chronological_age_years: number;
     bioage_trend_years_since_last: number;
     overall_health_rating: string;
     badges: string[];
+  };
+  key_takeaways: Array<{
+    icon: string;
+    title: string;
+    insight: string;
+    cta: string;
+  }>;
+  biological_age_analysis: {
+    method: string;
+    phenoage_years: number;
+    delta_years_since_last: number;
+    percentile_vs_peers: number;
+    top_drivers: Array<{
+      driver: string;
+      direction: string;
+      impact: string;
+    }>;
+    ai_comment: string;
+  };
+  biomarker_highlights: Array<any>;
+  focus_next_period: Array<{
+    category: string;
+    message: string;
+  }>;
+  forecast: {
+    bioage_6mo: number;
+    bioage_12mo: number;
+    bioage_projected_change_years_to_next_test: number;
+    ai_message: string;
+    confidence?: number;
+    assumptions?: string[];
+  };
+  technical_summary: {
+    method: string;
+    data_quality: number;
+    sample_date: string;
+    data_date_range: {
+      start: string;
+      end: string;
+    };
+    biomarkers_used_count: number;
+    calculation_notes: string;
+    markers_analyzed?: number;
+    references: Array<{
+      title: string;
+      url: string;
+      year: number;
+    }>;
+    disclaimer: string;
   };
 }
 
@@ -28,10 +78,10 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Mock data based on JSON structure (merge with provided data if available)
-  const report = {
+  // Use provided data or fallback to mock data
+  const report = providedData ?? {
     generated_at: new Date().toISOString(),
-    summary_header: providedData?.summary_header ?? {
+    summary_header: {
       biological_age_years: 46,
       chronological_age_years: 49.2,
       bioage_trend_years_since_last: -0.8,
@@ -398,7 +448,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
                         Recommended Actions:
                       </div>
                       <div className="space-y-1">
-                        {marker.actions.map((action, aidx) => (
+                        {marker.actions.map((action: string, aidx: number) => (
                           <div key={aidx} className={`text-xs flex items-start gap-2 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
                             <span className="text-cyan-500">•</span>
                             <span>{action}</span>
