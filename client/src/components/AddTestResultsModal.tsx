@@ -46,12 +46,14 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
   const { data: biomarkers = [], isLoading: biomarkersLoading } = useQuery<Biomarker[]>({
     queryKey: ['/api/biomarkers'],
     enabled: isOpen,
+    select: (data: any) => data.biomarkers || [],
   });
 
   // Fetch units for selected biomarker
   const { data: availableUnits = [], isLoading: unitsLoading } = useQuery<BiomarkerUnit[]>({
     queryKey: ['/api/biomarkers', selectedBiomarker, 'units'],
     enabled: !!selectedBiomarker,
+    select: (data: any) => data.units || [],
   });
 
   // Fetch reference range for selected biomarker with user context
@@ -119,8 +121,12 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
         biomarkerName: selectedBiomarkerData.name,
         originalValue: numericValue,
         originalUnit: unit,
-        normalizedValue: normalizedResult.normalizedValue,
-        canonicalUnit: normalizedResult.canonicalUnit,
+        normalizedValue: normalizedResult.value_canonical,
+        canonicalUnit: normalizedResult.unit_canonical,
+        displayValue: normalizedResult.value_display,
+        referenceRange: normalizedResult.ref_range,
+        flags: normalizedResult.flags,
+        warnings: normalizedResult.warnings,
         testDate,
       });
 

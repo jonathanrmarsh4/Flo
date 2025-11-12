@@ -725,11 +725,17 @@ Inflammation Markers:
   });
 
   // Stripe billing routes (referenced from javascript_stripe blueprint)
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2025-10-29.clover",
-  });
+  // Initialize Stripe only if API key is available
+  const stripe = process.env.STRIPE_SECRET_KEY 
+    ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+        apiVersion: "2025-10-29.clover",
+      })
+    : null;
 
   app.post("/api/create-payment-intent", isAuthenticated, async (req, res) => {
+    if (!stripe) {
+      return res.status(503).json({ error: "Stripe is not configured" });
+    }
     try {
       const { amount } = req.body;
       const paymentIntent = await stripe.paymentIntents.create({
@@ -744,6 +750,9 @@ Inflammation Markers:
   });
 
   app.post("/api/create-subscription", isAuthenticated, async (req: any, res) => {
+    if (!stripe) {
+      return res.status(503).json({ error: "Stripe is not configured" });
+    }
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
