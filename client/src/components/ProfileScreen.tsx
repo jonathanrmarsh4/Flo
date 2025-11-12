@@ -1,7 +1,13 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2 } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X } from 'lucide-react';
 import { useState } from 'react';
 import type { User as UserType } from '@shared/schema';
-import { useProfile } from '@/hooks/useProfile';
+import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 
 interface ProfileScreenProps {
   isDark: boolean;
@@ -14,6 +20,15 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   
   // Fetch profile data from backend
   const { data: profile, isLoading, error } = useProfile();
+  
+  // Mutation hooks
+  const updateDemographics = useUpdateDemographics();
+  const updateHealthBaseline = useUpdateHealthBaseline();
+  const updateGoals = useUpdateGoals();
+  const updateAIPersonalization = useUpdateAIPersonalization();
+  
+  // Local state for custom focus area input
+  const [newFocusArea, setNewFocusArea] = useState('');
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: Date | string | null | undefined): number | null => {
@@ -149,46 +164,152 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
 
           <div className="space-y-3">
+            {/* Date of Birth */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <Calendar className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Date of Birth</span>
               </div>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-dob">
-                {profile?.dateOfBirth 
-                  ? new Date(profile.dateOfBirth!).toLocaleDateString()
-                  : 'Not set'}
-              </span>
+              {isEditing ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`text-sm ${!profile?.dateOfBirth && 'text-muted-foreground'}`}
+                      data-testid="button-dob-picker"
+                    >
+                      {profile?.dateOfBirth ? format(new Date(profile.dateOfBirth), 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent
+                      mode="single"
+                      selected={profile?.dateOfBirth ? new Date(profile.dateOfBirth) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          updateDemographics.mutate({ dateOfBirth: date });
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-dob">
+                  {profile?.dateOfBirth 
+                    ? new Date(profile.dateOfBirth!).toLocaleDateString()
+                    : 'Not set'}
+                </span>
+              )}
             </div>
 
+            {/* Sex */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <User className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Sex</span>
               </div>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sex">
-                {profile?.sex || 'Not set'}
-              </span>
+              {isEditing ? (
+                <Select
+                  value={profile?.sex || ''}
+                  onValueChange={(value) => updateDemographics.mutate({ sex: value as 'Male' | 'Female' | 'Other' })}
+                >
+                  <SelectTrigger className="w-32" data-testid="select-sex">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sex">
+                  {profile?.sex || 'Not set'}
+                </span>
+              )}
             </div>
 
+            {/* Weight */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <Weight className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Weight</span>
               </div>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-weight">
-                {profile?.weight ? `${profile.weight!} ${profile.weightUnit || 'kg'}` : 'Not set'}
-              </span>
+              {isEditing ? (
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="70"
+                    value={profile?.weight || ''}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        updateDemographics.mutate({ weight: value, weightUnit: profile?.weightUnit || 'kg' });
+                      }
+                    }}
+                    className="w-20"
+                    data-testid="input-weight"
+                  />
+                  <Select
+                    value={profile?.weightUnit || 'kg'}
+                    onValueChange={(value) => updateDemographics.mutate({ weightUnit: value as 'kg' | 'lbs' })}
+                  >
+                    <SelectTrigger className="w-20" data-testid="select-weight-unit">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="kg">kg</SelectItem>
+                      <SelectItem value="lbs">lbs</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-weight">
+                  {profile?.weight ? `${profile.weight!} ${profile.weightUnit || 'kg'}` : 'Not set'}
+                </span>
+              )}
             </div>
 
+            {/* Height */}
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
                 <Ruler className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
                 <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Height</span>
               </div>
-              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-height">
-                {profile?.height ? `${profile.height!} ${profile.heightUnit || 'cm'}` : 'Not set'}
-              </span>
+              {isEditing ? (
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="170"
+                    value={profile?.height || ''}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value)) {
+                        updateDemographics.mutate({ height: value, heightUnit: profile?.heightUnit || 'cm' });
+                      }
+                    }}
+                    className="w-20"
+                    data-testid="input-height"
+                  />
+                  <Select
+                    value={profile?.heightUnit || 'cm'}
+                    onValueChange={(value) => updateDemographics.mutate({ heightUnit: value as 'cm' | 'in' })}
+                  >
+                    <SelectTrigger className="w-20" data-testid="select-height-unit">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cm">cm</SelectItem>
+                      <SelectItem value="in">in</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-height">
+                  {profile?.height ? `${profile.height!} ${profile.heightUnit || 'cm'}` : 'Not set'}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -300,6 +421,17 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 {toneOptions.map(tone => (
                   <button
                     key={tone}
+                    onClick={() => {
+                      if (isEditing) {
+                        updateAIPersonalization.mutate({
+                          aiPersonalization: {
+                            ...profile?.aiPersonalization,
+                            tone: tone as 'Casual' | 'Professional' | 'Scientific'
+                          }
+                        });
+                      }
+                    }}
+                    disabled={!isEditing}
                     className={`flex-1 py-2 px-3 rounded-xl text-xs transition-all ${
                       profile?.aiPersonalization?.tone === tone
                         ? isDark 
@@ -308,7 +440,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                         : isDark
                           ? 'bg-white/10 text-white/70 hover:bg-white/20'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                    } ${!isEditing && 'cursor-default'}`}
                     data-testid={`button-tone-${tone.toLowerCase()}`}
                   >
                     {tone}
@@ -329,6 +461,17 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 {frequencyOptions.map(freq => (
                   <button
                     key={freq}
+                    onClick={() => {
+                      if (isEditing) {
+                        updateAIPersonalization.mutate({
+                          aiPersonalization: {
+                            ...profile?.aiPersonalization,
+                            insightsFrequency: freq as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'
+                          }
+                        });
+                      }
+                    }}
+                    disabled={!isEditing}
                     className={`py-2 px-3 rounded-xl text-xs transition-all ${
                       profile?.aiPersonalization?.insightsFrequency === freq
                         ? isDark 
@@ -337,7 +480,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                         : isDark
                           ? 'bg-white/10 text-white/70 hover:bg-white/20'
                           : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
+                    } ${!isEditing && 'cursor-default'}`}
                     data-testid={`button-frequency-${freq.toLowerCase()}`}
                   >
                     {freq}
@@ -351,19 +494,37 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               <label className={`text-sm mb-2 block ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
                 Focus Areas
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mb-2">
                 {(profile?.aiPersonalization?.focusAreas ?? []).length > 0 ? (
                   (profile?.aiPersonalization?.focusAreas ?? []).map((area, idx) => (
                     <div 
                       key={idx}
-                      className={`px-3 py-1.5 rounded-full text-xs ${
+                      className={`px-3 py-1.5 rounded-full text-xs flex items-center gap-2 ${
                         isDark 
                           ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
                           : 'bg-purple-100 text-purple-700 border border-purple-200'
                       }`}
                       data-testid={`badge-focus-${idx}`}
                     >
-                      {area}
+                      <span>{area}</span>
+                      {isEditing && (
+                        <button
+                          onClick={() => {
+                            const currentAreas = profile?.aiPersonalization?.focusAreas ?? [];
+                            const newAreas = currentAreas.filter((_, i) => i !== idx);
+                            updateAIPersonalization.mutate({
+                              aiPersonalization: {
+                                ...profile?.aiPersonalization,
+                                focusAreas: newAreas
+                              }
+                            });
+                          }}
+                          className="hover:opacity-70"
+                          data-testid={`button-remove-focus-${idx}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -372,9 +533,47 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   </span>
                 )}
               </div>
-              <button className={`mt-2 text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} data-testid="button-customize-focus">
-                + Customize focus areas
-              </button>
+              {isEditing && (
+                <div className="flex gap-2 mt-2">
+                  <Input
+                    placeholder="e.g., Heart Health, Inflammation"
+                    value={newFocusArea}
+                    onChange={(e) => setNewFocusArea(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newFocusArea.trim()) {
+                        const currentAreas = profile?.aiPersonalization?.focusAreas ?? [];
+                        updateAIPersonalization.mutate({
+                          aiPersonalization: {
+                            ...profile?.aiPersonalization,
+                            focusAreas: [...currentAreas, newFocusArea.trim()]
+                          }
+                        });
+                        setNewFocusArea('');
+                      }
+                    }}
+                    className="flex-1"
+                    data-testid="input-new-focus-area"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (newFocusArea.trim()) {
+                        const currentAreas = profile?.aiPersonalization?.focusAreas ?? [];
+                        updateAIPersonalization.mutate({
+                          aiPersonalization: {
+                            ...profile?.aiPersonalization,
+                            focusAreas: [...currentAreas, newFocusArea.trim()]
+                          }
+                        });
+                        setNewFocusArea('');
+                      }
+                    }}
+                    data-testid="button-add-focus-area"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
