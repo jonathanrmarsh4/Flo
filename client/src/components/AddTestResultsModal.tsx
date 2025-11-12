@@ -1,10 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Edit, Upload as UploadIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ALL_BIOMARKERS, BIOMARKER_CONFIGS, type BiomarkerOption } from '@/lib/biomarker-config';
+import { useQuery } from '@tanstack/react-query';
+
+interface Biomarker {
+  id: string;
+  name: string;
+  canonicalUnit: string;
+  category: string;
+  description?: string;
+}
+
+interface BiomarkerUnit {
+  unit: string;
+  isCanonical: boolean;
+}
+
+interface ReferenceRange {
+  low: number;
+  high: number;
+  unit: string;
+  criticalLow?: number;
+  criticalHigh?: number;
+}
 
 interface AddTestResultsModalProps {
   isOpen: boolean;
@@ -21,29 +42,47 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     return today.toISOString().split('T')[0];
   });
 
+  // Fetch all biomarkers
+  const { data: biomarkers = [], isLoading: biomarkersLoading } = useQuery<Biomarker[]>({
+    queryKey: ['/api/biomarkers'],
+    enabled: isOpen,
+  });
+
+  // Fetch units for selected biomarker
+  const { data: availableUnits = [], isLoading: unitsLoading } = useQuery<BiomarkerUnit[]>({
+    queryKey: ['/api/biomarkers', selectedBiomarker, 'units'],
+    enabled: !!selectedBiomarker,
+  });
+
+  // Fetch reference range for selected biomarker with user context
+  const { data: referenceRange } = useQuery<ReferenceRange>({
+    queryKey: ['/api/biomarkers', selectedBiomarker, 'reference-range'],
+    enabled: !!selectedBiomarker && !!unit,
+  });
+
   // Get selected biomarker details
   const selectedBiomarkerData = useMemo(() => {
     if (!selectedBiomarker) return null;
-    const biomarker = ALL_BIOMARKERS.find(b => b.id === selectedBiomarker);
-    if (!biomarker) return null;
-    const config = BIOMARKER_CONFIGS[biomarker.name];
-    return {
-      name: biomarker.name,
-      unit: config.unit,
-      min: config.min,
-      max: config.max,
-    };
-  }, [selectedBiomarker]);
+    const biomarker = biomarkers.find(b => b.id === selectedBiomarker);
+    return biomarker || null;
+  }, [selectedBiomarker, biomarkers]);
 
   // Update unit when biomarker is selected
   const handleBiomarkerChange = (biomarkerId: string) => {
     setSelectedBiomarker(biomarkerId);
-    const biomarker = ALL_BIOMARKERS.find(b => b.id === biomarkerId);
-    if (biomarker) {
-      const config = BIOMARKER_CONFIGS[biomarker.name];
-      setUnit(config.unit);
-    }
+    setValue('');
+    setUnit('');
   };
+
+  // Set canonical unit when units are loaded
+  useEffect(() => {
+    if (availableUnits.length > 0 && !unit) {
+      const canonicalUnit = availableUnits.find(u => u.isCanonical);
+      if (canonicalUnit) {
+        setUnit(canonicalUnit.unit);
+      }
+    }
+  }, [availableUnits, unit]);
 
   const handleSubmit = () => {
     // TODO: Implement submission logic
@@ -108,10 +147,10 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
                     className="w-full bg-white/5 border-white/10 text-white rounded-xl h-12"
                     data-testid="select-biomarker"
                   >
-                    <SelectValue placeholder="Select biomarker..." />
+                    <SelectValue placeholder={biomarkersLoading ? "Loading..." : "Select biomarker..."} />
                   </SelectTrigger>
                   <SelectContent className="bg-[#1a1f3a] border-white/10 text-white max-h-[300px]">
-                    {ALL_BIOMARKERS.map((biomarker: BiomarkerOption) => (
+                    {biomarkers.map((biomarker) => (
                       <SelectItem
                         key={biomarker.id}
                         value={biomarker.id}
@@ -138,16 +177,16 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
                   className="w-full bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl h-12"
                   data-testid="input-value"
                 />
-                {/* Optimal Range - shown when biomarker is selected */}
-                {selectedBiomarkerData && (
+                {/* Optimal Range - shown when reference range is loaded */}
+                {referenceRange && (
                   <p className="text-xs text-white/40 mt-1" data-testid="text-optimal-range">
-                    Optimal range: {selectedBiomarkerData.min} - {selectedBiomarkerData.max} {selectedBiomarkerData.unit}
+                    Optimal range: {referenceRange.low} - {referenceRange.high} {referenceRange.unit}
                   </p>
                 )}
               </div>
 
-              {/* Unit of Measure - shown when biomarker is selected */}
-              {selectedBiomarkerData && (
+              {/* Unit of Measure - shown when units are loaded */}
+              {availableUnits.length > 0 && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white/70">
                     Unit of Measure
@@ -157,16 +196,19 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
                       className="w-full bg-white/5 border-cyan-500/50 text-white rounded-xl h-12"
                       data-testid="select-unit"
                     >
-                      <SelectValue />
+                      <SelectValue placeholder={unitsLoading ? "Loading..." : "Select unit..."} />
                     </SelectTrigger>
                     <SelectContent className="bg-[#1a1f3a] border-white/10 text-white">
-                      <SelectItem
-                        value={selectedBiomarkerData.unit}
-                        className="text-white hover:bg-white/10"
-                        data-testid={`option-unit-${selectedBiomarkerData.unit}`}
-                      >
-                        {selectedBiomarkerData.unit}
-                      </SelectItem>
+                      {availableUnits.map((unitOption) => (
+                        <SelectItem
+                          key={unitOption.unit}
+                          value={unitOption.unit}
+                          className="text-white hover:bg-white/10"
+                          data-testid={`option-unit-${unitOption.unit}`}
+                        >
+                          {unitOption.unit}{unitOption.isCanonical ? ' (default)' : ''}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
