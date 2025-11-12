@@ -93,8 +93,6 @@ WORDING RULES:
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 8192,
-      temperature: 0.2,
-      top_p: 0.0,
     });
 
     const content = response.choices[0]?.message?.content;
