@@ -1,0 +1,239 @@
+{
+  "project": "Flo • Bloodwork Upload & Interpretation v1.0",
+  "goal": "Implement a robust PDF bloodwork ingestion and GPT-4 interpretation engine that is reliable, testable, and safe-by-default. All outputs must be structured, unit-safe, and auditable.",
+  "non_goals": [
+    "General medical diagnosis.",
+    "Real-time coaching beyond evidence-based, non-prescriptive insights.",
+    "Assumptions about values not present in the source."
+  ],
+
+  "deliverables": {
+    "frontend": [
+      "Upload UI: drag/drop + file picker; accept: .pdf; max 50MB; multi-page; progress bar; retry; virus/format checks.",
+      "Client-side preflight: MIME + magic-number validation; checksum; display file metadata; warn on scanned images.",
+      "Accessibility: labels, focus states, screen-reader text.",
+      "States: idle/uploading/processing/done/error; polling with exponential backoff."
+    ],
+    "backend": [
+      "POST /api/labs/upload (multipart/form-data) → returns job_id.",
+      "GET /api/labs/status?job_id= → { state, progress, errors[], artifact_links }.",
+      "GET /api/labs/report?report_id= → returns final JSON schema (see output_schemas.Report).",
+      "Background worker pipeline with idempotent steps and resumability."
+    ],
+    "storage_security": [
+      "PDF and artifacts in secure object storage; server-side encryption; signed URLs (short TTL).",
+      "PHI/PII redaction logs; access control scoped per user.",
+      "Audit trail: who/when/what for every step."
+    ],
+    "tests_docs_ci": [
+      "Unit + integration tests for parsers, converters, validators.",
+      "Golden-sample PDFs and expected outputs (10+ vendors, mixed units).",
+      "Load tests on 100 PDFs; error-injection tests.",
+      "Developer docs (README + sequence diagram + data dictionary).",
+      "CI pipeline: run tests, lint, type-check, schema regression."
+    ]
+  },
+
+  "pipeline": [
+    "Step 0: Intake — Save file, compute SHA256, detect PDF validity, page count.",
+    "Step 1: Modality detect — True digital text vs scanned (image-dominant).",
+    "Step 2A: Text extraction (digital) — Use a text PDF extractor preserving layout coordinates and tables.",
+    "Step 2B: OCR (scanned) — High-quality OCR with orientation, language auto-detect, per-line confidence. Retain reading order and bounding boxes.",
+    "Step 3: Vendor/layout detection — Heuristics + ML/classifier to recognize common labs; fallback to generic table extractor.",
+    "Step 4: Structured parsing — Extract panels, analytes, values, units, reference ranges, flags, collection/report dates.",
+    "Step 5: Normalization — Map analyte names to canonical codes (e.g., LOINC-like dictionary you maintain). Normalize units to canonical SI units with reversible conversions; preserve original.",
+    "Step 6: Validation — Apply hard/soft plausibility bounds, unit compatibility checks, cross-field sanity rules, specimen-type checks; produce error/warning list and confidence score.",
+    "Step 7: De-duplication — Detect duplicate reports by hash + metadata; versioning.",
+    "Step 8: GPT-4 interpretation — Call the runtime prompt (below) with strictly the normalized JSON and metadata. Temperature=0 or 0.2; top_p=0.0; no system tool-usage beyond what is defined.",
+    "Step 9: Persist — Store raw, normalized, interpretation, and validation artifacts; index for trend analysis.",
+    "Step 10: Output — Return final Report JSON plus human-readable summary blocks for UI."
+  ],
+
+  "runtime_models": {
+    "primary": "OpenAI GPT-4",
+    "settings": {
+      "temperature": 0.2,
+      "top_p": 0.0,
+      "presence_penalty": 0.0,
+      "frequency_penalty": 0.0
+    }
+  },
+
+  "dictionaries": {
+    "analyte_alias_map": "Maintain a growing alias map (e.g., 'HbA1c','A1C','HgbA1c' → 'HBA1C').",
+    "unit_conversions": "Explicit conversion table (e.g., glucose mg/dL ↔ mmol/L, LDL mg/dL ↔ mmol/L).",
+    "reference_ranges": "Age/sex-specific defaults, vendor overrides when provided; always prefer provided reference range."
+  },
+
+  "validation_rules_examples": [
+    "Units must be compatible with analyte (e.g., sodium cannot be mg/dL).",
+    "Dates: collection_date ≤ reported_date ≤ now; timezone = Australia/Perth unless source provides offset.",
+    "Physiologic plausibility: flag extreme values (e.g., sodium < 110 or > 170 mmol/L).",
+    "Cross-checks: Anion gap calculable only if Na, Cl, HCO3 present; if calculated gap differs > 5 from reported, warn.",
+    "Panel consistency: Lipid ratios require total chol + HDL (± LDL, TG) with unit alignment."
+  ],
+
+  "error_handling": [
+    "If OCR mean confidence < 0.85 or tables fragmented → attempt alternative OCR/extractor; if still < 0.85 → return NEEDS_REVIEW with granular reasons.",
+    "Never invent values; if a field is missing, set to null and add a validation warning.",
+    "If normalization fails for an analyte, keep original raw entry and mark normalization_status='FAILED'."
+  ],
+
+  "output_schemas": {
+    "Report": {
+      "type": "object",
+      "required": ["report_id","user_id","source","specimen","collection_date","reported_date","panels","summary","validation","confidence"],
+      "properties": {
+        "report_id": "string-uuid",
+        "user_id": "string-uuid",
+        "source": {
+          "vendor_name": "string|null",
+          "file_sha256": "string-hex",
+          "pages": "integer",
+          "extraction_method": "DIGITAL_TEXT|OCR",
+          "ocr_mean_confidence": "number|null"
+        },
+        "specimen": {
+          "type": "BLOOD",
+          "fasting_status": "FASTING|NON_FASTING|UNKNOWN"
+        },
+        "collection_date": "ISO-8601",
+        "reported_date": "ISO-8601",
+        "panels": [
+          {
+            "panel_name": "string",
+            "observations": [
+              {
+                "analyte_canonical": "string (e.g., HBA1C)",
+                "analyte_display": "string (verbatim from PDF)",
+                "value_canonical": "number|null",
+                "value_canonical_unit": "string (SI preferred)",
+                "value_original": "string|null",
+                "unit_original": "string|null",
+                "reference_range": {
+                  "low": "number|null",
+                  "high": "number|null",
+                  "unit": "string|null",
+                  "source": "PROVIDED|DEFAULT_DATABASE"
+                },
+                "flag": "LOW|HIGH|CRITICAL_LOW|CRITICAL_HIGH|NORMAL|UNKNOWN",
+                "notes": "string[]",
+                "normalization_status": "OK|FAILED|AMBIGUOUS",
+                "provenance": {
+                  "page": "integer",
+                  "bbox": "[x,y,w,h]|null"
+                }
+              }
+            ]
+          }
+        ],
+        "derived": {
+          "calculations": [
+            {
+              "name": "ANION_GAP|LDL_Calc|eGFR|A1C_EAG|... ",
+              "method": "string",
+              "inputs": "string[] (analyte_canonical)",
+              "value": "number|null",
+              "unit": "string|null",
+              "warnings": "string[]"
+            }
+          ],
+          "trends": [
+            {
+              "analyte_canonical": "string",
+              "n_reports": "integer",
+              "delta_30d": "number|null",
+              "delta_90d": "number|null",
+              "slope_per_day": "number|null",
+              "z_score": "number|null"
+            }
+          ]
+        },
+        "summary": {
+          "title": "string",
+          "key_findings": "string[] (≤5, short, non-prescriptive)",
+          "top_priorities": [
+            {
+              "analyte_canonical": "string",
+              "reason": "string",
+              "urgency": "LOW|MEDIUM|HIGH"
+            }
+          ],
+          "limitations": "string[]"
+        },
+        "validation": {
+          "errors": "string[]",
+          "warnings": "string[]",
+          "suggested_actions": "string[]"
+        },
+        "confidence": {
+          "overall": "0.0-1.0",
+          "components": {
+            "ocr_quality": "0.0-1.0|null",
+            "parser_confidence": "0.0-1.0",
+            "normalization_confidence": "0.0-1.0",
+            "range_consistency": "0.0-1.0"
+          }
+        },
+        "version": "string (semver)"
+      }
+    }
+  },
+
+  "observability": [
+    "Structured logs per pipeline step with duration and errors.",
+    "Metrics: success rate, mean processing time, OCR fallback rate, normalization failure rate.",
+    "Redaction: never log PHI values in plaintext; use hashed IDs."
+  ],
+
+  "QA_checklist": [
+    "Upload rejects non-PDF files and corrupted PDFs.",
+    "Scanned PDFs are OCR’d with ≥0.90 mean confidence on clean samples.",
+    "At least 95% of common panels parse correctly across sample vendors.",
+    "Units normalized and reversible; original preserved.",
+    "No hallucinated values; missing values are null with warnings.",
+    "GPT-4 outputs strictly adhere to Report schema; schema validator passes.",
+    "Critical ranges propagate to flags without unit errors.",
+    "Timezone handling uses Australia/Perth unless explicit offset detected.",
+    "All endpoints return deterministic error codes/messages."
+  ],
+
+  "security_privacy": [
+    "Encrypt at rest and in transit; short-lived signed URLs.",
+    "Least-privilege access tokens; per-user scoping.",
+    "PII minimization; redact DOB/address from PDFs in derived artifacts."
+  ],
+
+  "runtime_prompt_for_gpt4": {
+    "system": "You are a meticulous clinical data interpreter. You must NEVER invent values or ranges. Operate ONLY on provided JSON and metadata. If information is missing or ambiguous, say so explicitly. Adhere strictly to the output schema. No medical diagnosis; provide concise, evidence-aligned insights.",
+    "developer": "Follow these rules: (1) Output valid JSON matching the 'Report' schema provided in the user message. (2) Use SI units for value_canonical where applicable and preserve value_original/unit_original. (3) Prefer vendor-provided reference ranges; otherwise use the supplied age/sex defaults. (4) If units/ranges conflict, set normalization_status='AMBIGUOUS', add a warning, and do NOT guess. (5) Limit 'key_findings' to <=5 bullet points, non-prescriptive. (6) Populate 'limitations' with any missing/low-confidence areas. (7) Temperature is low; be deterministic.",
+    "user_template": {
+      "context": {
+        "user_id": "{{user_id}}",
+        "demographics": { "age": "{{age}}", "sex": "{{sex}}" },
+        "timezone": "Australia/Perth",
+        "reference_defaults": "{{reference_defaults_json}}"
+      },
+      "normalized_input": "{{normalized_parsed_json_from_pipeline}}",
+      "task": "Validate, flag, compute derived metrics, summarize key findings and limitations, and return a complete 'Report' JSON. Do not include explanations outside the JSON."
+    },
+    "settings": { "temperature": 0.2, "top_p": 0.0 }
+  },
+
+  "golden_samples": [
+    "Comprehensive metabolic panel (mmol/L SI).",
+    "US-style lipid panel (mg/dL) needing conversion.",
+    "Australian pathology report with reference ranges per analyte.",
+    "Mixed-scanned, low-contrast PDF (should return NEEDS_REVIEW).",
+    "Report missing units for an analyte (should flag and not guess).",
+    "Multiple pages with split tables; ensure continuity."
+  ],
+
+  "developer_acceptance_criteria": [
+    "Given 10 vendor PDFs, ≥95% analytes correctly mapped and unit-normalized; 0 hallucinations.",
+    "Changing user timezone changes only rendered dates, not calculations.",
+    "Schema validator enforces and rejects malformed GPT output.",
+    "Re-running on same PDF (same SHA256) is idempotent and de-duplicates.",
+    "All PII redacted from logs and summaries."
+  ]
+}

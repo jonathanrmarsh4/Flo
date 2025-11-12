@@ -44,15 +44,32 @@ export const bloodWorkRecords = pgTable("blood_work_records", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// AI analysis results table
+// AI analysis results table - Enhanced with Guardrails v1 and Upload Design v1.0
 export const analysisResults = pgTable("analysis_results", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   recordId: varchar("record_id").notNull().references(() => bloodWorkRecords.id, { onDelete: "cascade" }),
+  
+  // Basic age fields (backward compatible)
   biologicalAge: text("biological_age"),
   chronologicalAge: text("chronological_age"),
-  insights: jsonb("insights"), // Array of insight objects
-  metrics: jsonb("metrics"), // Blood work metrics as JSON
-  recommendations: jsonb("recommendations"), // Array of recommendation strings
+  
+  // Legacy fields (kept for backward compatibility)
+  insights: jsonb("insights"),
+  metrics: jsonb("metrics"),
+  recommendations: jsonb("recommendations"),
+  
+  // New structured Report schema fields
+  source: jsonb("source"), // { vendor_name, file_sha256, pages, extraction_method, ocr_mean_confidence }
+  specimen: jsonb("specimen"), // { type: "BLOOD", fasting_status: "FASTING|NON_FASTING|UNKNOWN" }
+  collectionDate: timestamp("collection_date"),
+  reportedDate: timestamp("reported_date"),
+  panels: jsonb("panels"), // Array of panel objects with observations
+  derived: jsonb("derived"), // { calculations, trends }
+  summary: jsonb("summary"), // { title, key_findings, top_priorities, limitations }
+  validation: jsonb("validation"), // { errors, warnings, suggested_actions }
+  confidence: jsonb("confidence"), // { overall, components: { ocr_quality, parser_confidence, etc } }
+  schemaVersion: text("schema_version").default("1.0"),
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 
