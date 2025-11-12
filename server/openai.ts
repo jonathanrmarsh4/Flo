@@ -1,5 +1,15 @@
 // Reference: javascript_openai_ai_integrations blueprint
 import OpenAI from "openai";
+import {
+  type BiomarkerObservation,
+  computeClinicalBand,
+  validateReport,
+  calculateConfidence,
+  enforceSafetyRules,
+  getUrgentCareBanner,
+  generateSuggestedActions,
+  performDataQualityCheck,
+} from "./guardrails";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 const openai = new OpenAI({
@@ -7,6 +17,7 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
 });
 
+// Legacy interface for backward compatibility
 interface BloodWorkAnalysis {
   biologicalAge: string;
   chronologicalAge: string;
@@ -19,42 +30,61 @@ interface BloodWorkAnalysis {
   recommendations: string[];
 }
 
-export async function analyzeBloodWork(fileContent: string): Promise<BloodWorkAnalysis> {
+export async function analyzeBloodWork(fileContent: string, userId?: string): Promise<BloodWorkAnalysis> {
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-      messages: [
-        {
-          role: "system",
-          content: `You are a medical AI assistant specializing in blood work analysis. Analyze the provided blood test results and provide:
-1. Estimated biological age based on the markers
-2. Key health insights from the blood markers
-3. Blood markers extracted from the results
-4. Personalized health recommendations
+    // System prompt following AI Guardrails v1 and Upload Design v1.0
+    const systemPrompt = `You are a meticulous clinical data interpreter for blood work analysis. You must NEVER diagnose, prescribe medications, or provide medical treatment advice.
 
-Format your response as JSON with this structure:
+CRITICAL SAFETY RULES:
+- NEVER state or imply a diagnosis
+- NEVER recommend medications, doses, or specific supplements
+- NEVER contradict lab flags or tell users to ignore clinician advice
+- Use neutral language: "may be consistent with," "can be influenced by"
+- Show uncertainty when evidence is mixed
+- Always defer to healthcare providers for medical decisions
+
+YOUR TASK:
+Analyze the blood work results and provide:
+1. Estimated biological age based on biomarkers (inflammation, metabolic health, organ function)
+2. Chronological age (estimate from context or use 35 as default)
+3. Educational insights about biomarkers (3-5 key findings)
+4. Blood markers extracted with values and units
+5. General lifestyle suggestions (NOT medical recommendations)
+
+OUTPUT FORMAT (JSON only, no markdown):
 {
   "biologicalAge": "number as string",
-  "chronologicalAge": "estimated from context or 35 as default",
+  "chronologicalAge": "number as string",
   "insights": [
     {
-      "category": "category name",
-      "description": "detailed insight",
+      "category": "category name (e.g., Inflammation, Metabolic Health)",
+      "description": "educational insight using neutral language",
       "severity": "low|medium|high"
     }
   ],
   "metrics": {
     "marker_name": "value with unit"
   },
-  "recommendations": ["recommendation 1", "recommendation 2"]
+  "recommendations": ["general lifestyle suggestion 1", "suggestion 2"]
 }
 
-IMPORTANT: 
-- Biological age should be calculated based on markers like inflammation, metabolic health, organ function
-- Extract all visible blood markers with their values
-- Provide 3-5 key insights
-- Give 3-5 actionable recommendations
-- Respond ONLY with valid JSON, no markdown or explanations`
+WORDING RULES:
+- Use "could/may/might" not "does/is"
+- Say "may benefit from" not "you should"
+- Say "consider discussing with your healthcare provider" not "talk to your doctor about X treatment"
+- Highlight assumptions: "fasting status not provided; results can differ post-meal"
+- NO medical advice, NO diagnoses, NO prescriptions`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "developer",
+          content: `Follow these rules: (1) Output valid JSON matching the schema. (2) Extract biomarkers with units. (3) Use neutral, educational language only. (4) Limit insights to 3-5 items. (5) NO diagnosis or prescriptions.`
         },
         {
           role: "user",
@@ -63,6 +93,8 @@ IMPORTANT:
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 8192,
+      temperature: 0.2,
+      top_p: 0.0,
     });
 
     const content = response.choices[0]?.message?.content;
@@ -77,9 +109,25 @@ IMPORTANT:
       throw new Error("Invalid analysis response structure");
     }
 
+    // Enforce safety rules - block unsafe responses
+    const safetyCheck = enforceSafetyRules(analysis);
+    if (!safetyCheck.safe) {
+      const violationMessage = `AI safety violation: ${safetyCheck.violations.join(', ')}`;
+      console.error('SAFETY VIOLATION:', safetyCheck.violations);
+      const error: any = new Error(violationMessage);
+      error.isSafetyViolation = true;
+      error.violations = safetyCheck.violations;
+      throw error;
+    }
+
     return analysis;
-  } catch (error) {
+  } catch (error: any) {
+    // Preserve safety violation details
+    if (error.isSafetyViolation) {
+      throw error; // Rethrow safety violations with full details
+    }
+    
     console.error("Error analyzing blood work:", error);
-    throw new Error("Failed to analyze blood work with AI");
+    throw new Error(`Failed to analyze blood work with AI: ${error.message || 'Unknown error'}`);
   }
 }
