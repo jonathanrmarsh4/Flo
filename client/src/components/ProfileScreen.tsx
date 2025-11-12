@@ -482,7 +482,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   onValueChange={(value) => updateHealthBaseline.mutate({ 
                     healthBaseline: {
                       ...currentHealthBaseline,
-                      dietType: value as 'Omnivore' | 'Vegetarian' | 'Vegan' | 'Pescatarian' | 'Keto' | 'Paleo' | 'Mediterranean' | 'Other'
+                      dietType: value as 'Balanced' | 'Low Carb' | 'Mediterranean' | 'Vegetarian' | 'Vegan' | 'Keto' | 'Paleo'
                     }
                   })}
                 >
@@ -490,14 +490,13 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Omnivore">Omnivore</SelectItem>
+                    <SelectItem value="Balanced">Balanced</SelectItem>
+                    <SelectItem value="Low Carb">Low Carb</SelectItem>
+                    <SelectItem value="Mediterranean">Mediterranean</SelectItem>
                     <SelectItem value="Vegetarian">Vegetarian</SelectItem>
                     <SelectItem value="Vegan">Vegan</SelectItem>
-                    <SelectItem value="Pescatarian">Pescatarian</SelectItem>
                     <SelectItem value="Keto">Keto</SelectItem>
                     <SelectItem value="Paleo">Paleo</SelectItem>
-                    <SelectItem value="Mediterranean">Mediterranean</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
@@ -545,7 +544,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   onValueChange={(value) => updateHealthBaseline.mutate({ 
                     healthBaseline: {
                       ...currentHealthBaseline,
-                      alcoholIntake: value as 'None' | 'Occasionally' | 'Moderately' | 'Heavily'
+                      alcoholIntake: value as 'None' | 'Occasional' | 'Moderate' | 'Heavy'
                     }
                   })}
                 >
@@ -554,9 +553,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="None">None</SelectItem>
-                    <SelectItem value="Occasionally">Occasionally</SelectItem>
-                    <SelectItem value="Moderately">Moderately</SelectItem>
-                    <SelectItem value="Heavily">Heavily</SelectItem>
+                    <SelectItem value="Occasional">Occasional</SelectItem>
+                    <SelectItem value="Moderate">Moderate</SelectItem>
+                    <SelectItem value="Heavy">Heavy</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (

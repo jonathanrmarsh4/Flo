@@ -59,18 +59,18 @@ export const FocusAreaEnum = z.enum([
 
 // Health baseline schema (for JSONB validation)
 export const healthBaselineSchema = z.object({
-  activityLevel: ActivityLevelEnum,
-  sleepHours: z.number().min(0).max(24),
-  dietType: DietTypeEnum,
-  smokingStatus: SmokingStatusEnum,
-  alcoholIntake: AlcoholIntakeEnum,
+  activityLevel: ActivityLevelEnum.optional(),
+  sleepHours: z.number().min(0).max(24).optional(),
+  dietType: DietTypeEnum.optional(),
+  smokingStatus: SmokingStatusEnum.optional(),
+  alcoholIntake: AlcoholIntakeEnum.optional(),
 });
 
 // AI personalization schema (for JSONB validation)
 export const aiPersonalizationSchema = z.object({
-  tone: CommunicationToneEnum,
-  insightsFrequency: InsightsFrequencyEnum,
-  focusAreas: z.array(FocusAreaEnum),
+  tone: CommunicationToneEnum.optional(),
+  insightsFrequency: InsightsFrequencyEnum.optional(),
+  focusAreas: z.array(FocusAreaEnum).optional(),
 });
 
 // Session storage table (required for Replit Auth)
