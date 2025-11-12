@@ -1,0 +1,207 @@
+{
+  "task": "Implement a Biomarker Dictionary, unit normalization, and reference-range engine for Flō.",
+  "requirements": {
+    "language_stack": "TypeScript (Node 20), Drizzle ORM (Postgres), Zod for runtime validation",
+    "principles": [
+      "Always store both raw and normalized values.",
+      "Prefer SI canonical units (mmol/L, µmol/L, pmol/L, mIU/L, ng/mL→nmol/L where appropriate).",
+      "Make ranges context-aware: sex, age bands, fasting state, pregnancy, assay/method, and optionally lab-specific overrides.",
+      "No silent coercions: if unit is missing/unknown, return a structured error with fix suggestions."
+    ],
+    "data_model_sql": {
+      "drizzle": "Create tables: biomarkers, biomarker_synonyms, biomarker_units, biomarker_ref_ranges, labs(optional), ranges_overrides(optional)."
+    },
+    "typescript_types": {
+      "Biomarker": {
+        "id": "string",
+        "name": "string",
+        "category": "string",
+        "canonical_unit": "string",
+        "display_unit_preference": "string",
+        "precision": "number",
+        "decimals_policy": "ceil|floor|round"
+      },
+      "BiomarkerSynonym": { "biomarker_id": "string", "label": "string", "exact": "boolean" },
+      "UnitConversion": {
+        "biomarker_id": "string",
+        "from_unit": "string",
+        "to_unit": "string",
+        "formula_js": "string",
+        "notes": "string"
+      },
+      "RefRangeSlice": {
+        "biomarker_id": "string",
+        "unit": "string",
+        "sex": "any|male|female",
+        "age_min_y": "number|null",
+        "age_max_y": "number|null",
+        "context": { "fasting": "any|true|false", "pregnancy": "any|true|false", "method": "string|any" },
+        "low": "number|null",
+        "high": "number|null",
+        "critical_low": "number|null",
+        "critical_high": "number|null",
+        "lab_id": "string|null",
+        "source": "string"
+      },
+      "NormalizationResult": {
+        "biomarker_id": "string",
+        "value_raw": "number",
+        "unit_raw": "string",
+        "value_canonical": "number",
+        "unit_canonical": "string",
+        "value_display": "string",
+        "ref_range": { "low": "number|null", "high": "number|null", "unit": "string" },
+        "flags": ["string"],
+        "context_used": "object",
+        "warnings": ["string"]
+      }
+    },
+    "api_endpoints": [
+      { "POST /normalize": "Input: { name, value, unit, sex, age_years, fasting?, pregnancy?, method?, lab_id? }. Output: NormalizationResult or structured error." },
+      { "POST /bulk_normalize": "Array version for PDF extraction pipelines." }
+    ],
+    "normalization_flow": [
+      "1) Resolve name → biomarker_id using synonyms (case/whitespace/diacritic-insensitive, allow common abbreviations).",
+      "2) Validate provided unit ∈ accepted_units for that biomarker.",
+      "3) Convert using exact formula (no heuristics).",
+      "4) Pick best ref-range slice by specificity priority: lab override > method > pregnancy > fasting > sex > age band > default.",
+      "5) Round to biomarker.precision (decimals_policy).",
+      "6) Return flags: 'below_ref', 'above_ref', 'critical_low', 'critical_high', 'suspicious_unit', 'missing_unit', 'method_mismatch'."
+    ],
+    "seed_conversions_examples": [
+      { "biomarker": "Glucose (fasting)", "canonical_unit": "mmol/L",
+        "accepted_units": ["mmol/L","mg/dL"],
+        "conversions": [
+          { "from": "mg/dL", "to": "mmol/L", "formula_js": "x/18", "notes": "Glucose mg/dL → mmol/L" },
+          { "from": "mmol/L", "to": "mg/dL", "formula_js": "x*18", "notes": "inverse" }
+        ],
+        "ref_ranges": [
+          { "sex": "any", "age_min_y": 18, "age_max_y": null, "context": {"fasting":"true","pregnancy":"any","method":"any"}, "low": 3.9, "high": 5.5, "unit": "mmol/L", "critical_low": 2.5, "critical_high": 20, "source": "general adult guidance; lab-specific overrides allowed" }
+        ],
+        "precision": 2
+      },
+      { "biomarker": "HbA1c", "canonical_unit": "mmol/mol",
+        "accepted_units": ["mmol/mol","%"],
+        "conversions": [
+          { "from": "%", "to": "mmol/mol", "formula_js": "(x-2.15)*10.929", "notes": "NGSP%→IFCC mmol/mol (approx.)" },
+          { "from": "mmol/mol", "to": "%", "formula_js": "x/10.929+2.15", "notes": "IFCC→NGSP%" }
+        ],
+        "ref_ranges": [
+          { "sex":"any","age_min_y":18,"age_max_y":null,"context":{"fasting":"any","pregnancy":"any","method":"any"}, "low": null, "high": 40, "unit":"mmol/mol", "source":"non-diabetic typical; show method in UI" }
+        ],
+        "precision": 0
+      },
+      { "biomarker": "Total Cholesterol", "canonical_unit": "mmol/L",
+        "accepted_units": ["mmol/L","mg/dL"],
+        "conversions": [
+          { "from": "mg/dL", "to": "mmol/L", "formula_js": "x/38.67", "notes":"Cholesterol" }
+        ],
+        "ref_ranges": [
+          { "sex":"any","age_min_y":18,"age_max_y":null,"context":{"fasting":"any","pregnancy":"any","method":"any"}, "low": null, "high": 5.2, "unit":"mmol/L", "source":"general adult guideline" }
+        ],
+        "precision": 2
+      },
+      { "biomarker": "LDL-C (calculated)", "canonical_unit": "mmol/L",
+        "accepted_units": ["mmol/L","mg/dL"],
+        "conversions": [{ "from":"mg/dL", "to":"mmol/L", "formula_js":"x/38.67", "notes":"Cholesterol" }],
+        "ref_ranges": [{ "sex":"any","age_min_y":18,"age_max_y":null,"context":{"method":"Friedewald","fasting":"any","pregnancy":"any"}, "low": null, "high": 3.0, "unit":"mmol/L", "source":"risk-based target; method matters" }],
+        "precision": 2
+      },
+      { "biomarker": "HDL-C", "canonical_unit": "mmol/L",
+        "accepted_units": ["mmol/L","mg/dL"],
+        "conversions": [{ "from":"mg/dL","to":"mmol/L","formula_js":"x/38.67","notes":"Cholesterol" }],
+        "ref_ranges": [
+          { "sex":"male","age_min_y":18,"age_max_y":null,"context":{"fasting":"any","pregnancy":"any","method":"any"}, "low": 1.0, "high": null, "unit":"mmol/L", "source":"adult male desirable" },
+          { "sex":"female","age_min_y":18,"age_max_y":null,"context":{"fasting":"any","pregnancy":"any","method":"any"}, "low": 1.3, "high": null, "unit":"mmol/L", "source":"adult female desirable" }
+        ],
+        "precision": 2
+      },
+      { "biomarker": "Triglycerides", "canonical_unit": "mmol/L",
+        "accepted_units": ["mmol/L","mg/dL"],
+        "conversions": [{ "from":"mg/dL","to":"mmol/L","formula_js":"x/88.573","notes":"Triglycerides" }],
+        "ref_ranges": [
+          { "sex":"any","age_min_y":18,"age_max_y":null,"context":{"fasting":"true","pregnancy":"any","method":"any"}, "low": null, "high": 1.7, "unit":"mmol/L", "source":"adult fasting guideline" }
+        ],
+        "precision": 2
+      },
+      { "biomarker": "Creatinine", "canonical_unit": "µmol/L",
+        "accepted_units": ["µmol/L","mg/dL"],
+        "conversions": [
+          { "from":"mg/dL","to":"µmol/L","formula_js":"x*88.4","notes":"Creatinine" },
+          { "from":"µmol/L","to":"mg/dL","formula_js":"x/88.4","notes":"inverse" }
+        ],
+        "ref_ranges": [
+          { "sex":"male","age_min_y":18,"age_max_y":null,"context":{"method":"any","fasting":"any","pregnancy":"any"}, "low": 60, "high": 110, "unit":"µmol/L", "source":"typical adult; lab overrides allowed" },
+          { "sex":"female","age_min_y":18,"age_max_y":null,"context":{"method":"any","fasting":"any","pregnancy":"any"}, "low": 45, "high": 90, "unit":"µmol/L", "source":"typical adult" }
+        ],
+        "precision": 0
+      },
+      { "biomarker": "eGFR (CKD-EPI)", "canonical_unit": "mL/min/1.73m^2",
+        "accepted_units": ["mL/min/1.73m^2"],
+        "conversions": [],
+        "ref_ranges": [
+          { "sex":"any","age_min_y":18,"age_max_y":null,"context":{"method":"CKD-EPI","fasting":"any","pregnancy":"any"}, "low": 60, "high": null, "unit":"mL/min/1.73m^2", "source":"stage threshold; compute from creatinine, age, sex" }
+        ],
+        "precision": 0
+      },
+      { "biomarker": "Vitamin D (25-OH)", "canonical_unit": "nmol/L",
+        "accepted_units": ["nmol/L","ng/mL"],
+        "conversions": [
+          { "from":"ng/mL","to":"nmol/L","formula_js":"x*2.5","notes":"25-OH Vit D" }
+        ],
+        "ref_ranges": [
+          { "sex":"any","age_min_y":18,"age_max_y":null,"context":{"method":"any","fasting":"any","pregnancy":"any"}, "low": 50, "high": 125, "unit":"nmol/L", "source":"typical adult reference interval" }
+        ],
+        "precision": 0
+      },
+      { "biomarker": "CRP (hs)", "canonical_unit": "mg/L",
+        "accepted_units": ["mg/L"],
+        "conversions": [],
+        "ref_ranges": [
+          { "sex":"any","age_min_y":18,"age_max_y":null,"context":{"method":"high-sensitivity","fasting":"any","pregnancy":"any"}, "low": null, "high": 3, "unit":"mg/L", "source":"cardio-risk bands" }
+        ],
+        "precision": 2
+      },
+      { "biomarker": "TSH", "canonical_unit": "mIU/L",
+        "accepted_units": ["mIU/L","µIU/mL"],
+        "conversions": [
+          { "from":"µIU/mL","to":"mIU/L","formula_js":"x", "notes":"1:1 by definition" }
+        ],
+        "ref_ranges": [
+          { "sex":"any","age_min_y":18,"age_max_y":null,"context":{"method":"3rd-gen immunoassay","fasting":"any","pregnancy":"any"}, "low": 0.4, "high": 4.0, "unit":"mIU/L", "source":"typical adult; pregnancy ranges differ by trimester" }
+        ],
+        "precision": 2
+      }
+    ],
+    "more_common_conversions": [
+      { "Analyte": "Bilirubin total", "canonical_unit": "µmol/L", "mg/dL→µmol/L": "x*17.104" },
+      { "Analyte": "Iron (serum)", "canonical_unit": "µmol/L", "µg/dL→µmol/L": "x*0.179" },
+      { "Analyte": "Free T4", "canonical_unit": "pmol/L", "ng/dL→pmol/L": "x*12.87" },
+      { "Analyte": "Free T3", "canonical_unit": "pmol/L", "pg/mL→pmol/L": "x*1.536" }
+    ],
+    "ocr_mapping_rules": [
+      "Strip thousands separators; detect decimal comma vs dot and normalize.",
+      "Regex for rows like: ^(name|abbr)\\s+(value)\\s*(unit)\\s+(ref) ?(range|interval).",
+      "Map (CRP|hs-CRP) → choose 'CRP (hs)' if unit precision ≤ 0.1 mg/L or report label mentions 'high sensitivity'.",
+      "Map (Glu|FPG|Fasting Glucose) → 'Glucose (fasting)' if report header says fasting or collection time ≥8h fast."
+    ],
+    "validation_rules": [
+      "Reject negative values for concentration units.",
+      "Delta check: flag >50% change vs previous for stable markers (HbA1c, TSH).",
+      "Physiology bounds: e.g., fasting glucose 0–40 mmol/L plausible; outside → 'implausible_value'.",
+      "If unit absent but value within typical mg/dL magnitudes and locale is US, suggest mg/dL; if AU/EU, suggest mmol/L (but still require explicit confirmation)."
+    ],
+    "qa_tests": [
+      "Round-trip conversions mg/dL↔mmol/L for glucose, lipids; ensure <= 1 ulp drift.",
+      "Context selection: same value returns different flags for male vs female HDL.",
+      "Lab override: when lab range provided in PDF, engine prefers that slice for that report only.",
+      "Method mismatch: LDL (direct) vs LDL (Friedewald) flagged if report method conflicts with selected slice."
+    ],
+    "deliverables": [
+      "SQL migrations + seed JSON for the 10 examples above.",
+      "A pure function normalizeMeasurement(input) with full unit tests.",
+      "A small CLI: `node scripts/try-normalize '{...json...}'` printing NormalizationResult.",
+      "Docs: README with examples and how to add new biomarkers safely."
+    ]
+  }
+}
