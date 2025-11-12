@@ -10,6 +10,7 @@ Flō is a mobile-first health analytics platform that allows users to upload blo
 - AI-generated health insights and recommendations
 - Historical tracking of blood work results
 - User authentication via Replit Auth
+- Comprehensive editable user profile system with health data and AI personalization
 
 ## User Preferences
 
@@ -60,10 +61,33 @@ Preferred communication style: Simple, everyday language.
 **Schema Design:**
 - `users` - User profiles (Replit Auth integration)
 - `sessions` - Express session storage (connect-pg-simple)
+- `profiles` - Extended user profiles with demographics, health baseline, goals, and AI personalization (1:1 with users)
 - `blood_work_records` - Uploaded file metadata and processing status
 - `analysis_results` - AI-generated insights stored as JSONB for flexibility
 
 **Rationale:** PostgreSQL chosen for structured relational data with JSONB support for flexible analysis result storage. Drizzle provides type safety while maintaining SQL transparency.
+
+### Profile System
+
+**Comprehensive Editable Profile:**
+- **Demographics**: Date of birth (with year/month dropdown calendar covering 1900-present), sex, weight/height with metric/imperial units
+- **Health Baseline**: Activity level, sleep hours, diet type, smoking status, alcohol consumption (all fields optional for incremental updates)
+- **Health Goals**: Multi-select from predefined goals with add/remove functionality
+- **AI Personalization**: Communication tone, insights frequency, custom focus areas (critical for tailoring AI analysis)
+
+**UX Patterns:**
+- Number inputs (weight, height, sleep) use local state with onBlur handlers to prevent mutation spam on every keystroke
+- All mutations use safe defaults (`?? {}`) when spreading profile objects to prevent runtime errors
+- Date picker uses useEffect to sync calendar month with profile data, preventing desync
+- Section-specific PATCH endpoints for autosave functionality
+- All profile schema fields are optional to support partial updates
+
+**API Endpoints:**
+- `GET /api/profile` - Fetch current user's profile
+- `PATCH /api/profile/demographics` - Update date of birth, sex, weight, height, units
+- `PATCH /api/profile/baseline` - Update activity, sleep, diet, smoking, alcohol (accepts partial updates)
+- `PATCH /api/profile/goals` - Update health goals array
+- `PATCH /api/profile/personalization` - Update tone, frequency, custom focus areas (accepts partial updates)
 
 ### Authentication & Authorization
 
