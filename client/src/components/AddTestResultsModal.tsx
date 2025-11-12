@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Edit, Upload as UploadIcon } from 'lucide-react';
+import { Edit, Upload as UploadIcon } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,18 +35,9 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       <DialogContent className="bg-[#0a0e1f] border border-white/10 text-white max-w-md mx-auto p-0 gap-0 rounded-3xl overflow-hidden">
         {/* Header */}
         <DialogHeader className="px-6 py-5 border-b border-white/10">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-medium text-white">
-              Add Test Results
-            </DialogTitle>
-            <button
-              onClick={onClose}
-              className="text-white/60 hover:text-white transition-colors"
-              data-testid="button-close-modal"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
+          <DialogTitle className="text-2xl font-medium text-white">
+            Add Test Results
+          </DialogTitle>
         </DialogHeader>
 
         {/* Tabs */}
