@@ -14,6 +14,20 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Admin & Billing enums
+export const userRoleEnum = pgEnum("user_role", ["free", "premium", "admin"]);
+export const userStatusEnum = pgEnum("user_status", ["active", "suspended"]);
+export const billingProviderEnum = pgEnum("billing_provider", ["stripe"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "incomplete",
+  "incomplete_expired",
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+  "unpaid"
+]);
+
 // Profile enums
 export const sexEnum = pgEnum("sex", ["Male", "Female", "Other"]);
 export const weightUnitEnum = pgEnum("weight_unit", ["kg", "lbs"]);
@@ -26,6 +40,18 @@ export const communicationToneEnum = pgEnum("communication_tone", ["Casual", "Pr
 export const insightsFrequencyEnum = pgEnum("insights_frequency", ["Daily", "Weekly", "Bi-weekly", "Monthly"]);
 
 // Zod enums for validation and UI options
+export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
+export const UserStatusEnum = z.enum(["active", "suspended"]);
+export const SubscriptionStatusEnum = z.enum([
+  "incomplete",
+  "incomplete_expired",
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+  "unpaid"
+]);
+
 export const SexEnum = z.enum(["Male", "Female", "Other"]);
 export const WeightUnitEnum = z.enum(["kg", "lbs"]);
 export const HeightUnitEnum = z.enum(["cm", "inches"]);
@@ -91,6 +117,8 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  role: userRoleEnum("role").default("free").notNull(),
+  status: userStatusEnum("status").default("active").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -158,6 +186,56 @@ export const analysisResults = pgTable("analysis_results", {
   confidence: jsonb("confidence"), // { overall, components: { ocr_quality, parser_confidence, etc } }
   schemaVersion: text("schema_version").default("1.0"),
   
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Billing customers table (links users to Stripe)
+export const billingCustomers = pgTable("billing_customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  provider: billingProviderEnum("provider").default("stripe").notNull(),
+  stripeCustomerId: varchar("stripe_customer_id").unique(),
+  countryCode: varchar("country_code", { length: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Subscriptions table
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
+  stripeSubscriptionId: varchar("stripe_subscription_id").unique(),
+  stripePriceId: varchar("stripe_price_id"),
+  status: subscriptionStatusEnum("status").notNull(),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  cancelAtPeriodEnd: text("cancel_at_period_end").default("false"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Payments table (for Apple Pay metadata)
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
+  stripePaymentIntentId: varchar("stripe_payment_intent_id").unique(),
+  amount: integer("amount").notNull(),
+  currency: varchar("currency", { length: 3 }).default("usd"),
+  status: text("status").notNull(),
+  paymentMethod: text("payment_method"),
+  last4: varchar("last4", { length: 4 }),
+  brand: varchar("brand"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Audit log table for admin actions
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").notNull().references(() => users.id),
+  targetUserId: varchar("target_user_id").references(() => users.id),
+  action: text("action").notNull(),
+  changes: jsonb("changes"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -259,3 +337,19 @@ export const insertAnalysisResultSchema = createInsertSchema(analysisResults).om
 });
 export type InsertAnalysisResult = z.infer<typeof insertAnalysisResultSchema>;
 export type AnalysisResult = typeof analysisResults.$inferSelect;
+
+// Admin schemas
+export const updateUserRoleSchema = z.object({
+  role: UserRoleEnum,
+});
+
+export const updateUserStatusSchema = z.object({
+  status: UserStatusEnum,
+});
+
+export type UpdateUserRole = z.infer<typeof updateUserRoleSchema>;
+export type UpdateUserStatus = z.infer<typeof updateUserStatusSchema>;
+export type BillingCustomer = typeof billingCustomers.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
