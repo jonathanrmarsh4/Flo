@@ -4,6 +4,10 @@ import {
   profiles,
   bloodWorkRecords,
   analysisResults,
+  billingCustomers,
+  subscriptions,
+  payments,
+  auditLogs,
   type User,
   type UpsertUser,
   type Profile,
@@ -16,9 +20,15 @@ import {
   type InsertBloodWorkRecord,
   type AnalysisResult,
   type InsertAnalysisResult,
+  type UpdateUserRole,
+  type UpdateUserStatus,
+  type BillingCustomer,
+  type Subscription,
+  type Payment,
+  type AuditLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or, ilike, and, sql } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -44,6 +54,15 @@ export interface IStorage {
   // Analysis operations
   createAnalysisResult(analysis: InsertAnalysisResult): Promise<AnalysisResult>;
   getAnalysisResultByRecordId(recordId: string): Promise<AnalysisResult | undefined>;
+  
+  // Admin operations
+  listUsers(params: { query?: string; role?: string; status?: string; limit?: number; offset?: number }): Promise<{ users: User[]; total: number }>;
+  updateUserRole(userId: string, data: UpdateUserRole, adminId: string): Promise<User>;
+  updateUserStatus(userId: string, data: UpdateUserStatus, adminId: string): Promise<User>;
+  
+  // Billing operations
+  getBillingInfo(userId: string): Promise<{ customer?: BillingCustomer; subscription?: Subscription; lastPayment?: Payment }>;
+  createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any }): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -168,6 +187,126 @@ export class DatabaseStorage implements IStorage {
       .from(analysisResults)
       .where(eq(analysisResults.recordId, recordId));
     return result;
+  }
+
+  // Admin operations
+  async listUsers(params: { query?: string; role?: string; status?: string; limit?: number; offset?: number }): Promise<{ users: User[]; total: number }> {
+    const { query = '', role, status, limit = 50, offset = 0 } = params;
+    
+    const conditions = [];
+    
+    if (query) {
+      conditions.push(
+        or(
+          ilike(users.email, `%${query}%`),
+          ilike(users.firstName, `%${query}%`),
+          ilike(users.lastName, `%${query}%`)
+        )
+      );
+    }
+    
+    if (role) {
+      conditions.push(eq(users.role, role as any));
+    }
+    
+    if (status) {
+      conditions.push(eq(users.status, status as any));
+    }
+    
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    
+    const usersList = await db
+      .select()
+      .from(users)
+      .where(whereClause)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(desc(users.createdAt));
+    
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(whereClause);
+    
+    return {
+      users: usersList,
+      total: Number(countResult?.count || 0),
+    };
+  }
+
+  async updateUserRole(userId: string, data: UpdateUserRole, adminId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ role: data.role as any, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    await this.createAuditLog({
+      adminId,
+      targetUserId: userId,
+      action: 'update_role',
+      changes: { role: data.role },
+    });
+    
+    return user;
+  }
+
+  async updateUserStatus(userId: string, data: UpdateUserStatus, adminId: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ status: data.status as any, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    await this.createAuditLog({
+      adminId,
+      targetUserId: userId,
+      action: 'update_status',
+      changes: { status: data.status },
+    });
+    
+    return user;
+  }
+
+  // Billing operations
+  async getBillingInfo(userId: string): Promise<{ customer?: BillingCustomer; subscription?: Subscription; lastPayment?: Payment }> {
+    const [customer] = await db
+      .select()
+      .from(billingCustomers)
+      .where(eq(billingCustomers.userId, userId));
+    
+    if (!customer) {
+      return {};
+    }
+    
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.customerId, customer.id))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+    
+    const [lastPayment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.customerId, customer.id))
+      .orderBy(desc(payments.createdAt))
+      .limit(1);
+    
+    return {
+      customer,
+      subscription,
+      lastPayment,
+    };
+  }
+
+  async createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any }): Promise<void> {
+    await db.insert(auditLogs).values({
+      adminId: log.adminId,
+      targetUserId: log.targetUserId,
+      action: log.action,
+      changes: log.changes,
+    });
   }
 }
 
