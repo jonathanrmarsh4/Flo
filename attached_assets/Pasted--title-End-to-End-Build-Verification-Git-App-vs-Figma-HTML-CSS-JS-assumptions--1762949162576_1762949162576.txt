@@ -1,0 +1,226 @@
+{
+  "title": "End-to-End Build & Verification: Git App vs Figma HTML/CSS/JS",
+  "assumptions": {
+    "repo_url": "<REPO_URL>",
+    "branch": "main",
+    "package_manager": "pnpm",
+    "node_version": "20.x",
+    "framework": "auto-detect (Vite/Next/CRA or static)",
+    "figma_export_source": "Provided Figma-to-HTML/CSS/JS export or design tokens",
+    "figma_refs": {
+      "design_file_key": "<FIGMA_FILE_KEY (optional)>",
+      "pages_or_frames": ["<FRAME NAME 1>", "<FRAME NAME 2>"],
+      "export_bundle_path": "./design/figma-export" 
+    }
+  },
+  "goals": [
+    "Clone the complete app from Git and restore a clean, reproducible environment.",
+    "Build and run the app locally with zero errors and zero TypeScript/JS runtime exceptions.",
+    "Verify pixel/behavior parity against the Figma-derived HTML/CSS/JS (or design tokens).",
+    "Enforce accessibility, performance, responsiveness, and cross-browser baselines.",
+    "Eliminate dead/unused code and broken links/assets without regressing features.",
+    "Produce an auditable report plus automated CI checks to prevent future drift."
+  ],
+  "inputs_needed": [
+    "Valid <REPO_URL> and read access.",
+    "If private: auth token or SSH key instructions.",
+    "If env vars are required, provide a .env.example or secrets with safe defaults.",
+    "If using Figma API: a Figma Personal Access Token (PAT) for read-only ops."
+  ],
+  "setup": {
+    "commands": [
+      "git clone <REPO_URL> app && cd app && git checkout main",
+      "corepack enable || true",
+      "asdf local nodejs 20.11.1 || nvm use 20 || volta pin node@20 || echo \"Use Node 20.x\"",
+      "pnpm i || npm ci || yarn install"
+    ],
+    "sanity_checks": [
+      "Ensure package.json has start/build/test/lint scripts.",
+      "If TypeScript: ensure tsconfig.json is present and strict is enabled.",
+      "If Vite/Next: confirm vite.config.ts or next.config.js loads without error."
+    ]
+  },
+  "build_and_run": {
+    "commands": [
+      "pnpm run lint:fix || npm run lint:fix || npm run lint || true",
+      "pnpm run typecheck || npm run typecheck || true",
+      "pnpm run build || npm run build",
+      "pnpm run preview || pnpm run start || npm run start"
+    ],
+    "expected_outcome": "Local server runs without console errors; all routes load; no 404 assets."
+  },
+  "design_parity": {
+    "source_of_truth": "Figma HTML/CSS/JS export and/or tokens in ./design/figma-export",
+    "token_sync": {
+      "tooling": "Style Dictionary or Token Transform",
+      "action": "If tokens exist, generate CSS variables to src/styles/tokens.css and import once at app root."
+    },
+    "visual_diff": {
+      "tool": "Playwright + pixelmatch",
+      "scenes": [
+        "Core routes and UI states listed in /tests/scenes.json (create if missing)."
+      ],
+      "tolerances": {
+        "pixel_threshold": 0.01,
+        "max_diff_percentage": 0.5
+      },
+      "commands": [
+        "pnpm exec playwright install --with-deps",
+        "pnpm run test:visual"
+      ],
+      "acceptance": "All pages under max_diff_percentage; any deviations must be auto-repaired or justified."
+    },
+    "css_consistency": {
+      "checks": [
+        "Ensure font families, sizes, spacing, radii, and colors match tokens.css.",
+        "No inline styles overriding design tokens (unless documented).",
+        "No !important unless justified."
+      ]
+    }
+  },
+  "functional_verification": {
+    "static_checks": [
+      "Check all internal links resolve (no 404).",
+      "Verify forms validate and submit without console errors."
+    ],
+    "e2e_tests": {
+      "tool": "Playwright",
+      "coverage_minimum": "Smoke + critical flows",
+      "commands": [
+        "pnpm run test:e2e || npm run test:e2e"
+      ]
+    }
+  },
+  "quality_gates": {
+    "linting": {
+      "tools": ["ESLint", "Prettier", "Stylelint"],
+      "commands": [
+        "pnpm run lint && pnpm run stylelint || true",
+        "pnpm run format || true"
+      ],
+      "fail_on": ["no-unused-vars", "no-undef", "no-dead-code (custom rule via ts-prune)"]
+    },
+    "types": {
+      "command": "pnpm run typecheck || npm run typecheck",
+      "require_strict": true
+    },
+    "accessibility": {
+      "tool": "axe-core via Playwright",
+      "allow_violations": 0,
+      "commands": ["pnpm run test:a11y || true"]
+    },
+    "performance": {
+      "tool": "Lighthouse CI (desktop + mobile)",
+      "thresholds": {
+        "performance": 90,
+        "accessibility": 95,
+        "best_practices": 95,
+        "seo": 90
+      },
+      "commands": ["pnpm run lhci || true"]
+    },
+    "bundle_health": {
+      "tools": ["source-map-explorer", "bundlesize"],
+      "targets": {
+        "max_js_kb": 350,
+        "max_css_kb": 120
+      }
+    }
+  },
+  "responsiveness_and_browsers": {
+    "viewports": ["360x780", "390x844", "768x1024", "1280x800", "1440x900"],
+    "browsers": ["Chromium", "WebKit", "Firefox"],
+    "commands": ["pnpm run test:responsive || true"],
+    "acceptance": "No layout overflow, clipped text, or horizontal scrollbars unless specified by design."
+  },
+  "dead_code_and_broken_refs": {
+    "actions": [
+      "Run ts-prune (or depcheck for JS) to identify unused exports/deps.",
+      "Remove unused components/assets; update imports.",
+      "Run linkinator (or custom crawler) against local server to ensure no broken links.",
+      "Purge CSS (if Tailwind/PostCSS) safely to remove unused styles."
+    ]
+  },
+  "security_and_ci": {
+    "security": {
+      "commands": [
+        "pnpm audit || npm audit || true",
+        "npm audit signatures || true"
+      ],
+      "actions": [
+        "Update vulnerable packages within semver minor/patch where safe.",
+        "Document any high severity issues needing approval."
+      ]
+    },
+    "ci_pipeline": {
+      "provider": "GitHub Actions",
+      "file": ".github/workflows/ci.yml",
+      "must_include": [
+        "Install Node 20.x + cache deps",
+        "Build",
+        "ESLint/Stylelint/TypeCheck",
+        "Playwright e2e (headed=false)",
+        "axe accessibility checks",
+        "Lighthouse CI",
+        "bundlesize guard",
+        "Artifact upload: coverage, visual diffs, lhci reports"
+      ]
+    }
+  },
+  "auto_fixes": {
+    "policy": "Create a feature branch 'fix/figma-parity'.",
+    "steps": [
+      "For each failing gate, implement the smallest safe change.",
+      "Prioritize token-driven fixes over ad-hoc CSS.",
+      "Refactor duplicated styles into a single source using tokens.",
+      "After changes, re-run full pipeline locally; commit with conventional commit messages."
+    ]
+  },
+  "reporting": {
+    "artifacts": [
+      "visual-diffs/**",
+      "coverage/**",
+      "lhci/**",
+      "accessibility/**",
+      "bundlesize-report.json"
+    ],
+    "summary_markdown": "ci-report.md",
+    "must_answer": [
+      "Exact list of failing pages/selectors and the fix applied.",
+      "Any divergence from Figma with rationale.",
+      "Remaining tech debt with recommended next steps."
+    ]
+  },
+  "acceptance_criteria": [
+    "App builds and runs locally with zero console errors.",
+    "All routes and critical flows pass Playwright e2e.",
+    "Visual diffs within tolerance against Figma-derived references.",
+    "A11y violations = 0 (axe).",
+    "Lighthouse thresholds met.",
+    "No broken links/assets; no horizontal scroll on supported viewports.",
+    "Dead/unused code and assets removed; bundle within targets.",
+    "CI pipeline green with artifacts attached; report produced."
+  ],
+  "failure_handling": {
+    "if_figma_export_missing": "Pull design tokens via Figma API and generate tokens.css. Fallback to closest existing theme; document variances.",
+    "if_env_missing": "Stub safe defaults and mock network calls; mark as TODO in ci-report.md.",
+    "if_thresholds_not_met": "Open a single tracking issue with a checklist per failing gate; include diffs and proposed changes."
+  },
+  "final_deliverables": [
+    "PR: fix/figma-parity branch with all changes.",
+    "ci-report.md summarizing results and links to artifacts.",
+    "Updated docs: README (setup/run), CONTRIBUTING (lint/test), DESIGN.md (tokens/process)."
+  ],
+  "one_shot_commands": {
+    "local_all_in": [
+      "git clone <REPO_URL> app && cd app && git checkout main",
+      "corepack enable || true",
+      "pnpm i || npm ci || yarn install",
+      "pnpm run build && (pnpm run preview || pnpm run start)",
+      "pnpm exec playwright install --with-deps",
+      "pnpm run test:e2e || true",
+      "pnpm run test:visual || true",
+      "pnpm run lhci || true"
+    ]
+  }
+}

@@ -85,6 +85,14 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        flo: {
+          teal: "hsl(var(--flo-teal) / <alpha-value>)",
+          cyan: "hsl(var(--flo-cyan) / <alpha-value>)",
+          purple: "hsl(var(--flo-purple) / <alpha-value>)",
+        },
+      },
+      backgroundImage: {
+        'flo-gradient': 'linear-gradient(135deg, hsl(var(--flo-gradient-start)), hsl(var(--flo-gradient-mid)), hsl(var(--flo-gradient-end)))',
       },
       fontFamily: {
         sans: ["-apple-system", "BlinkMacSystemFont", "SF Pro Display", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],

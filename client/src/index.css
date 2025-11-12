@@ -59,6 +59,15 @@
   --shadow-2xl: 0px 25px 50px -12px hsl(0 0% 0% / 0.25);
   --tracking-normal: -0.01em;
   --spacing: 0.25rem;
+  
+  /* Flō Design Palette - Gradients and special colors */
+  --flo-gradient-start: 222 84% 5%;
+  --flo-gradient-mid: 222 84% 15%;
+  --flo-gradient-end: 222 84% 5%;
+  --flo-teal: 173 80% 40%;
+  --flo-cyan: 189 94% 43%;
+  --flo-purple: 258 90% 66%;
+  --scrollbar-hide: none;
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
@@ -139,6 +148,14 @@
   --shadow-lg: 0px 10px 20px -5px hsl(0 0% 0% / 0.70);
   --shadow-xl: 0px 20px 25px -5px hsl(0 0% 0% / 0.80);
   --shadow-2xl: 0px 25px 50px -12px hsl(0 0% 0% / 0.90);
+  
+  /* Flō Design Palette - Dark mode gradients */
+  --flo-gradient-start: 215 78% 12%;
+  --flo-gradient-mid: 215 78% 20%;
+  --flo-gradient-end: 215 78% 12%;
+  --flo-teal: 173 80% 55%;
+  --flo-cyan: 189 94% 58%;
+  --flo-purple: 258 90% 75%;
 
 /* Fallback for older browsers */
   --sidebar-primary-border: hsl(var(--sidebar-primary));
