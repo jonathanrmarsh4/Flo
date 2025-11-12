@@ -1,19 +1,43 @@
 import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Brain, Heart, Sparkles, ChevronRight } from 'lucide-react';
 
+export interface BiologicalAgeData {
+  biologicalAge: number;
+  chronologicalAge: number;
+  ageDifference: number;
+}
+
+export interface TopBiomarker {
+  name: string;
+  change: string;
+  trend: 'up' | 'down';
+  color: 'red' | 'amber' | 'yellow';
+  sparkline: number[];
+  benefit: string;
+}
+
 interface InsightsScreenProps {
   isDark: boolean;
   onClose: () => void;
   onOpenFullReport: () => void;
+  ageData?: BiologicalAgeData;
+  topBiomarkers?: TopBiomarker[];
+  aiInsight?: string;
 }
 
-export function InsightsScreen({ isDark, onClose, onOpenFullReport }: InsightsScreenProps) {
-  // Mock data for biological age calculation
-  const biologicalAge = 46;
-  const chronologicalAge = 49.2;
-  const ageDifference = chronologicalAge - biologicalAge;
+export function InsightsScreen({ 
+  isDark, 
+  onClose, 
+  onOpenFullReport,
+  ageData,
+  topBiomarkers: providedBiomarkers,
+  aiInsight: providedInsight
+}: InsightsScreenProps) {
+  // Use provided data or fallback to defaults for graceful degradation
+  const biologicalAge = ageData?.biologicalAge ?? 46;
+  const chronologicalAge = ageData?.chronologicalAge ?? 49.2;
+  const ageDifference = ageData?.ageDifference ?? (chronologicalAge - biologicalAge);
   
-  // Mock data for top biomarkers to improve
-  const topBiomarkers = [
+  const topBiomarkers = providedBiomarkers ?? [
     { 
       name: 'LDL', 
       change: '+14%', 
@@ -22,26 +46,9 @@ export function InsightsScreen({ isDark, onClose, onOpenFullReport }: InsightsSc
       sparkline: [85, 88, 92, 95, 97],
       benefit: 'Lowering LDL cholesterol reduces arterial plaque buildup, cutting your risk of heart disease and stroke by up to 25%. Focus on fiber-rich foods and regular cardio.'
     },
-    { 
-      name: 'HbA1c', 
-      change: '+3%', 
-      trend: 'up' as const, 
-      color: 'amber' as const, 
-      sparkline: [5.2, 5.3, 5.3, 5.4, 5.4],
-      benefit: 'Better blood sugar control prevents diabetes complications, protects nerve and kidney function, and improves energy levels. Consider reducing refined carbs and increasing protein.'
-    },
-    { 
-      name: 'Vitamin D', 
-      change: '-7%', 
-      trend: 'down' as const, 
-      color: 'yellow' as const, 
-      sparkline: [42, 38, 36, 35, 32],
-      benefit: 'Optimal Vitamin D strengthens bones, boosts immune function, and may reduce depression risk. Aim for 15 minutes of sun exposure daily or supplement with D3.'
-    }
   ];
   
-  // Mock AI insight
-  const aiInsight = "Your inflammation markers have dropped consistently over the past 6 months, indicating improved recovery and reduced cardiovascular risk. Keep up your current lifestyle interventions focused on omega-3 intake and regular exercise.";
+  const aiInsight = providedInsight ?? "Your blood work analysis is ready. View the full report for detailed insights and recommendations.";
   
   // Progress ring calculation for biological age
   const progressPercentage = ((chronologicalAge - biologicalAge) / chronologicalAge) * 100;

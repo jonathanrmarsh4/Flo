@@ -1,12 +1,24 @@
 import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Award, Target, Activity, Flame, Heart, Zap, Brain, Droplet, Sparkles, ChevronRight, ChevronDown, Share2, Download } from 'lucide-react';
 import { useState } from 'react';
+import type { BiologicalAgeData } from './InsightsScreen';
+
+export interface FullReportData {
+  summary_header: {
+    biological_age_years: number;
+    chronological_age_years: number;
+    bioage_trend_years_since_last: number;
+    overall_health_rating: string;
+    badges: string[];
+  };
+}
 
 interface FullReportScreenProps {
   isDark: boolean;
   onClose: () => void;
+  reportData?: FullReportData;
 }
 
-export function FullReportScreen({ isDark, onClose }: FullReportScreenProps) {
+export function FullReportScreen({ isDark, onClose, reportData: providedData }: FullReportScreenProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     technical: false,
     biomarkerGroups: false
@@ -16,10 +28,10 @@ export function FullReportScreen({ isDark, onClose }: FullReportScreenProps) {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Mock data based on JSON structure
+  // Mock data based on JSON structure (merge with provided data if available)
   const report = {
     generated_at: new Date().toISOString(),
-    summary_header: {
+    summary_header: providedData?.summary_header ?? {
       biological_age_years: 46,
       chronological_age_years: 49.2,
       bioage_trend_years_since_last: -0.8,

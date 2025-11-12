@@ -3,6 +3,13 @@ import { useLocation, useParams } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { InsightsScreen } from '@/components/InsightsScreen';
 import { useAuth } from '@/hooks/useAuth';
+import { 
+  mapAnalysisToBiomarkerReadings,
+  getBiologicalAgeData,
+  getTopBiomarkersToImprove,
+  getAIInsight
+} from '@/lib/flo-data-adapters';
+import type { AnalysisResult } from '@shared/schema';
 
 export default function Insights() {
   const { user } = useAuth();
@@ -12,7 +19,7 @@ export default function Insights() {
 
   const analysisId = params.id;
 
-  const { data: analysis } = useQuery<any>({
+  const { data: analysis } = useQuery<AnalysisResult>({
     queryKey: analysisId ? [`/api/blood-work/${analysisId}/analysis`] : ['/api/blood-work/latest'],
     enabled: !!user,
   });
@@ -29,12 +36,21 @@ export default function Insights() {
     }
   };
 
+  // Transform backend data for UI
+  const readings = mapAnalysisToBiomarkerReadings(analysis);
+  const ageData = getBiologicalAgeData(analysis);
+  const topBiomarkers = getTopBiomarkersToImprove(readings);
+  const aiInsight = getAIInsight(analysis);
+
   return (
     <div className="h-screen overflow-hidden">
       <InsightsScreen 
         isDark={isDark}
         onClose={handleClose}
         onOpenFullReport={handleOpenFullReport}
+        ageData={ageData}
+        topBiomarkers={topBiomarkers}
+        aiInsight={aiInsight}
       />
     </div>
   );

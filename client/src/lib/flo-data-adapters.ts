@@ -109,3 +109,69 @@ function getBiomarkerBenefit(biomarker: string): string {
   
   return benefits[biomarker] || 'Optimizing this biomarker supports better overall health and wellness.';
 }
+
+export function getAIInsight(analysis: AnalysisResult | undefined): string {
+  if (!analysis) return "Your blood work analysis is being processed.";
+  
+  // Try to get recommendations from analysis
+  if (analysis.recommendations && typeof analysis.recommendations === 'string') {
+    return analysis.recommendations;
+  }
+  
+  // Try to parse insights array if it's JSON
+  if (analysis.insights && typeof analysis.insights === 'string') {
+    try {
+      const insights = JSON.parse(analysis.insights);
+      if (Array.isArray(insights) && insights.length > 0) {
+        return insights[0].recommendation || insights[0].insight || "";
+      }
+    } catch (e) {
+      // Fall through to default
+    }
+  }
+  
+  return "Your blood work analysis is complete. Review the biomarkers below for detailed insights.";
+}
+
+export function getFullReportData(analysis: AnalysisResult | undefined): {
+  summary_header: {
+    biological_age_years: number;
+    chronological_age_years: number;
+    bioage_trend_years_since_last: number;
+    overall_health_rating: string;
+    badges: string[];
+  };
+} {
+  if (!analysis) {
+    return {
+      summary_header: {
+        biological_age_years: 0,
+        chronological_age_years: 0,
+        bioage_trend_years_since_last: 0,
+        overall_health_rating: "Processing",
+        badges: []
+      }
+    };
+  }
+
+  const ageData = getBiologicalAgeData(analysis);
+  const readings = mapAnalysisToBiomarkerReadings(analysis);
+  const inRange = readings.filter(r => {
+    const config = BIOMARKER_CONFIGS[r.biomarker];
+    return config && r.value >= config.min && r.value <= config.max;
+  });
+  
+  const badges: string[] = [];
+  if (inRange.length / readings.length > 0.8) badges.push("Excellent Health");
+  if (ageData.ageDifference > 2) badges.push("Biological Youth");
+  
+  return {
+    summary_header: {
+      biological_age_years: ageData.biologicalAge,
+      chronological_age_years: ageData.chronologicalAge,
+      bioage_trend_years_since_last: ageData.ageDifference > 0 ? ageData.ageDifference : 0,
+      overall_health_rating: inRange.length / readings.length > 0.7 ? "Good" : "Needs Attention",
+      badges
+    }
+  };
+}
