@@ -1,6 +1,31 @@
-import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Award, Target, Activity, Flame, Heart, Zap, Brain, Droplet, Sparkles, ChevronRight, ChevronDown, Share2, Download } from 'lucide-react';
+import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Award, Target, Activity, Flame, Heart, Zap, Brain, Droplet, Sparkles, ChevronRight, ChevronDown, Share2, Download, AlertTriangle, LucideIcon, Apple, Pill, Sun, Moon, FileText } from 'lucide-react';
 import { useState } from 'react';
 import type { BiologicalAgeData } from './InsightsScreen';
+
+// Icon mapping for dynamic icon rendering
+const ICON_MAP: Record<string, LucideIcon> = {
+  'AlertTriangle': AlertTriangle,
+  'TrendingUp': TrendingUp,
+  'Flame': Flame,
+  'Activity': Activity,
+  'Heart': Heart,
+  'Droplet': Droplet,
+  'Zap': Zap,
+  'Brain': Brain,
+  'Target': Target,
+  'Apple': Apple,
+  'Pill': Pill,
+  'Sun': Sun,
+  'Stethoscope': Heart,
+  'Dumbbell': Zap,
+  'Moon': Moon,
+  'FileText': FileText
+};
+
+function renderIcon(iconName: string, className?: string) {
+  const IconComponent = ICON_MAP[iconName] || Activity;
+  return <IconComponent className={className} />;
+}
 
 export interface FullReportData {
   generated_at: string;
@@ -90,19 +115,19 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
     },
     key_takeaways: [
       {
-        icon: "🔥",
+        icon: "Flame",
         title: "Inflammation Down 23%",
         insight: "Your CRP and IL-6 markers show significant improvement, indicating reduced systemic inflammation and better recovery capacity.",
         cta: "view_detail:inflammation"
       },
       {
-        icon: "💪",
+        icon: "TrendingUp",
         title: "Metabolic Health Improved",
         insight: "HbA1c trending toward optimal range. Your insulin sensitivity is improving with current diet interventions.",
         cta: "view_detail:metabolic"
       },
       {
-        icon: "⚠️",
+        icon: "AlertTriangle",
         title: "LDL Needs Attention",
         insight: "LDL cholesterol has increased 14% over 6 months. Consider adding more soluble fiber and reducing saturated fat intake.",
         cta: "view_detail:lipids"
@@ -126,7 +151,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
       {
         marker_code: "LDL",
         label: "LDL Cholesterol",
-        icon: "🫀",
+        icon: "Heart",
         current_value: 135,
         unit: "mg/dL",
         reference_range: { low: 0, high: 100, unit: "mg/dL" },
@@ -139,7 +164,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
       {
         marker_code: "HbA1c",
         label: "HbA1c",
-        icon: "🍬",
+        icon: "Activity",
         current_value: 5.4,
         unit: "%",
         reference_range: { low: 4.0, high: 5.6, unit: "%" },
@@ -152,7 +177,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
       {
         marker_code: "VitD",
         label: "Vitamin D",
-        icon: "☀️",
+        icon: "Sun",
         current_value: 32,
         unit: "ng/mL",
         reference_range: { low: 30, high: 100, unit: "ng/mL" },
@@ -165,7 +190,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
       {
         marker_code: "CRP",
         label: "C-Reactive Protein",
-        icon: "🔥",
+        icon: "Flame",
         current_value: 0.8,
         unit: "mg/L",
         reference_range: { low: 0, high: 3.0, unit: "mg/L" },
@@ -178,7 +203,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
       {
         marker_code: "Testosterone",
         label: "Total Testosterone",
-        icon: "💪",
+        icon: "Zap",
         current_value: 620,
         unit: "ng/dL",
         reference_range: { low: 300, high: 1000, unit: "ng/dL" },
@@ -313,7 +338,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="text-2xl">{takeaway.icon}</div>
+                  {renderIcon(takeaway.icon, `w-6 h-6 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`)}
                   <div className="flex-1">
                     <div className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       {takeaway.title}
@@ -418,7 +443,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl">{marker.icon}</div>
+                      {renderIcon(marker.icon, `w-6 h-6 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`)}
                       <div>
                         <div className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {marker.label}
@@ -476,14 +501,15 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
 
           <div className="space-y-3">
             {report.focus_next_period.map((focus, idx) => {
-              const icons: Record<string, any> = {
-                nutrition: '🥗',
-                supplementation: '💊',
-                lifestyle: '🌞',
-                medical_followup: '🩺',
-                training: '💪',
-                recovery: '😴'
+              const categoryIcons: Record<string, string> = {
+                nutrition: 'Apple',
+                supplementation: 'Pill',
+                lifestyle: 'Sun',
+                medical_followup: 'Stethoscope',
+                training: 'Dumbbell',
+                recovery: 'Moon'
               };
+              const categoryIconName = categoryIcons[focus.category] || 'FileText';
 
               return (
                 <div 
@@ -491,7 +517,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
                   className={`p-4 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="text-xl">{icons[focus.category]}</div>
+                    {renderIcon(categoryIconName, `w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`)}
                     <div>
                       <div className={`text-sm mb-1 capitalize ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
                         {focus.category.replace('_', ' ')}

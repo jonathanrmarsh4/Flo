@@ -219,7 +219,7 @@ export function getFullReportData(analysis: AnalysisResult | undefined) {
 
   // Generate key takeaways
   const key_takeaways = topBiomarkers.slice(0, 3).map(bio => ({
-    icon: bio.color === 'red' ? '⚠️' : bio.color === 'amber' ? '💪' : '🔥',
+    icon: bio.color === 'red' ? 'AlertTriangle' : bio.color === 'amber' ? 'TrendingUp' : 'Flame',
     title: `${bio.name} ${bio.trend === 'up' ? 'Elevated' : 'Low'} ${bio.change}`,
     insight: bio.benefit,
     cta: `view_detail:${bio.name.toLowerCase()}`
@@ -236,7 +236,7 @@ export function getFullReportData(analysis: AnalysisResult | undefined) {
     return {
       marker_code: r.biomarker,
       label: r.biomarker,
-      icon: '🔬',
+      icon: 'Activity',
       current_value: r.value,
       unit: config.unit,
       reference_range: { low: config.min, high: config.max, unit: config.unit },
