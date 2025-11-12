@@ -84,15 +84,50 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     }
   }, [availableUnits, unit]);
 
-  const handleSubmit = () => {
-    // TODO: Implement submission logic
-    console.log({
-      biomarker: selectedBiomarker,
-      value,
-      unit,
-      testDate,
-    });
-    onClose();
+  const handleSubmit = async () => {
+    if (!selectedBiomarkerData || !value || !unit) return;
+
+    try {
+      // Parse the value as a number
+      const numericValue = parseFloat(value);
+      if (isNaN(numericValue)) {
+        console.error("Invalid numeric value");
+        return;
+      }
+
+      // Call normalization API to convert to canonical units
+      const response = await fetch("/api/normalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: selectedBiomarkerData.name,
+          value: numericValue,
+          unit: unit,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Normalization failed");
+        return;
+      }
+
+      const normalizedResult = await response.json();
+      
+      // TODO: Save to database when endpoint is available
+      console.log({
+        biomarker: selectedBiomarker,
+        biomarkerName: selectedBiomarkerData.name,
+        originalValue: numericValue,
+        originalUnit: unit,
+        normalizedValue: normalizedResult.normalizedValue,
+        canonicalUnit: normalizedResult.canonicalUnit,
+        testDate,
+      });
+
+      onClose();
+    } catch (error) {
+      console.error("Error submitting test result:", error);
+    }
   };
 
   return (
