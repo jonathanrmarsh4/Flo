@@ -569,3 +569,105 @@ export const bulkNormalizationInputSchema = z.object({
 
 export type NormalizationInput = z.infer<typeof normalizationInputSchema>;
 export type BulkNormalizationInput = z.infer<typeof bulkNormalizationInputSchema>;
+
+// Biomarker API schemas
+// Include enums for query parameters
+export const BiomarkerIncludeEnum = z.enum(["units", "ranges"]);
+export const BiomarkerUnitsIncludeEnum = z.enum(["conversions"]);
+
+// Helper to parse comma-separated string or array into array
+const includeArraySchema = z.preprocess(
+  (val) => {
+    if (typeof val === "string") {
+      return val.split(",").map(s => s.trim());
+    }
+    return val;
+  },
+  z.array(BiomarkerIncludeEnum).optional()
+);
+
+const unitsIncludeArraySchema = z.preprocess(
+  (val) => {
+    if (typeof val === "string") {
+      return val.split(",").map(s => s.trim());
+    }
+    return val;
+  },
+  z.array(BiomarkerUnitsIncludeEnum).optional()
+);
+
+// GET /api/biomarkers query schema
+export const getBiomarkersQuerySchema = z.object({
+  include: includeArraySchema,
+  groupBy: z.enum(["category"]).optional(),
+});
+
+// GET /api/biomarkers/:id/units query schema
+export const getBiomarkerUnitsQuerySchema = z.object({
+  include: unitsIncludeArraySchema,
+});
+
+// GET /api/biomarkers/:id/reference-range query schema
+export const getBiomarkerReferenceRangeQuerySchema = z.object({
+  age: z.coerce.number().min(0).max(150).optional(),
+  sex: z.enum(["male", "female"]).optional(),
+  fasting: z.coerce.boolean().optional(),
+  pregnancy: z.coerce.boolean().optional(),
+  method: z.string().optional(),
+  labId: z.string().optional(),
+  context: z.enum(["auto"]).optional(), // If "auto", use authenticated user's profile
+});
+
+// Response DTOs
+export const biomarkerSummarySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  category: z.string(),
+  canonicalUnit: z.string(),
+  displayUnitPreference: z.string().optional(),
+});
+
+export const biomarkerWithDetailsSchema = biomarkerSummarySchema.extend({
+  units: z.array(z.string()).optional(), // Unique unit list if include=units
+  ranges: z.array(z.object({
+    id: z.string().uuid(),
+    unit: z.string(),
+    sex: z.string(),
+    low: z.number().nullable(),
+    high: z.number().nullable(),
+    criticalLow: z.number().nullable(),
+    criticalHigh: z.number().nullable(),
+    source: z.string().nullable(),
+  })).optional(), // Reference ranges if include=ranges
+});
+
+export const biomarkerUnitResponseSchema = z.object({
+  unit: z.string(),
+  canonical: z.boolean(), // True if this is the canonical unit
+  conversions: z.array(z.object({
+    fromUnit: z.string(),
+    toUnit: z.string(),
+    conversionType: z.enum(["ratio", "affine"]),
+    multiplier: z.number(),
+    offset: z.number().optional(),
+  })).optional(), // Include conversion metadata if include=conversions
+});
+
+export const referenceRangeResponseSchema = z.object({
+  low: z.number().nullable(),
+  high: z.number().nullable(),
+  unit: z.string(),
+  criticalLow: z.number().nullable(),
+  criticalHigh: z.number().nullable(),
+  source: z.string().nullable(),
+  context: z.record(z.any()).nullable(),
+});
+
+// Export types
+export type GetBiomarkersQuery = z.infer<typeof getBiomarkersQuerySchema>;
+export type GetBiomarkerUnitsQuery = z.infer<typeof getBiomarkerUnitsQuerySchema>;
+export type GetBiomarkerReferenceRangeQuery = z.infer<typeof getBiomarkerReferenceRangeQuerySchema>;
+export type BiomarkerSummary = z.infer<typeof biomarkerSummarySchema>;
+export type BiomarkerWithDetails = z.infer<typeof biomarkerWithDetailsSchema>;
+export type BiomarkerUnitResponse = z.infer<typeof biomarkerUnitResponseSchema>;
+export type ReferenceRangeResponse = z.infer<typeof referenceRangeResponseSchema>;

@@ -14,6 +14,9 @@ import {
   updateUserSchema,
   normalizationInputSchema,
   bulkNormalizationInputSchema,
+  getBiomarkersQuerySchema,
+  getBiomarkerUnitsQuerySchema,
+  getBiomarkerReferenceRangeQuerySchema,
 } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { requireAdmin } from "./middleware/rbac";
@@ -432,6 +435,228 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error in bulk normalization:", error);
       res.status(500).json({ error: "Failed to normalize measurements" });
+    }
+  });
+
+  // Biomarker data routes
+  // GET /api/biomarkers - Fetch all biomarkers with optional includes
+  app.get("/api/biomarkers", isAuthenticated, async (req: any, res) => {
+    try {
+      // Validate query parameters
+      const validationResult = getBiomarkersQuerySchema.safeParse(req.query);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { include, groupBy } = validationResult.data;
+
+      // Fetch biomarkers
+      const biomarkers = await storage.getBiomarkers();
+
+      // Build response based on include flags
+      let response = biomarkers.map(b => ({
+        id: b.id,
+        name: b.name,
+        category: b.category,
+        canonicalUnit: b.canonicalUnit,
+        displayUnitPreference: b.displayUnitPreference,
+      }));
+
+      // If include=units, fetch units for each biomarker
+      if (include?.includes("units")) {
+        const unitsPromises = biomarkers.map(async (b) => {
+          const units = await storage.getUnitConversions(b.id);
+          // Get unique units (both fromUnit and toUnit)
+          const uniqueUnits = new Set([b.canonicalUnit]);
+          units.forEach(u => {
+            uniqueUnits.add(u.fromUnit);
+            uniqueUnits.add(u.toUnit);
+          });
+          return { id: b.id, units: Array.from(uniqueUnits) };
+        });
+        const biomarkerUnits = await Promise.all(unitsPromises);
+        const unitsMap = new Map(biomarkerUnits.map(u => [u.id, u.units]));
+        
+        response = response.map(b => ({
+          ...b,
+          units: unitsMap.get(b.id) || [b.canonicalUnit],
+        }));
+      }
+
+      // If include=ranges, fetch ranges for each biomarker
+      if (include?.includes("ranges")) {
+        const rangesPromises = biomarkers.map(async (b) => {
+          const ranges = await storage.getReferenceRanges(b.id);
+          return { id: b.id, ranges };
+        });
+        const biomarkerRanges = await Promise.all(rangesPromises);
+        const rangesMap = new Map(biomarkerRanges.map(r => [r.id, r.ranges]));
+        
+        response = response.map(b => ({
+          ...b,
+          ranges: rangesMap.get(b.id) || [],
+        }));
+      }
+
+      // Group by category if requested
+      if (groupBy === "category") {
+        const grouped = response.reduce((acc, biomarker) => {
+          if (!acc[biomarker.category]) {
+            acc[biomarker.category] = [];
+          }
+          acc[biomarker.category].push(biomarker);
+          return acc;
+        }, {} as Record<string, typeof response>);
+        
+        return res.json({ biomarkers: grouped });
+      }
+
+      res.json({ biomarkers: response });
+    } catch (error) {
+      console.error("Error fetching biomarkers:", error);
+      res.status(500).json({ error: "Failed to fetch biomarkers" });
+    }
+  });
+
+  // GET /api/biomarkers/:id/units - Get available units for a biomarker
+  app.get("/api/biomarkers/:id/units", isAuthenticated, async (req: any, res) => {
+    try {
+      const biomarkerId = req.params.id;
+
+      // Validate query parameters
+      const validationResult = getBiomarkerUnitsQuerySchema.safeParse(req.query);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { include } = validationResult.data;
+
+      // Get biomarker to ensure it exists
+      const biomarkers = await storage.getBiomarkers();
+      const biomarker = biomarkers.find(b => b.id === biomarkerId);
+      
+      if (!biomarker) {
+        return res.status(404).json({ error: "Biomarker not found" });
+      }
+
+      // Get unit conversions
+      const conversions = await storage.getUnitConversions(biomarkerId);
+
+      // Extract unique units
+      const uniqueUnits = new Set([biomarker.canonicalUnit]);
+      conversions.forEach(c => {
+        uniqueUnits.add(c.fromUnit);
+        uniqueUnits.add(c.toUnit);
+      });
+
+      // Build response
+      const units = Array.from(uniqueUnits).map(unit => ({
+        unit,
+        canonical: unit === biomarker.canonicalUnit,
+        conversions: include?.includes("conversions")
+          ? conversions.filter(c => c.fromUnit === unit || c.toUnit === unit).map(c => ({
+              fromUnit: c.fromUnit,
+              toUnit: c.toUnit,
+              conversionType: c.conversionType,
+              multiplier: c.multiplier,
+              offset: c.offset,
+            }))
+          : undefined,
+      }));
+
+      res.json({ units });
+    } catch (error) {
+      console.error("Error fetching biomarker units:", error);
+      res.status(500).json({ error: "Failed to fetch biomarker units" });
+    }
+  });
+
+  // GET /api/biomarkers/:id/reference-range - Get personalized reference range
+  app.get("/api/biomarkers/:id/reference-range", isAuthenticated, async (req: any, res) => {
+    try {
+      const biomarkerId = req.params.id;
+      const userId = req.user.claims.sub;
+
+      // Validate query parameters
+      const validationResult = getBiomarkerReferenceRangeQuerySchema.safeParse(req.query);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      let { age, sex, fasting, pregnancy, method, labId, context } = validationResult.data;
+
+      // If context=auto, fetch from user profile
+      if (context === "auto") {
+        const profile = await storage.getProfile(userId);
+        if (profile) {
+          // Calculate age from date of birth if not provided
+          if (!age && profile.dateOfBirth) {
+            const today = new Date();
+            const birthDate = new Date(profile.dateOfBirth);
+            age = today.getFullYear() - birthDate.getFullYear();
+          }
+          // Normalize sex to lowercase for context matching
+          if (!sex && profile.sex) {
+            const normalizedSex = profile.sex.toLowerCase();
+            if (normalizedSex === "male" || normalizedSex === "female") {
+              sex = normalizedSex;
+            }
+          }
+        }
+      }
+
+      // Get biomarker to ensure it exists
+      const biomarkers = await storage.getBiomarkers();
+      const biomarker = biomarkers.find(b => b.id === biomarkerId);
+      
+      if (!biomarker) {
+        return res.status(404).json({ error: "Biomarker not found" });
+      }
+
+      // Get all reference ranges for this biomarker
+      const ranges = await storage.getReferenceRanges(biomarkerId);
+
+      if (ranges.length === 0) {
+        return res.status(404).json({ error: "No reference ranges found for this biomarker" });
+      }
+
+      // Build context object for scoring
+      const contextObj: any = {};
+      if (age !== undefined) contextObj.age = age;
+      if (sex) contextObj.sex = sex;
+      if (fasting !== undefined) contextObj.fasting = fasting;
+      if (pregnancy !== undefined) contextObj.pregnancy = pregnancy;
+      if (method) contextObj.method = method;
+      if (labId) contextObj.labId = labId;
+
+      // Use normalization engine to select best range
+      const { selectReferenceRange } = await import("@shared/domain/biomarkers");
+      const selectedRange = selectReferenceRange(
+        biomarkerId,
+        biomarker.canonicalUnit,
+        contextObj,
+        ranges
+      );
+
+      if (!selectedRange) {
+        return res.status(404).json({ error: "No matching reference range found" });
+      }
+
+      res.json({
+        low: selectedRange.low,
+        high: selectedRange.high,
+        unit: selectedRange.unit,
+        criticalLow: selectedRange.criticalLow,
+        criticalHigh: selectedRange.criticalHigh,
+        source: selectedRange.source,
+        context: selectedRange.context,
+      });
+    } catch (error) {
+      console.error("Error fetching reference range:", error);
+      res.status(500).json({ error: "Failed to fetch reference range" });
     }
   });
 
