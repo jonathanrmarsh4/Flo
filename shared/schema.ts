@@ -301,9 +301,36 @@ export const biomarkerReferenceRanges = pgTable("biomarker_reference_ranges", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const biomarkerTestSessions = pgTable("biomarker_test_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  source: text("source").notNull().default("manual"),
+  testDate: timestamp("test_date").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const biomarkerMeasurements = pgTable("biomarker_measurements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => biomarkerTestSessions.id, { onDelete: "cascade" }),
+  biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  valueRaw: real("value_raw").notNull(),
+  unitRaw: text("unit_raw").notNull(),
+  valueCanonical: real("value_canonical").notNull(),
+  unitCanonical: text("unit_canonical").notNull(),
+  valueDisplay: text("value_display").notNull(),
+  referenceLow: real("reference_low"),
+  referenceHigh: real("reference_high"),
+  flags: text("flags").array(),
+  warnings: text("warnings").array(),
+  normalizationContext: jsonb("normalization_context"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
+  testSessions: many(biomarkerTestSessions),
   profile: one(profiles, {
     fields: [users.id],
     references: [profiles.userId],
@@ -339,6 +366,7 @@ export const biomarkersRelations = relations(biomarkers, ({ many }) => ({
   synonyms: many(biomarkerSynonyms),
   units: many(biomarkerUnits),
   referenceRanges: many(biomarkerReferenceRanges),
+  measurements: many(biomarkerMeasurements),
 }));
 
 export const biomarkerSynonymsRelations = relations(biomarkerSynonyms, ({ one }) => ({
@@ -358,6 +386,25 @@ export const biomarkerUnitsRelations = relations(biomarkerUnits, ({ one }) => ({
 export const biomarkerReferenceRangesRelations = relations(biomarkerReferenceRanges, ({ one }) => ({
   biomarker: one(biomarkers, {
     fields: [biomarkerReferenceRanges.biomarkerId],
+    references: [biomarkers.id],
+  }),
+}));
+
+export const biomarkerTestSessionsRelations = relations(biomarkerTestSessions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [biomarkerTestSessions.userId],
+    references: [users.id],
+  }),
+  measurements: many(biomarkerMeasurements),
+}));
+
+export const biomarkerMeasurementsRelations = relations(biomarkerMeasurements, ({ one }) => ({
+  session: one(biomarkerTestSessions, {
+    fields: [biomarkerMeasurements.sessionId],
+    references: [biomarkerTestSessions.id],
+  }),
+  biomarker: one(biomarkers, {
+    fields: [biomarkerMeasurements.biomarkerId],
     references: [biomarkers.id],
   }),
 }));
@@ -549,6 +596,29 @@ export type Biomarker = typeof biomarkers.$inferSelect;
 export type BiomarkerSynonym = typeof biomarkerSynonyms.$inferSelect;
 export type BiomarkerUnit = typeof biomarkerUnits.$inferSelect;
 export type BiomarkerReferenceRange = typeof biomarkerReferenceRanges.$inferSelect;
+
+export const insertBiomarkerTestSessionSchema = createInsertSchema(biomarkerTestSessions, {
+  testDate: z.date(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBiomarkerMeasurementSchema = createInsertSchema(biomarkerMeasurements, {
+  valueRaw: z.number(),
+  valueCanonical: z.number(),
+  referenceLow: z.number().optional(),
+  referenceHigh: z.number().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertBiomarkerTestSession = z.infer<typeof insertBiomarkerTestSessionSchema>;
+export type InsertBiomarkerMeasurement = z.infer<typeof insertBiomarkerMeasurementSchema>;
+
+export type BiomarkerTestSession = typeof biomarkerTestSessions.$inferSelect;
+export type BiomarkerMeasurement = typeof biomarkerMeasurements.$inferSelect;
 
 // Normalization schemas
 export const normalizationInputSchema = z.object({
