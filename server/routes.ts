@@ -43,6 +43,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DELETE /api/user/data - Delete all user data (for testing/cleanup)
+  app.delete('/api/user/data', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Delete all user data (sessions, measurements, uploads, records)
+      await storage.deleteUserData(userId);
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting user data:", error);
+      res.status(500).json({ error: "Failed to delete user data" });
+    }
+  });
+
   // Object storage routes
   const objectStorageService = new ObjectStorageService();
 

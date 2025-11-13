@@ -1,12 +1,15 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Edit, Upload as UploadIcon, FileText, CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import { Edit, Upload as UploadIcon, FileText, CheckCircle2, XCircle, Loader2, AlertCircle, Check, ChevronsUpDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 interface Biomarker {
   id: string;
@@ -37,6 +40,7 @@ interface AddTestResultsModalProps {
 export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProps) {
   const [activeTab, setActiveTab] = useState<'manual' | 'upload'>('manual');
   const [selectedBiomarker, setSelectedBiomarker] = useState('');
+  const [biomarkerComboboxOpen, setBiomarkerComboboxOpen] = useState(false);
   const [value, setValue] = useState('');
   const [unit, setUnit] = useState('');
   const [testDate, setTestDate] = useState(() => {
@@ -333,31 +337,69 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
         <div className="px-6 py-6 space-y-6">
           {activeTab === 'manual' ? (
             <>
-              {/* Biomarker Select */}
+              {/* Biomarker Combobox with Search */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-white/70">
                   Biomarker
                 </label>
-                <Select value={selectedBiomarker} onValueChange={handleBiomarkerChange}>
-                  <SelectTrigger
-                    className="w-full bg-white/5 border-white/10 text-white rounded-xl h-12"
-                    data-testid="select-biomarker"
-                  >
-                    <SelectValue placeholder={biomarkersLoading ? "Loading..." : "Select biomarker..."} />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1a1f3a] border-white/10 text-white max-h-[300px]">
-                    {biomarkers.map((biomarker) => (
-                      <SelectItem
-                        key={biomarker.id}
-                        value={biomarker.id}
-                        className="text-white hover:bg-white/10"
-                        data-testid={`option-biomarker-${biomarker.id}`}
-                      >
-                        {biomarker.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={biomarkerComboboxOpen} onOpenChange={setBiomarkerComboboxOpen}>
+                  <PopoverTrigger asChild>
+                    <div
+                      role="combobox"
+                      aria-expanded={biomarkerComboboxOpen}
+                      className="w-full bg-white/5 border border-white/10 text-white rounded-xl h-12 px-3 flex items-center justify-between cursor-pointer hover-elevate active-elevate-2"
+                      data-testid="select-biomarker"
+                      onClick={() => setBiomarkerComboboxOpen(!biomarkerComboboxOpen)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setBiomarkerComboboxOpen(!biomarkerComboboxOpen);
+                        }
+                      }}
+                      tabIndex={0}
+                    >
+                      <span className={selectedBiomarker ? "text-white" : "text-white/50"}>
+                        {selectedBiomarker
+                          ? biomarkers.find((b) => b.id === selectedBiomarker)?.name
+                          : (biomarkersLoading ? "Loading..." : "Search biomarker...")}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-[#1a1f3a] border-white/10" align="start">
+                    <Command className="bg-[#1a1f3a] text-white">
+                      <CommandInput 
+                        placeholder="Type to search biomarkers..." 
+                        className="text-white placeholder:text-white/40"
+                      />
+                      <CommandList>
+                        <CommandEmpty className="text-white/60">No biomarker found.</CommandEmpty>
+                        <CommandGroup>
+                          {biomarkers.map((biomarker) => (
+                            <CommandItem
+                              key={biomarker.id}
+                              value={biomarker.name}
+                              onSelect={() => {
+                                handleBiomarkerChange(biomarker.id);
+                                setBiomarkerComboboxOpen(false);
+                              }}
+                              className="text-white hover:bg-white/10"
+                              data-testid={`option-biomarker-${biomarker.id}`}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedBiomarker === biomarker.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {biomarker.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Value Input */}

@@ -128,6 +128,8 @@ export interface IStorage {
   getLabUploadJob(id: string): Promise<LabUploadJob | undefined>;
   updateLabUploadJob(id: string, updates: Partial<LabUploadJob>): Promise<LabUploadJob>;
   getLabUploadJobsByUser(userId: string, limit?: number): Promise<LabUploadJob[]>;
+  
+  deleteUserData(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -692,6 +694,34 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(biomarkerTestSessions)
       .where(eq(biomarkerTestSessions.id, id));
+  }
+
+  async deleteUserData(userId: string): Promise<void> {
+    // Delete all user data in a transaction for atomicity
+    // FK cascades will handle dependent records:
+    // - bloodWorkRecords → analysisResults (cascade)
+    // - biomarkerTestSessions → biomarkerMeasurements (cascade)
+    await db.transaction(async (tx) => {
+      // Delete blood work records (cascades to analysisResults)
+      await tx
+        .delete(bloodWorkRecords)
+        .where(eq(bloodWorkRecords.userId, userId));
+      
+      // Delete biomarker test sessions (cascades to biomarkerMeasurements)
+      await tx
+        .delete(biomarkerTestSessions)
+        .where(eq(biomarkerTestSessions.userId, userId));
+      
+      // Delete cached biomarker insights
+      await tx
+        .delete(biomarkerInsights)
+        .where(eq(biomarkerInsights.userId, userId));
+      
+      // Delete lab upload jobs
+      await tx
+        .delete(labUploadJobs)
+        .where(eq(labUploadJobs.userId, userId));
+    });
   }
 
   async getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string) {
