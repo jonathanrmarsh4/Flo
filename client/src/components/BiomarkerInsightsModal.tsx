@@ -13,6 +13,103 @@ interface BiomarkerInsight {
   medicalUrgency?: 'routine' | 'priority';
 }
 
+// Helper function to extract key terms from recommendation text
+const extractKeywords = (text: string, category: 'supplement' | 'nutrition' | 'lifestyle'): string[] => {
+  const keywords: string[] = [];
+  
+  if (category === 'supplement') {
+    // Extract supplement names (text before dosage or dash)
+    const supplementPatterns = [
+      /^([A-Za-z0-9\s\-]+?)(?:\s*\(|\s*-)/,  // Name before parenthesis or dash
+      /([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*)\s*\(/,  // Capitalized words before parenthesis
+    ];
+    
+    for (const pattern of supplementPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const keyword = match[1].trim();
+        if (keyword.length > 2 && !keywords.includes(keyword)) {
+          keywords.push(keyword);
+          break;
+        }
+      }
+    }
+  } else if (category === 'nutrition') {
+    // Extract food items and nutrients
+    const foodPatterns = [
+      /omega-3/gi,
+      /fatty fish/gi,
+      /salmon/gi,
+      /mackerel/gi,
+      /sardines/gi,
+      /whole grains/gi,
+      /legumes/gi,
+      /fiber/gi,
+      /protein/gi,
+      /vegetables/gi,
+      /fruits/gi,
+      /nuts/gi,
+      /seeds/gi,
+      /beans/gi,
+      /oats/gi,
+      /flaxseeds/gi,
+      /walnuts/gi,
+      /plant sterols/gi,
+      /egg yolks/gi,
+      /mushrooms/gi,
+      /red meat/gi,
+      /organ meats/gi,
+      /shellfish/gi,
+    ];
+    
+    for (const pattern of foodPatterns) {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          const keyword = match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+          if (!keywords.includes(keyword)) {
+            keywords.push(keyword);
+          }
+        });
+      }
+    }
+  } else if (category === 'lifestyle') {
+    // Extract lifestyle actions
+    const actionPatterns = [
+      /exercise/gi,
+      /yoga/gi,
+      /meditation/gi,
+      /sleep/gi,
+      /walking/gi,
+      /running/gi,
+      /swimming/gi,
+      /aerobic/gi,
+      /cardio/gi,
+      /strength training/gi,
+      /sun exposure/gi,
+      /hydration/gi,
+      /stress reduction/gi,
+      /quit smoking/gi,
+      /weight loss/gi,
+      /movement/gi,
+    ];
+    
+    for (const pattern of actionPatterns) {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          const keyword = match.charAt(0).toUpperCase() + match.slice(1).toLowerCase();
+          if (!keywords.includes(keyword)) {
+            keywords.push(keyword);
+          }
+        });
+      }
+    }
+  }
+  
+  return keywords.slice(0, 3); // Limit to 3 keywords max
+};
+
 interface BiomarkerInsightsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -125,16 +222,33 @@ export function BiomarkerInsightsModal({
                     <h3 className="text-lg font-semibold text-blue-300">Lifestyle Actions</h3>
                   </div>
                   <ul className="space-y-3">
-                    {insights.lifestyleActions.map((action, index) => (
-                      <li
-                        key={index}
-                        className="text-sm text-white/90 leading-relaxed flex items-start gap-2"
-                        data-testid={`lifestyle-action-${index}`}
-                      >
-                        <span className="text-blue-400 mt-0.5">•</span>
-                        <span>{action}</span>
-                      </li>
-                    ))}
+                    {insights.lifestyleActions.map((action, index) => {
+                      const keywords = extractKeywords(action, 'lifestyle');
+                      return (
+                        <li
+                          key={index}
+                          className="flex flex-col gap-1.5"
+                          data-testid={`lifestyle-action-${index}`}
+                        >
+                          {keywords.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {keywords.map((keyword, i) => (
+                                <span 
+                                  key={i}
+                                  className="px-2 py-0.5 rounded-full text-[10px] bg-blue-400/20 text-blue-300 border border-blue-400/30"
+                                >
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <span className="text-sm text-white/90 leading-relaxed flex items-start gap-2">
+                            <span className="text-blue-400 mt-0.5">•</span>
+                            <span>{action}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -150,16 +264,33 @@ export function BiomarkerInsightsModal({
                     <h3 className="text-lg font-semibold text-green-300">Nutrition</h3>
                   </div>
                   <ul className="space-y-3">
-                    {insights.nutrition.map((item, index) => (
-                      <li
-                        key={index}
-                        className="text-sm text-white/90 leading-relaxed flex items-start gap-2"
-                        data-testid={`nutrition-item-${index}`}
-                      >
-                        <span className="text-green-400 mt-0.5">•</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
+                    {insights.nutrition.map((item, index) => {
+                      const keywords = extractKeywords(item, 'nutrition');
+                      return (
+                        <li
+                          key={index}
+                          className="flex flex-col gap-1.5"
+                          data-testid={`nutrition-item-${index}`}
+                        >
+                          {keywords.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {keywords.map((keyword, i) => (
+                                <span 
+                                  key={i}
+                                  className="px-2 py-0.5 rounded-full text-[10px] bg-green-400/20 text-green-300 border border-green-400/30"
+                                >
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <span className="text-sm text-white/90 leading-relaxed flex items-start gap-2">
+                            <span className="text-green-400 mt-0.5">•</span>
+                            <span>{item}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
@@ -175,16 +306,33 @@ export function BiomarkerInsightsModal({
                     <h3 className="text-lg font-semibold text-purple-300">Supplementation</h3>
                   </div>
                   <ul className="space-y-3">
-                    {insights.supplementation.map((item, index) => (
-                      <li
-                        key={index}
-                        className="text-sm text-white/90 leading-relaxed flex items-start gap-2"
-                        data-testid={`supplementation-item-${index}`}
-                      >
-                        <span className="text-purple-400 mt-0.5">•</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
+                    {insights.supplementation.map((item, index) => {
+                      const keywords = extractKeywords(item, 'supplement');
+                      return (
+                        <li
+                          key={index}
+                          className="flex flex-col gap-1.5"
+                          data-testid={`supplementation-item-${index}`}
+                        >
+                          {keywords.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {keywords.map((keyword, i) => (
+                                <span 
+                                  key={i}
+                                  className="px-2 py-0.5 rounded-full text-[10px] bg-purple-400/20 text-purple-300 border border-purple-400/30"
+                                >
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <span className="text-sm text-white/90 leading-relaxed flex items-start gap-2">
+                            <span className="text-purple-400 mt-0.5">•</span>
+                            <span>{item}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}
