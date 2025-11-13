@@ -15,6 +15,7 @@ import {
   biomarkerTestSessions,
   biomarkerMeasurements,
   biomarkerInsights,
+  labUploadJobs,
   type User,
   type UpsertUser,
   type Profile,
@@ -40,6 +41,8 @@ import {
   type BiomarkerMeasurement,
   type InsertBiomarkerTestSession,
   type InsertBiomarkerMeasurement,
+  type LabUploadJob,
+  type InsertLabUploadJob,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql } from "drizzle-orm";
@@ -114,6 +117,11 @@ export interface IStorage {
   getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | undefined>;
   getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string): Promise<any>;
   cacheBiomarkerInsights(data: any): Promise<void>;
+  
+  createLabUploadJob(job: InsertLabUploadJob): Promise<LabUploadJob>;
+  getLabUploadJob(id: string): Promise<LabUploadJob | undefined>;
+  updateLabUploadJob(id: string, updates: Partial<LabUploadJob>): Promise<LabUploadJob>;
+  getLabUploadJobsByUser(userId: string, limit?: number): Promise<LabUploadJob[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -715,6 +723,34 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return insights;
+  }
+
+  async createLabUploadJob(job: InsertLabUploadJob): Promise<LabUploadJob> {
+    const [created] = await db.insert(labUploadJobs).values(job).returning();
+    return created;
+  }
+
+  async getLabUploadJob(id: string): Promise<LabUploadJob | undefined> {
+    const [job] = await db.select().from(labUploadJobs).where(eq(labUploadJobs.id, id));
+    return job;
+  }
+
+  async updateLabUploadJob(id: string, updates: Partial<LabUploadJob>): Promise<LabUploadJob> {
+    const [updated] = await db
+      .update(labUploadJobs)
+      .set({ ...updates, updatedAt: sql`NOW()` })
+      .where(eq(labUploadJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getLabUploadJobsByUser(userId: string, limit: number = 20): Promise<LabUploadJob[]> {
+    return db
+      .select()
+      .from(labUploadJobs)
+      .where(eq(labUploadJobs.userId, userId))
+      .orderBy(desc(labUploadJobs.createdAt))
+      .limit(limit);
   }
 }
 

@@ -22,6 +22,10 @@ import { z } from "zod";
 import { fromError } from "zod-validation-error";
 import { requireAdmin } from "./middleware/rbac";
 import Stripe from "stripe";
+import multer from "multer";
+import crypto from "crypto";
+import { processLabUpload } from "./services/labProcessor";
+import { normalizeMeasurement } from "@shared/domain/biomarkers";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1103,6 +1107,254 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error deleting measurement:", error);
       res.status(500).json({ error: "Failed to delete measurement" });
+    }
+  });
+
+  // Lab upload routes - PDF blood work upload and processing
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024,
+    },
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype === 'application/pdf') {
+        cb(null, true);
+      } else {
+        cb(new Error('Only PDF files are allowed'));
+      }
+    },
+  });
+
+  app.post("/api/labs/upload", isAuthenticated, upload.single('file'), async (req: any, res) => {
+    let job: any;
+    let bloodWorkRecord: any;
+    
+    try {
+      const userId = req.user.claims.sub;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const fileBuffer = file.buffer;
+      const fileName = file.originalname;
+      const fileSizeBytes = file.size;
+      const fileSha256 = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+
+      const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL();
+      
+      const uploadController = new AbortController();
+      const uploadTimeout = setTimeout(() => uploadController.abort(), 30000);
+      
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: fileBuffer,
+        headers: {
+          'Content-Type': 'application/pdf',
+        },
+        signal: uploadController.signal,
+      });
+      
+      clearTimeout(uploadTimeout);
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file to object storage');
+      }
+
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      if (!bucketId || !objectPath) {
+        throw new Error('Object storage configuration error');
+      }
+      const fileUrl = `https://storage.googleapis.com/${bucketId}/${objectPath.startsWith('/') ? objectPath.slice(1) : objectPath}`;
+
+      bloodWorkRecord = await storage.createBloodWorkRecord({
+        userId,
+        fileName,
+        fileUrl,
+        status: "pending",
+      });
+
+      job = await storage.createLabUploadJob({
+        userId,
+        recordId: bloodWorkRecord.id,
+        status: "pending",
+        fileName,
+        fileUrl,
+        fileSizeBytes,
+        fileSha256,
+        steps: [],
+        resultPayload: null,
+        errorDetails: null,
+      });
+
+      setImmediate(async () => {
+        let finalStatus: "completed" | "needs_review" | "failed" = "failed";
+        let finalJobUpdate: any = {};
+        
+        try {
+          await storage.updateLabUploadJob(job.id, {
+            status: "processing",
+            steps: [{ name: "started", status: "in_progress", timestamp: new Date().toISOString() }],
+          });
+
+          const result = await processLabUpload(fileUrl);
+
+          if (result.success && result.extractedData) {
+            const extractedBiomarkers = result.extractedData.biomarkers;
+            const testDate = new Date(result.extractedData.testDate);
+            
+            const session = await storage.createTestSession({
+              userId,
+              source: "ai_extracted",
+              testDate,
+              notes: result.extractedData.notes || `Extracted from ${fileName}`,
+            });
+
+            const biomarkerData = await storage.getAllBiomarkerData();
+            const measurementIds: string[] = [];
+            const successfulBiomarkers: string[] = [];
+            const failedBiomarkers: { name: string; error: string }[] = [];
+
+            for (const biomarker of extractedBiomarkers) {
+              try {
+                const normalized = normalizeMeasurement(
+                  {
+                    name: biomarker.name,
+                    value: biomarker.value,
+                    unit: biomarker.unit,
+                  },
+                  biomarkerData.biomarkers,
+                  biomarkerData.synonyms,
+                  biomarkerData.units,
+                  biomarkerData.ranges
+                );
+
+                const measurement = await storage.createMeasurement({
+                  sessionId: session.id,
+                  biomarkerId: normalized.biomarker_id,
+                  source: "ai_extracted",
+                  valueRaw: biomarker.value,
+                  unitRaw: biomarker.unit,
+                  valueCanonical: normalized.value_canonical,
+                  unitCanonical: normalized.unit_canonical,
+                  valueDisplay: normalized.value_display,
+                  referenceLow: biomarker.referenceRangeLow ?? normalized.ref_range.low ?? undefined,
+                  referenceHigh: biomarker.referenceRangeHigh ?? normalized.ref_range.high ?? undefined,
+                  flags: biomarker.flags ?? normalized.flags,
+                  warnings: normalized.warnings,
+                  normalizationContext: normalized.context_used,
+                });
+
+                measurementIds.push(measurement.id);
+                successfulBiomarkers.push(biomarker.name);
+              } catch (error: any) {
+                console.error(`Failed to normalize biomarker ${biomarker.name}:`, error);
+                failedBiomarkers.push({
+                  name: biomarker.name,
+                  error: error.message || "Unknown error",
+                });
+              }
+            }
+
+            finalStatus = failedBiomarkers.length > 0 ? "needs_review" : "completed";
+            finalJobUpdate = {
+              status: finalStatus,
+              steps: result.steps,
+              resultPayload: {
+                sessionId: session.id,
+                measurementIds,
+                testDate: result.extractedData.testDate,
+                labName: result.extractedData.labName,
+                totalBiomarkers: extractedBiomarkers.length,
+                successfulBiomarkers,
+                failedBiomarkers,
+              },
+              errorDetails: failedBiomarkers.length > 0 ? { failedBiomarkers } : null,
+            };
+          } else {
+            finalStatus = "failed";
+            finalJobUpdate = {
+              status: "failed",
+              steps: result.steps,
+              errorDetails: { error: result.error || "Processing failed" },
+            };
+          }
+        } catch (error: any) {
+          console.error("Error processing lab upload:", error);
+          finalStatus = "failed";
+          finalJobUpdate = {
+            status: "failed",
+            errorDetails: { error: error.message || "Unknown error occurred" },
+          };
+        } finally {
+          try {
+            await storage.updateLabUploadJob(job.id, finalJobUpdate);
+            await storage.updateBloodWorkRecordStatus(bloodWorkRecord.id, finalStatus);
+          } catch (updateError) {
+            console.error("Critical error updating job status:", updateError);
+          }
+        }
+      });
+
+      res.json({
+        jobId: job.id,
+        status: "pending",
+        message: "Upload successful, processing started",
+      });
+    } catch (error: any) {
+      console.error("Error uploading lab file:", error);
+      
+      if (job && job.id) {
+        try {
+          await storage.updateLabUploadJob(job.id, {
+            status: "failed",
+            errorDetails: { error: error.message || "Upload failed" },
+          });
+        } catch (updateError) {
+          console.error("Failed to update job status:", updateError);
+        }
+      }
+      
+      if (bloodWorkRecord && bloodWorkRecord.id) {
+        try {
+          await storage.updateBloodWorkRecordStatus(bloodWorkRecord.id, "failed");
+        } catch (updateError) {
+          console.error("Failed to update blood work record status:", updateError);
+        }
+      }
+      
+      res.status(500).json({ error: error.message || "Failed to upload lab file" });
+    }
+  });
+
+  app.get("/api/labs/status/:jobId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const jobId = req.params.jobId;
+
+      const job = await storage.getLabUploadJob(jobId);
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      if (job.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      res.json({
+        jobId: job.id,
+        status: job.status,
+        fileName: job.fileName,
+        steps: job.steps,
+        result: job.resultPayload,
+        error: job.errorDetails,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      });
+    } catch (error) {
+      console.error("Error getting job status:", error);
+      res.status(500).json({ error: "Failed to get job status" });
     }
   });
 
