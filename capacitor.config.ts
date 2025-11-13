@@ -1,11 +1,13 @@
-import { CapacitorConfig } from '@capacitor/core';
+import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.flo.healthapp',
   appName: 'Flō',
   webDir: 'dist/public',
-  bundledWebRuntime: false,
   server: {
+    // For production iOS builds, uncomment and set your published Replit URL:
+    // url: 'https://your-app-name.replit.app',
+    // cleartext: false,
     androidScheme: 'https'
   },
   ios: {
