@@ -16,6 +16,7 @@ import {
   biomarkerMeasurements,
   biomarkerInsights,
   labUploadJobs,
+  healthInsights,
   type User,
   type UpsertUser,
   type Profile,
@@ -128,6 +129,15 @@ export interface IStorage {
   getLabUploadJob(id: string): Promise<LabUploadJob | undefined>;
   updateLabUploadJob(id: string, updates: Partial<LabUploadJob>): Promise<LabUploadJob>;
   getLabUploadJobsByUser(userId: string, limit?: number): Promise<LabUploadJob[]>;
+  
+  saveHealthInsights(params: {
+    userId: string;
+    analysisData: any;
+    dataWindowDays: number | null;
+    model: string;
+    expiresAt: Date | null;
+  }): Promise<any>;
+  getLatestHealthInsights(userId: string): Promise<any | null>;
   
   deleteUserData(userId: string): Promise<void>;
 }
@@ -816,6 +826,30 @@ export class DatabaseStorage implements IStorage {
       .where(eq(labUploadJobs.userId, userId))
       .orderBy(desc(labUploadJobs.createdAt))
       .limit(limit);
+  }
+
+  async saveHealthInsights(params: {
+    userId: string;
+    analysisData: any;
+    dataWindowDays: number | null;
+    model: string;
+    expiresAt: Date | null;
+  }) {
+    const [insights] = await db
+      .insert(healthInsights)
+      .values(params)
+      .returning();
+    return insights;
+  }
+
+  async getLatestHealthInsights(userId: string) {
+    const [insights] = await db
+      .select()
+      .from(healthInsights)
+      .where(eq(healthInsights.userId, userId))
+      .orderBy(desc(healthInsights.generatedAt))
+      .limit(1);
+    return insights || null;
   }
 }
 

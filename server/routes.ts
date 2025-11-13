@@ -794,6 +794,244 @@ Inflammation Markers:
     }
   });
 
+  // POST /api/health-insights - Generate comprehensive health insights
+  app.post("/api/health-insights", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const schema = z.object({
+        forceRefresh: z.boolean().optional().default(false),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { forceRefresh } = validationResult.data;
+
+      // Check cache unless forceRefresh
+      if (!forceRefresh) {
+        const cached = await storage.getLatestHealthInsights(userId);
+        if (cached && cached.analysisData && (!cached.expiresAt || new Date(cached.expiresAt) > new Date())) {
+          return res.json({
+            cacheStatus: "hit",
+            ...cached.analysisData,
+            generatedAt: cached.generatedAt,
+          });
+        }
+      }
+
+      // Get user profile
+      const profile = await storage.getProfile(userId);
+      const missingFields: string[] = [];
+      if (!profile?.dateOfBirth) missingFields.push("dateOfBirth");
+      if (!profile?.sex) missingFields.push("sex");
+      
+      if (missingFields.length > 0 || !profile) {
+        return res.status(422).json({ 
+          error: "Insufficient profile data. Please complete your age and sex in your profile to generate comprehensive insights.",
+          missingData: missingFields
+        });
+      }
+
+      // Calculate age (profile is guaranteed to be defined and have dateOfBirth at this point)
+      const today = new Date();
+      const birthDate = new Date(profile.dateOfBirth!);
+      const ageYears = today.getFullYear() - birthDate.getFullYear() - 
+        (today.getMonth() < birthDate.getMonth() || 
+         (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+
+      // Get all biomarker sessions
+      const sessions = await storage.getTestSessionsByUser(userId);
+      if (sessions.length === 0) {
+        return res.status(422).json({ 
+          error: "No biomarker data found. Please add test results to generate comprehensive insights.",
+          missingData: ["biomarkers"]
+        });
+      }
+
+      // Sort sessions by date (most recent first)
+      const sortedSessions = sessions.sort((a, b) => 
+        new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
+      );
+
+      // Get all biomarkers for name mapping
+      const biomarkers = await storage.getBiomarkers();
+      const biomarkerMap = new Map(biomarkers.map(b => [b.id, b]));
+
+      // Build biomarker panels
+      const panels = [];
+      for (const session of sortedSessions) {
+        const measurements = await storage.getMeasurementsBySession(session.id);
+        if (measurements.length === 0) continue;
+
+        const markers = measurements.map(m => {
+          const biomarker = biomarkerMap.get(m.biomarkerId);
+          return {
+            code: biomarker?.name || m.biomarkerId,
+            label: biomarker?.name || m.biomarkerId,
+            value: m.valueCanonical,
+            unit: m.unitCanonical,
+            reference_range: {
+              low: m.referenceLow ?? undefined,
+              high: m.referenceHigh ?? undefined,
+              unit: m.unitCanonical,
+            },
+            category: biomarker?.category,
+            flags: m.flags || [],
+          };
+        });
+
+        panels.push({
+          panel_id: session.id,
+          timestamp: session.testDate.toISOString(),
+          markers,
+        });
+      }
+
+      // Get biological age
+      let bioageData: any = null;
+      try {
+        // Try to get biological age (may fail if missing required biomarkers)
+        const bioageResponse = await fetch(`${req.protocol}://${req.get('host')}/api/biological-age`, {
+          headers: {
+            'cookie': req.headers.cookie || '',
+          }
+        });
+        if (bioageResponse.ok) {
+          const bioage = await bioageResponse.json();
+          bioageData = {
+            method: "PhenoAge",
+            current_bioage_years: bioage.biologicalAge,
+            chronological_age_years: bioage.chronologicalAge,
+          };
+        }
+      } catch (error) {
+        console.log("Biological age calculation failed, continuing without it");
+      }
+
+      // Check if AI integration is configured
+      if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY || !process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+        return res.status(503).json({
+          error: "AI integration not configured",
+          message: "The OpenAI integration is not properly configured. Please check that AI_INTEGRATIONS_OPENAI_API_KEY and AI_INTEGRATIONS_OPENAI_BASE_URL environment variables are set.",
+          code: "AI_NOT_CONFIGURED"
+        });
+      }
+
+      // Build comprehensive insights input
+      const { generateComprehensiveInsights } = await import("./openai");
+      
+      const insightsInput = {
+        user_profile: {
+          age_years: ageYears,
+          sex: (profile.sex?.toLowerCase() || 'male') as 'male' | 'female',
+          height_cm: profile.height && profile.heightUnit === 'cm' ? profile.height : undefined,
+          weight_kg: profile.weight && profile.weightUnit === 'kg' ? profile.weight : undefined,
+          activity_level: profile.healthBaseline?.activityLevel,
+          goals: profile.goals || [],
+          lifestyle_tags: [
+            profile.healthBaseline?.smokingStatus && profile.healthBaseline.smokingStatus !== 'Never' ? 'smoker' : null,
+            profile.healthBaseline?.alcoholIntake && profile.healthBaseline.alcoholIntake !== 'None' ? 'alcohol_consumer' : null,
+          ].filter(Boolean) as string[],
+        },
+        biomarker_panels: panels,
+        derived_metrics: {
+          bioage: bioageData,
+        },
+        analysis_config: {
+          time_window_days_for_trend: 365,
+          significant_change_threshold_percent: 20,
+          bioage_change_significant_years: 0.5,
+          max_priority_items: 5,
+        },
+      };
+
+      // Generate insights
+      // Generate comprehensive insights with error handling
+      let insights;
+      try {
+        insights = await generateComprehensiveInsights(insightsInput);
+      } catch (aiError: any) {
+        console.error("OpenAI generation error:", aiError);
+        return res.status(500).json({
+          error: "AI generation failed",
+          message: aiError.message || "Failed to generate insights using AI. The service may be temporarily unavailable.",
+          code: "AI_GENERATION_FAILED"
+        });
+      }
+
+      // Save to database with 30-day expiration
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30);
+
+      try {
+        await storage.saveHealthInsights({
+          userId,
+          analysisData: insights,
+          dataWindowDays: 365,
+          model: "gpt-5",
+          expiresAt,
+        });
+      } catch (saveError) {
+        console.error("Failed to cache insights:", saveError);
+        // Still return the insights even if caching fails
+      }
+
+      res.json({
+        cacheStatus: "miss",
+        ...insights,
+      });
+
+    } catch (error: any) {
+      console.error("Error generating comprehensive insights:", error);
+      
+      // Try to save error to database
+      try {
+        await storage.saveHealthInsights({
+          userId: req.user.claims.sub,
+          analysisData: { error: error.message },
+          dataWindowDays: null,
+          model: "gpt-5",
+          expiresAt: null,
+        });
+      } catch (saveError) {
+        console.error("Failed to save error state:", saveError);
+      }
+
+      res.status(500).json({ 
+        error: "Failed to generate comprehensive insights",
+        message: error.message
+      });
+    }
+  });
+
+  // GET /api/health-insights - Get latest comprehensive health insights
+  app.get("/api/health-insights", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const cached = await storage.getLatestHealthInsights(userId);
+      if (!cached || !cached.analysisData) {
+        return res.status(404).json({ 
+          error: "No health insights found. Generate insights first by making a POST request to this endpoint."
+        });
+      }
+
+      res.json({
+        ...cached.analysisData,
+        generatedAt: cached.generatedAt,
+        expiresAt: cached.expiresAt,
+      });
+
+    } catch (error) {
+      console.error("Error fetching health insights:", error);
+      res.status(500).json({ error: "Failed to fetch health insights" });
+    }
+  });
+
   // GET /api/biomarkers/:id/units - Get available units for a biomarker
   app.get("/api/biomarkers/:id/units", isAuthenticated, async (req: any, res) => {
     try {

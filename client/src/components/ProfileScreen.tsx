@@ -1,4 +1,4 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
@@ -8,6 +8,10 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { format, setMonth, setYear, getMonth, getYear } from 'date-fns';
+import { useMutation } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 
 interface ProfileScreenProps {
   isDark: boolean;
@@ -17,6 +21,8 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   // Fetch profile data from backend
   const { data: profile, isLoading, error } = useProfile();
@@ -26,6 +32,45 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const updateHealthBaseline = useUpdateHealthBaseline();
   const updateGoals = useUpdateGoals();
   const updateAIPersonalization = useUpdateAIPersonalization();
+  
+  // Comprehensive insights generation mutation
+  const generateInsights = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/health-insights', {
+        method: 'POST',
+        body: JSON.stringify({ forceRefresh: true }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Insights Generated",
+        description: "Your comprehensive health insights have been generated successfully.",
+      });
+      setLocation('/insights');
+    },
+    onError: (error: any) => {
+      // Extract specific error message from server response
+      const errorMessage = error.message || error.error || "Failed to generate insights";
+      const errorCode = error.code;
+      
+      let description = errorMessage;
+      if (errorCode === "AI_NOT_CONFIGURED") {
+        description = "AI integration is not configured. Please contact support.";
+      } else if (errorCode === "AI_GENERATION_FAILED") {
+        description = "AI service is temporarily unavailable. Please try again later.";
+      } else if (errorMessage.includes("profile data")) {
+        description = "Please complete your age and sex in your profile before generating insights.";
+      } else if (errorMessage.includes("blood work")) {
+        description = "Please add at least one blood work session before generating insights.";
+      }
+      
+      toast({
+        title: "Generation Failed",
+        description,
+        variant: "destructive",
+      });
+    },
+  });
   
   // Local state for custom focus area input and health goal input
   const [newFocusArea, setNewFocusArea] = useState('');
@@ -869,6 +914,43 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 </span>
               </div>
               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Developer Actions */}
+        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+        }`} data-testid="card-developer-actions">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+            <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Actions
+            </h2>
+          </div>
+
+          <div className="space-y-2">
+            <button 
+              onClick={() => generateInsights.mutate()}
+              disabled={generateInsights.isPending}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              } ${generateInsights.isPending ? 'opacity-50 cursor-not-allowed' : ''}`} 
+              data-testid="button-generate-insights"
+            >
+              <div className="flex items-center gap-3">
+                {generateInsights.isPending ? (
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                ) : (
+                  <Brain className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                )}
+                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
+                  {generateInsights.isPending ? 'Generating Insights...' : 'Generate Health Insights'}
+                </span>
+              </div>
+              {!generateInsights.isPending && (
+                <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+              )}
             </button>
           </div>
         </div>

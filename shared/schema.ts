@@ -389,6 +389,20 @@ export const labUploadJobs = pgTable("lab_upload_jobs", {
   index("idx_lab_upload_jobs_status").on(table.status),
 ]);
 
+export const healthInsights = pgTable("health_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  analysisData: jsonb("analysis_data").notNull(),
+  dataWindowDays: integer("data_window_days"),
+  model: text("model").notNull(),
+  lastError: text("last_error"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+}, (table) => [
+  index("idx_health_insights_user").on(table.userId),
+  index("idx_health_insights_generated_at").on(table.generatedAt),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
@@ -690,6 +704,14 @@ export const insertLabUploadJobSchema = createInsertSchema(labUploadJobs).omit({
 
 export type InsertLabUploadJob = z.infer<typeof insertLabUploadJobSchema>;
 export type LabUploadJob = typeof labUploadJobs.$inferSelect;
+
+export const insertHealthInsightsSchema = createInsertSchema(healthInsights).omit({
+  id: true,
+  generatedAt: true,
+});
+
+export type InsertHealthInsights = z.infer<typeof insertHealthInsightsSchema>;
+export type HealthInsights = typeof healthInsights.$inferSelect;
 
 // Normalization schemas
 export const normalizationInputSchema = z.object({

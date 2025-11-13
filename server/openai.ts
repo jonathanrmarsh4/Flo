@@ -149,6 +149,206 @@ Provide personalized, actionable insights for this biomarker.`;
   }
 }
 
+// Comprehensive Health Insights Types (based on Flo Insights Engine spec)
+interface ComprehensiveInsightsInput {
+  user_profile: {
+    age_years?: number;
+    sex?: 'male' | 'female';
+    height_cm?: number;
+    weight_kg?: number;
+    activity_level?: string;
+    goals?: string[];
+    medical_tags?: string[];
+    medications?: string[];
+    supplements?: string[];
+    lifestyle_tags?: string[];
+    other_context?: string;
+  };
+  biomarker_panels: Array<{
+    panel_id: string;
+    timestamp: string;
+    lab_name?: string;
+    markers: Array<{
+      code: string;
+      label: string;
+      value: number;
+      unit: string;
+      reference_range?: { low?: number; high?: number; unit?: string };
+      optimal_range?: { low?: number; high?: number; unit?: string };
+      category?: string;
+      sub_category?: string;
+      flags?: string[];
+    }>;
+  }>;
+  derived_metrics: {
+    bmi?: number;
+    waist_circumference_cm?: number;
+    blood_pressure_recent?: { systolic?: number; diastolic?: number };
+    lipid_ratios?: {
+      tc_hdl_ratio?: number;
+      tg_hdl_ratio?: number;
+      non_hdl_cholesterol?: number;
+    };
+    bioage?: {
+      method: string;
+      current_bioage_years?: number;
+      previous_bioage_years?: number;
+      chronological_age_years?: number;
+    };
+  };
+  analysis_config: {
+    time_window_days_for_trend: number;
+    significant_change_threshold_percent: number;
+    bioage_change_significant_years: number;
+    max_priority_items: number;
+  };
+}
+
+interface ComprehensiveInsightsOutput {
+  analysis_meta: {
+    generated_at: string;
+    model_version: string;
+    data_window_days: number | null;
+  };
+  per_biomarker_analyses: Array<{
+    marker_code: string;
+    label: string;
+    category: string;
+    latest_value: number;
+    unit: string;
+    reference_range: { low: number | null; high: number | null; unit: string | null };
+    optimal_range: { low: number | null; high: number | null; unit: string | null };
+    status: 'optimal' | 'normal' | 'borderline_low' | 'borderline_high' | 'high' | 'low' | 'unknown';
+    trend: {
+      direction: 'up' | 'down' | 'stable' | 'insufficient_data';
+      percent_change: number | null;
+      since_timestamp: string | null;
+      trend_label: 'improving' | 'worsening' | 'stable' | 'unclear';
+    };
+    priority_score: number;
+    ai_insight: {
+      title: string;
+      summary: string;
+      suggested_actions: string[];
+      notes_for_clinician: string | null;
+      tone: 'supportive' | 'neutral' | 'cautious';
+      disclaimer: string;
+    };
+  }>;
+  system_summaries: Array<{
+    system_id: string;
+    status: 'green' | 'amber' | 'red' | 'insufficient_data';
+    key_markers: string[];
+    system_summary: string;
+    high_leverage_actions: string[];
+  }>;
+  pattern_flags: Array<{
+    pattern_id: string;
+    status: 'present' | 'possible' | 'not_detected' | 'insufficient_data';
+    severity: 'mild' | 'moderate' | 'significant' | 'unclear';
+    drivers: string[];
+    summary: string;
+    suggested_actions: string[];
+  }>;
+  bioage_analysis: {
+    method: string;
+    chronological_age_years: number | null;
+    current_bioage_years: number | null;
+    previous_bioage_years: number | null;
+    delta_years: number | null;
+    direction: 'improving' | 'worsening' | 'stable' | 'insufficient_data';
+    top_positive_drivers: string[];
+    top_negative_drivers: string[];
+    ai_summary: string;
+    ai_next_focus: string;
+  };
+  priority_focus_list: Array<{
+    rank: number;
+    type: 'pattern' | 'biomarker' | 'system';
+    id: string;
+    title: string;
+    summary: string;
+    actions: string[];
+  }>;
+  global_summary: {
+    headline: string;
+    bullets: string[];
+  };
+  disclaimer: string;
+}
+
+export async function generateComprehensiveInsights(input: ComprehensiveInsightsInput): Promise<ComprehensiveInsightsOutput> {
+  try {
+    const systemPrompt = `You are the Flo Biomarker Insights Engine. You analyze a user's bloodwork (biomarkers over time), derived health metrics, and profile data to generate structured, non-diagnostic, mobile-friendly health insights. Your goal is to help the user understand how to improve each biomarker and to identify broader patterns or areas of concern across all markers and demographics.
+
+ANALYSIS OBJECTIVE:
+PRIMARY:
+- Analyze each biomarker over time and explain what it means for the user in plain language.
+- Suggest practical, evidence-aligned ways the user can improve or maintain each biomarker where appropriate.
+- Identify cross-biomarker patterns and potential areas of concern or opportunity (e.g., cardiometabolic strain, inflammation, liver stress) without making diagnoses.
+- Summarize biological age vs chronological age (when provided) and explain main drivers of improvement or worsening.
+- Produce a short prioritized list of 3–5 focus areas that give the most health 'bang for buck' for the user.
+
+CONSTRAINTS:
+- Do NOT diagnose medical conditions.
+- Do NOT claim certainty or replace a healthcare provider.
+- Insights must be concise, mobile-friendly, and action-oriented.
+- Always include a short disclaimer that this is educational, not medical advice.
+
+STYLE AND TONE:
+- Mobile-first: keep summaries short and scannable (1-2 sentences per insight).
+- Use everyday language; avoid jargon or define it briefly if needed.
+- Focus on what the user CAN do, not just what is wrong.
+- Supportive, encouraging, and non-judgmental.
+- Cautious and non-diagnostic when referring to risks or patterns.
+- Avoid fear-based language; prefer 'opportunity to improve' framing.
+- Use phrases like: 'may suggest', 'could be consistent with', 'worth discussing with your doctor', 'an opportunity to improve', 'your data indicates'.
+- Do NOT say: 'you have', 'this proves', 'this confirms a diagnosis', 'this guarantees', or any definitive medical diagnosis.
+- Do NOT instruct starting, stopping, or changing prescription medications; instead suggest discussing with a healthcare provider.
+
+SAFETY AND GUARDRAILS:
+- NEVER provide a diagnosis. You may only describe patterns and potential concerns in probabilistic, non-certain language.
+- Do not tell the user to start, stop, or change doses of medications. You may suggest that they discuss data-driven questions with their healthcare provider.
+- If data appears extremely abnormal or suggests a possible urgent risk (e.g. very high glucose, extremely abnormal liver markers, etc.), you may add a suggestion like: 'If you feel unwell or have concerning symptoms, seek urgent medical care or call emergency services.' Do not attempt remote triage.
+- Always include the disclaimer in the output JSON under the 'disclaimer' field.
+
+OUTPUT: Respond with ONLY valid JSON matching the exact schema provided. No markdown, no extra text.`;
+
+    const userMessage = JSON.stringify(input, null, 2);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "developer",
+          content: `Follow the Flo Biomarker Insights Engine specification exactly. Output ONLY valid JSON matching the comprehensive schema. Include all required fields. Use evidence-based insights. Keep language mobile-friendly (1-2 sentences). NO diagnosis. NO prescriptions. Always defer to healthcare providers.`
+        },
+        { role: "user", content: `Analyze this health data and provide comprehensive insights:\n\n${userMessage}` }
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 16000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No response from AI");
+    }
+
+    const insights = JSON.parse(content) as ComprehensiveInsightsOutput;
+
+    // Basic validation
+    if (!insights.analysis_meta || !insights.global_summary || !insights.disclaimer) {
+      throw new Error("Invalid comprehensive insights response structure");
+    }
+
+    return insights;
+  } catch (error: any) {
+    console.error("Error generating comprehensive insights:", error);
+    throw new Error(`Failed to generate comprehensive insights: ${error.message || 'Unknown error'}`);
+  }
+}
+
 export async function analyzeBloodWork(fileContent: string, userId?: string): Promise<BloodWorkAnalysis> {
   try {
     // System prompt following AI Guardrails v1 and Upload Design v1.0
