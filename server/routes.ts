@@ -26,6 +26,13 @@ import multer from "multer";
 import crypto from "crypto";
 import { processLabUpload } from "./services/labProcessor";
 import { normalizeMeasurement } from "@shared/domain/biomarkers";
+import { 
+  calculatePhenoAge, 
+  calculatePhenoAgeAccel, 
+  UnitConverter,
+  validatePhenoAgeInputs,
+  type PhenoAgeInputs
+} from "@shared/utils/phenoage";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -562,6 +569,216 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error fetching biomarker sessions:", error);
       res.status(500).json({ error: "Failed to fetch biomarker sessions" });
+    }
+  });
+
+  // GET /api/biological-age - Calculate biological age using PhenoAge algorithm
+  app.get("/api/biological-age", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Get user profile to calculate chronological age
+      const profile = await storage.getProfile(userId);
+      if (!profile || !profile.dateOfBirth) {
+        return res.status(400).json({ 
+          error: "Date of birth not found. Please complete your profile to calculate biological age.",
+          missingData: "dateOfBirth"
+        });
+      }
+
+      // Calculate chronological age
+      const today = new Date();
+      const birthDate = new Date(profile.dateOfBirth);
+      const ageYears = today.getFullYear() - birthDate.getFullYear() - 
+        (today.getMonth() < birthDate.getMonth() || 
+         (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+
+      // Get user's latest biomarker test session
+      const sessions = await storage.getTestSessionsByUser(userId);
+      if (sessions.length === 0) {
+        return res.status(400).json({ 
+          error: "No biomarker data found. Please add test results to calculate biological age.",
+          missingData: "biomarkers"
+        });
+      }
+
+      // Get the most recent session
+      const latestSession = sessions.sort((a, b) => 
+        new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
+      )[0];
+
+      // Fetch measurements for the latest session
+      const measurements = await storage.getMeasurementsBySession(latestSession.id);
+
+      // Get all biomarkers to map IDs to names
+      const biomarkers = await storage.getBiomarkers();
+      const biomarkerMap = new Map(biomarkers.map(b => [b.id, b]));
+
+      // Create a map of biomarker name -> measurement
+      const measurementMap = new Map(
+        measurements.map(m => {
+          const biomarker = biomarkerMap.get(m.biomarkerId);
+          return [biomarker?.name, m];
+        })
+      );
+
+      // Required biomarkers for PhenoAge calculation
+      const requiredBiomarkers = {
+        'Albumin': 'albumin_g_L',
+        'Creatinine': 'creatinine_umol_L',
+        'Glucose': 'glucose_mmol_L',
+        'CRP': 'crp_mg_dL',
+        'Lymphocytes': 'lymphocytes_KPerUL',
+        'MCV': 'mcv_fL',
+        'RDW': 'rdw_percent',
+        'ALP': 'alkPhos_U_L',
+        'WBC': 'wbc_10e3_per_uL',
+      };
+
+      // Extract and convert biomarker values
+      const biomarkerValues: any = {};
+      const missingBiomarkers: string[] = [];
+
+      for (const [biomarkerName, fieldName] of Object.entries(requiredBiomarkers)) {
+        const measurement = measurementMap.get(biomarkerName);
+        if (!measurement) {
+          missingBiomarkers.push(biomarkerName);
+          continue;
+        }
+
+        // Convert to Levine units based on biomarker type and current unit
+        const value = measurement.valueCanonical;
+        const unit = measurement.unitCanonical;
+
+        try {
+          switch (biomarkerName) {
+            case 'Albumin':
+              // Convert g/dL → g/L
+              if (unit === 'g/dL') {
+                biomarkerValues[fieldName] = UnitConverter.albumin_gPerDL_to_gPerL(value);
+              } else if (unit === 'g/L') {
+                biomarkerValues[fieldName] = value;
+              } else {
+                throw new Error(`Unsupported Albumin unit: ${unit}`);
+              }
+              break;
+
+            case 'Creatinine':
+              // Convert mg/dL → µmol/L
+              if (unit === 'mg/dL') {
+                biomarkerValues[fieldName] = UnitConverter.creatinine_mgPerDL_to_umolPerL(value);
+              } else if (unit === 'µmol/L' || unit === 'umol/L') {
+                biomarkerValues[fieldName] = value;
+              } else {
+                throw new Error(`Unsupported Creatinine unit: ${unit}`);
+              }
+              break;
+
+            case 'Glucose':
+              // Convert mg/dL → mmol/L
+              if (unit === 'mg/dL') {
+                biomarkerValues[fieldName] = UnitConverter.glucose_mgPerDL_to_mmolPerL(value);
+              } else if (unit === 'mmol/L') {
+                biomarkerValues[fieldName] = value;
+              } else {
+                throw new Error(`Unsupported Glucose unit: ${unit}`);
+              }
+              break;
+
+            case 'CRP':
+              // Convert mg/L → mg/dL
+              if (unit === 'mg/L') {
+                biomarkerValues[fieldName] = UnitConverter.crp_mgPerL_to_mgPerDL(value);
+              } else if (unit === 'mg/dL') {
+                biomarkerValues[fieldName] = value;
+              } else {
+                throw new Error(`Unsupported CRP unit: ${unit}`);
+              }
+              break;
+
+            case 'Lymphocytes':
+            case 'WBC':
+              // Store for lymphocyte percentage calculation
+              biomarkerValues[fieldName] = value;
+              break;
+
+            case 'MCV':
+            case 'RDW':
+            case 'ALP':
+              // These are already in correct units
+              biomarkerValues[fieldName] = value;
+              break;
+          }
+        } catch (error: any) {
+          console.error(`Error converting ${biomarkerName}:`, error);
+          return res.status(500).json({ 
+            error: `Failed to convert ${biomarkerName}: ${error.message}` 
+          });
+        }
+      }
+
+      // Check if we have all required biomarkers
+      if (missingBiomarkers.length > 0) {
+        return res.status(400).json({ 
+          error: "Missing required biomarkers for biological age calculation",
+          missingBiomarkers,
+          message: `The following biomarkers are required: ${missingBiomarkers.join(', ')}`
+        });
+      }
+
+      // Calculate lymphocyte percentage
+      try {
+        const lymphocytePercent = UnitConverter.calculateLymphocytePercent(
+          biomarkerValues.lymphocytes_KPerUL,
+          biomarkerValues.wbc_10e3_per_uL
+        );
+
+        // Build PhenoAge inputs
+        const phenoAgeInputs: PhenoAgeInputs = {
+          ageYears,
+          albumin_g_L: biomarkerValues.albumin_g_L,
+          creatinine_umol_L: biomarkerValues.creatinine_umol_L,
+          glucose_mmol_L: biomarkerValues.glucose_mmol_L,
+          crp_mg_dL: biomarkerValues.crp_mg_dL,
+          lymphocyte_percent: lymphocytePercent,
+          mcv_fL: biomarkerValues.mcv_fL,
+          rdw_percent: biomarkerValues.rdw_percent,
+          alkPhos_U_L: biomarkerValues.alkPhos_U_L,
+          wbc_10e3_per_uL: biomarkerValues.wbc_10e3_per_uL,
+        };
+
+        // Validate inputs
+        const validation = validatePhenoAgeInputs(phenoAgeInputs);
+        if (!validation.valid) {
+          return res.status(400).json({ 
+            error: "Invalid biomarker values for biological age calculation",
+            missingFields: validation.missing
+          });
+        }
+
+        // Calculate PhenoAge
+        const phenoAge = calculatePhenoAge(phenoAgeInputs);
+        const ageAcceleration = calculatePhenoAgeAccel(phenoAge, ageYears);
+
+        res.json({
+          biologicalAge: Math.round(phenoAge * 10) / 10, // Round to 1 decimal
+          chronologicalAge: ageYears,
+          ageDifference: Math.round(ageAcceleration * 10) / 10, // Round to 1 decimal
+          testDate: latestSession.testDate,
+          sessionId: latestSession.id,
+        });
+
+      } catch (error: any) {
+        console.error("Error calculating PhenoAge:", error);
+        res.status(500).json({ 
+          error: "Failed to calculate biological age",
+          message: error.message
+        });
+      }
+
+    } catch (error) {
+      console.error("Error in biological age endpoint:", error);
+      res.status(500).json({ error: "Failed to calculate biological age" });
     }
   });
 
