@@ -989,8 +989,8 @@ Inflammation Markers:
 
       const schema = z.object({
         biomarkerId: z.string().uuid().optional(),
-        value: z.number().finite().optional(),
-        unit: z.string().min(1).optional(),
+        valueRaw: z.number().finite().optional(),
+        unitRaw: z.string().min(1).optional(),
       });
 
       const validationResult = schema.safeParse(req.body);
@@ -1018,8 +1018,8 @@ Inflammation Markers:
       const { biomarkers, synonyms, units, ranges } = await storage.getAllBiomarkerData();
 
       const targetBiomarkerId = updates.biomarkerId || existingMeasurement.biomarkerId;
-      const targetValue = updates.value !== undefined ? updates.value : existingMeasurement.valueRaw;
-      const targetUnit = updates.unit || existingMeasurement.unitRaw;
+      const targetValue = updates.valueRaw !== undefined ? updates.valueRaw : existingMeasurement.valueRaw;
+      const targetUnit = updates.unitRaw || existingMeasurement.unitRaw;
 
       const biomarker = biomarkers.find(b => b.id === targetBiomarkerId);
       if (!biomarker) {
