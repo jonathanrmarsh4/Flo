@@ -26,8 +26,8 @@ import type { User as UserType } from "@shared/schema";
 
 export default function AdminUsers() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const { toast } = useToast();
 
   const { data, isLoading } = useQuery({
@@ -35,8 +35,8 @@ export default function AdminUsers() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append("q", searchQuery);
-      if (roleFilter) params.append("role", roleFilter);
-      if (statusFilter) params.append("status", statusFilter);
+      if (roleFilter && roleFilter !== "all") params.append("role", roleFilter);
+      if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
       
       const response = await fetch(`/api/admin/users?${params}`);
       if (!response.ok) throw new Error("Failed to fetch users");
@@ -101,7 +101,7 @@ export default function AdminUsers() {
               <SelectValue placeholder="All Roles" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Roles</SelectItem>
+              <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="free">Free</SelectItem>
               <SelectItem value="premium">Premium</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
@@ -113,7 +113,7 @@ export default function AdminUsers() {
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Status</SelectItem>
+              <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="suspended">Suspended</SelectItem>
             </SelectContent>
