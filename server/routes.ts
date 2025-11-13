@@ -1050,6 +1050,118 @@ Inflammation Markers:
     }
   });
 
+  // GET /api/comprehensive-report - Generate comprehensive health report
+  app.get("/api/comprehensive-report", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Get user profile
+      const profile = await storage.getProfile(userId);
+      if (!profile?.dateOfBirth || !profile?.sex) {
+        return res.status(422).json({ 
+          error: "Insufficient profile data. Please complete your age and sex in your profile."
+        });
+      }
+
+      // Calculate age
+      const today = new Date();
+      const birthDate = new Date(profile.dateOfBirth);
+      const ageYears = today.getFullYear() - birthDate.getFullYear() - 
+        (today.getMonth() < birthDate.getMonth() || 
+         (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+
+      // Get biomarker sessions
+      const sessions = await storage.getTestSessionsByUser(userId);
+      if (sessions.length === 0) {
+        return res.status(422).json({ 
+          error: "No biomarker data found. Please add test results first."
+        });
+      }
+
+      // Sort sessions by date
+      const sortedSessions = sessions.sort((a, b) => 
+        new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
+      );
+
+      // Get biomarkers for name mapping
+      const biomarkers = await storage.getBiomarkers();
+      const biomarkerMap = new Map(biomarkers.map(b => [b.id, b]));
+
+      // Build biomarker panels
+      const panels = [];
+      for (const session of sortedSessions) {
+        const measurements = await storage.getMeasurementsBySession(session.id);
+        if (measurements.length === 0) continue;
+
+        const markers = measurements.map(m => {
+          const biomarker = biomarkerMap.get(m.biomarkerId);
+          return {
+            code: biomarker?.name || m.biomarkerId,
+            label: biomarker?.name || m.biomarkerId,
+            value: m.valueCanonical,
+            unit: m.unitCanonical,
+            reference_range: {
+              low: m.referenceLow ?? undefined,
+              high: m.referenceHigh ?? undefined,
+              unit: m.unitCanonical,
+            },
+            category: biomarker?.category,
+            flags: m.flags || [],
+          };
+        });
+
+        panels.push({
+          panel_id: session.id,
+          timestamp: session.testDate.toISOString(),
+          markers,
+        });
+      }
+
+      // Get biological age
+      let bioageData: any = null;
+      try {
+        const bioageResponse = await fetch(`${req.protocol}://${req.get('host')}/api/biological-age`, {
+          headers: { 'cookie': req.headers.cookie || '' }
+        });
+        if (bioageResponse.ok) {
+          const bioage = await bioageResponse.json();
+          bioageData = {
+            phenoage_years: bioage.biologicalAge,
+            chronological_age_years: bioage.chronologicalAge,
+            method: "PhenoAge",
+          };
+        }
+      } catch (error) {
+        console.log("Biological age calculation failed, continuing without it");
+      }
+
+      // Build report input
+      const { generateFullHealthReport } = await import("./openai");
+      const reportInput = {
+        user_profile: {
+          age_years: ageYears,
+          sex: (profile.sex?.toLowerCase() || 'male') as 'male' | 'female',
+          goals: profile.goals || [],
+          medicalContext: profile.aiPersonalization?.medicalContext,
+        },
+        biomarker_panels: panels.slice(0, 3), // Limit to last 3 panels for token budget
+        biological_age_data: bioageData,
+      };
+
+      // Generate report
+      const report = await generateFullHealthReport(reportInput);
+
+      res.json(report);
+
+    } catch (error: any) {
+      console.error("Error generating comprehensive report:", error);
+      res.status(500).json({ 
+        error: "Failed to generate comprehensive report",
+        message: error.message
+      });
+    }
+  });
+
   // GET /api/biomarkers/top-to-improve - Get top 3 biomarkers needing improvement
   app.get("/api/biomarkers/top-to-improve", isAuthenticated, async (req: any, res) => {
     try {
