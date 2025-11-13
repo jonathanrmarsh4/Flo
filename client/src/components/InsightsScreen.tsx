@@ -82,6 +82,26 @@ export function InsightsScreen({
 
       {/* Content */}
       <div className="px-4 py-6 space-y-4">
+        {/* Info message when biological age data is not available */}
+        {!ageData && (
+          <div 
+            className={`backdrop-blur-xl rounded-2xl border p-4 flex items-start gap-3 ${
+              isDark ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'
+            }`}
+            data-testid="alert-missing-bioage-data"
+          >
+            <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <div className="flex-1">
+              <h4 className={`text-sm font-medium mb-1 ${isDark ? 'text-blue-300' : 'text-blue-900'}`}>
+                Complete Your Profile
+              </h4>
+              <p className={`text-xs ${isDark ? 'text-blue-200/80' : 'text-blue-800/80'}`}>
+                To calculate your biological age, we need your date of birth and the following biomarkers: Albumin, Creatinine, Glucose, CRP, Lymphocytes, MCV, RDW, ALP, and WBC. Please complete your profile and add test results.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Hero Tile: Biological Age */}
         <div 
           className={`backdrop-blur-xl rounded-3xl border p-8 transition-all hover:scale-[1.01] relative overflow-hidden ${
