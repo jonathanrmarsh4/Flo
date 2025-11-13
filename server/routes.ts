@@ -6,6 +6,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
 import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
+import { registerAdminRoutes } from "./routes/admin";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -2278,6 +2279,8 @@ Inflammation Markers:
       return res.status(400).json({ error: error.message });
     }
   });
+
+  registerAdminRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;
