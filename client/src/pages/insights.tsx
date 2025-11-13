@@ -53,12 +53,6 @@ export default function Insights() {
     enabled: !!user,
   });
 
-  // Fetch top 3 biomarkers to improve
-  const { data: topBiomarkersData } = useQuery<{ topBiomarkers: any[] }>({
-    queryKey: ['/api/biomarkers/top-to-improve'],
-    enabled: !!user,
-  });
-
   // Always fetch user profile for age calculation fallback
   const { data: profile } = useQuery<{ dateOfBirth?: string }>({
     queryKey: ['/api/profile'],
@@ -105,8 +99,27 @@ export default function Insights() {
     ageDifference: biologicalAgeData.ageDifference,
   } : undefined;
   
-  // Use real top biomarkers data from API, fallback to placeholder
-  const topBiomarkers = topBiomarkersData?.topBiomarkers || getTopBiomarkersToImprove(readings);
+  // Extract top 3 biomarkers from comprehensive insights (sorted by priority_score)
+  let topBiomarkers: any[] = [];
+  if (comprehensiveInsights?.analysisData?.per_biomarker_analyses) {
+    const biomarkerAnalyses = comprehensiveInsights.analysisData.per_biomarker_analyses;
+    topBiomarkers = biomarkerAnalyses
+      .sort((a: any, b: any) => (b.priority_score || 0) - (a.priority_score || 0))
+      .slice(0, 3)
+      .map((bm: any) => ({
+        name: bm.label,
+        value: `${bm.latest_value} ${bm.unit}`,
+        status: bm.status || 'unknown',
+        trend: bm.trend?.direction || 'unchanged',
+        color: bm.priority_score >= 50 ? 'red' : 
+               bm.priority_score >= 20 ? 'amber' : 'yellow',
+        benefit: bm.ai_insight?.summary || `Monitor ${bm.label} levels`,
+        sparkline: [] // Trend data not included in comprehensive insights
+      }));
+  } else {
+    // Fallback to old method if no comprehensive insights
+    topBiomarkers = getTopBiomarkersToImprove(readings);
+  }
   
   // Use comprehensive insights if available, fallback to old analysis insights
   const aiInsight = comprehensiveInsights?.analysisData?.overall_health_narrative 
