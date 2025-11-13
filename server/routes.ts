@@ -1051,9 +1051,11 @@ Inflammation Markers:
   });
 
   // GET /api/comprehensive-report - Generate comprehensive health report
+  // Optional query param: sessionId - if provided, only includes data from that specific test session
   app.get("/api/comprehensive-report", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const sessionId = req.query.sessionId as string | undefined;
 
       // Get user profile
       const profile = await storage.getProfile(userId);
@@ -1071,7 +1073,21 @@ Inflammation Markers:
          (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
 
       // Get biomarker sessions
-      const sessions = await storage.getTestSessionsByUser(userId);
+      let sessions;
+      if (sessionId) {
+        // Get specific session only
+        const session = await storage.getTestSessionById(sessionId);
+        if (!session || session.userId !== userId) {
+          return res.status(404).json({ 
+            error: "Session not found or unauthorized"
+          });
+        }
+        sessions = [session];
+      } else {
+        // Get all sessions
+        sessions = await storage.getTestSessionsByUser(userId);
+      }
+
       if (sessions.length === 0) {
         return res.status(422).json({ 
           error: "No biomarker data found. Please add test results first."

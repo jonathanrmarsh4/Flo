@@ -12,7 +12,22 @@ export default function FullReport() {
   const analysisId = params.id;
 
   const { data: report, isLoading, error } = useQuery<any>({
-    queryKey: analysisId ? ['/api/comprehensive-report', analysisId] : ['/api/comprehensive-report'],
+    queryKey: analysisId && analysisId !== 'latest' ? ['/api/comprehensive-report', analysisId] : ['/api/comprehensive-report'],
+    queryFn: analysisId && analysisId !== 'latest'
+      ? () => fetch(`/api/comprehensive-report?sessionId=${analysisId}`, { 
+          credentials: 'include',
+        }).then(async (r) => {
+          if (!r.ok) {
+            const error = await r.json();
+            throw new Error(error.error || 'Failed to generate report');
+          }
+          return r.json();
+        })
+      : undefined,
+    retry: 1,
+    retryDelay: 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
   const toggleGroup = (groupName: string) => {
@@ -32,12 +47,18 @@ export default function FullReport() {
           ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
           : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
       }`}>
-        <div className="text-center">
+        <div className="text-center px-6">
           <Loader2 className={`w-12 h-12 animate-spin mx-auto mb-4 ${
             isDark ? 'text-cyan-400' : 'text-cyan-600'
           }`} />
+          <h2 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Generating Your Health Report
+          </h2>
           <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-            Generating your comprehensive health report...
+            Our AI is analyzing your biomarker data and creating personalized insights...
+          </p>
+          <p className={`text-xs mt-3 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            This may take up to 30 seconds
           </p>
         </div>
       </div>

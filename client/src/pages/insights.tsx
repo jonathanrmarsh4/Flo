@@ -73,6 +73,9 @@ export default function Insights() {
       setLocation(`/report/${analysisId}`);
     } else if (analysis?.id) {
       setLocation(`/report/${analysis.id}`);
+    } else {
+      // Fallback: navigate without ID to show latest aggregate report
+      setLocation('/report/latest');
     }
   };
 

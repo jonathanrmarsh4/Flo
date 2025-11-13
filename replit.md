@@ -70,6 +70,19 @@ Flō is a mobile-first health analytics platform that uses AI to analyze user-up
 - Cache invalidation on profile changes and after adding new measurements
 - BIOMARKER_CONFIGS updated to include all database biomarker names for proper tile rendering
 
+**Comprehensive Health Report Feature (November 13, 2025):**
+- Full AI-powered health report accessible from insights page via "See Full Report" button
+- GET `/api/comprehensive-report` endpoint with optional `sessionId` query parameter
+  - Session-specific reports when ID provided, aggregate latest data otherwise
+  - Uses gpt-4o to generate comprehensive analysis (15-30 second generation time)
+  - Returns structured JSON with summary, biological age analysis, biomarker highlights, focus areas, and health forecast
+- Frontend `/report/:id` route with Flō design (gradients, glass-morphism, mobile-first)
+  - Informative loading state with "may take up to 30 seconds" messaging
+  - Back navigation preserves context (returns to originating insights page)
+  - React Query caching: 5-minute staleTime, 30-minute gcTime with 1 retry
+- Report sections: Summary header, key takeaways, biological age drivers, biomarker highlights with AI commentary, grouped biomarkers by system, focus areas, health forecast, technical disclaimer
+- Navigation fallback to `/report/latest` when no session ID available ensures button always works
+
 **PhenoAge Biological Age Calculation:** Live implementation of scientifically-validated aging algorithm.
 - GET /api/biological-age endpoint calculates biological age using Levine et al. (2018) PhenoAge algorithm
 - Requires 9 biomarkers: Albumin, Creatinine, Glucose, CRP, Lymphocytes, MCV, RDW, ALP, WBC
