@@ -5,9 +5,9 @@ const config: CapacitorConfig = {
   appName: 'Flō',
   webDir: 'dist/public',
   server: {
-    // For production iOS builds, uncomment and set your published Replit URL:
-    // url: 'https://your-app-name.replit.app',
-    // cleartext: false,
+    // Production backend - your published Replit app
+    url: 'https://get-flo.com',
+    cleartext: false,
     androidScheme: 'https'
   },
   ios: {
