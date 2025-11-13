@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { User, Lightbulb, Plus } from "lucide-react";
-import { FloLogo } from "./FloLogo";
+import { User, Lightbulb } from "lucide-react";
+import { FloIcon } from "./FloLogo";
 import { AddTestResultsModal } from "./AddTestResultsModal";
 
 export function FloBottomNav() {
@@ -33,8 +33,8 @@ export function FloBottomNav() {
             data-testid="nav-add"
             className="flex flex-col items-center -mt-6"
           >
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#00d4aa] via-[#00a8ff] to-[#0066ff] flex items-center justify-center shadow-lg">
-              <Plus className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#1a1f3a] to-[#0f1222] flex items-center justify-center shadow-lg border border-white/10">
+              <FloIcon size={48} />
             </div>
             <span className="text-xs font-medium text-gray-400 mt-1">Add</span>
           </button>
