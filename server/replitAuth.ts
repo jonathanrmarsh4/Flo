@@ -107,8 +107,40 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+  passport.serializeUser((user: Express.User, cb) => {
+    const sessionUser: any = user;
+    // Serialize user ID plus OIDC token metadata
+    cb(null, {
+      id: sessionUser.id,
+      access_token: sessionUser.access_token,
+      refresh_token: sessionUser.refresh_token,
+      expires_at: sessionUser.expires_at,
+      claims: sessionUser.claims,
+    });
+  });
+  
+  passport.deserializeUser(async (sessionData: any, cb) => {
+    try {
+      // Fetch fresh user data from DB (gets latest role/status)
+      const dbUser = await storage.getUser(sessionData.id);
+      if (!dbUser) {
+        return cb(new Error('User not found'));
+      }
+      
+      // Merge fresh DB data with session token metadata
+      const user: any = {
+        ...dbUser,
+        access_token: sessionData.access_token,
+        refresh_token: sessionData.refresh_token,
+        expires_at: sessionData.expires_at,
+        claims: sessionData.claims,
+      };
+      
+      return cb(null, user);
+    } catch (error) {
+      return cb(error);
+    }
+  });
 
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
@@ -160,7 +192,14 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     const config = await getOidcConfig();
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
-    return next();
+    
+    // Persist refreshed tokens to session
+    req.login(user, (err) => {
+      if (err) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      return next();
+    });
   } catch (error) {
     res.status(401).json({ message: "Unauthorized" });
     return;
