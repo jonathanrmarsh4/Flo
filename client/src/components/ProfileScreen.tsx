@@ -79,6 +79,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [localHeight, setLocalHeight] = useState<string>('');
   const [localSleep, setLocalSleep] = useState<string>('');
   
+  // Local state for medical context to prevent slow typing
+  const [localMedicalContext, setLocalMedicalContext] = useState<string>('');
+  
   // Calendar navigation state
   const [calendarMonth, setCalendarMonth] = useState<Date>(
     profile?.dateOfBirth ? new Date(profile.dateOfBirth) : new Date()
@@ -87,6 +90,22 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   // Safe defaults to prevent spreading undefined
   const currentHealthBaseline = profile?.healthBaseline ?? {};
   const currentAIPersonalization = profile?.aiPersonalization ?? {};
+  
+  // Debounced update for medical context (wait 500ms after user stops typing)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (localMedicalContext !== (profile?.aiPersonalization?.medicalContext ?? '')) {
+        updateAIPersonalization.mutate({
+          aiPersonalization: {
+            ...currentAIPersonalization,
+            medicalContext: localMedicalContext
+          }
+        });
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [localMedicalContext]);
 
   // Sync calendar month with profile date of birth
   useEffect(() => {
@@ -95,12 +114,13 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
     }
   }, [profile?.dateOfBirth]);
 
-  // Sync local number inputs with profile data
+  // Sync local inputs with profile data
   useEffect(() => {
     if (profile) {
       setLocalWeight(profile.weight?.toString() ?? '');
       setLocalHeight(profile.height?.toString() ?? '');
       setLocalSleep(profile.healthBaseline?.sleepHours?.toString() ?? '');
+      setLocalMedicalContext(profile.aiPersonalization?.medicalContext ?? '');
     }
   }, [profile]);
 
@@ -877,18 +897,15 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               </p>
               {isEditing ? (
                 <Textarea
-                  value={profile?.aiPersonalization?.medicalContext ?? ''}
+                  value={localMedicalContext}
                   onChange={(e) => {
-                    updateAIPersonalization.mutate({
-                      aiPersonalization: {
-                        ...currentAIPersonalization,
-                        medicalContext: e.target.value
-                      }
-                    });
+                    setLocalMedicalContext(e.target.value);
                   }}
                   placeholder="e.g., I'm on TRT, taking metformin for prediabetes, history of hypothyroidism..."
                   className={`min-h-[100px] resize-none ${
-                    isDark ? 'bg-white/10 border-white/20' : 'bg-white border-gray-300'
+                    isDark 
+                      ? 'bg-white/10 border-white/20 text-white placeholder:text-white/40' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400'
                   }`}
                   data-testid="textarea-medical-context"
                 />
