@@ -26,6 +26,16 @@ Flō is a mobile-first health analytics platform that uses AI to analyze user-up
 - Cache invalidation on profile changes and after adding new measurements
 - BIOMARKER_CONFIGS updated to include all database biomarker names for proper tile rendering
 
+**PhenoAge Biological Age Calculation:** Live implementation of scientifically-validated aging algorithm.
+- GET /api/biological-age endpoint calculates biological age using Levine et al. (2018) PhenoAge algorithm
+- Requires 9 biomarkers: Albumin, Creatinine, Glucose, CRP, Lymphocytes, MCV, RDW, ALP, WBC
+- Automatic unit conversion to Levine units (g/dL→g/L, mg/dL→µmol/L, mg/dL→mmol/L, mg/L→mg/dL, K/µL→10³/µL)
+- Dynamic lymphocyte percentage calculation from absolute counts when needed
+- Chronological age calculated from user's date of birth
+- Returns biologicalAge, chronologicalAge, ageDifference, testDate, and sessionId
+- Insights page displays real biological age data with error handling for missing biomarkers/DOB
+- UnitConverter class in shared/utils/phenoage.ts handles all precision-critical conversions
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
