@@ -150,12 +150,12 @@ export default function Dashboard() {
               </Link>
               {user?.role === 'admin' && (
                 <Link 
-                  href="/admin/users"
+                  href="/admin"
                   className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
                     isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
                   }`}
                   data-testid="link-admin"
-                  aria-label="Admin User Management"
+                  aria-label="Admin Dashboard"
                 >
                   <Shield className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 </Link>

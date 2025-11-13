@@ -639,6 +639,23 @@ export const updateUserSchema = z.object({
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
 
+// Admin user summary with enriched data
+export const adminUserSummarySchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  firstName: z.string().nullable(),
+  lastName: z.string().nullable(),
+  role: UserRoleEnum,
+  status: UserStatusEnum,
+  subscriptionStatus: z.enum(['free', 'premium']),
+  measurementCount: z.number(),
+  lastUpload: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type AdminUserSummary = z.infer<typeof adminUserSummarySchema>;
+
 // Biomarker schemas
 export const insertBiomarkerSchema = createInsertSchema(biomarkers, {
   name: z.string().min(1),

@@ -7,21 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "./ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Alert, AlertDescription } from "./ui/alert";
+import { Skeleton } from "./ui/skeleton";
+import { Search, ChevronLeft, ChevronRight, Crown, Activity, Calendar, AlertCircle, Users as UsersIcon } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-
-interface User {
-  id: string;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  role: "free" | "premium" | "admin";
-  status: "active" | "suspended";
-  createdAt: string;
-}
+import type { AdminUserSummary } from "@shared/schema";
 
 interface UsersResponse {
-  users: User[];
+  users: AdminUserSummary[];
   total: number;
 }
 
@@ -43,7 +36,7 @@ export function AdminUsersTab() {
     return queryString ? `?${queryString}` : '';
   };
 
-  const { data, isLoading } = useQuery<UsersResponse>({
+  const { data, isLoading, error, refetch } = useQuery<UsersResponse>({
     queryKey: [`/api/admin/users${buildQueryString()}`],
     staleTime: 2 * 60 * 1000,
   });
@@ -116,9 +109,58 @@ export function AdminUsersTab() {
         </div>
       </div>
 
-      {/* Users Table */}
+      {/* Error State */}
+      {error && (
+        <Alert className="mb-6 bg-red-500/10 border-red-500/50" data-testid="alert-error">
+          <AlertCircle className="h-4 w-4 text-red-500" />
+          <AlertDescription className="text-white/90">
+            Failed to load users. <Button variant="link" onClick={() => refetch()} className="text-red-400 hover:text-red-300 p-0 h-auto" data-testid="button-retry">Try again</Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Skeleton Loading */}
       {isLoading ? (
-        <div className="text-white/70 text-sm text-center py-8">Loading users...</div>
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 border border-white/10 rounded-lg" data-testid={`skeleton-row-${i}`}>
+              <Skeleton className="h-10 w-10 rounded-full bg-white/10" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-1/3 bg-white/10" />
+                <Skeleton className="h-3 w-1/4 bg-white/10" />
+              </div>
+              <Skeleton className="h-6 w-20 bg-white/10" />
+              <Skeleton className="h-6 w-20 bg-white/10" />
+            </div>
+          ))}
+        </div>
+      ) : !data || data.users.length === 0 ? (
+        <div className="text-center py-12 space-y-4" data-testid="empty-state">
+          <UsersIcon className="w-12 h-12 mx-auto text-white/30" />
+          <div className="text-white/70">
+            <p className="text-lg font-medium mb-2">No users found</p>
+            <p className="text-sm text-white/50">
+              {search || roleFilter !== 'all' || statusFilter !== 'all' 
+                ? 'Try adjusting your filters' 
+                : 'No users have registered yet'}
+            </p>
+          </div>
+          {(search || roleFilter !== 'all' || statusFilter !== 'all') && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSearch('');
+                setRoleFilter('all');
+                setStatusFilter('all');
+                setPage(0);
+              }}
+              className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+              data-testid="button-clear-filters"
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
       ) : (
         <>
           <div className="overflow-x-auto">
@@ -127,6 +169,8 @@ export function AdminUsersTab() {
                 <TableRow className="border-white/10 hover:bg-white/5">
                   <TableHead className="text-white/70">Name</TableHead>
                   <TableHead className="text-white/70">Email</TableHead>
+                  <TableHead className="text-white/70">Plan</TableHead>
+                  <TableHead className="text-white/70">Activity</TableHead>
                   <TableHead className="text-white/70">Role</TableHead>
                   <TableHead className="text-white/70">Status</TableHead>
                   <TableHead className="text-white/70">Joined</TableHead>
@@ -142,6 +186,33 @@ export function AdminUsersTab() {
                       }
                     </TableCell>
                     <TableCell className="text-white/70 text-sm">{user.email}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={user.subscriptionStatus === 'premium' ? 'default' : 'secondary'} 
+                        className={user.subscriptionStatus === 'premium' ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white' : ''}
+                        data-testid={`badge-plan-${user.id}`}
+                      >
+                        {user.subscriptionStatus === 'premium' ? (
+                          <><Crown className="w-3 h-3 mr-1 inline" />Premium</>
+                        ) : (
+                          'Free'
+                        )}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 text-xs text-white/70">
+                          <Activity className="w-3 h-3" />
+                          <span>{user.measurementCount} tests</span>
+                        </div>
+                        {user.lastUpload && (
+                          <div className="flex items-center gap-1.5 text-xs text-white/50">
+                            <Calendar className="w-3 h-3" />
+                            <span>Last: {new Date(user.lastUpload).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Select 
                         value={user.role} 

@@ -2160,7 +2160,7 @@ Inflammation Markers:
       const validationResult = listUsersQuerySchema.safeParse(req.query);
       if (!validationResult.success) {
         const validationError = fromError(validationResult.error);
-        return res.status(400).json({ error: validationError.toString() });
+        return res.status(400).json({ error: validationResult.toString() });
       }
 
       const { q, role, status, limit, offset } = validationResult.data;
