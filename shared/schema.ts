@@ -45,6 +45,7 @@ export const insightsFrequencyEnum = pgEnum("insights_frequency", ["Daily", "Wee
 export const decimalsPolicyEnum = pgEnum("decimals_policy", ["ceil", "floor", "round"]);
 export const conversionTypeEnum = pgEnum("conversion_type", ["ratio", "affine"]);
 export const referenceSexEnum = pgEnum("reference_sex", ["any", "male", "female"]);
+export const measurementSourceEnum = pgEnum("measurement_source", ["ai_extracted", "manual", "corrected"]);
 
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
@@ -93,6 +94,7 @@ export const FocusAreaEnum = z.enum([
 export const DecimalsPolicyEnum = z.enum(["ceil", "floor", "round"]);
 export const ConversionTypeEnum = z.enum(["ratio", "affine"]);
 export const ReferenceSexEnum = z.enum(["any", "male", "female"]);
+export const MeasurementSourceEnum = z.enum(["ai_extracted", "manual", "corrected"]);
 
 // Health baseline schema (for JSONB validation)
 export const healthBaselineSchema = z.object({
@@ -317,6 +319,8 @@ export const biomarkerMeasurements = pgTable("biomarker_measurements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sessionId: varchar("session_id").notNull().references(() => biomarkerTestSessions.id, { onDelete: "cascade" }),
   biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  recordId: varchar("record_id").references(() => bloodWorkRecords.id, { onDelete: "set null" }),
+  source: measurementSourceEnum("source").notNull().default("manual"),
   valueRaw: real("value_raw").notNull(),
   unitRaw: text("unit_raw").notNull(),
   valueCanonical: real("value_canonical").notNull(),
@@ -327,7 +331,9 @@ export const biomarkerMeasurements = pgTable("biomarker_measurements", {
   flags: text("flags").array(),
   warnings: text("warnings").array(),
   normalizationContext: jsonb("normalization_context"),
+  updatedBy: varchar("updated_by"),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("idx_biomarker_measurements_session").on(table.sessionId),
   index("idx_biomarker_measurements_biomarker").on(table.biomarkerId),

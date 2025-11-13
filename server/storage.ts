@@ -104,6 +104,16 @@ export interface IStorage {
   }): Promise<{ session: BiomarkerTestSession; measurement: BiomarkerMeasurement }>;
   getTestSessionsByUser(userId: string): Promise<BiomarkerTestSession[]>;
   getMeasurementsBySession(sessionId: string): Promise<BiomarkerMeasurement[]>;
+  getMeasurementById(id: string): Promise<BiomarkerMeasurement | undefined>;
+  getTestSessionById(id: string): Promise<BiomarkerTestSession | undefined>;
+  getMeasurementBySessionAndBiomarker(sessionId: string, biomarkerId: string): Promise<BiomarkerMeasurement | undefined>;
+  updateMeasurement(id: string, updates: Partial<BiomarkerMeasurement>): Promise<BiomarkerMeasurement>;
+  deleteMeasurement(id: string): Promise<void>;
+  deleteTestSession(id: string): Promise<void>;
+  getMeasurementHistory(userId: string, biomarkerId: string, limit?: number): Promise<BiomarkerMeasurement[]>;
+  getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | undefined>;
+  getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string): Promise<any>;
+  cacheBiomarkerInsights(data: any): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -519,7 +529,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | null> {
+  async getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | undefined> {
     if (measurementId) {
       const [measurement] = await db
         .select()
@@ -533,7 +543,7 @@ export class DatabaseStorage implements IStorage {
           )
         )
         .limit(1);
-      return measurement?.biomarker_measurements || null;
+      return measurement?.biomarker_measurements;
     }
 
     const [measurement] = await db
@@ -548,7 +558,7 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(biomarkerTestSessions.testDate))
       .limit(1);
-    return measurement?.biomarker_measurements || null;
+    return measurement?.biomarker_measurements;
   }
 
   async getMeasurementHistory(userId: string, biomarkerId: string, limit: number = 5): Promise<BiomarkerMeasurement[]> {
@@ -565,6 +575,60 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(biomarkerTestSessions.testDate))
       .limit(limit);
     return measurements.map(m => m.biomarker_measurements);
+  }
+
+  async getMeasurementById(id: string): Promise<BiomarkerMeasurement | undefined> {
+    const [measurement] = await db
+      .select()
+      .from(biomarkerMeasurements)
+      .where(eq(biomarkerMeasurements.id, id));
+    return measurement;
+  }
+
+  async getTestSessionById(id: string): Promise<BiomarkerTestSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(biomarkerTestSessions)
+      .where(eq(biomarkerTestSessions.id, id));
+    return session;
+  }
+
+  async getMeasurementBySessionAndBiomarker(sessionId: string, biomarkerId: string): Promise<BiomarkerMeasurement | undefined> {
+    const [measurement] = await db
+      .select()
+      .from(biomarkerMeasurements)
+      .where(
+        and(
+          eq(biomarkerMeasurements.sessionId, sessionId),
+          eq(biomarkerMeasurements.biomarkerId, biomarkerId)
+        )
+      )
+      .limit(1);
+    return measurement;
+  }
+
+  async updateMeasurement(id: string, updates: Partial<BiomarkerMeasurement>): Promise<BiomarkerMeasurement> {
+    const [updatedMeasurement] = await db
+      .update(biomarkerMeasurements)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(biomarkerMeasurements.id, id))
+      .returning();
+    return updatedMeasurement;
+  }
+
+  async deleteMeasurement(id: string): Promise<void> {
+    await db
+      .delete(biomarkerMeasurements)
+      .where(eq(biomarkerMeasurements.id, id));
+  }
+
+  async deleteTestSession(id: string): Promise<void> {
+    await db
+      .delete(biomarkerTestSessions)
+      .where(eq(biomarkerTestSessions.id, id));
   }
 
   async getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string) {

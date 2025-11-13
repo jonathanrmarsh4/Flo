@@ -726,12 +726,12 @@ Inflammation Markers:
       const profileSnapshot = {
         age: profile?.dateOfBirth ? new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear() : undefined,
         sex: profile?.sex as 'male' | 'female' | 'other' | undefined,
-        healthGoals: profile?.goals ? [profile.goals.primaryGoal, ...(profile.goals.secondaryGoals || [])].filter(Boolean) : [],
+        healthGoals: profile?.goals || [],
         activityLevel: profile?.healthBaseline?.activityLevel,
-        sleepQuality: profile?.healthBaseline?.sleepQuality,
+        sleepHours: profile?.healthBaseline?.sleepHours,
         dietType: profile?.healthBaseline?.dietType,
         smoking: profile?.healthBaseline?.smokingStatus,
-        alcoholConsumption: profile?.healthBaseline?.alcoholConsumption,
+        alcoholIntake: profile?.healthBaseline?.alcoholIntake,
       };
 
       // Build measurement signature
@@ -949,6 +949,160 @@ Inflammation Markers:
     } catch (error) {
       console.error("Error creating measurement:", error);
       res.status(500).json({ error: "Failed to create measurement" });
+    }
+  });
+
+  // GET /api/measurements - Get measurement history for a biomarker
+  app.get("/api/measurements", isAuthenticated, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        biomarkerId: z.string().uuid().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.query);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { biomarkerId } = validationResult.data;
+      const userId = req.user.claims.sub;
+
+      if (!biomarkerId) {
+        return res.status(400).json({ error: "biomarkerId query parameter is required" });
+      }
+
+      const measurements = await storage.getMeasurementHistory(userId, biomarkerId);
+
+      res.json({ measurements });
+    } catch (error) {
+      console.error("Error fetching measurement history:", error);
+      res.status(500).json({ error: "Failed to fetch measurement history" });
+    }
+  });
+
+  // PATCH /api/measurements/:id - Edit a measurement
+  app.patch("/api/measurements/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const measurementId = req.params.id;
+      const userId = req.user.claims.sub;
+
+      const schema = z.object({
+        biomarkerId: z.string().uuid().optional(),
+        value: z.number().finite().optional(),
+        unit: z.string().min(1).optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const updates = validationResult.data;
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "At least one field must be provided for update" });
+      }
+
+      const existingMeasurement = await storage.getMeasurementById(measurementId);
+      if (!existingMeasurement) {
+        return res.status(404).json({ error: "Measurement not found" });
+      }
+
+      const session = await storage.getTestSessionById(existingMeasurement.sessionId);
+      if (!session || session.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      const { biomarkers, synonyms, units, ranges } = await storage.getAllBiomarkerData();
+
+      const targetBiomarkerId = updates.biomarkerId || existingMeasurement.biomarkerId;
+      const targetValue = updates.value !== undefined ? updates.value : existingMeasurement.valueRaw;
+      const targetUnit = updates.unit || existingMeasurement.unitRaw;
+
+      const biomarker = biomarkers.find(b => b.id === targetBiomarkerId);
+      if (!biomarker) {
+        return res.status(404).json({ error: "Biomarker not found" });
+      }
+
+      if (updates.biomarkerId && updates.biomarkerId !== existingMeasurement.biomarkerId) {
+        const existingInSession = await storage.getMeasurementBySessionAndBiomarker(
+          existingMeasurement.sessionId,
+          updates.biomarkerId
+        );
+        if (existingInSession && existingInSession.id !== measurementId) {
+          return res.status(409).json({ error: "A measurement for this biomarker already exists in this session" });
+        }
+      }
+
+      const { normalizeMeasurement } = await import("@shared/domain/biomarkers");
+      const normalized = normalizeMeasurement(
+        {
+          name: biomarker.name,
+          value: targetValue,
+          unit: targetUnit,
+        },
+        biomarkers,
+        synonyms,
+        units,
+        ranges
+      );
+
+      const updatedMeasurement = await storage.updateMeasurement(measurementId, {
+        biomarkerId: targetBiomarkerId,
+        valueRaw: targetValue,
+        unitRaw: targetUnit,
+        valueCanonical: normalized.value_canonical,
+        unitCanonical: normalized.unit_canonical,
+        valueDisplay: normalized.value_display,
+        referenceLow: normalized.ref_range.low,
+        referenceHigh: normalized.ref_range.high,
+        flags: normalized.flags,
+        warnings: normalized.warnings,
+        normalizationContext: normalized.context_used,
+        source: existingMeasurement.source === "ai_extracted" ? "corrected" : existingMeasurement.source,
+        updatedBy: userId,
+        updatedAt: new Date(),
+      });
+
+      res.json({
+        measurement: updatedMeasurement,
+        normalized,
+      });
+    } catch (error) {
+      console.error("Error updating measurement:", error);
+      res.status(500).json({ error: "Failed to update measurement" });
+    }
+  });
+
+  // DELETE /api/measurements/:id - Delete a measurement
+  app.delete("/api/measurements/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const measurementId = req.params.id;
+      const userId = req.user.claims.sub;
+
+      const existingMeasurement = await storage.getMeasurementById(measurementId);
+      if (!existingMeasurement) {
+        return res.status(404).json({ error: "Measurement not found" });
+      }
+
+      const session = await storage.getTestSessionById(existingMeasurement.sessionId);
+      if (!session || session.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      await storage.deleteMeasurement(measurementId);
+
+      const remainingMeasurements = await storage.getMeasurementsBySession(session.id);
+      if (remainingMeasurements.length === 0) {
+        await storage.deleteTestSession(session.id);
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting measurement:", error);
+      res.status(500).json({ error: "Failed to delete measurement" });
     }
   });
 
