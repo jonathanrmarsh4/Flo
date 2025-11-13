@@ -6,11 +6,18 @@ import { FloBottomNav } from '@/components/FloBottomNav';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   mapAnalysisToBiomarkerReadings,
-  getBiologicalAgeData,
   getTopBiomarkersToImprove,
   getAIInsight
 } from '@/lib/flo-data-adapters';
 import type { AnalysisResult } from '@shared/schema';
+
+interface BiologicalAgeResponse {
+  biologicalAge: number;
+  chronologicalAge: number;
+  ageDifference: number;
+  testDate: string;
+  sessionId: string;
+}
 
 export default function Insights() {
   const { user } = useAuth();
@@ -22,6 +29,12 @@ export default function Insights() {
 
   const { data: analysis } = useQuery<AnalysisResult>({
     queryKey: analysisId ? [`/api/blood-work/${analysisId}/analysis`] : ['/api/blood-work/latest'],
+    enabled: !!user,
+  });
+
+  // Fetch real biological age from the new endpoint
+  const { data: biologicalAgeData } = useQuery<BiologicalAgeResponse>({
+    queryKey: ['/api/biological-age'],
     enabled: !!user,
   });
 
@@ -39,7 +52,11 @@ export default function Insights() {
 
   // Transform backend data for UI
   const readings = mapAnalysisToBiomarkerReadings(analysis);
-  const ageData = getBiologicalAgeData(analysis);
+  const ageData = biologicalAgeData ? {
+    biologicalAge: biologicalAgeData.biologicalAge,
+    chronologicalAge: biologicalAgeData.chronologicalAge,
+    ageDifference: biologicalAgeData.ageDifference,
+  } : undefined;
   const topBiomarkers = getTopBiomarkersToImprove(readings);
   const aiInsight = getAIInsight(analysis);
 
