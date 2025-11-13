@@ -1376,6 +1376,10 @@ Inflammation Markers:
         age_years: calculatedAge,
         sex: profile?.sex?.toLowerCase() as 'male' | 'female' | undefined,
       };
+      
+      console.log(`[INSIGHTS DEBUG] Biomarker: ${biomarker.name}, Canonical Unit: ${measurement.unitCanonical}`);
+      console.log(`[INSIGHTS DEBUG] Available ranges:`, biomarkerRanges.map(r => ({ unit: r.unit, low: r.low, high: r.high })));
+      
       const correctRange = selectReferenceRange(
         biomarkerId,
         measurement.unitCanonical,
@@ -1383,9 +1387,13 @@ Inflammation Markers:
         biomarkerRanges
       );
 
+      console.log(`[INSIGHTS DEBUG] Selected range:`, correctRange ? { unit: correctRange.unit, low: correctRange.low, high: correctRange.high } : 'null');
+
       // Use the correctly selected reference range instead of the stored one
       const referenceLow = correctRange?.low ?? null;
       const referenceHigh = correctRange?.high ?? null;
+      
+      console.log(`[INSIGHTS DEBUG] Passing to AI: low=${referenceLow}, high=${referenceHigh}, value=${measurement.valueCanonical}`);
 
       // Enrich biomarker data for personalized insights
       const enrichedData = enrichBiomarkerData(

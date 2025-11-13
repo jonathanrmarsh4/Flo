@@ -40,7 +40,7 @@ export function BiomarkerInsightsModal({
       const response = await fetch(`/api/biomarkers/${biomarkerId}/insights`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ forceRefresh: true }),
         credentials: 'include',
       });
       if (!response.ok) {
@@ -51,6 +51,8 @@ export function BiomarkerInsightsModal({
     },
     enabled: isOpen && !!biomarkerId,
     retry: 1,
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache results (renamed from cacheTime in v5)
   });
 
   useEffect(() => {
