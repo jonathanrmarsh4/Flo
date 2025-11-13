@@ -4,6 +4,13 @@
 Flō is a mobile-first health analytics platform that uses AI to analyze user-uploaded blood work results. It calculates biological age, provides personalized health recommendations, and tracks health metrics over time. The platform integrates OpenAI's GPT models for insights, offers robust user authentication, a comprehensive profile system, and admin tools for user management. It also supports billing via Stripe and Apple Pay, aiming to deliver trusted, clear, and actionable health information.
 
 ## Recent Updates (November 2025)
+**Reference Range Bug Fix (November 13, 2025):**
+- Fixed critical bug where comprehensive health insights displayed incorrect reference ranges
+- Issue: 37 biomarkers with unit conversions showed unconverted reference ranges (e.g., Calcium showed 2.1-2.6 mmol/L instead of 8.5-10.5 mg/dL)
+- Solution: Modified `/api/health-insights` endpoint to recalculate correct reference ranges on-the-fly using `selectReferenceRange()`
+- Frontend updated to properly extract `per_biomarker_analyses` from flattened API response
+- All biomarker insights now display correct reference ranges matching canonical units
+
 **Capacitor iOS Deployment:** Complete setup for deploying Flō as a native iOS application.
 - Capacitor 7.4.4 with iOS platform configured
 - App ID: com.flo.healthapp, App Name: Flō
