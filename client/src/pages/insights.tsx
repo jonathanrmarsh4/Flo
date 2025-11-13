@@ -101,8 +101,14 @@ export default function Insights() {
   
   // Extract top 3 biomarkers from comprehensive insights (sorted by priority_score)
   let topBiomarkers: any[] = [];
+  console.log('[Top Biomarkers Debug] Comprehensive insights:', comprehensiveInsights);
+  console.log('[Top Biomarkers Debug] Has per_biomarker_analyses:', !!comprehensiveInsights?.analysisData?.per_biomarker_analyses);
+  
   if (comprehensiveInsights?.analysisData?.per_biomarker_analyses) {
     const biomarkerAnalyses = comprehensiveInsights.analysisData.per_biomarker_analyses;
+    console.log('[Top Biomarkers Debug] Raw biomarker analyses:', biomarkerAnalyses);
+    console.log('[Top Biomarkers Debug] Number of biomarkers:', biomarkerAnalyses.length);
+    
     topBiomarkers = biomarkerAnalyses
       .sort((a: any, b: any) => (b.priority_score || 0) - (a.priority_score || 0))
       .slice(0, 3)
@@ -114,12 +120,17 @@ export default function Insights() {
         color: bm.priority_score >= 50 ? 'red' : 
                bm.priority_score >= 20 ? 'amber' : 'yellow',
         benefit: bm.ai_insight?.summary || `Monitor ${bm.label} levels`,
-        sparkline: [] // Trend data not included in comprehensive insights
+        sparkline: [1, 2, 3, 4, 5], // Dummy sparkline data for now
+        change: '+0.0%' // Placeholder change value
       }));
+    
+    console.log('[Top Biomarkers Debug] Mapped top biomarkers:', topBiomarkers);
   } else {
     // Fallback to old method if no comprehensive insights
+    console.log('[Top Biomarkers Debug] Using fallback method');
     topBiomarkers = getTopBiomarkersToImprove(readings);
   }
+  console.log('[Top Biomarkers Debug] Final topBiomarkers array:', topBiomarkers);
   
   // Use comprehensive insights if available, fallback to old analysis insights
   const aiInsight = comprehensiveInsights?.analysisData?.overall_health_narrative 
