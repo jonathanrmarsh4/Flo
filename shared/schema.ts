@@ -47,6 +47,15 @@ export const conversionTypeEnum = pgEnum("conversion_type", ["ratio", "affine"])
 export const referenceSexEnum = pgEnum("reference_sex", ["any", "male", "female"]);
 export const measurementSourceEnum = pgEnum("measurement_source", ["ai_extracted", "manual", "corrected"]);
 
+// Lab upload job enums
+export const labUploadJobStatusEnum = pgEnum("lab_upload_job_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+  "needs_review"
+]);
+
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
 export const UserStatusEnum = z.enum(["active", "suspended"]);
@@ -361,6 +370,25 @@ export const biomarkerInsights = pgTable("biomarker_insights", {
   index("idx_biomarker_insights_user_biomarker").on(table.userId, table.biomarkerId),
 ]);
 
+export const labUploadJobs = pgTable("lab_upload_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  recordId: varchar("record_id").references(() => bloodWorkRecords.id, { onDelete: "set null" }),
+  status: labUploadJobStatusEnum("status").notNull().default("pending"),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  fileSha256: text("file_sha256"),
+  steps: jsonb("steps"),
+  resultPayload: jsonb("result_payload"),
+  errorDetails: jsonb("error_details"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_lab_upload_jobs_user").on(table.userId),
+  index("idx_lab_upload_jobs_status").on(table.status),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
@@ -653,6 +681,15 @@ export type InsertBiomarkerMeasurement = z.infer<typeof insertBiomarkerMeasureme
 
 export type BiomarkerTestSession = typeof biomarkerTestSessions.$inferSelect;
 export type BiomarkerMeasurement = typeof biomarkerMeasurements.$inferSelect;
+
+export const insertLabUploadJobSchema = createInsertSchema(labUploadJobs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertLabUploadJob = z.infer<typeof insertLabUploadJobSchema>;
+export type LabUploadJob = typeof labUploadJobs.$inferSelect;
 
 // Normalization schemas
 export const normalizationInputSchema = z.object({
