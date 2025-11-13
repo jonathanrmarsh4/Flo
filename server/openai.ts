@@ -312,7 +312,91 @@ SAFETY AND GUARDRAILS:
 - If data appears extremely abnormal or suggests a possible urgent risk (e.g. very high glucose, extremely abnormal liver markers, etc.), you may add a suggestion like: 'If you feel unwell or have concerning symptoms, seek urgent medical care or call emergency services.' Do not attempt remote triage.
 - Always include the disclaimer in the output JSON under the 'disclaimer' field.
 
-OUTPUT: Respond with ONLY valid JSON matching the exact schema provided. No markdown, no extra text.`;
+OUTPUT SCHEMA:
+You MUST respond with valid JSON matching this exact structure:
+
+{
+  "analysis_meta": {
+    "generated_at": "ISO 8601 timestamp",
+    "model_version": "gpt-5",
+    "data_window_days": number or null
+  },
+  "per_biomarker_analyses": [
+    {
+      "biomarker_id": "string",
+      "label": "string",
+      "category": "string",
+      "latest_value": number,
+      "unit": "string",
+      "reference_range": { "low": number|null, "high": number|null, "unit": string|null },
+      "optimal_range": { "low": number|null, "high": number|null, "unit": string|null },
+      "status": "optimal"|"normal"|"borderline_low"|"borderline_high"|"high"|"low"|"unknown",
+      "trend": {
+        "direction": "up"|"down"|"stable"|"insufficient_data",
+        "percent_change": number|null,
+        "since_timestamp": string|null,
+        "trend_label": "improving"|"worsening"|"stable"|"unclear"
+      },
+      "priority_score": number (0-100),
+      "ai_insight": {
+        "title": "string (1-2 words)",
+        "summary": "string (1-2 sentences, mobile-friendly)",
+        "suggested_actions": ["action 1", "action 2", ...],
+        "notes_for_clinician": string|null,
+        "tone": "supportive"|"neutral"|"cautious",
+        "disclaimer": "string"
+      }
+    }
+  ],
+  "system_summaries": [
+    {
+      "system_id": "string (e.g. 'cardiovascular', 'metabolic')",
+      "status": "green"|"amber"|"red"|"insufficient_data",
+      "key_markers": ["marker1", "marker2"],
+      "system_summary": "string (2-3 sentences)",
+      "high_leverage_actions": ["action1", "action2"]
+    }
+  ],
+  "pattern_flags": [
+    {
+      "pattern_id": "string",
+      "status": "present"|"possible"|"not_detected"|"insufficient_data",
+      "severity": "mild"|"moderate"|"significant"|"unclear",
+      "drivers": ["driver1", "driver2"],
+      "summary": "string",
+      "suggested_actions": ["action1"]
+    }
+  ],
+  "bioage_analysis": {
+    "method": "PhenoAge",
+    "chronological_age_years": number|null,
+    "current_bioage_years": number|null,
+    "previous_bioage_years": number|null,
+    "delta_years": number|null,
+    "direction": "improving"|"worsening"|"stable"|"insufficient_data",
+    "top_positive_drivers": ["driver1"],
+    "top_negative_drivers": ["driver1"],
+    "ai_summary": "string (2-3 sentences)",
+    "ai_next_focus": "string"
+  },
+  "priority_focus_list": [
+    {
+      "rank": number (1-5),
+      "type": "pattern"|"biomarker"|"system",
+      "id": "string",
+      "title": "string",
+      "summary": "string (1-2 sentences)",
+      "actions": ["action1", "action2"]
+    }
+  ],
+  "global_summary": {
+    "headline": "string (one sentence summary)",
+    "bullets": ["bullet1", "bullet2", "bullet3"]
+  },
+  "disclaimer": "string (standard medical disclaimer)"
+}
+
+OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.`;
 
     const userMessage = JSON.stringify(input, null, 2);
 
@@ -337,9 +421,17 @@ OUTPUT: Respond with ONLY valid JSON matching the exact schema provided. No mark
 
     const insights = JSON.parse(content) as ComprehensiveInsightsOutput;
 
-    // Basic validation
-    if (!insights.analysis_meta || !insights.global_summary || !insights.disclaimer) {
-      throw new Error("Invalid comprehensive insights response structure");
+    // Basic validation with detailed error messages
+    const missingFields: string[] = [];
+    if (!insights.analysis_meta) missingFields.push('analysis_meta');
+    if (!insights.global_summary) missingFields.push('global_summary');
+    if (!insights.disclaimer) missingFields.push('disclaimer');
+    
+    if (missingFields.length > 0) {
+      console.error("Missing required fields in AI response:", missingFields);
+      console.error("Received structure:", Object.keys(insights));
+      console.error("Full response:", JSON.stringify(insights, null, 2));
+      throw new Error(`Invalid comprehensive insights response structure. Missing fields: ${missingFields.join(', ')}`);
     }
 
     return insights;
