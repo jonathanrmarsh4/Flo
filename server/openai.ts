@@ -429,6 +429,10 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
 
     const userMessage = JSON.stringify(input, null, 2);
 
+    const medicalContextNotice = input.user_profile.other_context 
+      ? `\n\nIMPORTANT MEDICAL CONTEXT (provided by user): ${input.user_profile.other_context}\nTake this context into account when generating insights. For example, if they're on TRT, expect testosterone levels to be elevated and focus on optimizing other health markers. Tailor recommendations based on their medical situation.`
+      : '';
+
     console.log("Calling OpenAI for comprehensive insights...");
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -436,9 +440,9 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
         { role: "system", content: systemPrompt },
         {
           role: "developer",
-          content: `Follow the Flo Biomarker Insights Engine specification exactly. Output ONLY valid JSON matching the comprehensive schema. Include all required fields. Use evidence-based insights. Keep language mobile-friendly (1-2 sentences). NO diagnosis. NO prescriptions. Always defer to healthcare providers.`
+          content: `Follow the Flo Biomarker Insights Engine specification exactly. Output ONLY valid JSON matching the comprehensive schema. Include all required fields. Use evidence-based insights. Keep language mobile-friendly (1-2 sentences). NO diagnosis. NO prescriptions. Always defer to healthcare providers.${medicalContextNotice ? ' IMPORTANT: Account for the medical context provided in the user message when making recommendations.' : ''}`
         },
-        { role: "user", content: `Analyze this health data and provide comprehensive insights:\n\n${userMessage}` }
+        { role: "user", content: `Analyze this health data and provide comprehensive insights:\n\n${userMessage}${medicalContextNotice}` }
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 16000,
