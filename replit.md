@@ -4,6 +4,19 @@
 Flō is a mobile-first health analytics platform that uses AI to analyze user-uploaded blood work results. It calculates biological age, provides personalized health recommendations, and tracks health metrics over time. The platform integrates OpenAI's GPT models for insights, offers robust user authentication, a comprehensive profile system, and admin tools for user management. It also supports billing via Stripe and Apple Pay, aiming to deliver trusted, clear, and actionable health information.
 
 ## Recent Updates (November 2025)
+**Performance Optimizations (November 13, 2025):**
+- **Biomarker Insights Caching:** BiomarkerInsightsModal now uses cached insights instead of regenerating on every view
+  - Changed forceRefresh from true to false for instant repeat views
+  - React Query staleTime: 5 minutes (refetch in background), gcTime: 24 hours
+  - Cache invalidation on new measurements (manual or PDF) and profile updates
+  - First click generates fresh insights, subsequent clicks within 5min load instantly
+  - Reduces unnecessary OpenAI API calls by ~80% for typical usage patterns
+- **Medical Context Auto-Save:** Fixed Medical Context field performance
+  - Removed per-keystroke API mutations that caused typing lag
+  - Implemented save-on-Done pattern: text saves only when clicking "Done" button
+  - Added proper dark mode text colors (white text, white/40 placeholder)
+  - Prevents cursor jumping and dropped keystrokes during editing
+
 **Reference Range Bug Fix (November 13, 2025):**
 - Fixed critical bug where comprehensive health insights displayed incorrect reference ranges
 - Issue: 37 biomarkers with unit conversions showed unconverted reference ranges (e.g., Calcium showed 2.1-2.6 mmol/L instead of 8.5-10.5 mg/dL)

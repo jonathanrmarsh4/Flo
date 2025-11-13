@@ -16,6 +16,7 @@ export function useUpdateDemographics() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/biomarkers'] }); // Invalidate biomarker insights (age/sex affects insights)
     },
   });
 }
@@ -28,6 +29,7 @@ export function useUpdateHealthBaseline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/biomarkers'] }); // Invalidate biomarker insights (health context affects insights)
     },
   });
 }
@@ -40,6 +42,7 @@ export function useUpdateGoals() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/biomarkers'] }); // Invalidate biomarker insights (goals affect insights)
     },
   });
 }
@@ -52,6 +55,7 @@ export function useUpdateAIPersonalization() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/biomarkers'] }); // Invalidate biomarker insights (medical context affects insights)
     },
   });
 }
