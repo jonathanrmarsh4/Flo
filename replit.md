@@ -12,11 +12,21 @@ Flō is a mobile-first health analytics platform that uses AI to analyze user-up
 - Documentation in CAPACITOR.md with deployment workflow
 - Ready for Xcode building and App Store submission
 
-**Age Calculation Fixes:** Corrected chronological age calculation across all endpoints.
-- Fixed biological age, reference range selection, and biomarker insights endpoints
-- Now properly accounts for whether birthday has occurred this year
-- Formula: `currentYear - birthYear - (birthdayNotYetOccurred ? 1 : 0)`
-- Cleared cached insights to apply corrected age calculations
+**Critical Bug Fixes (November 13, 2025):**
+- **Unit Mismatch Resolution:** Fixed systemic bug affecting 37 biomarker measurements where reference ranges stored in mmol/L didn't match canonical measurement units in mg/dL
+  - Enhanced normalization engine to convert reference range bounds to canonical/display units before flag generation
+  - selectReferenceRange now falls back to any available unit when exact match not found
+  - Treats reference ranges with all null bounds as missing (emits "no_reference_range" instead of incorrect "within_ref")
+  - Insights endpoint recalculates correct reference ranges on-the-fly without database migration
+  - All flags now generated against matching units for accurate status determination
+- **Age Display Fix:** Corrected chronological age fallback on Insights page
+  - Removed hardcoded 49.2 fallback value
+  - Always fetches user profile to calculate actual age from dateOfBirth
+  - Uses correct formula accounting for whether birthday has occurred this year
+  - Guards against invalid age (0 or negative) with reasonable fallback
+  - Added comprehensive debug logging for age calculation troubleshooting
+- **Biomarker Insights Authentication:** Added credentials: 'include' to insights API calls for proper session handling
+- **Cache Clearing:** Purged stale biomarker_insights to force regeneration with corrected data
 
 **PDF Upload Feature:** Complete implementation of automated blood work PDF parsing and extraction.
 - Upload tab in AddTestResultsModal with drag-and-drop interface and file picker
