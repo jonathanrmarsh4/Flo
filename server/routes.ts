@@ -653,60 +653,72 @@ Inflammation Markers:
         try {
           switch (biomarkerName) {
             case 'Albumin':
-              // Convert g/dL → g/L
+              // Convert g/dL → g/L (multiply by 10)
               if (unit === 'g/dL') {
-                biomarkerValues[fieldName] = UnitConverter.albumin_gPerDL_to_gPerL(value);
+                biomarkerValues.albumin_g_L = UnitConverter.albumin_gPerDL_to_gPerL(value);
               } else if (unit === 'g/L') {
-                biomarkerValues[fieldName] = value;
+                biomarkerValues.albumin_g_L = value;
               } else {
                 throw new Error(`Unsupported Albumin unit: ${unit}`);
               }
               break;
 
             case 'Creatinine':
-              // Convert mg/dL → µmol/L
+              // Convert mg/dL → µmol/L (multiply by 88.4)
               if (unit === 'mg/dL') {
-                biomarkerValues[fieldName] = UnitConverter.creatinine_mgPerDL_to_umolPerL(value);
+                biomarkerValues.creatinine_umol_L = UnitConverter.creatinine_mgPerDL_to_umolPerL(value);
               } else if (unit === 'µmol/L' || unit === 'umol/L') {
-                biomarkerValues[fieldName] = value;
+                biomarkerValues.creatinine_umol_L = value;
               } else {
                 throw new Error(`Unsupported Creatinine unit: ${unit}`);
               }
               break;
 
             case 'Glucose':
-              // Convert mg/dL → mmol/L
+              // Convert mg/dL → mmol/L (divide by 18.0182)
               if (unit === 'mg/dL') {
-                biomarkerValues[fieldName] = UnitConverter.glucose_mgPerDL_to_mmolPerL(value);
+                biomarkerValues.glucose_mmol_L = UnitConverter.glucose_mgPerDL_to_mmolPerL(value);
               } else if (unit === 'mmol/L') {
-                biomarkerValues[fieldName] = value;
+                biomarkerValues.glucose_mmol_L = value;
               } else {
                 throw new Error(`Unsupported Glucose unit: ${unit}`);
               }
               break;
 
             case 'CRP':
-              // Convert mg/L → mg/dL
+              // Convert mg/L → mg/dL (divide by 10)
               if (unit === 'mg/L') {
-                biomarkerValues[fieldName] = UnitConverter.crp_mgPerL_to_mgPerDL(value);
+                biomarkerValues.crp_mg_dL = UnitConverter.crp_mgPerL_to_mgPerDL(value);
               } else if (unit === 'mg/dL') {
-                biomarkerValues[fieldName] = value;
+                biomarkerValues.crp_mg_dL = value;
               } else {
                 throw new Error(`Unsupported CRP unit: ${unit}`);
               }
               break;
 
             case 'Lymphocytes':
+              // Store absolute count for percentage calculation
+              biomarkerValues.lymphocytes_KPerUL = value;
+              break;
+
             case 'WBC':
-              // Store for lymphocyte percentage calculation
-              biomarkerValues[fieldName] = value;
+              // Already in correct units (K/μL = 10^3/µL)
+              biomarkerValues.wbc_10e3_per_uL = UnitConverter.wbc_KPerUL_to_10e3PerUL(value);
               break;
 
             case 'MCV':
+              // Already in correct units (fL)
+              biomarkerValues.mcv_fL = value;
+              break;
+
             case 'RDW':
+              // Already in correct units (%)
+              biomarkerValues.rdw_percent = value;
+              break;
+
             case 'ALP':
-              // These are already in correct units
-              biomarkerValues[fieldName] = value;
+              // Already in correct units (U/L)
+              biomarkerValues.alkPhos_U_L = value;
               break;
           }
         } catch (error: any) {
