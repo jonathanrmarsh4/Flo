@@ -22,6 +22,7 @@ interface InsightsScreenProps {
   ageData?: BiologicalAgeData;
   topBiomarkers?: TopBiomarker[];
   aiInsight?: string;
+  comprehensiveInsights?: any;
 }
 
 export function InsightsScreen({ 
@@ -30,7 +31,8 @@ export function InsightsScreen({
   onOpenFullReport,
   ageData,
   topBiomarkers: providedBiomarkers,
-  aiInsight: providedInsight
+  aiInsight: providedInsight,
+  comprehensiveInsights
 }: InsightsScreenProps) {
   // Use provided data or fallback to defaults for graceful degradation
   const biologicalAge = ageData?.biologicalAge ?? 46;

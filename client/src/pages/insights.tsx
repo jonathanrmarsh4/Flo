@@ -19,6 +19,15 @@ interface BiologicalAgeResponse {
   sessionId: string;
 }
 
+interface ComprehensiveHealthInsights {
+  id: string;
+  userId: string;
+  analysisData: any;
+  dataWindowDays: number | null;
+  model: string;
+  generatedAt: string;
+}
+
 export default function Insights() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -35,6 +44,12 @@ export default function Insights() {
   // Fetch real biological age from the new endpoint
   const { data: biologicalAgeData } = useQuery<BiologicalAgeResponse>({
     queryKey: ['/api/biological-age'],
+    enabled: !!user,
+  });
+
+  // Fetch comprehensive health insights
+  const { data: comprehensiveInsights } = useQuery<ComprehensiveHealthInsights>({
+    queryKey: ['/api/health-insights'],
     enabled: !!user,
   });
 
@@ -58,7 +73,11 @@ export default function Insights() {
     ageDifference: biologicalAgeData.ageDifference,
   } : undefined;
   const topBiomarkers = getTopBiomarkersToImprove(readings);
-  const aiInsight = getAIInsight(analysis);
+  
+  // Use comprehensive insights if available, fallback to old analysis insights
+  const aiInsight = comprehensiveInsights?.analysisData?.overall_health_narrative 
+    || getAIInsight(analysis);
+  const comprehensiveData = comprehensiveInsights?.analysisData;
 
   return (
     <div className="h-screen overflow-hidden">
@@ -69,6 +88,7 @@ export default function Insights() {
         ageData={ageData}
         topBiomarkers={topBiomarkers}
         aiInsight={aiInsight}
+        comprehensiveInsights={comprehensiveData}
       />
       <FloBottomNav />
     </div>
