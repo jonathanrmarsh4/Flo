@@ -20,6 +20,7 @@ interface InsightsScreenProps {
   onClose: () => void;
   onOpenFullReport: () => void;
   ageData?: BiologicalAgeData;
+  chronologicalAgeFallback?: number;
   topBiomarkers?: TopBiomarker[];
   aiInsight?: string;
   comprehensiveInsights?: any;
@@ -30,13 +31,16 @@ export function InsightsScreen({
   onClose, 
   onOpenFullReport,
   ageData,
+  chronologicalAgeFallback,
   topBiomarkers: providedBiomarkers,
   aiInsight: providedInsight,
   comprehensiveInsights
 }: InsightsScreenProps) {
   // Use provided data or fallback to defaults for graceful degradation
   const biologicalAge = ageData?.biologicalAge ?? 46;
-  const chronologicalAge = ageData?.chronologicalAge ?? 49.2;
+  // Only use chronologicalAgeFallback if it's a valid age (not 0 or undefined)
+  const chronologicalAge = ageData?.chronologicalAge ?? 
+    (chronologicalAgeFallback && chronologicalAgeFallback > 0 ? chronologicalAgeFallback : 46);
   const ageDifference = ageData?.ageDifference ?? (chronologicalAge - biologicalAge);
   
   const topBiomarkers = providedBiomarkers ?? [

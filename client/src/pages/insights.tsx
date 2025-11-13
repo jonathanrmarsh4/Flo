@@ -59,6 +59,12 @@ export default function Insights() {
     enabled: !!user,
   });
 
+  // Always fetch user profile for age calculation fallback
+  const { data: profile } = useQuery<{ dateOfBirth?: string }>({
+    queryKey: ['/api/profile'],
+    enabled: !!user,
+  });
+
   const handleClose = () => {
     setLocation('/dashboard');
   };
@@ -70,6 +76,16 @@ export default function Insights() {
       setLocation(`/report/${analysis.id}`);
     }
   };
+
+  // Calculate chronological age from profile as fallback
+  let chronologicalAgeFallback: number | undefined = undefined;
+  if (profile?.dateOfBirth) {
+    const today = new Date();
+    const birthDate = new Date(profile.dateOfBirth);
+    chronologicalAgeFallback = today.getFullYear() - birthDate.getFullYear() - 
+      (today.getMonth() < birthDate.getMonth() || 
+       (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+  }
 
   // Transform backend data for UI
   const readings = mapAnalysisToBiomarkerReadings(analysis);
@@ -94,6 +110,7 @@ export default function Insights() {
         onClose={handleClose}
         onOpenFullReport={handleOpenFullReport}
         ageData={ageData}
+        chronologicalAgeFallback={chronologicalAgeFallback}
         topBiomarkers={topBiomarkers}
         aiInsight={aiInsight}
         comprehensiveInsights={comprehensiveData}

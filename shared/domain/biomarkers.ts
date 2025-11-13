@@ -553,7 +553,10 @@ export function normalizeMeasurement(
 
   // Step 7: Generate flags with converted reference range
   // Create a converted range object for flag generation
-  const convertedRange = refRange ? {
+  // Treat as null if all bounds are null (conversion failure or incomplete range)
+  const convertedRange = refRange && 
+    (convertedRefLow !== null || convertedRefHigh !== null || 
+     convertedRefCriticalLow !== null || convertedRefCriticalHigh !== null) ? {
     ...refRange,
     low: convertedRefLow,
     high: convertedRefHigh,
