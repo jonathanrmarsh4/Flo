@@ -6,6 +6,7 @@ import { FloLogo } from '@/components/FloLogo';
 import { FloBottomNav } from '@/components/FloBottomNav';
 import { TrendChart } from '@/components/TrendChart';
 import { AddTestResultsModal } from '@/components/AddTestResultsModal';
+import { BiomarkerInsightsModal } from '@/components/BiomarkerInsightsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   mapAnalysisToBiomarkerReadings, 
@@ -34,11 +35,28 @@ export default function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
+  
+  // Insights modal state
+  const [selectedInsightsBiomarker, setSelectedInsightsBiomarker] = useState<{
+    id: string;
+    name: string;
+    value: number;
+    unit: string;
+    status: 'optimal' | 'low' | 'high';
+  } | null>(null);
 
   const { data: latestAnalysis } = useQuery<any>({
     queryKey: ['/api/blood-work/latest'],
     enabled: !!user,
   });
+
+  // Fetch all biomarkers for name-to-ID mapping
+  const { data: biomarkersData } = useQuery<any>({
+    queryKey: ['/api/biomarkers'],
+    enabled: !!user,
+  });
+
+  const biomarkers = biomarkersData?.biomarkers || [];
 
   const readings: BiomarkerReading[] = mapAnalysisToBiomarkerReadings(latestAnalysis);
 
@@ -179,63 +197,77 @@ export default function Dashboard() {
               const config = BIOMARKER_CONFIGS[biomarker];
               const inRange = isInRange(biomarker, latest.value);
               
+              // Find biomarker ID for insights
+              const biomarkerData = biomarkers.find((b: any) => 
+                b.name.toLowerCase() === biomarker.toLowerCase()
+              );
+
+              const handleTileClick = () => {
+                if (biomarkerData) {
+                  setSelectedInsightsBiomarker({
+                    id: biomarkerData.id,
+                    name: biomarker,
+                    value: latest.value,
+                    unit: config.unit,
+                    status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
+                  });
+                }
+              };
+
               return (
-                <Link 
-                  key={biomarker} 
-                  href={latestAnalysis ? `/insights/${latestAnalysis.id}` : '/upload'}
+                <div
+                  key={biomarker}
+                  onClick={handleTileClick}
+                  className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] ${
+                    isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
+                  }`}
+                  data-testid={`card-biomarker-${biomarker.toLowerCase().replace(/\s+/g, '-')}`}
                 >
-                  <div
-                    className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] ${
-                      isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
-                    }`}
-                    data-testid={`card-biomarker-${biomarker.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{biomarker}</h3>
-                          <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                            {new Date(latest.date).toLocaleDateString()}
-                          </p>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{biomarker}</h3>
+                        <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                          {new Date(latest.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {inRange ? (
+                        <div className="px-2 py-0.5 rounded-full bg-green-500/20 text-[10px] text-green-600" data-testid={`status-${biomarker.toLowerCase().replace(/\s+/g, '-')}-optimal`}>
+                          Optimal
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {inRange ? (
-                          <div className="px-2 py-0.5 rounded-full bg-green-500/20 text-[10px] text-green-600" data-testid={`status-${biomarker.toLowerCase().replace(/\s+/g, '-')}-optimal`}>
-                            Optimal
-                          </div>
-                        ) : (
-                          <div className="px-2 py-0.5 rounded-full bg-red-500/20 text-[10px] text-red-600" data-testid={`status-${biomarker.toLowerCase().replace(/\s+/g, '-')}-out-of-range`}>
-                            Out of Range
-                          </div>
-                        )}
-                        <Sparkles className={`w-3.5 h-3.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                      </div>
+                      ) : (
+                        <div className="px-2 py-0.5 rounded-full bg-red-500/20 text-[10px] text-red-600" data-testid={`status-${biomarker.toLowerCase().replace(/\s+/g, '-')}-out-of-range`}>
+                          Out of Range
+                        </div>
+                      )}
+                      <Sparkles className={`w-3.5 h-3.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                     </div>
-                    
-                    <div className="flex items-end gap-2 mb-3">
-                      <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid={`value-${biomarker.toLowerCase().replace(/\s+/g, '-')}`}>
-                        {latest.value}
-                      </span>
-                      <span className={`mb-1.5 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{config.unit}</span>
-                    </div>
-                    
-                    <div className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-                      Optimal: {config.min} - {config.max} {config.unit}
-                    </div>
-                    
-                    {/* Trend Chart */}
-                    {getBiomarkerHistory(biomarker).length >= 2 && (
-                      <TrendChart 
-                        history={getBiomarkerHistory(biomarker)}
-                        min={config.min}
-                        max={config.max}
-                        biomarker={biomarker}
-                        isDark={isDark}
-                      />
-                    )}
                   </div>
-                </Link>
+                  
+                  <div className="flex items-end gap-2 mb-3">
+                    <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid={`value-${biomarker.toLowerCase().replace(/\s+/g, '-')}`}>
+                      {latest.value}
+                    </span>
+                    <span className={`mb-1.5 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{config.unit}</span>
+                  </div>
+                  
+                  <div className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
+                    Optimal: {config.min} - {config.max} {config.unit}
+                  </div>
+                  
+                  {/* Trend Chart */}
+                  {getBiomarkerHistory(biomarker).length >= 2 && (
+                    <TrendChart 
+                      history={getBiomarkerHistory(biomarker)}
+                      min={config.min}
+                      max={config.max}
+                      biomarker={biomarker}
+                      isDark={isDark}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
@@ -249,6 +281,19 @@ export default function Dashboard() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+
+      {/* Biomarker Insights Modal */}
+      {selectedInsightsBiomarker && (
+        <BiomarkerInsightsModal
+          isOpen={true}
+          onClose={() => setSelectedInsightsBiomarker(null)}
+          biomarkerId={selectedInsightsBiomarker.id}
+          biomarkerName={selectedInsightsBiomarker.name}
+          latestValue={selectedInsightsBiomarker.value}
+          unit={selectedInsightsBiomarker.unit}
+          status={selectedInsightsBiomarker.status}
+        />
+      )}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 import { X, Activity, TrendingUp, Pill, Stethoscope } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
 interface BiomarkerInsight {
   lifestyleActions: string[];
   nutrition: string[];
   supplementation: string[];
   medicalReferral: string | null;
+  medicalUrgency?: 'routine' | 'priority';
 }
 
 interface BiomarkerInsightsModalProps {
@@ -28,10 +30,16 @@ export function BiomarkerInsightsModal({
   unit,
   status,
 }: BiomarkerInsightsModalProps) {
-  const { data: insights, isLoading } = useQuery<BiomarkerInsight>({
+  const { data: insightsResponse, isLoading, error } = useQuery<any>({
     queryKey: ['/api/biomarkers', biomarkerId, 'insights'],
+    queryFn: async () => {
+      return await apiRequest('POST', `/api/biomarkers/${biomarkerId}/insights`, {});
+    },
     enabled: isOpen && !!biomarkerId,
+    retry: 1,
   });
+
+  const insights = insightsResponse?.insights as BiomarkerInsight | undefined;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
