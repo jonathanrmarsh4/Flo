@@ -38,7 +38,7 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
               Flō
             </h1>
             <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-              Track biomarkers, optimize health
+              Track. Improve. Evolve.
             </p>
             <p className={`text-xs mt-2 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
               by Nuvitae Labs
@@ -55,7 +55,7 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
               Welcome to Flō
             </h2>
             <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-              Sign in to track your health journey
+              Sign in to start your evolution
             </p>
           </div>
 
