@@ -100,12 +100,13 @@ export default function Insights() {
   } : undefined;
   
   // Extract top 3 biomarkers from comprehensive insights (sorted by priority_score)
+  // Note: The API spreads analysisData directly, so per_biomarker_analyses is at top level
   let topBiomarkers: any[] = [];
   console.log('[Top Biomarkers Debug] Comprehensive insights:', comprehensiveInsights);
-  console.log('[Top Biomarkers Debug] Has per_biomarker_analyses:', !!comprehensiveInsights?.analysisData?.per_biomarker_analyses);
+  console.log('[Top Biomarkers Debug] Has per_biomarker_analyses:', !!comprehensiveInsights?.per_biomarker_analyses);
   
-  if (comprehensiveInsights?.analysisData?.per_biomarker_analyses) {
-    const biomarkerAnalyses = comprehensiveInsights.analysisData.per_biomarker_analyses;
+  if (comprehensiveInsights?.per_biomarker_analyses) {
+    const biomarkerAnalyses = comprehensiveInsights.per_biomarker_analyses;
     console.log('[Top Biomarkers Debug] Raw biomarker analyses:', biomarkerAnalyses);
     console.log('[Top Biomarkers Debug] Number of biomarkers:', biomarkerAnalyses.length);
     
@@ -133,9 +134,10 @@ export default function Insights() {
   console.log('[Top Biomarkers Debug] Final topBiomarkers array:', topBiomarkers);
   
   // Use comprehensive insights if available, fallback to old analysis insights
-  const aiInsight = comprehensiveInsights?.analysisData?.overall_health_narrative 
+  // Note: overall_health_narrative is at top level since API spreads analysisData
+  const aiInsight = comprehensiveInsights?.overall_health_narrative 
     || getAIInsight(analysis);
-  const comprehensiveData = comprehensiveInsights?.analysisData;
+  const comprehensiveData = comprehensiveInsights;
 
   return (
     <div className="h-screen overflow-hidden">
