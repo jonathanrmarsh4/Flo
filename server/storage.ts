@@ -117,6 +117,12 @@ export interface IStorage {
   getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | undefined>;
   getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string): Promise<any>;
   cacheBiomarkerInsights(data: any): Promise<void>;
+  checkDuplicateMeasurement(params: {
+    userId: string;
+    biomarkerId: string;
+    valueCanonical: number;
+    testDate: Date;
+  }): Promise<boolean>;
   
   createLabUploadJob(job: InsertLabUploadJob): Promise<LabUploadJob>;
   getLabUploadJob(id: string): Promise<LabUploadJob | undefined>;
@@ -603,6 +609,35 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(biomarkerTestSessions.testDate))
       .limit(limit);
     return measurements.map(m => m.biomarker_measurements);
+  }
+
+  async checkDuplicateMeasurement(params: {
+    userId: string;
+    biomarkerId: string;
+    valueCanonical: number;
+    testDate: Date;
+  }): Promise<boolean> {
+    // Round canonical value to 3 decimal places to handle floating-point drift
+    const roundedValue = Math.round(params.valueCanonical * 1000) / 1000;
+    
+    // Check for existing measurements with same biomarker, same rounded value, and same day
+    const existingMeasurements = await db
+      .select()
+      .from(biomarkerMeasurements)
+      .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
+      .where(
+        and(
+          eq(biomarkerTestSessions.userId, params.userId),
+          eq(biomarkerMeasurements.biomarkerId, params.biomarkerId),
+          // Compare dates at day level using date_trunc
+          sql`date_trunc('day', ${biomarkerTestSessions.testDate}) = date_trunc('day', ${params.testDate})`,
+          // Compare rounded canonical values with small epsilon tolerance
+          sql`abs(${biomarkerMeasurements.valueCanonical} - ${roundedValue}) < 0.001`
+        )
+      )
+      .limit(1);
+    
+    return existingMeasurements.length > 0;
   }
 
   async getMeasurementById(id: string): Promise<BiomarkerMeasurement | undefined> {

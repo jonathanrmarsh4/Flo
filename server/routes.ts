@@ -1232,6 +1232,22 @@ Inflammation Markers:
                   biomarkerData.ranges
                 );
 
+                // Check for duplicates: same biomarker, same value (canonical), same test date
+                const isDuplicate = await storage.checkDuplicateMeasurement({
+                  userId,
+                  biomarkerId: normalized.biomarker_id,
+                  valueCanonical: normalized.value_canonical,
+                  testDate,
+                });
+
+                if (isDuplicate) {
+                  failedBiomarkers.push({
+                    name: biomarker.name,
+                    error: "Duplicate measurement (same biomarker, value, and test date already exists)",
+                  });
+                  continue;
+                }
+
                 const measurement = await storage.createMeasurement({
                   sessionId: session.id,
                   biomarkerId: normalized.biomarker_id,
