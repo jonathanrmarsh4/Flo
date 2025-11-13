@@ -1302,7 +1302,7 @@ Inflammation Markers:
       // Build response
       const units = Array.from(uniqueUnits).map(unit => ({
         unit,
-        canonical: unit === biomarker.canonicalUnit,
+        isCanonical: unit === biomarker.canonicalUnit,
         conversions: include?.includes("conversions")
           ? conversions.filter(c => c.fromUnit === unit || c.toUnit === unit).map(c => ({
               fromUnit: c.fromUnit,
