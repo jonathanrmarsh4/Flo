@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -8,7 +8,6 @@ import { TrendChart } from '@/components/TrendChart';
 import { AddTestResultsModal } from '@/components/AddTestResultsModal';
 import { BiomarkerInsightsModal } from '@/components/BiomarkerInsightsModal';
 import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
 import { 
   mapAnalysisToBiomarkerReadings, 
   type BiomarkerReading 
@@ -29,7 +28,6 @@ const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   
   const handleLogout = () => {
     window.location.href = '/api/logout';
@@ -251,65 +249,20 @@ export default function Dashboard() {
               const inRange = isInRange(biomarkerName, latest.value);
               const history = getBiomarkerHistory(biomarkerId);
 
-              const testDate = latest.date;
-              const tileBiomarkerName = biomarkerName;
-              const tileBiomarkerId = biomarkerId;
-              const tileValue = latest.value;
-              const tileUnit = latest.unit;
-              const tileStatus = inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high');
-
-              let pressTimer: number | null = null;
-              let isLongPress = false;
-
-              const handlePointerDown = () => {
-                isLongPress = false;
-                const capturedDate = testDate;
-                const capturedName = tileBiomarkerName;
-                pressTimer = window.setTimeout(() => {
-                  isLongPress = true;
-                  const formattedDate = new Date(capturedDate).toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  });
-                  toast({
-                    title: capturedName,
-                    description: `Test date: ${formattedDate}`,
-                  });
-                }, 500);
-              };
-
-              const handlePointerUp = () => {
-                if (pressTimer) {
-                  clearTimeout(pressTimer);
-                  pressTimer = null;
-                }
-                if (!isLongPress) {
-                  setSelectedInsightsBiomarker({
-                    id: tileBiomarkerId,
-                    name: tileBiomarkerName,
-                    value: tileValue,
-                    unit: tileUnit,
-                    status: tileStatus,
-                  });
-                }
-              };
-
-              const handlePointerCancel = () => {
-                if (pressTimer) {
-                  clearTimeout(pressTimer);
-                  pressTimer = null;
-                }
+              const handleTileClick = () => {
+                setSelectedInsightsBiomarker({
+                  id: biomarkerId,
+                  name: biomarkerName,
+                  value: latest.value,
+                  unit: latest.unit,
+                  status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
+                });
               };
 
               return (
                 <div
                   key={biomarkerId}
-                  onPointerDown={handlePointerDown}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerCancel}
-                  onPointerLeave={handlePointerCancel}
+                  onClick={handleTileClick}
                   className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] select-none ${
                     isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
                   }`}
