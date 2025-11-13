@@ -1,4 +1,15 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { Capacitor } from '@capacitor/core';
+
+// Get API base URL - use production URL for iOS/Android, relative for web
+function getApiBaseUrl(): string {
+  // Check if running in native app (iOS/Android)
+  if (Capacitor.isNativePlatform()) {
+    return 'https://get-flo.com';
+  }
+  // For web builds, use relative URLs (same origin)
+  return '';
+}
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -12,7 +23,10 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  const baseUrl = getApiBaseUrl();
+  const fullUrl = baseUrl + url;
+  
+  const res = await fetch(fullUrl, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -29,7 +43,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const baseUrl = getApiBaseUrl();
+    const fullUrl = baseUrl + queryKey.join("/");
+    
+    const res = await fetch(fullUrl, {
       credentials: "include",
     });
 
