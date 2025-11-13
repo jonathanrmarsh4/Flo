@@ -53,6 +53,12 @@ export default function Insights() {
     enabled: !!user,
   });
 
+  // Fetch top 3 biomarkers to improve
+  const { data: topBiomarkersData } = useQuery<{ topBiomarkers: any[] }>({
+    queryKey: ['/api/biomarkers/top-to-improve'],
+    enabled: !!user,
+  });
+
   const handleClose = () => {
     setLocation('/dashboard');
   };
@@ -72,7 +78,9 @@ export default function Insights() {
     chronologicalAge: biologicalAgeData.chronologicalAge,
     ageDifference: biologicalAgeData.ageDifference,
   } : undefined;
-  const topBiomarkers = getTopBiomarkersToImprove(readings);
+  
+  // Use real top biomarkers data from API, fallback to placeholder
+  const topBiomarkers = topBiomarkersData?.topBiomarkers || getTopBiomarkersToImprove(readings);
   
   // Use comprehensive insights if available, fallback to old analysis insights
   const aiInsight = comprehensiveInsights?.analysisData?.overall_health_narrative 

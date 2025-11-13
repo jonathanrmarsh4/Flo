@@ -48,6 +48,13 @@ interface BiomarkerInsightsInput {
     smoking?: string;
     alcoholConsumption?: string;
   };
+  enrichedData?: {
+    valueContext: string;
+    encouragementTone: 'praise' | 'maintain' | 'gentle_action' | 'urgent_action';
+    severityScore: number;
+    deltaPercentage: number;
+    trendLabel: string;
+  };
 }
 
 interface BiomarkerInsightsOutput {
@@ -60,6 +67,15 @@ interface BiomarkerInsightsOutput {
 
 export async function generateBiomarkerInsights(input: BiomarkerInsightsInput): Promise<BiomarkerInsightsOutput> {
   try {
+    const toneGuidance = {
+      praise: "The user is doing great! Use positive, encouraging language. Acknowledge their success and motivate them to maintain their healthy habits.",
+      maintain: "The user's value is acceptable. Provide supportive guidance to help them stay on track.",
+      gentle_action: "The user's value needs attention. Be encouraging but clear that changes would be beneficial. Avoid alarming language.",
+      urgent_action: "The user's value is significantly out of range. Be direct about the importance of taking action and consulting their healthcare provider. This is a priority."
+    };
+
+    const currentTone = input.enrichedData?.encouragementTone || 'maintain';
+    
     const systemPrompt = `You are an expert health educator specializing in personalized biomarker interpretation. You MUST NEVER diagnose, prescribe medications, or provide medical treatment advice.
 
 CRITICAL SAFETY RULES:
@@ -70,10 +86,15 @@ CRITICAL SAFETY RULES:
 - Always defer to healthcare providers for medical decisions
 - When a biomarker is significantly out of range, recommend medical consultation
 
+PERSONALIZATION REQUIREMENT:
+- You MUST reference the user's current value (${input.latestValue} ${input.unit}) and how it compares to the optimal range (${input.referenceLow}-${input.referenceHigh} ${input.unit})
+- Adopt this tone: ${toneGuidance[currentTone]}
+- ${input.enrichedData?.trendLabel ? `Their trend is ${input.enrichedData.trendLabel} - acknowledge this in your recommendations` : ''}
+
 YOUR TASK:
-Analyze a single biomarker result and provide personalized, actionable guidance in these categories:
-1. Lifestyle Actions (2-3 specific, evidence-based actions)
-2. Nutrition (2-3 dietary recommendations)
+Analyze this biomarker result and provide personalized, actionable guidance in these categories:
+1. Lifestyle Actions (2-3 specific, evidence-based actions that reference their current situation)
+2. Nutrition (2-3 dietary recommendations tailored to their value being ${input.status})
 3. Supplementation (2-3 evidence-based supplement considerations - mention consulting provider)
 4. Medical Referral (only if biomarker is critically out of range or warrants provider discussion)
 
@@ -87,6 +108,7 @@ OUTPUT FORMAT (JSON only, no markdown):
 }
 
 WORDING RULES:
+- Start at least one recommendation with acknowledgment of their current value/status
 - Use "may help," "research suggests," "consider" - not "will," "must," "should"
 - Personalize based on user's profile (age, sex, goals, lifestyle)
 - Keep each recommendation to 1-2 sentences
@@ -94,22 +116,23 @@ WORDING RULES:
 - Set medicalUrgency to "priority" only if critically out of range`;
 
     const trendSummary = input.trendHistory && input.trendHistory.length > 1
-      ? `Trend: ${input.trendHistory.map((h) => `${h.value} on ${h.date}`).join(', ')}`
+      ? `Trend: ${input.trendHistory.map((h) => `${h.value} on ${h.date}`).join(', ')} (${input.enrichedData?.trendLabel || 'stable'})`
       : 'No trend data available';
 
     const profileSummary = `User Profile: Age ${input.profileSnapshot.age || 'unknown'}, Sex: ${input.profileSnapshot.sex || 'unknown'}, Activity: ${input.profileSnapshot.activityLevel || 'unknown'}, Sleep: ${input.profileSnapshot.sleepQuality || 'unknown'}, Diet: ${input.profileSnapshot.dietType || 'unknown'}`;
 
+    const contextMessage = input.enrichedData?.valueContext || `Current value: ${input.latestValue} ${input.unit} (Reference: ${input.referenceLow}-${input.referenceHigh} ${input.unit})`;
+
     const userMessage = `Biomarker: ${input.biomarkerName}
-Latest Value: ${input.latestValue} ${input.unit}
-Reference Range: ${input.referenceLow} - ${input.referenceHigh} ${input.unit}
-Status: ${input.status}
+${contextMessage}
+Status: ${input.status}${input.enrichedData?.severityScore ? ` (Severity: ${input.enrichedData.severityScore}/100)` : ''}
 ${trendSummary}
 
 ${profileSummary}
 
 Health Goals: ${input.profileSnapshot.healthGoals?.join(', ') || 'Not specified'}
 
-Provide personalized, actionable insights for this biomarker.`;
+Provide personalized, actionable insights that EXPLICITLY REFERENCE their current value and status.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -117,7 +140,7 @@ Provide personalized, actionable insights for this biomarker.`;
         { role: "system", content: systemPrompt },
         {
           role: "developer",
-          content: `Follow these rules: (1) Output valid JSON matching the schema exactly. (2) Each array must have 2-3 items. (3) Use neutral, educational language. (4) Personalize based on user profile. (5) NO diagnosis or prescriptions. (6) Always mention consulting healthcare provider for supplements.`
+          content: `Follow these rules: (1) Output valid JSON matching the schema exactly. (2) Each array must have 2-3 items. (3) At least ONE recommendation must explicitly mention the user's current value (${input.latestValue} ${input.unit}) and reference the optimal range. (4) Use ${currentTone === 'praise' ? 'positive, congratulatory' : currentTone === 'urgent_action' ? 'clear, action-oriented' : 'supportive, encouraging'} language. (5) NO diagnosis or prescriptions. (6) Always mention consulting healthcare provider for supplements.`
         },
         { role: "user", content: userMessage }
       ],

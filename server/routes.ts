@@ -4,7 +4,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { analyzeBloodWork } from "./openai";
+import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
+import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -1032,6 +1033,95 @@ Inflammation Markers:
     }
   });
 
+  // GET /api/biomarkers/top-to-improve - Get top 3 biomarkers needing improvement
+  app.get("/api/biomarkers/top-to-improve", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { db } = await import("./db");
+      const { biomarkers } = await import("@shared/schema");
+      const { eq } = await import("drizzle-orm");
+      
+      // Get all test sessions for the user
+      const sessions = await storage.getTestSessionsByUser(userId);
+      
+      if (sessions.length === 0) {
+        return res.json({ topBiomarkers: [] });
+      }
+      
+      // Track latest measurement for each biomarker
+      const biomarkerMap = new Map<string, any>();
+      
+      for (const session of sessions) {
+        const measurements = await storage.getMeasurementsBySession(session.id);
+        
+        for (const measurement of measurements) {
+          // Only keep the latest measurement for each biomarker
+          if (!biomarkerMap.has(measurement.biomarkerId) || 
+              (measurement.createdAt && biomarkerMap.get(measurement.biomarkerId).createdAt < measurement.createdAt)) {
+            biomarkerMap.set(measurement.biomarkerId, measurement);
+          }
+        }
+      }
+      
+      // Enrich each biomarker and filter for improvements needed
+      const enrichedBiomarkers: any[] = [];
+      
+      for (const [biomarkerId, measurement] of Array.from(biomarkerMap.entries())) {
+        // Get biomarker details
+        const [biomarker] = await db.select().from(biomarkers).where(eq(biomarkers.id, biomarkerId));
+        
+        if (!biomarker) continue;
+        
+        // Get measurement history for trend
+        const history = await storage.getMeasurementHistory(userId, biomarker.id, 6);
+        const trendHistory = history.map(h => ({
+          value: h.valueCanonical,
+          date: h.createdAt?.toISOString().split('T')[0] || '',
+        }));
+        
+        // Enrich the data
+        const enriched = enrichBiomarkerData(
+          {
+            value: measurement.valueCanonical,
+            unit: measurement.unitCanonical,
+            referenceLow: measurement.referenceLow,
+            referenceHigh: measurement.referenceHigh,
+            testDate: measurement.createdAt || new Date(),
+          },
+          trendHistory
+        );
+        
+        // Only include biomarkers that need improvement (severity > 0)
+        if (enriched.severityScore > 0) {
+          enrichedBiomarkers.push({
+            id: biomarker.id,
+            name: biomarker.name,
+            value: measurement.valueCanonical,
+            unit: measurement.unitCanonical,
+            status: enriched.status,
+            severityScore: enriched.severityScore,
+            sparkline: trendHistory.slice(0, 5).map(h => h.value),
+            change: `${enriched.deltaPercentage > 0 ? '+' : ''}${enriched.deltaPercentage.toFixed(1)}%`,
+            trend: enriched.status === 'high' ? 'up' : 'down',
+            color: enriched.severityScore >= 50 ? 'red' : 
+                   enriched.severityScore >= 20 ? 'amber' : 'yellow',
+            benefit: `${biomarker.name} is ${enriched.statusLabel.toLowerCase()}. ${enriched.valueContext}`,
+          });
+        }
+      }
+      
+      // Sort by severity score (highest first) and take top 3
+      const topBiomarkers = enrichedBiomarkers
+        .sort((a, b) => b.severityScore - a.severityScore)
+        .slice(0, 3);
+      
+      res.json({ topBiomarkers });
+    } catch (error: any) {
+      console.error("Error fetching top biomarkers to improve:", error);
+      res.status(500).json({ error: "Failed to fetch top biomarkers" });
+    }
+  });
+
   // GET /api/biomarkers/:id/units - Get available units for a biomarker
   app.get("/api/biomarkers/:id/units", isAuthenticated, async (req: any, res) => {
     try {
@@ -1265,14 +1355,27 @@ Inflammation Markers:
         date: h.createdAt?.toISOString().split('T')[0] || '',
       }));
 
-      // Determine status
-      const status = measurement.valueCanonical >= (measurement.referenceLow || 0) && 
-                    measurement.valueCanonical <= (measurement.referenceHigh || Infinity)
-                    ? 'optimal' as const
-                    : measurement.valueCanonical < (measurement.referenceLow || 0) ? 'low' as const : 'high' as const;
+      // Enrich biomarker data for personalized insights
+      const enrichedData = enrichBiomarkerData(
+        {
+          value: measurement.valueCanonical,
+          unit: measurement.unitCanonical,
+          referenceLow: measurement.referenceLow,
+          referenceHigh: measurement.referenceHigh,
+          testDate: measurement.createdAt || new Date(),
+        },
+        trendHistory
+      );
 
-      // Generate insights using OpenAI
-      const { generateBiomarkerInsights } = await import("./openai");
+      // Determine status
+      const status = enrichedData.status === 'unknown' 
+        ? (measurement.valueCanonical >= (measurement.referenceLow || 0) && 
+           measurement.valueCanonical <= (measurement.referenceHigh || Infinity)
+           ? 'optimal' as const
+           : measurement.valueCanonical < (measurement.referenceLow || 0) ? 'low' as const : 'high' as const)
+        : enrichedData.status as 'optimal' | 'low' | 'high';
+
+      // Generate insights using OpenAI with enriched data
       const insights = await generateBiomarkerInsights({
         biomarkerName: biomarker.name,
         latestValue: measurement.valueCanonical,
@@ -1282,6 +1385,13 @@ Inflammation Markers:
         status,
         trendHistory,
         profileSnapshot,
+        enrichedData: {
+          valueContext: enrichedData.valueContext,
+          encouragementTone: enrichedData.encouragementTone,
+          severityScore: enrichedData.severityScore,
+          deltaPercentage: enrichedData.deltaPercentage,
+          trendLabel: enrichedData.trendLabel,
+        },
       });
 
       // Build measurement summary
