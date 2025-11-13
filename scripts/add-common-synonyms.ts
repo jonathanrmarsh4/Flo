@@ -1,6 +1,6 @@
 import { db } from "../server/db";
 import { biomarkers, biomarkerSynonyms } from "../shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 async function addCommonSynonyms() {
   console.log("🔄 Adding common biomarker synonyms...");
@@ -11,10 +11,18 @@ async function addCommonSynonyms() {
       where: eq(biomarkers.name, "Hemoglobin")
     });
     if (hemoglobin) {
-      await db.insert(biomarkerSynonyms).values([
-        { biomarkerId: hemoglobin.id, label: "Haemoglobin", exact: true },
-      ]).onConflictDoNothing();
-      console.log("✅ Added Haemoglobin synonym");
+      // Check if synonym already exists
+      const existingSynonym = await db.query.biomarkerSynonyms.findFirst({
+        where: sql`biomarker_id = ${hemoglobin.id} AND label = 'Haemoglobin'`
+      });
+      if (!existingSynonym) {
+        await db.insert(biomarkerSynonyms).values([
+          { biomarkerId: hemoglobin.id, label: "Haemoglobin", exact: true },
+        ]);
+        console.log("✅ Added Haemoglobin synonym");
+      } else {
+        console.log("⏭️  Haemoglobin synonym already exists");
+      }
     }
 
     // Triglycerides - singular form

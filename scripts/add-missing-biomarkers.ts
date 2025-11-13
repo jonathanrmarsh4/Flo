@@ -23,7 +23,11 @@ async function addMissingBiomarkers() {
     }
 
     // 1. Phosphate
-    const [phosphate] = await db
+    const existingPhosphate = await db.query.biomarkers.findFirst({
+      where: eq(biomarkers.name, "Phosphate")
+    });
+    
+    const phosphate = existingPhosphate || (await db
       .insert(biomarkers)
       .values({
         name: "Phosphate",
@@ -34,7 +38,7 @@ async function addMissingBiomarkers() {
         decimalsPolicy: "round",
       })
       .returning()
-      .onConflictDoNothing();
+      .onConflictDoNothing())[0];
 
     if (phosphate) {
       await db.insert(biomarkerSynonyms).values([

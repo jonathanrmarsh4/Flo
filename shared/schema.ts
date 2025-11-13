@@ -267,7 +267,7 @@ export const auditLogs = pgTable("audit_logs", {
 // Biomarker dictionary tables
 export const biomarkers = pgTable("biomarkers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
+  name: text("name").notNull().unique(),
   category: text("category").notNull(),
   canonicalUnit: text("canonical_unit").notNull(),
   displayUnitPreference: text("display_unit_preference"),
