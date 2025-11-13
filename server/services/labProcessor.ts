@@ -1,13 +1,10 @@
 import OpenAI from "openai";
-import { Storage } from "@google-cloud/storage";
 import { z } from "zod";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
-
-const storage = new Storage();
 
 const extractedBiomarkerSchema = z.object({
   name: z.string().describe("The biomarker name as it appears in the lab report"),
@@ -45,16 +42,23 @@ export interface ProcessingResult {
 }
 
 async function downloadPdfFromGCS(fileUrl: string): Promise<Buffer> {
-  const url = new URL(fileUrl);
-  const pathParts = url.pathname.split('/');
-  const bucketName = pathParts[1];
-  const objectPath = pathParts.slice(2).join('/');
-
-  const bucket = storage.bucket(bucketName);
-  const file = bucket.file(objectPath);
-
-  const [contents] = await file.download();
-  return contents;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+  
+  try {
+    const response = await fetch(fileUrl, {
+      signal: controller.signal,
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to download PDF: ${response.status} ${response.statusText}`);
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {

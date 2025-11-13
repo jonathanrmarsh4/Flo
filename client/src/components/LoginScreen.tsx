@@ -70,7 +70,7 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
             data-testid="button-login-replit"
           >
             <Sparkles className="w-4 h-4" />
-            <span>Continue with Replit</span>
+            <span>Continue to Flō</span>
             <ArrowRight className="w-4 h-4" />
           </button>
 
