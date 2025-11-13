@@ -80,12 +80,22 @@ export default function Insights() {
   // Calculate chronological age from profile as fallback
   let chronologicalAgeFallback: number | undefined = undefined;
   if (profile?.dateOfBirth) {
+    console.log('[Age Calculation] Profile DOB:', profile.dateOfBirth);
     const today = new Date();
     const birthDate = new Date(profile.dateOfBirth);
+    console.log('[Age Calculation] Today:', today);
+    console.log('[Age Calculation] Birth Date:', birthDate);
+    console.log('[Age Calculation] Today Month (0-indexed):', today.getMonth());
+    console.log('[Age Calculation] Birth Month (0-indexed):', birthDate.getMonth());
     chronologicalAgeFallback = today.getFullYear() - birthDate.getFullYear() - 
       (today.getMonth() < birthDate.getMonth() || 
        (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+    console.log('[Age Calculation] Calculated Age:', chronologicalAgeFallback);
+  } else {
+    console.log('[Age Calculation] No profile DOB available');
   }
+  console.log('[Age Calculation] Profile data:', profile);
+  console.log('[Age Calculation] BiologicalAgeData:', biologicalAgeData);
 
   // Transform backend data for UI
   const readings = mapAnalysisToBiomarkerReadings(analysis);
