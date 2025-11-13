@@ -4,6 +4,20 @@
 Flō is a mobile-first health analytics platform that uses AI to analyze user-uploaded blood work results. It calculates biological age, provides personalized health recommendations, and tracks health metrics over time. The platform integrates OpenAI's GPT models for insights, offers robust user authentication, a comprehensive profile system, and admin tools for user management. It also supports billing via Stripe and Apple Pay, aiming to deliver trusted, clear, and actionable health information.
 
 ## Recent Updates (November 2025)
+**Capacitor iOS Deployment:** Complete setup for deploying Flō as a native iOS application.
+- Capacitor 7.4.4 with iOS platform configured
+- App ID: com.flo.healthapp, App Name: Flō
+- iOS permissions configured (Camera, Photo Library) for blood work document capture
+- Build process: `npm run build && npx cap sync ios && npx cap open ios`
+- Documentation in CAPACITOR.md with deployment workflow
+- Ready for Xcode building and App Store submission
+
+**Age Calculation Fixes:** Corrected chronological age calculation across all endpoints.
+- Fixed biological age, reference range selection, and biomarker insights endpoints
+- Now properly accounts for whether birthday has occurred this year
+- Formula: `currentYear - birthYear - (birthdayNotYetOccurred ? 1 : 0)`
+- Cleared cached insights to apply corrected age calculations
+
 **PDF Upload Feature:** Complete implementation of automated blood work PDF parsing and extraction.
 - Upload tab in AddTestResultsModal with drag-and-drop interface and file picker
 - Private GCS storage with authenticated download via ObjectStorageService.getObjectEntityBuffer()
@@ -90,6 +104,7 @@ Preferred communication style: Simple, everyday language.
 ### Key NPM Dependencies
 - **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`.
 - **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`.
+- **Mobile:** `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios` for iOS deployment.
 - **Development:** `vite`, `tsx`, `esbuild`, `drizzle-kit`.
 
 ### Environment Variables
