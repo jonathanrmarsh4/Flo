@@ -400,6 +400,7 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
 
     const userMessage = JSON.stringify(input, null, 2);
 
+    console.log("Calling OpenAI for comprehensive insights...");
     const response = await openai.chat.completions.create({
       model: "gpt-5",
       messages: [
@@ -414,8 +415,16 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
       max_completion_tokens: 16000,
     });
 
+    console.log("OpenAI response received:", {
+      choices: response.choices?.length || 0,
+      finishReason: response.choices?.[0]?.finish_reason,
+      hasContent: !!response.choices?.[0]?.message?.content,
+      contentLength: response.choices?.[0]?.message?.content?.length || 0,
+    });
+
     const content = response.choices[0]?.message?.content;
     if (!content) {
+      console.error("No content in OpenAI response:", JSON.stringify(response, null, 2));
       throw new Error("No response from AI");
     }
 
