@@ -590,21 +590,9 @@ Inflammation Markers:
       // Calculate chronological age
       const today = new Date();
       const birthDate = new Date(profile.dateOfBirth);
-      
-      // Debug logging
-      console.log('=== Biological Age Calculation Debug ===');
-      console.log('Raw DOB from profile:', profile.dateOfBirth);
-      console.log('Parsed birth date:', birthDate.toISOString());
-      console.log('Today:', today.toISOString());
-      console.log('Birth year:', birthDate.getFullYear());
-      console.log('Current year:', today.getFullYear());
-      
       const ageYears = today.getFullYear() - birthDate.getFullYear() - 
         (today.getMonth() < birthDate.getMonth() || 
          (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
-      
-      console.log('Calculated age:', ageYears);
-      console.log('========================================');
 
       // Get user's latest biomarker test session
       const sessions = await storage.getTestSessionsByUser(userId);
@@ -1211,7 +1199,9 @@ Inflammation Markers:
           if (!age && profile.dateOfBirth) {
             const today = new Date();
             const birthDate = new Date(profile.dateOfBirth);
-            age = today.getFullYear() - birthDate.getFullYear();
+            age = today.getFullYear() - birthDate.getFullYear() - 
+              (today.getMonth() < birthDate.getMonth() || 
+               (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
           }
           // Normalize sex to lowercase for context matching
           if (!sex && profile.sex) {
@@ -1311,8 +1301,17 @@ Inflammation Markers:
       const profile = await storage.getProfile(userId);
       
       // Build profile snapshot
+      let calculatedAge: number | undefined = undefined;
+      if (profile?.dateOfBirth) {
+        const today = new Date();
+        const birthDate = new Date(profile.dateOfBirth);
+        calculatedAge = today.getFullYear() - birthDate.getFullYear() - 
+          (today.getMonth() < birthDate.getMonth() || 
+           (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+      }
+      
       const profileSnapshot = {
-        age: profile?.dateOfBirth ? new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear() : undefined,
+        age: calculatedAge,
         sex: profile?.sex as 'male' | 'female' | 'other' | undefined,
         healthGoals: profile?.goals || [],
         activityLevel: profile?.healthBaseline?.activityLevel,
