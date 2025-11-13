@@ -37,7 +37,14 @@ export function AdminUsersTab() {
   };
 
   const { data, isLoading, error, refetch } = useQuery<UsersResponse>({
-    queryKey: [`/api/admin/users${buildQueryString()}`],
+    queryKey: ['/api/admin/users', search, roleFilter, statusFilter, page],
+    queryFn: async () => {
+      const response = await fetch(`/api/admin/users${buildQueryString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch users');
+      return response.json();
+    },
     staleTime: 2 * 60 * 1000,
   });
 
