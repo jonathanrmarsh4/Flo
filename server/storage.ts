@@ -117,7 +117,20 @@ export interface IStorage {
   getMeasurementHistory(userId: string, biomarkerId: string, limit?: number): Promise<BiomarkerMeasurement[]>;
   getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | undefined>;
   getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string): Promise<any>;
-  cacheBiomarkerInsights(data: any): Promise<void>;
+  cacheBiomarkerInsights(params: {
+    userId: string;
+    biomarkerId: string;
+    measurementSignature: string;
+    profileSnapshot: any;
+    measurementSummary: any;
+    lifestyleActions: string[];
+    nutrition: string[];
+    supplementation: string[];
+    medicalReferral: string | null;
+    medicalUrgency: string;
+    model: string;
+    expiresAt: Date;
+  }): Promise<any>;
   checkDuplicateMeasurement(params: {
     userId: string;
     biomarkerId: string;

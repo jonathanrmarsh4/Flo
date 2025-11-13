@@ -1298,7 +1298,7 @@ Inflammation Markers:
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
 
-      await storage.saveBiomarkerInsights({
+      await storage.cacheBiomarkerInsights({
         userId,
         biomarkerId,
         measurementSignature,
@@ -1309,7 +1309,7 @@ Inflammation Markers:
         supplementation: insights.supplementation,
         medicalReferral: insights.medicalReferral,
         medicalUrgency: insights.medicalUrgency,
-        model: "gpt-5",
+        model: "gpt-4o",
         expiresAt,
       });
 
@@ -1328,7 +1328,7 @@ Inflammation Markers:
         insights,
         metadata: {
           generatedAt: new Date(),
-          model: "gpt-5",
+          model: "gpt-4o",
           expiresAt,
         },
       });
