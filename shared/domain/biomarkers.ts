@@ -296,19 +296,38 @@ export function selectReferenceRange(
   const normalizedUnit = normalizeUnit(unit);
   
   // Filter ranges for this biomarker and unit
-  const applicableRanges = ranges.filter(
+  const exactUnitRanges = ranges.filter(
     (r) => r.biomarkerId === biomarkerId && normalizeUnit(r.unit) === normalizedUnit
   );
 
-  if (applicableRanges.length === 0) {
+  // If we found ranges in the exact unit, score and return the best one
+  if (exactUnitRanges.length > 0) {
+    let bestRange: BiomarkerReferenceRange | null = null;
+    let bestScore = -1;
+
+    for (const range of exactUnitRanges) {
+      const score = scoreReferenceRange(range, context);
+      if (score > bestScore) {
+        bestScore = score;
+        bestRange = range;
+      }
+    }
+
+    return bestRange;
+  }
+
+  // No exact unit match - fall back to any range for this biomarker
+  const anyUnitRanges = ranges.filter((r) => r.biomarkerId === biomarkerId);
+  
+  if (anyUnitRanges.length === 0) {
     return null;
   }
 
-  // Score each range and select the best one
+  // Score each range and select the best one (will need conversion later)
   let bestRange: BiomarkerReferenceRange | null = null;
   let bestScore = -1;
 
-  for (const range of applicableRanges) {
+  for (const range of anyUnitRanges) {
     const score = scoreReferenceRange(range, context);
     if (score > bestScore) {
       bestScore = score;
@@ -457,6 +476,7 @@ export function normalizeMeasurement(
   };
 
   // Step 6: Select best reference range
+  // selectReferenceRange now falls back to any available unit if exact match not found
   const refRange = selectReferenceRange(
     biomarker.id,
     displayUnit,
@@ -465,13 +485,84 @@ export function normalizeMeasurement(
   );
 
   if (!refRange) {
-    warnings.push(`No reference range found for ${biomarker.name} in unit ${displayUnit}`);
+    warnings.push(`No reference range found for ${biomarker.name}`);
   } else if (!refRange.low && !refRange.high) {
     warnings.push('reference_range_incomplete');
+  } else if (normalizeUnit(refRange.unit) !== normalizeUnit(displayUnit)) {
+    warnings.push(`Reference range in ${refRange.unit} will be converted to ${displayUnit}`);
   }
 
-  // Step 7: Generate flags
-  const flags = generateFlags(displayValue, refRange);
+  // Step 6b: Convert reference range to display unit if needed
+  let convertedRefLow = refRange?.low ?? null;
+  let convertedRefHigh = refRange?.high ?? null;
+  let convertedRefCriticalLow = refRange?.criticalLow ?? null;
+  let convertedRefCriticalHigh = refRange?.criticalHigh ?? null;
+  
+  if (refRange && refRange.unit && normalizeUnit(refRange.unit) !== normalizeUnit(displayUnit)) {
+    // Reference range is in a different unit than display unit - convert it
+    try {
+      if (refRange.low !== null && refRange.low !== undefined) {
+        convertedRefLow = convertUnit(
+          refRange.low,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+      if (refRange.high !== null && refRange.high !== undefined) {
+        convertedRefHigh = convertUnit(
+          refRange.high,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+      if (refRange.criticalLow !== null && refRange.criticalLow !== undefined) {
+        convertedRefCriticalLow = convertUnit(
+          refRange.criticalLow,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+      if (refRange.criticalHigh !== null && refRange.criticalHigh !== undefined) {
+        convertedRefCriticalHigh = convertUnit(
+          refRange.criticalHigh,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+    } catch (error) {
+      // If conversion fails, drop the reference range to avoid mismatched units
+      warnings.push(`Could not convert reference range from ${refRange.unit} to ${displayUnit}, dropping reference range`);
+      convertedRefLow = null;
+      convertedRefHigh = null;
+      convertedRefCriticalLow = null;
+      convertedRefCriticalHigh = null;
+    }
+  }
+
+  // Step 7: Generate flags with converted reference range
+  // Create a converted range object for flag generation
+  const convertedRange = refRange ? {
+    ...refRange,
+    low: convertedRefLow,
+    high: convertedRefHigh,
+    criticalLow: convertedRefCriticalLow,
+    criticalHigh: convertedRefCriticalHigh,
+    unit: displayUnit,
+  } : null;
+  
+  const flags = generateFlags(displayValue, convertedRange);
 
   // Step 8: Format display value
   const valueDisplayStr = formatDisplayValue(
@@ -489,8 +580,8 @@ export function normalizeMeasurement(
     unit_canonical: biomarker.canonicalUnit,
     value_display: valueDisplayStr,
     ref_range: {
-      low: refRange?.low ?? null,
-      high: refRange?.high ?? null,
+      low: convertedRefLow,
+      high: convertedRefHigh,
       unit: displayUnit,
     },
     flags,

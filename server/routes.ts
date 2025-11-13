@@ -1366,33 +1366,52 @@ Inflammation Markers:
         date: h.createdAt?.toISOString().split('T')[0] || '',
       }));
 
+      // Get correct reference range for this biomarker and unit
+      // (Don't trust the stored reference range as it might have unit mismatch bugs)
+      const { selectReferenceRange } = await import("@shared/domain/biomarkers");
+      const biomarkerRanges = await storage.getReferenceRanges(biomarkerId);
+      const contextForRange = {
+        age_years: calculatedAge,
+        sex: profile?.sex?.toLowerCase() as 'male' | 'female' | undefined,
+      };
+      const correctRange = selectReferenceRange(
+        biomarkerId,
+        measurement.unitCanonical,
+        contextForRange,
+        biomarkerRanges
+      );
+
+      // Use the correctly selected reference range instead of the stored one
+      const referenceLow = correctRange?.low ?? null;
+      const referenceHigh = correctRange?.high ?? null;
+
       // Enrich biomarker data for personalized insights
       const enrichedData = enrichBiomarkerData(
         {
           value: measurement.valueCanonical,
           unit: measurement.unitCanonical,
-          referenceLow: measurement.referenceLow,
-          referenceHigh: measurement.referenceHigh,
+          referenceLow,
+          referenceHigh,
           testDate: measurement.createdAt || new Date(),
         },
         trendHistory
       );
 
-      // Determine status
+      // Determine status using the correct reference range
       const status = enrichedData.status === 'unknown' 
-        ? (measurement.valueCanonical >= (measurement.referenceLow || 0) && 
-           measurement.valueCanonical <= (measurement.referenceHigh || Infinity)
+        ? (measurement.valueCanonical >= (referenceLow || 0) && 
+           measurement.valueCanonical <= (referenceHigh || Infinity)
            ? 'optimal' as const
-           : measurement.valueCanonical < (measurement.referenceLow || 0) ? 'low' as const : 'high' as const)
+           : measurement.valueCanonical < (referenceLow || 0) ? 'low' as const : 'high' as const)
         : enrichedData.status as 'optimal' | 'low' | 'high';
 
-      // Generate insights using OpenAI with enriched data
+      // Generate insights using OpenAI with the correct reference range
       const insights = await generateBiomarkerInsights({
         biomarkerName: biomarker.name,
         latestValue: measurement.valueCanonical,
         unit: measurement.unitCanonical,
-        referenceLow: measurement.referenceLow || 0,
-        referenceHigh: measurement.referenceHigh || Infinity,
+        referenceLow: referenceLow || 0,
+        referenceHigh: referenceHigh || Infinity,
         status,
         trendHistory,
         profileSnapshot,
@@ -1442,8 +1461,8 @@ Inflammation Markers:
           collectedAt: measurement.createdAt,
           value: measurement.valueCanonical,
           unit: measurement.unitCanonical,
-          referenceLow: measurement.referenceLow,
-          referenceHigh: measurement.referenceHigh,
+          referenceLow,
+          referenceHigh,
           status,
         },
         insights,
