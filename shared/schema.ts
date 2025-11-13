@@ -334,6 +334,27 @@ export const biomarkerMeasurements = pgTable("biomarker_measurements", {
   uniqueIndex("idx_biomarker_measurements_unique_session_biomarker").on(table.sessionId, table.biomarkerId),
 ]);
 
+export const biomarkerInsights = pgTable("biomarker_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  measurementSignature: text("measurement_signature").notNull(),
+  profileSnapshot: jsonb("profile_snapshot").notNull(),
+  measurementSummary: jsonb("measurement_summary").notNull(),
+  lifestyleActions: text("lifestyle_actions").array().notNull(),
+  nutrition: text("nutrition").array().notNull(),
+  supplementation: text("supplementation").array().notNull(),
+  medicalReferral: text("medical_referral"),
+  medicalUrgency: text("medical_urgency").notNull().default("routine"),
+  model: text("model").notNull(),
+  lastError: text("last_error"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+}, (table) => [
+  uniqueIndex("idx_biomarker_insights_unique_user_biomarker_signature").on(table.userId, table.biomarkerId, table.measurementSignature),
+  index("idx_biomarker_insights_user_biomarker").on(table.userId, table.biomarkerId),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),

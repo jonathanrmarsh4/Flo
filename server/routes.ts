@@ -661,6 +661,204 @@ Inflammation Markers:
     }
   });
 
+  // POST /api/biomarkers/:id/insights - Generate or retrieve cached biomarker insights
+  app.post("/api/biomarkers/:id/insights", isAuthenticated, async (req: any, res) => {
+    try {
+      const biomarkerId = req.params.id;
+      const userId = req.user.claims.sub;
+
+      const schema = z.object({
+        measurementId: z.string().uuid().optional(),
+        forceRefresh: z.boolean().optional().default(false),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { measurementId, forceRefresh } = validationResult.data;
+
+      // Get biomarker
+      const biomarkers = await storage.getBiomarkers();
+      const biomarker = biomarkers.find(b => b.id === biomarkerId);
+      if (!biomarker) {
+        return res.status(404).json({ error: "Biomarker not found" });
+      }
+
+      // Get latest measurement (or specific one if measurementId provided)
+      const measurement = await storage.getLatestMeasurementForBiomarker(userId, biomarkerId, measurementId);
+      if (!measurement) {
+        return res.status(404).json({ error: "No measurement found for this biomarker" });
+      }
+
+      // Get user profile for personalization
+      const profile = await storage.getProfile(userId);
+      
+      // Build profile snapshot
+      const profileSnapshot = {
+        age: profile?.dateOfBirth ? new Date().getFullYear() - new Date(profile.dateOfBirth).getFullYear() : undefined,
+        sex: profile?.sex as 'male' | 'female' | 'other' | undefined,
+        healthGoals: profile?.goals ? [profile.goals.primaryGoal, ...(profile.goals.secondaryGoals || [])].filter(Boolean) : [],
+        activityLevel: profile?.healthBaseline?.activityLevel,
+        sleepQuality: profile?.healthBaseline?.sleepQuality,
+        dietType: profile?.healthBaseline?.dietType,
+        smoking: profile?.healthBaseline?.smokingStatus,
+        alcoholConsumption: profile?.healthBaseline?.alcoholConsumption,
+      };
+
+      // Build measurement signature
+      const measurementSignature = `${measurement.id}:${measurement.valueCanonical}`;
+
+      // Check cache unless forceRefresh
+      if (!forceRefresh) {
+        const cachedInsights = await storage.getCachedBiomarkerInsights(userId, biomarkerId, measurementSignature);
+        if (cachedInsights && (!cachedInsights.expiresAt || new Date(cachedInsights.expiresAt) > new Date())) {
+          // Return cached insights
+          return res.json({
+            cacheStatus: "hit",
+            measurement: {
+              id: measurement.id,
+              collectedAt: measurement.createdAt,
+              value: measurement.valueCanonical,
+              unit: measurement.unitCanonical,
+              referenceLow: measurement.referenceLow,
+              referenceHigh: measurement.referenceHigh,
+              status: measurement.valueCanonical >= (measurement.referenceLow || 0) && 
+                      measurement.valueCanonical <= (measurement.referenceHigh || Infinity) 
+                      ? 'optimal' 
+                      : measurement.valueCanonical < (measurement.referenceLow || 0) ? 'low' : 'high',
+            },
+            insights: {
+              lifestyleActions: cachedInsights.lifestyleActions,
+              nutrition: cachedInsights.nutrition,
+              supplementation: cachedInsights.supplementation,
+              medicalReferral: cachedInsights.medicalReferral,
+              medicalUrgency: cachedInsights.medicalUrgency,
+            },
+            metadata: {
+              generatedAt: cachedInsights.generatedAt,
+              model: cachedInsights.model,
+              expiresAt: cachedInsights.expiresAt,
+            },
+          });
+        }
+      }
+
+      // Get historical measurements for trend
+      const history = await storage.getMeasurementHistory(userId, biomarkerId, 5);
+      const trendHistory = history.map(h => ({
+        value: h.valueCanonical,
+        date: h.createdAt?.toISOString().split('T')[0] || '',
+      }));
+
+      // Determine status
+      const status = measurement.valueCanonical >= (measurement.referenceLow || 0) && 
+                    measurement.valueCanonical <= (measurement.referenceHigh || Infinity)
+                    ? 'optimal' as const
+                    : measurement.valueCanonical < (measurement.referenceLow || 0) ? 'low' as const : 'high' as const;
+
+      // Generate insights using OpenAI
+      const { generateBiomarkerInsights } = await import("./openai");
+      const insights = await generateBiomarkerInsights({
+        biomarkerName: biomarker.name,
+        latestValue: measurement.valueCanonical,
+        unit: measurement.unitCanonical,
+        referenceLow: measurement.referenceLow || 0,
+        referenceHigh: measurement.referenceHigh || Infinity,
+        status,
+        trendHistory,
+        profileSnapshot,
+      });
+
+      // Build measurement summary
+      const measurementSummary = {
+        id: measurement.id,
+        value: measurement.valueCanonical,
+        unit: measurement.unitCanonical,
+        collectedAt: measurement.createdAt,
+        status,
+        trend: trendHistory,
+      };
+
+      // Cache the insights
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
+
+      await storage.saveBiomarkerInsights({
+        userId,
+        biomarkerId,
+        measurementSignature,
+        profileSnapshot,
+        measurementSummary,
+        lifestyleActions: insights.lifestyleActions,
+        nutrition: insights.nutrition,
+        supplementation: insights.supplementation,
+        medicalReferral: insights.medicalReferral,
+        medicalUrgency: insights.medicalUrgency,
+        model: "gpt-5",
+        expiresAt,
+      });
+
+      // Return insights
+      res.json({
+        cacheStatus: forceRefresh ? "miss" : "miss",
+        measurement: {
+          id: measurement.id,
+          collectedAt: measurement.createdAt,
+          value: measurement.valueCanonical,
+          unit: measurement.unitCanonical,
+          referenceLow: measurement.referenceLow,
+          referenceHigh: measurement.referenceHigh,
+          status,
+        },
+        insights,
+        metadata: {
+          generatedAt: new Date(),
+          model: "gpt-5",
+          expiresAt,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error generating biomarker insights:", error);
+      
+      // Try to return cached insights as fallback
+      try {
+        const userId = req.user.claims.sub;
+        const biomarkerId = req.params.id;
+        const fallbackInsights = await storage.getLatestCachedInsights(userId, biomarkerId);
+        
+        if (fallbackInsights) {
+          return res.json({
+            cacheStatus: "stale",
+            measurement: fallbackInsights.measurementSummary,
+            insights: {
+              lifestyleActions: fallbackInsights.lifestyleActions,
+              nutrition: fallbackInsights.nutrition,
+              supplementation: fallbackInsights.supplementation,
+              medicalReferral: fallbackInsights.medicalReferral,
+              medicalUrgency: fallbackInsights.medicalUrgency,
+            },
+            metadata: {
+              generatedAt: fallbackInsights.generatedAt,
+              model: fallbackInsights.model,
+              expiresAt: fallbackInsights.expiresAt,
+            },
+            warning: "Using cached insights due to generation failure",
+          });
+        }
+      } catch (fallbackError) {
+        console.error("Failed to retrieve fallback insights:", fallbackError);
+      }
+
+      res.status(500).json({ 
+        error: "Failed to generate insights",
+        fallbackMessage: "We're unable to generate personalized insights at this time. Please consult with a healthcare provider for guidance on your results."
+      });
+    }
+  });
+
   // Biomarker measurement persistence routes
   app.post("/api/measurements", isAuthenticated, async (req: any, res) => {
     try {

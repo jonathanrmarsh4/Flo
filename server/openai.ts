@@ -30,6 +30,125 @@ interface BloodWorkAnalysis {
   recommendations: string[];
 }
 
+interface BiomarkerInsightsInput {
+  biomarkerName: string;
+  latestValue: number;
+  unit: string;
+  referenceLow: number;
+  referenceHigh: number;
+  status: 'optimal' | 'low' | 'high';
+  trendHistory?: Array<{ value: number; date: string }>;
+  profileSnapshot: {
+    age?: number;
+    sex?: 'male' | 'female' | 'other';
+    healthGoals?: string[];
+    activityLevel?: string;
+    sleepQuality?: string;
+    dietType?: string;
+    smoking?: string;
+    alcoholConsumption?: string;
+  };
+}
+
+interface BiomarkerInsightsOutput {
+  lifestyleActions: string[];
+  nutrition: string[];
+  supplementation: string[];
+  medicalReferral: string | null;
+  medicalUrgency: 'routine' | 'priority';
+}
+
+export async function generateBiomarkerInsights(input: BiomarkerInsightsInput): Promise<BiomarkerInsightsOutput> {
+  try {
+    const systemPrompt = `You are an expert health educator specializing in personalized biomarker interpretation. You MUST NEVER diagnose, prescribe medications, or provide medical treatment advice.
+
+CRITICAL SAFETY RULES:
+- NEVER state or imply a diagnosis
+- NEVER recommend specific medications, doses, or prescription supplements
+- NEVER contradict medical advice or tell users to ignore healthcare providers
+- Use neutral, educational language: "may support," "research suggests," "consider discussing with your provider"
+- Always defer to healthcare providers for medical decisions
+- When a biomarker is significantly out of range, recommend medical consultation
+
+YOUR TASK:
+Analyze a single biomarker result and provide personalized, actionable guidance in these categories:
+1. Lifestyle Actions (2-3 specific, evidence-based actions)
+2. Nutrition (2-3 dietary recommendations)
+3. Supplementation (2-3 evidence-based supplement considerations - mention consulting provider)
+4. Medical Referral (only if biomarker is critically out of range or warrants provider discussion)
+
+OUTPUT FORMAT (JSON only, no markdown):
+{
+  "lifestyleActions": ["action 1", "action 2", "action 3"],
+  "nutrition": ["nutrition 1", "nutrition 2", "nutrition 3"],
+  "supplementation": ["supplement 1", "supplement 2", "supplement 3"],
+  "medicalReferral": "string or null",
+  "medicalUrgency": "routine" or "priority"
+}
+
+WORDING RULES:
+- Use "may help," "research suggests," "consider" - not "will," "must," "should"
+- Personalize based on user's profile (age, sex, goals, lifestyle)
+- Keep each recommendation to 1-2 sentences
+- For supplementation, always include "discuss with your healthcare provider"
+- Set medicalUrgency to "priority" only if critically out of range`;
+
+    const trendSummary = input.trendHistory && input.trendHistory.length > 1
+      ? `Trend: ${input.trendHistory.map((h) => `${h.value} on ${h.date}`).join(', ')}`
+      : 'No trend data available';
+
+    const profileSummary = `User Profile: Age ${input.profileSnapshot.age || 'unknown'}, Sex: ${input.profileSnapshot.sex || 'unknown'}, Activity: ${input.profileSnapshot.activityLevel || 'unknown'}, Sleep: ${input.profileSnapshot.sleepQuality || 'unknown'}, Diet: ${input.profileSnapshot.dietType || 'unknown'}`;
+
+    const userMessage = `Biomarker: ${input.biomarkerName}
+Latest Value: ${input.latestValue} ${input.unit}
+Reference Range: ${input.referenceLow} - ${input.referenceHigh} ${input.unit}
+Status: ${input.status}
+${trendSummary}
+
+${profileSummary}
+
+Health Goals: ${input.profileSnapshot.healthGoals?.join(', ') || 'Not specified'}
+
+Provide personalized, actionable insights for this biomarker.`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "developer",
+          content: `Follow these rules: (1) Output valid JSON matching the schema exactly. (2) Each array must have 2-3 items. (3) Use neutral, educational language. (4) Personalize based on user profile. (5) NO diagnosis or prescriptions. (6) Always mention consulting healthcare provider for supplements.`
+        },
+        { role: "user", content: userMessage }
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 2048,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No response from AI");
+    }
+
+    const insights = JSON.parse(content) as BiomarkerInsightsOutput;
+
+    // Validate response structure
+    if (!insights.lifestyleActions || !insights.nutrition || !insights.supplementation) {
+      throw new Error("Invalid insights response structure");
+    }
+
+    // Ensure arrays have content
+    if (insights.lifestyleActions.length === 0 || insights.nutrition.length === 0 || insights.supplementation.length === 0) {
+      throw new Error("Empty insights arrays");
+    }
+
+    return insights;
+  } catch (error: any) {
+    console.error("Error generating biomarker insights:", error);
+    throw new Error(`Failed to generate biomarker insights: ${error.message || 'Unknown error'}`);
+  }
+}
+
 export async function analyzeBloodWork(fileContent: string, userId?: string): Promise<BloodWorkAnalysis> {
   try {
     // System prompt following AI Guardrails v1 and Upload Design v1.0

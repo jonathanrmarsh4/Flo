@@ -14,6 +14,7 @@ import {
   biomarkerReferenceRanges,
   biomarkerTestSessions,
   biomarkerMeasurements,
+  biomarkerInsights,
   type User,
   type UpsertUser,
   type Profile,
@@ -516,6 +517,120 @@ export class DatabaseStorage implements IStorage {
 
       return { session, measurement };
     });
+  }
+
+  async getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | null> {
+    if (measurementId) {
+      const [measurement] = await db
+        .select()
+        .from(biomarkerMeasurements)
+        .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
+        .where(
+          and(
+            eq(biomarkerMeasurements.id, measurementId),
+            eq(biomarkerTestSessions.userId, userId),
+            eq(biomarkerMeasurements.biomarkerId, biomarkerId)
+          )
+        )
+        .limit(1);
+      return measurement?.biomarker_measurements || null;
+    }
+
+    const [measurement] = await db
+      .select()
+      .from(biomarkerMeasurements)
+      .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
+      .where(
+        and(
+          eq(biomarkerTestSessions.userId, userId),
+          eq(biomarkerMeasurements.biomarkerId, biomarkerId)
+        )
+      )
+      .orderBy(desc(biomarkerTestSessions.testDate))
+      .limit(1);
+    return measurement?.biomarker_measurements || null;
+  }
+
+  async getMeasurementHistory(userId: string, biomarkerId: string, limit: number = 5): Promise<BiomarkerMeasurement[]> {
+    const measurements = await db
+      .select()
+      .from(biomarkerMeasurements)
+      .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
+      .where(
+        and(
+          eq(biomarkerTestSessions.userId, userId),
+          eq(biomarkerMeasurements.biomarkerId, biomarkerId)
+        )
+      )
+      .orderBy(desc(biomarkerTestSessions.testDate))
+      .limit(limit);
+    return measurements.map(m => m.biomarker_measurements);
+  }
+
+  async getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string) {
+    const [insights] = await db
+      .select()
+      .from(biomarkerInsights)
+      .where(
+        and(
+          eq(biomarkerInsights.userId, userId),
+          eq(biomarkerInsights.biomarkerId, biomarkerId),
+          eq(biomarkerInsights.measurementSignature, measurementSignature)
+        )
+      )
+      .limit(1);
+    return insights || null;
+  }
+
+  async getLatestCachedInsights(userId: string, biomarkerId: string) {
+    const [insights] = await db
+      .select()
+      .from(biomarkerInsights)
+      .where(
+        and(
+          eq(biomarkerInsights.userId, userId),
+          eq(biomarkerInsights.biomarkerId, biomarkerId)
+        )
+      )
+      .orderBy(desc(biomarkerInsights.generatedAt))
+      .limit(1);
+    return insights || null;
+  }
+
+  async saveBiomarkerInsights(params: {
+    userId: string;
+    biomarkerId: string;
+    measurementSignature: string;
+    profileSnapshot: any;
+    measurementSummary: any;
+    lifestyleActions: string[];
+    nutrition: string[];
+    supplementation: string[];
+    medicalReferral: string | null;
+    medicalUrgency: string;
+    model: string;
+    expiresAt: Date;
+  }) {
+    const [insights] = await db
+      .insert(biomarkerInsights)
+      .values(params)
+      .onConflictDoUpdate({
+        target: [biomarkerInsights.userId, biomarkerInsights.biomarkerId, biomarkerInsights.measurementSignature],
+        set: {
+          profileSnapshot: params.profileSnapshot,
+          measurementSummary: params.measurementSummary,
+          lifestyleActions: params.lifestyleActions,
+          nutrition: params.nutrition,
+          supplementation: params.supplementation,
+          medicalReferral: params.medicalReferral,
+          medicalUrgency: params.medicalUrgency,
+          model: params.model,
+          expiresAt: params.expiresAt,
+          generatedAt: sql`NOW()`,
+        },
+      })
+      .returning();
+    return insights;
   }
 }
 
