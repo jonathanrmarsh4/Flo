@@ -619,10 +619,11 @@ export class DatabaseStorage implements IStorage {
   }): Promise<boolean> {
     // Round canonical value to 3 decimal places to handle floating-point drift
     const roundedValue = Math.round(params.valueCanonical * 1000) / 1000;
+    const epsilon = 0.001;
     
-    // Check for existing measurements with same biomarker, same rounded value, and same day
-    const existingMeasurements = await db
-      .select()
+    // Check for existing measurements with same biomarker, same value (within epsilon), and same day
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
       .from(biomarkerMeasurements)
       .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
       .where(
@@ -630,14 +631,13 @@ export class DatabaseStorage implements IStorage {
           eq(biomarkerTestSessions.userId, params.userId),
           eq(biomarkerMeasurements.biomarkerId, params.biomarkerId),
           // Compare dates at day level using date_trunc
-          sql`date_trunc('day', ${biomarkerTestSessions.testDate}) = date_trunc('day', ${params.testDate})`,
-          // Compare rounded canonical values with small epsilon tolerance
-          sql`abs(${biomarkerMeasurements.valueCanonical} - ${roundedValue}) < 0.001`
+          sql`date_trunc('day', ${biomarkerTestSessions.testDate}) = date_trunc('day', ${params.testDate}::timestamp)`,
+          // Compare canonical values using BETWEEN for epsilon tolerance
+          sql`${biomarkerMeasurements.valueCanonical} BETWEEN ${roundedValue - epsilon} AND ${roundedValue + epsilon}`
         )
-      )
-      .limit(1);
+      );
     
-    return existingMeasurements.length > 0;
+    return result[0]?.count > 0;
   }
 
   async getMeasurementById(id: string): Promise<BiomarkerMeasurement | undefined> {
