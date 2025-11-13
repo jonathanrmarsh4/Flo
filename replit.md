@@ -14,6 +14,8 @@ Flō is a mobile-first health analytics platform that uses AI to analyze user-up
 - 10MB PDF size limit to prevent memory exhaustion
 - Real-time progress tracking and status polling with proper cleanup on failure/unmount
 - Seamless integration with biomarker normalization and dashboard display
+- **Failed biomarker visibility**: Expandable section showing biomarkers the AI extracted but couldn't match to database, with specific error messages (e.g., "Unknown biomarker name", "Duplicate measurement")
+- Job status "needs_review" when partial extraction occurs
 
 **Biomarker Insights Feature:** Complete implementation of AI-powered personalized biomarker insights.
 - BiomarkerInsightsModal displays AI-generated recommendations in 4 sections: Lifestyle Actions, Nutrition, Supplementation, Medical Referral

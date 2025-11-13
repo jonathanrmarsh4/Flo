@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Edit, Upload as UploadIcon, FileText, CheckCircle2, XCircle, Loader2, AlertCircle, Check, ChevronsUpDown } from 'lucide-react';
+import { Edit, Upload as UploadIcon, FileText, CheckCircle2, XCircle, Loader2, AlertCircle, Check, ChevronsUpDown, ChevronDown, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,6 +56,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
   const [jobStatus, setJobStatus] = useState<string | null>(null);
   const [jobResult, setJobResult] = useState<any>(null);
   const [jobError, setJobError] = useState<string | null>(null);
+  const [showFailedBiomarkers, setShowFailedBiomarkers] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -631,13 +632,58 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
                     </Button>
                   </div>
 
-                  {/* Failed Biomarkers Warning */}
+                  {/* Failed Biomarkers Details */}
                   {jobStatus === 'needs_review' && jobResult.failedBiomarkers?.length > 0 && (
-                    <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-                      <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
-                      <p className="text-yellow-400/80 text-xs">
-                        Some biomarkers couldn't be automatically processed. You can add them manually.
-                      </p>
+                    <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl overflow-hidden">
+                      {/* Header - Clickable to expand/collapse */}
+                      <button
+                        onClick={() => setShowFailedBiomarkers(!showFailedBiomarkers)}
+                        className="w-full flex items-center justify-between p-3 hover-elevate active-elevate-2"
+                        data-testid="button-toggle-failed-biomarkers"
+                      >
+                        <div className="flex items-start gap-2 flex-1">
+                          <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-left">
+                            <p className="text-yellow-400 text-sm font-medium">
+                              {jobResult.failedBiomarkers.length} biomarker{jobResult.failedBiomarkers.length > 1 ? 's' : ''} couldn't be processed
+                            </p>
+                            <p className="text-yellow-400/70 text-xs mt-1">
+                              Click to see details
+                            </p>
+                          </div>
+                        </div>
+                        {showFailedBiomarkers ? (
+                          <ChevronDown className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                        )}
+                      </button>
+
+                      {/* Expanded Details */}
+                      {showFailedBiomarkers && (
+                        <div className="border-t border-yellow-500/20 p-3 space-y-2 bg-yellow-500/5">
+                          <p className="text-yellow-400/70 text-xs mb-3">
+                            The AI extracted these biomarkers but couldn't match them to our database. You can add them manually if needed.
+                          </p>
+                          {jobResult.failedBiomarkers.map((failed: { name: string; error: string }, index: number) => (
+                            <div
+                              key={index}
+                              className="bg-white/5 rounded-lg p-3 space-y-1"
+                              data-testid={`failed-biomarker-${index}`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <XCircle className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                  <p className="text-white font-medium text-sm">{failed.name}</p>
+                                  <p className="text-yellow-400/60 text-xs mt-1 leading-relaxed">
+                                    {failed.error}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
