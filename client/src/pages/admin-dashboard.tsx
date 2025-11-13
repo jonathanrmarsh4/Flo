@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminMetricCard } from "@/components/AdminMetricCard";
 import { AdminStatusBadge } from "@/components/AdminStatusBadge";
 import { AdminGlassPanel } from "@/components/AdminGlassPanel";
+import { AdminUsersTab } from "@/components/AdminUsersTab";
 import { 
   Users, 
   DollarSign, 
@@ -160,10 +161,7 @@ export default function AdminDashboard() {
 
           {/* Users Tab */}
           <TabsContent value="users">
-            <AdminGlassPanel>
-              <h3 className="text-lg font-semibold text-white mb-4">User Management</h3>
-              <p className="text-white/70 text-sm">User management interface coming soon...</p>
-            </AdminGlassPanel>
+            <AdminUsersTab />
           </TabsContent>
 
           {/* Billing Tab */}
