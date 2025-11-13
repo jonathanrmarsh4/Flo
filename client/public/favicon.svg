@@ -1,0 +1,52 @@
+<svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EC4899" />
+      <stop offset="15%" stop-color="#A855F7" />
+      <stop offset="30%" stop-color="#3B82F6" />
+      <stop offset="50%" stop-color="#06B6D4" />
+      <stop offset="65%" stop-color="#10B981" />
+      <stop offset="80%" stop-color="#EAB308" />
+      <stop offset="100%" stop-color="#F97316" />
+    </linearGradient>
+    
+    <linearGradient id="shineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="white" stop-opacity="0.4" />
+      <stop offset="50%" stop-color="white" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="white" stop-opacity="0" />
+    </linearGradient>
+    
+    <radialGradient id="shadowGradient">
+      <stop offset="0%" stop-color="black" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="black" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  
+  <circle cx="50" cy="52" r="40" fill="url(#shadowGradient)" opacity="0.3" />
+  
+  <circle
+    cx="50"
+    cy="50"
+    r="35"
+    stroke="url(#ringGradient)"
+    stroke-width="14"
+    fill="none"
+    stroke-linecap="round"
+  />
+  
+  <path
+    d="M 50 15 A 35 35 0 0 1 85 50 L 71 50 A 21 21 0 0 0 50 29 Z"
+    fill="url(#shineGradient)"
+    opacity="0.6"
+  />
+  
+  <circle
+    cx="50"
+    cy="50"
+    r="28"
+    stroke="url(#ringGradient)"
+    stroke-width="2"
+    fill="none"
+    opacity="0.3"
+  />
+</svg>
