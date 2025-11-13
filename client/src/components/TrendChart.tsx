@@ -16,6 +16,7 @@ interface TrendChartProps {
 
 export function TrendChart({ history, min, max, biomarker, isDark }: TrendChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
+  const [isPressed, setIsPressed] = useState(false);
 
   if (history.length < 2) return null;
 
@@ -51,7 +52,12 @@ export function TrendChart({ history, min, max, biomarker, isDark }: TrendChartP
         width="100%"
         height={height}
         viewBox={`0 0 ${width} ${height}`}
-        className="overflow-visible"
+        className="overflow-visible select-none"
+        style={{ WebkitTouchCallout: 'none' }}
+        onPointerDown={() => setIsPressed(true)}
+        onPointerUp={() => setIsPressed(false)}
+        onPointerCancel={() => setIsPressed(false)}
+        onPointerLeave={() => setIsPressed(false)}
         data-testid="svg-trend-chart"
       >
         {/* Reference range background */}
@@ -149,7 +155,7 @@ export function TrendChart({ history, min, max, biomarker, isDark }: TrendChartP
                 aria-label={`Data point for ${format(new Date(point.date), 'MM/yy')}: ${point.value}`}
                 data-testid={`point-${biomarker.toLowerCase().replace(/\s+/g, '-')}-${index}`}
               />
-              {hoveredPoint === index && (
+              {(hoveredPoint === index || isPressed) && (
                 <g>
                   <rect
                     x={tooltipX}
