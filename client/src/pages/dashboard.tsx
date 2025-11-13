@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield } from 'lucide-react';
+import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { FloLogo } from '@/components/FloLogo';
@@ -150,6 +150,16 @@ export default function Dashboard() {
                   <Shield className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 </Link>
               )}
+              <Link 
+                href="/history"
+                className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                data-testid="link-history"
+                aria-label="Measurement History"
+              >
+                <RotateCcw className={`w-4 h-4 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </Link>
               <button 
                 onClick={() => setIsDark(!isDark)}
                 className={`p-2 rounded-lg transition-colors ${

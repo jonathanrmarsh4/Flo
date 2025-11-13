@@ -124,18 +124,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
+    try {
+      const [user] = await db
+        .insert(users)
+        .values(userData)
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            ...userData,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+      return user;
+    } catch (error: any) {
+      // Handle duplicate email constraint violation gracefully
+      if (error.code === '23505' && error.constraint === 'users_email_unique') {
+        // Email already exists but with different ID - update existing user by email
+        const [existingUser] = await db.select().from(users).where(eq(users.email, userData.email!));
+        if (existingUser) {
+          const [updated] = await db
+            .update(users)
+            .set({
+              ...userData,
+              updatedAt: new Date(),
+            })
+            .where(eq(users.id, existingUser.id))
+            .returning();
+          return updated;
+        }
+      }
+      throw error;
+    }
   }
 
   // Profile operations
@@ -661,7 +681,7 @@ export class DatabaseStorage implements IStorage {
     return insights || null;
   }
 
-  async saveBiomarkerInsights(params: {
+  async cacheBiomarkerInsights(params: {
     userId: string;
     biomarkerId: string;
     measurementSignature: string;
