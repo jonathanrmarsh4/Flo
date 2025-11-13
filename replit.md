@@ -39,6 +39,14 @@ Flō is a mobile-first health analytics platform that uses AI to analyze user-up
   - Treats reference ranges with all null bounds as missing (emits "no_reference_range" instead of incorrect "within_ref")
   - Insights endpoint recalculates correct reference ranges on-the-fly without database migration
   - All flags now generated against matching units for accurate status determination
+- **Manual Entry Unit Conversions:** Added 52 bidirectional unit conversions for 26 common biomarkers
+  - Fixed critical issue where manual entry only showed canonical units while PDF upload supported multiple units
+  - Added conversions for hormones (Estradiol pg/mL↔pmol/L, Free Testosterone, DHEA-S, Progesterone, Free T4, Free T3)
+  - Added conversions for metabolic markers (Glucose mg/dL↔mmol/L, Creatinine, Calcium, BUN)
+  - Added conversions for lipids (Total Cholesterol, HDL, LDL, Triglycerides mg/dL↔mmol/L)
+  - Added conversions for vitamins/minerals (Vitamin B12 pg/mL↔pmol/L, Folate, Vitamin D, Iron, Ferritin, Magnesium)
+  - Added conversions for other markers (CRP, Uric Acid, Albumin, Hemoglobin, Bilirubin, TIBC, Prolactin)
+  - Manual entry now matches PDF upload capabilities with full international unit support
 - **Age Display Fix:** Corrected chronological age fallback on Insights page
   - Removed hardcoded 49.2 fallback value
   - Always fetches user profile to calculate actual age from dateOfBirth

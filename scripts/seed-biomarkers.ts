@@ -1411,6 +1411,25 @@ async function seedBiomarkers() {
       { biomarkerId: freeT3.id, label: "Free Triiodothyronine", exact: false },
     ]);
 
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: freeT3.id,
+        fromUnit: "pg/mL",
+        toUnit: "pmol/L",
+        conversionType: "ratio",
+        multiplier: 1.536,
+        notes: "Free T3 conversion: pg/mL × 1.536 = pmol/L",
+      },
+      {
+        biomarkerId: freeT3.id,
+        fromUnit: "pmol/L",
+        toUnit: "pg/mL",
+        conversionType: "ratio",
+        multiplier: 0.651,
+        notes: "Free T3 conversion: pmol/L × 0.651 = pg/mL",
+      },
+    ]);
+
     await db.insert(biomarkerReferenceRanges).values([
       {
         biomarkerId: freeT3.id,
@@ -1443,6 +1462,25 @@ async function seedBiomarkers() {
       { biomarkerId: freeT4.id, label: "Free T4", exact: true },
       { biomarkerId: freeT4.id, label: "FT4", exact: true },
       { biomarkerId: freeT4.id, label: "Free Thyroxine", exact: false },
+    ]);
+
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: freeT4.id,
+        fromUnit: "ng/dL",
+        toUnit: "pmol/L",
+        conversionType: "ratio",
+        multiplier: 12.87,
+        notes: "Free T4 conversion: ng/dL × 12.87 = pmol/L",
+      },
+      {
+        biomarkerId: freeT4.id,
+        fromUnit: "pmol/L",
+        toUnit: "ng/dL",
+        conversionType: "ratio",
+        multiplier: 0.07768,
+        notes: "Free T4 conversion: pmol/L × 0.07768 = ng/dL",
+      },
     ]);
 
     await db.insert(biomarkerReferenceRanges).values([
@@ -1638,6 +1676,25 @@ async function seedBiomarkers() {
       { biomarkerId: freeTestosterone.id, label: "Free T", exact: false },
     ]);
 
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: freeTestosterone.id,
+        fromUnit: "pg/mL",
+        toUnit: "pmol/L",
+        conversionType: "ratio",
+        multiplier: 3.467,
+        notes: "Free Testosterone conversion: pg/mL × 3.467 = pmol/L",
+      },
+      {
+        biomarkerId: freeTestosterone.id,
+        fromUnit: "pmol/L",
+        toUnit: "pg/mL",
+        conversionType: "ratio",
+        multiplier: 0.2885,
+        notes: "Free Testosterone conversion: pmol/L × 0.2885 = pg/mL",
+      },
+    ]);
+
     await db.insert(biomarkerReferenceRanges).values([
       {
         biomarkerId: freeTestosterone.id,
@@ -1713,6 +1770,25 @@ async function seedBiomarkers() {
       { biomarkerId: estradiol.id, label: "E2", exact: false },
     ]);
 
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: estradiol.id,
+        fromUnit: "pg/mL",
+        toUnit: "pmol/L",
+        conversionType: "ratio",
+        multiplier: 3.671,
+        notes: "Estradiol conversion: pg/mL × 3.671 = pmol/L",
+      },
+      {
+        biomarkerId: estradiol.id,
+        fromUnit: "pmol/L",
+        toUnit: "pg/mL",
+        conversionType: "ratio",
+        multiplier: 0.2724,
+        notes: "Estradiol conversion: pmol/L × 0.2724 = pg/mL",
+      },
+    ]);
+
     await db.insert(biomarkerReferenceRanges).values([
       {
         biomarkerId: estradiol.id,
@@ -1754,6 +1830,25 @@ async function seedBiomarkers() {
       { biomarkerId: dheas.id, label: "DHEA-S", exact: true },
       { biomarkerId: dheas.id, label: "DHEA Sulfate", exact: true },
       { biomarkerId: dheas.id, label: "Dehydroepiandrosterone Sulfate", exact: false },
+    ]);
+
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: dheas.id,
+        fromUnit: "μg/dL",
+        toUnit: "μmol/L",
+        conversionType: "ratio",
+        multiplier: 0.02714,
+        notes: "DHEA-S conversion: μg/dL × 0.02714 = μmol/L",
+      },
+      {
+        biomarkerId: dheas.id,
+        fromUnit: "μmol/L",
+        toUnit: "μg/dL",
+        conversionType: "ratio",
+        multiplier: 36.85,
+        notes: "DHEA-S conversion: μmol/L × 36.85 = μg/dL",
+      },
     ]);
 
     await db.insert(biomarkerReferenceRanges).values([
@@ -2022,6 +2117,25 @@ async function seedBiomarkers() {
     await db.insert(biomarkerSynonyms).values([
       { biomarkerId: prolactin.id, label: "Prolactin", exact: true },
       { biomarkerId: prolactin.id, label: "PRL", exact: false },
+    ]);
+
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: prolactin.id,
+        fromUnit: "ng/mL",
+        toUnit: "μg/L",
+        conversionType: "ratio",
+        multiplier: 1,
+        notes: "Prolactin conversion: ng/mL × 1 = μg/L (same value)",
+      },
+      {
+        biomarkerId: prolactin.id,
+        fromUnit: "μg/L",
+        toUnit: "ng/mL",
+        conversionType: "ratio",
+        multiplier: 1,
+        notes: "Prolactin conversion: μg/L × 1 = ng/mL (same value)",
+      },
     ]);
 
     await db.insert(biomarkerReferenceRanges).values([
@@ -2522,6 +2636,25 @@ async function seedBiomarkers() {
     await db.insert(biomarkerSynonyms).values([
       { biomarkerId: ferritin.id, label: "Ferritin", exact: true },
       { biomarkerId: ferritin.id, label: "Serum Ferritin", exact: false },
+    ]);
+
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: ferritin.id,
+        fromUnit: "ng/mL",
+        toUnit: "μg/L",
+        conversionType: "ratio",
+        multiplier: 1,
+        notes: "Ferritin conversion: ng/mL × 1 = μg/L (same value)",
+      },
+      {
+        biomarkerId: ferritin.id,
+        fromUnit: "μg/L",
+        toUnit: "ng/mL",
+        conversionType: "ratio",
+        multiplier: 1,
+        notes: "Ferritin conversion: μg/L × 1 = ng/mL (same value)",
+      },
     ]);
 
     await db.insert(biomarkerReferenceRanges).values([
