@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -8,6 +8,7 @@ import { TrendChart } from '@/components/TrendChart';
 import { AddTestResultsModal } from '@/components/AddTestResultsModal';
 import { BiomarkerInsightsModal } from '@/components/BiomarkerInsightsModal';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import { 
   mapAnalysisToBiomarkerReadings, 
   type BiomarkerReading 
@@ -28,6 +29,7 @@ const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   
   const handleLogout = () => {
     window.location.href = '/api/logout';
@@ -249,23 +251,60 @@ export default function Dashboard() {
               const inRange = isInRange(biomarkerName, latest.value);
               const history = getBiomarkerHistory(biomarkerId);
 
-              const handleTileClick = () => {
-                setSelectedInsightsBiomarker({
-                  id: biomarkerId,
-                  name: biomarkerName,
-                  value: latest.value,
-                  unit: latest.unit,
-                  status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
-                });
+              let pressTimer: number | null = null;
+              let isLongPress = false;
+
+              const handlePointerDown = () => {
+                isLongPress = false;
+                pressTimer = window.setTimeout(() => {
+                  isLongPress = true;
+                  const formattedDate = new Date(latest.date).toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  });
+                  toast({
+                    title: biomarkerName,
+                    description: `Test date: ${formattedDate}`,
+                  });
+                }, 500);
+              };
+
+              const handlePointerUp = () => {
+                if (pressTimer) {
+                  clearTimeout(pressTimer);
+                  pressTimer = null;
+                }
+                if (!isLongPress) {
+                  setSelectedInsightsBiomarker({
+                    id: biomarkerId,
+                    name: biomarkerName,
+                    value: latest.value,
+                    unit: latest.unit,
+                    status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
+                  });
+                }
+              };
+
+              const handlePointerCancel = () => {
+                if (pressTimer) {
+                  clearTimeout(pressTimer);
+                  pressTimer = null;
+                }
               };
 
               return (
                 <div
                   key={biomarkerId}
-                  onClick={handleTileClick}
-                  className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] ${
+                  onPointerDown={handlePointerDown}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerCancel}
+                  onPointerLeave={handlePointerCancel}
+                  className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] select-none ${
                     isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
                   }`}
+                  style={{ WebkitTouchCallout: 'none' }}
                   data-testid={`card-biomarker-${biomarkerName.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div className="flex items-start justify-between mb-2">
