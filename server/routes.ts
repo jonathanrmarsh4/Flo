@@ -937,6 +937,7 @@ Inflammation Markers:
             profile.healthBaseline?.smokingStatus && profile.healthBaseline.smokingStatus !== 'Never' ? 'smoker' : null,
             profile.healthBaseline?.alcoholIntake && profile.healthBaseline.alcoholIntake !== 'None' ? 'alcohol_consumer' : null,
           ].filter(Boolean) as string[],
+          other_context: profile.aiPersonalization?.medicalContext,
         },
         biomarker_panels: panels,
         derived_metrics: {
@@ -1319,6 +1320,7 @@ Inflammation Markers:
         dietType: profile?.healthBaseline?.dietType,
         smoking: profile?.healthBaseline?.smokingStatus,
         alcoholIntake: profile?.healthBaseline?.alcoholIntake,
+        medicalContext: profile?.aiPersonalization?.medicalContext,
       };
 
       // Build measurement signature

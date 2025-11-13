@@ -47,6 +47,7 @@ interface BiomarkerInsightsInput {
     dietType?: string;
     smoking?: string;
     alcoholConsumption?: string;
+    medicalContext?: string; // User-provided context (medications, TRT, conditions, etc.)
   };
   enrichedData?: {
     valueContext: string;
@@ -122,6 +123,10 @@ WORDING RULES:
 
     const profileSummary = `User Profile: Age ${input.profileSnapshot.age || 'unknown'}, Sex: ${input.profileSnapshot.sex || 'unknown'}, Activity: ${input.profileSnapshot.activityLevel || 'unknown'}, Sleep: ${input.profileSnapshot.sleepQuality || 'unknown'}, Diet: ${input.profileSnapshot.dietType || 'unknown'}`;
 
+    const medicalContextInfo = input.profileSnapshot.medicalContext 
+      ? `\n\nIMPORTANT MEDICAL CONTEXT (provided by user): ${input.profileSnapshot.medicalContext}\nTake this context into account when generating recommendations. For example, if they're on TRT, expect testosterone levels to be elevated and focus on optimizing other health markers.`
+      : '';
+
     const contextMessage = input.enrichedData?.valueContext || `Current value: ${input.latestValue} ${input.unit} (Reference: ${input.referenceLow}-${input.referenceHigh} ${input.unit})`;
 
     const userMessage = `Biomarker: ${input.biomarkerName}
@@ -131,9 +136,9 @@ ${trendSummary}
 
 ${profileSummary}
 
-Health Goals: ${input.profileSnapshot.healthGoals?.join(', ') || 'Not specified'}
+Health Goals: ${input.profileSnapshot.healthGoals?.join(', ') || 'Not specified'}${medicalContextInfo}
 
-Provide personalized, actionable insights that EXPLICITLY REFERENCE their current value and status.`;
+Provide personalized, actionable insights that EXPLICITLY REFERENCE their current value and status${input.profileSnapshot.medicalContext ? '. IMPORTANT: Account for the medical context provided above when making recommendations' : ''}.`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -859,6 +860,54 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Medical Context */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Heart className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                <label className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  Medical Context
+                </label>
+              </div>
+              <p className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Help the AI provide more accurate insights by sharing relevant medical information (e.g., "I'm on Testosterone Replacement Therapy", medications, conditions)
+              </p>
+              {isEditing ? (
+                <Textarea
+                  value={profile?.aiPersonalization?.medicalContext ?? ''}
+                  onChange={(e) => {
+                    updateAIPersonalization.mutate({
+                      aiPersonalization: {
+                        ...currentAIPersonalization,
+                        medicalContext: e.target.value
+                      }
+                    });
+                  }}
+                  placeholder="e.g., I'm on TRT, taking metformin for prediabetes, history of hypothyroidism..."
+                  className={`min-h-[100px] resize-none ${
+                    isDark ? 'bg-white/10 border-white/20' : 'bg-white border-gray-300'
+                  }`}
+                  data-testid="textarea-medical-context"
+                />
+              ) : (
+                <div 
+                  className={`min-h-[100px] p-3 rounded-xl border ${
+                    isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                  }`}
+                  data-testid="text-medical-context-display"
+                >
+                  <p className={`text-sm whitespace-pre-wrap ${
+                    isDark ? 'text-white/80' : 'text-gray-800'
+                  }`}>
+                    {profile?.aiPersonalization?.medicalContext || (
+                      <span className={`${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        No medical context provided
+                      </span>
+                    )}
+                  </p>
                 </div>
               )}
             </div>

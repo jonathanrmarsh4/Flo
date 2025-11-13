@@ -119,6 +119,7 @@ export const aiPersonalizationSchema = z.object({
   tone: CommunicationToneEnum.optional(),
   insightsFrequency: InsightsFrequencyEnum.optional(),
   focusAreas: z.array(FocusAreaEnum).optional(),
+  medicalContext: z.string().max(2000).optional(), // User-provided context for AI (e.g., "I'm on TRT", medications, conditions)
 });
 
 // Session storage table (required for Replit Auth)
