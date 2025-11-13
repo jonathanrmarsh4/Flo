@@ -13,17 +13,20 @@ export default function FullReport() {
 
   const { data: report, isLoading, error } = useQuery<any>({
     queryKey: analysisId && analysisId !== 'latest' ? ['/api/comprehensive-report', analysisId] : ['/api/comprehensive-report'],
-    queryFn: analysisId && analysisId !== 'latest'
-      ? () => fetch(`/api/comprehensive-report?sessionId=${analysisId}`, { 
-          credentials: 'include',
-        }).then(async (r) => {
-          if (!r.ok) {
-            const error = await r.json();
-            throw new Error(error.error || 'Failed to generate report');
-          }
-          return r.json();
-        })
-      : undefined,
+    queryFn: async () => {
+      const url = analysisId && analysisId !== 'latest'
+        ? `/api/comprehensive-report?sessionId=${analysisId}`
+        : '/api/comprehensive-report';
+      
+      const response = await fetch(url, { credentials: 'include' });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate report');
+      }
+      
+      return response.json();
+    },
     retry: 1,
     retryDelay: 1000,
     staleTime: 5 * 60 * 1000, // 5 minutes
