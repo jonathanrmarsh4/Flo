@@ -119,6 +119,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
 
       queryClient.invalidateQueries({ queryKey: ['/api/measurements'] });
       queryClient.invalidateQueries({ queryKey: ['/api/blood-work'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/biomarker-sessions'] });
 
       onClose();
     } catch (error) {

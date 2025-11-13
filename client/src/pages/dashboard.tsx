@@ -45,45 +45,83 @@ export default function Dashboard() {
     status: 'optimal' | 'low' | 'high';
   } | null>(null);
 
-  const { data: latestAnalysis } = useQuery<any>({
-    queryKey: ['/api/blood-work/latest'],
+  // Fetch biomarker sessions with measurements (new system)
+  const { data: sessionsData } = useQuery<any>({
+    queryKey: ['/api/biomarker-sessions'],
     enabled: !!user,
   });
 
-  // Fetch all biomarkers for name-to-ID mapping
+  // Fetch all biomarkers catalog
   const { data: biomarkersData } = useQuery<any>({
     queryKey: ['/api/biomarkers'],
     enabled: !!user,
   });
 
+  const sessions = sessionsData?.sessions || [];
   const biomarkers = biomarkersData?.biomarkers || [];
 
-  const readings: BiomarkerReading[] = mapAnalysisToBiomarkerReadings(latestAnalysis);
+  // Build measurements map: biomarkerId -> array of measurements with dates
+  const measurementsByBiomarker = new Map<string, Array<{
+    value: number;
+    unit: string;
+    date: string;
+    biomarkerId: string;
+    biomarkerName: string;
+  }>>();
 
-  const trackedBiomarkers = Array.from(new Set(readings.map(r => r.biomarker)))
-    .filter(biomarker => BIOMARKER_CONFIGS[biomarker]);
+  sessions.forEach((session: any) => {
+    session.measurements?.forEach((m: any) => {
+      const biomarker = biomarkers.find((b: any) => b.id === m.biomarkerId);
+      if (!biomarker) return;
 
-  const filteredBiomarkers = trackedBiomarkers.filter(biomarker => {
+      if (!measurementsByBiomarker.has(m.biomarkerId)) {
+        measurementsByBiomarker.set(m.biomarkerId, []);
+      }
+
+      measurementsByBiomarker.get(m.biomarkerId)!.push({
+        value: m.valueCanonical,
+        unit: m.unitCanonical,
+        date: session.testDate,
+        biomarkerId: m.biomarkerId,
+        biomarkerName: biomarker.name,
+      });
+    });
+  });
+
+  // Get tracked biomarker IDs (only those with measurements)
+  const trackedBiomarkerIds = Array.from(measurementsByBiomarker.keys());
+
+  // Filter by category
+  const filteredBiomarkerIds = trackedBiomarkerIds.filter(biomarkerId => {
     if (selectedCategory === 'All') return true;
-    const config = BIOMARKER_CONFIGS[biomarker];
+    const measurements = measurementsByBiomarker.get(biomarkerId);
+    if (!measurements || measurements.length === 0) return false;
+    
+    const biomarkerName = measurements[0].biomarkerName;
+    const config = BIOMARKER_CONFIGS[biomarkerName];
     return config && config.category === selectedCategory;
   });
 
-  const getLatestReading = (biomarker: string) => {
-    return readings
-      .filter(r => r.biomarker === biomarker)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  const getLatestMeasurement = (biomarkerId: string) => {
+    const measurements = measurementsByBiomarker.get(biomarkerId) || [];
+    return measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
   };
 
-  const isInRange = (biomarker: string, value: number) => {
-    const config = BIOMARKER_CONFIGS[biomarker];
+  const isInRange = (biomarkerName: string, value: number) => {
+    const config = BIOMARKER_CONFIGS[biomarkerName];
+    if (!config) return true;
     return value >= config.min && value <= config.max;
   };
 
-  const getBiomarkerHistory = (biomarker: string) => {
-    return readings
-      .filter(r => r.biomarker === biomarker)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const getBiomarkerHistory = (biomarkerId: string) => {
+    const measurements = measurementsByBiomarker.get(biomarkerId) || [];
+    return measurements
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(m => ({
+        biomarker: m.biomarkerName,
+        value: m.value,
+        date: m.date,
+      }));
   };
 
   return (
@@ -169,7 +207,7 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="px-3 py-3">
-        {readings.length === 0 ? (
+        {trackedBiomarkerIds.length === 0 ? (
           <div className={`backdrop-blur-xl rounded-2xl border p-8 text-center ${
             isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
           }`}>
@@ -178,55 +216,52 @@ export default function Dashboard() {
               No blood work data yet
             </h3>
             <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-              Upload your first blood work to get started with AI-powered insights
+              Add your first test results to get started with AI-powered insights
             </p>
             <button 
               onClick={() => setIsAddModalOpen(true)}
               className="bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl hover:scale-105 transition-transform"
               data-testid="button-upload-first"
             >
-              Upload Blood Work
+              Add Test Results
             </button>
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredBiomarkers.map(biomarker => {
-              const latest = getLatestReading(biomarker);
+            {filteredBiomarkerIds.map(biomarkerId => {
+              const latest = getLatestMeasurement(biomarkerId);
               if (!latest) return null;
               
-              const config = BIOMARKER_CONFIGS[biomarker];
-              const inRange = isInRange(biomarker, latest.value);
+              const biomarkerName = latest.biomarkerName;
+              const config = BIOMARKER_CONFIGS[biomarkerName];
+              if (!config) return null;
               
-              // Find biomarker ID for insights
-              const biomarkerData = biomarkers.find((b: any) => 
-                b.name.toLowerCase() === biomarker.toLowerCase()
-              );
+              const inRange = isInRange(biomarkerName, latest.value);
+              const history = getBiomarkerHistory(biomarkerId);
 
               const handleTileClick = () => {
-                if (biomarkerData) {
-                  setSelectedInsightsBiomarker({
-                    id: biomarkerData.id,
-                    name: biomarker,
-                    value: latest.value,
-                    unit: config.unit,
-                    status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
-                  });
-                }
+                setSelectedInsightsBiomarker({
+                  id: biomarkerId,
+                  name: biomarkerName,
+                  value: latest.value,
+                  unit: latest.unit,
+                  status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
+                });
               };
 
               return (
                 <div
-                  key={biomarker}
+                  key={biomarkerId}
                   onClick={handleTileClick}
                   className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] ${
                     isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
                   }`}
-                  data-testid={`card-biomarker-${biomarker.toLowerCase().replace(/\s+/g, '-')}`}
+                  data-testid={`card-biomarker-${biomarkerName.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div>
-                        <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{biomarker}</h3>
+                        <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{biomarkerName}</h3>
                         <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
                           {new Date(latest.date).toLocaleDateString()}
                         </p>
@@ -234,11 +269,11 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-2">
                       {inRange ? (
-                        <div className="px-2 py-0.5 rounded-full bg-green-500/20 text-[10px] text-green-600" data-testid={`status-${biomarker.toLowerCase().replace(/\s+/g, '-')}-optimal`}>
+                        <div className="px-2 py-0.5 rounded-full bg-green-500/20 text-[10px] text-green-600" data-testid={`status-${biomarkerName.toLowerCase().replace(/\s+/g, '-')}-optimal`}>
                           Optimal
                         </div>
                       ) : (
-                        <div className="px-2 py-0.5 rounded-full bg-red-500/20 text-[10px] text-red-600" data-testid={`status-${biomarker.toLowerCase().replace(/\s+/g, '-')}-out-of-range`}>
+                        <div className="px-2 py-0.5 rounded-full bg-red-500/20 text-[10px] text-red-600" data-testid={`status-${biomarkerName.toLowerCase().replace(/\s+/g, '-')}-out-of-range`}>
                           Out of Range
                         </div>
                       )}
@@ -247,10 +282,10 @@ export default function Dashboard() {
                   </div>
                   
                   <div className="flex items-end gap-2 mb-3">
-                    <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid={`value-${biomarker.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid={`value-${biomarkerName.toLowerCase().replace(/\s+/g, '-')}`}>
                       {latest.value}
                     </span>
-                    <span className={`mb-1.5 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{config.unit}</span>
+                    <span className={`mb-1.5 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{latest.unit}</span>
                   </div>
                   
                   <div className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
@@ -258,12 +293,12 @@ export default function Dashboard() {
                   </div>
                   
                   {/* Trend Chart */}
-                  {getBiomarkerHistory(biomarker).length >= 2 && (
+                  {history.length >= 2 && (
                     <TrendChart 
-                      history={getBiomarkerHistory(biomarker)}
+                      history={history}
                       min={config.min}
                       max={config.max}
-                      biomarker={biomarker}
+                      biomarker={biomarkerName}
                       isDark={isDark}
                     />
                   )}

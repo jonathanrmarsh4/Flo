@@ -520,6 +520,32 @@ Inflammation Markers:
     }
   });
 
+  // GET /api/biomarker-sessions - Get all biomarker test sessions with measurements for the logged-in user
+  app.get("/api/biomarker-sessions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Get all test sessions for user
+      const sessions = await storage.getTestSessionsByUser(userId);
+
+      // For each session, fetch its measurements
+      const sessionsWithMeasurements = await Promise.all(
+        sessions.map(async (session) => {
+          const measurements = await storage.getMeasurementsBySession(session.id);
+          return {
+            ...session,
+            measurements,
+          };
+        })
+      );
+
+      res.json({ sessions: sessionsWithMeasurements });
+    } catch (error) {
+      console.error("Error fetching biomarker sessions:", error);
+      res.status(500).json({ error: "Failed to fetch biomarker sessions" });
+    }
+  });
+
   // GET /api/biomarkers/:id/units - Get available units for a biomarker
   app.get("/api/biomarkers/:id/units", isAuthenticated, async (req: any, res) => {
     try {

@@ -31,6 +31,7 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   'MCH': { unit: 'pg', min: 27, max: 33, category: 'Basic Panels' },
   'Platelets': { unit: 'K/μL', min: 150, max: 400, category: 'Basic Panels' },
   'Glucose': { unit: 'mg/dL', min: 70, max: 100, category: 'Basic Panels' },
+  'Glucose (Fasting)': { unit: 'mg/dL', min: 70, max: 100, category: 'Basic Panels' },
   'Calcium': { unit: 'mg/dL', min: 8.5, max: 10.5, category: 'Basic Panels' },
   'Sodium': { unit: 'mEq/L', min: 135, max: 145, category: 'Basic Panels' },
   'Potassium': { unit: 'mEq/L', min: 3.5, max: 5.0, category: 'Basic Panels' },
