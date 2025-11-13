@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import { PDFParse } from "pdf-parse";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -10,16 +11,16 @@ const extractedBiomarkerSchema = z.object({
   name: z.string().describe("The biomarker name as it appears in the lab report"),
   value: z.number().describe("The numeric measurement value"),
   unit: z.string().describe("The unit of measurement (e.g., mg/dL, mmol/L, %)"),
-  referenceRangeLow: z.number().optional().describe("Lower bound of reference range if provided"),
-  referenceRangeHigh: z.number().optional().describe("Upper bound of reference range if provided"),
-  flags: z.array(z.string()).optional().describe("Any flags like 'High', 'Low', 'Critical' from the report"),
+  referenceRangeLow: z.number().nullable().describe("Lower bound of reference range if provided"),
+  referenceRangeHigh: z.number().nullable().describe("Upper bound of reference range if provided"),
+  flags: z.array(z.string()).nullable().describe("Any flags like 'High', 'Low', 'Critical' from the report"),
 });
 
 const gptResponseSchema = z.object({
   testDate: z.string().describe("The date the lab test was performed (ISO 8601 format: YYYY-MM-DD)"),
-  labName: z.string().optional().describe("Name of the laboratory if mentioned"),
+  labName: z.string().nullable().describe("Name of the laboratory if mentioned"),
   biomarkers: z.array(extractedBiomarkerSchema).describe("Array of all biomarkers extracted from the lab report"),
-  notes: z.string().optional().describe("Any relevant notes or observations from the report"),
+  notes: z.string().nullable().describe("Any relevant notes or observations from the report"),
 });
 
 type ExtractedBiomarker = z.infer<typeof extractedBiomarkerSchema>;
@@ -41,30 +42,14 @@ export interface ProcessingResult {
   error?: string;
 }
 
-async function downloadPdfFromGCS(fileUrl: string): Promise<Buffer> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
-  
-  try {
-    const response = await fetch(fileUrl, {
-      signal: controller.signal,
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Failed to download PDF: ${response.status} ${response.statusText}`);
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default;
-  const data = await pdfParse(pdfBuffer);
-  return data.text;
+  const parser = new PDFParse({ data: pdfBuffer });
+  try {
+    const result = await parser.getText();
+    return result.text;
+  } finally {
+    await parser.destroy();
+  }
 }
 
 async function extractBiomarkersWithGPT(pdfText: string): Promise<GPTResponse> {
@@ -77,6 +62,7 @@ Instructions:
 4. Find the test date
 5. Be conservative - only extract data you're confident about
 6. For biomarker names, use the exact terminology from the report
+7. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), you MUST explicitly return null if the data is not available. Never omit these fields
 
 Common biomarkers to look for:
 - Cholesterol panel: Total Cholesterol, LDL, HDL, Triglycerides
@@ -94,7 +80,7 @@ Output only the structured data as JSON.`;
   const userPrompt = `Extract all biomarker measurements from this lab report:\n\n${pdfText}`;
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o-2024-08-06",
+    model: "gpt-4o",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
@@ -112,7 +98,7 @@ Output only the structured data as JSON.`;
               description: "The date the lab test was performed (ISO 8601 format: YYYY-MM-DD)",
             },
             labName: {
-              type: "string",
+              anyOf: [{ type: "string" }, { type: "null" }],
               description: "Name of the laboratory if mentioned",
             },
             biomarkers: {
@@ -134,29 +120,31 @@ Output only the structured data as JSON.`;
                     description: "The unit of measurement (e.g., mg/dL, mmol/L, %)",
                   },
                   referenceRangeLow: {
-                    type: "number",
+                    anyOf: [{ type: "number" }, { type: "null" }],
                     description: "Lower bound of reference range if provided",
                   },
                   referenceRangeHigh: {
-                    type: "number",
+                    anyOf: [{ type: "number" }, { type: "null" }],
                     description: "Upper bound of reference range if provided",
                   },
                   flags: {
-                    type: "array",
-                    items: { type: "string" },
+                    anyOf: [
+                      { type: "array", items: { type: "string" } },
+                      { type: "null" }
+                    ],
                     description: "Any flags like 'High', 'Low', 'Critical' from the report",
                   },
                 },
-                required: ["name", "value", "unit"],
+                required: ["name", "value", "unit", "referenceRangeLow", "referenceRangeHigh", "flags"],
                 additionalProperties: false,
               },
             },
             notes: {
-              type: "string",
+              anyOf: [{ type: "string" }, { type: "null" }],
               description: "Any relevant notes or observations from the report",
             },
           },
-          required: ["testDate", "biomarkers"],
+          required: ["testDate", "labName", "biomarkers", "notes"],
           additionalProperties: false,
         },
       },
@@ -170,12 +158,29 @@ Output only the structured data as JSON.`;
   }
 
   const parsed = JSON.parse(content);
-  return gptResponseSchema.parse(parsed);
+  const validated = gptResponseSchema.parse(parsed);
+  
+  return {
+    ...validated,
+    labName: validated.labName ?? undefined,
+    notes: validated.notes ?? undefined,
+    biomarkers: validated.biomarkers.map(b => ({
+      ...b,
+      referenceRangeLow: b.referenceRangeLow ?? undefined,
+      referenceRangeHigh: b.referenceRangeHigh ?? undefined,
+      flags: b.flags ?? [],
+    })),
+  };
 }
 
-export async function processLabUpload(fileUrl: string): Promise<ProcessingResult> {
+export async function processLabUpload(pdfBuffer: Buffer): Promise<ProcessingResult> {
+  const MAX_PDF_SIZE = 10 * 1024 * 1024;
+  
+  if (pdfBuffer.length > MAX_PDF_SIZE) {
+    throw new Error(`PDF file too large (${(pdfBuffer.length / 1024 / 1024).toFixed(1)}MB). Maximum size is 10MB.`);
+  }
+  
   const steps: ProcessingStep[] = [
-    { name: "download_pdf", status: "pending", timestamp: new Date().toISOString() },
     { name: "extract_text", status: "pending", timestamp: new Date().toISOString() },
     { name: "gpt_analysis", status: "pending", timestamp: new Date().toISOString() },
     { name: "validate_output", status: "pending", timestamp: new Date().toISOString() },
@@ -183,30 +188,25 @@ export async function processLabUpload(fileUrl: string): Promise<ProcessingResul
 
   try {
     steps[0].status = "in_progress";
-    const pdfBuffer = await downloadPdfFromGCS(fileUrl);
+    const pdfText = await extractTextFromPdf(pdfBuffer);
     steps[0].status = "completed";
     steps[0].timestamp = new Date().toISOString();
-
-    steps[1].status = "in_progress";
-    const pdfText = await extractTextFromPdf(pdfBuffer);
-    steps[1].status = "completed";
-    steps[1].timestamp = new Date().toISOString();
 
     if (pdfText.length < 100) {
       throw new Error("PDF appears to be empty or contains insufficient text");
     }
 
-    steps[2].status = "in_progress";
+    steps[1].status = "in_progress";
     const extractedData = await extractBiomarkersWithGPT(pdfText);
-    steps[2].status = "completed";
-    steps[2].timestamp = new Date().toISOString();
+    steps[1].status = "completed";
+    steps[1].timestamp = new Date().toISOString();
 
-    steps[3].status = "in_progress";
+    steps[2].status = "in_progress";
     if (!extractedData.biomarkers || extractedData.biomarkers.length === 0) {
       throw new Error("No biomarkers were extracted from the report");
     }
-    steps[3].status = "completed";
-    steps[3].timestamp = new Date().toISOString();
+    steps[2].status = "completed";
+    steps[2].timestamp = new Date().toISOString();
 
     return {
       success: true,

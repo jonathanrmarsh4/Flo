@@ -186,6 +186,13 @@ export class ObjectStorageService {
     return objectFile;
   }
 
+  // Gets the object entity buffer from the object path.
+  async getObjectEntityBuffer(objectPath: string): Promise<Buffer> {
+    const objectFile = await this.getObjectEntityFile(objectPath);
+    const [contents] = await objectFile.download();
+    return contents;
+  }
+
   normalizeObjectEntityPath(
     rawPath: string,
   ): string {

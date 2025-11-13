@@ -1,11 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Edit, Upload as UploadIcon } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Edit, Upload as UploadIcon, FileText, CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { Progress } from '@/components/ui/progress';
 
 interface Biomarker {
   id: string;
@@ -42,6 +43,18 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
+
+  // Upload tab state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
+  const [jobResult, setJobResult] = useState<any>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch all biomarkers
   const { data: biomarkers = [], isLoading: biomarkersLoading } = useQuery<Biomarker[]>({
@@ -126,6 +139,157 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       console.error("Error submitting test result:", error);
     }
   };
+
+  // File upload handlers
+  const handleFileSelect = (file: File) => {
+    if (file.type === 'application/pdf') {
+      setSelectedFile(file);
+      setJobError(null);
+    } else {
+      setJobError('Please select a PDF file');
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    setUploading(true);
+    setUploadProgress(10);
+    setJobError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const response = await fetch('/api/labs/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      setUploadProgress(30);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const result = await response.json();
+      setJobId(result.jobId);
+      setJobStatus('pending');
+      setUploadProgress(50);
+
+      // Start polling for status
+      startPolling(result.jobId);
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      setJobError(error.message || 'Failed to upload file');
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const startPolling = (id: string) => {
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/labs/status/${id}`);
+        if (!response.ok) {
+          throw new Error('Failed to get job status');
+        }
+
+        const data = await response.json();
+        setJobStatus(data.status);
+
+        if (data.status === 'processing') {
+          setUploadProgress(70);
+        }
+
+        if (data.status === 'completed' || data.status === 'needs_review') {
+          setUploadProgress(100);
+          setJobResult(data.result);
+          setUploading(false);
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+          }
+          
+          // Invalidate queries to refresh data
+          queryClient.invalidateQueries({ queryKey: ['/api/measurements'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/blood-work'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/biomarker-sessions'] });
+        } else if (data.status === 'failed') {
+          setJobError(data.error?.error || 'Processing failed');
+          setUploading(false);
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+          }
+        }
+      } catch (error: any) {
+        console.error('Polling error:', error);
+        setJobError(error.message || 'Failed to check status');
+        setUploading(false);
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+        }
+      }
+    };
+
+    // Poll immediately, then every 2 seconds
+    poll();
+    pollingIntervalRef.current = setInterval(poll, 2000);
+  };
+
+  const resetUpload = () => {
+    setSelectedFile(null);
+    setUploading(false);
+    setUploadProgress(0);
+    setJobId(null);
+    setJobStatus(null);
+    setJobResult(null);
+    setJobError(null);
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Reset upload state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      resetUpload();
+    }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -263,12 +427,180 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
               </div>
             </>
           ) : (
-            <div className="py-12 text-center">
-              <UploadIcon className="w-12 h-12 mx-auto mb-4 text-white/40" />
-              <p className="text-white/60 text-sm">
-                Upload functionality coming soon
-              </p>
-            </div>
+            <>
+              {!jobResult ? (
+                <>
+                  {/* Upload Zone */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all ${
+                      isDragging
+                        ? 'border-cyan-500 bg-cyan-500/10'
+                        : 'border-white/20 bg-white/5 hover:border-white/30'
+                    }`}
+                    data-testid="dropzone-upload"
+                  >
+                    {!selectedFile ? (
+                      <>
+                        <FileText className="w-12 h-12 mx-auto mb-4 text-white/40" />
+                        <p className="text-white/70 mb-2">
+                          Drag and drop your lab report here
+                        </p>
+                        <p className="text-white/40 text-sm mb-4">or</p>
+                        <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="outline"
+                          className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                          data-testid="button-choose-file"
+                        >
+                          Choose PDF File
+                        </Button>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="application/pdf"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                          data-testid="input-file"
+                        />
+                        <p className="text-white/30 text-xs mt-4">
+                          PDF files only, max 10MB
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-12 h-12 mx-auto mb-4 text-cyan-400" />
+                        <p className="text-white font-medium mb-1">{selectedFile.name}</p>
+                        <p className="text-white/40 text-sm mb-4">
+                          {(selectedFile.size / 1024).toFixed(1)} KB
+                        </p>
+                        <Button
+                          onClick={resetUpload}
+                          variant="ghost"
+                          className="text-white/60 hover:text-white"
+                          disabled={uploading}
+                          data-testid="button-reset-file"
+                        >
+                          Choose different file
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Upload Progress */}
+                  {uploading && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/70">
+                          {jobStatus === 'pending' && 'Uploading...'}
+                          {jobStatus === 'processing' && 'Processing with AI...'}
+                        </span>
+                        <span className="text-white/40">{uploadProgress}%</span>
+                      </div>
+                      <Progress value={uploadProgress} className="h-2" />
+                      <div className="flex items-center gap-2 text-xs text-white/40">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>This may take 10-30 seconds</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Error */}
+                  {jobError && (
+                    <div className="flex items-start gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
+                      <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-red-400 text-sm font-medium">Upload failed</p>
+                        <p className="text-red-400/70 text-xs mt-1">{jobError}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload Button */}
+                  {selectedFile && !uploading && !jobResult && (
+                    <Button
+                      onClick={handleUpload}
+                      disabled={!selectedFile || uploading}
+                      className="w-full bg-gradient-to-r from-[#00d4aa] via-[#00a8ff] to-[#0066ff] text-white rounded-xl h-12 text-base font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                      data-testid="button-upload"
+                    >
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                      Upload & Process
+                    </Button>
+                  )}
+                </>
+              ) : (
+                /* Success Results */
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
+                    <CheckCircle2 className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-green-400 font-medium mb-1">
+                        {jobStatus === 'needs_review' ? 'Partial extraction complete' : 'Extraction complete'}
+                      </p>
+                      <p className="text-white/70 text-sm">
+                        {jobResult.successfulBiomarkers?.length || 0} biomarkers extracted successfully
+                      </p>
+                      {jobStatus === 'needs_review' && jobResult.failedBiomarkers?.length > 0 && (
+                        <p className="text-yellow-400/70 text-xs mt-2">
+                          {jobResult.failedBiomarkers.length} biomarkers could not be processed
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Extracted Biomarkers List */}
+                  {jobResult.successfulBiomarkers && jobResult.successfulBiomarkers.length > 0 && (
+                    <div className="bg-white/5 rounded-xl p-4">
+                      <p className="text-white/70 text-sm mb-3">Extracted biomarkers:</p>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {jobResult.successfulBiomarkers.map((name: string, index: number) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 text-sm text-white/90 bg-white/5 rounded-lg px-3 py-2"
+                            data-testid={`biomarker-item-${index}`}
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                            <span>{name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={resetUpload}
+                      variant="outline"
+                      className="flex-1 bg-white/10 text-white border-white/20 hover:bg-white/20"
+                      data-testid="button-upload-another"
+                    >
+                      Upload Another
+                    </Button>
+                    <Button
+                      onClick={onClose}
+                      className="flex-1 bg-gradient-to-r from-[#00d4aa] via-[#00a8ff] to-[#0066ff] text-white hover:opacity-90"
+                      data-testid="button-done"
+                    >
+                      Done
+                    </Button>
+                  </div>
+
+                  {/* Failed Biomarkers Warning */}
+                  {jobStatus === 'needs_review' && jobResult.failedBiomarkers?.length > 0 && (
+                    <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+                      <AlertCircle className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+                      <p className="text-yellow-400/80 text-xs">
+                        Some biomarkers couldn't be automatically processed. You can add them manually.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 

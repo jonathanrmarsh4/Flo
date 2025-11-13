@@ -1198,7 +1198,9 @@ Inflammation Markers:
             steps: [{ name: "started", status: "in_progress", timestamp: new Date().toISOString() }],
           });
 
-          const result = await processLabUpload(fileUrl);
+          // Download PDF buffer from object storage
+          const pdfBuffer = await objectStorageService.getObjectEntityBuffer(objectPath);
+          const result = await processLabUpload(pdfBuffer);
 
           if (result.success && result.extractedData) {
             const extractedBiomarkers = result.extractedData.biomarkers;
