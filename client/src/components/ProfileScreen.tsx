@@ -79,7 +79,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [localHeight, setLocalHeight] = useState<string>('');
   const [localSleep, setLocalSleep] = useState<string>('');
   
-  // Local state for medical context to prevent slow typing
+  // Local state for medical context (only saves when clicking Done)
   const [localMedicalContext, setLocalMedicalContext] = useState<string>('');
   
   // Calendar navigation state
@@ -91,10 +91,12 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const currentHealthBaseline = profile?.healthBaseline ?? {};
   const currentAIPersonalization = profile?.aiPersonalization ?? {};
   
-  // Debounced update for medical context (wait 500ms after user stops typing)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (localMedicalContext !== (profile?.aiPersonalization?.medicalContext ?? '')) {
+  // Handle save when clicking Done
+  const handleToggleEdit = () => {
+    // If exiting edit mode, save the medical context if it changed
+    if (isEditing) {
+      const serverValue = profile?.aiPersonalization?.medicalContext ?? '';
+      if (localMedicalContext !== serverValue) {
         updateAIPersonalization.mutate({
           aiPersonalization: {
             ...currentAIPersonalization,
@@ -102,10 +104,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           }
         });
       }
-    }, 500);
-    
-    return () => clearTimeout(timer);
-  }, [localMedicalContext]);
+    }
+    setIsEditing(!isEditing);
+  };
 
   // Sync calendar month with profile date of birth
   useEffect(() => {
@@ -114,15 +115,18 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
     }
   }, [profile?.dateOfBirth]);
 
-  // Sync local inputs with profile data
+  // Sync local inputs with profile data (but not while editing medical context)
   useEffect(() => {
     if (profile) {
       setLocalWeight(profile.weight?.toString() ?? '');
       setLocalHeight(profile.height?.toString() ?? '');
       setLocalSleep(profile.healthBaseline?.sleepHours?.toString() ?? '');
-      setLocalMedicalContext(profile.aiPersonalization?.medicalContext ?? '');
+      // Only sync medical context when not editing to prevent cursor jumping
+      if (!isEditing) {
+        setLocalMedicalContext(profile.aiPersonalization?.medicalContext ?? '');
+      }
     }
-  }, [profile]);
+  }, [profile, isEditing]);
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: Date | string | null | undefined): number | null => {
@@ -205,7 +209,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
             </button>
             <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Profile</h1>
             <button 
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={handleToggleEdit}
               className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
               data-testid="button-edit"
             >
