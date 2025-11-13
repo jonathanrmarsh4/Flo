@@ -1192,6 +1192,25 @@ async function seedBiomarkers() {
       { biomarkerId: apoA1.id, label: "Apo A-I", exact: false },
     ]);
 
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: apoA1.id,
+        fromUnit: "mg/dL",
+        toUnit: "g/L",
+        conversionType: "ratio",
+        multiplier: 0.01,
+        notes: "ApoA1 conversion: mg/dL × 0.01 = g/L",
+      },
+      {
+        biomarkerId: apoA1.id,
+        fromUnit: "g/L",
+        toUnit: "mg/dL",
+        conversionType: "ratio",
+        multiplier: 100,
+        notes: "ApoA1 conversion: g/L × 100 = mg/dL",
+      },
+    ]);
+
     await db.insert(biomarkerReferenceRanges).values([
       {
         biomarkerId: apoA1.id,
@@ -1224,6 +1243,25 @@ async function seedBiomarkers() {
       { biomarkerId: apoB.id, label: "ApoB", exact: true },
       { biomarkerId: apoB.id, label: "Apolipoprotein B", exact: true },
       { biomarkerId: apoB.id, label: "Apo B", exact: false },
+    ]);
+
+    await db.insert(biomarkerUnits).values([
+      {
+        biomarkerId: apoB.id,
+        fromUnit: "mg/dL",
+        toUnit: "g/L",
+        conversionType: "ratio",
+        multiplier: 0.01,
+        notes: "ApoB conversion: mg/dL × 0.01 = g/L",
+      },
+      {
+        biomarkerId: apoB.id,
+        fromUnit: "g/L",
+        toUnit: "mg/dL",
+        conversionType: "ratio",
+        multiplier: 100,
+        notes: "ApoB conversion: g/L × 100 = mg/dL",
+      },
     ]);
 
     await db.insert(biomarkerReferenceRanges).values([
