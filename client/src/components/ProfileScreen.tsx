@@ -36,10 +36,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   // Comprehensive insights generation mutation
   const generateInsights = useMutation({
     mutationFn: async () => {
-      return await apiRequest('/api/health-insights', {
-        method: 'POST',
-        body: JSON.stringify({ forceRefresh: true }),
-      });
+      return await apiRequest('POST', '/api/health-insights', { forceRefresh: true });
     },
     onSuccess: () => {
       toast({
