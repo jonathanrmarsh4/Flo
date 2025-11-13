@@ -166,9 +166,9 @@ function generateValueContext(
   }
 
   const contexts = {
-    optimal: `Your current value is ${value} ${unit}, which is in the optimal range (${referenceLow}-${referenceHigh} ${unit}). Great work!`,
-    low: `Your current value is ${value} ${unit}, which is ${Math.abs(deltaPercentage).toFixed(1)}% below the optimal range (${referenceLow}-${referenceHigh} ${unit}).`,
-    high: `Your current value is ${value} ${unit}, which is ${Math.abs(deltaPercentage).toFixed(1)}% above the optimal range (${referenceLow}-${referenceHigh} ${unit}).`,
+    optimal: `Your current value is ${value} ${unit}, which is within the normal range (${referenceLow}-${referenceHigh} ${unit}). Great work!`,
+    low: `Your current value is ${value} ${unit}, which is below the normal range of ${referenceLow}-${referenceHigh} ${unit}.`,
+    high: `Your current value is ${value} ${unit}, which is above the normal range of ${referenceLow}-${referenceHigh} ${unit}.`,
     unknown: `Your current value is ${value} ${unit}.`,
   };
 

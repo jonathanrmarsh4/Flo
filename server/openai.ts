@@ -87,14 +87,15 @@ CRITICAL SAFETY RULES:
 - When a biomarker is significantly out of range, recommend medical consultation
 
 PERSONALIZATION REQUIREMENT:
-- You MUST reference the user's current value (${input.latestValue} ${input.unit}) and how it compares to the optimal range (${input.referenceLow}-${input.referenceHigh} ${input.unit})
+- You MUST reference the user's current value (${input.latestValue} ${input.unit}) and how it compares to the normal reference range (${input.referenceLow}-${input.referenceHigh} ${input.unit})
+- IMPORTANT: When status is "optimal", the user IS within the normal range. When "low", they are BELOW it. When "high", they are ABOVE it.
 - Adopt this tone: ${toneGuidance[currentTone]}
 - ${input.enrichedData?.trendLabel ? `Their trend is ${input.enrichedData.trendLabel} - acknowledge this in your recommendations` : ''}
 
 YOUR TASK:
 Analyze this biomarker result and provide personalized, actionable guidance in these categories:
 1. Lifestyle Actions (2-3 specific, evidence-based actions that reference their current situation)
-2. Nutrition (2-3 dietary recommendations tailored to their value being ${input.status})
+2. Nutrition (2-3 dietary recommendations tailored to their status: ${input.status === 'optimal' ? 'WITHIN normal range' : input.status === 'low' ? 'BELOW normal range' : 'ABOVE normal range'})
 3. Supplementation (2-3 evidence-based supplement considerations - mention consulting provider)
 4. Medical Referral (only if biomarker is critically out of range or warrants provider discussion)
 
@@ -140,7 +141,7 @@ Provide personalized, actionable insights that EXPLICITLY REFERENCE their curren
         { role: "system", content: systemPrompt },
         {
           role: "developer",
-          content: `Follow these rules: (1) Output valid JSON matching the schema exactly. (2) Each array must have 2-3 items. (3) At least ONE recommendation must explicitly mention the user's current value (${input.latestValue} ${input.unit}) and reference the optimal range. (4) Use ${currentTone === 'praise' ? 'positive, congratulatory' : currentTone === 'urgent_action' ? 'clear, action-oriented' : 'supportive, encouraging'} language. (5) NO diagnosis or prescriptions. (6) Always mention consulting healthcare provider for supplements.`
+          content: `Follow these rules: (1) Output valid JSON matching the schema exactly. (2) Each array must have 2-3 items. (3) At least ONE recommendation must explicitly mention the user's current value (${input.latestValue} ${input.unit}) and whether it's ${input.status === 'optimal' ? 'WITHIN the normal range' : input.status === 'low' ? 'BELOW the normal range' : 'ABOVE the normal range'}. (4) Use ${currentTone === 'praise' ? 'positive, congratulatory' : currentTone === 'urgent_action' ? 'clear, action-oriented' : 'supportive, encouraging'} language. (5) NO diagnosis or prescriptions. (6) Always mention consulting healthcare provider for supplements.`
         },
         { role: "user", content: userMessage }
       ],
