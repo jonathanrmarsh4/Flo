@@ -862,28 +862,44 @@ Inflammation Markers:
       const biomarkers = await storage.getBiomarkers();
       const biomarkerMap = new Map(biomarkers.map(b => [b.id, b]));
 
-      // Build biomarker panels
+      // Build biomarker panels with corrected reference ranges
+      const { selectReferenceRange } = await import("@shared/domain/biomarkers");
       const panels = [];
+      
       for (const session of sortedSessions) {
         const measurements = await storage.getMeasurementsBySession(session.id);
         if (measurements.length === 0) continue;
 
-        const markers = measurements.map(m => {
+        const markers = await Promise.all(measurements.map(async (m) => {
           const biomarker = biomarkerMap.get(m.biomarkerId);
+          
+          // Recalculate correct reference range (don't trust stored values due to unit mismatch bug)
+          const biomarkerRanges = await storage.getReferenceRanges(m.biomarkerId);
+          const contextForRange = {
+            age_years: ageYears,
+            sex: profile?.sex?.toLowerCase() as 'male' | 'female' | undefined,
+          };
+          const correctRange = selectReferenceRange(
+            m.biomarkerId,
+            m.unitCanonical,
+            contextForRange,
+            biomarkerRanges
+          );
+          
           return {
             code: biomarker?.name || m.biomarkerId,
             label: biomarker?.name || m.biomarkerId,
             value: m.valueCanonical,
             unit: m.unitCanonical,
             reference_range: {
-              low: m.referenceLow ?? undefined,
-              high: m.referenceHigh ?? undefined,
+              low: correctRange?.low ?? undefined,
+              high: correctRange?.high ?? undefined,
               unit: m.unitCanonical,
             },
             category: biomarker?.category,
             flags: m.flags || [],
           };
-        });
+        }));
 
         panels.push({
           panel_id: session.id,
