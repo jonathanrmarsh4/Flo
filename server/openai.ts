@@ -412,7 +412,7 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
         { role: "user", content: `Analyze this health data and provide comprehensive insights:\n\n${userMessage}` }
       ],
       response_format: { type: "json_object" },
-      max_completion_tokens: 16000,
+      max_completion_tokens: 32000,
     });
 
     console.log("OpenAI response received:", {
