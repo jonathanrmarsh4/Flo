@@ -8,6 +8,7 @@ import {
   subscriptions,
   payments,
   auditLogs,
+  openaiUsageEvents,
   biomarkers,
   biomarkerSynonyms,
   biomarkerUnits,
@@ -34,6 +35,7 @@ import {
   type Subscription,
   type Payment,
   type AuditLog,
+  type OpenaiUsageEvent,
   type Biomarker,
   type BiomarkerSynonym,
   type BiomarkerUnit,
@@ -76,6 +78,34 @@ export interface IStorage {
   // Admin operations
   listUsers(params: { query?: string; role?: string; status?: string; limit?: number; offset?: number }): Promise<{ users: User[]; total: number }>;
   updateUser(userId: string, data: UpdateUser, adminId: string): Promise<User | null>;
+  
+  // Admin analytics operations
+  getAdminOverviewStats(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    totalRevenue: number;
+    apiQueries7d: number;
+    apiCost7d: number;
+  }>;
+  getApiUsageDaily(days?: number): Promise<Array<{
+    date: string;
+    queries: number;
+    cost: number;
+    model: string;
+    avgLatency: number | null;
+  }>>;
+  getRevenueTrends(months?: number): Promise<Array<{
+    month: string;
+    revenue: number;
+    userCount: number;
+    churnCount: number;
+  }>>;
+  getSubscriptionBreakdown(): Promise<{
+    free: number;
+    premium: number;
+    admin: number;
+  }>;
+  getAuditLogs(limit?: number): Promise<AuditLog[]>;
   
   // Billing operations
   getBillingInfo(userId: string): Promise<{ customer?: BillingCustomer; subscription?: Subscription; lastPayment?: Payment }>;
@@ -414,6 +444,185 @@ export class DatabaseStorage implements IStorage {
       changes: log.changes,
       actionMetadata: log.actionMetadata,
     });
+  }
+
+  // Admin analytics operations
+  async getAdminOverviewStats(): Promise<{
+    totalUsers: number;
+    activeUsers: number;
+    totalRevenue: number;
+    apiQueries7d: number;
+    apiCost7d: number;
+  }> {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [userStats] = await db
+      .select({
+        total: sql<number>`count(*)::int`,
+        active: sql<number>`count(*) FILTER (WHERE status = 'active')::int`,
+      })
+      .from(users);
+
+    const [revenueStats] = await db
+      .select({
+        totalRevenue: sql<number>`COALESCE(SUM(amount) / 100.0, 0)`,
+      })
+      .from(payments)
+      .where(eq(payments.status, "succeeded"));
+
+    const [apiStats] = await db
+      .select({
+        queries: sql<number>`COALESCE(COUNT(*), 0)::int`,
+        cost: sql<number>`COALESCE(SUM(cost), 0)`,
+      })
+      .from(openaiUsageEvents)
+      .where(sql`created_at >= ${sevenDaysAgo}`);
+
+    return {
+      totalUsers: userStats?.total || 0,
+      activeUsers: userStats?.active || 0,
+      totalRevenue: Number(revenueStats?.totalRevenue || 0),
+      apiQueries7d: apiStats?.queries || 0,
+      apiCost7d: Number(apiStats?.cost || 0),
+    };
+  }
+
+  async getApiUsageDaily(days: number = 7): Promise<Array<{
+    date: string;
+    queries: number;
+    cost: number;
+    model: string;
+    avgLatency: number | null;
+  }>> {
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - days);
+
+    const results = await db
+      .select({
+        date: sql<string>`DATE(created_at)::text`,
+        model: openaiUsageEvents.model,
+        queries: sql<number>`COUNT(*)::int`,
+        cost: sql<number>`SUM(cost)`,
+        avgLatency: sql<number>`AVG(latency_ms)`,
+      })
+      .from(openaiUsageEvents)
+      .where(sql`created_at >= ${daysAgo}`)
+      .groupBy(sql`DATE(created_at)`, openaiUsageEvents.model)
+      .orderBy(sql`DATE(created_at) DESC`);
+
+    return results.map(r => ({
+      date: r.date,
+      queries: r.queries,
+      cost: Number(r.cost),
+      model: r.model,
+      avgLatency: r.avgLatency ? Number(r.avgLatency) : null,
+    }));
+  }
+
+  async getRevenueTrends(months: number = 7): Promise<Array<{
+    month: string;
+    revenue: number;
+    userCount: number;
+    churnCount: number;
+  }>> {
+    const monthsAgo = new Date();
+    monthsAgo.setMonth(monthsAgo.getMonth() - months);
+
+    const revenueResults = await db
+      .select({
+        month: sql<string>`TO_CHAR(created_at, 'Mon YYYY')`,
+        monthSort: sql<string>`DATE_TRUNC('month', created_at)::text`,
+        revenue: sql<number>`SUM(amount) / 100.0`,
+      })
+      .from(payments)
+      .where(
+        and(
+          sql`created_at >= ${monthsAgo}`,
+          eq(payments.status, "succeeded")
+        )
+      )
+      .groupBy(sql`DATE_TRUNC('month', created_at)`)
+      .orderBy(sql`DATE_TRUNC('month', created_at) DESC`);
+
+    const userResults = await db
+      .select({
+        month: sql<string>`TO_CHAR(created_at, 'Mon YYYY')`,
+        monthSort: sql<string>`DATE_TRUNC('month', created_at)::text`,
+        userCount: sql<number>`COUNT(*)::int`,
+      })
+      .from(users)
+      .where(sql`created_at >= ${monthsAgo}`)
+      .groupBy(sql`DATE_TRUNC('month', created_at)`)
+      .orderBy(sql`DATE_TRUNC('month', created_at) DESC`);
+
+    const churnResults = await db
+      .select({
+        month: sql<string>`TO_CHAR(updated_at, 'Mon YYYY')`,
+        monthSort: sql<string>`DATE_TRUNC('month', updated_at)::text`,
+        churnCount: sql<number>`COUNT(*) FILTER (WHERE status IN ('canceled', 'unpaid', 'past_due'))::int`,
+      })
+      .from(subscriptions)
+      .where(sql`updated_at >= ${monthsAgo}`)
+      .groupBy(sql`DATE_TRUNC('month', updated_at)`)
+      .orderBy(sql`DATE_TRUNC('month', updated_at) DESC`);
+
+    const monthMap = new Map<string, { revenue: number; userCount: number; churnCount: number }>();
+    
+    revenueResults.forEach(r => {
+      monthMap.set(r.month, { revenue: Number(r.revenue || 0), userCount: 0, churnCount: 0 });
+    });
+    
+    userResults.forEach(r => {
+      const existing = monthMap.get(r.month) || { revenue: 0, userCount: 0, churnCount: 0 };
+      monthMap.set(r.month, { ...existing, userCount: r.userCount });
+    });
+    
+    churnResults.forEach(r => {
+      const existing = monthMap.get(r.month) || { revenue: 0, userCount: 0, churnCount: 0 };
+      monthMap.set(r.month, { ...existing, churnCount: r.churnCount });
+    });
+
+    return Array.from(monthMap.entries()).map(([month, data]) => ({
+      month,
+      ...data,
+    }));
+  }
+
+  async getSubscriptionBreakdown(): Promise<{
+    free: number;
+    premium: number;
+    admin: number;
+  }> {
+    const results = await db
+      .select({
+        role: users.role,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(users)
+      .groupBy(users.role);
+
+    const breakdown = {
+      free: 0,
+      premium: 0,
+      admin: 0,
+    };
+
+    results.forEach(r => {
+      if (r.role === 'free') breakdown.free = r.count;
+      if (r.role === 'premium') breakdown.premium = r.count;
+      if (r.role === 'admin') breakdown.admin = r.count;
+    });
+
+    return breakdown;
+  }
+
+  async getAuditLogs(limit: number = 50): Promise<AuditLog[]> {
+    return await db
+      .select()
+      .from(auditLogs)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
   }
 
   // Biomarker operations

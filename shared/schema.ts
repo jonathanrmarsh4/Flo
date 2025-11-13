@@ -404,6 +404,27 @@ export const healthInsights = pgTable("health_insights", {
   index("idx_health_insights_generated_at").on(table.generatedAt),
 ]);
 
+// OpenAI usage tracking for admin analytics
+export const openaiUsageEvents = pgTable("openai_usage_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
+  endpoint: text("endpoint").notNull(),
+  model: text("model").notNull(),
+  promptTokens: integer("prompt_tokens").notNull().default(0),
+  completionTokens: integer("completion_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  cost: real("cost").notNull().default(0),
+  latencyMs: integer("latency_ms"),
+  status: text("status").notNull().default("success"),
+  errorMessage: text("error_message"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_openai_usage_events_created_at").on(table.createdAt),
+  index("idx_openai_usage_events_user").on(table.userId),
+  index("idx_openai_usage_events_model").on(table.model),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
@@ -583,14 +604,21 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 });
 
+export const insertOpenaiUsageEventSchema = createInsertSchema(openaiUsageEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertBillingCustomer = z.infer<typeof insertBillingCustomerSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type InsertOpenaiUsageEvent = z.infer<typeof insertOpenaiUsageEventSchema>;
 export type BillingCustomer = typeof billingCustomers.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type OpenaiUsageEvent = typeof openaiUsageEvents.$inferSelect;
 
 // Query params validation schemas
 export const listUsersQuerySchema = z.object({
