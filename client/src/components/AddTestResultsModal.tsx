@@ -661,27 +661,29 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
 
                       {/* Expanded Details */}
                       {showFailedBiomarkers && (
-                        <div className="border-t border-yellow-500/20 p-3 space-y-2 bg-yellow-500/5">
+                        <div className="border-t border-yellow-500/20 p-3 bg-yellow-500/5">
                           <p className="text-yellow-400/70 text-xs mb-3">
                             The AI extracted these biomarkers but couldn't match them to our database. You can add them manually if needed.
                           </p>
-                          {jobResult.failedBiomarkers.map((failed: { name: string; error: string }, index: number) => (
-                            <div
-                              key={index}
-                              className="bg-white/5 rounded-lg p-3 space-y-1"
-                              data-testid={`failed-biomarker-${index}`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <XCircle className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1">
-                                  <p className="text-white font-medium text-sm">{failed.name}</p>
-                                  <p className="text-yellow-400/60 text-xs mt-1 leading-relaxed">
-                                    {failed.error}
-                                  </p>
+                          <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
+                            {jobResult.failedBiomarkers.map((failed: { name: string; error: string }, index: number) => (
+                              <div
+                                key={index}
+                                className="bg-white/5 rounded-lg p-3 space-y-1"
+                                data-testid={`failed-biomarker-${index}`}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <XCircle className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                                  <div className="flex-1">
+                                    <p className="text-white font-medium text-sm">{failed.name}</p>
+                                    <p className="text-yellow-400/60 text-xs mt-1 leading-relaxed">
+                                      {failed.error}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
