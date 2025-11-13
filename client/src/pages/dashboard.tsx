@@ -251,21 +251,30 @@ export default function Dashboard() {
               const inRange = isInRange(biomarkerName, latest.value);
               const history = getBiomarkerHistory(biomarkerId);
 
+              const testDate = latest.date;
+              const tileBiomarkerName = biomarkerName;
+              const tileBiomarkerId = biomarkerId;
+              const tileValue = latest.value;
+              const tileUnit = latest.unit;
+              const tileStatus = inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high');
+
               let pressTimer: number | null = null;
               let isLongPress = false;
 
               const handlePointerDown = () => {
                 isLongPress = false;
+                const capturedDate = testDate;
+                const capturedName = tileBiomarkerName;
                 pressTimer = window.setTimeout(() => {
                   isLongPress = true;
-                  const formattedDate = new Date(latest.date).toLocaleDateString('en-US', {
+                  const formattedDate = new Date(capturedDate).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
                     day: 'numeric',
                   });
                   toast({
-                    title: biomarkerName,
+                    title: capturedName,
                     description: `Test date: ${formattedDate}`,
                   });
                 }, 500);
@@ -278,11 +287,11 @@ export default function Dashboard() {
                 }
                 if (!isLongPress) {
                   setSelectedInsightsBiomarker({
-                    id: biomarkerId,
-                    name: biomarkerName,
-                    value: latest.value,
-                    unit: latest.unit,
-                    status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
+                    id: tileBiomarkerId,
+                    name: tileBiomarkerName,
+                    value: tileValue,
+                    unit: tileUnit,
+                    status: tileStatus,
                   });
                 }
               };
