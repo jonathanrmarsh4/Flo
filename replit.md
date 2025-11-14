@@ -67,6 +67,13 @@ Preferred communication style: Simple, everyday language.
 - **Mobile:** `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor-community/apple-sign-in`, `capacitor-secure-storage-plugin` (encrypted Keychain storage).
 - **PDF Processing:** `pdf-parse` library for text extraction.
 
+### iOS-Specific Configurations
+**WKWebView Overscroll Fix:** Eliminates white rubber band bounce at scroll limits using 3-layer approach:
+- **Native (AppDelegate.swift):** Disables `scrollView.bounces` and `alwaysBounceVertical`, sets WKWebView background to UIColor(#0f172a)
+- **Capacitor (capacitor.config.ts):** Sets `ios.backgroundColor: '#0f172a'`
+- **CSS (index.css):** Applies `overscroll-behavior-y: none` to html/body, uses dark mode `--background: 222 47% 11%` (equals #0f172a)
+- **Color Consistency:** All three layers use identical #0f172a background to prevent visible seams during gestures
+
 ### Environment Variables (used by the project)
 - `DATABASE_URL`
 - `SESSION_SECRET`
