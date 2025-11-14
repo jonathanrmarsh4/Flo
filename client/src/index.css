@@ -216,6 +216,9 @@
     height: 100%;
     overscroll-behavior-y: none;
     -webkit-overflow-scrolling: touch;
+    /* iOS safe area support - pushes content below status bar/dynamic island */
+    padding-top: constant(safe-area-inset-top); /* iOS 11.0-11.2 fallback */
+    padding-top: env(safe-area-inset-top); /* iOS 11.2+ */
   }
 
   #root {
