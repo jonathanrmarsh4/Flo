@@ -38,7 +38,7 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
     try {
       const { payload } = await jwtVerify(body.identityToken, JWKS, {
         issuer: "https://appleid.apple.com",
-        audience: process.env.APPLE_CLIENT_ID || "com.get-flo.app",
+        audience: process.env.APPLE_CLIENT_ID || "com.flo.healthapp",
       });
       
       appleUserId = payload.sub as string;
