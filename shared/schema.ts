@@ -30,6 +30,9 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "unpaid"
 ]);
 
+// Auth provider enums
+export const authProviderEnum = pgEnum("auth_provider", ["replit", "apple", "google", "email"]);
+
 // Profile enums
 export const sexEnum = pgEnum("sex", ["Male", "Female", "Other"]);
 export const weightUnitEnum = pgEnum("weight_unit", ["kg", "lbs"]);
@@ -133,7 +136,7 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table (required for Replit Auth)
+// User storage table (supports multi-provider auth)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -142,6 +145,36 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").default("free").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Auth providers table - links users to OAuth providers (Apple, Google) or Replit Auth
+export const authProviders = pgTable("auth_providers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: authProviderEnum("provider").notNull(),
+  providerUserId: varchar("provider_user_id").notNull(), // Provider's unique ID for the user
+  email: varchar("email"), // Email from provider (may differ from users.email)
+  accessToken: text("access_token"), // Encrypted OAuth access token
+  refreshToken: text("refresh_token"), // Encrypted OAuth refresh token
+  expiresAt: timestamp("expires_at"), // Token expiration
+  metadata: jsonb("metadata"), // Additional provider data (name, avatar, etc.)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("auth_providers_provider_user_idx").on(table.provider, table.providerUserId),
+  index("auth_providers_user_idx").on(table.userId),
+]);
+
+// User credentials table - for email/password authentication
+export const userCredentials = pgTable("user_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  passwordHash: text("password_hash").notNull(), // bcrypt hash
+  lastLoginAt: timestamp("last_login_at"),
+  resetToken: varchar("reset_token").unique(), // Password reset token
+  resetTokenExpiresAt: timestamp("reset_token_expires_at"), // Reset token expiry
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -880,3 +913,103 @@ export type BiomarkerSummary = z.infer<typeof biomarkerSummarySchema>;
 export type BiomarkerWithDetails = z.infer<typeof biomarkerWithDetailsSchema>;
 export type BiomarkerUnitResponse = z.infer<typeof biomarkerUnitResponseSchema>;
 export type ReferenceRangeResponse = z.infer<typeof referenceRangeResponseSchema>;
+
+// Auth provider schemas
+export const insertAuthProviderSchema = createInsertSchema(authProviders, {
+  // Coerce date fields from ISO strings (mobile payload format)
+  expiresAt: z.coerce.date().nullable().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const authProviderSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  provider: z.enum(["replit", "apple", "google", "email"]),
+  providerUserId: z.string(),
+  email: z.string().nullable(), // Aligned with Drizzle varchar (no email validation on select)
+  accessToken: z.string().nullable(),
+  refreshToken: z.string().nullable(),
+  expiresAt: z.date().nullable(),
+  metadata: z.record(z.unknown()).nullable(), // JSONB - accept any object structure
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type InsertAuthProvider = z.infer<typeof insertAuthProviderSchema>;
+export type AuthProvider = typeof authProviders.$inferSelect;
+
+// User credentials schemas
+export const insertUserCredentialsSchema = createInsertSchema(userCredentials, {
+  // Coerce date fields from ISO strings
+  lastLoginAt: z.coerce.date().nullable().optional(),
+  resetTokenExpiresAt: z.coerce.date().nullable().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const userCredentialsSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  passwordHash: z.string(),
+  lastLoginAt: z.date().nullable(),
+  resetToken: z.string().nullable(),
+  resetTokenExpiresAt: z.date().nullable(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type InsertUserCredentials = z.infer<typeof insertUserCredentialsSchema>;
+export type UserCredentials = typeof userCredentials.$inferSelect;
+
+// Mobile auth request schemas
+export const appleSignInSchema = z.object({
+  identityToken: z.string(),
+  authorizationCode: z.string().optional(),
+  email: z.string().email().optional(),
+  givenName: z.string().optional(),
+  familyName: z.string().optional(),
+  user: z.string(), // Apple user ID
+});
+
+export const googleSignInSchema = z.object({
+  idToken: z.string(),
+  accessToken: z.string().optional(),
+  serverAuthCode: z.string().optional(),
+  email: z.string().email(),
+  givenName: z.string().optional(),
+  familyName: z.string().optional(),
+  userId: z.string(), // Google user ID
+});
+
+export const emailRegisterSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  firstName: z.string().min(1).max(50),
+  lastName: z.string().min(1).max(50),
+});
+
+export const emailLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+export const passwordResetRequestSchema = z.object({
+  email: z.string().email(),
+});
+
+export const passwordResetSchema = z.object({
+  token: z.string(),
+  newPassword: z.string().min(8).max(128),
+});
+
+export type AppleSignIn = z.infer<typeof appleSignInSchema>;
+export type GoogleSignIn = z.infer<typeof googleSignInSchema>;
+export type EmailRegister = z.infer<typeof emailRegisterSchema>;
+export type EmailLogin = z.infer<typeof emailLoginSchema>;
+export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>;
+export type PasswordReset = z.infer<typeof passwordResetSchema>;
