@@ -192,8 +192,13 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       const formData = new FormData();
       formData.append('file', selectedFile);
 
+      // Get auth headers (includes JWT token for mobile)
+      const { getAuthHeaders } = await import('@/lib/queryClient');
+      const headers = await getAuthHeaders({});
+
       const response = await fetch('/api/labs/upload', {
         method: 'POST',
+        headers,
         body: formData,
       });
 
