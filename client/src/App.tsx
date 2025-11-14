@@ -33,8 +33,8 @@ function Router() {
 
   return (
     <Switch>
-      {/* Mobile auth route - always accessible on native platforms */}
-      {isNative && <Route path="/mobile-auth" component={MobileAuth} />}
+      {/* Mobile auth route - accessible for testing and native platforms */}
+      <Route path="/mobile-auth" component={MobileAuth} />
       
       {isLoading || !isAuthenticated ? (
         isNative ? (
