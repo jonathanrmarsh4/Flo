@@ -72,7 +72,7 @@ export default function MobileAuth() {
     try {
       console.log('[Apple Sign-In] Starting authorization...');
       const result = await SignInWithApple.authorize({
-        clientId: 'com.get-flo.app',
+        clientId: 'com.flo.healthapp',
         redirectURI: 'https://get-flo.com/auth/apple/callback',
         scopes: 'email name',
         state: crypto.randomUUID(),
