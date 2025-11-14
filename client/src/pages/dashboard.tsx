@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
+import { Capacitor } from '@capacitor/core';
 import { FloLogo } from '@/components/FloLogo';
 import { FloBottomNav } from '@/components/FloBottomNav';
 import { TrendChart } from '@/components/TrendChart';
@@ -13,6 +14,7 @@ import {
   type BiomarkerReading 
 } from '@/lib/flo-data-adapters';
 import { BIOMARKER_CONFIGS, CATEGORIES } from '@/lib/biomarker-config';
+import { queryClient } from '@/lib/queryClient';
 
 const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
   'All': 'All',
@@ -29,8 +31,26 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   
-  const handleLogout = () => {
-    window.location.href = '/api/logout';
+  const handleLogout = async () => {
+    // Mobile: Clear JWT token from secure storage
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+        await SecureStoragePlugin.remove({ key: 'auth_token' });
+        console.log('[Logout] JWT token cleared from secure storage');
+      } catch (error) {
+        console.error('[Logout] Failed to clear token:', error);
+      }
+      
+      // Clear all cached queries
+      queryClient.clear();
+      
+      // Redirect to mobile auth screen
+      setLocation('/mobile-auth');
+    } else {
+      // Web: Use session logout endpoint
+      window.location.href = '/api/logout';
+    }
   };
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
