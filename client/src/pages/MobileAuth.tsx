@@ -70,6 +70,7 @@ export default function MobileAuth() {
     setIsAppleLoading(true);
     setGeneralError(null);
     try {
+      console.log('[Apple Sign-In] Starting authorization...');
       const result = await SignInWithApple.authorize({
         clientId: 'com.get-flo.app',
         redirectURI: 'https://get-flo.com/auth/apple/callback',
@@ -77,6 +78,10 @@ export default function MobileAuth() {
         state: crypto.randomUUID(),
         nonce: crypto.randomUUID(),
       });
+
+      console.log('[Apple Sign-In] Authorization successful, sending to backend...');
+      console.log('[Apple Sign-In] User ID:', result.response.user);
+      console.log('[Apple Sign-In] Has token:', !!result.response.identityToken);
 
       // Send to backend
       const response = await apiRequest('POST', '/api/mobile/auth/apple', {
@@ -88,6 +93,8 @@ export default function MobileAuth() {
         user: result.response.user,
       });
 
+      console.log('[Apple Sign-In] Backend response status:', response.status);
+
       if (response.ok) {
         await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
         toast({
@@ -97,11 +104,17 @@ export default function MobileAuth() {
         setLocation('/dashboard');
       }
     } catch (error: any) {
-      console.error('Apple sign-in error:', error);
-      setGeneralError(error.message || "Failed to sign in with Apple");
+      // Log full error details for debugging
+      console.error('[Apple Sign-In] Error occurred');
+      console.error('[Apple Sign-In] Error name:', error?.name);
+      console.error('[Apple Sign-In] Error message:', error?.message);
+      console.error('[Apple Sign-In] Error stack:', error?.stack);
+      
+      const errorMessage = error?.message || "Failed to sign in with Apple. Please try again.";
+      setGeneralError(errorMessage);
       toast({
         title: "Sign-In Failed",
-        description: error.message || "Failed to sign in with Apple",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
