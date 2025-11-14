@@ -96,12 +96,17 @@ export default function MobileAuth() {
       console.log('[Apple Sign-In] Backend response status:', response.status);
 
       if (response.ok) {
+        // Refetch user data and wait for it to complete
         await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
+        
         toast({
           title: "Welcome!",
           description: "Successfully signed in with Apple",
         });
-        setLocation('/dashboard');
+        
+        // Navigate to home (which will redirect to dashboard for authenticated users)
+        setLocation('/');
       }
     } catch (error: any) {
       // Log full error details for debugging
