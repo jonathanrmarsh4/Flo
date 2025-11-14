@@ -2056,7 +2056,8 @@ Inflammation Markers:
               }
             }
 
-            finalStatus = failedBiomarkers.length > 0 ? "needs_review" : "completed";
+            const hasValidationWarnings = result.validation && result.validation.issues.length > 0;
+            finalStatus = (failedBiomarkers.length > 0 || hasValidationWarnings) ? "needs_review" : "completed";
             finalJobUpdate = {
               status: finalStatus,
               steps: result.steps,
@@ -2068,6 +2069,7 @@ Inflammation Markers:
                 totalBiomarkers: extractedBiomarkers.length,
                 successfulBiomarkers,
                 failedBiomarkers,
+                validation: result.validation,
               },
               errorDetails: failedBiomarkers.length > 0 ? { failedBiomarkers } : null,
             };

@@ -7,6 +7,10 @@ import {
   type CountryCode,
   type BiomarkerUnitConvention
 } from "../../shared/domain/countryUnitConventions";
+import { 
+  validateBiomarkerUnits, 
+  type ValidationResult 
+} from "./labValidation";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -43,6 +47,7 @@ export interface ProcessingResult {
   success: boolean;
   steps: ProcessingStep[];
   extractedData?: GPTResponse;
+  validation?: ValidationResult;
   sessionId?: string;
   measurementIds?: string[];
   error?: string;
@@ -231,6 +236,19 @@ export async function processLabUpload(
     if (!extractedData.biomarkers || extractedData.biomarkers.length === 0) {
       throw new Error("No biomarkers were extracted from the report");
     }
+    
+    const validation = validateBiomarkerUnits(extractedData.biomarkers, country);
+    
+    if (validation.hasBlockingIssues) {
+      const errorIssues = validation.issues.filter(i => i.severity === "error");
+      throw new Error(`Critical unit validation errors: ${errorIssues.map(i => `${i.biomarkerName} (${i.confidence})`).join(", ")}`);
+    }
+    
+    if (validation.issues.length > 0) {
+      console.log(`[Validation] Found ${validation.issues.length} unit validation issue(s) for ${country}:`, 
+        JSON.stringify(validation.issues, null, 2));
+    }
+    
     steps[2].status = "completed";
     steps[2].timestamp = new Date().toISOString();
 
@@ -238,6 +256,7 @@ export async function processLabUpload(
       success: true,
       steps,
       extractedData,
+      validation,
     };
   } catch (error: any) {
     const failedStepIndex = steps.findIndex(s => s.status === "in_progress");
