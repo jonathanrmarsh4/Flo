@@ -20,6 +20,7 @@ Preferred communication style: Simple, everyday language.
 - **PDF Upload:** Drag-and-drop interface for automated blood work PDF parsing, extraction, and GPT-4o integration for biomarker identification with strict JSON schema validation. Includes visibility for failed biomarker extractions.
 - **Admin Dashboard:** Rebuilt with a 7-tab interface and Flō design system components (AdminMetricCard, AdminStatusBadge, AdminGlassPanel) for user, billing, API usage, analytics, and audit log management.
 - **Mobile Authentication:** MobileAuth.tsx component with Apple Sign-In (Capacitor plugin), Email/Password authentication, react-hook-form validation, and glassmorphism design. Capacitor platform detection for mobile-specific flows.
+- **iOS WKWebView Optimization:** Three-layer fix for rubber band overscroll bounce (AppDelegate.swift disables bounces, Capacitor config sets backgroundColor, CSS applies overscroll-behavior-y: none). All layers use consistent #0f172a background to prevent white strip flashing.
 
 ### Backend
 **Framework:** Express.js with TypeScript.
