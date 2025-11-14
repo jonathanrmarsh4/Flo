@@ -75,6 +75,49 @@ function normalizeUnit(unit: string): string {
 }
 
 /**
+ * Reverse-map units that GPT-4 commonly "helpfully" converts
+ * This handles cases where GPT extracts pg/mL when PDF says pmol/L, etc.
+ * 
+ * Known GPT conversion patterns:
+ * - pmol/L → pg/mL (hormones: testosterone, estradiol, SHBG)
+ * - umol/L → ug/dL (DHEA-S)
+ * - mIU/mL → IU/L (FSH, LH)
+ * - mIU/L → uIU/mL (Prolactin)
+ */
+export function reverseMapGPTUnit(gptUnit: string, biomarkerName: string): string {
+  const normalizedUnit = normalizeUnit(gptUnit);
+  const normalizedName = normalizeString(biomarkerName);
+  
+  // Hormone biomarkers that GPT converts pmol/L → pg/mL
+  const pmolLBiomarkers = ['testosterone', 'free testosterone', 'estradiol', 'oestradiol', 'shbg', 'sex hormone binding globulin'];
+  if (normalizedUnit === 'pg/ml' && pmolLBiomarkers.some(name => normalizedName.includes(name))) {
+    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned pg/mL, reversing to pmol/L`);
+    return 'pmol/L';
+  }
+  
+  // DHEA-S: GPT converts umol/L → ug/dL
+  if (normalizedUnit === 'ug/dl' && (normalizedName.includes('dhea') || normalizedName.includes('dehydroepiandrosterone'))) {
+    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned ug/dL, reversing to umol/L`);
+    return 'umol/L';
+  }
+  
+  // FSH, LH: GPT converts mIU/mL → IU/L
+  if (normalizedUnit === 'iu/l' && (normalizedName.includes('fsh') || normalizedName.includes('lh') || normalizedName.includes('follicle stimulating') || normalizedName.includes('luteinizing'))) {
+    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned IU/L, reversing to mIU/mL`);
+    return 'mIU/mL';
+  }
+  
+  // Prolactin: GPT sometimes converts mIU/L → uIU/mL or pg/mL
+  if ((normalizedUnit === 'uiu/ml' || normalizedUnit === 'pg/ml') && normalizedName.includes('prolactin')) {
+    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned ${gptUnit}, reversing to mIU/L`);
+    return 'mIU/L';
+  }
+  
+  // No reverse mapping needed - return original
+  return gptUnit;
+}
+
+/**
  * Resolve a biomarker name to a biomarker ID using synonyms
  * Case-insensitive, whitespace-normalized matching
  * Throws BiomarkerNotFoundError if biomarker is not found
@@ -420,15 +463,21 @@ export function normalizeMeasurement(
 ): NormalizationResult {
   const warnings: string[] = [];
 
+  // Step 0: Reverse-map unit if GPT-4 converted it
+  const correctedUnit = reverseMapGPTUnit(input.unit, input.name);
+  if (correctedUnit !== input.unit) {
+    console.log(`[Normalization] ${input.name}: Unit corrected from ${input.unit} → ${correctedUnit}`);
+  }
+
   // Step 1: Resolve biomarker (throws BiomarkerNotFoundError if not found)
   const biomarker = resolveBiomarker(input.name, biomarkers, synonyms);
 
-  // Step 2: Convert to canonical unit if needed
+  // Step 2: Convert to canonical unit if needed (using corrected unit)
   let canonicalValue = input.value;
   try {
     canonicalValue = convertUnit(
       input.value,
-      input.unit,
+      correctedUnit,  // Use corrected unit, not raw input.unit
       biomarker.canonicalUnit,
       biomarker.id,
       conversions,
@@ -438,7 +487,7 @@ export function normalizeMeasurement(
     if (error instanceof UnitConversionError) {
       warnings.push(error.message);
       // If conversion fails, assume input is already in canonical unit
-      warnings.push(`Assuming input unit '${input.unit}' is equivalent to canonical unit '${biomarker.canonicalUnit}'`);
+      warnings.push(`Assuming corrected unit '${correctedUnit}' is equivalent to canonical unit '${biomarker.canonicalUnit}'`);
     } else {
       throw error;
     }
@@ -585,7 +634,7 @@ export function normalizeMeasurement(
   return {
     biomarker_id: biomarker.id,
     value_raw: input.value,
-    unit_raw: input.unit,
+    unit_raw: correctedUnit,  // Store the corrected unit, not the GPT-returned unit
     value_canonical: canonicalValue,
     unit_canonical: biomarker.canonicalUnit,
     value_display: valueDisplayStr,

@@ -55,31 +55,14 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
 async function extractBiomarkersWithGPT(pdfText: string): Promise<GPTResponse> {
   const systemPrompt = `You are a medical lab report analyzer. Extract biomarker measurements from lab reports with high accuracy.
 
-CRITICAL RULE: NEVER CONVERT, NORMALIZE, OR SIMPLIFY UNITS
-You must extract the EXACT unit string as written in the PDF - character for character.
-
-DO NOT DO THIS (Common Mistakes):
-❌ PDF says "22 pmol/L" → DO NOT extract as "nmol/L" 
-❌ PDF says "8.3 umol/L" → DO NOT extract as "ug/dL"
-❌ PDF says "1 mIU/mL" → DO NOT extract as "IU/L"
-❌ PDF says "5.3 µmol/L" → DO NOT extract as "umol/L" (preserve µ symbol)
-❌ PDF says "7.2 K/µL" → DO NOT extract as "10³/µL"
-
-DO THIS (Correct Extraction):
-✓ PDF says "22 pmol/L" → Extract EXACTLY as "pmol/L"
-✓ PDF says "8.3 umol/L" → Extract EXACTLY as "umol/L"
-✓ PDF says "1 mIU/mL" → Extract EXACTLY as "mIU/mL"
-✓ PDF says "5.3 µmol/L" → Extract EXACTLY as "µmol/L" (keep µ symbol)
-✓ PDF says "95 mg/dL" → Extract EXACTLY as "mg/dL"
-
 Instructions:
 1. Identify all biomarker measurements with their values and units
-2. CRITICAL: Copy the unit string EXACTLY as it appears - do not convert pmol→nmol, umol→ug, mIU→IU, etc.
-3. Extract reference ranges AND their units (essential for unit conversion)
+2. Extract the unit of measurement as you see it in the PDF (e.g., mg/dL, mmol/L, pmol/L, umol/L, mIU/mL, IU/L, %, pg/mL, ug/dL)
+3. IMPORTANT: Extract reference ranges with their numeric values - this is critical for proper analysis
 4. Note any flags (High, Low, Critical, etc.)
-5. Find the test date
+5. Find the test date (use ISO 8601 format: YYYY-MM-DD)
 6. Be conservative - only extract data you're confident about
-7. Use exact biomarker names from the report
+7. Use the exact biomarker names from the report
 8. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), explicitly return null if not available
 
 Common biomarkers to look for:
@@ -91,7 +74,7 @@ Common biomarkers to look for:
 - Inflammation: CRP, ESR
 - CBC: WBC, RBC, Hemoglobin, Hematocrit, Platelets
 - Vitamins: Vitamin D, B12, Folate
-- Hormones: Testosterone, Estradiol, Cortisol, SHBG, DHEA-S, FSH, LH
+- Hormones: Testosterone, Free Testosterone, Estradiol, Cortisol, SHBG, DHEA-S, FSH, LH, Prolactin
 
 Output only the structured data as JSON.`;
 
@@ -135,7 +118,7 @@ Output only the structured data as JSON.`;
                   },
                   unit: {
                     type: "string",
-                    description: "EXACT unit string from PDF - DO NOT convert pmol→nmol, umol→ug, mIU→IU. Copy character-for-character (e.g., pmol/L, umol/L, mIU/mL, mg/dL, mmol/L, %)",
+                    description: "Unit of measurement as seen in PDF (e.g., mg/dL, mmol/L, pmol/L, pg/mL, umol/L, ug/dL, mIU/mL, IU/L, %)",
                   },
                   referenceRangeLow: {
                     anyOf: [{ type: "number" }, { type: "null" }],
@@ -177,6 +160,13 @@ Output only the structured data as JSON.`;
 
   const parsed = JSON.parse(content);
   const validated = gptResponseSchema.parse(parsed);
+  
+  // Log GPT extraction for debugging
+  console.log('[GPT Extraction] Raw biomarkers:', JSON.stringify(validated.biomarkers.map(b => ({
+    name: b.name,
+    value: b.value,
+    unit: b.unit
+  })), null, 2));
   
   return validated;
 }
