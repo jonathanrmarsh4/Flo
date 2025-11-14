@@ -4,6 +4,7 @@ import { Strategy, type VerifyFunction } from "openid-client/passport";
 
 import passport from "passport";
 import session from "express-session";
+import jwt from "jsonwebtoken";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
@@ -171,6 +172,65 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // First, check for JWT token in Authorization header (mobile authentication)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    
+    try {
+      // Guard against missing SESSION_SECRET
+      if (!process.env.SESSION_SECRET) {
+        console.error('[JWT] SESSION_SECRET is not configured');
+        return res.status(500).json({ message: "Server configuration error" });
+      }
+      
+      const secret = process.env.SESSION_SECRET;
+      
+      // Verify JWT with standard claims
+      const decoded = jwt.verify(token, secret, {
+        issuer: 'flo-health-app',
+        audience: 'flo-mobile-client',
+      }) as any;
+      
+      // SECURITY: Only trust sub claim, fetch everything else from database
+      const dbUser = await storage.getUser(decoded.sub);
+      if (!dbUser) {
+        console.error('[JWT] User not found:', decoded.sub);
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Check account status
+      if (dbUser.status !== 'active') {
+        console.error('[JWT] Inactive account:', decoded.sub);
+        return res.status(401).json({ message: "Account suspended" });
+      }
+      
+      // Attach complete user object to request (matching session auth structure)
+      req.user = {
+        id: dbUser.id,
+        email: dbUser.email,
+        firstName: dbUser.firstName,
+        lastName: dbUser.lastName,
+        role: dbUser.role,
+        status: dbUser.status,
+        // Mobile auth doesn't have OIDC claims, but include empty object for compatibility
+        claims: { sub: dbUser.id },
+      } as any;
+      
+      return next();
+    } catch (error) {
+      if (error instanceof jwt.JsonWebTokenError) {
+        console.error('[JWT] Verification failed:', error.message);
+      } else if (error instanceof jwt.TokenExpiredError) {
+        console.error('[JWT] Token expired');
+      } else {
+        console.error('[JWT] Unknown error:', error);
+      }
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+  }
+  
+  // Fall back to session-based authentication (web/Replit Auth)
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

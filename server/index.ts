@@ -6,8 +6,24 @@ import { setupVite, serveStatic, log } from "./vite";
 const app = express();
 
 app.use(cors({
-  origin: true,
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'capacitor://localhost',
+      /^https:\/\/.*\.replit\.dev$/,
+      /^https:\/\/.*\.repl\.co$/,
+      'https://get-flo.com',
+    ];
+    
+    if (!origin || allowedOrigins.some(allowed => 
+      typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
+    )) {
+      callback(null, true);
+    } else {
+      callback(null, true);
+    }
+  },
   credentials: true,
+  exposedHeaders: ['set-cookie'],
 }));
 
 declare module 'http' {

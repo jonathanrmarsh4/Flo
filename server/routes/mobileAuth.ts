@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 import { storage } from "../storage";
@@ -21,6 +22,25 @@ import {
 import { fromError } from "zod-validation-error";
 
 const router = Router();
+
+// Helper function to generate JWT token for mobile authentication
+function generateMobileAuthToken(userId: number | string): string {
+  if (!process.env.SESSION_SECRET) {
+    throw new Error('SESSION_SECRET is required for JWT generation');
+  }
+  
+  const payload = {
+    sub: userId.toString(),
+    iss: 'flo-health-app',
+    aud: 'flo-mobile-client',
+    type: 'mobile',
+  };
+  
+  const secret = process.env.SESSION_SECRET;
+  const expiresIn = '7d'; // 7 days to match session TTL
+  
+  return jwt.sign(payload, secret, { expiresIn });
+}
 
 // Apple Sign-In endpoint
 router.post("/api/mobile/auth/apple", async (req, res) => {
@@ -140,26 +160,20 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
       }
     }
     
-    // Create session using Passport
-    req.login({ id: user.id, claims: { sub: user.id }, role: user.role, status: user.status }, (err) => {
-      if (err) {
-        console.error("Login error:", err);
-        return res.status(500).json({ error: "Failed to create session" });
-      }
-      
-      res.json({ 
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          status: user.status,
-        },
-        session: {
-          authenticated: true,
-        },
-      });
+    // Generate JWT token for mobile authentication
+    const token = generateMobileAuthToken(user.id);
+    
+    res.json({ 
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+      },
+      token, // JWT token for mobile apps
+      authenticated: true,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
@@ -265,26 +279,20 @@ router.post("/api/mobile/auth/google", async (req, res) => {
       }
     }
     
-    // Create session using Passport
-    req.login({ id: user.id, claims: { sub: user.id }, role: user.role, status: user.status }, (err) => {
-      if (err) {
-        console.error("Login error:", err);
-        return res.status(500).json({ error: "Failed to create session" });
-      }
-      
-      res.json({ 
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          status: user.status,
-        },
-        session: {
-          authenticated: true,
-        },
-      });
+    // Generate JWT token for mobile authentication
+    const token = generateMobileAuthToken(user.id);
+    
+    res.json({ 
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+      },
+      token, // JWT token for mobile apps
+      authenticated: true,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
@@ -338,13 +346,8 @@ router.post("/api/mobile/auth/register", async (req, res) => {
         metadata: null,
       });
       
-      // Log them in
-      await new Promise<void>((resolve, reject) => {
-        req.login({ id: existingUser.id, claims: { sub: existingUser.id }, role: existingUser.role, status: existingUser.status }, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      // Generate JWT token for mobile authentication
+      const token = generateMobileAuthToken(existingUser.id);
       
       return res.json({ 
         user: {
@@ -355,9 +358,8 @@ router.post("/api/mobile/auth/register", async (req, res) => {
           role: existingUser.role,
           status: existingUser.status,
         },
-        session: {
-          authenticated: true,
-        },
+        token,
+        authenticated: true,
       });
     }
     
@@ -394,26 +396,20 @@ router.post("/api/mobile/auth/register", async (req, res) => {
       await storage.upsertProfile(user.id, {});
     }
     
-    // Create session using Passport
-    req.login({ id: user.id, claims: { sub: user.id }, role: user.role, status: user.status }, (err) => {
-      if (err) {
-        console.error("Login error:", err);
-        return res.status(500).json({ error: "Failed to create session" });
-      }
-      
-      res.json({ 
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          status: user.status,
-        },
-        session: {
-          authenticated: true,
-        },
-      });
+    // Generate JWT token for mobile authentication
+    const token = generateMobileAuthToken(user.id);
+    
+    res.json({ 
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+      },
+      token, // JWT token for mobile apps
+      authenticated: true,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
@@ -458,26 +454,20 @@ router.post("/api/mobile/auth/login", async (req, res) => {
     // Update last login timestamp
     await storage.updateLastLoginAt(user.id);
     
-    // Create session using Passport
-    req.login({ id: user.id, claims: { sub: user.id }, role: user.role, status: user.status }, (err) => {
-      if (err) {
-        console.error("Login error:", err);
-        return res.status(500).json({ error: "Failed to create session" });
-      }
-      
-      res.json({ 
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          status: user.status,
-        },
-        session: {
-          authenticated: true,
-        },
-      });
+    // Generate JWT token for mobile authentication
+    const token = generateMobileAuthToken(user.id);
+    
+    res.json({ 
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+      },
+      token, // JWT token for mobile apps
+      authenticated: true,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
@@ -570,8 +560,8 @@ router.post("/api/mobile/auth/reset", async (req, res) => {
 // Set password endpoint (for OAuth users who want to add email/password auth)
 router.post("/api/mobile/auth/set-password", async (req, res) => {
   try {
-    // Check if user is authenticated
-    if (!req.isAuthenticated || !req.isAuthenticated()) {
+    // Check if user is authenticated (works for both session and JWT)
+    if (!req.user || !(req.user as any).id) {
       return res.status(401).json({ error: "Not authenticated" });
     }
     

@@ -10,7 +10,8 @@ declare global {
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
-  if (!req.isAuthenticated()) {
+  // Works with both session auth and JWT auth
+  if (!req.user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   

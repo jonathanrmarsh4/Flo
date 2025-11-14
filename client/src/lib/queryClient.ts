@@ -11,6 +11,35 @@ function getApiBaseUrl(): string {
   return '';
 }
 
+// Get auth token from secure encrypted storage (mobile) or session cookie (web)
+async function getAuthToken(): Promise<string | null> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      // Dynamic import to avoid loading plugin on web
+      const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+      const { value } = await SecureStoragePlugin.get({ key: 'auth_token' });
+      return value;
+    } catch (error) {
+      // Token not found or error reading secure storage
+      return null;
+    }
+  }
+  // For web, we rely on session cookies automatically sent by the browser
+  return null;
+}
+
+// Create authorization headers with JWT token for mobile
+async function getAuthHeaders(additionalHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...additionalHeaders };
+  
+  const token = await getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -31,9 +60,13 @@ export async function apiRequest(
   console.log(`[API Request] ${method} ${fullUrl}`);
   
   try {
+    const headers = await getAuthHeaders(
+      data ? { "Content-Type": "application/json" } : {}
+    );
+    
     const res = await fetch(fullUrl, {
       method,
-      headers: data ? { "Content-Type": "application/json" } : {},
+      headers,
       body: data ? JSON.stringify(data) : undefined,
       credentials: "include",
     });
@@ -56,7 +89,10 @@ export const getQueryFn: <T>(options: {
     const baseUrl = getApiBaseUrl();
     const fullUrl = baseUrl + queryKey.join("/");
     
+    const headers = await getAuthHeaders();
+    
     const res = await fetch(fullUrl, {
+      headers,
       credentials: "include",
     });
 

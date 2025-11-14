@@ -96,6 +96,23 @@ export default function MobileAuth() {
       console.log('[Apple Sign-In] Backend response status:', response.status);
 
       if (response.ok) {
+        const data = await response.json();
+        console.log('[Apple Sign-In] Response data:', { hasToken: !!data.token, hasUser: !!data.user });
+        
+        // Store JWT token in secure encrypted storage (always native for Apple Sign-In)
+        if (data.token) {
+          try {
+            const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+            await SecureStoragePlugin.set({
+              key: 'auth_token',
+              value: data.token,
+            });
+            console.log('[Apple Sign-In] Token stored securely');
+          } catch (error) {
+            console.error('[Apple Sign-In] Failed to store token securely:', error);
+          }
+        }
+        
         // Refetch user data and wait for it to complete
         await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
         await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
@@ -136,6 +153,21 @@ export default function MobileAuth() {
       const response = await apiRequest('POST', '/api/mobile/auth/login', data);
       
       if (response.ok) {
+        const responseData = await response.json();
+        
+        // Store JWT token in secure encrypted storage (mobile only)
+        if (responseData.token && isNative) {
+          try {
+            const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+            await SecureStoragePlugin.set({
+              key: 'auth_token',
+              value: responseData.token,
+            });
+          } catch (error) {
+            console.error('[Login] Failed to store token securely:', error);
+          }
+        }
+        
         await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
         toast({
           title: "Welcome Back!",
@@ -167,6 +199,21 @@ export default function MobileAuth() {
       const response = await apiRequest('POST', '/api/mobile/auth/register', data);
       
       if (response.ok) {
+        const responseData = await response.json();
+        
+        // Store JWT token in secure encrypted storage (mobile only)
+        if (responseData.token && isNative) {
+          try {
+            const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+            await SecureStoragePlugin.set({
+              key: 'auth_token',
+              value: responseData.token,
+            });
+          } catch (error) {
+            console.error('[Register] Failed to store token securely:', error);
+          }
+        }
+        
         await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
         toast({
           title: "Account Created!",
