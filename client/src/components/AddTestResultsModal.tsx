@@ -192,6 +192,10 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       const formData = new FormData();
       formData.append('file', selectedFile);
 
+      // Get API base URL and auth headers
+      const { Capacitor } = await import('@capacitor/core');
+      const baseUrl = Capacitor.isNativePlatform() ? 'https://get-flo.com' : '';
+      
       // Get auth headers (includes JWT token for mobile)
       // IMPORTANT: Don't set Content-Type for FormData - browser sets it automatically with boundary
       const { getAuthHeaders } = await import('@/lib/queryClient');
@@ -206,10 +210,11 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
         }
       });
 
-      const response = await fetch('/api/labs/upload', {
+      const response = await fetch(`${baseUrl}/api/labs/upload`, {
         method: 'POST',
         headers: headersObject,
         body: formData,
+        credentials: 'include',
       });
 
       setUploadProgress(30);
@@ -234,10 +239,18 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     }
   };
 
-  const startPolling = (id: string) => {
+  const startPolling = async (id: string) => {
+    const { Capacitor } = await import('@capacitor/core');
+    const baseUrl = Capacitor.isNativePlatform() ? 'https://get-flo.com' : '';
+    const { getAuthHeaders } = await import('@/lib/queryClient');
+    
     const poll = async () => {
       try {
-        const response = await fetch(`/api/labs/status/${id}`);
+        const headers = await getAuthHeaders({});
+        const response = await fetch(`${baseUrl}/api/labs/status/${id}`, {
+          credentials: 'include',
+          headers,
+        });
         if (!response.ok) {
           throw new Error('Failed to get job status');
         }
