@@ -1,6 +1,12 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { PDFParse } from "pdf-parse";
+import { 
+  countryUnitConventions, 
+  COUNTRY_NAMES,
+  type CountryCode,
+  type BiomarkerUnitConvention
+} from "../../shared/domain/countryUnitConventions";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -52,12 +58,31 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   }
 }
 
-async function extractBiomarkersWithGPT(pdfText: string): Promise<GPTResponse> {
+async function extractBiomarkersWithGPT(pdfText: string, country: CountryCode = "US"): Promise<GPTResponse> {
+  const countryName = COUNTRY_NAMES[country];
+  const conventions = countryUnitConventions[country];
+  
+  const expectedUnits = conventions
+    .map((c: BiomarkerUnitConvention) => `- ${c.biomarkerName}: ${c.preferredUnit}`)
+    .join("\n");
+
   const systemPrompt = `You are a medical lab report analyzer. Extract biomarker measurements from lab reports with high accuracy.
+
+CRITICAL UNIT EXTRACTION RULES:
+1. Extract the EXACT unit as printed in the PDF - DO NOT convert or change units
+2. If the PDF shows "1020 pmol/L", extract unit as "pmol/L" (not "pg/mL")
+3. If the PDF shows "95 mg/dL", extract unit as "mg/dL" (not "mmol/L")
+4. NEVER mathematically convert values - only extract what you see
+5. NEVER substitute one unit label for another even if they measure the same thing
+
+Context: This lab test was performed in ${countryName}, where these units are commonly used:
+${expectedUnits}
+
+If you see a unit that differs from the expected unit for that country, that's OK - extract it exactly as shown. The discrepancy will be handled by the validation system.
 
 Instructions:
 1. Identify all biomarker measurements with their values and units
-2. Extract the unit of measurement as you see it in the PDF (e.g., mg/dL, mmol/L, pmol/L, umol/L, mIU/mL, IU/L, %, pg/mL, ug/dL)
+2. Extract the unit EXACTLY as printed in the PDF (e.g., mg/dL, mmol/L, pmol/L, umol/L, mIU/mL, IU/L, %, pg/mL, ug/dL, mcg/dL, µg/dL, µmol/L)
 3. IMPORTANT: Extract reference ranges with their numeric values - this is critical for proper analysis
 4. Note any flags (High, Low, Critical, etc.)
 5. Find the test date (use ISO 8601 format: YYYY-MM-DD)
@@ -171,7 +196,10 @@ Output only the structured data as JSON.`;
   return validated;
 }
 
-export async function processLabUpload(pdfBuffer: Buffer): Promise<ProcessingResult> {
+export async function processLabUpload(
+  pdfBuffer: Buffer, 
+  country: CountryCode = "US"
+): Promise<ProcessingResult> {
   const MAX_PDF_SIZE = 10 * 1024 * 1024;
   
   if (pdfBuffer.length > MAX_PDF_SIZE) {
@@ -195,7 +223,7 @@ export async function processLabUpload(pdfBuffer: Buffer): Promise<ProcessingRes
     }
 
     steps[1].status = "in_progress";
-    const extractedData = await extractBiomarkersWithGPT(pdfText);
+    const extractedData = await extractBiomarkersWithGPT(pdfText, country);
     steps[1].status = "completed";
     steps[1].timestamp = new Date().toISOString();
 
