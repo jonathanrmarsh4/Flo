@@ -1,0 +1,35 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/3E39104E-9409-4927-889E-FDC556E2678B/App.app'
+⚡️  Loading app at capacitor://localhost...
+Networking process (0x11605c190) took 10.784170 seconds to launch
+GPU process (0x1161181e0) took 3.388197 seconds to launch
+WebContent process (0x1160e8100) took 3.401600 seconds to launch
+0x1160e8100 - [PID=28613] WebProcessProxy::didBecomeUnresponsive:
+0x10b3b4e18 - [pageProxyID=7, webPageID=8, PID=28613] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[28613] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 84440982
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MDM0YjJiZS1iYjkyLTQ5NDQtYmM0Zi0xYjE0OGJkMzA5MjYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzA5Njg3NSwiZXhwIjoxNzYzNzAxNjc1fQ.c63oEHCXTlrlrX
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  To Native ->  SecureStoragePlugin get 84440983
+⚡️  To Native ->  SecureStoragePlugin get 84440984
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MDM0YjJiZS1iYjkyLTQ5NDQtYmM0Zi0xYjE0OGJkMzA5MjYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzA5Njg3NSwiZXhwIjoxNzYzNzAxNjc1fQ.c63oEHCXTlrlrX
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MDM0YjJiZS1iYjkyLTQ5NDQtYmM0Zi0xYjE0OGJkMzA5MjYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzA5Njg3NSwiZXhwIjoxNzYzNzAxNjc1fQ.c63oEHCXTlrlrX
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 89061765
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MDM0YjJiZS1iYjkyLTQ5NDQtYmM0Zi0xYjE0OGJkMzA5MjYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzA5Njg3NSwiZXhwIjoxNzYzNzAxNjc1fQ.c63oEHCXTlrlrX
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  To Native ->  SecureStoragePlugin get 89061766
+⚡️  To Native ->  SecureStoragePlugin get 89061767
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MDM0YjJiZS1iYjkyLTQ5NDQtYmM0Zi0xYjE0OGJkMzA5MjYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzA5Njg3NSwiZXhwIjoxNzYzNzAxNjc1fQ.c63oEHCXTlrlrX
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2MDM0YjJiZS1iYjkyLTQ5NDQtYmM0Zi0xYjE0OGJkMzA5MjYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzA5Njg3NSwiZXhwIjoxNzYzNzAxNjc1fQ.c63oEHCXTlrlrX
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
