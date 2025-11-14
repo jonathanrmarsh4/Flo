@@ -18,9 +18,11 @@ async function getAuthToken(): Promise<string | null> {
       // Dynamic import to avoid loading plugin on web
       const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
       const { value } = await SecureStoragePlugin.get({ key: 'auth_token' });
+      console.log('[getAuthToken] Retrieved token:', value ? `${value.substring(0, 20)}...` : 'null');
       return value;
     } catch (error) {
       // Token not found or error reading secure storage
+      console.log('[getAuthToken] Failed to retrieve token:', error);
       return null;
     }
   }
@@ -34,7 +36,10 @@ async function getAuthHeaders(additionalHeaders: Record<string, string> = {}): P
   
   const token = await getAuthToken();
   if (token) {
+    console.log('[getAuthHeaders] Adding Authorization header with token');
     headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.log('[getAuthHeaders] No token found, skipping Authorization header');
   }
   
   return headers;
