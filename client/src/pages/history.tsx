@@ -28,8 +28,9 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Edit2, Trash2, Check, X, Sparkles, Moon, Sun } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest, getAuthHeaders } from "@/lib/queryClient";
 import type { BiomarkerMeasurement } from "@shared/schema";
+import { Capacitor } from '@capacitor/core';
 
 export default function MeasurementHistory() {
   const { toast } = useToast();
@@ -51,7 +52,10 @@ export default function MeasurementHistory() {
   const { data: measurementsData, isLoading: measurementsLoading } = useQuery<any>({
     queryKey: ['/api/measurements', { biomarkerId: selectedBiomarkerId }],
     queryFn: async () => {
-      const response = await fetch(`/api/measurements?biomarkerId=${selectedBiomarkerId}`);
+      const baseUrl = Capacitor.isNativePlatform() ? 'https://get-flo.com' : '';
+      const url = `${baseUrl}/api/measurements?biomarkerId=${selectedBiomarkerId}`;
+      const headers = await getAuthHeaders();
+      const response = await fetch(url, { headers, credentials: 'include' });
       if (!response.ok) throw new Error('Failed to fetch measurements');
       return response.json();
     },
@@ -63,15 +67,7 @@ export default function MeasurementHistory() {
   // Update measurement mutation
   const updateMutation = useMutation({
     mutationFn: async ({ id, valueRaw, unitRaw }: { id: string; valueRaw: number; unitRaw: string }) => {
-      const response = await fetch(`/api/measurements/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ valueRaw, unitRaw }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Update failed');
-      }
+      const response = await apiRequest('PATCH', `/api/measurements/${id}`, { valueRaw, unitRaw });
       return await response.json();
     },
     onSuccess: () => {
@@ -95,13 +91,7 @@ export default function MeasurementHistory() {
   // Delete measurement mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/measurements/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Delete failed');
-      }
+      await apiRequest('DELETE', `/api/measurements/${id}`);
       return true;
     },
     onSuccess: () => {
