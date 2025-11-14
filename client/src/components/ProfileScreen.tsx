@@ -1,4 +1,4 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Globe } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
@@ -13,6 +13,9 @@ import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
+import { COUNTRY_NAMES } from '../../../shared/domain/countryUnitConventions';
+
+type CountryCode = "US" | "CA" | "GB" | "AU" | "NZ";
 
 interface ProfileScreenProps {
   isDark: boolean;
@@ -365,6 +368,35 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               ) : (
                 <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sex">
                   {profile?.sex || 'Not set'}
+                </span>
+              )}
+            </div>
+
+            {/* Home Country */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <Globe className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Home Country</span>
+              </div>
+              {isEditing ? (
+                <Select
+                  value={profile?.country ?? 'US'}
+                  onValueChange={(value) => updateDemographics.mutate({ country: value as CountryCode })}
+                >
+                  <SelectTrigger className="w-44" data-testid="select-country">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(["US", "CA", "GB", "AU", "NZ"] as CountryCode[]).map((code) => (
+                      <SelectItem key={code} value={code}>
+                        {COUNTRY_NAMES[code]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-country">
+                  {profile?.country ? COUNTRY_NAMES[profile.country as CountryCode] : 'Not set'}
                 </span>
               )}
             </div>
