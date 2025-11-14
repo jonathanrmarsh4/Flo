@@ -8,7 +8,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        
+        // Disable WKWebView rubber band bounce to prevent white strip during overscroll
+        // This must run after the window is set up, so we dispatch it to the next run loop
+        DispatchQueue.main.async {
+            if let window = self.window {
+                // Try UINavigationController first (common Capacitor setup)
+                if let nav = window.rootViewController as? UINavigationController,
+                   let bridgeVC = nav.viewControllers.first as? CAPBridgeViewController {
+                    self.configureWebView(bridgeVC)
+                }
+                // Fallback: direct CAPBridgeViewController
+                else if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
+                    self.configureWebView(bridgeVC)
+                }
+            }
+        }
+        
         return true
+    }
+    
+    // Configure WKWebView to disable bounce and set dark background
+    private func configureWebView(_ bridgeVC: CAPBridgeViewController) {
+        guard let webView = bridgeVC.webView else { return }
+        
+        // Disable rubber band bounce
+        webView.scrollView.bounces = false
+        webView.scrollView.alwaysBounceVertical = false
+        
+        // Set dark background to match app theme (#0f172a = slate-900)
+        let darkBackground = UIColor(red: 15/255.0, green: 23/255.0, blue: 42/255.0, alpha: 1.0)
+        webView.scrollView.backgroundColor = darkBackground
+        webView.isOpaque = false
+        webView.backgroundColor = darkBackground
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
