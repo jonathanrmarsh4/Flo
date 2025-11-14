@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { CountryCode } from "./domain/countryUnitConventions";
 
 // Admin & Billing enums
 export const userRoleEnum = pgEnum("user_role", ["free", "premium", "admin"]);
@@ -569,6 +570,7 @@ export const insertProfileSchema = createInsertSchema(profiles, {
 export const updateDemographicsSchema = z.object({
   dateOfBirth: z.date().optional(),
   sex: SexEnum.optional(),
+  country: CountryCode.optional(),
   weight: z.number().min(0).optional(),
   weightUnit: WeightUnitEnum.optional(),
   height: z.number().min(0).optional(),
