@@ -29,6 +29,7 @@ import multer from "multer";
 import crypto from "crypto";
 import { extractRawBiomarkers } from "./services/simpleExtractor";
 import { normalizeBatch } from "./services/normalizer";
+import { processLabUpload } from "./services/labProcessor";
 import { normalizeMeasurement } from "@shared/domain/biomarkers";
 import { 
   calculatePhenoAge, 
@@ -145,7 +146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Get user profile for normalization context
         const profile = await storage.getProfile(userId);
-        const userSex = profile?.sex;
+        const userSex = profile?.sex ?? undefined;
         const userAgeY = profile?.dateOfBirth 
           ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
           : undefined;
@@ -159,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Create test session
         const testDate = new Date();
-        const session = await storage.createBiomarkerTestSession({
+        const session = await storage.createTestSession({
           userId,
           source: "ai_extracted",
           testDate,
@@ -169,7 +170,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const measurementIds: string[] = [];
         if (normalizationResult.normalized && normalizationResult.normalized.length > 0) {
           for (const normalized of normalizationResult.normalized) {
-            const measurement = await storage.createBiomarkerMeasurement({
+            const measurement = await storage.createMeasurement({
               sessionId: session.id,
               biomarkerId: normalized.biomarkerId,
               recordId: record.id,

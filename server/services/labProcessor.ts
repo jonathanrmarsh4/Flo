@@ -162,13 +162,13 @@ Output only the structured data as JSON.`;
   
   return {
     ...validated,
-    labName: validated.labName ?? undefined,
-    notes: validated.notes ?? undefined,
+    labName: validated.labName ?? null,
+    notes: validated.notes ?? null,
     biomarkers: validated.biomarkers.map(b => ({
       ...b,
-      referenceRangeLow: b.referenceRangeLow ?? undefined,
-      referenceRangeHigh: b.referenceRangeHigh ?? undefined,
-      flags: b.flags ?? [],
+      referenceRangeLow: b.referenceRangeLow ?? null,
+      referenceRangeHigh: b.referenceRangeHigh ?? null,
+      flags: b.flags ?? null,
     })),
   };
 }
