@@ -75,45 +75,103 @@ function normalizeUnit(unit: string): string {
 }
 
 /**
- * Reverse-map units that GPT-4 commonly "helpfully" converts
- * This handles cases where GPT extracts pg/mL when PDF says pmol/L, etc.
+ * GPT-4 unit conversion patterns observed in real extractions
+ * Maps: GPT_RETURNED_UNIT → LIKELY_PDF_UNIT
  * 
- * Known GPT conversion patterns:
- * - pmol/L → pg/mL (hormones: testosterone, estradiol, SHBG)
- * - umol/L → ug/dL (DHEA-S)
- * - mIU/mL → IU/L (FSH, LH)
- * - mIU/L → uIU/mL (Prolactin)
+ * Database canonical units from seed data:
+ * - Free Testosterone: pg/mL ✓ (matches)
+ * - Total Testosterone: ng/dL 
+ * - Estradiol (E2): pg/mL ✓ (matches)
+ * - SHBG: nmol/L ✓ (GPT converts to nmol/L from pmol/L)
+ * - DHEA-S: μg/dL ✓ (matches, GPT sometimes uses umol/L)
+ * - FSH: mIU/mL ✓ (matches)
+ * - LH: mIU/mL ✓ (matches) 
+ * - Prolactin: ng/mL (GPT sometimes uses mIU/L or pg/mL)
+ * - Cortisol: μg/dL
+ * - TSH: mIU/L
+ * - Free T3: pg/mL
+ * - Free T4: ng/dL
+ * 
+ * IMPORTANT: This map is ONLY for reversing GPT conversions, not for general unit conversion.
+ * We only reverse if GPT returned a unit that is NOT the canonical unit.
  */
-export function reverseMapGPTUnit(gptUnit: string, biomarkerName: string): string {
-  const normalizedUnit = normalizeUnit(gptUnit);
+const GPT_UNIT_REVERSE_MAP: Record<string, Record<string, string>> = {
+  // SHBG: GPT converts pmol/L → nmol/L (canonical is nmol/L, so we need to reverse nmol/L if PDF had pmol/L)
+  // But wait - if canonical IS nmol/L, then GPT returning nmol/L is CORRECT
+  // The issue is: PDF has "pmol/L", GPT incorrectly reads as "nmol/L"
+  // Solution: Map back from what GPT returns to what PDF likely had
+  'nmol/l': {
+    'shbg': 'pmol/L',  // SHBG PDFs often use pmol/L, GPT converts to nmol/L
+  },
+  'ug/dl': {
+    'dhea': 'umol/L',  // DHEA-S PDFs use umol/L, GPT sometimes converts to ug/dL
+  },
+  'iu/l': {
+    'fsh': 'mIU/mL',  // FSH PDFs use mIU/mL, GPT converts to IU/L
+    'lh': 'mIU/mL',   // LH PDFs use mIU/mL, GPT converts to IU/L
+  },
+  'uiu/ml': {
+    'prolactin': 'mIU/L',  // Prolactin PDFs use mIU/L, GPT converts to uIU/mL
+  },
+  'pg/ml': {
+    'prolactin': 'mIU/L',  // Prolactin PDFs sometimes show mIU/L, GPT converts to pg/mL
+    'testosterone': 'pmol/L',  // Some testosterone PDFs use pmol/L, GPT converts to pg/mL
+    'shbg': 'pmol/L',  // Some SHBG PDFs use pmol/L, GPT converts to pg/mL
+  }
+};
+
+/**
+ * Reverse-map units that GPT-4 commonly "helpfully" converts
+ * Uses biomarker metadata-driven approach instead of substring matching
+ * 
+ * @param gptUnit - The unit that GPT extracted
+ * @param biomarkerName - The biomarker name (for lookup)
+ * @param biomarkers - Array of biomarkers (to check canonical unit)
+ * @param synonyms - Array of synonyms (for resolving name)
+ * @returns The corrected unit, or original if no mapping found
+ */
+export function reverseMapGPTUnit(
+  gptUnit: string,
+  biomarkerName: string,
+  biomarkers: Biomarker[],
+  synonyms: BiomarkerSynonym[]
+): string {
+  const normalizedGptUnit = normalizeUnit(gptUnit);
   const normalizedName = normalizeString(biomarkerName);
   
-  // Hormone biomarkers that GPT converts pmol/L → pg/mL
-  const pmolLBiomarkers = ['testosterone', 'free testosterone', 'estradiol', 'oestradiol', 'shbg', 'sex hormone binding globulin'];
-  if (normalizedUnit === 'pg/ml' && pmolLBiomarkers.some(name => normalizedName.includes(name))) {
-    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned pg/mL, reversing to pmol/L`);
-    return 'pmol/L';
+  // Try to resolve biomarker to get canonical unit
+  let biomarker: Biomarker | null = null;
+  try {
+    biomarker = resolveBiomarker(biomarkerName, biomarkers, synonyms);
+  } catch (error) {
+    // Biomarker not found - can't reverse map, return original
+    return gptUnit;
   }
   
-  // DHEA-S: GPT converts umol/L → ug/dL
-  if (normalizedUnit === 'ug/dl' && (normalizedName.includes('dhea') || normalizedName.includes('dehydroepiandrosterone'))) {
-    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned ug/dL, reversing to umol/L`);
-    return 'umol/L';
+  // Check if GPT unit matches canonical unit - if yes, no reverse mapping needed
+  if (normalizeUnit(biomarker.canonicalUnit) === normalizedGptUnit) {
+    // GPT returned the canonical unit - this is likely correct, don't reverse
+    return gptUnit;
   }
   
-  // FSH, LH: GPT converts mIU/mL → IU/L
-  if (normalizedUnit === 'iu/l' && (normalizedName.includes('fsh') || normalizedName.includes('lh') || normalizedName.includes('follicle stimulating') || normalizedName.includes('luteinizing'))) {
-    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned IU/L, reversing to mIU/mL`);
-    return 'mIU/mL';
+  // Look up reverse mapping for this GPT unit
+  const reverseMap = GPT_UNIT_REVERSE_MAP[normalizedGptUnit];
+  if (!reverseMap) {
+    // No reverse mapping for this GPT unit
+    return gptUnit;
   }
   
-  // Prolactin: GPT sometimes converts mIU/L → uIU/mL or pg/mL
-  if ((normalizedUnit === 'uiu/ml' || normalizedUnit === 'pg/ml') && normalizedName.includes('prolactin')) {
-    console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned ${gptUnit}, reversing to mIU/L`);
-    return 'mIU/L';
+  // Check if biomarker name matches any key in the reverse map (fuzzy matching)
+  for (const [keyword, correctedUnit] of Object.entries(reverseMap)) {
+    if (normalizedName.includes(keyword) || 
+        biomarker.name.toLowerCase().includes(keyword) ||
+        biomarker.id.toLowerCase().includes(keyword)) {
+      console.log(`[Unit Reverse-Map] ${biomarkerName}: GPT returned "${gptUnit}", reversing to "${correctedUnit}" (canonical: ${biomarker.canonicalUnit})`);
+      return correctedUnit;
+    }
   }
   
-  // No reverse mapping needed - return original
+  // No reverse mapping found for this biomarker
   return gptUnit;
 }
 
@@ -464,7 +522,7 @@ export function normalizeMeasurement(
   const warnings: string[] = [];
 
   // Step 0: Reverse-map unit if GPT-4 converted it
-  const correctedUnit = reverseMapGPTUnit(input.unit, input.name);
+  const correctedUnit = reverseMapGPTUnit(input.unit, input.name, biomarkers, synonyms);
   if (correctedUnit !== input.unit) {
     console.log(`[Normalization] ${input.name}: Unit corrected from ${input.unit} → ${correctedUnit}`);
   }
