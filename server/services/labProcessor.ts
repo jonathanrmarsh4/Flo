@@ -55,33 +55,43 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
 async function extractBiomarkersWithGPT(pdfText: string): Promise<GPTResponse> {
   const systemPrompt = `You are a medical lab report analyzer. Extract biomarker measurements from lab reports with high accuracy.
 
+CRITICAL RULE: NEVER CONVERT, NORMALIZE, OR SIMPLIFY UNITS
+You must extract the EXACT unit string as written in the PDF - character for character.
+
+DO NOT DO THIS (Common Mistakes):
+❌ PDF says "22 pmol/L" → DO NOT extract as "nmol/L" 
+❌ PDF says "8.3 umol/L" → DO NOT extract as "ug/dL"
+❌ PDF says "1 mIU/mL" → DO NOT extract as "IU/L"
+❌ PDF says "5.3 µmol/L" → DO NOT extract as "umol/L" (preserve µ symbol)
+❌ PDF says "7.2 K/µL" → DO NOT extract as "10³/µL"
+
+DO THIS (Correct Extraction):
+✓ PDF says "22 pmol/L" → Extract EXACTLY as "pmol/L"
+✓ PDF says "8.3 umol/L" → Extract EXACTLY as "umol/L"
+✓ PDF says "1 mIU/mL" → Extract EXACTLY as "mIU/mL"
+✓ PDF says "5.3 µmol/L" → Extract EXACTLY as "µmol/L" (keep µ symbol)
+✓ PDF says "95 mg/dL" → Extract EXACTLY as "mg/dL"
+
 Instructions:
 1. Identify all biomarker measurements with their values and units
-2. CRITICAL: Extract the COMPLETE unit of measurement exactly as shown (e.g., "mg/dL" not "mg", "10³/µL" not "K", "mmol/L" not "mmol")
-3. CRITICAL: Extract reference ranges AND their units - this is essential for proper unit conversion and trend tracking
-4. If reference range is in a different unit than the measurement, extract both the measurement unit AND the reference range unit
-5. Note any flags (High, Low, Critical, etc.)
-6. Find the test date
-7. Be conservative - only extract data you're confident about
-8. For biomarker names, use the exact terminology from the report
-9. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), you MUST explicitly return null if the data is not available. Never omit these fields
+2. CRITICAL: Copy the unit string EXACTLY as it appears - do not convert pmol→nmol, umol→ug, mIU→IU, etc.
+3. Extract reference ranges AND their units (essential for unit conversion)
+4. Note any flags (High, Low, Critical, etc.)
+5. Find the test date
+6. Be conservative - only extract data you're confident about
+7. Use exact biomarker names from the report
+8. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), explicitly return null if not available
 
 Common biomarkers to look for:
-- Cholesterol panel: Total Cholesterol, LDL, HDL, Triglycerides
+- Cholesterol: Total Cholesterol, LDL, HDL, Triglycerides
 - Metabolic: Glucose, HbA1c, Insulin
 - Liver: ALT, AST, ALP, Bilirubin
 - Kidney: Creatinine, BUN, eGFR
 - Thyroid: TSH, T3, T4
 - Inflammation: CRP, ESR
-- Complete Blood Count: WBC, RBC, Hemoglobin, Hematocrit, Platelets
+- CBC: WBC, RBC, Hemoglobin, Hematocrit, Platelets
 - Vitamins: Vitamin D, B12, Folate
-- Hormones: Testosterone, Estradiol, Cortisol
-
-Unit Extraction Examples:
-- "95 mg/dL" → unit: "mg/dL" (include both parts)
-- "7.2 K/µL" → unit: "K/µL" or "10³/µL" (preserve full unit)
-- "5.3 mmol/L" → unit: "mmol/L" (include /L)
-- "45 %" → unit: "%" (preserve percent sign)
+- Hormones: Testosterone, Estradiol, Cortisol, SHBG, DHEA-S, FSH, LH
 
 Output only the structured data as JSON.`;
 
@@ -125,7 +135,7 @@ Output only the structured data as JSON.`;
                   },
                   unit: {
                     type: "string",
-                    description: "The unit of measurement (e.g., mg/dL, mmol/L, %)",
+                    description: "EXACT unit string from PDF - DO NOT convert pmol→nmol, umol→ug, mIU→IU. Copy character-for-character (e.g., pmol/L, umol/L, mIU/mL, mg/dL, mmol/L, %)",
                   },
                   referenceRangeLow: {
                     anyOf: [{ type: "number" }, { type: "null" }],
