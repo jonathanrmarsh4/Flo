@@ -160,17 +160,7 @@ Output only the structured data as JSON.`;
   const parsed = JSON.parse(content);
   const validated = gptResponseSchema.parse(parsed);
   
-  return {
-    ...validated,
-    labName: validated.labName ?? undefined,
-    notes: validated.notes ?? undefined,
-    biomarkers: validated.biomarkers.map(b => ({
-      ...b,
-      referenceRangeLow: b.referenceRangeLow ?? undefined,
-      referenceRangeHigh: b.referenceRangeHigh ?? undefined,
-      flags: b.flags ?? [],
-    })),
-  };
+  return validated;
 }
 
 export async function processLabUpload(pdfBuffer: Buffer): Promise<ProcessingResult> {

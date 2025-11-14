@@ -193,8 +193,17 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       formData.append('file', selectedFile);
 
       // Get auth headers (includes JWT token for mobile)
+      // IMPORTANT: Don't set Content-Type for FormData - browser sets it automatically with boundary
       const { getAuthHeaders } = await import('@/lib/queryClient');
-      const headers = await getAuthHeaders({});
+      const authHeaders = await getAuthHeaders({});
+      
+      // Remove Content-Type if it exists - FormData handles this
+      const headers = new Headers();
+      Object.entries(authHeaders).forEach(([key, value]) => {
+        if (key.toLowerCase() !== 'content-type') {
+          headers.set(key, value);
+        }
+      });
 
       const response = await fetch('/api/labs/upload', {
         method: 'POST',
