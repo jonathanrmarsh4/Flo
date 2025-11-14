@@ -970,9 +970,9 @@ export type UserCredentials = typeof userCredentials.$inferSelect;
 export const appleSignInSchema = z.object({
   identityToken: z.string(),
   authorizationCode: z.string().optional(),
-  email: z.string().email().optional(),
-  givenName: z.string().optional(),
-  familyName: z.string().optional(),
+  email: z.string().email().nullable().optional(),
+  givenName: z.string().nullable().optional(),
+  familyName: z.string().nullable().optional(),
   user: z.string(), // Apple user ID
 });
 
