@@ -39,8 +39,10 @@ export function AdminUsersTab() {
   const { data, isLoading, error, refetch } = useQuery<UsersResponse>({
     queryKey: ['/api/admin/users', search, roleFilter, statusFilter, page],
     queryFn: async () => {
-      // Use apiRequest helper which handles iOS URLs and auth automatically
-      const response = await apiRequest('GET', `/api/admin/users${buildQueryString()}`);
+      const response = await fetch(`/api/admin/users${buildQueryString()}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch users');
       return response.json();
     },
     staleTime: 2 * 60 * 1000,
@@ -119,7 +121,7 @@ export function AdminUsersTab() {
         <Alert className="mb-6 bg-red-500/10 border-red-500/50" data-testid="alert-error">
           <AlertCircle className="h-4 w-4 text-red-500" />
           <AlertDescription className="text-white/90">
-            Failed to load users. <Button variant="ghost" onClick={() => refetch()} className="text-red-400 hover:text-red-300 p-0 h-auto" data-testid="button-retry">Try again</Button>
+            Failed to load users. <Button variant="link" onClick={() => refetch()} className="text-red-400 hover:text-red-300 p-0 h-auto" data-testid="button-retry">Try again</Button>
           </AlertDescription>
         </Alert>
       )}

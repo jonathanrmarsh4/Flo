@@ -15,7 +15,6 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { CountryCode } from "./domain/countryUnitConventions";
 
 // Admin & Billing enums
 export const userRoleEnum = pgEnum("user_role", ["free", "premium", "admin"]);
@@ -44,7 +43,6 @@ export const smokingStatusEnum = pgEnum("smoking_status", ["Never", "Former", "C
 export const alcoholIntakeEnum = pgEnum("alcohol_intake", ["None", "Occasional", "Moderate", "Heavy"]);
 export const communicationToneEnum = pgEnum("communication_tone", ["Casual", "Professional", "Scientific"]);
 export const insightsFrequencyEnum = pgEnum("insights_frequency", ["Daily", "Weekly", "Bi-weekly", "Monthly"]);
-export const countryEnum = pgEnum("country", ["US", "CA", "GB", "AU", "NZ"]);
 
 // Biomarker enums
 export const decimalsPolicyEnum = pgEnum("decimals_policy", ["ceil", "floor", "round"]);
@@ -83,7 +81,6 @@ export const SmokingStatusEnum = z.enum(["Never", "Former", "Current"]);
 export const AlcoholIntakeEnum = z.enum(["None", "Occasional", "Moderate", "Heavy"]);
 export const CommunicationToneEnum = z.enum(["Casual", "Professional", "Scientific"]);
 export const InsightsFrequencyEnum = z.enum(["Daily", "Weekly", "Bi-weekly", "Monthly"]);
-export const CountryEnum = z.enum(["US", "CA", "GB", "AU", "NZ"]);
 
 export const HealthGoalEnum = z.enum([
   "Longevity",
@@ -194,7 +191,6 @@ export const profiles = pgTable("profiles", {
   weightUnit: weightUnitEnum("weight_unit").default("kg"),
   height: real("height"),
   heightUnit: heightUnitEnum("height_unit").default("cm"),
-  country: countryEnum("country").default("US"),  // Home country for unit conventions
   
   // Health goals (array column)
   goals: text("goals").array(),
@@ -356,7 +352,6 @@ export const biomarkerTestSessions = pgTable("biomarker_test_sessions", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   source: text("source").notNull().default("manual"),
   testDate: timestamp("test_date").notNull(),
-  testCountry: countryEnum("test_country"),  // Country where test was performed (for unit conventions)
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
@@ -570,7 +565,6 @@ export const insertProfileSchema = createInsertSchema(profiles, {
 export const updateDemographicsSchema = z.object({
   dateOfBirth: z.date().optional(),
   sex: SexEnum.optional(),
-  country: CountryCode.optional(),
   weight: z.number().min(0).optional(),
   weightUnit: WeightUnitEnum.optional(),
   height: z.number().min(0).optional(),

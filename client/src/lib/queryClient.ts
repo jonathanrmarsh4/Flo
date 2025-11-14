@@ -31,7 +31,7 @@ async function getAuthToken(): Promise<string | null> {
 }
 
 // Create authorization headers with JWT token for mobile
-export async function getAuthHeaders(additionalHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
+async function getAuthHeaders(additionalHeaders: Record<string, string> = {}): Promise<Record<string, string>> {
   const headers: Record<string, string> = { ...additionalHeaders };
   
   const token = await getAuthToken();

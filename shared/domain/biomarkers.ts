@@ -436,50 +436,20 @@ export function normalizeMeasurement(
     );
   } catch (error) {
     if (error instanceof UnitConversionError) {
-      console.error(`[Normalization] Unit conversion error for ${input.name}: ${error.message}`);
       warnings.push(error.message);
       // If conversion fails, assume input is already in canonical unit
-      warnings.push(`Assuming unit '${input.unit}' is equivalent to canonical unit '${biomarker.canonicalUnit}'`);
+      warnings.push(`Assuming input unit '${input.unit}' is equivalent to canonical unit '${biomarker.canonicalUnit}'`);
     } else {
       throw error;
     }
   }
 
-  // Step 3: Build context for reference range selection
-  const context: NormalizationContext = {
-    sex: input.sex,
-    age_years: input.age_years,
-    fasting: input.fasting,
-    pregnancy: input.pregnancy,
-    method: input.method,
-    lab_id: input.lab_id,
-  };
+  // Step 3: Determine display unit (prefer biomarker's display preference, fallback to canonical)
+  const displayUnit = biomarker.displayUnitPreference || biomarker.canonicalUnit;
 
-  // Step 4: Select best reference range FIRST
-  // We'll use the reference range unit as the display unit for consistency
-  // This ensures all measurements for the same biomarker display in the same unit
-  const refRange = selectReferenceRange(
-    biomarker.id,
-    biomarker.canonicalUnit, // Start with canonical unit for range selection
-    context,
-    ranges
-  );
-
-  // Step 5: Determine display unit from reference range (or fallback to canonical)
-  // KEY CHANGE: Display unit is ALWAYS the reference range unit for consistency
-  let displayUnit = refRange?.unit || biomarker.canonicalUnit;
-  
-  if (!refRange) {
-    warnings.push(`No reference range found for ${biomarker.name}, using canonical unit ${biomarker.canonicalUnit}`);
-  } else if (!refRange.low && !refRange.high) {
-    warnings.push('reference_range_incomplete');
-  }
-
-  // Step 6: Convert canonical value to display unit (reference range unit)
+  // Step 4: Convert to display unit if different from canonical
   let displayValue = canonicalValue;
-  let actualRefRange = refRange;
-  
-  if (normalizeUnit(displayUnit) !== normalizeUnit(biomarker.canonicalUnit)) {
+  if (displayUnit !== biomarker.canonicalUnit) {
     try {
       displayValue = convertUnit(
         canonicalValue,
@@ -490,82 +460,104 @@ export function normalizeMeasurement(
         biomarker.name
       );
     } catch (error) {
-      // CRITICAL: If conversion fails, fall back to canonical unit for EVERYTHING
-      // to keep displayValue, displayUnit, and ref_range aligned
-      warnings.push(`Could not convert to reference range unit ${displayUnit}, falling back to canonical unit ${biomarker.canonicalUnit}`);
+      warnings.push(`Could not convert to display unit ${displayUnit}, using canonical value`);
       displayValue = canonicalValue;
-      displayUnit = biomarker.canonicalUnit;
-      
-      // Convert reference range to canonical unit for consistency
-      if (refRange && refRange.unit) {
-        try {
-          const convertedLow = refRange.low !== null ? convertUnit(
-            refRange.low,
-            refRange.unit,
-            biomarker.canonicalUnit,
-            biomarker.id,
-            conversions,
-            biomarker.name
-          ) : null;
-          
-          const convertedHigh = refRange.high !== null ? convertUnit(
-            refRange.high,
-            refRange.unit,
-            biomarker.canonicalUnit,
-            biomarker.id,
-            conversions,
-            biomarker.name
-          ) : null;
-          
-          const convertedCritLow = refRange.criticalLow !== null ? convertUnit(
-            refRange.criticalLow,
-            refRange.unit,
-            biomarker.canonicalUnit,
-            biomarker.id,
-            conversions,
-            biomarker.name
-          ) : null;
-          
-          const convertedCritHigh = refRange.criticalHigh !== null ? convertUnit(
-            refRange.criticalHigh,
-            refRange.unit,
-            biomarker.canonicalUnit,
-            biomarker.id,
-            conversions,
-            biomarker.name
-          ) : null;
-          
-          // Create a converted reference range in canonical unit
-          actualRefRange = {
-            ...refRange,
-            unit: biomarker.canonicalUnit,
-            low: convertedLow,
-            high: convertedHigh,
-            criticalLow: convertedCritLow,
-            criticalHigh: convertedCritHigh,
-          };
-        } catch (refRangeConversionError) {
-          // If we can't convert the reference range either, drop it entirely
-          warnings.push(`Could not convert reference range to canonical unit, dropping reference range`);
-          actualRefRange = null;
-        }
-      }
     }
   }
 
-  // Step 7: Reference range values are already in displayUnit (either original or converted)
-  const convertedRefLow = actualRefRange?.low ?? null;
-  const convertedRefHigh = actualRefRange?.high ?? null;
-  const convertedRefCriticalLow = actualRefRange?.criticalLow ?? null;
-  const convertedRefCriticalHigh = actualRefRange?.criticalHigh ?? null;
+  // Step 5: Build context for reference range selection
+  const context: NormalizationContext = {
+    sex: input.sex,
+    age_years: input.age_years,
+    fasting: input.fasting,
+    pregnancy: input.pregnancy,
+    method: input.method,
+    lab_id: input.lab_id,
+  };
 
-  // Step 8: Generate flags with converted reference range
+  // Step 6: Select best reference range
+  // selectReferenceRange now falls back to any available unit if exact match not found
+  const refRange = selectReferenceRange(
+    biomarker.id,
+    displayUnit,
+    context,
+    ranges
+  );
+
+  if (!refRange) {
+    warnings.push(`No reference range found for ${biomarker.name}`);
+  } else if (!refRange.low && !refRange.high) {
+    warnings.push('reference_range_incomplete');
+  } else if (normalizeUnit(refRange.unit) !== normalizeUnit(displayUnit)) {
+    warnings.push(`Reference range in ${refRange.unit} will be converted to ${displayUnit}`);
+  }
+
+  // Step 6b: Convert reference range to display unit if needed
+  let convertedRefLow = refRange?.low ?? null;
+  let convertedRefHigh = refRange?.high ?? null;
+  let convertedRefCriticalLow = refRange?.criticalLow ?? null;
+  let convertedRefCriticalHigh = refRange?.criticalHigh ?? null;
+  
+  if (refRange && refRange.unit && normalizeUnit(refRange.unit) !== normalizeUnit(displayUnit)) {
+    // Reference range is in a different unit than display unit - convert it
+    try {
+      if (refRange.low !== null && refRange.low !== undefined) {
+        convertedRefLow = convertUnit(
+          refRange.low,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+      if (refRange.high !== null && refRange.high !== undefined) {
+        convertedRefHigh = convertUnit(
+          refRange.high,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+      if (refRange.criticalLow !== null && refRange.criticalLow !== undefined) {
+        convertedRefCriticalLow = convertUnit(
+          refRange.criticalLow,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+      if (refRange.criticalHigh !== null && refRange.criticalHigh !== undefined) {
+        convertedRefCriticalHigh = convertUnit(
+          refRange.criticalHigh,
+          refRange.unit,
+          displayUnit,
+          biomarker.id,
+          conversions,
+          biomarker.name
+        );
+      }
+    } catch (error) {
+      // If conversion fails, drop the reference range to avoid mismatched units
+      warnings.push(`Could not convert reference range from ${refRange.unit} to ${displayUnit}, dropping reference range`);
+      convertedRefLow = null;
+      convertedRefHigh = null;
+      convertedRefCriticalLow = null;
+      convertedRefCriticalHigh = null;
+    }
+  }
+
+  // Step 7: Generate flags with converted reference range
   // Create a converted range object for flag generation
   // Treat as null if all bounds are null (conversion failure or incomplete range)
-  const convertedRange = actualRefRange && 
+  const convertedRange = refRange && 
     (convertedRefLow !== null || convertedRefHigh !== null || 
      convertedRefCriticalLow !== null || convertedRefCriticalHigh !== null) ? {
-    ...actualRefRange,
+    ...refRange,
     low: convertedRefLow,
     high: convertedRefHigh,
     criticalLow: convertedRefCriticalLow,
@@ -575,31 +567,31 @@ export function normalizeMeasurement(
   
   const flags = generateFlags(displayValue, convertedRange);
 
-  // Step 9: Format display value
+  // Step 8: Format display value
   const valueDisplayStr = formatDisplayValue(
     displayValue,
     biomarker.precision || 1,
     biomarker.decimalsPolicy || "round"
   );
 
-  // Step 10: Build result
+  // Step 9: Build result
   return {
     biomarker_id: biomarker.id,
     value_raw: input.value,
-    unit_raw: correctedUnit,  // Store the corrected unit, not the GPT-returned unit
+    unit_raw: input.unit,
     value_canonical: canonicalValue,
     unit_canonical: biomarker.canonicalUnit,
     value_display: valueDisplayStr,
     ref_range: {
       low: convertedRefLow,
       high: convertedRefHigh,
-      unit: displayUnit, // Always matches displayValue unit
+      unit: displayUnit,
     },
     flags,
     context_used: {
       ...context,
-      source: actualRefRange?.source,
-      lab_id: actualRefRange?.labId,
+      source: refRange?.source,
+      lab_id: refRange?.labId,
     },
     warnings,
   };

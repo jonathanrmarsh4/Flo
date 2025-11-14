@@ -38,8 +38,8 @@ export default function AdminUsers() {
       if (roleFilter && roleFilter !== "all") params.append("role", roleFilter);
       if (statusFilter && statusFilter !== "all") params.append("status", statusFilter);
       
-      // Use apiRequest helper which handles iOS URLs and auth automatically
-      const response = await apiRequest('GET', `/api/admin/users?${params}`);
+      const response = await fetch(`/api/admin/users?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch users");
       return response.json() as Promise<{ users: UserType[]; total: number }>;
     },
   });

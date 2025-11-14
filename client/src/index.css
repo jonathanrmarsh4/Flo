@@ -222,19 +222,6 @@
     min-height: 100vh;
     @apply bg-background;
   }
-  
-  /* iOS safe area: Only apply to sticky top headers, not the whole layout */
-  .sticky.top-0 {
-    top: constant(safe-area-inset-top);
-    top: env(safe-area-inset-top);
-  }
-  
-  /* Add spacing below sticky headers so content doesn't get covered */
-  /* This targets the first scrollable content div after a sticky header */
-  .sticky.top-0 + div,
-  .sticky.top-0 ~ div:first-of-type {
-    padding-top: 1rem;
-  }
 }
 
 /**

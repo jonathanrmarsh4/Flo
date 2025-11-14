@@ -10,9 +10,6 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import { COUNTRY_NAMES } from '../../../shared/domain/countryUnitConventions';
-
-type CountryCode = "US" | "CA" | "GB" | "AU" | "NZ";
 
 interface Biomarker {
   id: string;
@@ -53,7 +50,6 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
 
   // Upload tab state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [testCountry, setTestCountry] = useState<CountryCode>("US");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -64,19 +60,6 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Fetch user profile to get home country
-  const { data: profile } = useQuery<{ country: CountryCode }>({
-    queryKey: ['/api/profile'],
-    enabled: isOpen && activeTab === 'upload',
-  });
-
-  // Set test country to user's home country when profile loads
-  useEffect(() => {
-    if (profile?.country && activeTab === 'upload') {
-      setTestCountry(profile.country);
-    }
-  }, [profile, activeTab]);
 
   // Fetch all biomarkers
   const { data: biomarkers = [], isLoading: biomarkersLoading } = useQuery<Biomarker[]>({
@@ -208,31 +191,10 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('testCountry', testCountry);
 
-      // Get API base URL and auth headers
-      const { Capacitor } = await import('@capacitor/core');
-      const baseUrl = Capacitor.isNativePlatform() ? 'https://get-flo.com' : '';
-      
-      // Get auth headers (includes JWT token for mobile)
-      // IMPORTANT: Don't set Content-Type for FormData - browser sets it automatically with boundary
-      const { getAuthHeaders } = await import('@/lib/queryClient');
-      const authHeaders = await getAuthHeaders({});
-      
-      // Remove Content-Type if it exists - FormData handles this
-      // Use plain object instead of Headers for better iOS compatibility
-      const headersObject: Record<string, string> = {};
-      Object.entries(authHeaders).forEach(([key, value]) => {
-        if (key.toLowerCase() !== 'content-type') {
-          headersObject[key] = value;
-        }
-      });
-
-      const response = await fetch(`${baseUrl}/api/labs/upload`, {
+      const response = await fetch('/api/labs/upload', {
         method: 'POST',
-        headers: headersObject,
         body: formData,
-        credentials: 'include',
       });
 
       setUploadProgress(30);
@@ -257,18 +219,10 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     }
   };
 
-  const startPolling = async (id: string) => {
-    const { Capacitor } = await import('@capacitor/core');
-    const baseUrl = Capacitor.isNativePlatform() ? 'https://get-flo.com' : '';
-    const { getAuthHeaders } = await import('@/lib/queryClient');
-    
+  const startPolling = (id: string) => {
     const poll = async () => {
       try {
-        const headers = await getAuthHeaders({});
-        const response = await fetch(`${baseUrl}/api/labs/status/${id}`, {
-          credentials: 'include',
-          headers,
-        });
+        const response = await fetch(`/api/labs/status/${id}`);
         if (!response.ok) {
           throw new Error('Failed to get job status');
         }
@@ -606,38 +560,6 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
                         <p className="text-red-400 text-sm font-medium">Upload failed</p>
                         <p className="text-red-400/70 text-xs mt-1">{jobError}</p>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Country Selection */}
-                  {selectedFile && !uploading && !jobResult && (
-                    <div className="space-y-2 bg-white/5 rounded-xl p-4">
-                      <label className="text-sm font-medium text-white/70">
-                        Where were these tests performed?
-                      </label>
-                      <Select value={testCountry} onValueChange={(value) => setTestCountry(value as CountryCode)}>
-                        <SelectTrigger
-                          className="w-full bg-white/5 border-cyan-500/50 text-white rounded-xl h-12"
-                          data-testid="select-test-country"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1a1f3a] border-white/10 text-white">
-                          {(["US", "CA", "GB", "AU", "NZ"] as CountryCode[]).map((code) => (
-                            <SelectItem
-                              key={code}
-                              value={code}
-                              className="text-white hover:bg-white/10"
-                              data-testid={`option-country-${code}`}
-                            >
-                              {COUNTRY_NAMES[code]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-white/40">
-                        This helps us extract the correct units from your lab report
-                      </p>
                     </div>
                   )}
 

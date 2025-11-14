@@ -31,8 +31,7 @@ Preferred communication style: Simple, everyday language.
 **Features:**
 - **Secure JWT Authentication:** Production-ready JWT implementation with privilege escalation prevention. JWT payload contains ONLY `sub` (user ID), `iss`, `aud`, `type` - role/status fetched from database on every request. Tokens signed with SESSION_SECRET, 7-day expiry. Dynamic imports prevent web bundle crashes.
 - **PhenoAge Biological Age Calculation:** Implements Levine et al. (2018) algorithm requiring 9 biomarkers, with automatic unit conversion and chronological age calculation.
-- **Biomarker Normalization System:** Standardizes blood work measurements across units, labs, and naming conventions using `biomarkers`, `biomarker_synonyms`, `biomarker_units`, and `biomarker_reference_ranges`. **Reference-Range-Anchored Display:** All biomarker measurements display in their reference range unit (not PDF unit), ensuring consistency across uploads. PDF with "95 mg/dL" displays as "95 mg/dL"; PDF with "5.3 mmol/L" converts to "95.4 mg/dL" if reference range is in mg/dL. Includes 140 bidirectional unit conversions for 52 biomarkers. Robust fallback: if conversion fails, falls back to canonical unit for both value and reference range to maintain unit alignment.
-- **Country-Aware Unit Validation:** Prevents cross-country unit mis-normalizations that would corrupt PhenoAge calculations. Supports 5 English-speaking countries (US, CA, GB, AU, NZ) with country-specific unit conventions (e.g., US uses pg/mL for hormones, GB uses pmol/L). Processing pipeline: GPT extraction with country context → strict validation (all mismatches flagged as errors) → halt if hasBlockingIssues=true, else proceed to normalization. User's home country stored in profile, pre-fills upload modal country selector. Test location tracked in biomarker_test_sessions.test_country. Validation results stored in lab_upload_jobs.resultPayload.validation for auditability.
+- **Biomarker Normalization System:** Standardizes blood work measurements across units, labs, and naming conventions using `biomarkers`, `biomarker_synonyms`, `biomarker_units`, and `biomarker_reference_ranges`. Provides endpoints for single and bulk normalization. Includes 140 bidirectional unit conversions for 52 biomarkers for manual entry and PDF uploads.
 - **AI Integration:** Uses OpenAI GPT models (GPT-4o, GPT-5) for biomarker extraction, personalized insights, and comprehensive health reports.
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.
 - **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically. Return JWT tokens for mobile clients.
@@ -67,13 +66,6 @@ Preferred communication style: Simple, everyday language.
 - **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`, `jose` (JWT verification), `jsonwebtoken` (JWT signing).
 - **Mobile:** `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor-community/apple-sign-in`, `capacitor-secure-storage-plugin` (encrypted Keychain storage).
 - **PDF Processing:** `pdf-parse` library for text extraction.
-
-### iOS-Specific Configurations
-**WKWebView Overscroll Fix:** Eliminates white rubber band bounce at scroll limits using 3-layer approach:
-- **Native (AppDelegate.swift):** Disables `scrollView.bounces` and `alwaysBounceVertical`, sets WKWebView background to UIColor(#0f172a)
-- **Capacitor (capacitor.config.ts):** Sets `ios.backgroundColor: '#0f172a'`
-- **CSS (index.css):** Applies `overscroll-behavior-y: none` to html/body, uses dark mode `--background: 222 47% 11%` (equals #0f172a)
-- **Color Consistency:** All three layers use identical #0f172a background to prevent visible seams during gestures
 
 ### Environment Variables (used by the project)
 - `DATABASE_URL`

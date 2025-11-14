@@ -36,7 +36,6 @@ import {
   validatePhenoAgeInputs,
   type PhenoAgeInputs
 } from "@shared/utils/phenoage";
-import { type CountryCode } from "../shared/domain/countryUnitConventions";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -1911,7 +1910,6 @@ Inflammation Markers:
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
-      const testCountry = (req.body.testCountry || "US") as CountryCode;
 
       if (!file) {
         return res.status(400).json({ error: "No file provided" });
@@ -1980,7 +1978,7 @@ Inflammation Markers:
 
           // Download PDF buffer from object storage
           const pdfBuffer = await objectStorageService.getObjectEntityBuffer(objectPath);
-          const result = await processLabUpload(pdfBuffer, testCountry);
+          const result = await processLabUpload(pdfBuffer);
 
           if (result.success && result.extractedData) {
             const extractedBiomarkers = result.extractedData.biomarkers;
@@ -1990,7 +1988,6 @@ Inflammation Markers:
               userId,
               source: "ai_extracted",
               testDate,
-              testCountry,
               notes: result.extractedData.notes || `Extracted from ${fileName}`,
             });
 
@@ -2056,8 +2053,7 @@ Inflammation Markers:
               }
             }
 
-            const hasValidationWarnings = result.validation && result.validation.issues.length > 0;
-            finalStatus = (failedBiomarkers.length > 0 || hasValidationWarnings) ? "needs_review" : "completed";
+            finalStatus = failedBiomarkers.length > 0 ? "needs_review" : "completed";
             finalJobUpdate = {
               status: finalStatus,
               steps: result.steps,
@@ -2069,7 +2065,6 @@ Inflammation Markers:
                 totalBiomarkers: extractedBiomarkers.length,
                 successfulBiomarkers,
                 failedBiomarkers,
-                validation: result.validation,
               },
               errorDetails: failedBiomarkers.length > 0 ? { failedBiomarkers } : null,
             };

@@ -1,16 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { PDFParse } from "pdf-parse";
-import { 
-  countryUnitConventions, 
-  COUNTRY_NAMES,
-  type CountryCode,
-  type BiomarkerUnitConvention
-} from "../../shared/domain/countryUnitConventions";
-import { 
-  validateBiomarkerUnits, 
-  type ValidationResult 
-} from "./labValidation";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -47,7 +37,6 @@ export interface ProcessingResult {
   success: boolean;
   steps: ProcessingStep[];
   extractedData?: GPTResponse;
-  validation?: ValidationResult;
   sessionId?: string;
   measurementIds?: string[];
   error?: string;
@@ -63,30 +52,32 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   }
 }
 
-async function extractBiomarkersWithGPT(pdfText: string, country: CountryCode = "US"): Promise<GPTResponse> {
-  const countryName = COUNTRY_NAMES[country];
+async function extractBiomarkersWithGPT(pdfText: string): Promise<GPTResponse> {
+  const systemPrompt = `You are a medical lab report analyzer. Extract biomarker measurements from lab reports with high accuracy.
 
-  const systemPrompt = `You are a medical lab report analyzer. Extract biomarker measurements from lab reports.
+Instructions:
+1. Identify all biomarker measurements with their values and units
+2. Extract reference ranges when provided
+3. Note any flags (High, Low, Critical, etc.)
+4. Find the test date
+5. Be conservative - only extract data you're confident about
+6. For biomarker names, use the exact terminology from the report
+7. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), you MUST explicitly return null if the data is not available. Never omit these fields
 
-Your task:
-1. Find all biomarker measurements in the report
-2. For each biomarker, extract:
-   - The biomarker name exactly as shown
-   - The numeric result value
-   - The unit of measurement exactly as printed (e.g., mg/dL, nmol/L, pmol/L, µmol/L, IU/L, mIU/L)
-   - The reference range (low and high values if provided)
-   - Any flags (High, Low, Critical, etc.)
-3. Find the test date and convert to YYYY-MM-DD format
-4. Extract the lab name if visible
+Common biomarkers to look for:
+- Cholesterol panel: Total Cholesterol, LDL, HDL, Triglycerides
+- Metabolic: Glucose, HbA1c, Insulin
+- Liver: ALT, AST, ALP, Bilirubin
+- Kidney: Creatinine, BUN, eGFR
+- Thyroid: TSH, T3, T4
+- Inflammation: CRP, ESR
+- Complete Blood Count: WBC, RBC, Hemoglobin, Hematocrit, Platelets
+- Vitamins: Vitamin D, B12, Folate
+- Hormones: Testosterone, Estradiol, Cortisol
 
-Important:
-- Copy units EXACTLY as they appear - do not convert or substitute
-- For missing data (labName, notes, reference ranges, flags), use null
-- Include ALL biomarkers you can identify with confidence
+Output only the structured data as JSON.`;
 
-Output the data as structured JSON.`;
-
-  const userPrompt = `Extract all biomarker measurements from this ${countryName} lab report:\n\n${pdfText}`;
+  const userPrompt = `Extract all biomarker measurements from this lab report:\n\n${pdfText}`;
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -126,7 +117,7 @@ Output the data as structured JSON.`;
                   },
                   unit: {
                     type: "string",
-                    description: "Unit of measurement as seen in PDF (e.g., mg/dL, mmol/L, pmol/L, pg/mL, umol/L, ug/dL, mIU/mL, IU/L, %)",
+                    description: "The unit of measurement (e.g., mg/dL, mmol/L, %)",
                   },
                   referenceRangeLow: {
                     anyOf: [{ type: "number" }, { type: "null" }],
@@ -169,20 +160,20 @@ Output the data as structured JSON.`;
   const parsed = JSON.parse(content);
   const validated = gptResponseSchema.parse(parsed);
   
-  // Log GPT extraction for debugging
-  console.log('[GPT Extraction] Raw biomarkers:', JSON.stringify(validated.biomarkers.map(b => ({
-    name: b.name,
-    value: b.value,
-    unit: b.unit
-  })), null, 2));
-  
-  return validated;
+  return {
+    ...validated,
+    labName: validated.labName ?? undefined,
+    notes: validated.notes ?? undefined,
+    biomarkers: validated.biomarkers.map(b => ({
+      ...b,
+      referenceRangeLow: b.referenceRangeLow ?? undefined,
+      referenceRangeHigh: b.referenceRangeHigh ?? undefined,
+      flags: b.flags ?? [],
+    })),
+  };
 }
 
-export async function processLabUpload(
-  pdfBuffer: Buffer, 
-  country: CountryCode = "US"
-): Promise<ProcessingResult> {
+export async function processLabUpload(pdfBuffer: Buffer): Promise<ProcessingResult> {
   const MAX_PDF_SIZE = 10 * 1024 * 1024;
   
   if (pdfBuffer.length > MAX_PDF_SIZE) {
@@ -206,7 +197,7 @@ export async function processLabUpload(
     }
 
     steps[1].status = "in_progress";
-    const extractedData = await extractBiomarkersWithGPT(pdfText, country);
+    const extractedData = await extractBiomarkersWithGPT(pdfText);
     steps[1].status = "completed";
     steps[1].timestamp = new Date().toISOString();
 
@@ -214,19 +205,6 @@ export async function processLabUpload(
     if (!extractedData.biomarkers || extractedData.biomarkers.length === 0) {
       throw new Error("No biomarkers were extracted from the report");
     }
-    
-    const validation = validateBiomarkerUnits(extractedData.biomarkers, country);
-    
-    if (validation.hasBlockingIssues) {
-      const errorIssues = validation.issues.filter(i => i.severity === "error");
-      throw new Error(`Critical unit validation errors: ${errorIssues.map(i => `${i.biomarkerName} (${i.confidence})`).join(", ")}`);
-    }
-    
-    if (validation.issues.length > 0) {
-      console.log(`[Validation] Found ${validation.issues.length} unit validation issue(s) for ${country}:`, 
-        JSON.stringify(validation.issues, null, 2));
-    }
-    
     steps[2].status = "completed";
     steps[2].timestamp = new Date().toISOString();
 
@@ -234,7 +212,6 @@ export async function processLabUpload(
       success: true,
       steps,
       extractedData,
-      validation,
     };
   } catch (error: any) {
     const failedStepIndex = steps.findIndex(s => s.status === "in_progress");
