@@ -307,6 +307,8 @@ export const biomarkers = pgTable("biomarkers", {
   displayUnitPreference: text("display_unit_preference"),
   precision: integer("precision").default(1),
   decimalsPolicy: decimalsPolicyEnum("decimals_policy").default("round"),
+  globalDefaultRefMin: real("global_default_ref_min"),
+  globalDefaultRefMax: real("global_default_ref_max"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -346,6 +348,34 @@ export const biomarkerReferenceRanges = pgTable("biomarker_reference_ranges", {
   source: text("source"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+export const referenceProfiles = pgTable("reference_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  countryCode: varchar("country_code", { length: 2 }),
+  labName: text("lab_name"),
+  description: text("description"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const referenceProfileRanges = pgTable("reference_profile_ranges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  profileId: varchar("profile_id").notNull().references(() => referenceProfiles.id, { onDelete: "cascade" }),
+  biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  unit: text("unit").notNull(),
+  sex: referenceSexEnum("sex").default("any"),
+  ageMinY: real("age_min_y"),
+  ageMaxY: real("age_max_y"),
+  low: real("low"),
+  high: real("high"),
+  criticalLow: real("critical_low"),
+  criticalHigh: real("critical_high"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_reference_profile_ranges_profile_biomarker").on(table.profileId, table.biomarkerId),
+]);
 
 export const biomarkerTestSessions = pgTable("biomarker_test_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -517,6 +547,21 @@ export const biomarkerUnitsRelations = relations(biomarkerUnits, ({ one }) => ({
 export const biomarkerReferenceRangesRelations = relations(biomarkerReferenceRanges, ({ one }) => ({
   biomarker: one(biomarkers, {
     fields: [biomarkerReferenceRanges.biomarkerId],
+    references: [biomarkers.id],
+  }),
+}));
+
+export const referenceProfilesRelations = relations(referenceProfiles, ({ many }) => ({
+  ranges: many(referenceProfileRanges),
+}));
+
+export const referenceProfileRangesRelations = relations(referenceProfileRanges, ({ one }) => ({
+  profile: one(referenceProfiles, {
+    fields: [referenceProfileRanges.profileId],
+    references: [referenceProfiles.id],
+  }),
+  biomarker: one(biomarkers, {
+    fields: [referenceProfileRanges.biomarkerId],
     references: [biomarkers.id],
   }),
 }));

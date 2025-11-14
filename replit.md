@@ -32,7 +32,12 @@ Preferred communication style: Simple, everyday language.
 **Features:**
 - **Secure JWT Authentication:** Production-ready JWT implementation with privilege escalation prevention. JWT payload contains ONLY `sub` (user ID), `iss`, `aud`, `type` - role/status fetched from database on every request. Tokens signed with SESSION_SECRET, 7-day expiry. Dynamic imports prevent web bundle crashes.
 - **PhenoAge Biological Age Calculation:** Implements Levine et al. (2018) algorithm requiring 9 biomarkers, with automatic unit conversion and chronological age calculation.
-- **Biomarker Normalization System:** Standardizes blood work measurements across units, labs, and naming conventions using `biomarkers`, `biomarker_synonyms`, `biomarker_units`, and `biomarker_reference_ranges`. Provides endpoints for single and bulk normalization. Includes 140 bidirectional unit conversions for 52 biomarkers for manual entry and PDF uploads.
+- **Blood Work Extraction Pipeline (November 2025):** Two-phase system for robust PDF processing:
+  - **Phase 1 - Simple Extraction:** GPT-4o extracts 6 raw fields per biomarker (`biomarker_name_raw`, `value_raw`, `unit_raw`, `ref_range_raw`, `flag_raw`, `date_raw`) with NO validation or conversion. Zero assumptions, pure extraction.
+  - **Phase 2 - Smart Normalization:** Backend normalizer handles case-insensitive unit matching, profile-based reference ranges (honoring user country/sex/age), and global defaults fallback. Preserves both raw strings and normalized canonical values.
+  - **Database Schema:** Enhanced `biomarkers` table with global defaults (`globalDefaultRefMin/Max`), new `referenceProfiles` and `referenceProfileRanges` tables for country/sex/age-specific ranges, existing `biomarkerMeasurements` table stores both raw and canonical values.
+  - **Seed Data:** 12 biomarkers (Testosterone, Cholesterol, Glucose, Vitamin D, etc.), 140+ bidirectional unit conversions, 4 reference profiles (Global, AU, US, UK).
+  - **PDF Processing:** Uses pdf-parse v2 (PDFParse class) for text extraction, GPT-4o structured outputs with strict JSON schema validation, defensive error handling throughout pipeline.
 - **AI Integration:** Uses OpenAI GPT models (GPT-4o, GPT-5) for biomarker extraction, personalized insights, and comprehensive health reports.
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.
 - **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically. Return JWT tokens for mobile clients.

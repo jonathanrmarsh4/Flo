@@ -27,7 +27,8 @@ import { requireAdmin } from "./middleware/rbac";
 import Stripe from "stripe";
 import multer from "multer";
 import crypto from "crypto";
-import { processLabUpload } from "./services/labProcessor";
+import { extractRawBiomarkers } from "./services/simpleExtractor";
+import { normalizeBatch } from "./services/normalizer";
 import { normalizeMeasurement } from "@shared/domain/biomarkers";
 import { 
   calculatePhenoAge, 
@@ -119,7 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileUrl,
         {
           owner: userId,
-          visibility: "private", // Blood work files are private
+          visibility: "private",
         }
       );
 
@@ -131,42 +132,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "processing",
       });
 
-      // Start analysis (this could be async in production, but for MVP we'll do it synchronously)
       try {
-        // For MVP: simulating file content extraction
-        // In production, you'd download the file from storage and extract text
-        const mockFileContent = `Blood Test Results
-        
-Patient: User
-Date: ${new Date().toLocaleDateString()}
+        // Download PDF from object storage
+        const pdfBuffer = await objectStorageService.getObjectEntityBuffer(normalizedPath);
 
-Complete Blood Count (CBC):
-- Hemoglobin: 14.5 g/dL (Normal: 13.5-17.5)
-- White Blood Cells: 7.2 K/uL (Normal: 4.5-11.0)
-- Platelets: 250 K/uL (Normal: 150-400)
+        // Extract raw biomarkers using simplified GPT extraction
+        const extractionResult = await extractRawBiomarkers(pdfBuffer);
 
-Metabolic Panel:
-- Glucose: 95 mg/dL (Normal: 70-100)
-- Cholesterol Total: 180 mg/dL (Normal: <200)
-- HDL: 55 mg/dL (Normal: >40)
-- LDL: 110 mg/dL (Normal: <130)
-- Triglycerides: 120 mg/dL (Normal: <150)
+        if (!extractionResult.success || !extractionResult.data) {
+          throw new Error(extractionResult.error || "Extraction failed - no data returned");
+        }
 
-Inflammation Markers:
-- CRP: 1.2 mg/L (Normal: <3.0)
-- ESR: 8 mm/hr (Normal: 0-20)`;
+        // Get user profile for normalization context
+        const profile = await storage.getProfile(userId);
+        const userSex = profile?.sex;
+        const userAgeY = profile?.dateOfBirth 
+          ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
+          : undefined;
 
-        const analysis = await analyzeBloodWork(mockFileContent);
-
-        // Save analysis result
-        await storage.createAnalysisResult({
-          recordId: record.id,
-          biologicalAge: analysis.biologicalAge,
-          chronologicalAge: analysis.chronologicalAge,
-          insights: analysis.insights as any,
-          metrics: analysis.metrics as any,
-          recommendations: analysis.recommendations as any,
+        // Normalize biomarkers
+        const normalizationResult = await normalizeBatch(extractionResult.data.biomarkers, {
+          userSex,
+          userAgeY,
+          profileName: "Global Default",
         });
+
+        // Create test session
+        const testDate = new Date();
+        const session = await storage.createBiomarkerTestSession({
+          userId,
+          source: "ai_extracted",
+          testDate,
+        });
+
+        // Create measurements for successfully normalized biomarkers
+        const measurementIds: string[] = [];
+        if (normalizationResult.normalized && normalizationResult.normalized.length > 0) {
+          for (const normalized of normalizationResult.normalized) {
+            const measurement = await storage.createBiomarkerMeasurement({
+              sessionId: session.id,
+              biomarkerId: normalized.biomarkerId,
+              recordId: record.id,
+              source: "ai_extracted",
+              valueRaw: normalized.valueRawNumeric,
+              unitRaw: normalized.unitRaw,
+              valueCanonical: normalized.valueCanonical,
+              unitCanonical: normalized.unitCanonical,
+              valueDisplay: `${normalized.valueRawString} ${normalized.unitRaw}`,
+              referenceLow: normalized.referenceLow,
+              referenceHigh: normalized.referenceHigh,
+              flags: normalized.flags,
+              warnings: normalized.warnings,
+              normalizationContext: normalized.normalizationContext as any,
+            });
+            measurementIds.push(measurement.id);
+          }
+        }
 
         // Update record status
         await storage.updateBloodWorkRecordStatus(record.id, "completed");
@@ -174,7 +195,27 @@ Inflammation Markers:
         res.json({ 
           success: true, 
           recordId: record.id,
-          analysis 
+          sessionId: session.id,
+          measurements: {
+            normalized: normalizationResult.normalized.length,
+            failed: normalizationResult.failed.length,
+            skipped: normalizationResult.skipped.length,
+          },
+          details: {
+            normalized: normalizationResult.normalized.map(n => ({
+              name: n.biomarkerName,
+              value: n.valueRawString,
+              unit: n.unitRaw,
+            })),
+            failed: normalizationResult.failed.map(f => ({
+              name: f.raw.biomarker_name_raw,
+              error: f.error,
+            })),
+            skipped: normalizationResult.skipped.map(s => ({
+              name: s.raw.biomarker_name_raw,
+              reason: s.reason,
+            })),
+          },
         });
       } catch (analysisError) {
         console.error("Analysis error:", analysisError);
