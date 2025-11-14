@@ -57,12 +57,14 @@ async function extractBiomarkersWithGPT(pdfText: string): Promise<GPTResponse> {
 
 Instructions:
 1. Identify all biomarker measurements with their values and units
-2. Extract reference ranges when provided
-3. Note any flags (High, Low, Critical, etc.)
-4. Find the test date
-5. Be conservative - only extract data you're confident about
-6. For biomarker names, use the exact terminology from the report
-7. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), you MUST explicitly return null if the data is not available. Never omit these fields
+2. CRITICAL: Extract the COMPLETE unit of measurement exactly as shown (e.g., "mg/dL" not "mg", "10³/µL" not "K", "mmol/L" not "mmol")
+3. CRITICAL: Extract reference ranges AND their units - this is essential for proper unit conversion and trend tracking
+4. If reference range is in a different unit than the measurement, extract both the measurement unit AND the reference range unit
+5. Note any flags (High, Low, Critical, etc.)
+6. Find the test date
+7. Be conservative - only extract data you're confident about
+8. For biomarker names, use the exact terminology from the report
+9. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), you MUST explicitly return null if the data is not available. Never omit these fields
 
 Common biomarkers to look for:
 - Cholesterol panel: Total Cholesterol, LDL, HDL, Triglycerides
@@ -74,6 +76,12 @@ Common biomarkers to look for:
 - Complete Blood Count: WBC, RBC, Hemoglobin, Hematocrit, Platelets
 - Vitamins: Vitamin D, B12, Folate
 - Hormones: Testosterone, Estradiol, Cortisol
+
+Unit Extraction Examples:
+- "95 mg/dL" → unit: "mg/dL" (include both parts)
+- "7.2 K/µL" → unit: "K/µL" or "10³/µL" (preserve full unit)
+- "5.3 mmol/L" → unit: "mmol/L" (include /L)
+- "45 %" → unit: "%" (preserve percent sign)
 
 Output only the structured data as JSON.`;
 
