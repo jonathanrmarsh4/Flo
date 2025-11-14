@@ -1,0 +1,116 @@
+| Biomarker                                 | Unit (US)      | Typical Range – Men            | Typical Range – Women                                                 |
+| ----------------------------------------- | -------------- | ------------------------------ | --------------------------------------------------------------------- |
+| Hemoglobin (Hgb)                          | g/dL           | 13.5 – 17.5                    | 12.0 – 16.0                                                           |
+| Hematocrit (Hct)                          | %              | 41 – 53                        | 36 – 46                                                               |
+| Red blood cell count (RBC)                | ×10⁶/µL        | 4.5 – 5.9                      | 4.1 – 5.1                                                             |
+| Mean corpuscular volume (MCV)             | fL             | 80 – 100                       | 80 – 100                                                              |
+| Mean corpuscular hemoglobin (MCH)         | pg             | 27 – 33                        | 27 – 33                                                               |
+| Mean corpuscular Hgb concentration (MCHC) | g/dL           | 32 – 36                        | 32 – 36                                                               |
+| Red cell distribution width (RDW)         | %              | 11.5 – 14.5                    | 11.5 – 14.5                                                           |
+| White blood cell count (WBC)              | ×10³/µL        | 4.0 – 11.0                     | 4.0 – 11.0                                                            |
+| Neutrophils (%)                           | %              | 40 – 70                        | 40 – 70                                                               |
+| Lymphocytes (%)                           | %              | 20 – 40                        | 20 – 40                                                               |
+| Monocytes (%)                             | %              | 2 – 8                          | 2 – 8                                                                 |
+| Eosinophils (%)                           | %              | 1 – 4                          | 1 – 4                                                                 |
+| Basophils (%)                             | %              | 0 – 1                          | 0 – 1                                                                 |
+| Absolute neutrophil count (ANC)           | ×10³/µL        | 1.5 – 8.0                      | 1.5 – 8.0                                                             |
+| Platelet count                            | ×10³/µL        | 150 – 400                      | 150 – 400                                                             |
+| Mean platelet volume (MPV)                | fL             | 7.5 – 11.5                     | 7.5 – 11.5                                                            |
+| Sodium (Na)                               | mmol/L         | 135 – 145                      | 135 – 145                                                             |
+| Potassium (K)                             | mmol/L         | 3.5 – 5.1                      | 3.5 – 5.1                                                             |
+| Chloride (Cl)                             | mmol/L         | 98 – 107                       | 98 – 107                                                              |
+| CO₂ / Bicarbonate (HCO₃⁻)                 | mmol/L         | 22 – 29                        | 22 – 29                                                               |
+| Blood urea nitrogen (BUN)                 | mg/dL          | 7 – 20                         | 7 – 20                                                                |
+| Creatinine (serum)                        | mg/dL          | 0.74 – 1.35                    | 0.59 – 1.04                                                           |
+| Estimated GFR (eGFR)                      | mL/min/1.73 m² | ≥ 90 (normal)                  | ≥ 90 (normal)                                                         |
+| Fasting glucose                           | mg/dL          | 70 – 99                        | 70 – 99                                                               |
+| Random glucose                            | mg/dL          | < 140                          | < 140                                                                 |
+| Hemoglobin A1c (HbA1c)                    | %              | 4.0 – 5.6                      | 4.0 – 5.6                                                             |
+| Calcium, total                            | mg/dL          | 8.6 – 10.3                     | 8.6 – 10.3                                                            |
+| Phosphorus (phosphate)                    | mg/dL          | 2.5 – 4.5                      | 2.5 – 4.5                                                             |
+| Magnesium                                 | mg/dL          | 1.7 – 2.2                      | 1.7 – 2.2                                                             |
+| Total protein                             | g/dL           | 6.0 – 8.3                      | 6.0 – 8.3                                                             |
+| Albumin                                   | g/dL           | 3.5 – 5.0                      | 3.5 – 5.0                                                             |
+| Globulin (calculated)                     | g/dL           | 2.0 – 3.5                      | 2.0 – 3.5                                                             |
+| A/G ratio (calculated)                    | ratio          | 1.1 – 2.5                      | 1.1 – 2.5                                                             |
+| AST (aspartate aminotransferase)          | U/L            | 10 – 40                        | 10 – 40                                                               |
+| ALT (alanine aminotransferase)            | U/L            | 7 – 56                         | 7 – 56                                                                |
+| Alkaline phosphatase (ALP)                | U/L            | 44 – 147                       | 44 – 147                                                              |
+| GGT (gamma-glutamyl transferase)          | U/L            | 8 – 61                         | 5 – 36                                                                |
+| Total bilirubin                           | mg/dL          | 0.1 – 1.2                      | 0.1 – 1.2                                                             |
+| Direct bilirubin                          | mg/dL          | 0.0 – 0.3                      | 0.0 – 0.3                                                             |
+| Total cholesterol                         | mg/dL          | 125 – 200 (desirable)          | 125 – 200 (desirable)                                                 |
+| LDL cholesterol (calc.)                   | mg/dL          | < 100 (optimal)                | < 100 (optimal)                                                       |
+| HDL cholesterol                           | mg/dL          | ≥ 40                           | ≥ 50                                                                  |
+| Triglycerides                             | mg/dL          | < 150                          | < 150                                                                 |
+| Non-HDL cholesterol                       | mg/dL          | < 130                          | < 130                                                                 |
+| Apolipoprotein B (ApoB)                   | mg/dL          | ~60 – 120                      | ~60 – 120                                                             |
+| Lipoprotein(a) [Lp(a)]                    | mg/dL          | < 30 (lower risk)              | < 30 (lower risk)                                                     |
+| Serum iron                                | µg/dL          | 65 – 176                       | 50 – 170 ([Wikipedia][1])                                             |
+| TIBC (total iron binding capacity)        | µg/dL          | 250 – 450                      | 250 – 450                                                             |
+| Transferrin saturation                    | %              | 20 – 50                        | 20 – 50                                                               |
+| Ferritin                                  | ng/mL          | 30 – 400                       | 15 – 150 ([Wikipedia][1])                                             |
+| TSH (thyroid-stimulating hormone)         | mIU/L          | 0.4 – 4.0                      | 0.4 – 4.0 ([Wikipedia][1])                                            |
+| Free T4                                   | ng/dL          | 0.8 – 1.8                      | 0.8 – 1.8                                                             |
+| Total T4                                  | µg/dL          | 4.5 – 12.5                     | 4.5 – 12.5                                                            |
+| Free T3                                   | pg/mL          | 2.3 – 4.2                      | 2.3 – 4.2                                                             |
+| Total T3                                  | ng/dL          | 80 – 200                       | 80 – 200                                                              |
+| TPO antibodies (TPO Ab)                   | IU/mL          | < 35 (negative)                | < 35 (negative)                                                       |
+| Thyroglobulin antibodies (Tg Ab)          | IU/mL          | < 20 (negative)                | < 20 (negative)                                                       |
+| Fasting insulin                           | µIU/mL         | ~2 – 20                        | ~2 – 20                                                               |
+| C-peptide (fasting)                       | ng/mL          | 0.8 – 3.1                      | 0.8 – 3.1                                                             |
+| Total testosterone                        | ng/dL          | 300 – 1,000                    | 15 – 70 ([endocrine.org][2])                                          |
+| Free testosterone                         | pg/mL          | ~50 – 210                      | ~1 – 10                                                               |
+| SHBG                                      | nmol/L         | 10 – 57                        | 18 – 144                                                              |
+| Estradiol (E2)                            | pg/mL          | 10 – 40                        | 30 – 400 (premenopause) ([University of Rochester Medical Center][3]) |
+| Progesterone                              | ng/mL          | < 1.0                          | ~0.2 – 1.5 (follicular), 5 – 20 (luteal)                              |
+| LH (luteinizing hormone)                  | mIU/mL         | 1.5 – 9.3                      | 1.5 – 12.5 (follicular)                                               |
+| FSH (follicle-stimulating hormone)        | mIU/mL         | 1.5 – 12.4                     | 3.5 – 12.5 (follicular)                                               |
+| Prolactin                                 | ng/mL          | 2 – 18                         | 2 – 29                                                                |
+| DHEA-S                                    | µg/dL          | 80 – 560 (age-dependent)       | 35 – 430 (age-dependent)                                              |
+| Androstenedione                           | ng/mL          | 0.3 – 1.0                      | 0.3 – 3.3                                                             |
+| Cortisol (AM)                             | µg/dL          | 6 – 23                         | 6 – 23                                                                |
+| Cortisol (PM)                             | µg/dL          | 3 – 13                         | 3 – 13                                                                |
+| ACTH                                      | pg/mL          | 10 – 60                        | 10 – 60                                                               |
+| hs-CRP                                    | mg/L           | < 3.0                          | < 3.0 ([ACCP][4])                                                     |
+| ESR                                       | mm/hr          | 0 – 15                         | 0 – 20                                                                |
+| Fibrinogen                                | mg/dL          | 200 – 400                      | 200 – 400                                                             |
+| 25-hydroxy vitamin D                      | ng/mL          | 20 – 50 (sufficient)           | 20 – 50 (sufficient) ([Mount Sinai Health System][5])                 |
+| Vitamin B12                               | pg/mL          | 200 – 900                      | 200 – 900 ([Medical News Today][6])                                   |
+| Folate, serum                             | ng/mL          | 3 – 20                         | 3 – 20 ([Right Decisions][7])                                         |
+| Folate, RBC                               | ng/mL RBC      | 200 – 600                      | 200 – 600                                                             |
+| Vitamin B1 (thiamine), whole blood        | nmol/L         | 70 – 180                       | 70 – 180                                                              |
+| Vitamin B6 (PLP)                          | ng/mL          | 5 – 50                         | 5 – 50                                                                |
+| Vitamin A (retinol)                       | µg/dL          | 30 – 80                        | 30 – 80 ([Wikipedia][1])                                              |
+| Vitamin E (α-tocopherol)                  | mg/L           | 5 – 20                         | 5 – 20                                                                |
+| Homocysteine                              | µmol/L         | 5 – 15                         | 5 – 15 ([Wikipedia][1])                                               |
+| Uric acid                                 | mg/dL          | 4.0 – 8.0                      | 3.0 – 6.0                                                             |
+| LDH (lactate dehydrogenase)               | U/L            | 140 – 280                      | 140 – 280                                                             |
+| Creatine kinase (CK)                      | U/L            | 39 – 308                       | 26 – 192                                                              |
+| Amylase                                   | U/L            | 30 – 110                       | 30 – 110                                                              |
+| Lipase                                    | U/L            | 0 – 160                        | 0 – 160                                                               |
+| Troponin I (high sensitivity)             | ng/mL          | < 0.01 – 0.04                  | < 0.01 – 0.04                                                         |
+| Troponin T (high sensitivity)             | ng/mL          | < 0.01                         | < 0.01                                                                |
+| NT-proBNP                                 | pg/mL          | < 125 (<75 yrs)                | < 125 (<75 yrs)                                                       |
+| Prothrombin time (PT)                     | seconds        | 11 – 13.5                      | 11 – 13.5                                                             |
+| INR                                       | ratio          | 0.8 – 1.2                      | 0.8 – 1.2                                                             |
+| aPTT                                      | seconds        | 25 – 35                        | 25 – 35                                                               |
+| D-dimer                                   | µg/mL FEU      | < 0.50                         | < 0.50                                                                |
+| IGF-1                                     | ng/mL          | ~100 – 300 (age-dependent)     | ~100 – 300 (age-dependent)                                            |
+| Growth hormone (GH), fasting              | ng/mL          | < 5                            | < 5                                                                   |
+| Parathyroid hormone (PTH, intact)         | pg/mL          | 15 – 65                        | 15 – 65                                                               |
+| PSA, total (prostate-specific antigen)    | ng/mL          | < 4.0 (age-adjusted)           | N/A                                                                   |
+| Alpha-fetoprotein (AFP)                   | ng/mL          | < 10                           | < 10 ([Wikipedia][1])                                                 |
+| CA-125                                    | U/mL           | < 35                           | < 35 ([Wikipedia][1])                                                 |
+| CA 19-9                                   | U/mL           | < 37                           | < 37 ([Wikipedia][1])                                                 |
+| CEA (carcinoembryonic antigen)            | ng/mL          | < 3 (non-smoker), < 5 (smoker) | < 3 (non-smoker), < 5 (smoker) ([Wikipedia][1])                       |
+| Urine microalbumin (spot)                 | mg/L           | 0 – 30                         | 0 – 30                                                                |
+| Urine albumin/creatinine ratio            | mg/g           | < 30                           | < 30                                                                  |
+
+[1]: https://en.wikipedia.org/wiki/Reference_ranges_for_blood_tests?utm_source=chatgpt.com "Reference ranges for blood tests"
+[2]: https://www.endocrine.org/news-and-advocacy/news-room/2017/landmark-study-defines-normal-ranges-for-testosterone-levels?utm_source=chatgpt.com "Landmark Study Defines Normal Ranges for Testosterone ..."
+[3]: https://www.urmc.rochester.edu/encyclopedia/content?ContentID=estradiol&ContentTypeID=167&utm_source=chatgpt.com "Estradiol (Blood)"
+[4]: https://www.accp.com/docs/sap/Lab_Values_Table_PSAP.pdf?utm_source=chatgpt.com "REFERENCE VALUES FOR COMMON LABORATORY ..."
+[5]: https://www.mountsinai.org/health-library/tests/25-hydroxy-vitamin-d-test?utm_source=chatgpt.com "25-hydroxy vitamin D test Information | Mount Sinai - New York"
+[6]: https://www.medicalnewstoday.com/articles/322286?utm_source=chatgpt.com "Vitamin B12 level test: Uses, normal ranges, and results"
+[7]: https://rightdecisions.scot.nhs.uk/m/2242/vit-b12-fp-19.pdf?utm_source=chatgpt.com "Vitamin B12: Treatment of Deficiency in Adults"
