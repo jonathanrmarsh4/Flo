@@ -24,14 +24,17 @@ Preferred communication style: Simple, everyday language.
 ### Backend
 **Framework:** Express.js with TypeScript.
 **API:** RESTful, organized by domain, with monorepo shared types.
-**Authentication:** Multi-provider system - Replit Auth (OIDC) for web, Apple Sign-In/Email/Password for mobile. Session-based using Passport.js.
+**Authentication:** Dual authentication system:
+- **Web:** Replit Auth (OIDC) with session cookies via Passport.js
+- **Mobile:** JWT tokens with Apple Sign-In/Email/Password, stored in encrypted iOS Keychain via `capacitor-secure-storage-plugin`
 **File Storage:** Pre-signed URLs for client-to-GCS uploads, private serving via backend proxy.
 **Features:**
+- **Secure JWT Authentication:** Production-ready JWT implementation with privilege escalation prevention. JWT payload contains ONLY `sub` (user ID), `iss`, `aud`, `type` - role/status fetched from database on every request. Tokens signed with SESSION_SECRET, 7-day expiry. Dynamic imports prevent web bundle crashes.
 - **PhenoAge Biological Age Calculation:** Implements Levine et al. (2018) algorithm requiring 9 biomarkers, with automatic unit conversion and chronological age calculation.
 - **Biomarker Normalization System:** Standardizes blood work measurements across units, labs, and naming conventions using `biomarkers`, `biomarker_synonyms`, `biomarker_units`, and `biomarker_reference_ranges`. Provides endpoints for single and bulk normalization. Includes 140 bidirectional unit conversions for 52 biomarkers for manual entry and PDF uploads.
 - **AI Integration:** Uses OpenAI GPT models (GPT-4o, GPT-5) for biomarker extraction, personalized insights, and comprehensive health reports.
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.
-- **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically.
+- **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically. Return JWT tokens for mobile clients.
 
 ### Data Storage
 **Database:** PostgreSQL (Neon serverless) using Drizzle ORM.
@@ -60,8 +63,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Key Technologies/Libraries
 - **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`.
-- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`.
-- **Mobile:** `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios` for iOS deployment.
+- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`, `jose` (JWT verification), `jsonwebtoken` (JWT signing).
+- **Mobile:** `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor-community/apple-sign-in`, `capacitor-secure-storage-plugin` (encrypted Keychain storage).
 - **PDF Processing:** `pdf-parse` library for text extraction.
 
 ### Environment Variables (used by the project)
