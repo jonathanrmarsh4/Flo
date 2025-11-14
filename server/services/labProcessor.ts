@@ -65,50 +65,28 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
 
 async function extractBiomarkersWithGPT(pdfText: string, country: CountryCode = "US"): Promise<GPTResponse> {
   const countryName = COUNTRY_NAMES[country];
-  const conventions = countryUnitConventions[country];
-  
-  const expectedUnits = conventions
-    .map((c: BiomarkerUnitConvention) => `- ${c.biomarkerName}: ${c.preferredUnit}`)
-    .join("\n");
 
-  const systemPrompt = `You are a medical lab report analyzer. Extract biomarker measurements from lab reports with high accuracy.
+  const systemPrompt = `You are a medical lab report analyzer. Extract biomarker measurements from lab reports.
 
-CRITICAL UNIT EXTRACTION RULES:
-1. Extract the EXACT unit as printed in the PDF - DO NOT convert or change units
-2. If the PDF shows "1020 pmol/L", extract unit as "pmol/L" (not "pg/mL")
-3. If the PDF shows "95 mg/dL", extract unit as "mg/dL" (not "mmol/L")
-4. NEVER mathematically convert values - only extract what you see
-5. NEVER substitute one unit label for another even if they measure the same thing
+Your task:
+1. Find all biomarker measurements in the report
+2. For each biomarker, extract:
+   - The biomarker name exactly as shown
+   - The numeric result value
+   - The unit of measurement exactly as printed (e.g., mg/dL, nmol/L, pmol/L, µmol/L, IU/L, mIU/L)
+   - The reference range (low and high values if provided)
+   - Any flags (High, Low, Critical, etc.)
+3. Find the test date and convert to YYYY-MM-DD format
+4. Extract the lab name if visible
 
-Context: This lab test was performed in ${countryName}, where these units are commonly used:
-${expectedUnits}
+Important:
+- Copy units EXACTLY as they appear - do not convert or substitute
+- For missing data (labName, notes, reference ranges, flags), use null
+- Include ALL biomarkers you can identify with confidence
 
-If you see a unit that differs from the expected unit for that country, that's OK - extract it exactly as shown. The discrepancy will be handled by the validation system.
+Output the data as structured JSON.`;
 
-Instructions:
-1. Identify all biomarker measurements with their values and units
-2. Extract the unit EXACTLY as printed in the PDF (e.g., mg/dL, mmol/L, pmol/L, umol/L, mIU/mL, IU/L, %, pg/mL, ug/dL, mcg/dL, µg/dL, µmol/L)
-3. IMPORTANT: Extract reference ranges with their numeric values - this is critical for proper analysis
-4. Note any flags (High, Low, Critical, etc.)
-5. Find the test date (use ISO 8601 format: YYYY-MM-DD)
-6. Be conservative - only extract data you're confident about
-7. Use the exact biomarker names from the report
-8. IMPORTANT: For optional fields (labName, notes, referenceRangeLow, referenceRangeHigh, flags), explicitly return null if not available
-
-Common biomarkers to look for:
-- Cholesterol: Total Cholesterol, LDL, HDL, Triglycerides
-- Metabolic: Glucose, HbA1c, Insulin
-- Liver: ALT, AST, ALP, Bilirubin
-- Kidney: Creatinine, BUN, eGFR
-- Thyroid: TSH, T3, T4
-- Inflammation: CRP, ESR
-- CBC: WBC, RBC, Hemoglobin, Hematocrit, Platelets
-- Vitamins: Vitamin D, B12, Folate
-- Hormones: Testosterone, Free Testosterone, Estradiol, Cortisol, SHBG, DHEA-S, FSH, LH, Prolactin
-
-Output only the structured data as JSON.`;
-
-  const userPrompt = `Extract all biomarker measurements from this lab report:\n\n${pdfText}`;
+  const userPrompt = `Extract all biomarker measurements from this ${countryName} lab report:\n\n${pdfText}`;
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
