@@ -78,13 +78,20 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
-    const user: any = {};
-    updateUserSession(user, tokens);
-    const dbUser = await upsertUser(tokens.claims());
-    user.role = dbUser.role;
-    user.status = dbUser.status;
-    user.id = dbUser.id;
-    verified(null, user);
+    try {
+      const user: any = {};
+      updateUserSession(user, tokens);
+      console.log('[Auth] Attempting to upsert user with claims:', JSON.stringify(tokens.claims(), null, 2));
+      const dbUser = await upsertUser(tokens.claims());
+      console.log('[Auth] User upserted successfully:', dbUser.id);
+      user.role = dbUser.role;
+      user.status = dbUser.status;
+      user.id = dbUser.id;
+      verified(null, user);
+    } catch (error) {
+      console.error('[Auth] Error in verify callback:', error);
+      verified(error as Error);
+    }
   };
 
   // Keep track of registered strategies
