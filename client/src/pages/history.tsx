@@ -28,9 +28,8 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Edit2, Trash2, Check, X, Sparkles, Moon, Sun } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest, getAuthHeaders } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { BiomarkerMeasurement } from "@shared/schema";
-import { Capacitor } from '@capacitor/core';
 
 export default function MeasurementHistory() {
   const { toast } = useToast();
@@ -52,11 +51,8 @@ export default function MeasurementHistory() {
   const { data: measurementsData, isLoading: measurementsLoading } = useQuery<any>({
     queryKey: ['/api/measurements', { biomarkerId: selectedBiomarkerId }],
     queryFn: async () => {
-      const baseUrl = Capacitor.isNativePlatform() ? 'https://get-flo.com' : '';
-      const url = `${baseUrl}/api/measurements?biomarkerId=${selectedBiomarkerId}`;
-      const headers = await getAuthHeaders();
-      const response = await fetch(url, { headers, credentials: 'include' });
-      if (!response.ok) throw new Error('Failed to fetch measurements');
+      // Use apiRequest helper which handles iOS URLs and auth automatically
+      const response = await apiRequest('GET', `/api/measurements?biomarkerId=${selectedBiomarkerId}`);
       return response.json();
     },
     enabled: !!selectedBiomarkerId,

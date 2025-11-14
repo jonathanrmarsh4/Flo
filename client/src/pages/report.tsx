@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useParams } from 'wouter';
 import { ChevronLeft, Activity, TrendingUp, TrendingDown, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { apiRequest } from '@/lib/queryClient';
 
 export default function FullReport() {
   const [, setLocation] = useLocation();
@@ -18,13 +19,8 @@ export default function FullReport() {
         ? `/api/comprehensive-report?sessionId=${analysisId}`
         : '/api/comprehensive-report';
       
-      const response = await fetch(url, { credentials: 'include' });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate report');
-      }
-      
+      // Use apiRequest helper which handles iOS URLs and auth automatically
+      const response = await apiRequest('GET', url);
       return response.json();
     },
     retry: 1,

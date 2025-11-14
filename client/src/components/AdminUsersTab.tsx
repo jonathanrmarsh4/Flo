@@ -39,10 +39,8 @@ export function AdminUsersTab() {
   const { data, isLoading, error, refetch } = useQuery<UsersResponse>({
     queryKey: ['/api/admin/users', search, roleFilter, statusFilter, page],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/users${buildQueryString()}`, {
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to fetch users');
+      // Use apiRequest helper which handles iOS URLs and auth automatically
+      const response = await apiRequest('GET', `/api/admin/users${buildQueryString()}`);
       return response.json();
     },
     staleTime: 2 * 60 * 1000,
