@@ -36,12 +36,14 @@ export function InsightsScreen({
   aiInsight: providedInsight,
   comprehensiveInsights
 }: InsightsScreenProps) {
-  // Use provided data or fallback to defaults for graceful degradation
-  const biologicalAge = ageData?.biologicalAge ?? 46;
-  // Only use chronologicalAgeFallback if it's a valid age (not 0 or undefined)
-  const chronologicalAge = ageData?.chronologicalAge ?? 
-    (chronologicalAgeFallback && chronologicalAgeFallback > 0 ? chronologicalAgeFallback : 46);
-  const ageDifference = ageData?.ageDifference ?? (chronologicalAge - biologicalAge);
+  // Check if we have valid biological age data
+  const hasValidAgeData = ageData && ageData.biologicalAge > 0 && ageData.chronologicalAge > 0;
+  
+  // Use provided data only if valid, otherwise null (no hardcoded fallbacks)
+  const biologicalAge = hasValidAgeData ? ageData.biologicalAge : null;
+  const chronologicalAge = hasValidAgeData ? ageData.chronologicalAge : 
+    (chronologicalAgeFallback && chronologicalAgeFallback > 0 ? chronologicalAgeFallback : null);
+  const ageDifference = hasValidAgeData ? ageData.ageDifference : null;
   
   const topBiomarkers = providedBiomarkers ?? [
     { 
@@ -56,8 +58,10 @@ export function InsightsScreen({
   
   const aiInsight = providedInsight ?? "Your blood work analysis is ready. View the full report for detailed insights and recommendations.";
   
-  // Progress ring calculation for biological age
-  const progressPercentage = ((chronologicalAge - biologicalAge) / chronologicalAge) * 100;
+  // Progress ring calculation for biological age (only if we have valid data)
+  const progressPercentage = hasValidAgeData && chronologicalAge 
+    ? ((chronologicalAge - biologicalAge!) / chronologicalAge) * 100 
+    : 0;
   const circumference = 2 * Math.PI * 45;
   const strokeDashoffset = circumference - (progressPercentage / 100) * circumference;
   
@@ -127,14 +131,24 @@ export function InsightsScreen({
               <h2 className={`text-2xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 Your Biological Age
               </h2>
-              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
-                isDark ? 'bg-green-500/20 border border-green-500/30' : 'bg-green-100 border border-green-200'
-              }`}>
-                <TrendingDown className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
-                <span className={`${isDark ? 'text-green-400' : 'text-green-600'}`} data-testid="text-age-difference">
-                  {ageDifference.toFixed(1)} years younger than chronological age
-                </span>
-              </div>
+              {hasValidAgeData && ageDifference !== null ? (
+                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+                  isDark ? 'bg-green-500/20 border border-green-500/30' : 'bg-green-100 border border-green-200'
+                }`}>
+                  <TrendingDown className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                  <span className={`${isDark ? 'text-green-400' : 'text-green-600'}`} data-testid="text-age-difference">
+                    {ageDifference.toFixed(1)} years younger than chronological age
+                  </span>
+                </div>
+              ) : (
+                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+                  isDark ? 'bg-gray-500/20 border border-gray-500/30' : 'bg-gray-100 border border-gray-200'
+                }`}>
+                  <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`} data-testid="text-age-difference">
+                    Not calculated yet
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Large Progress Ring */}
@@ -192,16 +206,18 @@ export function InsightsScreen({
                   <div className={`text-7xl mb-2 bg-gradient-to-br from-teal-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent ${
                     isDark ? '' : 'drop-shadow-lg'
                   }`} style={{ fontWeight: 600, lineHeight: 1 }} data-testid="text-biological-age">
-                    {biologicalAge}
+                    {biologicalAge !== null ? biologicalAge : '—'}
                   </div>
                   <span className={`text-lg ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                    years old
+                    {biologicalAge !== null ? 'years old' : 'Not calculated'}
                   </span>
                   
                   {/* vs chronological age */}
-                  <div className={`mt-4 text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`} data-testid="text-chronological-age">
-                    vs. {chronologicalAge.toFixed(1)} chronological
-                  </div>
+                  {chronologicalAge !== null && (
+                    <div className={`mt-4 text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`} data-testid="text-chronological-age">
+                      vs. {chronologicalAge.toFixed(1)} chronological
+                    </div>
+                  )}
                 </div>
 
                 {/* Floating particles/sparkles */}
