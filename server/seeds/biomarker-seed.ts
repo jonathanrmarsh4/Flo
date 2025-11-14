@@ -23,14 +23,13 @@ const biomarkerData: BiomarkerSeedData[] = [
   {
     name: "Testosterone",
     category: "Hormones",
-    canonicalUnit: "nmol/L",
+    canonicalUnit: "ng/dL",
     displayUnitPreference: "ng/dL",
     precision: 1,
-    globalDefaultRefMin: 10.4,
-    globalDefaultRefMax: 34.6,
+    globalDefaultRefMin: 15,
+    globalDefaultRefMax: 1000,
     synonyms: ["Total Testosterone", "Testosterone Total", "Testosterone Serum", "Testosterone (Total)"],
     conversions: [
-      { fromUnit: "ng/dL", toUnit: "nmol/L", multiplier: 0.034674 },
       { fromUnit: "nmol/L", toUnit: "ng/dL", multiplier: 28.8186 },
     ],
   },
@@ -185,42 +184,39 @@ const biomarkerData: BiomarkerSeedData[] = [
   {
     name: "Free Testosterone",
     category: "Hormones",
-    canonicalUnit: "pmol/L",
+    canonicalUnit: "pg/mL",
     displayUnitPreference: "pg/mL",
     precision: 1,
-    globalDefaultRefMin: 173,
-    globalDefaultRefMax: 730,
+    globalDefaultRefMin: 1,
+    globalDefaultRefMax: 210,
     synonyms: ["Testosterone Free", "Free T", "Bioavailable Testosterone", "Free Testosterone (Direct)", "Free Testosterone (Calculated)"],
     conversions: [
-      { fromUnit: "pg/mL", toUnit: "pmol/L", multiplier: 3.4668 },
       { fromUnit: "pmol/L", toUnit: "pg/mL", multiplier: 0.28834 },
     ],
   },
   {
     name: "Prolactin",
     category: "Hormones",
-    canonicalUnit: "mIU/L",
+    canonicalUnit: "ng/mL",
     displayUnitPreference: "ng/mL",
     precision: 1,
-    globalDefaultRefMin: 63,
-    globalDefaultRefMax: 424,
+    globalDefaultRefMin: 2,
+    globalDefaultRefMax: 29,
     synonyms: ["PRL", "Prolactin Serum"],
     conversions: [
       { fromUnit: "mIU/L", toUnit: "ng/mL", multiplier: 0.047170 },
-      { fromUnit: "ng/mL", toUnit: "mIU/L", multiplier: 21.200 },
     ],
   },
   {
     name: "Estradiol (E2)",
     category: "Hormones",
-    canonicalUnit: "pmol/L",
+    canonicalUnit: "pg/mL",
     displayUnitPreference: "pg/mL",
     precision: 1,
-    globalDefaultRefMin: 37,
-    globalDefaultRefMax: 550,
+    globalDefaultRefMin: 10,
+    globalDefaultRefMax: 400,
     synonyms: ["Estradiol", "E2", "Oestradiol", "Estradiol Ultrasensitive"],
     conversions: [
-      { fromUnit: "pg/mL", toUnit: "pmol/L", multiplier: 3.6712 },
       { fromUnit: "pmol/L", toUnit: "pg/mL", multiplier: 0.27237 },
     ],
   },
@@ -255,28 +251,26 @@ const biomarkerData: BiomarkerSeedData[] = [
   {
     name: "DHEA-S",
     category: "Hormones",
-    canonicalUnit: "µmol/L",
+    canonicalUnit: "µg/dL",
     displayUnitPreference: "µg/dL",
     precision: 1,
-    globalDefaultRefMin: 0.6,
-    globalDefaultRefMax: 10.5,
+    globalDefaultRefMin: 35,
+    globalDefaultRefMax: 560,
     synonyms: ["DHEAS", "Dehydroepiandrosterone Sulfate", "DHEA Sulfate"],
     conversions: [
-      { fromUnit: "µg/dL", toUnit: "µmol/L", multiplier: 0.027210 },
       { fromUnit: "µmol/L", toUnit: "µg/dL", multiplier: 36.750 },
     ],
   },
   {
     name: "Cortisol (AM)",
     category: "Hormones",
-    canonicalUnit: "nmol/L",
+    canonicalUnit: "µg/dL",
     displayUnitPreference: "µg/dL",
     precision: 1,
-    globalDefaultRefMin: 166,
-    globalDefaultRefMax: 635,
+    globalDefaultRefMin: 6,
+    globalDefaultRefMax: 23,
     synonyms: ["Cortisol", "Morning Cortisol", "Cortisol AM", "Cortisol Serum"],
     conversions: [
-      { fromUnit: "µg/dL", toUnit: "nmol/L", multiplier: 27.588 },
       { fromUnit: "nmol/L", toUnit: "µg/dL", multiplier: 0.036243 },
     ],
   },
@@ -294,14 +288,13 @@ const biomarkerData: BiomarkerSeedData[] = [
   {
     name: "Progesterone",
     category: "Hormones",
-    canonicalUnit: "nmol/L",
+    canonicalUnit: "ng/mL",
     displayUnitPreference: "ng/mL",
     precision: 1,
-    globalDefaultRefMin: 0.3,
-    globalDefaultRefMax: 64,
+    globalDefaultRefMin: 0.2,
+    globalDefaultRefMax: 20,
     synonyms: ["P4", "Progesterone Serum"],
     conversions: [
-      { fromUnit: "ng/mL", toUnit: "nmol/L", multiplier: 3.1800 },
       { fromUnit: "nmol/L", toUnit: "ng/mL", multiplier: 0.31447 },
     ],
   },
@@ -336,7 +329,18 @@ export async function seedBiomarkers() {
       console.log(`✓ Created biomarker: ${biomarkerSeed.name}`);
     } else {
       biomarkerId = existing[0].id;
-      console.log(`- Biomarker already exists: ${biomarkerSeed.name}`);
+      await db
+        .update(biomarkers)
+        .set({
+          category: biomarkerSeed.category,
+          canonicalUnit: biomarkerSeed.canonicalUnit,
+          displayUnitPreference: biomarkerSeed.displayUnitPreference,
+          precision: biomarkerSeed.precision,
+          globalDefaultRefMin: biomarkerSeed.globalDefaultRefMin,
+          globalDefaultRefMax: biomarkerSeed.globalDefaultRefMax,
+        })
+        .where(eq(biomarkers.id, biomarkerId));
+      console.log(`✓ Updated biomarker: ${biomarkerSeed.name}`);
     }
 
     if (biomarkerSeed.synonyms) {
