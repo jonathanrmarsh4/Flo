@@ -989,8 +989,8 @@ export const googleSignInSchema = z.object({
 export const emailRegisterSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128),
-  firstName: z.string().min(1).max(50),
-  lastName: z.string().min(1).max(50),
+  firstName: z.string().min(1).max(50).optional().or(z.literal("")), // Allow empty or missing
+  lastName: z.string().min(1).max(50).optional().or(z.literal("")),  // Allow empty or missing
 });
 
 export const emailLoginSchema = z.object({

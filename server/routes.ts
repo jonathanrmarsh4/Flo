@@ -7,6 +7,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
 import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
+import mobileAuthRouter from "./routes/mobileAuth";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -2281,6 +2282,9 @@ Inflammation Markers:
   });
 
   registerAdminRoutes(app);
+  
+  // Mobile auth routes (Apple, Google, Email/Password)
+  app.use(mobileAuthRouter);
 
   const httpServer = createServer(app);
   return httpServer;

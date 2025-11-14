@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Capacitor } from '@capacitor/core';
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
+import MobileAuth from "@/pages/MobileAuth";
 import Dashboard from "@/pages/dashboard";
 import Insights from "@/pages/insights";
 import Report from "@/pages/report";
@@ -20,6 +21,7 @@ import AdminDashboard from "@/pages/admin-dashboard";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const isNative = Capacitor.isNativePlatform();
 
   if (isLoading) {
     return (
@@ -31,8 +33,15 @@ function Router() {
 
   return (
     <Switch>
+      {/* Mobile auth route - always accessible on native platforms */}
+      {isNative && <Route path="/mobile-auth" component={MobileAuth} />}
+      
       {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
+        isNative ? (
+          <Route path="/" component={MobileAuth} />
+        ) : (
+          <Route path="/" component={Landing} />
+        )
       ) : (
         <>
           <Route path="/" component={Dashboard} />

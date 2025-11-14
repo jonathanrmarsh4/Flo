@@ -2,6 +2,8 @@
 import {
   users,
   profiles,
+  authProviders,
+  userCredentials,
   bloodWorkRecords,
   analysisResults,
   billingCustomers,
@@ -47,9 +49,13 @@ import {
   type InsertBiomarkerMeasurement,
   type LabUploadJob,
   type InsertLabUploadJob,
+  type AuthProvider,
+  type InsertAuthProvider,
+  type UserCredentials,
+  type InsertUserCredentials,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, or, ilike, and, sql } from "drizzle-orm";
+import { eq, desc, or, ilike, and, sql, lt, gt } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -111,6 +117,19 @@ export interface IStorage {
   // Billing operations
   getBillingInfo(userId: string): Promise<{ customer?: BillingCustomer; subscription?: Subscription; lastPayment?: Payment }>;
   createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any; actionMetadata?: any }): Promise<void>;
+  
+  // Auth provider operations (mobile auth)
+  upsertAuthProvider(data: InsertAuthProvider): Promise<AuthProvider>;
+  getUserByProvider(provider: string, providerUserId: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  
+  // User credentials operations (email/password auth)
+  createUserCredentials(data: InsertUserCredentials): Promise<UserCredentials>;
+  getUserCredentials(userId: string): Promise<UserCredentials | undefined>;
+  updatePasswordHash(userId: string, passwordHash: string): Promise<void>;
+  createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  updateLastLoginAt(userId: string): Promise<void>;
   
   // Biomarker operations
   getBiomarkers(): Promise<Biomarker[]>;
@@ -498,6 +517,116 @@ export class DatabaseStorage implements IStorage {
       changes: log.changes,
       actionMetadata: log.actionMetadata,
     });
+  }
+
+  // Auth provider operations (mobile auth)
+  async upsertAuthProvider(data: InsertAuthProvider): Promise<AuthProvider> {
+    const [provider] = await db
+      .insert(authProviders)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [authProviders.provider, authProviders.providerUserId],
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return provider;
+  }
+
+  async getUserByProvider(provider: string, providerUserId: string): Promise<User | undefined> {
+    const [authProvider] = await db
+      .select()
+      .from(authProviders)
+      .where(
+        and(
+          eq(authProviders.provider, provider as any),
+          eq(authProviders.providerUserId, providerUserId)
+        )
+      );
+    
+    if (!authProvider) {
+      return undefined;
+    }
+    
+    return this.getUser(authProvider.userId);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
+    return user;
+  }
+
+  // User credentials operations (email/password auth)
+  async createUserCredentials(data: InsertUserCredentials): Promise<UserCredentials> {
+    const [credentials] = await db
+      .insert(userCredentials)
+      .values(data)
+      .returning();
+    return credentials;
+  }
+
+  async getUserCredentials(userId: string): Promise<UserCredentials | undefined> {
+    const [credentials] = await db
+      .select()
+      .from(userCredentials)
+      .where(eq(userCredentials.userId, userId));
+    return credentials;
+  }
+
+  async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
+    await db
+      .update(userCredentials)
+      .set({ 
+        passwordHash,
+        resetToken: null,
+        resetTokenExpiresAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, userId));
+  }
+
+  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+    await db
+      .update(userCredentials)
+      .set({ 
+        resetToken: token,
+        resetTokenExpiresAt: expiresAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, userId));
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [credentials] = await db
+      .select()
+      .from(userCredentials)
+      .where(
+        and(
+          eq(userCredentials.resetToken, token),
+          gt(userCredentials.resetTokenExpiresAt, sql`now()`)
+        )
+      );
+    
+    if (!credentials) {
+      return undefined;
+    }
+    
+    return this.getUser(credentials.userId);
+  }
+
+  async updateLastLoginAt(userId: string): Promise<void> {
+    await db
+      .update(userCredentials)
+      .set({ 
+        lastLoginAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, userId));
   }
 
   // Admin analytics operations
