@@ -198,16 +198,17 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       const authHeaders = await getAuthHeaders({});
       
       // Remove Content-Type if it exists - FormData handles this
-      const headers = new Headers();
+      // Use plain object instead of Headers for better iOS compatibility
+      const headersObject: Record<string, string> = {};
       Object.entries(authHeaders).forEach(([key, value]) => {
         if (key.toLowerCase() !== 'content-type') {
-          headers.set(key, value);
+          headersObject[key] = value;
         }
       });
 
       const response = await fetch('/api/labs/upload', {
         method: 'POST',
-        headers,
+        headers: headersObject,
         body: formData,
       });
 
