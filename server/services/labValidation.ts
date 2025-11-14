@@ -78,8 +78,8 @@ export function validateBiomarkerUnits(
         biomarkerName: name,
         extractedUnit: unit,
         expectedUnits,
-        severity: "warning",
-        confidence: `Expected ${convention.preferredUnit} for ${country} labs, but extracted ${unit}. This may indicate: (1) lab used non-standard unit, (2) GPT extraction error.`,
+        severity: "error",
+        confidence: `Unit mismatch: ${country} labs should use ${convention.preferredUnit}, but extracted ${unit}. This likely indicates GPT extraction error or wrong country selected.`,
       });
     }
   }
