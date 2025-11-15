@@ -325,6 +325,21 @@ const biomarkerData: BiomarkerSeedData[] = [
     synonyms: ["Corrected Calcium", "Calcium Corrected", "Calcium Adjusted"],
     conversions: [],
   },
+  {
+    name: "Uric Acid",
+    category: "Kidney",
+    canonicalUnit: "mg/dL",
+    displayUnitPreference: "mg/dL",
+    precision: 1,
+    globalDefaultRefMin: 2.4,
+    globalDefaultRefMax: 7.0,
+    synonyms: ["Urate", "Serum Uric Acid", "UA"],
+    conversions: [
+      { fromUnit: "mmol/L", toUnit: "mg/dL", multiplier: 16.81 },
+      { fromUnit: "µmol/L", toUnit: "mg/dL", multiplier: 0.01681 },
+      { fromUnit: "umol/L", toUnit: "mg/dL", multiplier: 0.01681 },
+    ],
+  },
 ];
 
 export async function seedBiomarkers() {
