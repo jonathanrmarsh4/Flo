@@ -16,6 +16,7 @@ import UploadPage from "@/pages/upload";
 import History from "@/pages/history";
 import Results from "@/pages/results";
 import Profile from "@/pages/profile";
+import DiagnosticsPage from "@/pages/diagnostics";
 import AdminUsers from "@/pages/admin-users";
 import AdminDashboard from "@/pages/admin-dashboard";
 
@@ -53,6 +54,7 @@ function Router() {
           <Route path="/history" component={History} />
           <Route path="/results/:id" component={Results} />
           <Route path="/profile" component={Profile} />
+          <Route path="/diagnostics" component={DiagnosticsPage} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />
         </>

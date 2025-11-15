@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { User, Lightbulb } from "lucide-react";
+import { User, Lightbulb, Activity, MoreHorizontal } from "lucide-react";
 import { FloIcon } from "./FloLogo";
 import { AddTestResultsModal } from "./AddTestResultsModal";
 
@@ -12,18 +12,31 @@ export function FloBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1f3a] border-t border-white/10 pb-safe">
-      <div className="max-w-md mx-auto px-6 py-3">
+      <div className="max-w-md mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Profile */}
           <Link href="/profile">
             <button
               data-testid="nav-profile"
-              className={`flex flex-col items-center gap-1 min-w-[60px] ${
+              className={`flex flex-col items-center gap-1 min-w-[50px] ${
                 isActive("/profile") ? "text-[#00d4aa]" : "text-gray-400"
               }`}
             >
-              <User className="w-6 h-6" />
+              <User className="w-5 h-5" />
               <span className="text-xs font-medium">Profile</span>
+            </button>
+          </Link>
+
+          {/* Diagnostics */}
+          <Link href="/diagnostics">
+            <button
+              data-testid="nav-diagnostics"
+              className={`flex flex-col items-center gap-1 min-w-[50px] ${
+                isActive("/diagnostics") ? "text-[#00d4aa]" : "text-gray-400"
+              }`}
+            >
+              <Activity className="w-5 h-5" />
+              <span className="text-xs font-medium">Diagnostics</span>
             </button>
           </Link>
 
@@ -43,12 +56,25 @@ export function FloBottomNav() {
           <Link href="/insights">
             <button
               data-testid="nav-insights"
-              className={`flex flex-col items-center gap-1 min-w-[60px] ${
+              className={`flex flex-col items-center gap-1 min-w-[50px] ${
                 isActive("/insights") ? "text-[#00d4aa]" : "text-gray-400"
               }`}
             >
-              <Lightbulb className="w-6 h-6" />
+              <Lightbulb className="w-5 h-5" />
               <span className="text-xs font-medium">Insights</span>
+            </button>
+          </Link>
+
+          {/* More */}
+          <Link href="/dashboard">
+            <button
+              data-testid="nav-more"
+              className={`flex flex-col items-center gap-1 min-w-[50px] ${
+                isActive("/dashboard") ? "text-[#00d4aa]" : "text-gray-400"
+              }`}
+            >
+              <MoreHorizontal className="w-5 h-5" />
+              <span className="text-xs font-medium">More</span>
             </button>
           </Link>
         </div>
