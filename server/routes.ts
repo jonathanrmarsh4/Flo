@@ -229,7 +229,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       console.error("Error analyzing blood work:", error);
-      res.status(500).json({ error: "Failed to analyze blood work" });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      
+      console.error("Full error details:", {
+        message: errorMessage,
+        stack: errorStack,
+        error: JSON.stringify(error, null, 2),
+      });
+      
+      res.status(500).json({ 
+        error: "Failed to analyze blood work",
+        details: errorMessage,
+      });
     }
   });
 
