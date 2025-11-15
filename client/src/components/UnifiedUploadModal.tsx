@@ -126,8 +126,12 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
       const formData = new FormData();
       formData.append('file', file);
       
+      const endpoint = useExperimental 
+        ? '/api/diagnostics/dexa/upload-experimental'
+        : '/api/diagnostics/dexa/upload';
+      
       const baseUrl = getApiBaseUrl();
-      const fullUrl = baseUrl + '/api/diagnostics/dexa/upload';
+      const fullUrl = baseUrl + endpoint;
       const headers = await getAuthHeaders();
       
       const response = await fetch(fullUrl, {
@@ -300,8 +304,8 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
             </div>
           )}
 
-          {/* Experimental Toggle - Only for Calcium Score */}
-          {mode === 'diagnostics' && diagnosticType === 'calcium-score' && (
+          {/* Experimental Toggle - For Calcium Score and DEXA Scans */}
+          {mode === 'diagnostics' && (diagnosticType === 'calcium-score' || diagnosticType === 'dexa') && (
             <div className={`mb-4 p-4 rounded-2xl border ${
               isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
             }`}>
