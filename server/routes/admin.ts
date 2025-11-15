@@ -157,4 +157,67 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ error: "Failed to fetch audit logs" });
     }
   });
+
+  app.get('/api/admin/users', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const query = req.query.query as string | undefined;
+      const role = req.query.role as string | undefined;
+      const status = req.query.status as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+
+      const result = await storage.listUsers({ query, role, status, limit, offset });
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch('/api/admin/users/:id', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const adminId = req.user.claims.sub;
+      const { role, status } = req.body;
+
+      if (role === undefined && status === undefined) {
+        return res.status(400).json({ error: "At least one field (role or status) is required" });
+      }
+
+      if (userId === adminId && (role !== undefined || status !== undefined)) {
+        return res.status(403).json({ error: "Cannot modify your own role or status" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, { role, status }, adminId);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  app.delete('/api/admin/users/:id', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const adminId = req.user.claims.sub;
+
+      if (userId === adminId) {
+        return res.status(403).json({ error: "Cannot delete your own account" });
+      }
+
+      await storage.deleteUser(userId, adminId);
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      if (error.message === 'User not found') {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
 }
