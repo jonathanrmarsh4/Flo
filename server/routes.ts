@@ -33,6 +33,7 @@ import { processLabUpload } from "./services/labProcessor";
 import { extractCalciumScoreFromPdf } from "./services/calciumScoreExtractor";
 import { extractCalciumScoreExperimental } from "./services/calciumScoreExtractorExperimental";
 import { extractDexaScan } from "./services/dexaScanExtractor";
+import { extractDexaScanExperimental } from "./services/dexaScanExtractorExperimental";
 import { normalizeMeasurement } from "@shared/domain/biomarkers";
 import { 
   calculatePhenoAge, 
@@ -2724,6 +2725,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error uploading DEXA scan:", error);
+      res.status(500).json({ error: "Failed to process DEXA scan upload" });
+    }
+  });
+
+  // Upload DEXA scan PDF with OCR + GPT-5 (Experimental)
+  app.post("/api/diagnostics/dexa/upload-experimental", isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const fileBuffer = file.buffer;
+
+      // Extract DEXA scan data from PDF using OCR + GPT-5
+      const extractionResult = await extractDexaScanExperimental(fileBuffer, file.originalname);
+
+      if (!extractionResult.success || !extractionResult.data) {
+        return res.status(400).json({ 
+          error: "Failed to extract DEXA scan data",
+          details: extractionResult.error 
+        });
+      }
+
+      const data = extractionResult.data;
+
+      // Parse study date
+      let studyDate: Date;
+      if (data.study.study_date) {
+        studyDate = new Date(data.study.study_date);
+        if (isNaN(studyDate.getTime())) {
+          studyDate = new Date();
+        }
+      } else {
+        studyDate = new Date();
+      }
+
+      // Calculate age at scan if we have patient age
+      let ageAtScan = data.patient_context.reported_age ?? null;
+
+      // Use WHO classification if available
+      const whoClassification = data.bone_density.who_classification;
+
+      // Insert study into database
+      const study = await storage.createDiagnosticStudy({
+        userId,
+        type: "dexa_scan",
+        source: "uploaded_pdf_experimental",
+        studyDate,
+        ageAtScan,
+        totalScoreNumeric: data.bone_density.spine_t_score,
+        riskCategory: whoClassification,
+        agePercentile: null,
+        aiPayload: data,
+        status: "parsed",
+      });
+
+      // Create individual metrics
+      const metrics: any[] = [];
+
+      // Bone density metrics
+      if (data.bone_density.spine_t_score !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "spine_t_score",
+          label: "Spine T-Score",
+          valueNumeric: data.bone_density.spine_t_score,
+          unit: "t-score",
+          extra: null,
+        });
+      }
+      if (data.bone_density.total_hip_t_score !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "total_hip_t_score",
+          label: "Total Hip T-Score",
+          valueNumeric: data.bone_density.total_hip_t_score,
+          unit: "t-score",
+          extra: null,
+        });
+      }
+      if (data.bone_density.femoral_neck_t_score !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "femoral_neck_t_score",
+          label: "Femoral Neck T-Score",
+          valueNumeric: data.bone_density.femoral_neck_t_score,
+          unit: "t-score",
+          extra: null,
+        });
+      }
+
+      // Body composition metrics
+      if (data.body_composition.fat_percent_total !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "fat_percent_total",
+          label: "Body Fat %",
+          valueNumeric: data.body_composition.fat_percent_total,
+          unit: "%",
+          extra: null,
+        });
+      }
+      if (data.body_composition.vat_area_cm2 !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "vat_area_cm2",
+          label: "Visceral Fat Area",
+          valueNumeric: data.body_composition.vat_area_cm2,
+          unit: "cm²",
+          extra: null,
+        });
+      }
+      if (data.body_composition.lean_mass_kg !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "lean_mass_kg",
+          label: "Lean Mass",
+          valueNumeric: data.body_composition.lean_mass_kg,
+          unit: "kg",
+          extra: null,
+        });
+      }
+      if (data.body_composition.bone_mass_kg !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "bone_mass_kg",
+          label: "Bone Mass",
+          valueNumeric: data.body_composition.bone_mass_kg,
+          unit: "kg",
+          extra: null,
+        });
+      }
+
+      // Bulk insert metrics
+      if (metrics.length > 0) {
+        await storage.createDiagnosticMetrics(metrics);
+      }
+
+      res.json({
+        success: true,
+        study,
+        metricsCount: metrics.length,
+        modelUsed: extractionResult.modelUsed,
+        experimental: true,
+      });
+    } catch (error) {
+      console.error("Error uploading DEXA scan (experimental):", error);
       res.status(500).json({ error: "Failed to process DEXA scan upload" });
     }
   });

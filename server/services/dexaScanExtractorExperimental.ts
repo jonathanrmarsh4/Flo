@@ -25,7 +25,7 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
   const initialText = result.text || "";
   await parser.destroy();
   
-  const meaningfulLines = initialText.trim().split('\n').filter(line => {
+  const meaningfulLines = initialText.trim().split('\n').filter((line: string) => {
     const trimmed = line.trim();
     if (!trimmed) return false;
     if (/^Page \d+ of \d+$/i.test(trimmed)) return false;
