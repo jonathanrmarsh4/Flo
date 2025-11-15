@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language.
 - **Admin Dashboard:** Rebuilt with a 7-tab interface and Flō design system components (AdminMetricCard, AdminStatusBadge, AdminGlassPanel) for user, billing, API usage, analytics, and audit log management.
 - **Mobile Authentication:** MobileAuth.tsx component with Apple Sign-In (Capacitor plugin), Email/Password authentication, react-hook-form validation, and glassmorphism design. Capacitor platform detection for mobile-specific flows.
 - **iOS WKWebView Optimization:** Three-layer fix for rubber band overscroll bounce (AppDelegate.swift disables bounces, Capacitor config sets backgroundColor, CSS applies overscroll-behavior-y: none). All layers use consistent #0f172a background to prevent white strip flashing.
+- **DEXA Scan Display:** DexaScanTile component displaying bone density T-scores (spine/hip), WHO classification (Normal/Osteopenia/Osteoporosis), body fat percentage with sex-specific categorization (Athlete/Fit/Average/High/Very High), and visceral adipose tissue (VAT) area. Integrated into Diagnostics page with proper styling and coming-soon state handling.
 
 ### Backend
 **Framework:** Express.js with TypeScript.
@@ -49,12 +50,19 @@ Preferred communication style: Simple, everyday language.
   - UI toggle in CalciumScoreUploadModal allows users to choose extraction method
   - Separate source tracking (`uploaded_pdf` vs `uploaded_pdf_experimental`) for comparison
   - **Schema Architecture**: Manually defined OpenAI JSON schema in `server/schemas/calciumScore.ts` (avoiding zod-to-json-schema `$ref` issues). Zod schema serves as validation source of truth, manually mirrored in OpenAI format with strict `additionalProperties: false`. Per-vessel schema includes only LAD, RCA, LCX, LM (removed "other" field that caused validation mismatches).
+- **DEXA Scan Extraction (November 2025):** AI-powered extraction of bone density and body composition data from DEXA scan PDFs:
+  - **POST /api/diagnostics/dexa/upload:** Multipart/form-data endpoint accepting DEXA scan PDFs
+  - **Extraction Schema:** Zod + OpenAI JSON schema in `server/schemas/dexaScan.ts` for structured extraction of spine T-score, hip T-score, WHO classification, body fat percentage, VAT area, and study date
+  - **PDF Processing:** Dynamic import pattern for pdf-parse (CommonJS/ESM interop) in `server/services/dexaScanExtractor.ts`, GPT-4o extraction with comprehensive system prompts for bone density metrics
+  - **Body Fat Categorization:** `bodyFatReferenceRanges` table with sex-specific categories (Male: 4-60%, Female: 12-60%) across 5 levels (Athlete/Fit/Average/High/Very High)
+  - **Storage:** Uses existing `diagnosticsStudies` table with `studyType='dexa'` and JSONB `aiPayload` for flexible data storage
+  - **Summary Endpoint:** GET /api/diagnostics/summary returns both calcium score and DEXA data for unified diagnostics display
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.
 - **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically. Return JWT tokens for mobile clients.
 
 ### Data Storage
 **Database:** PostgreSQL (Neon serverless) using Drizzle ORM.
-**Schema:** Manages users, sessions, profiles (demographics, health baseline, goals, AI personalization), blood work records, AI analysis results (JSONB), billing customers, subscriptions, payments, audit logs, auth providers (OAuth tokens), and user credentials (password hashes).
+**Schema:** Manages users, sessions, profiles (demographics, health baseline, goals, AI personalization), blood work records, AI analysis results (JSONB), diagnostic studies (calcium scores, DEXA scans), body fat reference ranges, billing customers, subscriptions, payments, audit logs, auth providers (OAuth tokens), and user credentials (password hashes).
 **Profile System:** Comprehensive, editable user profiles with section-specific PATCH endpoints.
 **Auth System:** Multi-provider authentication with `auth_providers` table (links users to Apple/Google/Replit), `user_credentials` table (email/password with bcrypt), bidirectional account linking, and automatic profile creation.
 
