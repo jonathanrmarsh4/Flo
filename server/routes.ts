@@ -2117,6 +2117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const measurementIds: string[] = [];
             const successfulBiomarkers: string[] = [];
             const failedBiomarkers: { name: string; error: string }[] = [];
+            const seenBiomarkersInSession = new Set<string>();
 
             for (const biomarker of extractedBiomarkers) {
               try {
@@ -2131,6 +2132,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   biomarkerData.units,
                   biomarkerData.ranges
                 );
+
+                // Check for duplicates within this session/upload
+                if (seenBiomarkersInSession.has(normalized.biomarker_id)) {
+                  failedBiomarkers.push({
+                    name: biomarker.name,
+                    error: "Duplicate biomarker in this upload (same biomarker extracted multiple times)",
+                  });
+                  continue;
+                }
 
                 // Check for duplicates: same biomarker, same value (canonical), same test date
                 const isDuplicate = await storage.checkDuplicateMeasurement({
@@ -2147,6 +2157,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   });
                   continue;
                 }
+
+                seenBiomarkersInSession.add(normalized.biomarker_id);
 
                 const measurement = await storage.createMeasurement({
                   sessionId: session.id,
