@@ -23,14 +23,14 @@ export function HeartMetabolicTile({
   const getScoreColor = (score: number | null | undefined) => {
     if (score === null || score === undefined) return isDark ? 'text-white/30' : 'text-gray-400';
     if (score >= 80) return 'text-green-500';
-    if (score >= 60) return 'text-yellow-500';
+    if (score >= 40) return 'text-orange-500';
     return 'text-red-500';
   };
 
   const getProgressColor = (score: number | null | undefined) => {
     if (score === null || score === undefined) return isDark ? 'bg-white/10' : 'bg-gray-200';
     if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-yellow-500';
+    if (score >= 40) return 'bg-orange-500';
     return 'bg-red-500';
   };
 
@@ -82,7 +82,7 @@ export function HeartMetabolicTile({
                 riskBand === 'Low Risk' 
                   ? 'bg-green-500/20 text-green-500 border-green-500/30' 
                   : riskBand === 'Moderate Risk'
-                  ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500/30'
+                  ? 'bg-orange-500/20 text-orange-500 border-orange-500/30'
                   : 'bg-red-500/20 text-red-500 border-red-500/30'
               }`}
               data-testid="badge-risk"
