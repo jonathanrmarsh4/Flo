@@ -22,7 +22,11 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 - **DEXA Scan Display:** Integrates into the Diagnostics page, displaying bone density T-scores, WHO classification, body fat percentage with sex-specific categorization, and visceral adipose tissue (VAT) area.
 
 **Backend:** Developed with Express.js and TypeScript, providing a RESTful API.
-- **Authentication:** Dual system with Replit Auth (OIDC) for web and JWT tokens for mobile (Apple Sign-In/Email/Password) stored in iOS Keychain. JWTs are production-ready with privilege escalation prevention.
+- **Authentication:** Unified authentication system (`server/replitAuth.ts::isAuthenticated`) supporting both:
+  - **Web:** Replit Auth (OIDC) via session cookies with automatic token refresh
+  - **Mobile:** JWT tokens (Apple Sign-In/Email/Password) via `Authorization: Bearer` header
+  - Security: JWTs production-ready with privilege escalation prevention (only `sub` claim trusted, role/status fetched from DB on every request)
+  - All protected routes use single `isAuthenticated` middleware that checks JWT first, then falls back to session auth
 - **File Storage:** Uses pre-signed URLs for client-to-GCS uploads and private serving via a backend proxy.
 - **PhenoAge Biological Age Calculation:** Implements the Levine et al. (2018) algorithm using 9 biomarkers, including automatic unit conversion.
 - **Calculated Biomarkers:** Automatically calculates Adjusted Calcium when Calcium and Albumin are present.

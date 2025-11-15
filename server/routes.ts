@@ -2,8 +2,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth } from "./replitAuth";
-import { authenticate } from "./middleware/auth";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
 import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
