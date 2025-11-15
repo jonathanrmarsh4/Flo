@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { DiagnosticResultsScreen } from "@/components/DiagnosticResultsScreen";
+import { FloBottomNav } from "@/components/FloBottomNav";
 
 interface CalciumScoreSummary {
   totalScore: number | null;
@@ -15,26 +17,32 @@ interface DiagnosticResultsSummary {
 
 export default function DiagnosticsPage() {
   const [, setLocation] = useLocation();
+  const [isDark] = useState(true);
 
   const { data, isLoading } = useQuery<DiagnosticResultsSummary>({
     queryKey: ['/api/diagnostics/summary'],
   });
 
+  const handleClose = () => {
+    setLocation('/dashboard');
+  };
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
-          <p className="mt-2 text-muted-foreground">Loading diagnostics...</p>
-        </div>
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <DiagnosticResultsScreen 
-      calciumScore={data?.calciumScore ?? null}
-      onClose={() => setLocation("/dashboard")}
-    />
+    <div className="h-screen overflow-hidden">
+      <DiagnosticResultsScreen 
+        isDark={isDark}
+        calciumScore={data?.calciumScore ?? null}
+        onClose={handleClose}
+      />
+      <FloBottomNav />
+    </div>
   );
 }

@@ -9,51 +9,41 @@ interface CalciumScoreSummary {
 }
 
 interface DiagnosticResultsScreenProps {
+  isDark: boolean;
   onClose: () => void;
   calciumScore?: CalciumScoreSummary | null;
 }
 
-export function DiagnosticResultsScreen({ onClose, calciumScore }: DiagnosticResultsScreenProps) {
-  // Use system theme detection
-  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+export function DiagnosticResultsScreen({ isDark, onClose, calciumScore }: DiagnosticResultsScreenProps) {
   return (
-    <div className={`fixed inset-0 z-50 ${
+    <div className={`h-full overflow-y-auto pb-20 transition-colors ${
       isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
     }`}>
       {/* Header */}
-      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
+      <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
-        <div className="px-4 py-3">
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Diagnostic Results
-              </h1>
-              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                Advanced health assessments
-              </p>
-            </div>
             <button 
               onClick={onClose}
-              data-testid="button-close-diagnostics"
-              className={`p-2 rounded-lg transition-colors hover-elevate ${
-                isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
-              }`}
+              className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
+              data-testid="button-back"
             >
-              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              ← Back
             </button>
+            <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Diagnostics</h1>
+            <div className="w-12"></div> {/* Spacer for centering */}
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Content */}
-      <main className="overflow-y-auto px-4 py-6 pb-24" style={{ height: 'calc(100vh - 70px)' }}>
-        <div className="space-y-6 max-w-2xl mx-auto">
-          {/* Cardiovascular Section */}
-          <section>
+      <div className="px-4 py-6 space-y-4">
+        {/* Cardiovascular Section */}
+        <section>
             <div className="flex items-center gap-2 mb-3">
               <Heart className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
               <h2 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -63,9 +53,9 @@ export function DiagnosticResultsScreen({ onClose, calciumScore }: DiagnosticRes
             
             <div className="space-y-3">
               <CalciumScoreTile 
+                isDark={isDark}
                 score={calciumScore?.totalScore ?? null}
                 riskLevel={calciumScore?.riskLevel ?? null}
-                agePercentile={calciumScore?.agePercentile ?? null}
                 testDate={calciumScore?.studyDate ?? null}
               />
               
@@ -122,8 +112,7 @@ export function DiagnosticResultsScreen({ onClose, calciumScore }: DiagnosticRes
               />
             </div>
           </section>
-        </div>
-      </main>
+      </div>
     </div>
   );
 }
