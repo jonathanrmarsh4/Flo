@@ -83,10 +83,10 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
               calendarAge={bioAgeData?.chronologicalAge}
               bioAgeDelta={bioAgeData?.ageDifference}
               floScore={dashboardData?.floScore}
-              cardiometabolic={dashboardData?.cardiometabolic}
-              bodyComposition={dashboardData?.bodyComposition}
-              readiness={dashboardData?.readiness}
-              inflammation={dashboardData?.inflammation}
+              cardiometabolic={dashboardData?.componentScores?.cardiometabolic}
+              bodyComposition={dashboardData?.componentScores?.bodyComposition}
+              readiness={dashboardData?.componentScores?.readiness}
+              inflammation={dashboardData?.componentScores?.inflammation}
               lastCheckin={dashboardData?.lastUpdated}
             />
 
@@ -94,11 +94,11 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <HeartMetabolicTile 
                 isDark={isDark}
-                score={dashboardData?.cardiometabolic}
+                score={dashboardData?.componentScores?.cardiometabolic}
               />
               <BodyCompositionTile 
                 isDark={isDark}
-                score={dashboardData?.bodyComposition}
+                score={dashboardData?.componentScores?.bodyComposition}
               />
             </div>
 
