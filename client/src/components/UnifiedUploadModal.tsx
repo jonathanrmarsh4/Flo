@@ -121,6 +121,51 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
     },
   });
 
+  const dexaScanUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const baseUrl = getApiBaseUrl();
+      const fullUrl = baseUrl + '/api/diagnostics/dexa/upload';
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.details || error.error || 'Upload failed');
+      }
+
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/diagnostics/summary'] });
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === '/api/diagnostics/dexa' ||
+          (typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/diagnostics'))
+      });
+      toast({
+        title: "Upload Complete",
+        description: "Your DEXA scan has been processed successfully!",
+      });
+      setTimeout(() => onClose(), 2000);
+    },
+    onError: (error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload DEXA scan",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -157,16 +202,13 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
       } else if (diagnosticType === 'calcium-score') {
         calciumScoreUploadMutation.mutate(file);
       } else if (diagnosticType === 'dexa') {
-        toast({
-          title: "Coming Soon",
-          description: "DEXA scan upload will be available soon. We're currently working on this feature.",
-        });
+        dexaScanUploadMutation.mutate(file);
       }
     }
   };
 
-  const isUploading = bloodWorkUploadMutation.isPending || calciumScoreUploadMutation.isPending;
-  const uploadSuccess = bloodWorkUploadMutation.isSuccess || calciumScoreUploadMutation.isSuccess;
+  const isUploading = bloodWorkUploadMutation.isPending || calciumScoreUploadMutation.isPending || dexaScanUploadMutation.isPending;
+  const uploadSuccess = bloodWorkUploadMutation.isSuccess || calciumScoreUploadMutation.isSuccess || dexaScanUploadMutation.isSuccess;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
