@@ -5,6 +5,7 @@ import {
   type DexaScanExtraction,
   type DexaScanExtractionResult,
 } from "../schemas/dexaScan";
+import { logger } from "../logger";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -123,7 +124,7 @@ export async function extractDexaScan(
       modelUsed: modelName,
     };
   } catch (error) {
-    console.error("[DexaScanExtractor] Error:", error);
+    logger.error("[DexaScanExtractor] Error", error);
     const modelName = options?.model || "gpt-4o";
     return {
       success: false,

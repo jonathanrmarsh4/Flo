@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { emailRegisterSchema, emailLoginSchema } from '@shared/schema';
+import { logger } from '@/lib/logger';
 
 type LoginFormData = z.infer<typeof emailLoginSchema>;
 type RegisterFormData = z.infer<typeof emailRegisterSchema>;
@@ -70,7 +71,7 @@ export default function MobileAuth() {
     setIsAppleLoading(true);
     setGeneralError(null);
     try {
-      console.log('[Apple Sign-In] Starting authorization...');
+      logger.debug('Apple Sign-In: Starting authorization');
       const result = await SignInWithApple.authorize({
         clientId: 'com.flo.healthapp',
         redirectURI: 'https://get-flo.com/auth/apple/callback',
@@ -79,9 +80,10 @@ export default function MobileAuth() {
         nonce: crypto.randomUUID(),
       });
 
-      console.log('[Apple Sign-In] Authorization successful, sending to backend...');
-      console.log('[Apple Sign-In] User ID:', result.response.user);
-      console.log('[Apple Sign-In] Has token:', !!result.response.identityToken);
+      logger.debug('Apple Sign-In: Authorization successful, sending to backend', {
+        userId: result.response.user,
+        hasToken: !!result.response.identityToken
+      });
 
       // Send to backend
       const response = await apiRequest('POST', '/api/mobile/auth/apple', {
@@ -93,11 +95,14 @@ export default function MobileAuth() {
         user: result.response.user,
       });
 
-      console.log('[Apple Sign-In] Backend response status:', response.status);
+      logger.debug('Apple Sign-In: Backend response received', { status: response.status });
 
       if (response.ok) {
         const data = await response.json();
-        console.log('[Apple Sign-In] Response data:', { hasToken: !!data.token, hasUser: !!data.user });
+        logger.debug('Apple Sign-In: Response data received', { 
+          hasToken: !!data.token, 
+          hasUser: !!data.user 
+        });
         
         // Store JWT token in secure encrypted storage (always native for Apple Sign-In)
         if (data.token) {
@@ -107,9 +112,9 @@ export default function MobileAuth() {
               key: 'auth_token',
               value: data.token,
             });
-            console.log('[Apple Sign-In] Token stored securely');
+            logger.info('Apple Sign-In: Token stored securely');
           } catch (error) {
-            console.error('[Apple Sign-In] Failed to store token securely:', error);
+            logger.error('Apple Sign-In: Failed to store token securely', error);
           }
         }
         
@@ -127,10 +132,10 @@ export default function MobileAuth() {
       }
     } catch (error: any) {
       // Log full error details for debugging
-      console.error('[Apple Sign-In] Error occurred');
-      console.error('[Apple Sign-In] Error name:', error?.name);
-      console.error('[Apple Sign-In] Error message:', error?.message);
-      console.error('[Apple Sign-In] Error stack:', error?.stack);
+      logger.error('Apple Sign-In: Error occurred', error, {
+        errorName: error?.name,
+        errorMessage: error?.message
+      });
       
       const errorMessage = error?.message || "Failed to sign in with Apple. Please try again.";
       setGeneralError(errorMessage);
@@ -164,7 +169,7 @@ export default function MobileAuth() {
               value: responseData.token,
             });
           } catch (error) {
-            console.error('[Login] Failed to store token securely:', error);
+            logger.error('Login: Failed to store token securely', error);
           }
         }
         
@@ -176,7 +181,7 @@ export default function MobileAuth() {
         setLocation('/dashboard');
       }
     } catch (error: any) {
-      console.error('Login error:', error);
+      logger.error('Login error', error);
       const errorMessage = error.message || "Authentication failed";
       setGeneralError(errorMessage);
       
@@ -210,7 +215,7 @@ export default function MobileAuth() {
               value: responseData.token,
             });
           } catch (error) {
-            console.error('[Register] Failed to store token securely:', error);
+            logger.error('Register: Failed to store token securely', error);
           }
         }
         
@@ -222,7 +227,7 @@ export default function MobileAuth() {
         setLocation('/dashboard');
       }
     } catch (error: any) {
-      console.error('Registration error:', error);
+      logger.error('Registration error', error);
       const errorMessage = error.message || "Registration failed";
       setGeneralError(errorMessage);
       

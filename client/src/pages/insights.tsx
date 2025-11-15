@@ -10,6 +10,7 @@ import {
   getAIInsight
 } from '@/lib/flo-data-adapters';
 import type { AnalysisResult } from '@shared/schema';
+import { logger } from '@/lib/logger';
 
 interface BiologicalAgeResponse {
   biologicalAge: number;
@@ -82,22 +83,26 @@ export default function Insights() {
   // Calculate chronological age from profile as fallback
   let chronologicalAgeFallback: number | undefined = undefined;
   if (profile?.dateOfBirth) {
-    console.log('[Age Calculation] Profile DOB:', profile.dateOfBirth);
+    logger.debug('Age Calculation: Profile DOB', { dateOfBirth: profile.dateOfBirth });
     const today = new Date();
     const birthDate = new Date(profile.dateOfBirth);
-    console.log('[Age Calculation] Today:', today);
-    console.log('[Age Calculation] Birth Date:', birthDate);
-    console.log('[Age Calculation] Today Month (0-indexed):', today.getMonth());
-    console.log('[Age Calculation] Birth Month (0-indexed):', birthDate.getMonth());
+    logger.debug('Age Calculation: Date comparison', { 
+      today, 
+      birthDate,
+      todayMonth: today.getMonth(),
+      birthMonth: birthDate.getMonth()
+    });
     chronologicalAgeFallback = today.getFullYear() - birthDate.getFullYear() - 
       (today.getMonth() < birthDate.getMonth() || 
        (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
-    console.log('[Age Calculation] Calculated Age:', chronologicalAgeFallback);
+    logger.debug('Age Calculation: Calculated age', { calculatedAge: chronologicalAgeFallback });
   } else {
-    console.log('[Age Calculation] No profile DOB available');
+    logger.debug('Age Calculation: No profile DOB available');
   }
-  console.log('[Age Calculation] Profile data:', profile);
-  console.log('[Age Calculation] BiologicalAgeData:', biologicalAgeData);
+  logger.debug('Age Calculation: Profile and biological age data', { 
+    profile, 
+    biologicalAgeData 
+  });
 
   // Transform backend data for UI
   const readings = mapAnalysisToBiomarkerReadings(analysis);

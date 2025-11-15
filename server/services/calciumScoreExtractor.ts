@@ -6,6 +6,7 @@ import {
   type CalciumScoreExtraction,
   type CalciumScoreExtractionResult,
 } from "../schemas/calciumScore";
+import { logger } from "../logger";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -109,7 +110,7 @@ export async function extractCalciumScoreFromPdf(
       pdfText,
     };
   } catch (error) {
-    console.error("Calcium score extraction error:", error);
+    logger.error("Calcium score extraction error", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown extraction error",

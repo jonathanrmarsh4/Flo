@@ -15,6 +15,7 @@ import {
 } from '@/lib/flo-data-adapters';
 import { BIOMARKER_CONFIGS, CATEGORIES } from '@/lib/biomarker-config';
 import { queryClient } from '@/lib/queryClient';
+import { logger } from '@/lib/logger';
 
 const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
   'All': 'All',
@@ -37,9 +38,9 @@ export default function Dashboard() {
       try {
         const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
         await SecureStoragePlugin.remove({ key: 'auth_token' });
-        console.log('[Logout] JWT token cleared from secure storage');
+        logger.info('Logout: JWT token cleared from secure storage');
       } catch (error) {
-        console.error('[Logout] Failed to clear token:', error);
+        logger.error('Logout: Failed to clear token', error);
       }
       
       // Clear all cached queries

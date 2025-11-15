@@ -10,6 +10,7 @@ import {
   generateSuggestedActions,
   performDataQualityCheck,
 } from "./guardrails";
+import { logger } from "./logger";
 
 // This is using Replit's AI Integrations service, which provides OpenAI-compatible API access without requiring your own OpenAI API key.
 const openai = new OpenAI({
@@ -173,7 +174,7 @@ Provide personalized, actionable insights that EXPLICITLY REFERENCE their curren
 
     return insights;
   } catch (error: any) {
-    console.error("Error generating biomarker insights:", error);
+    logger.error('Error generating biomarker insights', error);
     throw new Error(`Failed to generate biomarker insights: ${error.message || 'Unknown error'}`);
   }
 }
@@ -433,7 +434,7 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
       ? `\n\nIMPORTANT MEDICAL CONTEXT (provided by user): ${input.user_profile.other_context}\nTake this context into account when generating insights. For example, if they're on TRT, expect testosterone levels to be elevated and focus on optimizing other health markers. Tailor recommendations based on their medical situation.`
       : '';
 
-    console.log("Calling OpenAI for comprehensive insights...");
+    logger.info('Calling OpenAI for comprehensive insights');
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -448,7 +449,7 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
       max_completion_tokens: 16000,
     });
 
-    console.log("OpenAI response received:", {
+    logger.debug('OpenAI response received', {
       choices: response.choices?.length || 0,
       finishReason: response.choices?.[0]?.finish_reason,
       hasContent: !!response.choices?.[0]?.message?.content,
@@ -457,7 +458,7 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      console.error("No content in OpenAI response:", JSON.stringify(response, null, 2));
+      logger.error('No content in OpenAI response', undefined, { response: JSON.stringify(response, null, 2) });
       throw new Error("No response from AI");
     }
 
@@ -470,15 +471,15 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
     if (!insights.disclaimer) missingFields.push('disclaimer');
     
     if (missingFields.length > 0) {
-      console.error("Missing required fields in AI response:", missingFields);
-      console.error("Received structure:", Object.keys(insights));
-      console.error("Full response:", JSON.stringify(insights, null, 2));
+      logger.error('Missing required fields in AI response', undefined, { missingFields });
+      logger.error('Received structure', undefined, { structure: Object.keys(insights) });
+      logger.error('Full response', undefined, { response: JSON.stringify(insights, null, 2) });
       throw new Error(`Invalid comprehensive insights response structure. Missing fields: ${missingFields.join(', ')}`);
     }
 
     return insights;
   } catch (error: any) {
-    console.error("Error generating comprehensive insights:", error);
+    logger.error('Error generating comprehensive insights', error);
     throw new Error(`Failed to generate comprehensive insights: ${error.message || 'Unknown error'}`);
   }
 }
@@ -564,7 +565,7 @@ WORDING RULES:
     const safetyCheck = enforceSafetyRules(analysis);
     if (!safetyCheck.safe) {
       const violationMessage = `AI safety violation: ${safetyCheck.violations.join(', ')}`;
-      console.error('SAFETY VIOLATION:', safetyCheck.violations);
+      logger.error('SAFETY VIOLATION', undefined, { violations: safetyCheck.violations });
       const error: any = new Error(violationMessage);
       error.isSafetyViolation = true;
       error.violations = safetyCheck.violations;
@@ -578,7 +579,7 @@ WORDING RULES:
       throw error; // Rethrow safety violations with full details
     }
     
-    console.error("Error analyzing blood work:", error);
+    logger.error('Error analyzing blood work', error);
     throw new Error(`Failed to analyze blood work with AI: ${error.message || 'Unknown error'}`);
   }
 }
@@ -735,7 +736,7 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
       ? `\n\nIMPORTANT MEDICAL CONTEXT: ${input.user_profile.medicalContext}\nTake this into account when generating insights and recommendations.`
       : '';
 
-    console.log("Calling OpenAI for full health report...");
+    logger.info('Calling OpenAI for full health report');
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -767,7 +768,7 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
 
     return report;
   } catch (error: any) {
-    console.error("Error generating full health report:", error);
+    logger.error('Error generating full health report', error);
     throw new Error(`Failed to generate full health report with AI: ${error.message || 'Unknown error'}`);
   }
 }

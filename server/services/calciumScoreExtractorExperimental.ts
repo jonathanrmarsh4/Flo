@@ -10,6 +10,7 @@ import {
   type CalciumScoreExtraction,
   type CalciumScoreExtractionResult,
 } from "../schemas/calciumScore";
+import { logger } from "../logger";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -17,7 +18,7 @@ const openai = new OpenAI({
 });
 
 async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
-  console.log("[OCR] Starting PDF text extraction with OCR fallback...");
+  logger.debug("[OCR] Starting PDF text extraction with OCR fallback");
   
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: pdfBuffer });
@@ -37,11 +38,11 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
   const hasMinimalText = totalChars < 50;
   
   if (!hasMinimalText) {
-    console.log(`[OCR] PDF has extractable text (${totalChars} chars), using direct extraction`);
+    logger.debug(`[OCR] PDF has extractable text (${totalChars} chars), using direct extraction`);
     return initialText;
   }
   
-  console.log(`[OCR] PDF appears to be image-based (only ${totalChars} chars), using OCR...`);
+  logger.debug(`[OCR] PDF appears to be image-based (only ${totalChars} chars), using OCR`);
   
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-ocr-'));
   let worker;
@@ -63,13 +64,13 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
     const numPages = pdfInfo.numpages || 1;
     
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      console.log(`[OCR] Processing page ${pageNum}/${numPages}...`);
+      logger.debug(`[OCR] Processing page ${pageNum}/${numPages}`);
       
       try {
         const pageResult = await converter(pageNum, { responseType: 'image' });
         
         if (!pageResult.path) {
-          console.error(`[OCR] No path returned for page ${pageNum}`);
+          logger.error(`[OCR] No path returned for page ${pageNum}`);
           continue;
         }
         
@@ -78,14 +79,14 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
         
         await fs.unlink(pageResult.path);
       } catch (pageError) {
-        console.error(`[OCR] Error processing page ${pageNum}:`, pageError);
+        logger.error(`[OCR] Error processing page ${pageNum}`, pageError);
       }
     }
     
-    console.log(`[OCR] Extraction complete. Extracted ${ocrText.length} characters from ${numPages} pages`);
+    logger.debug(`[OCR] Extraction complete. Extracted ${ocrText.length} characters from ${numPages} pages`);
     
     if (ocrText.trim().length === 0) {
-      console.warn('[OCR] Warning: OCR produced no text output');
+      logger.warn('[OCR] Warning: OCR produced no text output');
     }
     
     return ocrText;
@@ -203,7 +204,7 @@ export async function extractCalciumScoreExperimental(
       modelUsed: modelName,
     };
   } catch (error) {
-    console.error("[CalciumScoreExtractorExperimental] Error:", error);
+    logger.error("[CalciumScoreExtractorExperimental] Error", error);
     const modelName = options?.model || "gpt-5";
     return {
       success: false,

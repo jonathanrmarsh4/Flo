@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 interface Biomarker {
   id: string;
@@ -111,7 +112,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
     try {
       const numericValue = parseFloat(value);
       if (isNaN(numericValue)) {
-        console.error("Invalid numeric value");
+        logger.error("Invalid numeric value");
         return;
       }
 
@@ -123,13 +124,13 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       });
 
       if (!response.ok) {
-        console.error("Failed to save measurement");
+        logger.error("Failed to save measurement");
         return;
       }
 
       const result = await response.json();
       
-      console.log({
+      logger.debug("Measurement saved successfully", {
         session: result.session,
         measurement: result.measurement,
         normalized: result.normalized,
@@ -142,7 +143,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
 
       onClose();
     } catch (error) {
-      console.error("Error submitting test result:", error);
+      logger.error("Error submitting test result", error);
     }
   };
 
@@ -212,7 +213,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       // Start polling for status
       startPolling(result.jobId);
     } catch (error: any) {
-      console.error('Upload error:', error);
+      logger.error("Upload error", error);
       setJobError(error.message || 'Failed to upload file');
       setUploading(false);
       setUploadProgress(0);
@@ -255,7 +256,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
           }
         }
       } catch (error: any) {
-        console.error('Polling error:', error);
+        logger.error("Polling error", error);
         setJobError(error.message || 'Failed to check status');
         setUploading(false);
         if (pollingIntervalRef.current) {
