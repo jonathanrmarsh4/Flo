@@ -7,6 +7,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { UnifiedUploadModal } from '@/components/UnifiedUploadModal';
 import { useAuth } from '@/hooks/useAuth';
 import { queryClient } from '@/lib/queryClient';
+import { logger } from '@/lib/logger';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -19,9 +20,9 @@ export default function Dashboard() {
       try {
         const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
         await SecureStoragePlugin.remove({ key: 'auth_token' });
-        console.log('[Logout] JWT token cleared from secure storage');
+        logger.debug('JWT token cleared from secure storage on logout');
       } catch (error) {
-        console.error('[Logout] Failed to clear token:', error);
+        logger.error('Failed to clear auth token on logout', error);
       }
       
       queryClient.clear();
