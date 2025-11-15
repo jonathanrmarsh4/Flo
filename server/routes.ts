@@ -8,6 +8,7 @@ import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
 import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
+import { logger } from "./logger";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -54,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
-      console.error("Error fetching user:", error);
+      logger.error('Error fetching user:', error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
@@ -69,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(204).send();
     } catch (error) {
-      console.error("Error deleting user data:", error);
+      logger.error('Error deleting user data:', error);
       res.status(500).json({ error: "Failed to delete user data" });
     }
   });
@@ -83,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL();
       res.json({ uploadURL, objectPath });
     } catch (error) {
-      console.error("Error getting upload URL:", error);
+      logger.error('Error getting upload URL:', error);
       res.status(500).json({ error: "Failed to get upload URL" });
     }
   });
@@ -102,7 +103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
-      console.error("Error accessing object:", error);
+      logger.error('Error accessing object:', error);
       if (error instanceof ObjectNotFoundError) {
         return res.sendStatus(404);
       }
@@ -223,19 +224,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
       } catch (analysisError) {
-        console.error("Analysis error:", analysisError);
+        logger.error('Analysis error:', analysisError);
         await storage.updateBloodWorkRecordStatus(record.id, "failed");
         throw analysisError;
       }
     } catch (error) {
-      console.error("Error analyzing blood work:", error);
+      logger.error('Error analyzing blood work:', error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       const errorStack = error instanceof Error ? error.stack : undefined;
       
-      console.error("Full error details:", {
+      logger.error('Full error details:', error, {
         message: errorMessage,
         stack: errorStack,
-        error: JSON.stringify(error, null, 2),
+        errorJson: JSON.stringify(error, null, 2),
       });
       
       res.status(500).json({ 
@@ -258,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const analysis = await storage.getAnalysisResultByRecordId(record.id);
       res.json({ record, analysis });
     } catch (error) {
-      console.error("Error fetching latest blood work:", error);
+      logger.error('Error fetching latest blood work:', error);
       res.status(500).json({ error: "Failed to fetch latest blood work" });
     }
   });
@@ -279,7 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(recordsWithAnalysis);
     } catch (error) {
-      console.error("Error fetching blood work records:", error);
+      logger.error('Error fetching blood work records:', error);
       res.status(500).json({ error: "Failed to fetch blood work records" });
     }
   });
@@ -304,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const analysis = await storage.getAnalysisResultByRecordId(record.id);
       res.json({ record, analysis });
     } catch (error) {
-      console.error("Error fetching blood work record:", error);
+      logger.error('Error fetching blood work record:', error);
       res.status(500).json({ error: "Failed to fetch blood work record" });
     }
   });
@@ -322,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(profile);
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      logger.error('Error fetching profile:', error);
       res.status(500).json({ error: "Failed to fetch profile" });
     }
   });
@@ -349,7 +350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(profile);
     } catch (error) {
-      console.error("Error updating demographics:", error);
+      logger.error('Error updating demographics:', error);
       res.status(500).json({ error: "Failed to update demographics" });
     }
   });
@@ -370,7 +371,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(profile);
     } catch (error) {
-      console.error("Error updating health baseline:", error);
+      logger.error('Error updating health baseline:', error);
       res.status(500).json({ error: "Failed to update health baseline" });
     }
   });
@@ -391,7 +392,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(profile);
     } catch (error) {
-      console.error("Error updating goals:", error);
+      logger.error('Error updating goals:', error);
       res.status(500).json({ error: "Failed to update goals" });
     }
   });
@@ -412,7 +413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(profile);
     } catch (error) {
-      console.error("Error updating AI personalization:", error);
+      logger.error('Error updating AI personalization:', error);
       res.status(500).json({ error: "Failed to update AI personalization" });
     }
   });
@@ -456,7 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof UnitConversionError) {
         return res.status(400).json({ error: error.message });
       }
-      console.error("Error normalizing measurement:", error);
+      logger.error('Error normalizing measurement:', error);
       res.status(500).json({ error: "Failed to normalize measurement" });
     }
   });
@@ -521,7 +522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results,
       });
     } catch (error) {
-      console.error("Error in bulk normalization:", error);
+      logger.error('Error in bulk normalization:', error);
       res.status(500).json({ error: "Failed to normalize measurements" });
     }
   });
@@ -602,7 +603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ biomarkers: response });
     } catch (error) {
-      console.error("Error fetching biomarkers:", error);
+      logger.error('Error fetching biomarkers:', error);
       res.status(500).json({ error: "Failed to fetch biomarkers" });
     }
   });
@@ -628,7 +629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ sessions: sessionsWithMeasurements });
     } catch (error) {
-      console.error("Error fetching biomarker sessions:", error);
+      logger.error('Error fetching biomarker sessions:', error);
       res.status(500).json({ error: "Failed to fetch biomarker sessions" });
     }
   });
@@ -826,7 +827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               break;
           }
         } catch (error: any) {
-          console.error(`Error converting ${biomarkerName}:`, error);
+          logger.error(`Error converting ${biomarkerName}:`, error);
           return res.status(500).json({ 
             error: `Failed to convert ${biomarkerName}: ${error.message}` 
           });
@@ -891,7 +892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
       } catch (error: any) {
-        console.error("Error calculating PhenoAge:", error);
+        logger.error('Error calculating PhenoAge:', error);
         res.status(500).json({ 
           error: "Failed to calculate biological age",
           message: error.message
@@ -899,7 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
     } catch (error) {
-      console.error("Error in biological age endpoint:", error);
+      logger.error('Error in biological age endpoint:', error);
       res.status(500).json({ error: "Failed to calculate biological age" });
     }
   });
@@ -1035,7 +1036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
       } catch (error) {
-        console.log("Biological age calculation failed, continuing without it");
+        logger.info('Biological age calculation failed, continuing without it');
       }
 
       // Check if AI integration is configured
@@ -1082,7 +1083,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         insights = await generateComprehensiveInsights(insightsInput);
       } catch (aiError: any) {
-        console.error("OpenAI generation error:", aiError);
+        logger.error('OpenAI generation error:', aiError);
         return res.status(500).json({
           error: "AI generation failed",
           message: aiError.message || "Failed to generate insights using AI. The service may be temporarily unavailable.",
@@ -1103,7 +1104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiresAt,
         });
       } catch (saveError) {
-        console.error("Failed to cache insights:", saveError);
+        logger.error('Failed to cache insights:', saveError);
         // Still return the insights even if caching fails
       }
 
@@ -1113,7 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error: any) {
-      console.error("Error generating comprehensive insights:", error);
+      logger.error('Error generating comprehensive insights:', error);
       
       // Try to save error to database
       try {
@@ -1125,7 +1126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiresAt: null,
         });
       } catch (saveError) {
-        console.error("Failed to save error state:", saveError);
+        logger.error('Failed to save error state:', saveError);
       }
 
       res.status(500).json({ 
@@ -1154,7 +1155,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
     } catch (error) {
-      console.error("Error fetching health insights:", error);
+      logger.error('Error fetching health insights:', error);
       res.status(500).json({ error: "Failed to fetch health insights" });
     }
   });
@@ -1257,7 +1258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }
       } catch (error) {
-        console.log("Biological age calculation failed, continuing without it");
+        logger.info('Biological age calculation failed, continuing without it');
       }
 
       // Build report input
@@ -1279,7 +1280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(report);
 
     } catch (error: any) {
-      console.error("Error generating comprehensive report:", error);
+      logger.error('Error generating comprehensive report:', error);
       res.status(500).json({ 
         error: "Failed to generate comprehensive report",
         message: error.message
@@ -1371,7 +1372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ topBiomarkers });
     } catch (error: any) {
-      console.error("Error fetching top biomarkers to improve:", error);
+      logger.error('Error fetching top biomarkers to improve:', error);
       res.status(500).json({ error: "Failed to fetch top biomarkers" });
     }
   });
@@ -1425,7 +1426,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ units });
     } catch (error) {
-      console.error("Error fetching biomarker units:", error);
+      logger.error('Error fetching biomarker units:', error);
       res.status(500).json({ error: "Failed to fetch biomarker units" });
     }
   });
@@ -1514,7 +1515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         context: selectedRange.context,
       });
     } catch (error) {
-      console.error("Error fetching reference range:", error);
+      logger.error('Error fetching reference range:', error);
       res.status(500).json({ error: "Failed to fetch reference range" });
     }
   });
@@ -1630,8 +1631,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sex: profile?.sex?.toLowerCase() as 'male' | 'female' | undefined,
       };
       
-      console.log(`[INSIGHTS DEBUG] Biomarker: ${biomarker.name}, Canonical Unit: ${measurement.unitCanonical}`);
-      console.log(`[INSIGHTS DEBUG] Available ranges:`, biomarkerRanges.map(r => ({ unit: r.unit, low: r.low, high: r.high })));
+      logger.debug(`Biomarker: ${biomarker.name}, Canonical Unit: ${measurement.unitCanonical}`, {
+        biomarker: biomarker.name,
+        canonicalUnit: measurement.unitCanonical
+      });
+      logger.debug('Available ranges', {
+        biomarker: biomarker.name,
+        ranges: biomarkerRanges.map(r => ({ unit: r.unit, low: r.low, high: r.high }))
+      });
       
       const correctRange = selectReferenceRange(
         biomarkerId,
@@ -1640,13 +1647,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         biomarkerRanges
       );
 
-      console.log(`[INSIGHTS DEBUG] Selected range:`, correctRange ? { unit: correctRange.unit, low: correctRange.low, high: correctRange.high } : 'null');
+      logger.debug('Selected range', {
+        biomarker: biomarker.name,
+        selectedRange: correctRange ? { unit: correctRange.unit, low: correctRange.low, high: correctRange.high } : null
+      });
 
       // Use the correctly selected reference range instead of the stored one
       const referenceLow = correctRange?.low ?? null;
       const referenceHigh = correctRange?.high ?? null;
       
-      console.log(`[INSIGHTS DEBUG] Passing to AI: low=${referenceLow}, high=${referenceHigh}, value=${measurement.valueCanonical}`);
+      logger.debug('Passing to AI', {
+        biomarker: biomarker.name,
+        referenceLow,
+        referenceHigh,
+        value: measurement.valueCanonical
+      });
 
       // Enrich biomarker data for personalized insights
       const enrichedData = enrichBiomarkerData(
@@ -1736,7 +1751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
     } catch (error: any) {
-      console.error("Error generating biomarker insights:", error);
+      logger.error('Error generating biomarker insights:', error);
       
       // Try to return cached insights as fallback
       try {
@@ -1764,7 +1779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } catch (fallbackError) {
-        console.error("Failed to retrieve fallback insights:", fallbackError);
+        logger.error('Failed to retrieve fallback insights:', fallbackError);
       }
 
       res.status(500).json({ 
@@ -1836,7 +1851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         normalized,
       });
     } catch (error) {
-      console.error("Error creating measurement:", error);
+      logger.error('Error creating measurement:', error);
       res.status(500).json({ error: "Failed to create measurement" });
     }
   });
@@ -1865,7 +1880,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ measurements });
     } catch (error) {
-      console.error("Error fetching measurement history:", error);
+      logger.error('Error fetching measurement history:', error);
       res.status(500).json({ error: "Failed to fetch measurement history" });
     }
   });
@@ -1960,7 +1975,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         normalized,
       });
     } catch (error) {
-      console.error("Error updating measurement:", error);
+      logger.error('Error updating measurement:', error);
       res.status(500).json({ error: "Failed to update measurement" });
     }
   });
@@ -1990,7 +2005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true });
     } catch (error) {
-      console.error("Error deleting measurement:", error);
+      logger.error('Error deleting measurement:', error);
       res.status(500).json({ error: "Failed to delete measurement" });
     }
   });
@@ -2152,7 +2167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 measurementIds.push(measurement.id);
                 successfulBiomarkers.push(biomarker.name);
               } catch (error: any) {
-                console.error(`Failed to normalize biomarker ${biomarker.name}:`, error);
+                logger.error(`Failed to normalize biomarker ${biomarker.name}:`, error);
                 failedBiomarkers.push({
                   name: biomarker.name,
                   error: error.message || "Unknown error",
@@ -2184,7 +2199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           }
         } catch (error: any) {
-          console.error("Error processing lab upload:", error);
+          logger.error('Error processing lab upload:', error);
           finalStatus = "failed";
           finalJobUpdate = {
             status: "failed",
@@ -2195,7 +2210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.updateLabUploadJob(job.id, finalJobUpdate);
             await storage.updateBloodWorkRecordStatus(bloodWorkRecord.id, finalStatus);
           } catch (updateError) {
-            console.error("Critical error updating job status:", updateError);
+            logger.error('Critical error updating job status:', updateError);
           }
         }
       });
@@ -2206,7 +2221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Upload successful, processing started",
       });
     } catch (error: any) {
-      console.error("Error uploading lab file:", error);
+      logger.error('Error uploading lab file:', error);
       
       if (job && job.id) {
         try {
@@ -2215,7 +2230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             errorDetails: { error: error.message || "Upload failed" },
           });
         } catch (updateError) {
-          console.error("Failed to update job status:", updateError);
+          logger.error('Failed to update job status:', updateError);
         }
       }
       
@@ -2223,7 +2238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           await storage.updateBloodWorkRecordStatus(bloodWorkRecord.id, "failed");
         } catch (updateError) {
-          console.error("Failed to update blood work record status:", updateError);
+          logger.error('Failed to update blood work record status:', updateError);
         }
       }
       
@@ -2256,7 +2271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: job.updatedAt,
       });
     } catch (error) {
-      console.error("Error getting job status:", error);
+      logger.error('Error getting job status:', error);
       res.status(500).json({ error: "Failed to get job status" });
     }
   });
@@ -2283,7 +2298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(result);
     } catch (error) {
-      console.error("Error listing users:", error);
+      logger.error('Error listing users:', error);
       res.status(500).json({ error: "Failed to list users" });
     }
   });
@@ -2309,7 +2324,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(user);
     } catch (error) {
-      console.error("Error updating user:", error);
+      logger.error('Error updating user:', error);
       res.status(500).json({ error: "Failed to update user" });
     }
   });
@@ -2320,7 +2335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const billingInfo = await storage.getBillingInfo(userId);
       res.json(billingInfo);
     } catch (error) {
-      console.error("Error fetching billing info:", error);
+      logger.error('Error fetching billing info:', error);
       res.status(500).json({ error: "Failed to fetch billing info" });
     }
   });
@@ -2508,7 +2523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metricsCount: metrics.length,
       });
     } catch (error) {
-      console.error("Error uploading calcium score:", error);
+      logger.error('Error uploading calcium score:', error);
       res.status(500).json({ error: "Failed to process calcium score upload" });
     }
   });
@@ -2636,7 +2651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         experimental: true,
       });
     } catch (error) {
-      console.error("Error uploading calcium score (experimental):", error);
+      logger.error('Error uploading calcium score (experimental):', error);
       res.status(500).json({ error: "Failed to process calcium score upload" });
     }
   });
@@ -2785,7 +2800,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         modelUsed: extractionResult.modelUsed,
       });
     } catch (error) {
-      console.error("Error uploading DEXA scan:", error);
+      logger.error('Error uploading DEXA scan:', error);
       res.status(500).json({ error: "Failed to process DEXA scan upload" });
     }
   });
@@ -2935,7 +2950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         experimental: true,
       });
     } catch (error) {
-      console.error("Error uploading DEXA scan (experimental):", error);
+      logger.error('Error uploading DEXA scan (experimental):', error);
       res.status(500).json({ error: "Failed to process DEXA scan upload" });
     }
   });
@@ -2979,7 +2994,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(summary);
     } catch (error) {
-      console.error("Error fetching diagnostic summary:", error);
+      logger.error('Error fetching diagnostic summary:', error);
       res.status(500).json({ error: "Failed to fetch diagnostic summary" });
     }
   });
@@ -3034,7 +3049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: scores.details,
       });
     } catch (error) {
-      console.error("Error fetching dashboard overview:", error);
+      logger.error('Error fetching dashboard overview:', error);
       res.status(500).json({ error: "Failed to fetch dashboard overview" });
     }
   });

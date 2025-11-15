@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../replitAuth";
 import { requireAdmin } from "../middleware/rbac";
+import { logger } from "../logger";
 import Stripe from "stripe";
 
 const stripe = process.env.STRIPE_SECRET_KEY
@@ -51,7 +52,7 @@ export function registerAdminRoutes(app: Express) {
       
       res.json(stats);
     } catch (error) {
-      console.error("Error fetching admin overview:", error);
+      logger.error('Error fetching admin overview', error);
       res.status(500).json({ error: "Failed to fetch overview stats" });
     }
   });
@@ -69,7 +70,7 @@ export function registerAdminRoutes(app: Express) {
       
       res.json(usage);
     } catch (error) {
-      console.error("Error fetching API usage:", error);
+      logger.error('Error fetching API usage', error);
       res.status(500).json({ error: "Failed to fetch API usage" });
     }
   });
@@ -95,7 +96,7 @@ export function registerAdminRoutes(app: Express) {
       
       res.json(data);
     } catch (error) {
-      console.error("Error fetching analytics:", error);
+      logger.error('Error fetching analytics', error);
       res.status(500).json({ error: "Failed to fetch analytics" });
     }
   });
@@ -135,7 +136,7 @@ export function registerAdminRoutes(app: Express) {
       
       res.json(data);
     } catch (error) {
-      console.error("Error fetching billing summary:", error);
+      logger.error('Error fetching billing summary', error);
       res.status(500).json({ error: "Failed to fetch billing summary" });
     }
   });
@@ -153,7 +154,7 @@ export function registerAdminRoutes(app: Express) {
       
       res.json(logs);
     } catch (error) {
-      console.error("Error fetching audit logs:", error);
+      logger.error('Error fetching audit logs', error);
       res.status(500).json({ error: "Failed to fetch audit logs" });
     }
   });
@@ -169,7 +170,7 @@ export function registerAdminRoutes(app: Express) {
       const result = await storage.listUsers({ query, role, status, limit, offset });
       res.json(result);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      logger.error('Error fetching users', error);
       res.status(500).json({ error: "Failed to fetch users" });
     }
   });
@@ -196,7 +197,7 @@ export function registerAdminRoutes(app: Express) {
 
       res.json(updatedUser);
     } catch (error) {
-      console.error("Error updating user:", error);
+      logger.error('Error updating user', error);
       res.status(500).json({ error: "Failed to update user" });
     }
   });
@@ -213,7 +214,7 @@ export function registerAdminRoutes(app: Express) {
       await storage.deleteUser(userId, adminId);
       res.json({ success: true, message: "User deleted successfully" });
     } catch (error: any) {
-      console.error("Error deleting user:", error);
+      logger.error('Error deleting user', error);
       if (error.message === 'User not found') {
         return res.status(404).json({ error: "User not found" });
       }
