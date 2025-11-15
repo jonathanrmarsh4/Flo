@@ -2432,17 +2432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Insert any "other" vessels
-      for (const [key, value] of Object.entries(data.results.per_vessel.other)) {
-        metrics.push({
-          studyId: study.id,
-          code: key,
-          label: key.toUpperCase(),
-          valueNumeric: value,
-          unit: "agatston",
-          extra: null,
-        });
-      }
+
 
       // Bulk insert metrics
       if (metrics.length > 0) {
@@ -2471,7 +2461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const fileBuffer = file.buffer;
-      const modelName = req.body.model || "chatgpt-4o-latest";
+      const modelName = req.body.model || "gpt-4o";
 
       // Extract calcium score data from PDF using experimental extractor
       const extractionResult = await extractCalciumScoreExperimental(fileBuffer, file.originalname, { model: modelName });
@@ -2568,17 +2558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Insert any "other" vessels
-      for (const [key, value] of Object.entries(data.results.per_vessel.other)) {
-        metrics.push({
-          studyId: study.id,
-          code: key,
-          label: key.toUpperCase(),
-          valueNumeric: value,
-          unit: "agatston",
-          extra: null,
-        });
-      }
+
 
       // Bulk insert metrics
       if (metrics.length > 0) {
