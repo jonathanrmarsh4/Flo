@@ -2461,7 +2461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const fileBuffer = file.buffer;
-      const modelName = req.body.model || "gpt-5.1";
+      const modelName = req.body.model || "gpt-5";
 
       // Extract calcium score data from PDF using experimental extractor
       const extractionResult = await extractCalciumScoreExperimental(fileBuffer, file.originalname, { model: modelName });
