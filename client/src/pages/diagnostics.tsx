@@ -11,8 +11,22 @@ interface CalciumScoreSummary {
   studyDate: string;
 }
 
+interface DexaScanSummary {
+  spineTScore: number | null;
+  hipTScore: number | null;
+  whoClassification: string | null;
+  bodyFatPercent: number | null;
+  vatArea: number | null;
+  studyDate: string;
+}
+
 interface DiagnosticResultsSummary {
   calciumScore: CalciumScoreSummary | null;
+  dexaScan: DexaScanSummary | null;
+}
+
+interface UserProfile {
+  sex: 'Male' | 'Female' | 'Other' | null;
 }
 
 export default function DiagnosticsPage() {
@@ -21,6 +35,10 @@ export default function DiagnosticsPage() {
 
   const { data, isLoading } = useQuery<DiagnosticResultsSummary>({
     queryKey: ['/api/diagnostics/summary'],
+  });
+
+  const { data: profile } = useQuery<UserProfile>({
+    queryKey: ['/api/profile'],
   });
 
   const handleClose = () => {
@@ -40,6 +58,8 @@ export default function DiagnosticsPage() {
       <DiagnosticResultsScreen 
         isDark={isDark}
         calciumScore={data?.calciumScore ?? null}
+        dexaScan={data?.dexaScan ?? null}
+        userSex={profile?.sex ?? null}
         onClose={handleClose}
       />
       <FloBottomNav />

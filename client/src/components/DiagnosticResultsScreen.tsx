@@ -1,5 +1,6 @@
 import { X, Heart, Activity, Brain, Bone, Stethoscope } from 'lucide-react';
 import { CalciumScoreTile } from './CalciumScoreTile';
+import { DexaScanTile } from './DexaScanTile';
 
 interface CalciumScoreSummary {
   totalScore: number | null;
@@ -8,13 +9,24 @@ interface CalciumScoreSummary {
   studyDate: string;
 }
 
+interface DexaScanSummary {
+  spineTScore: number | null;
+  hipTScore: number | null;
+  whoClassification: string | null;
+  bodyFatPercent: number | null;
+  vatArea: number | null;
+  studyDate: string;
+}
+
 interface DiagnosticResultsScreenProps {
   isDark: boolean;
   onClose: () => void;
   calciumScore?: CalciumScoreSummary | null;
+  dexaScan?: DexaScanSummary | null;
+  userSex?: 'Male' | 'Female' | 'Other' | null;
 }
 
-export function DiagnosticResultsScreen({ isDark, onClose, calciumScore }: DiagnosticResultsScreenProps) {
+export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaScan, userSex }: DiagnosticResultsScreenProps) {
   return (
     <div className={`h-full overflow-y-auto pb-20 transition-colors ${
       isDark 
@@ -79,11 +91,15 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore }: Diagn
             </div>
             
             <div className="space-y-3">
-              <ComingSoonTile 
-                title="DEXA Scan"
-                description="Body composition analysis"
-                icon={<Bone className="w-5 h-5" />}
+              <DexaScanTile 
                 isDark={isDark}
+                spineTScore={dexaScan?.spineTScore ?? null}
+                hipTScore={dexaScan?.hipTScore ?? null}
+                whoClassification={dexaScan?.whoClassification ?? null}
+                bodyFatPercent={dexaScan?.bodyFatPercent ?? null}
+                vatArea={dexaScan?.vatArea ?? null}
+                testDate={dexaScan?.studyDate ?? null}
+                userSex={userSex}
               />
               <ComingSoonTile 
                 title="VO2 Max Test"

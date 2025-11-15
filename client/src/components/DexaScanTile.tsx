@@ -112,7 +112,7 @@ export function DexaScanTile({
   };
 
   // Get body fat category based on gender and percentage
-  const getBodyFatCategory = (fatPercent: number, sex: 'Male' | 'Female' | 'Other' | null) => {
+  const getBodyFatCategory = (fatPercent: number, sex: 'Male' | 'Female' | 'Other' | null | undefined) => {
     if (!sex || sex === 'Other') return 'Unknown';
     
     if (sex === 'Male') {
