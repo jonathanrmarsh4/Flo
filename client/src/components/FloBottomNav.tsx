@@ -38,7 +38,7 @@ export function FloBottomNav() {
       id: 'more',
       label: 'More',
       icon: MoreHorizontal,
-      path: '/dashboard',
+      path: '/labs',
     },
   ];
 
