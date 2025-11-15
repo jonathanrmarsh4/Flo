@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { X, Upload, AlertCircle, CheckCircle } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Switch } from '@/components/ui/switch';
+import { getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 
 interface CalciumScoreUploadModalProps {
   isDark: boolean;
@@ -22,9 +24,15 @@ export function CalciumScoreUploadModal({ isDark, onClose }: CalciumScoreUploadM
         ? '/api/diagnostics/calcium-score/upload-experimental'
         : '/api/diagnostics/calcium-score/upload';
       
-      const response = await fetch(endpoint, {
+      const baseUrl = getApiBaseUrl();
+      const fullUrl = baseUrl + endpoint;
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch(fullUrl, {
         method: 'POST',
+        headers,
         body: formData,
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -113,21 +121,11 @@ export function CalciumScoreUploadModal({ isDark, onClose }: CalciumScoreUploadM
                 Uses advanced AI for difficult PDFs
               </div>
             </div>
-            <button
-              onClick={() => setUseExperimental(!useExperimental)}
-              className={`relative w-12 h-6 rounded-full transition-colors ${
-                useExperimental 
-                  ? 'bg-cyan-500' 
-                  : isDark ? 'bg-white/20' : 'bg-gray-300'
-              }`}
+            <Switch
+              checked={useExperimental}
+              onCheckedChange={setUseExperimental}
               data-testid="toggle-experimental"
-            >
-              <div 
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                  useExperimental ? 'translate-x-6' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
+            />
           </label>
         </div>
 

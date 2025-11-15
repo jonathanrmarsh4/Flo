@@ -123,3 +123,6 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+// Export helper functions for use in custom uploads/requests
+export { getAuthHeaders, getApiBaseUrl };

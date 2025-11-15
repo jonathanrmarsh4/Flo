@@ -40,6 +40,11 @@ Preferred communication style: Simple, everyday language.
   - **Seed Data:** 24 biomarkers including Calcium, Albumin, and Adjusted Calcium (November 2025). USA canonical units (mg/dL, ng/dL, ng/mL, mIU/mL) for 10 converted biomarkers: Total/LDL/HDL Cholesterol, Triglycerides, Glucose, Creatinine, Free T4, Vitamin D, FSH, LH. 140+ unit conversions, 4 reference profiles (Global, AU, US, UK).
   - **PDF Processing:** Uses pdf-parse v2 (PDFParse class) for text extraction, GPT-4o structured outputs with strict JSON schema validation, defensive error handling throughout pipeline.
 - **AI Integration:** Uses OpenAI GPT models (GPT-4o, GPT-5) for biomarker extraction, personalized insights, and comprehensive health reports.
+- **Experimental PDF Extraction:** Parallel testing system for calcium score PDFs with two extraction modes:
+  - **Standard Mode**: Uses GPT-4o for reliable PDF extraction (default)
+  - **Experimental Mode**: Uses chatgpt-4o-latest for difficult/poor quality PDFs
+  - UI toggle in CalciumScoreUploadModal allows users to choose extraction method
+  - Separate source tracking (`uploaded_pdf` vs `uploaded_pdf_experimental`) for comparison
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.
 - **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically. Return JWT tokens for mobile clients.
 

@@ -135,7 +135,7 @@ export const DiagnosticTypeEnum = z.enum([
   "vo2_max",
   "brain_mri"
 ]);
-export const DiagnosticSourceEnum = z.enum(["uploaded_pdf", "manual_entry", "api"]);
+export const DiagnosticSourceEnum = z.enum(["uploaded_pdf", "uploaded_pdf_experimental", "manual_entry", "api"]);
 export const DiagnosticStatusEnum = z.enum(["parsed", "needs_review", "failed"]);
 
 // Health baseline schema (for JSONB validation)
@@ -523,7 +523,7 @@ export const diagnosticsStudies = pgTable("diagnostics_studies", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   type: diagnosticTypeEnum("type").notNull(),
-  source: diagnosticSourceEnum("source").notNull().default("uploaded_pdf"),
+  source: diagnosticSourceEnum("source").notNull(),
   studyDate: timestamp("study_date").notNull(),
   ageAtScan: integer("age_at_scan"),
   totalScoreNumeric: real("total_score_numeric"),
