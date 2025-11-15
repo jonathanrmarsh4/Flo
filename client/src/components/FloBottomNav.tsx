@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { User, Lightbulb, Activity, MoreHorizontal } from "lucide-react";
+import { Home, Droplets, Activity, Lightbulb } from "lucide-react";
 import { FloIcon } from "./FloLogo";
 import { UnifiedUploadModal } from "./UnifiedUploadModal";
 
@@ -10,16 +10,16 @@ export function FloBottomNav() {
 
   const tabs = [
     {
-      id: 'profile',
-      label: 'Profile',
-      icon: User,
-      path: '/profile',
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: Home,
+      path: '/dashboard',
     },
     {
-      id: 'diagnostics',
-      label: 'Diagnostics',
-      icon: Activity,
-      path: '/diagnostics',
+      id: 'labs',
+      label: 'Labs',
+      icon: Droplets,
+      path: '/labs',
     },
     {
       id: 'add',
@@ -29,16 +29,16 @@ export function FloBottomNav() {
       isCenter: true,
     },
     {
+      id: 'diagnostics',
+      label: 'Diagnostics',
+      icon: Activity,
+      path: '/diagnostics',
+    },
+    {
       id: 'insights',
       label: 'Insights',
       icon: Lightbulb,
       path: '/insights',
-    },
-    {
-      id: 'more',
-      label: 'More',
-      icon: MoreHorizontal,
-      path: '/labs',
     },
   ];
 

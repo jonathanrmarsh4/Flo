@@ -15,7 +15,7 @@ export function BottomNav({ isDark, onAddClick }: BottomNavProps) {
       id: 'dashboard',
       label: 'Dashboard',
       icon: Home,
-      path: '/',
+      path: '/dashboard',
     },
     {
       id: 'labs',
