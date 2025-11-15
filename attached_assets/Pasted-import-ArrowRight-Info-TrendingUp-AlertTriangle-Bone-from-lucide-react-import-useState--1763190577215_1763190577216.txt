@@ -39,8 +39,10 @@ const DEFAULT_DATA = {
 export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps) {
   const [showDetails, setShowDetails] = useState(false);
 
+  // Calculate average T-score
   const avgTScore = (data.spine_t_score + data.total_hip_t_score) / 2;
 
+  // Determine WHO classification color
   const getWHOClassificationColor = () => {
     const classification = data.who_classification.toLowerCase();
     if (classification === 'normal') {
@@ -67,6 +69,17 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
     }
   };
 
+  // Determine body fat category (assuming male ranges, adjust as needed)
+  const getBodyFatCategory = () => {
+    const fat = data.fat_percent_total;
+    if (fat < 6) return { label: 'Essential', color: 'yellow' };
+    if (fat < 14) return { label: 'Athletic', color: 'green' };
+    if (fat < 18) return { label: 'Fitness', color: 'green' };
+    if (fat < 25) return { label: 'Average', color: 'blue' };
+    return { label: 'Above Average', color: 'orange' };
+  };
+
+  // Determine VAT category
   const getVATCategory = () => {
     if (data.vat_area_cm2 < 100) return { 
       label: 'Low', 
@@ -86,7 +99,13 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
   };
 
   const whoColors = getWHOClassificationColor();
+  const fatCategory = getBodyFatCategory();
   const vatCategory = getVATCategory();
+
+  // Estimate lean mass (assuming 80kg body weight for visualization)
+  const estimatedBodyWeight = 80;
+  const fatMass = (data.fat_percent_total / 100) * estimatedBodyWeight;
+  const leanMass = estimatedBodyWeight - fatMass;
   const leanPercentage = 100 - data.fat_percent_total;
 
   return (
@@ -99,8 +118,8 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
             : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-black/10 hover:bg-white/90'
         }`}
         style={{ minHeight: '200px' }}
-        data-testid="tile-dexa-scan"
       >
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className={`text-xs tracking-wide mb-1 ${
@@ -119,9 +138,10 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
           <Bone className={`w-5 h-5 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
         </div>
 
+        {/* Key Metrics Grid */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="text-center">
-            <div className={`text-3xl mb-1 ${whoColors.text}`} data-testid="text-body-fat">
+            <div className={`text-3xl mb-1 ${whoColors.text}`}>
               {data.fat_percent_total}%
             </div>
             <div className={`text-[10px] ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
@@ -129,7 +149,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
             </div>
           </div>
           <div className="text-center">
-            <div className={`text-3xl mb-1 ${whoColors.text}`} data-testid="text-avg-t-score">
+            <div className={`text-3xl mb-1 ${whoColors.text}`}>
               {avgTScore > 0 ? '+' : ''}{avgTScore.toFixed(1)}
             </div>
             <div className={`text-[10px] ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
@@ -138,6 +158,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
           </div>
         </div>
 
+        {/* Body Composition Bar */}
         <div className="mb-4">
           <div className="h-3 rounded-full overflow-hidden flex mb-2">
             <div 
@@ -167,27 +188,31 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
           </div>
         </div>
 
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 ${whoColors.bg}`} data-testid="badge-who-classification">
+        {/* Status Badge */}
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 ${whoColors.bg}`}>
           <div className={`w-2 h-2 rounded-full ${whoColors.dot}`}></div>
           <span className={`text-xs ${whoColors.text}`}>
             {data.status_badge} - {data.who_classification}
           </span>
         </div>
 
+        {/* AI Summary */}
         <div className={`text-xs mb-4 leading-relaxed ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
           {data.ai_summary_line}
         </div>
 
+        {/* View Report Button */}
         <button className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${
           isDark 
             ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
             : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
-        }`} data-testid="button-view-full-report">
+        }`}>
           <span className="text-sm">View Full Report</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
+      {/* Details Modal */}
       {showDetails && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div 
@@ -198,6 +223,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
           <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl border overflow-hidden ${
             isDark ? 'bg-slate-900 border-white/20' : 'bg-white border-gray-200'
           }`}>
+            {/* Modal Header */}
             <div className={`sticky top-0 z-10 backdrop-blur-xl border-b px-5 py-4 ${
               isDark ? 'bg-slate-900/90 border-white/10' : 'bg-white/90 border-gray-200'
             }`}>
@@ -210,14 +236,15 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                   className={`p-2 rounded-lg transition-colors ${
                     isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
                   }`}
-                  data-testid="button-close-modal"
                 >
                   <ArrowRight className={`w-5 h-5 rotate-90 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
                 </button>
               </div>
             </div>
 
+            {/* Modal Content */}
             <div className="overflow-y-auto p-5 space-y-5" style={{ maxHeight: 'calc(85vh - 70px)' }}>
+              {/* AI Summary Card */}
               <div className={`rounded-2xl p-5 ${
                 isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
               }`}>
@@ -236,6 +263,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                 </div>
               </div>
 
+              {/* Bone Density Analysis */}
               <div>
                 <h3 className={`text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
                   Bone Density Assessment
@@ -244,13 +272,13 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
                       <div className={`text-xs mb-1 ${whoColors.text}`}>Spine T-Score</div>
-                      <div className={`text-2xl ${whoColors.text}`} data-testid="text-spine-t-score">
+                      <div className={`text-2xl ${whoColors.text}`}>
                         {data.spine_t_score > 0 ? '+' : ''}{data.spine_t_score.toFixed(1)}
                       </div>
                     </div>
                     <div>
                       <div className={`text-xs mb-1 ${whoColors.text}`}>Hip T-Score</div>
-                      <div className={`text-2xl ${whoColors.text}`} data-testid="text-hip-t-score">
+                      <div className={`text-2xl ${whoColors.text}`}>
                         {data.total_hip_t_score > 0 ? '+' : ''}{data.total_hip_t_score.toFixed(1)}
                       </div>
                     </div>
@@ -265,6 +293,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                   </div>
                 </div>
 
+                {/* T-Score Reference Ranges */}
                 <div className="space-y-2">
                   <TScoreRange 
                     label="Normal" 
@@ -290,6 +319,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                 </div>
               </div>
 
+              {/* Body Composition */}
               <div className={`rounded-2xl p-5 ${
                 isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'
               }`}>
@@ -338,6 +368,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                 </div>
               </div>
 
+              {/* Visceral Adipose Tissue (VAT) */}
               <div className={`rounded-2xl p-5 ${
                 vatCategory.color === 'green'
                   ? isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'
@@ -364,7 +395,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                         : vatCategory.color === 'yellow'
                           ? isDark ? 'text-yellow-400' : 'text-yellow-700'
                           : isDark ? 'text-red-400' : 'text-red-700'
-                    }`} data-testid="text-vat-area">
+                    }`}>
                       {data.vat_area_cm2.toFixed(1)} cm²
                     </div>
                     <div className={`text-xs ${
@@ -403,6 +434,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                 </p>
               </div>
 
+              {/* Recommendations */}
               <div className={`rounded-2xl p-5 ${
                 isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-200'
               }`}>
@@ -422,6 +454,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                 </ul>
               </div>
 
+              {/* Scan Details */}
               <div className={`text-[10px] p-3 rounded-xl ${
                 isDark ? 'bg-white/5 text-white/60' : 'bg-gray-100 text-gray-600'
               }`}>
@@ -439,6 +472,7 @@ export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps)
                 </div>
               </div>
 
+              {/* Disclaimer */}
               <div className={`text-[10px] p-3 rounded-xl ${
                 isDark ? 'bg-white/5 text-white/40' : 'bg-gray-100 text-gray-500'
               }`}>
