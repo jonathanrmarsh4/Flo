@@ -1,5 +1,10 @@
 import OpenAI from "openai";
 import { PDFParse } from "pdf-parse";
+import { createWorker } from "tesseract.js";
+import { fromBuffer } from "pdf2pic";
+import fs from "fs/promises";
+import path from "path";
+import os from "os";
 import {
   calciumScoreExtractionSchema,
   getOpenAIJsonSchema,
@@ -12,10 +17,71 @@ const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
 
-async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
+async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
+  console.log("[OCR] Starting PDF text extraction with OCR fallback...");
+  
   const parser = new PDFParse({ data: pdfBuffer });
   const result = await parser.getText();
-  return result.text;
+  const initialText = result.text || "";
+  
+  const isTextEmpty = initialText.trim().length === 0 || 
+                     initialText.trim().split('\n').filter(line => 
+                       line.trim() && !line.includes('--') && !line.includes('of')
+                     ).length === 0;
+  
+  if (!isTextEmpty) {
+    console.log("[OCR] PDF has extractable text, using direct extraction");
+    return initialText;
+  }
+  
+  console.log("[OCR] PDF appears to be image-based, using OCR...");
+  
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-ocr-'));
+  
+  try {
+    const converter = fromBuffer(pdfBuffer, {
+      density: 300,
+      saveFilename: "page",
+      savePath: tempDir,
+      format: "png",
+      width: 2480,
+      height: 3508
+    });
+    
+    const worker = await createWorker('eng');
+    
+    let ocrText = '';
+    const pdfInfo: any = result;
+    const numPages = pdfInfo.numpages || 1;
+    
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      console.log(`[OCR] Processing page ${pageNum}/${numPages}...`);
+      
+      try {
+        const pageResult = await converter(pageNum, { responseType: 'image' });
+        
+        if (!pageResult.path) {
+          console.error(`[OCR] No path returned for page ${pageNum}`);
+          continue;
+        }
+        
+        const { data: { text } } = await worker.recognize(pageResult.path);
+        ocrText += text + '\n\n--- Page ' + pageNum + ' ---\n\n';
+        
+        await fs.unlink(pageResult.path);
+      } catch (pageError) {
+        console.error(`[OCR] Error processing page ${pageNum}:`, pageError);
+      }
+    }
+    
+    await worker.terminate();
+    
+    console.log(`[OCR] Extraction complete. Extracted ${ocrText.length} characters from ${numPages} pages`);
+    return ocrText;
+    
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 async function extractCalciumScoreWithGPT(pdfText: string, modelName: string): Promise<CalciumScoreExtraction> {
@@ -98,10 +164,10 @@ export async function extractCalciumScoreExperimental(
 ): Promise<CalciumScoreExtractionResult> {
   try {
     // Use gpt-5 (advanced reasoning model) for experimental mode
-    // Note: For image-based/scanned PDFs, vision API support would be needed
+    // OCR fallback enabled for image-based/scanned PDFs
     const modelName = options?.model || "gpt-5";
     
-    const pdfText = await extractTextFromPdf(pdfBuffer);
+    const pdfText = await extractTextFromPdfWithOCR(pdfBuffer);
     
     if (!pdfText || pdfText.trim().length === 0) {
       return {

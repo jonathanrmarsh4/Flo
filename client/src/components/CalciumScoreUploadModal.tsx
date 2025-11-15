@@ -118,7 +118,7 @@ export function CalciumScoreUploadModal({ isDark, onClose }: CalciumScoreUploadM
                 Experimental Mode
               </div>
               <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                Uses GPT-5 for text-based PDFs
+                Uses OCR + GPT-5 for scanned PDFs
               </div>
             </div>
             <Switch

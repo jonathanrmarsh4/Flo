@@ -41,8 +41,11 @@ Preferred communication style: Simple, everyday language.
   - **PDF Processing:** Uses pdf-parse v2 (PDFParse class) for text extraction, GPT-4o structured outputs with strict JSON schema validation, defensive error handling throughout pipeline.
 - **AI Integration:** Uses OpenAI GPT models (GPT-4o, GPT-5) for biomarker extraction, personalized insights, and comprehensive health reports.
 - **Calcium Score Extraction:** Parallel testing system for calcium score PDFs with two extraction modes:
-  - **Standard Mode**: Uses GPT-4o with standard prompts for reliable PDF extraction (default)
-  - **Experimental Mode**: Uses **GPT-5** (advanced reasoning model) with enhanced prompts optimized for difficult/poor quality PDFs, scans, or image-based documents
+  - **Standard Mode**: Uses GPT-4o with standard prompts for text-based PDFs (default)
+  - **Experimental Mode**: Uses **OCR + GPT-5** for scanned/image-based PDFs
+    - Intelligent fallback: tries pdf-parse first (fast for text PDFs), automatically falls back to OCR (Tesseract.js + pdf2pic) if PDF is image-based
+    - OCR preprocessing: 300 DPI, converts PDF pages to PNG images, extracts text with Tesseract
+    - Enhanced prompts optimized for OCR'd text with common OCR error correction
   - UI toggle in CalciumScoreUploadModal allows users to choose extraction method
   - Separate source tracking (`uploaded_pdf` vs `uploaded_pdf_experimental`) for comparison
   - **Schema Architecture**: Manually defined OpenAI JSON schema in `server/schemas/calciumScore.ts` (avoiding zod-to-json-schema `$ref` issues). Zod schema serves as validation source of truth, manually mirrored in OpenAI format with strict `additionalProperties: false`. Per-vessel schema includes only LAD, RCA, LCX, LM (removed "other" field that caused validation mismatches).
