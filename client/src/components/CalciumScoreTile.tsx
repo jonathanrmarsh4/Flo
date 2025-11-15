@@ -1,4 +1,6 @@
-import { Heart, Calendar, TrendingUp } from 'lucide-react';
+import { useState } from 'react';
+import { Heart, Calendar, TrendingUp, Upload } from 'lucide-react';
+import { CalciumScoreUploadModal } from './CalciumScoreUploadModal';
 
 interface CalciumScoreTileProps {
   isDark: boolean;
@@ -13,6 +15,7 @@ export function CalciumScoreTile({
   riskLevel,
   testDate
 }: CalciumScoreTileProps) {
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const getRiskColor = (risk: string) => {
     switch(risk.toLowerCase()) {
       case 'minimal':
@@ -94,10 +97,30 @@ export function CalciumScoreTile({
           </div>
         </div>
       ) : (
-        <div className={`text-center py-6 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-          <p className="text-sm">No test data available</p>
-          <p className="text-xs mt-1">Upload your CAC scan results to see your score</p>
+        <div className="text-center py-6">
+          <p className={`text-sm mb-3 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            No test data available
+          </p>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              isDark 
+                ? 'bg-cyan-500 hover:bg-cyan-600 text-white' 
+                : 'bg-cyan-600 hover:bg-cyan-700 text-white'
+            }`}
+            data-testid="button-upload-calcium-score"
+          >
+            <Upload className="w-4 h-4" />
+            Upload CAC Scan
+          </button>
         </div>
+      )}
+
+      {showUploadModal && (
+        <CalciumScoreUploadModal 
+          isDark={isDark}
+          onClose={() => setShowUploadModal(false)}
+        />
       )}
     </div>
   );
