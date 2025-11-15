@@ -24,19 +24,26 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
   const result = await parser.getText();
   const initialText = result.text || "";
   
-  const isTextEmpty = initialText.trim().length === 0 || 
-                     initialText.trim().split('\n').filter(line => 
-                       line.trim() && !line.includes('--') && !line.includes('of')
-                     ).length === 0;
+  const meaningfulLines = initialText.trim().split('\n').filter(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return false;
+    if (/^Page \d+ of \d+$/i.test(trimmed)) return false;
+    if (/^[-=_]{3,}$/.test(trimmed)) return false;
+    return trimmed.length > 3;
+  });
   
-  if (!isTextEmpty) {
-    console.log("[OCR] PDF has extractable text, using direct extraction");
+  const totalChars = meaningfulLines.join('').length;
+  const hasMinimalText = totalChars < 50;
+  
+  if (!hasMinimalText) {
+    console.log(`[OCR] PDF has extractable text (${totalChars} chars), using direct extraction`);
     return initialText;
   }
   
-  console.log("[OCR] PDF appears to be image-based, using OCR...");
+  console.log(`[OCR] PDF appears to be image-based (only ${totalChars} chars), using OCR...`);
   
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pdf-ocr-'));
+  let worker;
   
   try {
     const converter = fromBuffer(pdfBuffer, {
@@ -48,7 +55,7 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
       height: 3508
     });
     
-    const worker = await createWorker('eng');
+    worker = await createWorker('eng');
     
     let ocrText = '';
     const pdfInfo: any = result;
@@ -74,12 +81,18 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
       }
     }
     
-    await worker.terminate();
-    
     console.log(`[OCR] Extraction complete. Extracted ${ocrText.length} characters from ${numPages} pages`);
+    
+    if (ocrText.trim().length === 0) {
+      console.warn('[OCR] Warning: OCR produced no text output');
+    }
+    
     return ocrText;
     
   } finally {
+    if (worker) {
+      await worker.terminate();
+    }
     await fs.rm(tempDir, { recursive: true, force: true });
   }
 }
@@ -190,10 +203,11 @@ export async function extractCalciumScoreExperimental(
     };
   } catch (error) {
     console.error("[CalciumScoreExtractorExperimental] Error:", error);
+    const modelName = options?.model || "gpt-5";
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown extraction error",
-      modelUsed: options?.model || "chatgpt-4o-latest",
+      modelUsed: modelName,
     };
   }
 }
