@@ -9,6 +9,7 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import { logger } from "./logger";
 
 export const getOidcConfig = memoize(
   async () => {
@@ -81,15 +82,15 @@ export async function setupAuth(app: Express) {
     try {
       const user: any = {};
       updateUserSession(user, tokens);
-      console.log('[Auth] Attempting to upsert user with claims:', JSON.stringify(tokens.claims(), null, 2));
+      logger.debug('Attempting to upsert user with OIDC claims', { claims: tokens.claims() });
       const dbUser = await upsertUser(tokens.claims());
-      console.log('[Auth] User upserted successfully:', dbUser.id);
+      logger.debug('User upserted successfully', { userId: dbUser.id });
       user.role = dbUser.role;
       user.status = dbUser.status;
       user.id = dbUser.id;
       verified(null, user);
     } catch (error) {
-      console.error('[Auth] Error in verify callback:', error);
+      logger.error('Error in OIDC verify callback', error);
       verified(error as Error);
     }
   };
@@ -187,7 +188,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     try {
       // Guard against missing SESSION_SECRET
       if (!process.env.SESSION_SECRET) {
-        console.error('[JWT] SESSION_SECRET is not configured');
+        logger.error('SESSION_SECRET is not configured for JWT verification');
         return res.status(500).json({ message: "Server configuration error" });
       }
       
@@ -202,13 +203,13 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       // SECURITY: Only trust sub claim, fetch everything else from database
       const dbUser = await storage.getUser(decoded.sub);
       if (!dbUser) {
-        console.error('[JWT] User not found:', decoded.sub);
+        logger.warn('JWT authentication failed: user not found', { userId: decoded.sub });
         return res.status(401).json({ message: "Unauthorized" });
       }
       
       // Check account status
       if (dbUser.status !== 'active') {
-        console.error('[JWT] Inactive account:', decoded.sub);
+        logger.warn('JWT authentication failed: inactive account', { userId: decoded.sub, status: dbUser.status });
         return res.status(401).json({ message: "Account suspended" });
       }
       
@@ -227,11 +228,11 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       return next();
     } catch (error) {
       if (error instanceof jwt.JsonWebTokenError) {
-        console.error('[JWT] Verification failed:', error.message);
+        logger.warn('JWT verification failed', { error: error.message });
       } else if (error instanceof jwt.TokenExpiredError) {
-        console.error('[JWT] Token expired');
+        logger.info('JWT token expired');
       } else {
-        console.error('[JWT] Unknown error:', error);
+        logger.error('JWT authentication error', error);
       }
       return res.status(401).json({ message: "Unauthorized" });
     }
