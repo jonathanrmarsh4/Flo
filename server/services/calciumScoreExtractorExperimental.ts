@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { PDFParse } from "pdf-parse";
 import { createWorker } from "tesseract.js";
 import { fromBuffer } from "pdf2pic";
 import fs from "fs/promises";
@@ -20,11 +19,13 @@ const openai = new OpenAI({
 async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
   console.log("[OCR] Starting PDF text extraction with OCR fallback...");
   
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: pdfBuffer });
-  const result = await parser.getText();
+  const result = await parser.getInfo() as any;
+  await parser.destroy();
   const initialText = result.text || "";
   
-  const meaningfulLines = initialText.trim().split('\n').filter(line => {
+  const meaningfulLines = initialText.trim().split('\n').filter((line: string) => {
     const trimmed = line.trim();
     if (!trimmed) return false;
     if (/^Page \d+ of \d+$/i.test(trimmed)) return false;

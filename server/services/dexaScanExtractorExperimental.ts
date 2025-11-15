@@ -22,8 +22,8 @@ async function extractTextFromPdfWithOCR(pdfBuffer: Buffer): Promise<string> {
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: pdfBuffer });
   const result = await parser.getInfo() as any;
-  const initialText = result.text || "";
   await parser.destroy();
+  const initialText = result.text || "";
   
   const meaningfulLines = initialText.trim().split('\n').filter((line: string) => {
     const trimmed = line.trim();
