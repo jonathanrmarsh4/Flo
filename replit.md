@@ -32,11 +32,12 @@ Preferred communication style: Simple, everyday language.
 **Features:**
 - **Secure JWT Authentication:** Production-ready JWT implementation with privilege escalation prevention. JWT payload contains ONLY `sub` (user ID), `iss`, `aud`, `type` - role/status fetched from database on every request. Tokens signed with SESSION_SECRET, 7-day expiry. Dynamic imports prevent web bundle crashes.
 - **PhenoAge Biological Age Calculation:** Implements Levine et al. (2018) algorithm requiring 9 biomarkers, with automatic unit conversion and chronological age calculation.
+- **Calculated Biomarkers:** Adjusted Calcium (Corrected Calcium) automatically calculated when both Calcium and Albumin are present. Formula: `corrected_calcium_mg_dL = total_calcium_mg_dL + 0.8 * (4.0 - albumin_g_dL)`. Reference range: 8.6-10.3 mg/dL for both men and women.
 - **Blood Work Extraction Pipeline (November 2025):** Two-phase system for robust PDF processing:
   - **Phase 1 - Simple Extraction:** GPT-4o extracts 6 raw fields per biomarker (`biomarker_name_raw`, `value_raw`, `unit_raw`, `ref_range_raw`, `flag_raw`, `date_raw`) with NO validation or conversion. Zero assumptions, pure extraction.
   - **Phase 2 - Smart Normalization:** Backend normalizer handles case-insensitive unit matching, profile-based reference ranges (honoring user country/sex/age), and global defaults fallback. Preserves both raw strings and normalized canonical values.
   - **Database Schema:** Enhanced `biomarkers` table with global defaults (`globalDefaultRefMin/Max`), new `referenceProfiles` and `referenceProfileRanges` tables for country/sex/age-specific ranges, existing `biomarkerMeasurements` table stores both raw and canonical values.
-  - **Seed Data:** 12 biomarkers (Testosterone, Cholesterol, Glucose, Vitamin D, etc.), 140+ bidirectional unit conversions, 4 reference profiles (Global, AU, US, UK).
+  - **Seed Data:** 24 biomarkers including Calcium, Albumin, and Adjusted Calcium (November 2025). USA canonical units (mg/dL, ng/dL, ng/mL, mIU/mL) for 10 converted biomarkers: Total/LDL/HDL Cholesterol, Triglycerides, Glucose, Creatinine, Free T4, Vitamin D, FSH, LH. 140+ unit conversions, 4 reference profiles (Global, AU, US, UK).
   - **PDF Processing:** Uses pdf-parse v2 (PDFParse class) for text extraction, GPT-4o structured outputs with strict JSON schema validation, defensive error handling throughout pipeline.
 - **AI Integration:** Uses OpenAI GPT models (GPT-4o, GPT-5) for biomarker extraction, personalized insights, and comprehensive health reports.
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.

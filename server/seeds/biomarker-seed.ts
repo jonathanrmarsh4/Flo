@@ -288,6 +288,43 @@ const biomarkerData: BiomarkerSeedData[] = [
       { fromUnit: "nmol/L", toUnit: "ng/mL", multiplier: 0.31447 },
     ],
   },
+  {
+    name: "Calcium",
+    category: "Metabolic",
+    canonicalUnit: "mg/dL",
+    displayUnitPreference: "mg/dL",
+    precision: 1,
+    globalDefaultRefMin: 8.6,
+    globalDefaultRefMax: 10.3,
+    synonyms: ["Total Calcium", "Calcium Total", "Serum Calcium", "Ca"],
+    conversions: [
+      { fromUnit: "mmol/L", toUnit: "mg/dL", multiplier: 4.0079 },
+    ],
+  },
+  {
+    name: "Albumin",
+    category: "Metabolic",
+    canonicalUnit: "g/dL",
+    displayUnitPreference: "g/dL",
+    precision: 1,
+    globalDefaultRefMin: 3.5,
+    globalDefaultRefMax: 5.0,
+    synonyms: ["Serum Albumin", "Albumin Serum"],
+    conversions: [
+      { fromUnit: "g/L", toUnit: "g/dL", multiplier: 0.1 },
+    ],
+  },
+  {
+    name: "Adjusted Calcium",
+    category: "Metabolic",
+    canonicalUnit: "mg/dL",
+    displayUnitPreference: "mg/dL",
+    precision: 1,
+    globalDefaultRefMin: 8.6,
+    globalDefaultRefMax: 10.3,
+    synonyms: ["Corrected Calcium", "Calcium Corrected", "Calcium Adjusted"],
+    conversions: [],
+  },
 ];
 
 export async function seedBiomarkers() {
