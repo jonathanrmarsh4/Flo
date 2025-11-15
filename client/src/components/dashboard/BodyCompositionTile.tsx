@@ -8,6 +8,7 @@ interface BodyCompositionTileProps {
   visceralFatArea?: number | null;
   visceralFatScore?: number | null;
   boneHealth?: string | null;
+  onClick?: () => void;
 }
 
 export function BodyCompositionTile({
@@ -18,6 +19,7 @@ export function BodyCompositionTile({
   visceralFatArea,
   visceralFatScore,
   boneHealth,
+  onClick,
 }: BodyCompositionTileProps) {
   const getScoreColor = (score: number | null | undefined) => {
     if (score === null || score === undefined) return isDark ? 'text-white/30' : 'text-gray-400';
@@ -43,6 +45,7 @@ export function BodyCompositionTile({
 
   return (
     <div 
+      onClick={onClick}
       className={`backdrop-blur-xl rounded-3xl border p-5 transition-all cursor-pointer hover:scale-[1.02] ${
         isDark 
           ? 'bg-white/5 border-white/10 hover:bg-white/10' 

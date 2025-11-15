@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FloOverviewTile } from './dashboard/FloOverviewTile';
 import { HeartMetabolicTile } from './dashboard/HeartMetabolicTile';
 import { BodyCompositionTile } from './dashboard/BodyCompositionTile';
@@ -5,6 +6,8 @@ import { ReadinessTile } from './dashboard/ReadinessTile';
 import { FloLogo } from './FloLogo';
 import { Bell, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { HeartMetabolicDetailScreen } from './HeartMetabolicDetailScreen';
+import { BodyCompositionDetailScreen } from './BodyCompositionDetailScreen';
 
 interface DashboardScreenProps {
   isDark: boolean;
@@ -12,6 +15,9 @@ interface DashboardScreenProps {
 }
 
 export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProps) {
+  const [showHeartMetabolicDetail, setShowHeartMetabolicDetail] = useState(false);
+  const [showBodyCompositionDetail, setShowBodyCompositionDetail] = useState(false);
+  
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
   });
@@ -100,6 +106,7 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
                 lipidsScore={dashboardData?.details?.cardiometabolicDetails?.lipidsScore}
                 bloodPressureScore={dashboardData?.details?.cardiometabolicDetails?.bloodPressureScore}
                 cacScore={dashboardData?.details?.cardiometabolicDetails?.cacScore}
+                onClick={() => setShowHeartMetabolicDetail(true)}
               />
               <BodyCompositionTile 
                 isDark={isDark}
@@ -109,6 +116,7 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
                 visceralFatArea={dashboardData?.details?.bodyCompositionDetails?.visceralFatArea}
                 visceralFatScore={dashboardData?.details?.bodyCompositionDetails?.visceralFatScore}
                 boneHealth={dashboardData?.details?.bodyCompositionDetails?.boneHealth}
+                onClick={() => setShowBodyCompositionDetail(true)}
               />
             </div>
 
@@ -133,6 +141,20 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
           </>
         )}
       </main>
+
+      {/* Detail Screen Modals */}
+      {showHeartMetabolicDetail && (
+        <HeartMetabolicDetailScreen
+          isDark={isDark}
+          onClose={() => setShowHeartMetabolicDetail(false)}
+        />
+      )}
+      {showBodyCompositionDetail && (
+        <BodyCompositionDetailScreen
+          isDark={isDark}
+          onClose={() => setShowBodyCompositionDetail(false)}
+        />
+      )}
     </div>
   );
 }
