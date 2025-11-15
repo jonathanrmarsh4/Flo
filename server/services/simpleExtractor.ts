@@ -2,10 +2,20 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { PDFParse } from "pdf-parse";
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+function getOpenAIClient(): OpenAI {
+  if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
+    throw new Error("AI_INTEGRATIONS_OPENAI_API_KEY environment variable is not set. Please configure OpenAI integration.");
+  }
+  
+  if (!process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+    throw new Error("AI_INTEGRATIONS_OPENAI_BASE_URL environment variable is not set. Please configure OpenAI integration.");
+  }
+  
+  return new OpenAI({
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  });
+}
 
 const rawBiomarkerSchema = z.object({
   biomarker_name_raw: z.string().describe("The biomarker name exactly as it appears in the PDF"),
@@ -57,6 +67,8 @@ Output pure extracted data only.`;
 
   const userPrompt = `Extract all biomarker measurements from this lab report. For each biomarker, extract the 6 fields exactly as they appear:\n\n${pdfText}`;
 
+  const openai = getOpenAIClient();
+  
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
     messages: [
