@@ -181,20 +181,31 @@ function calculateBodyCompositionScore(dexaData: any | null): number | null {
   const components: number[] = [];
   const weights: number[] = [];
 
-  if (payload.body_fat_percent !== undefined && payload.body_fat_percent !== null) {
-    const targetBodyFat = payload.sex === 'Male' ? 15 : 25;
-    const bodyFatScore = mapValueToScore(payload.body_fat_percent, [targetBodyFat - 5, targetBodyFat + 5], 'optimal-range');
+  // Access nested body composition data
+  const bodyComp = payload.body_composition || {};
+  const boneDensity = payload.bone_density || {};
+  const patientContext = payload.patient_context || {};
+
+  // Body fat percentage
+  const bodyFatPercent = bodyComp.fat_percent_total;
+  if (bodyFatPercent !== undefined && bodyFatPercent !== null) {
+    const sex = patientContext.reported_sex || 'Male';
+    const targetBodyFat = sex === 'Male' ? 15 : 25;
+    const bodyFatScore = mapValueToScore(bodyFatPercent, [targetBodyFat - 5, targetBodyFat + 5], 'optimal-range');
     components.push(bodyFatScore);
     weights.push(0.5);
   }
 
-  if (payload.visceral_adipose_tissue_area_cm2 !== undefined && payload.visceral_adipose_tissue_area_cm2 !== null) {
-    const visceralScore = mapValueToScore(payload.visceral_adipose_tissue_area_cm2, [0, 150], 'lower-better');
+  // Visceral adipose tissue (VAT) area
+  const vatArea = bodyComp.vat_area_cm2;
+  if (vatArea !== undefined && vatArea !== null) {
+    const visceralScore = mapValueToScore(vatArea, [0, 150], 'lower-better');
     components.push(visceralScore);
     weights.push(0.3);
   }
 
-  const worstTScore = payload.worst_t_score ?? payload.spine_t_score ?? payload.hip_t_score;
+  // Bone density T-score (use worst, or spine, or hip)
+  const worstTScore = boneDensity.worst_t_score ?? boneDensity.spine_t_score ?? boneDensity.total_hip_t_score ?? boneDensity.femoral_neck_t_score;
   if (worstTScore !== undefined && worstTScore !== null) {
     const boneScore = worstTScore >= -1 ? 100 :
       worstTScore >= -2.5 ? 70 : 40;
@@ -232,7 +243,7 @@ export async function calculateDashboardScores(userId: string): Promise<Dashboar
   const biomarkers = await getLatestBiomarkerValues(userId);
   const { cac, dexa } = await getLatestDiagnosticData(userId);
 
-  const visceral_fat_area = (dexa?.aiPayload as any)?.visceral_adipose_tissue_area_cm2 ?? null;
+  const visceral_fat_area = (dexa?.aiPayload as any)?.body_composition?.vat_area_cm2 ?? null;
 
   const cardiometabolic = calculateCardiometabolicScore(biomarkers, cac, visceral_fat_area, null);
   const bodyComposition = calculateBodyCompositionScore(dexa);

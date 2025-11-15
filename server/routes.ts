@@ -708,8 +708,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      console.log('[Biological Age] Available biomarkers:', Array.from(measurementMap.keys()));
-
       // Required biomarkers for PhenoAge calculation
       // Note: CRP can be either "CRP" or "hs-CRP" (high-sensitivity CRP)
       const requiredBiomarkers = {
@@ -825,7 +823,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if we have all required biomarkers
       if (missingBiomarkers.length > 0) {
-        console.log('[Biological Age] Missing biomarkers:', missingBiomarkers);
         // Return partial data with chronological age and what's missing
         return res.status(200).json({ 
           chronologicalAge: ageYears,
@@ -873,16 +870,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const phenoAge = calculatePhenoAge(phenoAgeInputs);
         const ageAcceleration = calculatePhenoAgeAccel(phenoAge, ageYears);
 
-        const response = {
+        res.json({
           biologicalAge: Math.round(phenoAge * 10) / 10, // Round to 1 decimal
           chronologicalAge: ageYears,
           ageDifference: Math.round(ageAcceleration * 10) / 10, // Round to 1 decimal
           testDate: latestSession.testDate,
           sessionId: latestSession.id,
-        };
-
-        console.log('[Biological Age] Calculation successful:', response);
-        res.json(response);
+        });
 
       } catch (error: any) {
         console.error("Error calculating PhenoAge:", error);
@@ -3007,14 +3001,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get latest data dates
       const latestCalciumScore = await storage.getLatestDiagnosticStudy(userId, "coronary_calcium_score");
       const latestDexaScan = await storage.getLatestDiagnosticStudy(userId, "dexa_scan");
-
-      console.log('[Dashboard Overview] Scores calculated:', {
-        floScore: scores.floScore,
-        cardiometabolic: scores.cardiometabolic,
-        bodyComposition: scores.bodyComposition,
-        readiness: scores.readiness,
-        inflammation: scores.inflammation,
-      });
 
       res.json({
         bioAge,
