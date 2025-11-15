@@ -550,6 +550,18 @@ export const diagnosticMetrics = pgTable("diagnostic_metrics", {
   index("idx_diagnostic_metrics_study_code").on(table.studyId, table.code),
 ]);
 
+// Body fat reference ranges for DEXA scans
+export const bodyFatReferenceRanges = pgTable("body_fat_reference_ranges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sex: referenceSexEnum("sex").notNull(),
+  label: text("label").notNull(),
+  minPercent: real("min_percent").notNull(),
+  maxPercent: real("max_percent").notNull(),
+  displayOrder: integer("display_order").notNull(),
+}, (table) => [
+  index("idx_body_fat_sex_order").on(table.sex, table.displayOrder),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
@@ -1181,3 +1193,20 @@ export type EmailRegister = z.infer<typeof emailRegisterSchema>;
 export type EmailLogin = z.infer<typeof emailLoginSchema>;
 export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>;
 export type PasswordReset = z.infer<typeof passwordResetSchema>;
+
+// Body fat reference range schemas
+export const insertBodyFatReferenceRangeSchema = createInsertSchema(bodyFatReferenceRanges).omit({
+  id: true,
+});
+
+export const bodyFatReferenceRangeSchema = z.object({
+  id: z.string().uuid(),
+  sex: ReferenceSexEnum,
+  label: z.string(),
+  minPercent: z.number(),
+  maxPercent: z.number(),
+  displayOrder: z.number(),
+});
+
+export type InsertBodyFatReferenceRange = z.infer<typeof insertBodyFatReferenceRangeSchema>;
+export type BodyFatReferenceRange = typeof bodyFatReferenceRanges.$inferSelect;
