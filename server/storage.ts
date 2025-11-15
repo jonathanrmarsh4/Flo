@@ -91,6 +91,7 @@ export interface IStorage {
   // Admin operations
   listUsers(params: { query?: string; role?: string; status?: string; limit?: number; offset?: number }): Promise<{ users: AdminUserSummary[]; total: number }>;
   updateUser(userId: string, data: UpdateUser, adminId: string): Promise<User | null>;
+  deleteUser(userId: string, adminId: string): Promise<void>;
   
   // Admin analytics operations
   getAdminOverviewStats(): Promise<{
@@ -490,6 +491,24 @@ export class DatabaseStorage implements IStorage {
     });
     
     return user;
+  }
+
+  async deleteUser(userId: string, adminId: string): Promise<void> {
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    await this.createAuditLog({
+      adminId,
+      targetUserId: userId,
+      action: 'delete_user',
+      actionMetadata: { email: user.email, name: `${user.firstName} ${user.lastName}` },
+    });
+
+    await this.deleteUserData(userId);
+
+    await db.delete(users).where(eq(users.id, userId));
   }
 
   // Billing operations
