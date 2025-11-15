@@ -1,4 +1,6 @@
-import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Brain, Heart, Sparkles, ChevronRight, Lightbulb, AlertTriangle } from 'lucide-react';
+import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Brain, Heart, Sparkles, ChevronRight, Lightbulb, AlertTriangle, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { UnifiedUploadModal } from './UnifiedUploadModal';
 
 export interface BiologicalAgeData {
   biologicalAge: number;
@@ -36,6 +38,8 @@ export function InsightsScreen({
   aiInsight: providedInsight,
   comprehensiveInsights
 }: InsightsScreenProps) {
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  
   // Check if we have valid biological age data
   const hasValidAgeData = ageData && ageData.biologicalAge > 0 && ageData.chronologicalAge > 0;
   
@@ -85,7 +89,18 @@ export function InsightsScreen({
               ← Back
             </button>
             <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>AI Insights</h1>
-            <div className="w-12"></div> {/* Spacer for centering */}
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className={`p-2 rounded-xl transition-all ${
+                isDark 
+                  ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' 
+                  : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20'
+              }`}
+              data-testid="button-open-upload-modal"
+              style={{ minWidth: '44px', minHeight: '44px' }}
+            >
+              <Plus className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
@@ -400,6 +415,14 @@ export function InsightsScreen({
           <span>These AI-generated insights are for educational purposes only and should not replace professional medical advice. Always consult with qualified healthcare providers before making changes to your health regimen.</span>
         </div>
       </div>
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <UnifiedUploadModal
+          isDark={isDark}
+          onClose={() => setShowUploadModal(false)}
+        />
+      )}
     </div>
   );
 }
