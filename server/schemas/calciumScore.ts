@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 // Zod schema for calcium score extraction - single source of truth
 // Using .strict() on all objects to ensure additionalProperties: false in generated JSON schema
@@ -61,31 +60,127 @@ export interface CalciumScoreExtractionResult {
   modelUsed?: string;
 }
 
-// Memoized function to generate OpenAI JSON schema from Zod schema
-let _cachedJsonSchema: any = null;
-
+// Manually defined OpenAI JSON schema that exactly matches the Zod schema
+// This is more reliable than auto-generation which can create $ref issues
 export function getOpenAIJsonSchema() {
-  if (_cachedJsonSchema) {
-    return _cachedJsonSchema;
-  }
-
-  const jsonSchema = zodToJsonSchema(calciumScoreExtractionSchema, {
-    name: "coronary_calcium_extraction",
-    // Remove $schema property as OpenAI doesn't need it
-    $refStrategy: "none",
-  });
-
-  // Remove the $schema property that zod-to-json-schema adds
-  const { $schema, ...schemaWithoutMeta } = jsonSchema as any;
-
-  _cachedJsonSchema = {
+  return {
     type: "json_schema",
     json_schema: {
       name: "coronary_calcium_extraction",
       strict: true,
-      schema: schemaWithoutMeta,
+      schema: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["coronary_calcium_score"] },
+          version: { type: "string", enum: ["1.0"] },
+          source_document: {
+            type: "object",
+            properties: {
+              filename: { anyOf: [{ type: "string" }, { type: "null" }] },
+              page_numbers: { type: "array", items: { type: "number" } },
+              lab_name: { anyOf: [{ type: "string" }, { type: "null" }] },
+              report_id: { anyOf: [{ type: "string" }, { type: "null" }] },
+            },
+            required: ["filename", "page_numbers", "lab_name", "report_id"],
+            additionalProperties: false,
+          },
+          patient_context: {
+            type: "object",
+            properties: {
+              reported_age: { anyOf: [{ type: "number" }, { type: "null" }] },
+              reported_sex: { anyOf: [{ type: "string" }, { type: "null" }] },
+            },
+            required: ["reported_age", "reported_sex"],
+            additionalProperties: false,
+          },
+          study: {
+            type: "object",
+            properties: {
+              study_date: { anyOf: [{ type: "string" }, { type: "null" }] },
+              scanner_type: { anyOf: [{ type: "string" }, { type: "null" }] },
+              calcium_score_method: { anyOf: [{ type: "string" }, { type: "null" }] },
+            },
+            required: ["study_date", "scanner_type", "calcium_score_method"],
+            additionalProperties: false,
+          },
+          results: {
+            type: "object",
+            properties: {
+              total_agatston: { anyOf: [{ type: "number" }, { type: "null" }] },
+              per_vessel: {
+                type: "object",
+                properties: {
+                  lad: { anyOf: [{ type: "number" }, { type: "null" }] },
+                  rca: { anyOf: [{ type: "number" }, { type: "null" }] },
+                  lcx: { anyOf: [{ type: "number" }, { type: "null" }] },
+                  lm: { anyOf: [{ type: "number" }, { type: "null" }] },
+                },
+                required: ["lad", "rca", "lcx", "lm"],
+                additionalProperties: false,
+              },
+              age_matched_percentile: { anyOf: [{ type: "number" }, { type: "null" }] },
+              risk_category: { anyOf: [{ type: "string" }, { type: "null" }] },
+              risk_category_human: { anyOf: [{ type: "string" }, { type: "null" }] },
+              reference_ranges: {
+                type: "object",
+                properties: {
+                  zero: { anyOf: [{ type: "string" }, { type: "null" }] },
+                  minimal: { anyOf: [{ type: "string" }, { type: "null" }] },
+                  mild: { anyOf: [{ type: "string" }, { type: "null" }] },
+                  moderate: { anyOf: [{ type: "string" }, { type: "null" }] },
+                  severe: { anyOf: [{ type: "string" }, { type: "null" }] },
+                },
+                required: ["zero", "minimal", "mild", "moderate", "severe"],
+                additionalProperties: false,
+              },
+            },
+            required: [
+              "total_agatston",
+              "per_vessel",
+              "age_matched_percentile",
+              "risk_category",
+              "risk_category_human",
+              "reference_ranges",
+            ],
+            additionalProperties: false,
+          },
+          interpretation: {
+            type: "object",
+            properties: {
+              one_liner: { anyOf: [{ type: "string" }, { type: "null" }] },
+              detail: { anyOf: [{ type: "string" }, { type: "null" }] },
+              clinical_flags: { type: "array", items: { type: "string" } },
+            },
+            required: ["one_liner", "detail", "clinical_flags"],
+            additionalProperties: false,
+          },
+          quality: {
+            type: "object",
+            properties: {
+              confidence: {
+                anyOf: [
+                  { type: "string", enum: ["high", "medium", "low"] },
+                  { type: "null" },
+                ],
+              },
+              extraction_issues: { type: "array", items: { type: "string" } },
+            },
+            required: ["confidence", "extraction_issues"],
+            additionalProperties: false,
+          },
+        },
+        required: [
+          "type",
+          "version",
+          "source_document",
+          "patient_context",
+          "study",
+          "results",
+          "interpretation",
+          "quality",
+        ],
+        additionalProperties: false,
+      },
     },
   };
-
-  return _cachedJsonSchema;
 }

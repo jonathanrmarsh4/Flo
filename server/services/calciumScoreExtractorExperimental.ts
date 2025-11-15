@@ -97,7 +97,8 @@ export async function extractCalciumScoreExperimental(
   options?: { model?: string }
 ): Promise<CalciumScoreExtractionResult> {
   try {
-    const modelName = options?.model || "chatgpt-4o-latest";
+    // Use gpt-4o as the experimental model for now (same as standard but with enhanced prompts)
+    const modelName = options?.model || "gpt-4o";
     
     const pdfText = await extractTextFromPdf(pdfBuffer);
     

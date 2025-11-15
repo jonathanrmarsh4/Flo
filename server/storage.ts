@@ -225,13 +225,16 @@ export class DatabaseStorage implements IStorage {
 
   async upsertUser(userData: UpsertUser): Promise<User> {
     try {
+      // Exclude id from the update set - cannot update primary key
+      const { id, ...updateData } = userData;
+      
       const [user] = await db
         .insert(users)
         .values(userData)
         .onConflictDoUpdate({
           target: users.id,
           set: {
-            ...userData,
+            ...updateData,
             updatedAt: new Date(),
           },
         })
@@ -243,10 +246,11 @@ export class DatabaseStorage implements IStorage {
         // Email already exists but with different ID - update existing user by email
         const [existingUser] = await db.select().from(users).where(eq(users.email, userData.email!));
         if (existingUser) {
+          const { id: _id, ...updateFields } = userData;
           const [updated] = await db
             .update(users)
             .set({
-              ...userData,
+              ...updateFields,
               updatedAt: new Date(),
             })
             .where(eq(users.id, existingUser.id))
