@@ -26,6 +26,13 @@ export function BodyCompositionTile({
     return 'text-red-500';
   };
 
+  const getVisceralFatColor = (vatArea: number | null | undefined) => {
+    if (vatArea === null || vatArea === undefined) return isDark ? 'text-white/30' : 'text-gray-400';
+    if (vatArea < 100) return 'text-green-500';
+    if (vatArea < 150) return 'text-orange-500';
+    return 'text-red-500';
+  };
+
   const hasData = score !== null && score !== undefined;
   const hasBodyComp = fatPercent !== null && fatPercent !== undefined && leanPercent !== null && leanPercent !== undefined;
 
@@ -152,8 +159,8 @@ export function BodyCompositionTile({
                 <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                   Visceral Fat
                 </span>
-                <span className={`text-xs font-medium ${getScoreColor(visceralFatScore)}`}>
-                  {visceralFatArea} cm² ({visceralFatScore})
+                <span className={`text-xs font-medium ${getVisceralFatColor(visceralFatArea)}`}>
+                  {visceralFatArea.toFixed(1)} cm² ({visceralFatScore})
                 </span>
               </div>
             )}
