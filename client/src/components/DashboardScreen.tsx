@@ -79,26 +79,26 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
             {/* Hero Tile - Flō Overview */}
             <FloOverviewTile 
               isDark={isDark}
-              bioAge={bioAgeData?.biologicalAgeYears}
-              calendarAge={dashboardData?.calendarAge}
-              bioAgeDelta={dashboardData?.bioAgeDelta}
+              bioAge={bioAgeData?.biologicalAge}
+              calendarAge={bioAgeData?.chronologicalAge}
+              bioAgeDelta={bioAgeData?.ageDifference}
               floScore={dashboardData?.floScore}
-              cardiometabolic={dashboardData?.componentScores?.cardiometabolic}
-              bodyComposition={dashboardData?.componentScores?.bodyComposition}
-              readiness={dashboardData?.componentScores?.readiness}
-              inflammation={dashboardData?.componentScores?.inflammation}
-              lastCheckin={dashboardData?.lastFullCheckin}
+              cardiometabolic={dashboardData?.cardiometabolic}
+              bodyComposition={dashboardData?.bodyComposition}
+              readiness={dashboardData?.readiness}
+              inflammation={dashboardData?.inflammation}
+              lastCheckin={dashboardData?.lastUpdated}
             />
 
             {/* Two Column Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <HeartMetabolicTile 
                 isDark={isDark}
-                score={dashboardData?.componentScores?.cardiometabolic}
+                score={dashboardData?.cardiometabolic}
               />
               <BodyCompositionTile 
                 isDark={isDark}
-                score={dashboardData?.componentScores?.bodyComposition}
+                score={dashboardData?.bodyComposition}
               />
             </div>
 

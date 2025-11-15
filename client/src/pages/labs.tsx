@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
 import { FloLogo } from '@/components/FloLogo';
-import { FloBottomNav } from '@/components/FloBottomNav';
+import { BottomNav } from '@/components/BottomNav';
 import { TrendChart } from '@/components/TrendChart';
 import { UnifiedUploadModal } from '@/components/UnifiedUploadModal';
 import { BiomarkerInsightsModal } from '@/components/BiomarkerInsightsModal';
@@ -340,13 +340,17 @@ export default function Dashboard() {
         )}
       </main>
 
-      <FloBottomNav />
+      <BottomNav 
+        isDark={isDark}
+        onAddClick={() => setIsAddModalOpen(true)}
+      />
       
       {/* Upload Modal */}
       {isAddModalOpen && (
         <UnifiedUploadModal
           isDark={isDark}
           onClose={() => setIsAddModalOpen(false)}
+          initialMode="lab-results"
         />
       )}
 

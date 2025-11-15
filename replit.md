@@ -1,7 +1,7 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is a mobile-first health analytics platform leveraging AI to analyze user blood work, calculate biological age, and provide personalized health recommendations. It tracks health metrics over time, integrates OpenAI's GPT models for insights, and includes robust user authentication, a comprehensive profile system, and admin tools. The platform also supports billing via Stripe and Apple Pay, aiming to deliver trusted, clear, and actionable health information.
+Flō is a mobile-first health analytics platform leveraging AI to analyze user blood work, calculate biological age, and provide personalized health recommendations. The app uses a **Dashboard-centric architecture** with 4 intelligent tiles that synthesize lab results, diagnostic studies, and future HomeKit data into actionable health scores. It tracks health metrics over time, integrates OpenAI's GPT models for insights, and includes robust user authentication, a comprehensive profile system, and admin tools. The platform also supports billing via Stripe and Apple Pay, aiming to deliver trusted, clear, and actionable health information.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

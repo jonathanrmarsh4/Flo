@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { DiagnosticResultsScreen } from "@/components/DiagnosticResultsScreen";
-import { FloBottomNav } from "@/components/FloBottomNav";
+import { BottomNav } from "@/components/BottomNav";
+import { UnifiedUploadModal } from "@/components/UnifiedUploadModal";
 
 interface CalciumScoreSummary {
   totalScore: number | null;
@@ -32,6 +33,7 @@ interface UserProfile {
 export default function DiagnosticsPage() {
   const [, setLocation] = useLocation();
   const [isDark] = useState(true);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const { data, isLoading } = useQuery<DiagnosticResultsSummary>({
     queryKey: ['/api/diagnostics/summary'],
@@ -62,7 +64,18 @@ export default function DiagnosticsPage() {
         userSex={profile?.sex ?? null}
         onClose={handleClose}
       />
-      <FloBottomNav />
+      <BottomNav 
+        isDark={isDark}
+        onAddClick={() => setIsAddModalOpen(true)}
+      />
+
+      {isAddModalOpen && (
+        <UnifiedUploadModal 
+          isDark={isDark}
+          onClose={() => setIsAddModalOpen(false)}
+          initialMode="diagnostics"
+        />
+      )}
     </div>
   );
 }

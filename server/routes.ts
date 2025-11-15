@@ -780,10 +780,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if we have all required biomarkers
       if (missingBiomarkers.length > 0) {
-        return res.status(400).json({ 
-          error: "Missing required biomarkers for biological age calculation",
+        // Return partial data with chronological age and what's missing
+        return res.status(200).json({ 
+          chronologicalAge: ageYears,
+          biologicalAge: null,
+          ageDifference: null,
+          testDate: latestSession.testDate,
+          sessionId: latestSession.id,
+          incomplete: true,
           missingBiomarkers,
-          message: `The following biomarkers are required: ${missingBiomarkers.join(', ')}`
+          message: `Add ${missingBiomarkers.join(', ')} to calculate biological age`
         });
       }
 
