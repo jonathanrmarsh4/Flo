@@ -1,4 +1,4 @@
-import { Activity, ChevronRight } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 interface BodyCompositionTileProps {
   isDark: boolean;
@@ -8,7 +8,6 @@ interface BodyCompositionTileProps {
   visceralFatArea?: number | null;
   visceralFatScore?: number | null;
   boneHealth?: string | null;
-  onClick?: () => void;
 }
 
 export function BodyCompositionTile({
@@ -19,7 +18,6 @@ export function BodyCompositionTile({
   visceralFatArea,
   visceralFatScore,
   boneHealth,
-  onClick,
 }: BodyCompositionTileProps) {
   const getScoreColor = (score: number | null | undefined) => {
     if (score === null || score === undefined) return isDark ? 'text-white/30' : 'text-gray-400';
@@ -45,24 +43,20 @@ export function BodyCompositionTile({
 
   return (
     <div 
-      onClick={onClick}
-      className={`backdrop-blur-xl rounded-3xl border p-5 transition-all cursor-pointer hover:scale-[1.02] ${
+      className={`backdrop-blur-xl rounded-3xl border p-5 transition-all ${
         isDark 
-          ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-          : 'bg-white/60 border-black/10 hover:bg-white/90'
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/60 border-black/10'
       }`}
       data-testid="tile-body-composition"
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Activity className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-          <h3 className={`text-xs tracking-wide ${
-            isDark ? 'text-white/60' : 'text-gray-500'
-          }`}>
-            BODY COMP
-          </h3>
-        </div>
-        <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+      <div className="flex items-center gap-2 mb-4">
+        <Activity className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+        <h3 className={`text-xs tracking-wide ${
+          isDark ? 'text-white/60' : 'text-gray-500'
+        }`}>
+          BODY COMP
+        </h3>
       </div>
 
       {hasData ? (
