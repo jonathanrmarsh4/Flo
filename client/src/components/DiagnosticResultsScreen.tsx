@@ -1,12 +1,19 @@
 import { X, Heart, Activity, Brain, Bone, Stethoscope } from 'lucide-react';
 import { CalciumScoreTile } from './CalciumScoreTile';
 
+interface CalciumScoreData {
+  score: number | null;
+  riskLevel: string | null;
+  testDate: string | null;
+}
+
 interface DiagnosticResultsScreenProps {
   isDark: boolean;
   onClose: () => void;
+  calciumScoreData?: CalciumScoreData;
 }
 
-export function DiagnosticResultsScreen({ isDark, onClose }: DiagnosticResultsScreenProps) {
+export function DiagnosticResultsScreen({ isDark, onClose, calciumScoreData }: DiagnosticResultsScreenProps) {
   return (
     <div className={`fixed inset-0 z-50 ${
       isDark 
@@ -53,7 +60,12 @@ export function DiagnosticResultsScreen({ isDark, onClose }: DiagnosticResultsSc
             </div>
             
             <div className="space-y-3">
-              <CalciumScoreTile isDark={isDark} />
+              <CalciumScoreTile 
+                isDark={isDark}
+                score={calciumScoreData?.score}
+                riskLevel={calciumScoreData?.riskLevel}
+                testDate={calciumScoreData?.testDate}
+              />
               
               {/* Coming Soon Cards */}
               <ComingSoonTile 

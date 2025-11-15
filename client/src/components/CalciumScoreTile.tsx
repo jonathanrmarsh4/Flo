@@ -2,16 +2,16 @@ import { Heart, Calendar, TrendingUp } from 'lucide-react';
 
 interface CalciumScoreTileProps {
   isDark: boolean;
-  score?: number;
-  riskLevel?: string;
-  testDate?: string;
+  score?: number | null;
+  riskLevel?: string | null;
+  testDate?: string | null;
 }
 
 export function CalciumScoreTile({ 
   isDark, 
-  score = 42,
-  riskLevel = "Low",
-  testDate = "March 15, 2024"
+  score,
+  riskLevel,
+  testDate
 }: CalciumScoreTileProps) {
   const getRiskColor = (risk: string) => {
     switch(risk.toLowerCase()) {
@@ -55,43 +55,50 @@ export function CalciumScoreTile({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <div className="flex items-center gap-1 mb-1">
-            <TrendingUp className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
-            <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-              Score
-            </span>
+      {score !== null && score !== undefined ? (
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <TrendingUp className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Score
+              </span>
+            </div>
+            <p className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {score}
+            </p>
           </div>
-          <p className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {score}
-          </p>
-        </div>
 
-        <div>
-          <div className="flex items-center gap-1 mb-1">
-            <Heart className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
-            <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-              Risk
-            </span>
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <Heart className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Risk
+              </span>
+            </div>
+            <p className={`text-sm font-semibold ${getRiskColor(riskLevel || 'unknown')}`}>
+              {riskLevel || 'Unknown'}
+            </p>
           </div>
-          <p className={`text-sm font-semibold ${getRiskColor(riskLevel)}`}>
-            {riskLevel}
-          </p>
-        </div>
 
-        <div>
-          <div className="flex items-center gap-1 mb-1">
-            <Calendar className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
-            <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-              Date
-            </span>
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <Calendar className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Date
+              </span>
+            </div>
+            <p className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+              {testDate || 'Not available'}
+            </p>
           </div>
-          <p className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-            {testDate}
-          </p>
         </div>
-      </div>
+      ) : (
+        <div className={`text-center py-6 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+          <p className="text-sm">No test data available</p>
+          <p className="text-xs mt-1">Upload your CAC scan results to see your score</p>
+        </div>
+      )}
     </div>
   );
 }
