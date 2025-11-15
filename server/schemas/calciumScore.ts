@@ -64,7 +64,7 @@ export interface CalciumScoreExtractionResult {
 // This is more reliable than auto-generation which can create $ref issues
 export function getOpenAIJsonSchema() {
   return {
-    type: "json_schema",
+    type: "json_schema" as const,
     json_schema: {
       name: "coronary_calcium_extraction",
       strict: true,
