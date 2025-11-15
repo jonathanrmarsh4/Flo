@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { PDFParse } from "pdf-parse";
 import {
   dexaScanExtractionSchema,
   getOpenAIJsonSchema,
@@ -13,9 +12,9 @@ const openai = new OpenAI({
 });
 
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
-  const parser = new PDFParse({ data: pdfBuffer });
-  const result = await parser.getText();
-  return result.text || "";
+  const pdfParse = (await import("pdf-parse")).default;
+  const data = await pdfParse(pdfBuffer);
+  return data.text || "";
 }
 
 async function extractDexaScanWithGPT(pdfText: string, modelName: string): Promise<DexaScanExtraction> {
