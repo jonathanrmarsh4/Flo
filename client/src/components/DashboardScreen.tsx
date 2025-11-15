@@ -95,10 +95,20 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
               <HeartMetabolicTile 
                 isDark={isDark}
                 score={dashboardData?.componentScores?.cardiometabolic}
+                riskBand={dashboardData?.details?.cardiometabolicDetails?.riskBand}
+                glycemicScore={dashboardData?.details?.cardiometabolicDetails?.glycemicScore}
+                lipidsScore={dashboardData?.details?.cardiometabolicDetails?.lipidsScore}
+                bloodPressureScore={dashboardData?.details?.cardiometabolicDetails?.bloodPressureScore}
+                cacScore={dashboardData?.details?.cardiometabolicDetails?.cacScore}
               />
               <BodyCompositionTile 
                 isDark={isDark}
                 score={dashboardData?.componentScores?.bodyComposition}
+                fatPercent={dashboardData?.details?.bodyCompositionDetails?.fatPercent}
+                leanPercent={dashboardData?.details?.bodyCompositionDetails?.leanPercent}
+                visceralFatArea={dashboardData?.details?.bodyCompositionDetails?.visceralFatArea}
+                visceralFatScore={dashboardData?.details?.bodyCompositionDetails?.visceralFatScore}
+                boneHealth={dashboardData?.details?.bodyCompositionDetails?.boneHealth}
               />
             </div>
 

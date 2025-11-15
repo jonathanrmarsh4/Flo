@@ -3019,6 +3019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cac: latestCalciumScore !== null,
           dexa: latestDexaScan !== null,
         },
+        details: scores.details,
       });
     } catch (error) {
       console.error("Error fetching dashboard overview:", error);

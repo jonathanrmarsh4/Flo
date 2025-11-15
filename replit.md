@@ -67,6 +67,15 @@ Preferred communication style: Simple, everyday language.
   - **Summary Endpoint:** GET /api/diagnostics/summary returns both calcium score and DEXA data for unified diagnostics display
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.
 - **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically. Return JWT tokens for mobile clients.
+- **Dashboard Scoring System (November 2025):** Intelligent health metric scoring across 4 component areas:
+  - **Biomarker Alias Mapping:** Centralized `SCORE_CALCULATOR_ALIASES` in `shared/domain/biomarkers.ts` maps database-friendly names ('LDL Cholesterol', 'hs-CRP') to internal scoring keys ('LDL_C', 'HS_CRP'). Used by `createScoreCalculatorMap()` utility.
+  - **Per-Biomarker Latest Values:** Score calculator fetches latest value for each biomarker across ALL blood work sessions, ensuring accurate metrics even when data spans multiple test dates.
+  - **Cardiometabolic Score (40% weight):** LDL, HDL, Triglycerides, Glucose, Blood Pressure, Coronary Calcium Score, VAT area. Optimal ranges based on clinical guidelines (e.g., LDL: 70-100 mg/dL, HDL: 60-80 mg/dL).
+  - **Body Composition Score (25% weight):** DEXA scan data with nested structure access (`bone_density.spine_t_score`, `body_composition.fat_percent_total`, `body_composition.vat_area_cm2`). Bone density (20%), body fat % (50%, sex-specific targets: Male 15%, Female 25%), VAT area (30%). T-score >= -1: 100, >= -2.5: 70, < -2.5: 40.
+  - **Inflammation Score (15% weight):** hs-CRP (optimal: 0-3 mg/L).
+  - **Daily Readiness Score (20% weight):** Not yet implemented.
+  - **Flō Score:** Weighted average of available component scores, normalized to 0-100 scale.
+  - **Biological Age Endpoint:** GET /api/biological-age selects blood work session with MOST required PhenoAge biomarkers (9 total including hs-CRP recognized as CRP), calculates biological age vs chronological age difference.
 
 ### Data Storage
 **Database:** PostgreSQL (Neon serverless) using Drizzle ORM.

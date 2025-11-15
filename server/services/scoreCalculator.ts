@@ -10,6 +10,23 @@ export interface DashboardScores {
   readiness: number | null;
   inflammation: number | null;
   lastUpdated: Date | null;
+  details: {
+    cardiometabolicDetails: {
+      glycemicScore: number | null;
+      lipidsScore: number | null;
+      bloodPressureScore: number | null;
+      cacScore: number | null;
+      riskBand: string | null;
+    };
+    bodyCompositionDetails: {
+      fatPercent: number | null;
+      leanPercent: number | null;
+      visceralFatArea: number | null;
+      visceralFatScore: number | null;
+      boneHealth: string | null;
+      boneTScore: number | null;
+    };
+  };
 }
 
 export interface BiomarkerValues {
@@ -151,13 +168,17 @@ function calculateCardiometabolicScore(biomarkers: BiomarkerValues, cac: any | n
     weights.push(0.15);
   }
 
-  if (cac && cac.totalScoreNumeric !== null) {
-    const cacScore = cac.totalScoreNumeric === 0 ? 100 :
-      cac.totalScoreNumeric < 10 ? 90 :
-      cac.totalScoreNumeric < 100 ? 75 :
-      cac.totalScoreNumeric < 400 ? 50 : 25;
-    components.push(cacScore);
-    weights.push(0.15);
+  if (cac) {
+    // Extract CAC value from aiPayload or top-level field
+    const cacValue = (cac.aiPayload as any)?.results?.total_agatston ?? cac.totalScoreNumeric;
+    if (cacValue !== null && cacValue !== undefined) {
+      const cacScore = cacValue === 0 ? 100 :
+        cacValue < 10 ? 90 :
+        cacValue < 100 ? 75 :
+        cacValue < 400 ? 50 : 25;
+      components.push(cacScore);
+      weights.push(0.15);
+    }
   }
 
   if (visceral_fat_area_cm2 !== null) {
@@ -182,14 +203,14 @@ function calculateBodyCompositionScore(dexaData: any | null): number | null {
   const weights: number[] = [];
 
   // Access nested body composition data
-  const bodyComp = payload.body_composition || {};
-  const boneDensity = payload.bone_density || {};
-  const patientContext = payload.patient_context || {};
+  const bodyComp = payload.body_composition || null;
+  const boneDensity = payload.bone_density || null;
+  const patientContext = payload.patient_context || null;
 
   // Body fat percentage
-  const bodyFatPercent = bodyComp.fat_percent_total;
+  const bodyFatPercent = bodyComp?.fat_percent_total;
   if (bodyFatPercent !== undefined && bodyFatPercent !== null) {
-    const sex = patientContext.reported_sex || 'Male';
+    const sex = patientContext?.reported_sex || 'Male';
     const targetBodyFat = sex === 'Male' ? 15 : 25;
     const bodyFatScore = mapValueToScore(bodyFatPercent, [targetBodyFat - 5, targetBodyFat + 5], 'optimal-range');
     components.push(bodyFatScore);
@@ -197,7 +218,7 @@ function calculateBodyCompositionScore(dexaData: any | null): number | null {
   }
 
   // Visceral adipose tissue (VAT) area
-  const vatArea = bodyComp.vat_area_cm2;
+  const vatArea = bodyComp?.vat_area_cm2;
   if (vatArea !== undefined && vatArea !== null) {
     const visceralScore = mapValueToScore(vatArea, [0, 150], 'lower-better');
     components.push(visceralScore);
@@ -205,7 +226,7 @@ function calculateBodyCompositionScore(dexaData: any | null): number | null {
   }
 
   // Bone density T-score (use worst, or spine, or hip)
-  const worstTScore = boneDensity.worst_t_score ?? boneDensity.spine_t_score ?? boneDensity.total_hip_t_score ?? boneDensity.femoral_neck_t_score;
+  const worstTScore = boneDensity?.worst_t_score ?? boneDensity?.spine_t_score ?? boneDensity?.total_hip_t_score ?? boneDensity?.femoral_neck_t_score;
   if (worstTScore !== undefined && worstTScore !== null) {
     const boneScore = worstTScore >= -1 ? 100 :
       worstTScore >= -2.5 ? 70 : 40;
@@ -268,6 +289,35 @@ export async function calculateDashboardScores(userId: string): Promise<Dashboar
   const lastUpdated = dexa?.studyDate ?? cac?.studyDate ?? 
     (Object.values(biomarkers)[0]?.testDate) ?? null;
 
+  // Calculate detailed sub-scores for Heart & Metabolic
+  const glycemicScore = calculateGlycemicScore(biomarkers);
+  const lipidsScore = calculateLipidsScore(biomarkers);
+  const bloodPressureScore = null; // Not yet implemented
+  // CAC score: check aiPayload first, then fall back to top-level totalScoreNumeric
+  const cacScoreValue = cac 
+    ? ((cac.aiPayload as any)?.results?.total_agatston ?? cac.totalScoreNumeric ?? null)
+    : null;
+  const riskBand = cardiometabolic !== null && cardiometabolic !== undefined
+    ? cardiometabolic >= 80 ? 'Low Risk' : cardiometabolic >= 60 ? 'Moderate Risk' : 'High Risk'
+    : null;
+
+  // Calculate detailed metrics for Body Composition
+  const dexaPayload = dexa?.aiPayload as any;
+  const bodyComp = dexaPayload?.body_composition || null;
+  const boneDensity = dexaPayload?.bone_density || null;
+  const fatPercent = bodyComp?.fat_percent_total ?? null;
+  const leanPercent = fatPercent !== null && fatPercent !== undefined 
+    ? Math.round((100 - fatPercent) * 10) / 10 
+    : null;
+  const visceralFatArea = bodyComp?.vat_area_cm2 ?? null;
+  const visceralFatScore = visceralFatArea !== null && visceralFatArea !== undefined
+    ? mapValueToScore(visceralFatArea, [0, 150], 'lower-better') 
+    : null;
+  const boneTScore = boneDensity?.worst_t_score ?? boneDensity?.spine_t_score ?? boneDensity?.total_hip_t_score ?? boneDensity?.femoral_neck_t_score ?? null;
+  const boneHealth = boneTScore !== null && boneTScore !== undefined
+    ? (boneTScore >= -1 ? 'Normal' : boneTScore >= -2.5 ? 'Osteopenia' : 'Osteoporosis')
+    : null;
+
   return {
     floScore,
     cardiometabolic,
@@ -275,5 +325,88 @@ export async function calculateDashboardScores(userId: string): Promise<Dashboar
     readiness,
     inflammation,
     lastUpdated,
+    details: {
+      cardiometabolicDetails: {
+        glycemicScore,
+        lipidsScore,
+        bloodPressureScore,
+        cacScore: cacScoreValue,
+        riskBand,
+      },
+      bodyCompositionDetails: {
+        fatPercent,
+        leanPercent,
+        visceralFatArea,
+        visceralFatScore,
+        boneHealth,
+        boneTScore,
+      },
+    },
   };
+}
+
+function calculateGlycemicScore(biomarkers: BiomarkerValues): number | null {
+  const glucoseValue = biomarkers['GLUCOSE']?.value;
+  const hba1cValue = biomarkers['HBA1C']?.value;
+  const insulinValue = biomarkers['INSULIN']?.value;
+
+  if (glucoseValue === undefined && hba1cValue === undefined && insulinValue === undefined) {
+    return null;
+  }
+
+  const components: number[] = [];
+  const weights: number[] = [];
+
+  if (glucoseValue !== undefined) {
+    components.push(mapValueToScore(glucoseValue, [70, 100], 'optimal-range'));
+    weights.push(0.4);
+  }
+  if (hba1cValue !== undefined) {
+    components.push(mapValueToScore(hba1cValue, [4.5, 5.7], 'lower-better'));
+    weights.push(0.4);
+  }
+  if (insulinValue !== undefined) {
+    components.push(mapValueToScore(insulinValue, [2, 10], 'lower-better'));
+    weights.push(0.2);
+  }
+
+  if (components.length === 0) return null;
+
+  return Math.round(
+    components.reduce((sum, score, i) => sum + score * weights[i], 0) /
+    weights.reduce((sum, w) => sum + w, 0)
+  );
+}
+
+function calculateLipidsScore(biomarkers: BiomarkerValues): number | null {
+  const apoBValue = biomarkers['APOB']?.value ?? biomarkers['LDL_C']?.value;
+  const hdlValue = biomarkers['HDL_C']?.value;
+  const trigValue = biomarkers['TRIGLYCERIDES']?.value;
+
+  if (apoBValue === undefined && hdlValue === undefined && trigValue === undefined) {
+    return null;
+  }
+
+  const components: number[] = [];
+  const weights: number[] = [];
+
+  if (apoBValue !== undefined) {
+    components.push(mapValueToScore(apoBValue, [50, 120], 'lower-better'));
+    weights.push(0.5);
+  }
+  if (hdlValue !== undefined) {
+    components.push(mapValueToScore(hdlValue, [40, 60], 'higher-better'));
+    weights.push(0.25);
+  }
+  if (trigValue !== undefined) {
+    components.push(mapValueToScore(trigValue, [50, 150], 'lower-better'));
+    weights.push(0.25);
+  }
+
+  if (components.length === 0) return null;
+
+  return Math.round(
+    components.reduce((sum, score, i) => sum + score * weights[i], 0) /
+    weights.reduce((sum, w) => sum + w, 0)
+  );
 }
