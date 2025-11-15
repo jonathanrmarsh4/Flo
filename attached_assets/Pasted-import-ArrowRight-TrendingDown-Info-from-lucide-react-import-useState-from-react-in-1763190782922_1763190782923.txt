@@ -1,77 +1,24 @@
-import { ArrowRight, TrendingDown, Info, Upload } from 'lucide-react';
+import { ArrowRight, TrendingDown, Info } from 'lucide-react';
 import { useState } from 'react';
-import { UnifiedUploadModal } from './UnifiedUploadModal';
 
 interface CalciumScoreTileProps {
   isDark: boolean;
-  score?: number | null;
-  riskLevel?: string | null;
-  percentile?: number | null;
-  testDate?: string | null;
+  score?: number;
+  riskLevel?: 'minimal' | 'low' | 'moderate' | 'high';
+  percentile?: number;
+  testDate?: string;
 }
 
 export function CalciumScoreTile({ 
   isDark, 
-  score,
-  riskLevel,
-  percentile,
-  testDate
+  score = 12, 
+  riskLevel = 'low',
+  percentile = 90,
+  testDate = '2025-10-15'
 }: CalciumScoreTileProps) {
   const [showDetails, setShowDetails] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
 
-  if (score === null || score === undefined) {
-    return (
-      <>
-        <div 
-          className={`backdrop-blur-xl rounded-3xl border p-5 transition-all hover-elevate ${
-            isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
-          }`}
-          data-testid="tile-calcium-score"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className={`text-xs tracking-wide mb-1 ${
-                isDark ? 'text-white/60' : 'text-gray-500'
-              }`}>
-                CALCIUM SCORE
-              </h3>
-              <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-                Coronary artery calcification
-              </p>
-            </div>
-          </div>
-
-          <div className="text-center py-8">
-            <p className={`text-sm mb-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-              No test data available
-            </p>
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${
-                isDark 
-                  ? 'bg-cyan-500 hover:bg-cyan-600 text-white' 
-                  : 'bg-cyan-600 hover:bg-cyan-700 text-white'
-              }`}
-              data-testid="button-upload-calcium-score"
-            >
-              <Upload className="w-4 h-4" />
-              Upload CAC Scan
-            </button>
-          </div>
-        </div>
-
-        {showUploadModal && (
-          <UnifiedUploadModal 
-            isDark={isDark}
-            onClose={() => setShowUploadModal(false)}
-            initialMode="diagnostics"
-          />
-        )}
-      </>
-    );
-  }
-
+  // Determine risk category details
   const getRiskDetails = () => {
     if (score === 0) {
       return {
@@ -113,7 +60,6 @@ export function CalciumScoreTile({
   };
 
   const risk = getRiskDetails();
-  const displayPercentile = percentile ?? 90;
 
   return (
     <>
@@ -125,8 +71,8 @@ export function CalciumScoreTile({
             : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-black/10 hover:bg-white/90'
         }`}
         style={{ minHeight: '200px' }}
-        data-testid="tile-calcium-score"
       >
+        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
             <h3 className={`text-xs tracking-wide mb-1 ${
@@ -135,64 +81,70 @@ export function CalciumScoreTile({
               CALCIUM SCORE
             </h3>
             <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-              {testDate ? new Date(testDate).toLocaleDateString('en-US', { 
+              {new Date(testDate).toLocaleDateString('en-US', { 
                 month: 'short', 
                 day: 'numeric', 
                 year: 'numeric' 
-              }) : 'Recent scan'}
+              })}
             </p>
           </div>
           <Info className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
         </div>
 
+        {/* Score Circle */}
         <div className="flex items-center justify-center mb-6">
           <div className={`relative w-24 h-24 rounded-full ${risk.circleColor} shadow-xl flex items-center justify-center`}>
             <div className="absolute inset-0 rounded-full animate-pulse opacity-50" style={{ 
               background: `radial-gradient(circle, ${risk.circleColor.includes('green') ? 'rgba(74, 222, 128, 0.3)' : risk.circleColor.includes('yellow') ? 'rgba(250, 204, 21, 0.3)' : 'rgba(248, 113, 113, 0.3)'} 0%, transparent 70%)`
             }}></div>
-            <span className="relative text-4xl text-white z-10" data-testid="text-calcium-score">
+            <span className="relative text-4xl text-white z-10">
               {score}
             </span>
           </div>
         </div>
 
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 ${risk.bgColor}`} data-testid="badge-risk-level">
+        {/* Risk Level */}
+        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 ${risk.bgColor}`}>
           <div className={`w-2 h-2 rounded-full ${risk.barColor}`}></div>
           <span className={`text-xs ${risk.color}`}>
             Risk: {risk.label}
           </span>
         </div>
 
+        {/* Percentile Bar */}
         <div className="mb-3">
           <div className={`h-2 rounded-full overflow-hidden ${
             isDark ? 'bg-white/10' : 'bg-gray-200'
           }`}>
             <div 
               className={`h-full ${risk.barColor} transition-all duration-1000 ease-out`}
-              style={{ width: `${displayPercentile}%` }}
+              style={{ width: `${percentile}%` }}
             ></div>
           </div>
         </div>
 
+        {/* Percentile Text */}
         <div>
           <p className={`text-xs mb-1 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
             Age-Matched Percentile
           </p>
-          <p className={`text-[10px] ${isDark ? 'text-white/50' : 'text-gray-500'}`} data-testid="text-percentile">
-            You're lower than {displayPercentile}% of people your age
+          <p className={`text-[10px] ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            You're lower than {percentile}% of people your age
           </p>
         </div>
 
+        {/* View Report Button */}
         <button className={`w-full mt-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${
           isDark 
             ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white' 
             : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
-        }`} data-testid="button-view-full-report">
+        }`}>
           <span className="text-sm">View Full Report</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
 
+      {/* Details Modal */}
       {showDetails && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div 
@@ -203,6 +155,7 @@ export function CalciumScoreTile({
           <div className={`relative w-full max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl border overflow-hidden ${
             isDark ? 'bg-slate-900 border-white/20' : 'bg-white border-gray-200'
           }`}>
+            {/* Modal Header */}
             <div className={`sticky top-0 z-10 backdrop-blur-xl border-b px-5 py-4 ${
               isDark ? 'bg-slate-900/90 border-white/10' : 'bg-white/90 border-gray-200'
             }`}>
@@ -215,14 +168,15 @@ export function CalciumScoreTile({
                   className={`p-2 rounded-lg transition-colors ${
                     isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
                   }`}
-                  data-testid="button-close-modal"
                 >
                   <ArrowRight className={`w-5 h-5 rotate-90 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
                 </button>
               </div>
             </div>
 
+            {/* Modal Content */}
             <div className="overflow-y-auto p-5 space-y-5" style={{ maxHeight: 'calc(85vh - 70px)' }}>
+              {/* Score Summary */}
               <div className={`rounded-2xl p-5 ${
                 isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'
               }`}>
@@ -246,6 +200,7 @@ export function CalciumScoreTile({
                 </div>
               </div>
 
+              {/* Risk Categories */}
               <div>
                 <h3 className={`text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
                   Understanding Your Score
@@ -257,7 +212,6 @@ export function CalciumScoreTile({
                     description="No evidence of coronary artery disease"
                     color="green"
                     isDark={isDark}
-                    isActive={score === 0}
                   />
                   <RiskCategory 
                     range="1-99"
@@ -286,6 +240,7 @@ export function CalciumScoreTile({
                 </div>
               </div>
 
+              {/* Recommendations */}
               <div className={`rounded-2xl p-5 ${
                 isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
               }`}>
@@ -304,6 +259,7 @@ export function CalciumScoreTile({
                 </ul>
               </div>
 
+              {/* Disclaimer */}
               <div className={`text-[10px] p-3 rounded-xl ${
                 isDark ? 'bg-white/5 text-white/40' : 'bg-gray-100 text-gray-500'
               }`}>
