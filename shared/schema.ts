@@ -59,6 +59,25 @@ export const labUploadJobStatusEnum = pgEnum("lab_upload_job_status", [
   "needs_review"
 ]);
 
+// Diagnostic study enums
+export const diagnosticTypeEnum = pgEnum("diagnostic_type", [
+  "coronary_calcium_score",
+  "carotid_imt",
+  "dexa_scan",
+  "vo2_max",
+  "brain_mri"
+]);
+export const diagnosticSourceEnum = pgEnum("diagnostic_source", [
+  "uploaded_pdf",
+  "manual_entry",
+  "api"
+]);
+export const diagnosticStatusEnum = pgEnum("diagnostic_status", [
+  "parsed",
+  "needs_review",
+  "failed"
+]);
+
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
 export const UserStatusEnum = z.enum(["active", "suspended"]);
@@ -107,6 +126,16 @@ export const DecimalsPolicyEnum = z.enum(["ceil", "floor", "round"]);
 export const ConversionTypeEnum = z.enum(["ratio", "affine"]);
 export const ReferenceSexEnum = z.enum(["any", "male", "female"]);
 export const MeasurementSourceEnum = z.enum(["ai_extracted", "manual", "corrected"]);
+
+export const DiagnosticTypeEnum = z.enum([
+  "coronary_calcium_score",
+  "carotid_imt",
+  "dexa_scan",
+  "vo2_max",
+  "brain_mri"
+]);
+export const DiagnosticSourceEnum = z.enum(["uploaded_pdf", "manual_entry", "api"]);
+export const DiagnosticStatusEnum = z.enum(["parsed", "needs_review", "failed"]);
 
 // Health baseline schema (for JSONB validation)
 export const healthBaselineSchema = z.object({
@@ -488,6 +517,38 @@ export const openaiUsageEvents = pgTable("openai_usage_events", {
   index("idx_openai_usage_events_model").on(table.model),
 ]);
 
+// Diagnostic studies (coronary calcium score, DEXA, VO2, etc.)
+export const diagnosticsStudies = pgTable("diagnostics_studies", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: diagnosticTypeEnum("type").notNull(),
+  source: diagnosticSourceEnum("source").notNull().default("uploaded_pdf"),
+  studyDate: timestamp("study_date").notNull(),
+  ageAtScan: integer("age_at_scan"),
+  totalScoreNumeric: real("total_score_numeric"),
+  riskCategory: text("risk_category"),
+  agePercentile: integer("age_percentile"),
+  aiPayload: jsonb("ai_payload").notNull(),
+  status: diagnosticStatusEnum("status").notNull().default("parsed"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_diagnostics_studies_user_type_date").on(table.userId, table.type, table.studyDate),
+]);
+
+// Flexible metrics table for diagnostic studies (per-vessel scores, etc.)
+export const diagnosticMetrics = pgTable("diagnostic_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studyId: varchar("study_id").notNull().references(() => diagnosticsStudies.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  label: text("label").notNull(),
+  valueNumeric: real("value_numeric"),
+  unit: text("unit"),
+  extra: jsonb("extra"),
+}, (table) => [
+  index("idx_diagnostic_metrics_study_code").on(table.studyId, table.code),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
@@ -582,6 +643,21 @@ export const biomarkerMeasurementsRelations = relations(biomarkerMeasurements, (
   biomarker: one(biomarkers, {
     fields: [biomarkerMeasurements.biomarkerId],
     references: [biomarkers.id],
+  }),
+}));
+
+export const diagnosticsStudiesRelations = relations(diagnosticsStudies, ({ one, many }) => ({
+  user: one(users, {
+    fields: [diagnosticsStudies.userId],
+    references: [users.id],
+  }),
+  metrics: many(diagnosticMetrics),
+}));
+
+export const diagnosticMetricsRelations = relations(diagnosticMetrics, ({ one }) => ({
+  study: one(diagnosticsStudies, {
+    fields: [diagnosticMetrics.studyId],
+    references: [diagnosticsStudies.id],
   }),
 }));
 
@@ -1010,6 +1086,52 @@ export const userCredentialsSchema = z.object({
 
 export type InsertUserCredentials = z.infer<typeof insertUserCredentialsSchema>;
 export type UserCredentials = typeof userCredentials.$inferSelect;
+
+// Diagnostic study schemas
+export const insertDiagnosticsStudySchema = createInsertSchema(diagnosticsStudies, {
+  studyDate: z.coerce.date(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const diagnosticsStudySchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  type: DiagnosticTypeEnum,
+  source: DiagnosticSourceEnum,
+  studyDate: z.date(),
+  ageAtScan: z.number().nullable(),
+  totalScoreNumeric: z.number().nullable(),
+  riskCategory: z.string().nullable(),
+  agePercentile: z.number().nullable(),
+  aiPayload: z.record(z.unknown()),
+  status: DiagnosticStatusEnum,
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type InsertDiagnosticsStudy = z.infer<typeof insertDiagnosticsStudySchema>;
+export type DiagnosticsStudy = typeof diagnosticsStudies.$inferSelect;
+
+// Diagnostic metrics schemas
+export const insertDiagnosticMetricSchema = createInsertSchema(diagnosticMetrics).omit({
+  id: true,
+});
+
+export const diagnosticMetricSchema = z.object({
+  id: z.string().uuid(),
+  studyId: z.string().uuid(),
+  code: z.string(),
+  label: z.string(),
+  valueNumeric: z.number().nullable(),
+  unit: z.string().nullable(),
+  extra: z.record(z.unknown()).nullable(),
+});
+
+export type InsertDiagnosticMetric = z.infer<typeof insertDiagnosticMetricSchema>;
+export type DiagnosticMetric = typeof diagnosticMetrics.$inferSelect;
 
 // Mobile auth request schemas
 export const appleSignInSchema = z.object({
