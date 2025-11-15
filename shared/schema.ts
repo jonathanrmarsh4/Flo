@@ -69,6 +69,7 @@ export const diagnosticTypeEnum = pgEnum("diagnostic_type", [
 ]);
 export const diagnosticSourceEnum = pgEnum("diagnostic_source", [
   "uploaded_pdf",
+  "uploaded_pdf_experimental",
   "manual_entry",
   "api"
 ]);
