@@ -42,10 +42,10 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration:** Uses OpenAI GPT models (GPT-4o, GPT-5) for biomarker extraction, personalized insights, and comprehensive health reports.
 - **Calcium Score Extraction:** Parallel testing system for calcium score PDFs with two extraction modes:
   - **Standard Mode**: Uses GPT-4o with standard prompts for reliable PDF extraction (default)
-  - **Experimental Mode**: Uses GPT-4o with enhanced prompts optimized for difficult/poor quality PDFs
+  - **Experimental Mode**: Uses **GPT-5** (advanced reasoning model) with enhanced prompts optimized for difficult/poor quality PDFs, scans, or image-based documents
   - UI toggle in CalciumScoreUploadModal allows users to choose extraction method
   - Separate source tracking (`uploaded_pdf` vs `uploaded_pdf_experimental`) for comparison
-  - **Schema Architecture**: Manually defined OpenAI JSON schema in `server/schemas/calciumScore.ts` (avoiding zod-to-json-schema `$ref` issues). Zod schema serves as validation source of truth, manually mirrored in OpenAI format with strict `additionalProperties: false`
+  - **Schema Architecture**: Manually defined OpenAI JSON schema in `server/schemas/calciumScore.ts` (avoiding zod-to-json-schema `$ref` issues). Zod schema serves as validation source of truth, manually mirrored in OpenAI format with strict `additionalProperties: false`. Per-vessel schema includes only LAD, RCA, LCX, LM (removed "other" field that caused validation mismatches).
 - **Admin Endpoints:** Cached endpoints for overview stats, API usage, revenue trends, subscription breakdowns, and audit logs.
 - **Mobile Authentication Endpoints:** 7 REST endpoints for Apple Sign-In (JWT verification with jose), Google Sign-In (tokeninfo API), Email/Password (bcrypt hashing), password reset, and OAuth-to-email account linking. All endpoints enforce account status checks and create user profiles automatically. Return JWT tokens for mobile clients.
 
