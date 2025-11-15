@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { biomarkerMeasurements, biomarkerTestSessions, biomarkers, diagnosticsStudies } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { createScoreCalculatorMap } from "@shared/domain/biomarkers";
 
 export interface DashboardScores {
   floScore: number | null;
@@ -31,19 +32,16 @@ async function getLatestBiomarkerValues(userId: string): Promise<BiomarkerValues
     .where(eq(biomarkerTestSessions.userId, userId))
     .orderBy(desc(biomarkerTestSessions.testDate));
 
-  const latestByBiomarker: BiomarkerValues = {};
+  // Convert canonical names to internal scoring keys using alias map
+  const scoringMap = createScoreCalculatorMap(
+    measurements.map(m => ({
+      biomarkerName: m.biomarkerName,
+      value: m.valueCanonical as number,
+      testDate: m.testDate,
+    }))
+  );
   
-  for (const measurement of measurements) {
-    const name = measurement.biomarkerName;
-    if (!latestByBiomarker[name] && measurement.valueCanonical !== null) {
-      latestByBiomarker[name] = {
-        value: measurement.valueCanonical,
-        testDate: measurement.testDate,
-      };
-    }
-  }
-  
-  return latestByBiomarker;
+  return scoringMap;
 }
 
 async function getLatestDiagnosticData(userId: string) {

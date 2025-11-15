@@ -411,6 +411,56 @@ function generateFlags(
  * Main normalization function
  * Orchestrates all normalization steps
  */
+/**
+ * Biomarker alias map for score calculation
+ * Maps canonical database names to internal scoring keys
+ */
+export const SCORE_CALCULATOR_ALIASES: Record<string, string> = {
+  // Lipid Panel
+  'LDL Cholesterol': 'LDL_C',
+  'HDL Cholesterol': 'HDL_C',
+  'Total Cholesterol': 'TOTAL_CHOL',
+  'Triglycerides': 'TRIGLYCERIDES',
+  'Apolipoprotein B': 'APOB',
+  
+  // Glycemic
+  'Glucose': 'GLUCOSE',
+  'HbA1c': 'HBA1C',
+  'Insulin': 'INSULIN',
+  
+  // Inflammation
+  'hs-CRP': 'HS_CRP',
+  'C-Reactive Protein (hs)': 'HS_CRP',
+};
+
+/**
+ * Get internal scoring key from canonical biomarker name
+ */
+export function getScoreCalculatorKey(canonicalName: string): string | null {
+  return SCORE_CALCULATOR_ALIASES[canonicalName] ?? null;
+}
+
+/**
+ * Create a biomarker map for score calculation using internal keys
+ */
+export function createScoreCalculatorMap(
+  measurements: Array<{ biomarkerName: string; value: number; testDate: Date }>
+): Record<string, { value: number; testDate: Date }> {
+  const map: Record<string, { value: number; testDate: Date }> = {};
+  
+  for (const measurement of measurements) {
+    const internalKey = getScoreCalculatorKey(measurement.biomarkerName);
+    if (internalKey && (!map[internalKey] || measurement.testDate > map[internalKey].testDate)) {
+      map[internalKey] = {
+        value: measurement.value,
+        testDate: measurement.testDate,
+      };
+    }
+  }
+  
+  return map;
+}
+
 export function normalizeMeasurement(
   input: NormalizationInput,
   biomarkers: Biomarker[],

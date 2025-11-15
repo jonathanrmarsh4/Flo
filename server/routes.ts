@@ -656,26 +656,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
       );
 
-      // Find the latest session that has measurements
-      let latestSession = null;
-      let measurements: any[] = [];
+      // Get all biomarkers to map IDs to names
+      const allBiomarkers = await storage.getBiomarkers();
+      const biomarkerMapTemp = new Map(allBiomarkers.map(b => [b.id, b]));
+
+      // Required biomarkers for PhenoAge
+      const requiredBiomarkerNames = ['Albumin', 'Creatinine', 'Glucose', 'CRP', 'hs-CRP', 'Lymphocytes', 'MCV', 'RDW', 'ALP', 'WBC'];
+
+      // Find the session with the most required biomarkers
+      let bestSession = null;
+      let bestMeasurements: any[] = [];
+      let bestMatchCount = 0;
       
       for (const session of sortedSessions) {
         const sessionMeasurements = await storage.getMeasurementsBySession(session.id);
-        if (sessionMeasurements.length > 0) {
-          latestSession = session;
-          measurements = sessionMeasurements;
-          break;
+        if (sessionMeasurements.length === 0) continue;
+
+        // Count how many required biomarkers this session has
+        const sessionBiomarkerNames = new Set(
+          sessionMeasurements.map(m => biomarkerMapTemp.get(m.biomarkerId)?.name).filter(Boolean)
+        );
+        const matchCount = requiredBiomarkerNames.filter(name => sessionBiomarkerNames.has(name)).length;
+
+        if (matchCount > bestMatchCount) {
+          bestMatchCount = matchCount;
+          bestSession = session;
+          bestMeasurements = sessionMeasurements;
         }
       }
 
       // If no session has measurements, return error
-      if (!latestSession) {
+      if (!bestSession) {
         return res.status(400).json({ 
           error: "No biomarker measurements found. Please add test results to calculate biological age.",
           missingData: "biomarkers"
         });
       }
+
+      const latestSession = bestSession;
+      const measurements = bestMeasurements;
 
       // Get all biomarkers to map IDs to names
       const biomarkers = await storage.getBiomarkers();
@@ -2988,6 +3007,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get latest data dates
       const latestCalciumScore = await storage.getLatestDiagnosticStudy(userId, "coronary_calcium_score");
       const latestDexaScan = await storage.getLatestDiagnosticStudy(userId, "dexa_scan");
+
+      console.log('[Dashboard Overview] Scores calculated:', {
+        floScore: scores.floScore,
+        cardiometabolic: scores.cardiometabolic,
+        bodyComposition: scores.bodyComposition,
+        readiness: scores.readiness,
+        inflammation: scores.inflammation,
+      });
 
       res.json({
         bioAge,
