@@ -1,5 +1,6 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { Capacitor } from '@capacitor/core';
+import { logger } from './logger';
 
 // Get API base URL - use production URL for iOS/Android, relative for web
 function getApiBaseUrl(): string {
@@ -18,11 +19,11 @@ async function getAuthToken(): Promise<string | null> {
       // Dynamic import to avoid loading plugin on web
       const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
       const { value } = await SecureStoragePlugin.get({ key: 'auth_token' });
-      console.log('[getAuthToken] Retrieved token:', value ? `${value.substring(0, 20)}...` : 'null');
+      logger.debug('Retrieved auth token from secure storage', { hasToken: !!value });
       return value;
     } catch (error) {
       // Token not found or error reading secure storage
-      console.log('[getAuthToken] Failed to retrieve token:', error);
+      logger.debug('Failed to retrieve auth token', { error });
       return null;
     }
   }
@@ -36,10 +37,10 @@ async function getAuthHeaders(additionalHeaders: Record<string, string> = {}): P
   
   const token = await getAuthToken();
   if (token) {
-    console.log('[getAuthHeaders] Adding Authorization header with token');
+    logger.debug('Adding Authorization header with JWT token');
     headers['Authorization'] = `Bearer ${token}`;
   } else {
-    console.log('[getAuthHeaders] No token found, skipping Authorization header');
+    logger.debug('No auth token found, using session cookies');
   }
   
   return headers;
@@ -48,8 +49,7 @@ async function getAuthHeaders(additionalHeaders: Record<string, string> = {}): P
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    console.error('[API Error] Status:', res.status);
-    console.error('[API Error] Response:', text);
+    logger.error('API request failed', undefined, { status: res.status, response: text });
     throw new Error(`${res.status}: ${text}`);
   }
 }
@@ -62,7 +62,7 @@ export async function apiRequest(
   const baseUrl = getApiBaseUrl();
   const fullUrl = baseUrl + url;
   
-  console.log(`[API Request] ${method} ${fullUrl}`);
+  logger.debug('API request', { method, url: fullUrl });
   
   try {
     const headers = await getAuthHeaders(
@@ -76,11 +76,11 @@ export async function apiRequest(
       credentials: "include",
     });
 
-    console.log(`[API Response] ${res.status} ${res.statusText}`);
+    logger.debug('API response', { status: res.status, statusText: res.statusText });
     await throwIfResNotOk(res);
     return res;
   } catch (error) {
-    console.error('[API Request Failed]', error);
+    logger.error('API request failed', error);
     throw error;
   }
 }

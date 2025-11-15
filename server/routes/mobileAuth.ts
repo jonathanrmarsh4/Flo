@@ -70,7 +70,7 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
         expiresAt = new Date(payload.exp * 1000); // Convert UNIX timestamp to Date
       }
     } catch (jwtError) {
-      logger.warn('Apple JWT verification failed', jwtError);
+      logger.error('Apple JWT verification failed', jwtError);
       return res.status(401).json({ error: "Invalid Apple identity token" });
     }
     
