@@ -1,0 +1,196 @@
+{
+  "purpose": "Define Flo's core dashboard schema for four high-impact tiles using labs, diagnostics and wearable data.",
+  "version": "1.0.0",
+  "tiles": [
+    {
+      "id": "flo_overview",
+      "name": "Flo Overview",
+      "category": "summary",
+      "description": "High-level summary tile showing BioAge, Flo Score, and major trends.",
+      "inputs": {
+        "date_of_birth": "date",
+        "bio_age_timeseries": "array<{date: ISO8601, value_years: number}>",
+        "cardiometabolic_score": "number or null",
+        "body_composition_score": "number or null",
+        "readiness_score": "number or null",
+        "inflammation_score": "number or null",
+        "latest_labs_date": "date or null",
+        "latest_dexa_date": "date or null",
+        "latest_cac_date": "date or null"
+      },
+      "calculations": {
+        "calendar_age_years": "floor((now - date_of_birth) / 365.25 days)",
+        "bio_age_current": "last(bio_age_timeseries).value_years",
+        "bio_age_delta_years": "bio_age_current - calendar_age_years",
+        "bio_age_trend_years": "bio_age_current - first(bio_age_timeseries within last 365 days)",
+        "flo_score_raw": "weighted_mean({ cardiometabolic_score:0.4, body_composition_score:0.25, readiness_score:0.2, inflammation_score:0.15 } across available inputs)",
+        "flo_score": "clamp(round(flo_score_raw), 0, 100)",
+        "last_full_checkin_date": "max(latest_labs_date, latest_dexa_date, latest_cac_date)"
+      },
+      "outputs": {
+        "primary": [
+          "bio_age_current",
+          "calendar_age_years",
+          "bio_age_delta_years",
+          "flo_score"
+        ],
+        "secondary": [
+          "bio_age_trend_years",
+          "last_full_checkin_date"
+        ]
+      },
+      "display_rules": {
+        "staleness_badge_days": 90,
+        "trend_window_days": 365
+      }
+    },
+    {
+      "id": "heart_metabolic_risk",
+      "name": "Heart & Metabolic Risk",
+      "category": "risk",
+      "description": "Integrates lipids, glycemic markers, blood pressure, CAC and visceral fat into one risk score.",
+      "inputs": {
+        "apoB_mg_dL": "number or null",
+        "LDL_C_mg_dL": "number or null",
+        "HDL_C_mg_dL": "number or null",
+        "triglycerides_mg_dL": "number or null",
+        "non_HDL_C_mg_dL": "number or null",
+        "fasting_glucose_mg_dL": "number or null",
+        "hba1c_percent": "number or null",
+        "fasting_insulin_uIU_mL": "number or null",
+        "systolic_bp_mmHg": "number or null",
+        "diastolic_bp_mmHg": "number or null",
+        "cac_score_agatston": "number or null",
+        "cac_scan_date": "date or null",
+        "visceral_fat_score": "number or null",
+        "age_years": "number",
+        "sex": "string"
+      },
+      "calculations": {
+        "apoB_or_LDL": "apoB_mg_dL != null ? apoB_mg_dL : LDL_C_mg_dL",
+        "lipid_component_score": "weighted_mean({ apoB_or_LDL_score:0.5, HDL_C_score:0.2, triglycerides_score:0.2, non_HDL_score:0.1 })",
+        "glycemic_component_score": "weighted_mean({ glucose_score:0.4, hba1c_score:0.4, insulin_score:0.2 })",
+        "blood_pressure_component_score": "map_bp_to_score(systolic_bp_mmHg, diastolic_bp_mmHg)",
+        "cac_component_score": "map_cac_to_score(cac_score_agatston, age_years, sex)",
+        "visceral_fat_component_score": "visceral_fat_score",
+        "cardiometabolic_score_raw": "weighted_mean({ lipid_component_score:0.4, glycemic_component_score:0.25, blood_pressure_component_score:0.15, cac_component_score:0.15, visceral_fat_component_score:0.05 })",
+        "cardiometabolic_score": "clamp(round(cardiometabolic_score_raw), 0, 100)",
+        "risk_band": "if score>=80:'low', if>=50:'moderate', else:'high'"
+      },
+      "outputs": {
+        "primary": [
+          "cardiometabolic_score",
+          "risk_band"
+        ],
+        "secondary": [
+          "lipid_component_score",
+          "glycemic_component_score",
+          "blood_pressure_component_score",
+          "cac_score_agatston"
+        ]
+      },
+      "display_rules": {
+        "show_top_callouts": 3,
+        "staleness_badge_days_labs": 180,
+        "staleness_badge_days_cac": 365
+      }
+    },
+    {
+      "id": "body_composition_strength",
+      "name": "Body Composition & Strength",
+      "category": "body_comp",
+      "description": "Shows body fat %, lean mass, bone density and visceral fat from DEXA.",
+      "inputs": {
+        "total_fat_mass_kg": "number",
+        "lean_mass_kg": "number",
+        "bone_mass_kg": "number or null",
+        "body_weight_kg": "number",
+        "height_cm": "number or null",
+        "visceral_fat_area_cm2": "number or null",
+        "worst_t_score": "number or null",
+        "sex": "string",
+        "age_years": "number"
+      },
+      "calculations": {
+        "body_fat_percent": "(total_fat_mass_kg / body_weight_kg) * 100",
+        "lean_mass_percent": "(lean_mass_kg / body_weight_kg) * 100",
+        "bone_mass_percent": "(bone_mass_kg / body_weight_kg) * 100",
+        "bmi": "body_weight_kg / (height_cm/100)^2",
+        "target_body_fat_percent": "lookup_target_body_fat(sex, age_years)",
+        "body_fat_score": "clamp(100 - k * abs(body_fat_percent - target_body_fat_percent), 0, 100)",
+        "visceral_fat_score": "map_value_to_score(visceral_fat_area_cm2)",
+        "bone_health_score": "map_value_to_score(worst_t_score)",
+        "body_composition_score_raw": "weighted_mean({ body_fat_score:0.5, visceral_fat_score:0.3, bone_health_score:0.2 })",
+        "body_composition_score": "clamp(round(body_composition_score_raw), 0, 100)",
+        "bone_health_category": "if worst_t_score>=-1:'normal', else if>-2.5:'osteopenia', else:'osteoporosis'"
+      },
+      "outputs": {
+        "primary": [
+          "body_fat_percent",
+          "body_composition_score"
+        ],
+        "secondary": [
+          "lean_mass_percent",
+          "visceral_fat_area_cm2",
+          "visceral_fat_score",
+          "bone_health_category"
+        ]
+      },
+      "display_rules": {
+        "primary_visual": "donut_fat_lean_bone",
+        "show_trend_if_multiple_dexa": true
+      }
+    },
+    {
+      "id": "daily_readiness_habits",
+      "name": "Daily Readiness & Habits",
+      "category": "realtime",
+      "description": "Real-time readiness from sleep, recovery, training load, steps and HRV.",
+      "inputs": {
+        "sleep_nights": "array<{date, duration_hours, efficiency_percent, bedtime, waketime}>",
+        "resting_hr_timeseries": "array<{date, resting_hr_bpm}>",
+        "hrv_timeseries": "array<{date, hrv_ms}> or null",
+        "daily_steps_timeseries": "array<{date, steps}>",
+        "exercise_sessions": "array<{date, duration_minutes, intensity_level, load_points}>",
+        "step_goal": "number or null"
+      },
+      "calculations": {
+        "sleep_duration_avg": "mean(duration_hours over last 7 nights)",
+        "sleep_efficiency_avg": "mean(efficiency_percent over last 7 nights)",
+        "bedtime_variability_minutes": "stddev(bedtime last 7 nights)",
+        "sleep_score": "weighted_mean({duration_score:0.5, efficiency_score:0.25, consistency_score:0.25})",
+        "resting_hr_baseline": "mean(resting_hr_bpm last 30 days)",
+        "resting_hr_today": "last(resting_hr_timeseries).resting_hr_bpm",
+        "hrv_baseline": "mean(hrv_ms last 30 days)",
+        "hrv_today": "last(hrv_timeseries).hrv_ms",
+        "cardio_recovery_score": "clamp(80 + a*(hrv_today-hrv_baseline)/hrv_baseline - b*(resting_hr_today-resting_hr_baseline)/resting_hr_baseline, 0,100)",
+        "training_load_acute": "sum(load_points last 3 days)",
+        "training_load_chronic": "mean(load_points last 28 days)",
+        "training_load_ratio": "training_load_acute / training_load_chronic",
+        "load_score": "map_value_to_score(training_load_ratio)",
+        "steps_today": "last(daily_steps_timeseries).steps",
+        "steps_pct_of_goal": "(steps_today / step_goal) * 100",
+        "readiness_score_raw": "weighted_mean({sleep_score:0.4, cardio_recovery_score:0.4, load_score:0.2})",
+        "readiness_score": "clamp(round(readiness_score_raw), 0, 100)",
+        "readiness_band": "if>=80:'push', if>=55:'normal', else:'go_easy'"
+      },
+      "outputs": {
+        "primary": [
+          "readiness_score",
+          "readiness_band"
+        ],
+        "secondary": [
+          "sleep_score",
+          "cardio_recovery_score",
+          "steps_today",
+          "steps_pct_of_goal"
+        ],
+        "ai_today_actions": "2–3 micro-recommendations selected based on lowest subscores"
+      },
+      "display_rules": {
+        "show_actions_count": 3,
+        "show_step_streak": true
+      }
+    }
+  ]
+}
