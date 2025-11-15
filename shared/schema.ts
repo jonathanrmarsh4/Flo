@@ -550,6 +550,45 @@ export const diagnosticMetrics = pgTable("diagnostic_metrics", {
   index("idx_diagnostic_metrics_study_code").on(table.studyId, table.code),
 ]);
 
+// Flō Scores - tracks overall health score over time
+export const floScores = pgTable("flo_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  score: integer("score").notNull(), // 0-100
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+  dataSnapshot: jsonb("data_snapshot"), // Store inputs used for calculation
+}, (table) => [
+  index("idx_flo_scores_user_date").on(table.userId, table.calculatedAt),
+]);
+
+// Component Scores - tracks the 4 component scores that make up Flō Score
+export const componentScores = pgTable("component_scores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  cardiometabolic: integer("cardiometabolic"), // 0-100, nullable
+  bodyComposition: integer("body_composition"), // 0-100, nullable
+  readiness: integer("readiness"), // 0-100, nullable (HomeKit dependent)
+  inflammation: integer("inflammation"), // 0-100, nullable
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+  dataSnapshot: jsonb("data_snapshot"), // Store inputs used for calculation
+}, (table) => [
+  index("idx_component_scores_user_date").on(table.userId, table.calculatedAt),
+]);
+
+// Blood Pressure Readings - for future HomeKit integration and manual entry
+export const bloodPressureReadings = pgTable("blood_pressure_readings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  systolic: integer("systolic").notNull(), // mmHg
+  diastolic: integer("diastolic").notNull(), // mmHg
+  heartRate: integer("heart_rate"), // bpm, optional
+  source: text("source").notNull().default("manual"), // manual, homekit, device
+  measuredAt: timestamp("measured_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_blood_pressure_user_date").on(table.userId, table.measuredAt),
+]);
+
 // Body fat reference ranges for DEXA scans
 export const bodyFatReferenceRanges = pgTable("body_fat_reference_ranges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1145,6 +1184,61 @@ export const diagnosticMetricSchema = z.object({
 
 export type InsertDiagnosticMetric = z.infer<typeof insertDiagnosticMetricSchema>;
 export type DiagnosticMetric = typeof diagnosticMetrics.$inferSelect;
+
+// Flō Score schemas
+export const insertFloScoreSchema = createInsertSchema(floScores).omit({
+  id: true,
+});
+
+export const floScoreSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  score: z.number().int().min(0).max(100),
+  calculatedAt: z.date(),
+  dataSnapshot: z.record(z.unknown()).nullable(),
+});
+
+export type InsertFloScore = z.infer<typeof insertFloScoreSchema>;
+export type FloScore = typeof floScores.$inferSelect;
+
+// Component Score schemas
+export const insertComponentScoreSchema = createInsertSchema(componentScores).omit({
+  id: true,
+});
+
+export const componentScoreSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  cardiometabolic: z.number().int().min(0).max(100).nullable(),
+  bodyComposition: z.number().int().min(0).max(100).nullable(),
+  readiness: z.number().int().min(0).max(100).nullable(),
+  inflammation: z.number().int().min(0).max(100).nullable(),
+  calculatedAt: z.date(),
+  dataSnapshot: z.record(z.unknown()).nullable(),
+});
+
+export type InsertComponentScore = z.infer<typeof insertComponentScoreSchema>;
+export type ComponentScore = typeof componentScores.$inferSelect;
+
+// Blood Pressure Reading schemas
+export const insertBloodPressureReadingSchema = createInsertSchema(bloodPressureReadings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const bloodPressureReadingSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  systolic: z.number().int().min(50).max(250),
+  diastolic: z.number().int().min(30).max(150),
+  heartRate: z.number().int().min(30).max(220).nullable(),
+  source: z.string(),
+  measuredAt: z.date(),
+  createdAt: z.date(),
+});
+
+export type InsertBloodPressureReading = z.infer<typeof insertBloodPressureReadingSchema>;
+export type BloodPressureReading = typeof bloodPressureReadings.$inferSelect;
 
 // Mobile auth request schemas
 export const appleSignInSchema = z.object({

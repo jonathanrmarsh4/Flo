@@ -2923,6 +2923,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard API endpoints
+  app.get("/api/dashboard/overview", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { calculateDashboardScores } = await import("./services/scoreCalculator");
+
+      // Get scores
+      const scores = await calculateDashboardScores(userId);
+
+      // Get user profile for date of birth
+      const profile = await storage.getProfile(userId);
+      const dateOfBirth = profile?.dateOfBirth;
+
+      let calendarAge: number | null = null;
+      let bioAge: number | null = null;
+      let bioAgeDelta: number | null = null;
+
+      if (dateOfBirth) {
+        const now = new Date();
+        const birth = new Date(dateOfBirth);
+        calendarAge = Math.floor((now.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+      }
+
+      // Biological age will be fetched separately on the client
+      // For now, we'll leave it null and the client can fetch it from /api/biological-age
+
+      // Get latest data dates
+      const latestCalciumScore = await storage.getLatestDiagnosticStudy(userId, "coronary_calcium_score");
+      const latestDexaScan = await storage.getLatestDiagnosticStudy(userId, "dexa_scan");
+
+      res.json({
+        bioAge,
+        calendarAge,
+        bioAgeDelta,
+        floScore: scores.floScore,
+        componentScores: {
+          cardiometabolic: scores.cardiometabolic,
+          bodyComposition: scores.bodyComposition,
+          readiness: scores.readiness,
+          inflammation: scores.inflammation,
+        },
+        lastFullCheckin: scores.lastUpdated?.toISOString() ?? null,
+        dataAvailability: {
+          labs: scores.lastUpdated !== null,
+          cac: latestCalciumScore !== null,
+          dexa: latestDexaScan !== null,
+        },
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard overview:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard overview" });
+    }
+  });
+
   registerAdminRoutes(app);
   
   // Mobile auth routes (Apple, Google, Email/Password)

@@ -9,7 +9,8 @@ import { Capacitor } from '@capacitor/core';
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
-import Dashboard from "@/pages/dashboard";
+import Dashboard from "@/pages/dashboard-new";
+import Labs from "@/pages/labs";
 import Insights from "@/pages/insights";
 import Report from "@/pages/report";
 import UploadPage from "@/pages/upload";
@@ -47,6 +48,7 @@ function Router() {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/labs" component={Labs} />
           <Route path="/insights" component={Insights} />
           <Route path="/insights/:id" component={Insights} />
           <Route path="/report/:id" component={Report} />
