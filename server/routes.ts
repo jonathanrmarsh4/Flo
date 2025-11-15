@@ -30,6 +30,7 @@ import crypto from "crypto";
 import { extractRawBiomarkers } from "./services/simpleExtractor";
 import { normalizeBatch } from "./services/normalizer";
 import { processLabUpload } from "./services/labProcessor";
+import { extractCalciumScoreFromPdf } from "./services/calciumScoreExtractor";
 import { normalizeMeasurement } from "@shared/domain/biomarkers";
 import { 
   calculatePhenoAge, 
@@ -2320,6 +2321,169 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       return res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Diagnostic results routes
+  // Upload calcium score PDF and extract data
+  app.post("/api/diagnostics/calcium-score/upload", isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const fileBuffer = file.buffer;
+
+      // Extract calcium score data from PDF
+      const extractionResult = await extractCalciumScoreFromPdf(fileBuffer);
+
+      if (!extractionResult.success || !extractionResult.data) {
+        return res.status(400).json({ 
+          error: "Failed to extract calcium score data",
+          details: extractionResult.error 
+        });
+      }
+
+      const data = extractionResult.data;
+
+      // Parse study date
+      let studyDate: Date;
+      if (data.study.study_date) {
+        studyDate = new Date(data.study.study_date);
+        if (isNaN(studyDate.getTime())) {
+          studyDate = new Date();
+        }
+      } else {
+        studyDate = new Date();
+      }
+
+      // Calculate age at scan if we have patient age
+      let ageAtScan = data.patient_context.reported_age ?? null;
+
+      // Determine risk category from total score
+      let riskCategory = data.results.risk_category ?? null;
+      if (!riskCategory && data.results.total_agatston !== null) {
+        const score = data.results.total_agatston;
+        if (score === 0) riskCategory = "zero";
+        else if (score <= 10) riskCategory = "minimal";
+        else if (score <= 100) riskCategory = "mild";
+        else if (score <= 400) riskCategory = "moderate";
+        else riskCategory = "severe";
+      }
+
+      // Insert study into database
+      const study = await storage.createDiagnosticStudy({
+        userId,
+        type: "coronary_calcium_score",
+        source: "uploaded_pdf",
+        studyDate,
+        ageAtScan,
+        totalScoreNumeric: data.results.total_agatston ?? null,
+        riskCategory,
+        agePercentile: data.results.age_matched_percentile ?? null,
+        aiPayload: data,
+        status: "parsed",
+      });
+
+      // Insert per-vessel metrics
+      const metrics: any[] = [];
+      if (data.results.per_vessel.lad !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "lad",
+          label: "Left Anterior Descending",
+          valueNumeric: data.results.per_vessel.lad,
+          unit: "agatston",
+          extra: null,
+        });
+      }
+      if (data.results.per_vessel.rca !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "rca",
+          label: "Right Coronary Artery",
+          valueNumeric: data.results.per_vessel.rca,
+          unit: "agatston",
+          extra: null,
+        });
+      }
+      if (data.results.per_vessel.lcx !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "lcx",
+          label: "Left Circumflex",
+          valueNumeric: data.results.per_vessel.lcx,
+          unit: "agatston",
+          extra: null,
+        });
+      }
+      if (data.results.per_vessel.lm !== null) {
+        metrics.push({
+          studyId: study.id,
+          code: "lm",
+          label: "Left Main",
+          valueNumeric: data.results.per_vessel.lm,
+          unit: "agatston",
+          extra: null,
+        });
+      }
+
+      // Insert any "other" vessels
+      for (const [key, value] of Object.entries(data.results.per_vessel.other)) {
+        metrics.push({
+          studyId: study.id,
+          code: key,
+          label: key.toUpperCase(),
+          valueNumeric: value,
+          unit: "agatston",
+          extra: null,
+        });
+      }
+
+      // Bulk insert metrics
+      if (metrics.length > 0) {
+        await storage.createDiagnosticMetrics(metrics);
+      }
+
+      res.json({
+        success: true,
+        study,
+        metricsCount: metrics.length,
+      });
+    } catch (error) {
+      console.error("Error uploading calcium score:", error);
+      res.status(500).json({ error: "Failed to process calcium score upload" });
+    }
+  });
+
+  // Get diagnostic summary for dashboard
+  app.get("/api/diagnostics/summary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Get latest calcium score
+      const latestCalciumScore = await storage.getLatestDiagnosticStudy(userId, "coronary_calcium_score");
+
+      const summary: any = {
+        calciumScore: null,
+      };
+
+      if (latestCalciumScore) {
+        summary.calciumScore = {
+          totalScore: latestCalciumScore.totalScoreNumeric,
+          riskLevel: latestCalciumScore.riskCategory,
+          agePercentile: latestCalciumScore.agePercentile,
+          studyDate: latestCalciumScore.studyDate.toISOString(),
+        };
+      }
+
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching diagnostic summary:", error);
+      res.status(500).json({ error: "Failed to fetch diagnostic summary" });
     }
   });
 

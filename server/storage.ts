@@ -20,6 +20,8 @@ import {
   biomarkerInsights,
   labUploadJobs,
   healthInsights,
+  diagnosticsStudies,
+  diagnosticMetrics,
   type User,
   type UpsertUser,
   type Profile,
@@ -53,6 +55,10 @@ import {
   type InsertAuthProvider,
   type UserCredentials,
   type InsertUserCredentials,
+  type DiagnosticsStudy,
+  type InsertDiagnosticsStudy,
+  type DiagnosticMetric,
+  type InsertDiagnosticMetric,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql, lt, gt } from "drizzle-orm";
@@ -201,6 +207,11 @@ export interface IStorage {
     expiresAt: Date | null;
   }): Promise<any>;
   getLatestHealthInsights(userId: string): Promise<any | null>;
+  
+  // Diagnostic studies operations
+  createDiagnosticStudy(study: InsertDiagnosticsStudy): Promise<DiagnosticsStudy>;
+  createDiagnosticMetrics(metrics: InsertDiagnosticMetric[]): Promise<void>;
+  getLatestDiagnosticStudy(userId: string, type: string): Promise<DiagnosticsStudy | null>;
   
   deleteUserData(userId: string): Promise<void>;
 }
@@ -1255,6 +1266,52 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(healthInsights.generatedAt))
       .limit(1);
     return insights || null;
+  }
+
+  // Diagnostic studies operations
+  async createDiagnosticStudy(study: InsertDiagnosticsStudy): Promise<DiagnosticsStudy> {
+    const [created] = await db
+      .insert(diagnosticsStudies)
+      .values(study)
+      .returning();
+    return created;
+  }
+
+  async createDiagnosticMetrics(metrics: InsertDiagnosticMetric[]): Promise<void> {
+    if (metrics.length === 0) return;
+    await db.insert(diagnosticMetrics).values(metrics);
+  }
+
+  async getLatestDiagnosticStudy(userId: string, type: string): Promise<DiagnosticsStudy | null> {
+    const [study] = await db
+      .select()
+      .from(diagnosticsStudies)
+      .where(and(
+        eq(diagnosticsStudies.userId, userId),
+        eq(diagnosticsStudies.type, type)
+      ))
+      .orderBy(desc(diagnosticsStudies.studyDate))
+      .limit(1);
+    return study || null;
+  }
+
+  async deleteUserData(userId: string): Promise<void> {
+    // Delete in dependency order
+    await db.delete(diagnosticMetrics).where(
+      sql`study_id IN (SELECT id FROM diagnostics_studies WHERE user_id = ${userId})`
+    );
+    await db.delete(diagnosticsStudies).where(eq(diagnosticsStudies.userId, userId));
+    await db.delete(biomarkerMeasurements).where(
+      sql`session_id IN (SELECT id FROM biomarker_test_sessions WHERE user_id = ${userId})`
+    );
+    await db.delete(biomarkerTestSessions).where(eq(biomarkerTestSessions.userId, userId));
+    await db.delete(labUploadJobs).where(eq(labUploadJobs.userId, userId));
+    await db.delete(bloodWorkRecords).where(eq(bloodWorkRecords.userId, userId));
+    await db.delete(analysisResults).where(
+      sql`record_id IN (SELECT id FROM blood_work_records WHERE user_id = ${userId})`
+    );
+    await db.delete(biomarkerInsights).where(eq(biomarkerInsights.userId, userId));
+    await db.delete(healthInsights).where(eq(healthInsights.userId, userId));
   }
 }
 
