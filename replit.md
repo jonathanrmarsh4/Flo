@@ -50,10 +50,18 @@ Preferred communication style: Simple, everyday language.
   - UI toggle in CalciumScoreUploadModal allows users to choose extraction method
   - Separate source tracking (`uploaded_pdf` vs `uploaded_pdf_experimental`) for comparison
   - **Schema Architecture**: Manually defined OpenAI JSON schema in `server/schemas/calciumScore.ts` (avoiding zod-to-json-schema `$ref` issues). Zod schema serves as validation source of truth, manually mirrored in OpenAI format with strict `additionalProperties: false`. Per-vessel schema includes only LAD, RCA, LCX, LM (removed "other" field that caused validation mismatches).
-- **DEXA Scan Extraction (November 2025):** AI-powered extraction of bone density and body composition data from DEXA scan PDFs:
-  - **POST /api/diagnostics/dexa/upload:** Multipart/form-data endpoint accepting DEXA scan PDFs
+- **DEXA Scan Extraction (November 2025):** AI-powered extraction of bone density and body composition data from DEXA scan PDFs with dual extraction modes:
+  - **Standard Mode**: Uses GPT-4o with standard prompts for text-based PDFs (default)
+  - **Experimental Mode**: Uses **OCR + GPT-5** for scanned/image-based PDFs
+    - Intelligent fallback: tries pdf-parse first (fast for text PDFs), automatically falls back to OCR (Tesseract.js + pdf2pic) if PDF is image-based
+    - OCR preprocessing: 300 DPI, converts PDF pages to PNG images, extracts text with Tesseract
+    - Enhanced prompts optimized for OCR'd text with common OCR error correction (e.g., "O" vs "0", "l" vs "1", negative sign confusion)
+  - UI toggle in UnifiedUploadModal allows users to choose extraction method for DEXA scans
+  - Separate source tracking (`uploaded_pdf` vs `uploaded_pdf_experimental`) for comparison
+  - **POST /api/diagnostics/dexa/upload:** Standard multipart/form-data endpoint accepting DEXA scan PDFs
+  - **POST /api/diagnostics/dexa/upload-experimental:** Experimental OCR + GPT-5 endpoint for difficult-to-read PDFs
   - **Extraction Schema:** Zod + OpenAI JSON schema in `server/schemas/dexaScan.ts` for structured extraction of spine T-score, hip T-score, WHO classification, body fat percentage, VAT area, and study date
-  - **PDF Processing:** Dynamic import pattern for pdf-parse (CommonJS/ESM interop) in `server/services/dexaScanExtractor.ts`, GPT-4o extraction with comprehensive system prompts for bone density metrics
+  - **PDF Processing:** Dynamic import pattern for pdf-parse (CommonJS/ESM interop) in both `server/services/dexaScanExtractor.ts` and `server/services/dexaScanExtractorExperimental.ts`, proper resource cleanup with `getInfo()` + `destroy()`
   - **Body Fat Categorization:** `bodyFatReferenceRanges` table with sex-specific categories (Male: 4-60%, Female: 12-60%) across 5 levels (Athlete/Fit/Average/High/Very High)
   - **Storage:** Uses existing `diagnosticsStudies` table with `studyType='dexa'` and JSONB `aiPayload` for flexible data storage
   - **Summary Endpoint:** GET /api/diagnostics/summary returns both calcium score and DEXA data for unified diagnostics display
