@@ -7,7 +7,7 @@ channel = "stable-24_05"
 packages = ["graphicsmagick", "ghostscript"]
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "gce"
 build = ["npm", "run", "build"]
 run = ["npm", "run", "start"]
 
