@@ -12,9 +12,11 @@ const openai = new OpenAI({
 });
 
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
-  const pdfParse = (await import("pdf-parse")).default;
-  const data = await pdfParse(pdfBuffer);
-  return data.text || "";
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: pdfBuffer });
+  const result = await parser.getInfo() as any;
+  await parser.destroy();
+  return result.text || "";
 }
 
 async function extractDexaScanWithGPT(pdfText: string, modelName: string): Promise<DexaScanExtraction> {
