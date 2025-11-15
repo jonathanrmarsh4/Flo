@@ -651,13 +651,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get the most recent session
-      const latestSession = sessions.sort((a, b) => 
+      // Sort sessions by date (most recent first)
+      const sortedSessions = sessions.sort((a, b) => 
         new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
-      )[0];
+      );
 
-      // Fetch measurements for the latest session
-      const measurements = await storage.getMeasurementsBySession(latestSession.id);
+      // Find the latest session that has measurements
+      let latestSession = null;
+      let measurements: any[] = [];
+      
+      for (const session of sortedSessions) {
+        const sessionMeasurements = await storage.getMeasurementsBySession(session.id);
+        if (sessionMeasurements.length > 0) {
+          latestSession = session;
+          measurements = sessionMeasurements;
+          break;
+        }
+      }
+
+      // If no session has measurements, return error
+      if (!latestSession) {
+        return res.status(400).json({ 
+          error: "No biomarker measurements found. Please add test results to calculate biological age.",
+          missingData: "biomarkers"
+        });
+      }
 
       // Get all biomarkers to map IDs to names
       const biomarkers = await storage.getBiomarkers();
