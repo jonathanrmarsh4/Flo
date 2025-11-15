@@ -298,7 +298,7 @@ export async function calculateDashboardScores(userId: string): Promise<Dashboar
     ? ((cac.aiPayload as any)?.results?.total_agatston ?? cac.totalScoreNumeric ?? null)
     : null;
   const riskBand = cardiometabolic !== null && cardiometabolic !== undefined
-    ? cardiometabolic >= 80 ? 'Low Risk' : cardiometabolic >= 50 ? 'Moderate Risk' : 'High Risk'
+    ? cardiometabolic >= 80 ? 'Low Risk' : cardiometabolic >= 40 ? 'Moderate Risk' : 'High Risk'
     : null;
 
   // Calculate detailed metrics for Body Composition
