@@ -12,9 +12,11 @@ interface UnifiedUploadModalProps {
 }
 
 type UploadMode = 'lab-results' | 'diagnostics';
+type DiagnosticType = 'calcium-score' | 'dexa';
 
 export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results' }: UnifiedUploadModalProps) {
   const [mode, setMode] = useState<UploadMode>(initialMode);
+  const [diagnosticType, setDiagnosticType] = useState<DiagnosticType>('calcium-score');
   const [file, setFile] = useState<File | null>(null);
   const [useExperimental, setUseExperimental] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -152,8 +154,13 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
     if (file) {
       if (mode === 'lab-results') {
         bloodWorkUploadMutation.mutate(file);
-      } else {
+      } else if (diagnosticType === 'calcium-score') {
         calciumScoreUploadMutation.mutate(file);
+      } else if (diagnosticType === 'dexa') {
+        toast({
+          title: "Coming Soon",
+          description: "DEXA scan upload will be available soon. We're currently working on this feature.",
+        });
       }
     }
   };
@@ -226,8 +233,33 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
         </div>
 
         <div className="overflow-y-auto px-6 pb-6" style={{ maxHeight: 'calc(90vh - 180px)' }}>
-          {/* Experimental Toggle - Only for Diagnostics */}
+          {/* Diagnostic Type Selector - Only for Diagnostics */}
           {mode === 'diagnostics' && (
+            <div className={`mb-4 p-4 rounded-2xl border ${
+              isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+            }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Diagnostic Type
+              </label>
+              <select
+                value={diagnosticType}
+                onChange={(e) => setDiagnosticType(e.target.value as DiagnosticType)}
+                className={`w-full px-4 py-3 rounded-xl border transition-colors ${
+                  isDark 
+                    ? 'bg-white/5 border-white/10 text-white hover:border-white/20 focus:border-cyan-400' 
+                    : 'bg-white border-gray-200 text-gray-900 hover:border-gray-300 focus:border-cyan-600'
+                }`}
+                style={{ minHeight: '44px' }}
+                data-testid="select-diagnostic-type"
+              >
+                <option value="calcium-score">Coronary Calcium Score (CAC)</option>
+                <option value="dexa">DEXA Bone Density Scan</option>
+              </select>
+            </div>
+          )}
+
+          {/* Experimental Toggle - Only for Calcium Score */}
+          {mode === 'diagnostics' && diagnosticType === 'calcium-score' && (
             <div className={`mb-4 p-4 rounded-2xl border ${
               isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
             }`}>
@@ -354,7 +386,9 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
             <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
               {mode === 'lab-results' 
                 ? 'Upload your blood work PDF and our AI will automatically extract and analyze your biomarkers, calculate your biological age, and provide personalized health insights.'
-                : 'Upload your coronary calcium score (CAC) report PDF. Our AI will extract your Agatston score, risk category, and vessel-specific measurements.'}
+                : diagnosticType === 'calcium-score'
+                  ? 'Upload your coronary calcium score (CAC) report PDF. Our AI will extract your Agatston score, risk category, and vessel-specific measurements.'
+                  : 'Upload your DEXA bone density scan report. Our AI will extract your T-scores, Z-scores, and bone density measurements for spine, hip, and femoral neck.'}
             </p>
           </div>
 
