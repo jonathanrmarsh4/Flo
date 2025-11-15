@@ -80,34 +80,43 @@ export function CalciumScoreTile({
         bgColor: isDark ? 'bg-green-500/20' : 'bg-green-100',
         barColor: 'bg-green-500',
         circleColor: 'bg-gradient-to-br from-green-400 to-green-600',
-        description: 'Very low risk of heart disease'
+        description: 'No detectable plaque'
       };
-    } else if (score < 100) {
+    } else if (score < 10) {
       return {
         label: 'Low',
         color: isDark ? 'text-green-400' : 'text-green-600',
         bgColor: isDark ? 'bg-green-500/20' : 'bg-green-100',
         barColor: 'bg-green-500',
         circleColor: 'bg-gradient-to-br from-green-400 to-green-600',
-        description: 'Low risk of heart disease'
+        description: 'Minimal plaque detected'
       };
-    } else if (score < 400) {
+    } else if (score < 100) {
       return {
-        label: 'Moderate',
+        label: 'Mild',
         color: isDark ? 'text-yellow-400' : 'text-yellow-700',
         bgColor: isDark ? 'bg-yellow-500/20' : 'bg-yellow-100',
         barColor: 'bg-yellow-500',
         circleColor: 'bg-gradient-to-br from-yellow-400 to-yellow-600',
-        description: 'Moderate risk of heart disease'
+        description: 'Mild plaque burden'
+      };
+    } else if (score < 400) {
+      return {
+        label: 'Moderate',
+        color: isDark ? 'text-orange-400' : 'text-orange-700',
+        bgColor: isDark ? 'bg-orange-500/20' : 'bg-orange-100',
+        barColor: 'bg-orange-500',
+        circleColor: 'bg-gradient-to-br from-orange-400 to-orange-600',
+        description: 'Moderate plaque burden'
       };
     } else {
       return {
-        label: 'High',
+        label: 'Severe',
         color: isDark ? 'text-red-400' : 'text-red-600',
         bgColor: isDark ? 'bg-red-500/20' : 'bg-red-100',
         barColor: 'bg-red-500',
         circleColor: 'bg-gradient-to-br from-red-400 to-red-600',
-        description: 'High risk of heart disease'
+        description: 'Severe plaque burden'
       };
     }
   };
