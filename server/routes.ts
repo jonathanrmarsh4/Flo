@@ -671,6 +671,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      console.log('[Biological Age] Available biomarkers:', Array.from(measurementMap.keys()));
+
       // Required biomarkers for PhenoAge calculation
       // Note: CRP can be either "CRP" or "hs-CRP" (high-sensitivity CRP)
       const requiredBiomarkers = {
@@ -786,6 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if we have all required biomarkers
       if (missingBiomarkers.length > 0) {
+        console.log('[Biological Age] Missing biomarkers:', missingBiomarkers);
         // Return partial data with chronological age and what's missing
         return res.status(200).json({ 
           chronologicalAge: ageYears,
@@ -833,13 +836,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const phenoAge = calculatePhenoAge(phenoAgeInputs);
         const ageAcceleration = calculatePhenoAgeAccel(phenoAge, ageYears);
 
-        res.json({
+        const response = {
           biologicalAge: Math.round(phenoAge * 10) / 10, // Round to 1 decimal
           chronologicalAge: ageYears,
           ageDifference: Math.round(ageAcceleration * 10) / 10, // Round to 1 decimal
           testDate: latestSession.testDate,
           sessionId: latestSession.id,
-        });
+        };
+
+        console.log('[Biological Age] Calculation successful:', response);
+        res.json(response);
 
       } catch (error: any) {
         console.error("Error calculating PhenoAge:", error);
