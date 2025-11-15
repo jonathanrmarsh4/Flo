@@ -672,11 +672,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       // Required biomarkers for PhenoAge calculation
+      // Note: CRP can be either "CRP" or "hs-CRP" (high-sensitivity CRP)
       const requiredBiomarkers = {
         'Albumin': 'albumin_g_L',
         'Creatinine': 'creatinine_umol_L',
         'Glucose': 'glucose_mmol_L',
-        'CRP': 'crp_mg_dL',
+        'CRP': 'crp_mg_dL', // Will match "CRP" or "hs-CRP"
         'Lymphocytes': 'lymphocytes_KPerUL',
         'MCV': 'mcv_fL',
         'RDW': 'rdw_percent',
@@ -689,7 +690,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const missingBiomarkers: string[] = [];
 
       for (const [biomarkerName, fieldName] of Object.entries(requiredBiomarkers)) {
-        const measurement = measurementMap.get(biomarkerName);
+        // Special handling for CRP - check both "CRP" and "hs-CRP"
+        let measurement = measurementMap.get(biomarkerName);
+        if (!measurement && biomarkerName === 'CRP') {
+          measurement = measurementMap.get('hs-CRP');
+        }
+        
         if (!measurement) {
           missingBiomarkers.push(biomarkerName);
           continue;
