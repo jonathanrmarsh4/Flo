@@ -117,38 +117,51 @@ async function findBiomarkerByName(nameRaw: string): Promise<{ biomarkerId: stri
   return null;
 }
 
+function normalizeUnit(unit: string): string {
+  return unit
+    .toLowerCase()
+    .replace(/μ/g, 'u')
+    .replace(/µ/g, 'u')
+    .trim();
+}
+
 async function convertUnit(
   biomarkerId: string,
   value: number,
   fromUnit: string,
   toUnit: string
 ): Promise<{ convertedValue: number; formula: string } | null> {
-  const conversion = await db
-    .select()
-    .from(biomarkerUnits)
-    .where(
-      and(
-        eq(biomarkerUnits.biomarkerId, biomarkerId),
-        sql`LOWER(${biomarkerUnits.fromUnit}) = LOWER(${fromUnit})`,
-        sql`LOWER(${biomarkerUnits.toUnit}) = LOWER(${toUnit})`
-      )
-    )
-    .limit(1);
+  const normalizedFromUnit = normalizeUnit(fromUnit);
+  const normalizedToUnit = normalizeUnit(toUnit);
 
-  if (conversion.length === 0) {
+  if (normalizedFromUnit === normalizedToUnit) {
     return null;
   }
 
-  const conv = conversion[0];
+  const allConversions = await db
+    .select()
+    .from(biomarkerUnits)
+    .where(eq(biomarkerUnits.biomarkerId, biomarkerId));
+
+  const conversion = allConversions.find(
+    (c) =>
+      normalizeUnit(c.fromUnit) === normalizedFromUnit &&
+      normalizeUnit(c.toUnit) === normalizedToUnit
+  );
+
+  if (!conversion) {
+    return null;
+  }
+
   let convertedValue: number;
   let formula: string;
 
-  if (conv.conversionType === "ratio") {
-    convertedValue = value * conv.multiplier;
-    formula = `${value} * ${conv.multiplier} = ${convertedValue}`;
+  if (conversion.conversionType === "ratio") {
+    convertedValue = value * conversion.multiplier;
+    formula = `${value} * ${conversion.multiplier} = ${convertedValue}`;
   } else {
-    convertedValue = value * conv.multiplier + conv.offset;
-    formula = `(${value} * ${conv.multiplier}) + ${conv.offset} = ${convertedValue}`;
+    convertedValue = value * conversion.multiplier + conversion.offset;
+    formula = `(${value} * ${conversion.multiplier}) + ${conversion.offset} = ${convertedValue}`;
   }
 
   return { convertedValue, formula };
@@ -179,16 +192,21 @@ async function getReferenceRange(
   const profileId = profile[0].id;
   const sex = userSex === "Male" ? "male" : userSex === "Female" ? "female" : "any";
 
-  let ranges = await db
+  const normalizedUnit = normalizeUnit(unit);
+  
+  const allRanges = await db
     .select()
     .from(referenceProfileRanges)
     .where(
       and(
         eq(referenceProfileRanges.profileId, profileId),
-        eq(referenceProfileRanges.biomarkerId, biomarkerId),
-        sql`LOWER(${referenceProfileRanges.unit}) = LOWER(${unit})`
+        eq(referenceProfileRanges.biomarkerId, biomarkerId)
       )
     );
+
+  let ranges = allRanges.filter(
+    (r) => normalizeUnit(r.unit) === normalizedUnit
+  );
 
   if (ranges.length === 0) {
     if (targetProfile !== "Global Default") {
@@ -293,7 +311,10 @@ export async function normalizeBiomarker(
   let conversionApplied = false;
   let conversionFormula: string | undefined;
 
-  if (raw.unit_raw !== canonicalUnit) {
+  const normalizedRawUnit = normalizeUnit(raw.unit_raw);
+  const normalizedCanonicalUnit = normalizeUnit(canonicalUnit);
+
+  if (normalizedRawUnit !== normalizedCanonicalUnit) {
     const conversion = await convertUnit(
       biomarkerMatch.biomarkerId,
       parsedValue.value,
