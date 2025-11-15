@@ -8,6 +8,14 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
+### Production Infrastructure
+**Logging System:** Production-safe structured logging implemented throughout the codebase:
+- Server-side logger (`server/logger.ts`) with configurable log levels (debug, info, warn, error)
+- Client-side logger (`client/src/lib/logger.ts`) with same interface for consistency
+- All console.* statements replaced with proper logger calls across production code
+- Environment-aware: verbose in development, production-ready with proper error context
+- Seed scripts and dev server (vite.ts) retain console statements as acceptable for tooling
+
 ### UI/UX Decisions
 The platform features an Apple Human Interface Guidelines-inspired design, focusing on a mobile-first, content-focused minimalist aesthetic with 44pt touch targets. It uses Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS for components and styling.
 
@@ -35,9 +43,10 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 - **Calcium Score Extraction:** Supports standard GPT-4o extraction and an experimental OCR + GPT-5 mode for scanned PDFs, with intelligent fallback. JSON schemas are manually defined for strict validation.
 - **DEXA Scan Extraction:** AI-powered extraction from PDFs using GPT-4o or OCR + GPT-5 for experimental mode, with intelligent fallback and schema validation. Includes body fat categorization based on reference ranges.
 - **Admin Endpoints:** Cached endpoints for various statistics and audit logs.
-- **Mobile Authentication Endpoints:** 7 REST endpoints for various authentication flows (Apple Sign-In, Google Sign-In, Email/Password, password reset, account linking).
+- **Mobile Authentication Endpoints:** 7 REST endpoints for various authentication flows (Apple Sign-In, Google Sign-In, Email/Password, password reset, account linking). Includes robust error handling with try-catch wrappers for external API calls (Google/Apple tokeninfo endpoints) to handle network failures gracefully.
 - **Dashboard Scoring System:** Calculates health scores across Cardiometabolic, Body Composition, Inflammation, and Daily Readiness (planned) areas, using biomarker aliases and latest values. The Flō Score is a weighted average.
 - **Biological Age Endpoint:** Selects the blood work session with the most required PhenoAge biomarkers to calculate biological age.
+- **Error Handling:** All production code uses structured error logging with proper error context, replacing raw console statements for production safety and better debugging.
 
 ### Data Storage
 The project uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, sessions, comprehensive profiles (demographics, health baseline, goals, AI personalization), blood work records, AI analysis results (JSONB), diagnostic studies (calcium scores, DEXA scans), body fat reference ranges, billing customers, subscriptions, payments, audit logs, and authentication credentials.
