@@ -1,5 +1,6 @@
-import { Home, Droplets, Plus, Activity, Lightbulb } from 'lucide-react';
+import { Home, Droplets, Activity, Lightbulb } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { FloIcon } from './FloLogo';
 
 interface BottomNavProps {
   isDark: boolean;
@@ -25,7 +26,7 @@ export function BottomNav({ isDark, onAddClick }: BottomNavProps) {
     {
       id: 'add',
       label: 'Add',
-      icon: Plus,
+      icon: null,
       path: null,
       isCenter: true,
     },
@@ -86,7 +87,7 @@ export function BottomNav({ isDark, onAddClick }: BottomNavProps) {
                       ? 'bg-gradient-to-br from-cyan-500 to-blue-600' 
                       : 'bg-gradient-to-br from-cyan-500 to-blue-600'
                   }`}>
-                    <Icon className="w-6 h-6 text-white" />
+                    <FloIcon size={36} />
                   </div>
                   <span className={`text-[10px] mt-1 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                     {tab.label}
@@ -106,7 +107,7 @@ export function BottomNav({ isDark, onAddClick }: BottomNavProps) {
                 }`}
                 data-testid={`tab-${tab.id}`}
               >
-                <Icon className={`w-6 h-6 mb-1 ${active ? 'stroke-[2.5]' : 'stroke-2'}`} />
+                {Icon && <Icon className={`w-6 h-6 mb-1 ${active ? 'stroke-[2.5]' : 'stroke-2'}`} />}
                 <span className="text-[10px]">{tab.label}</span>
               </button>
             );
