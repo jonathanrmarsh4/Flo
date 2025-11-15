@@ -43,7 +43,13 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 The project uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, sessions, comprehensive profiles (demographics, health baseline, goals, AI personalization), blood work records, AI analysis results (JSONB), diagnostic studies (calcium scores, DEXA scans), body fat reference ranges, billing customers, subscriptions, payments, audit logs, and authentication credentials.
 
 ### Admin User Management
-Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, and `active`, `suspended` statuses. Features include user search, filtering, inline editing, and audit logging, with admin-only routes protected by middleware.
+Implements comprehensive Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, and `active`, `suspended` statuses. The admin dashboard (`/admin-dashboard` or `/admin`) provides:
+- **User Management Tab:** Real-time user listing with search/filter, inline editing of role and status, and complete user deletion with cascade cleanup
+- **Overview Tab:** System metrics (total users, active users, revenue, AI API usage/cost)
+- **AI API Usage Tab:** Detailed API call tracking by date, model, queries, cost, and latency
+- **Audit Logs Tab:** Complete audit trail of all admin actions
+- **Admin API Routes:** GET /api/admin/users (list), PATCH /api/admin/users/:id (update), DELETE /api/admin/users/:id (delete with cascade), GET /api/admin/overview, GET /api/admin/api-usage, GET /api/admin/audit-logs
+- **Security:** Cannot modify own role/status or delete own account, all actions audited
 
 ### Billing & Payments
 Utilizes Stripe (via Replit Stripe Integration) for credit/debit card processing and Apple Pay. The database schema includes `billing_customers`, `subscriptions`, and `payments` tables.

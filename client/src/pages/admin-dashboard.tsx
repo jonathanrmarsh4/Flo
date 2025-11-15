@@ -64,11 +64,13 @@ export default function AdminDashboard() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, role, status }: { userId: string; role?: string; status?: string }) => {
-      return apiRequest(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PATCH',
         body: JSON.stringify({ role, status }),
         headers: { 'Content-Type': 'application/json' },
       });
+      if (!response.ok) throw new Error('Failed to update user');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -90,9 +92,11 @@ export default function AdminDashboard() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest(`/api/admin/users/${userId}`, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
       });
+      if (!response.ok) throw new Error('Failed to delete user');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -121,11 +125,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const totalUsers = overviewData?.totalUsers || 0;
-  const activeUsers = overviewData?.activeUsers || 0;
-  const totalRevenue = overviewData?.totalRevenue || 0;
-  const apiQueries7d = overviewData?.apiQueries7d || 0;
-  const apiCost7d = overviewData?.apiCost7d || 0;
+  const totalUsers = (overviewData as any)?.totalUsers || 0;
+  const activeUsers = (overviewData as any)?.activeUsers || 0;
+  const totalRevenue = (overviewData as any)?.totalRevenue || 0;
+  const apiQueries7d = (overviewData as any)?.apiQueries7d || 0;
+  const apiCost7d = (overviewData as any)?.apiCost7d || 0;
 
   const users: AdminUserSummary[] = usersData?.users || [];
   const totalUserCount = usersData?.total || 0;
@@ -521,7 +525,7 @@ export default function AdminDashboard() {
                 <Zap className="w-5 h-5" />
                 AI API Usage (Last 7 Days)
               </h3>
-              {apiUsageData && apiUsageData.length > 0 ? (
+              {apiUsageData && (apiUsageData as any).length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="border-b border-white/10">
@@ -534,7 +538,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/10">
-                      {apiUsageData.map((item: any, idx: number) => (
+                      {(apiUsageData as any).map((item: any, idx: number) => (
                         <tr key={idx} className="hover:bg-white/5">
                           <td className="px-4 py-3 text-sm text-white">{item.date}</td>
                           <td className="px-4 py-3 text-sm text-purple-400">{item.model}</td>
@@ -561,9 +565,9 @@ export default function AdminDashboard() {
               <FileText className="w-5 h-5" />
               Audit Logs
             </h3>
-            {auditLogsData && auditLogsData.length > 0 ? (
+            {auditLogsData && (auditLogsData as any).length > 0 ? (
               <div className="space-y-3">
-                {auditLogsData.map((log: any, idx: number) => (
+                {(auditLogsData as any).map((log: any, idx: number) => (
                   <div key={idx} className="p-3 rounded-xl border bg-white/5 border-white/10">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">

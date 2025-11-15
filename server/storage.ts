@@ -508,6 +508,8 @@ export class DatabaseStorage implements IStorage {
 
     await this.deleteUserData(userId);
 
+    await db.delete(auditLogs).where(eq(auditLogs.targetUserId, userId));
+
     await db.delete(users).where(eq(users.id, userId));
   }
 
