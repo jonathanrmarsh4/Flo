@@ -1,19 +1,21 @@
 import { X, Heart, Activity, Brain, Bone, Stethoscope } from 'lucide-react';
 import { CalciumScoreTile } from './CalciumScoreTile';
 
-interface CalciumScoreData {
-  score: number | null;
+interface CalciumScoreSummary {
+  totalScore: number | null;
   riskLevel: string | null;
-  testDate: string | null;
+  agePercentile: number | null;
+  studyDate: string;
 }
 
 interface DiagnosticResultsScreenProps {
-  isDark: boolean;
   onClose: () => void;
-  calciumScoreData?: CalciumScoreData;
+  calciumScore?: CalciumScoreSummary | null;
 }
 
-export function DiagnosticResultsScreen({ isDark, onClose, calciumScoreData }: DiagnosticResultsScreenProps) {
+export function DiagnosticResultsScreen({ onClose, calciumScore }: DiagnosticResultsScreenProps) {
+  // Use system theme detection
+  const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   return (
     <div className={`fixed inset-0 z-50 ${
       isDark 
@@ -61,10 +63,10 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScoreData }: D
             
             <div className="space-y-3">
               <CalciumScoreTile 
-                isDark={isDark}
-                score={calciumScoreData?.score}
-                riskLevel={calciumScoreData?.riskLevel}
-                testDate={calciumScoreData?.testDate}
+                score={calciumScore?.totalScore ?? null}
+                riskLevel={calciumScore?.riskLevel ?? null}
+                agePercentile={calciumScore?.agePercentile ?? null}
+                testDate={calciumScore?.studyDate ?? null}
               />
               
               {/* Coming Soon Cards */}

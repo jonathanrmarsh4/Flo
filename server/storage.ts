@@ -1127,7 +1127,13 @@ export class DatabaseStorage implements IStorage {
     // FK cascades will handle dependent records:
     // - bloodWorkRecords → analysisResults (cascade)
     // - biomarkerTestSessions → biomarkerMeasurements (cascade)
+    // - diagnosticsStudies → diagnosticMetrics (cascade)
     await db.transaction(async (tx) => {
+      // Delete diagnostic studies (cascades to diagnosticMetrics)
+      await tx
+        .delete(diagnosticsStudies)
+        .where(eq(diagnosticsStudies.userId, userId));
+      
       // Delete blood work records (cascades to analysisResults)
       await tx
         .delete(bloodWorkRecords)
@@ -1288,30 +1294,11 @@ export class DatabaseStorage implements IStorage {
       .from(diagnosticsStudies)
       .where(and(
         eq(diagnosticsStudies.userId, userId),
-        eq(diagnosticsStudies.type, type)
+        sql`${diagnosticsStudies.type} = ${type}`
       ))
       .orderBy(desc(diagnosticsStudies.studyDate))
       .limit(1);
     return study || null;
-  }
-
-  async deleteUserData(userId: string): Promise<void> {
-    // Delete in dependency order
-    await db.delete(diagnosticMetrics).where(
-      sql`study_id IN (SELECT id FROM diagnostics_studies WHERE user_id = ${userId})`
-    );
-    await db.delete(diagnosticsStudies).where(eq(diagnosticsStudies.userId, userId));
-    await db.delete(biomarkerMeasurements).where(
-      sql`session_id IN (SELECT id FROM biomarker_test_sessions WHERE user_id = ${userId})`
-    );
-    await db.delete(biomarkerTestSessions).where(eq(biomarkerTestSessions.userId, userId));
-    await db.delete(labUploadJobs).where(eq(labUploadJobs.userId, userId));
-    await db.delete(bloodWorkRecords).where(eq(bloodWorkRecords.userId, userId));
-    await db.delete(analysisResults).where(
-      sql`record_id IN (SELECT id FROM blood_work_records WHERE user_id = ${userId})`
-    );
-    await db.delete(biomarkerInsights).where(eq(biomarkerInsights.userId, userId));
-    await db.delete(healthInsights).where(eq(healthInsights.userId, userId));
   }
 }
 
