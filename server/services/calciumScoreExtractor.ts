@@ -33,7 +33,6 @@ const calciumScoreExtractionSchema = z.object({
       rca: z.number().nullable(),
       lcx: z.number().nullable(),
       lm: z.number().nullable(),
-      other: z.record(z.number()),
     }),
     age_matched_percentile: z.number().nullable(),
     risk_category: z.string().nullable(),
