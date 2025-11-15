@@ -6,7 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import { FloLogo } from '@/components/FloLogo';
 import { FloBottomNav } from '@/components/FloBottomNav';
 import { TrendChart } from '@/components/TrendChart';
-import { AddTestResultsModal } from '@/components/AddTestResultsModal';
+import { UnifiedUploadModal } from '@/components/UnifiedUploadModal';
 import { BiomarkerInsightsModal } from '@/components/BiomarkerInsightsModal';
 import { useAuth } from '@/hooks/useAuth';
 import { 
@@ -342,11 +342,13 @@ export default function Dashboard() {
 
       <FloBottomNav />
       
-      {/* Add Test Results Modal */}
-      <AddTestResultsModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-      />
+      {/* Upload Modal */}
+      {isAddModalOpen && (
+        <UnifiedUploadModal
+          isDark={isDark}
+          onClose={() => setIsAddModalOpen(false)}
+        />
+      )}
 
       {/* Biomarker Insights Modal */}
       {selectedInsightsBiomarker && (

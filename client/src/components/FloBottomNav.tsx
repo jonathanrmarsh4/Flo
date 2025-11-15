@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { User, Lightbulb, Activity, MoreHorizontal } from "lucide-react";
 import { FloIcon } from "./FloLogo";
-import { AddTestResultsModal } from "./AddTestResultsModal";
+import { UnifiedUploadModal } from "./UnifiedUploadModal";
 
 export function FloBottomNav() {
   const [location] = useLocation();
@@ -80,11 +80,13 @@ export function FloBottomNav() {
         </div>
       </div>
 
-      {/* Add Test Results Modal */}
-      <AddTestResultsModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
+      {/* Upload Modal */}
+      {isModalOpen && (
+        <UnifiedUploadModal
+          isDark={true}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </nav>
   );
 }
