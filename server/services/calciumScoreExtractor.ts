@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
-import * as pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
@@ -67,8 +67,9 @@ export interface CalciumScoreExtractionResult {
 }
 
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
-  const data = await pdfParse.default(pdfBuffer);
-  return data.text;
+  const parser = new PDFParse({ data: pdfBuffer });
+  const result = await parser.getText();
+  return result.text;
 }
 
 async function extractCalciumScoreWithGPT(pdfText: string): Promise<CalciumScoreExtraction> {
