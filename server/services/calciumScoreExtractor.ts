@@ -1,69 +1,16 @@
 import OpenAI from "openai";
-import { z } from "zod";
 import { PDFParse } from "pdf-parse";
+import {
+  calciumScoreExtractionSchema,
+  getOpenAIJsonSchema,
+  type CalciumScoreExtraction,
+  type CalciumScoreExtractionResult,
+} from "../schemas/calciumScore";
 
 const openai = new OpenAI({
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
 });
-
-// Zod schema matching the calcium score extraction template
-const calciumScoreExtractionSchema = z.object({
-  type: z.literal("coronary_calcium_score"),
-  version: z.literal("1.0"),
-  source_document: z.object({
-    filename: z.string().nullable(),
-    page_numbers: z.array(z.number()),
-    lab_name: z.string().nullable(),
-    report_id: z.string().nullable(),
-  }),
-  patient_context: z.object({
-    reported_age: z.number().nullable(),
-    reported_sex: z.string().nullable(),
-  }),
-  study: z.object({
-    study_date: z.string().nullable(),
-    scanner_type: z.string().nullable(),
-    calcium_score_method: z.string().nullable(),
-  }),
-  results: z.object({
-    total_agatston: z.number().nullable(),
-    per_vessel: z.object({
-      lad: z.number().nullable(),
-      rca: z.number().nullable(),
-      lcx: z.number().nullable(),
-      lm: z.number().nullable(),
-    }),
-    age_matched_percentile: z.number().nullable(),
-    risk_category: z.string().nullable(),
-    risk_category_human: z.string().nullable(),
-    reference_ranges: z.object({
-      zero: z.string().nullable(),
-      minimal: z.string().nullable(),
-      mild: z.string().nullable(),
-      moderate: z.string().nullable(),
-      severe: z.string().nullable(),
-    }),
-  }),
-  interpretation: z.object({
-    one_liner: z.string().nullable(),
-    detail: z.string().nullable(),
-    clinical_flags: z.array(z.string()),
-  }),
-  quality: z.object({
-    confidence: z.enum(["high", "medium", "low"]).nullable(),
-    extraction_issues: z.array(z.string()),
-  }),
-});
-
-export type CalciumScoreExtraction = z.infer<typeof calciumScoreExtractionSchema>;
-
-export interface CalciumScoreExtractionResult {
-  success: boolean;
-  data?: CalciumScoreExtraction;
-  error?: string;
-  pdfText?: string;
-}
 
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   const parser = new PDFParse({ data: pdfBuffer });
@@ -80,10 +27,11 @@ CRITICAL RULES:
 3. Extract per-vessel scores (LAD, RCA, LCX, LM) if available
 4. Extract age-matched percentile if reported
 5. Identify risk category (zero, minimal, mild, moderate, severe)
-6. Extract study date in ISO format (YYYY-MM-DD) if possible
+6. Extract study date as a raw string exactly as written (e.g. "15/11/2025")
 7. If a value is not present in the report, set it to null
 8. Be CONSERVATIVE - only extract data you're confident about
 9. Do NOT hallucinate or infer missing numerical values
+10. Use decimal numbers for scores where possible (e.g. 12, 120.5)
 
 Common vessel abbreviations:
 - LAD: Left Anterior Descending
@@ -98,7 +46,23 @@ Risk categories (typical):
 - Moderate: 101-400
 - Severe: >400`;
 
-  const userPrompt = `Extract coronary calcium score data from this cardiac CT report:\n\n${pdfText}`;
+  const userPrompt = `I am providing you with a coronary artery calcium (CAC) scoring report as a PDF scan.
+
+Your task:
+1) Carefully read the report.
+2) Extract all relevant information into the EXACT JSON structure defined in the system message.
+3) Do not guess any values. If something is not clearly legible, set that field to null and add an explanation to "extraction_issues".
+4) Do not interpret the result medically or give treatment advice.
+
+Important:
+- Output must be VALID JSON.
+- Do not include any text outside the JSON.
+- Use decimal numbers for scores where possible (e.g. 12, 120.5).
+- Keep date fields as raw strings exactly as written.
+
+Here is the CAC report text:
+
+${pdfText}`;
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4o",
@@ -106,127 +70,7 @@ Risk categories (typical):
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    response_format: {
-      type: "json_schema",
-      json_schema: {
-        name: "coronary_calcium_extraction",
-        strict: true,
-        schema: {
-          type: "object",
-          properties: {
-            type: { type: "string", enum: ["coronary_calcium_score"] },
-            version: { type: "string", enum: ["1.0"] },
-            source_document: {
-              type: "object",
-              properties: {
-                filename: { anyOf: [{ type: "string" }, { type: "null" }] },
-                page_numbers: { type: "array", items: { type: "number" } },
-                lab_name: { anyOf: [{ type: "string" }, { type: "null" }] },
-                report_id: { anyOf: [{ type: "string" }, { type: "null" }] },
-              },
-              required: ["filename", "page_numbers", "lab_name", "report_id"],
-              additionalProperties: false,
-            },
-            patient_context: {
-              type: "object",
-              properties: {
-                reported_age: { anyOf: [{ type: "number" }, { type: "null" }] },
-                reported_sex: { anyOf: [{ type: "string" }, { type: "null" }] },
-              },
-              required: ["reported_age", "reported_sex"],
-              additionalProperties: false,
-            },
-            study: {
-              type: "object",
-              properties: {
-                study_date: { anyOf: [{ type: "string" }, { type: "null" }] },
-                scanner_type: { anyOf: [{ type: "string" }, { type: "null" }] },
-                calcium_score_method: { anyOf: [{ type: "string" }, { type: "null" }] },
-              },
-              required: ["study_date", "scanner_type", "calcium_score_method"],
-              additionalProperties: false,
-            },
-            results: {
-              type: "object",
-              properties: {
-                total_agatston: { anyOf: [{ type: "number" }, { type: "null" }] },
-                per_vessel: {
-                  type: "object",
-                  properties: {
-                    lad: { anyOf: [{ type: "number" }, { type: "null" }] },
-                    rca: { anyOf: [{ type: "number" }, { type: "null" }] },
-                    lcx: { anyOf: [{ type: "number" }, { type: "null" }] },
-                    lm: { anyOf: [{ type: "number" }, { type: "null" }] },
-                    other: { type: "object", additionalProperties: { type: "number" } },
-                  },
-                  required: ["lad", "rca", "lcx", "lm", "other"],
-                  additionalProperties: false,
-                },
-                age_matched_percentile: { anyOf: [{ type: "number" }, { type: "null" }] },
-                risk_category: { anyOf: [{ type: "string" }, { type: "null" }] },
-                risk_category_human: { anyOf: [{ type: "string" }, { type: "null" }] },
-                reference_ranges: {
-                  type: "object",
-                  properties: {
-                    zero: { anyOf: [{ type: "string" }, { type: "null" }] },
-                    minimal: { anyOf: [{ type: "string" }, { type: "null" }] },
-                    mild: { anyOf: [{ type: "string" }, { type: "null" }] },
-                    moderate: { anyOf: [{ type: "string" }, { type: "null" }] },
-                    severe: { anyOf: [{ type: "string" }, { type: "null" }] },
-                  },
-                  required: ["zero", "minimal", "mild", "moderate", "severe"],
-                  additionalProperties: false,
-                },
-              },
-              required: [
-                "total_agatston",
-                "per_vessel",
-                "age_matched_percentile",
-                "risk_category",
-                "risk_category_human",
-                "reference_ranges",
-              ],
-              additionalProperties: false,
-            },
-            interpretation: {
-              type: "object",
-              properties: {
-                one_liner: { anyOf: [{ type: "string" }, { type: "null" }] },
-                detail: { anyOf: [{ type: "string" }, { type: "null" }] },
-                clinical_flags: { type: "array", items: { type: "string" } },
-              },
-              required: ["one_liner", "detail", "clinical_flags"],
-              additionalProperties: false,
-            },
-            quality: {
-              type: "object",
-              properties: {
-                confidence: {
-                  anyOf: [
-                    { type: "string", enum: ["high", "medium", "low"] },
-                    { type: "null" },
-                  ],
-                },
-                extraction_issues: { type: "array", items: { type: "string" } },
-              },
-              required: ["confidence", "extraction_issues"],
-              additionalProperties: false,
-            },
-          },
-          required: [
-            "type",
-            "version",
-            "source_document",
-            "patient_context",
-            "study",
-            "results",
-            "interpretation",
-            "quality",
-          ],
-          additionalProperties: false,
-        },
-      },
-    },
+    response_format: getOpenAIJsonSchema(),
   });
 
   const content = completion.choices[0]?.message?.content;
