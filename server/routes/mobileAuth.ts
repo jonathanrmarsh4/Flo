@@ -5,6 +5,7 @@ import jwt from "jsonwebtoken";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 import { storage } from "../storage";
+import { logger } from "../logger";
 import {
   appleSignInSchema,
   googleSignInSchema,
@@ -69,7 +70,7 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
         expiresAt = new Date(payload.exp * 1000); // Convert UNIX timestamp to Date
       }
     } catch (jwtError) {
-      console.error("Apple JWT verification failed:", jwtError);
+      logger.warn('Apple JWT verification failed', jwtError);
       return res.status(401).json({ error: "Invalid Apple identity token" });
     }
     
@@ -180,7 +181,7 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
       const validationError = fromError(error);
       return res.status(400).json({ error: validationError.toString() });
     }
-    console.error("Apple sign-in error:", error);
+    logger.error('Apple sign-in error', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -193,9 +194,17 @@ router.post("/api/mobile/auth/google", async (req, res) => {
     
     // Verify Google ID token using Google's tokeninfo API
     const tokenInfoUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${body.idToken}`;
-    const tokenInfoResponse = await fetch(tokenInfoUrl);
+    let tokenInfoResponse;
+    
+    try {
+      tokenInfoResponse = await fetch(tokenInfoUrl);
+    } catch (fetchError) {
+      logger.error('Failed to reach Google tokeninfo API', fetchError);
+      return res.status(503).json({ error: "Authentication service temporarily unavailable" });
+    }
     
     if (!tokenInfoResponse.ok) {
+      logger.warn('Google tokeninfo API returned error', { status: tokenInfoResponse.status });
       return res.status(401).json({ error: "Invalid Google ID token" });
     }
     
@@ -299,7 +308,7 @@ router.post("/api/mobile/auth/google", async (req, res) => {
       const validationError = fromError(error);
       return res.status(400).json({ error: validationError.toString() });
     }
-    console.error("Google sign-in error:", error);
+    logger.error('Google sign-in error', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -416,7 +425,7 @@ router.post("/api/mobile/auth/register", async (req, res) => {
       const validationError = fromError(error);
       return res.status(400).json({ error: validationError.toString() });
     }
-    console.error("Registration error:", error);
+    logger.error('Email registration error', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -474,7 +483,7 @@ router.post("/api/mobile/auth/login", async (req, res) => {
       const validationError = fromError(error);
       return res.status(400).json({ error: validationError.toString() });
     }
-    console.error("Login error:", error);
+    logger.error('Email login error', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -504,8 +513,8 @@ router.post("/api/mobile/auth/request-reset", async (req, res) => {
         await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
         
         // In production, send email with reset link containing the token
-        // For now, we'll just log it (development only)
-        console.log(`Password reset token for ${user.email}: ${resetToken}`);
+        // For now, log it in development only
+        logger.info('Password reset token generated', { email: user.email, token: resetToken });
       }
     }
     
@@ -519,7 +528,7 @@ router.post("/api/mobile/auth/request-reset", async (req, res) => {
       const validationError = fromError(error);
       return res.status(400).json({ error: validationError.toString() });
     }
-    console.error("Password reset request error:", error);
+    logger.error('Password reset request error', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -552,7 +561,7 @@ router.post("/api/mobile/auth/reset", async (req, res) => {
       const validationError = fromError(error);
       return res.status(400).json({ error: validationError.toString() });
     }
-    console.error("Password reset error:", error);
+    logger.error('Password reset error', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -610,7 +619,7 @@ router.post("/api/mobile/auth/set-password", async (req, res) => {
       const validationError = fromError(error);
       return res.status(400).json({ error: validationError.toString() });
     }
-    console.error("Set password error:", error);
+    logger.error('Set password error', error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
