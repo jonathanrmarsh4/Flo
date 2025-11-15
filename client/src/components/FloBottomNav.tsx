@@ -1,82 +1,117 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { User, Lightbulb, Activity, MoreHorizontal } from "lucide-react";
 import { FloIcon } from "./FloLogo";
 import { UnifiedUploadModal } from "./UnifiedUploadModal";
 
 export function FloBottomNav() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const isActive = (path: string) => location === path;
+  const tabs = [
+    {
+      id: 'profile',
+      label: 'Profile',
+      icon: User,
+      path: '/profile',
+    },
+    {
+      id: 'diagnostics',
+      label: 'Diagnostics',
+      icon: Activity,
+      path: '/diagnostics',
+    },
+    {
+      id: 'add',
+      label: 'Add',
+      icon: null,
+      path: null,
+      isCenter: true,
+    },
+    {
+      id: 'insights',
+      label: 'Insights',
+      icon: Lightbulb,
+      path: '/insights',
+    },
+    {
+      id: 'more',
+      label: 'More',
+      icon: MoreHorizontal,
+      path: '/dashboard',
+    },
+  ];
+
+  const handleTabClick = (tab: typeof tabs[0]) => {
+    if (tab.id === 'add') {
+      setIsModalOpen(true);
+    } else if (tab.path) {
+      setLocation(tab.path);
+    }
+  };
+
+  const isActive = (path: string | null) => {
+    if (!path) return false;
+    return location === path;
+  };
+
+  const isDark = true;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1f3a] border-t border-white/10 pb-safe">
-      <div className="max-w-md mx-auto px-4 py-3">
-        <div className="flex items-center justify-between">
-          {/* Profile */}
-          <Link href="/profile">
-            <button
-              data-testid="nav-profile"
-              className={`flex flex-col items-center gap-1 min-w-[50px] ${
-                isActive("/profile") ? "text-[#00d4aa]" : "text-gray-400"
-              }`}
-            >
-              <User className="w-5 h-5" />
-              <span className="text-xs font-medium">Profile</span>
-            </button>
-          </Link>
+    <nav 
+      className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t ${
+        isDark 
+          ? 'bg-slate-900/90 border-white/10' 
+          : 'bg-white/90 border-gray-200'
+      }`}
+      data-testid="bottom-nav"
+    >
+      <div className="max-w-2xl mx-auto px-2 py-2">
+        <div className="flex items-center justify-around">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = isActive(tab.path);
 
-          {/* Diagnostics */}
-          <Link href="/diagnostics">
-            <button
-              data-testid="nav-diagnostics"
-              className={`flex flex-col items-center gap-1 min-w-[50px] ${
-                isActive("/diagnostics") ? "text-[#00d4aa]" : "text-gray-400"
-              }`}
-            >
-              <Activity className="w-5 h-5" />
-              <span className="text-xs font-medium">Diagnostics</span>
-            </button>
-          </Link>
+            if (tab.isCenter) {
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabClick(tab)}
+                  className={`flex flex-col items-center justify-center min-w-[80px] relative ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}
+                  data-testid={`tab-${tab.id}`}
+                >
+                  <div className={`w-14 h-14 -mt-8 rounded-full flex items-center justify-center shadow-lg transition-all ${
+                    isDark 
+                      ? 'bg-gradient-to-br from-cyan-500 to-blue-600' 
+                      : 'bg-gradient-to-br from-cyan-500 to-blue-600'
+                  }`}>
+                    <FloIcon size={36} />
+                  </div>
+                  <span className={`text-[10px] mt-1 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            }
 
-          {/* Add (Center) */}
-          <button
-            onClick={() => setIsModalOpen(true)}
-            data-testid="nav-add"
-            className="flex flex-col items-center -mt-6"
-          >
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#1a1f3a] to-[#0f1222] flex items-center justify-center shadow-lg border border-white/10">
-              <FloIcon size={48} />
-            </div>
-            <span className="text-xs font-medium text-gray-400 mt-1">Add</span>
-          </button>
-
-          {/* Insights */}
-          <Link href="/insights">
-            <button
-              data-testid="nav-insights"
-              className={`flex flex-col items-center gap-1 min-w-[50px] ${
-                isActive("/insights") ? "text-[#00d4aa]" : "text-gray-400"
-              }`}
-            >
-              <Lightbulb className="w-5 h-5" />
-              <span className="text-xs font-medium">Insights</span>
-            </button>
-          </Link>
-
-          {/* More */}
-          <Link href="/dashboard">
-            <button
-              data-testid="nav-more"
-              className={`flex flex-col items-center gap-1 min-w-[50px] ${
-                isActive("/dashboard") ? "text-[#00d4aa]" : "text-gray-400"
-              }`}
-            >
-              <MoreHorizontal className="w-5 h-5" />
-              <span className="text-xs font-medium">More</span>
-            </button>
-          </Link>
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab)}
+                className={`flex flex-col items-center justify-center py-2 min-w-[64px] transition-colors ${
+                  active
+                    ? isDark ? 'text-cyan-400' : 'text-cyan-600'
+                    : isDark ? 'text-white/60' : 'text-gray-600'
+                }`}
+                data-testid={`tab-${tab.id}`}
+              >
+                {Icon && <Icon className={`w-6 h-6 mb-1 ${active ? 'stroke-[2.5]' : 'stroke-2'}`} />}
+                <span className="text-[10px]">{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
