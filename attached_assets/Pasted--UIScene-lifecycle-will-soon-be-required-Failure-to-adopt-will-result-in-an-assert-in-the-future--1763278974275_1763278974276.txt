@@ -1,0 +1,133 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/34FEAA1F-C604-4CB8-A3B6-44AC3A7ADEE4/App.app'
+⚡️  Loading app at capacitor://localhost...
+Networking process (0x11405c190) took 4.937947 seconds to launch
+GPU process (0x1141041e0) took 1.493104 seconds to launch
+WebContent process (0x1140e4100) took 1.517198 seconds to launch
+0x1140e4100 - [PID=39639] WebProcessProxy::didBecomeUnresponsive:
+0x1563e2318 - [pageProxyID=7, webPageID=8, PID=39639] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[39639] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 81286110
+ERROR MESSAGE:  {"errorMessage":"Item with given key does not exist","message":"Item with given key does not exist"}
+⚡️  [error] - {"errorMessage":"Item with given key does not exist","message":"Item with given key does not exist"}
+⚡️  [error] - [ERROR] API request failed {"status":401,"response":"{\"message\":\"Unauthorized\"}"}
+XPC connection interrupted
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744257 }
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+	(Note: If you're seeing NSAutoresizingMaskLayoutConstraints that you don't understand, refer to the documentation for the UIView property translatesAutoresizingMaskIntoConstraints) 
+(
+    "<NSAutoresizingMaskLayoutConstraint:0x1572369e0 h=-&- v=-&- _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719ac00.minX == 0   (active, names: '|':_TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x157108f00 )>",
+    "<NSAutoresizingMaskLayoutConstraint:0x157236a30 h=-&- v=-&- H:[_TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719ac00]-(0)-|   (active, names: '|':_TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x157108f00 )>",
+    "<NSLayoutConstraint:0x1572361c0 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719ac00.width == _UIButtonBarButton:0x157109180.width   (active)>",
+    "<NSLayoutConstraint:0x1572368a0 '_UITemporaryLayoutWidth' _TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x157108f00.width == 0   (active)>",
+    "<NSLayoutConstraint:0x157236300 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x157294e00]   (active, names: '|':_UIButtonBarButton:0x157109180 )>",
+    "<NSLayoutConstraint:0x157236350 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x157294e00]-(8)-|   (active, names: '|':_UIButtonBarButton:0x157109180 )>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x157236350 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x157294e00]-(8)-|   (active, names: '|':_UIButtonBarButton:0x157109180 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+	(Note: If you're seeing NSAutoresizingMaskLayoutConstraints that you don't understand, refer to the documentation for the UIView property translatesAutoresizingMaskIntoConstraints) 
+(
+    "<NSAutoresizingMaskLayoutConstraint:0x157237cf0 h=-&- v=-&- _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719b000.minX == 0   (active, names: '|':_TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x157108a00 )>",
+    "<NSAutoresizingMaskLayoutConstraint:0x157237d40 h=-&- v=-&- H:[_TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719b000]-(0)-|   (active, names: '|':_TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x157108a00 )>",
+    "<NSLayoutConstraint:0x157237570 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719b000.width == _UIButtonBarButton:0x157108c80.width   (active)>",
+    "<NSLayoutConstraint:0x157237bb0 '_UITemporaryLayoutWidth' _TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x157108a00.width == 0   (active)>",
+    "<NSLayoutConstraint:0x1572376b0 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x157295180]   (active, names: '|':_UIButtonBarButton:0x157108c80 )>",
+    "<NSLayoutConstraint:0x157237700 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x157295180]-(8)-|   (active, names: '|':_UIButtonBarButton:0x157108c80 )>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x157237700 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x157295180]-(8)-|   (active, names: '|':_UIButtonBarButton:0x157108c80 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+	(Note: If you're seeing NSAutoresizingMaskLayoutConstraints that you don't understand, refer to the documentation for the UIView property translatesAutoresizingMaskIntoConstraints) 
+(
+    "<NSAutoresizingMaskLayoutConstraint:0x157350960 h=-&- v=-&- _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719b400.minX == 0   (active, names: '|':_TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x15710a580 )>",
+    "<NSAutoresizingMaskLayoutConstraint:0x1573509b0 h=-&- v=-&- H:[_TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719b400]-(0)-|   (active, names: '|':_TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x15710a580 )>",
+    "<NSLayoutConstraint:0x157350230 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x15719b400.width == _UIButtonBarButton:0x157108780.width   (active)>",
+    "<NSLayoutConstraint:0x157350820 '_UITemporaryLayoutWidth' _TtGC5UIKit22UICorePlatformViewHostGVS_32PlatformViewRepresentableAdaptorVS_P10$19b1e41f020ButtonRepresentation__:0x15710a580.width == 0   (active)>",
+    "<NSLayoutConstraint:0x157350320 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x157295500]   (active, names: '|':_UIButtonBarButton:0x157108780 )>",
+    "<NSLayoutConstraint:0x157350370 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x157295500]-(8)-|   (active, names: '|':_UIButtonBarButton:0x157108780 )>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x157350370 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x157295500]-(8)-|   (active, names: '|':_UIButtonBarButton:0x157108780 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 1B1F4743-4D8A-4AF7-A38C-865D8A2C57BA
+<0x15623e580> Gesture: System gesture gate timed out.
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Reporter disconnected or already stopped. { func=stop, reporterID=170235323744257 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 1B1F4743-4D8A-4AF7-A38C-865D8A2C57BA
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Reporter disconnected. { function=sendMessage, reporterID=170235323744258 }
+Result accumulator timeout: 3.000000, exceeded.
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 1B1F4743-4D8A-4AF7-A38C-865D8A2C57BA
+Reporter disconnected or already stopped. { func=stop, reporterID=170235323744258 }
+⚡️  To Native ->  SecureStoragePlugin get 81286111
+ERROR MESSAGE:  {"message":"Item with given key does not exist","errorMessage":"Item with given key does not exist"}
+⚡️  [error] - {"message":"Item with given key does not exist","errorMessage":"Item with given key does not exist"}
+⚡️  To Native ->  SecureStoragePlugin set 81286112
+⚡️  TO JS {"value":true}
+⚡️  To Native ->  SecureStoragePlugin get 81286113
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  To Native ->  SecureStoragePlugin get 81286114
+⚡️  To Native ->  SecureStoragePlugin get 81286115
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  To Native ->  SecureStoragePlugin get 81286116
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"and is not defined\"}"}
+⚡️  To Native ->  SecureStoragePlugin get 81286117
+⚡️  To Native ->  SecureStoragePlugin get 81286118
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  To Native ->  SecureStoragePlugin get 81286119
+⚡️  To Native ->  SecureStoragePlugin get 81286120
+⚡️  To Native ->  SecureStoragePlugin get 81286121
+⚡️  To Native ->  SecureStoragePlugin get 81286122
+⚡️  To Native ->  SecureStoragePlugin get 81286123
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  To Native ->  SecureStoragePlugin get 81286124
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
