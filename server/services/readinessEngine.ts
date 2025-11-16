@@ -21,6 +21,13 @@ export interface ReadinessResult {
     load: string;
     trend: string;
   };
+  metrics?: {
+    avgSleepHours?: number;
+    avgHRV?: number;
+    stepCount?: number;
+  };
+  keyFactors?: string[];
+  timestamp?: string;
 }
 
 /**
@@ -301,6 +308,43 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
       trend: "Recent trend smoothing applied based on last 3 days.",
     };
 
+    // Prepare metrics for frontend display
+    const displayMetrics = {
+      avgSleepHours: sleepBaseline?.mean ?? todayMetrics.sleepHours ?? undefined,
+      avgHRV: hrvBaseline?.mean ?? todayMetrics.hrvMs ?? undefined,
+      stepCount: todayMetrics.stepsNormalized ?? undefined,
+    };
+
+    // Generate key factors (insights)
+    const keyFactors: string[] = [];
+    if (sleepScore !== null && sleepScore < 60) {
+      keyFactors.push("Sleep Debt");
+    }
+    if (recoveryScore !== null && recoveryScore < 60) {
+      if (todayMetrics.hrvMs !== null && hrvBaseline && todayMetrics.hrvMs < hrvBaseline.mean * 0.85) {
+        keyFactors.push("Low HRV");
+      }
+      if (todayMetrics.restingHrBpm !== null && rhrBaseline && todayMetrics.restingHrBpm > rhrBaseline.mean * 1.1) {
+        keyFactors.push("Elevated RHR");
+      }
+    }
+    if (loadScore !== null && loadScore < 60) {
+      keyFactors.push("High Training Load");
+    }
+    if (trendScore !== null && trendScore < 60) {
+      keyFactors.push("Declining Trend");
+    }
+    if (todayMetrics.sleepHours !== null && todayMetrics.sleepHours < 6) {
+      keyFactors.push("Insufficient Sleep");
+    }
+    // Add positive factors
+    if (sleepScore !== null && sleepScore >= 85) {
+      keyFactors.push("Excellent Sleep");
+    }
+    if (recoveryScore !== null && recoveryScore >= 85) {
+      keyFactors.push("Strong Recovery");
+    }
+
     return {
       userId,
       date,
@@ -312,6 +356,9 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
       trendScore: trendScore !== null ? Math.round(trendScore) : null,
       isCalibrating,
       explanations,
+      metrics: displayMetrics,
+      keyFactors,
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
     logger.error(`[Readiness] Error computing readiness for user ${userId}, date ${date}:`, error);

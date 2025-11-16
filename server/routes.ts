@@ -2613,6 +2613,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Return cached readiness - transform DB format to API format
         logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
         const dbRecord = existing[0];
+        
+        // Fetch today's metrics for additional display data
+        const todayMetricsData = await db
+          .select()
+          .from(userDailyMetrics)
+          .where(
+            and(
+              eq(userDailyMetrics.userId, userId),
+              eq(userDailyMetrics.localDate, today)
+            )
+          )
+          .limit(1);
+
+        const displayMetrics = todayMetricsData.length > 0 ? {
+          avgSleepHours: todayMetricsData[0].sleepHours ?? undefined,
+          avgHRV: todayMetricsData[0].hrvMs ?? undefined,
+          stepCount: todayMetricsData[0].stepsNormalized ?? undefined,
+        } : undefined;
+
         return res.json({
           readinessScore: dbRecord.readinessScore,
           readinessBucket: dbRecord.readinessBucket,
@@ -2627,7 +2646,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             recovery: "No recovery data",
             load: "No activity data",
             trend: "No trend data"
-          }
+          },
+          metrics: displayMetrics,
+          keyFactors: [], // TODO: Store and retrieve keyFactors from DB
+          timestamp: dbRecord.createdAt?.toISOString() || new Date().toISOString(),
         });
       }
 
