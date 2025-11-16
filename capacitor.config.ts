@@ -10,6 +10,18 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     backgroundColor: '#0f172a'
+  },
+  plugins: {
+    CapacitorPlugins: {
+      packageClassList: [
+        'SignInWithApple',
+        'PreferencesPlugin',
+        'SocialLoginPlugin',
+        'HealthPlugin',
+        'SecureStoragePlugin',
+        'ReadinessPlugin'
+      ]
+    }
   }
 };
 
