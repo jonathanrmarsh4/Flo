@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Activity, Heart, Scale, TrendingUp, AlertCircle, Check, Clock } from 'lucide-react';
 import { HealthKitService } from '@/services/healthkit';
 import { logger } from '@/lib/logger';
+import Readiness from '@/plugins/readiness';
 import {
   DAILY_READINESS_DATA_TYPES,
   BODY_COMPOSITION_DATA_TYPES,
@@ -53,6 +54,15 @@ export default function HealthKitPage() {
       logger.info('HealthKit permissions granted', {
         readAuthorized: result.readAuthorized.length,
       });
+
+      // Auto-sync readiness data after successful permission grant
+      try {
+        logger.info('Starting automatic readiness data sync...');
+        const syncResult = await Readiness.syncReadinessData({ days: 7 });
+        logger.info('Readiness sync completed', syncResult);
+      } catch (error) {
+        logger.error('Readiness sync failed', error);
+      }
     }
 
     setIsRequesting(false);
