@@ -836,7 +836,19 @@ public class HealthKitNormalisationService {
         
         let nightStart = min(inBedSegments.map { $0.start }.min() ?? Date.distantFuture, stageSegments.map { $0.start }.min() ?? Date.distantFuture)
         let finalWake = max(inBedSegments.map { $0.end }.max() ?? Date.distantPast, stageSegments.map { $0.end }.max() ?? Date.distantPast)
-        let asleepSegments = stageSegments.filter { $0.value == .asleepCore || $0.value == .asleepDeep || $0.value == .asleepREM || $0.value == .asleepUnspecified || $0.value == .asleep }
+        
+        // iOS 16+ sleep stages or fallback to generic asleep
+        let asleepSegments: [SleepSegment]
+        if #available(iOS 16.0, *) {
+            asleepSegments = stageSegments.filter { 
+                $0.value == .asleepCore || $0.value == .asleepDeep || 
+                $0.value == .asleepREM || $0.value == .asleepUnspecified || 
+                $0.value == .asleep 
+            }
+        } else {
+            asleepSegments = stageSegments.filter { $0.value == .asleep }
+        }
+        
         let sleepOnset = asleepSegments.first?.start
         
         let timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
@@ -846,6 +858,34 @@ public class HealthKitNormalisationService {
         
         let iso8601 = ISO8601DateFormatter()
         iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        // Calculate stage durations (iOS 16+ only)
+        var coreSleepMin: Double = 0
+        var deepSleepMin: Double = 0
+        var remSleepMin: Double = 0
+        var unspecifiedSleepMin: Double = 0
+        
+        if #available(iOS 16.0, *) {
+            coreSleepMin = stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes }
+            deepSleepMin = stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes }
+            remSleepMin = stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes }
+            unspecifiedSleepMin = stageSegments.filter { $0.value == .asleepUnspecified || $0.value == .asleep }.reduce(0.0) { $0 + $1.durationMinutes }
+        } else {
+            unspecifiedSleepMin = totalSleepMin
+        }
+        
+        let awakeInBedMin = stageSegments.filter { $0.value == .awake }.reduce(0.0) { $0 + $1.durationMinutes }
+        
+        // Calculate percentages
+        var deepPct: Double? = nil
+        var remPct: Double? = nil
+        var corePct: Double? = nil
+        
+        if #available(iOS 16.0, *), totalSleepMin > 0 {
+            deepPct = (deepSleepMin / totalSleepMin) * 100.0
+            remPct = (remSleepMin / totalSleepMin) * 100.0
+            corePct = (coreSleepMin / totalSleepMin) * 100.0
+        }
         
         return SleepNightData(
             userId: userId,
@@ -860,16 +900,16 @@ public class HealthKitNormalisationService {
             sleepLatencyMin: nil,
             wasoMin: nil,
             numAwakenings: nil,
-            coreSleepMin: stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes },
-            deepSleepMin: stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes },
-            remSleepMin: stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes },
-            unspecifiedSleepMin: stageSegments.filter { $0.value == .asleepUnspecified || $0.value == .asleep }.reduce(0.0) { $0 + $1.durationMinutes },
-            awakeInBedMin: stageSegments.filter { $0.value == .awake }.reduce(0.0) { $0 + $1.durationMinutes },
+            coreSleepMin: coreSleepMin > 0 ? coreSleepMin : nil,
+            deepSleepMin: deepSleepMin > 0 ? deepSleepMin : nil,
+            remSleepMin: remSleepMin > 0 ? remSleepMin : nil,
+            unspecifiedSleepMin: unspecifiedSleepMin > 0 ? unspecifiedSleepMin : nil,
+            awakeInBedMin: awakeInBedMin > 0 ? awakeInBedMin : nil,
             midSleepTimeLocal: nil,
             fragmentationIndex: nil,
-            deepPct: totalSleepMin > 0 ? (stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes } / totalSleepMin) * 100.0 : nil,
-            remPct: totalSleepMin > 0 ? (stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes } / totalSleepMin) * 100.0 : nil,
-            corePct: totalSleepMin > 0 ? (stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes } / totalSleepMin) * 100.0 : nil,
+            deepPct: deepPct,
+            remPct: remPct,
+            corePct: corePct,
             bedtimeLocal: nil,
             waketimeLocal: nil,
             restingHrBpm: nil,
