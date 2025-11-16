@@ -10,7 +10,7 @@ import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
 import { logger } from "./logger";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -27,6 +27,10 @@ import {
   userDailyMetrics,
   insertUserDailyMetricsSchema,
   userDailyReadiness,
+  sleepNights,
+  sleepSubscores,
+  insertSleepNightsSchema,
+  insertSleepSubscoresSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -44,6 +48,8 @@ import { extractDexaScanExperimental } from "./services/dexaScanExtractorExperim
 import { normalizeMeasurement } from "@shared/domain/biomarkers";
 import { computeDailyReadiness } from "./services/readinessEngine";
 import { updateAllBaselines } from "./services/baselineCalculator";
+import { calculateSleepScore } from "./services/sleepScoringEngine";
+import { calculateSleepBaselinesForUser } from "./services/sleepBaselineCalculator";
 import { 
   calculatePhenoAge, 
   calculatePhenoAgeAccel, 
@@ -2678,6 +2684,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ history });
     } catch (error: any) {
       logger.error("[Readiness] Error getting history:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sleep Score Routes
+  // Get today's sleep score and metrics
+  app.get("/api/sleep/today", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Check if already computed
+      const existing = await db
+        .select()
+        .from(sleepSubscores)
+        .where(
+          and(
+            eq(sleepSubscores.userId, userId),
+            eq(sleepSubscores.sleepDate, today)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Return cached sleep score
+        logger.info(`[Sleep] Returning cached sleep score for user ${userId}, ${today}`);
+        const subscore = existing[0];
+
+        // Fetch corresponding sleep night data
+        const nightData = await db
+          .select()
+          .from(sleepNights)
+          .where(
+            and(
+              eq(sleepNights.userId, userId),
+              eq(sleepNights.sleepDate, today)
+            )
+          )
+          .limit(1);
+
+        if (nightData.length === 0) {
+          return res.status(404).json({ error: "Sleep night data not found" });
+        }
+
+        const night = nightData[0];
+
+        // Format response
+        const totalHours = Math.floor((night.totalSleepMin || 0) / 60);
+        const totalMinutes = Math.round((night.totalSleepMin || 0) % 60);
+        const bedHours = Math.floor((night.timeInBedMin || 0) / 60);
+        const bedMinutes = Math.round((night.timeInBedMin || 0) % 60);
+
+        return res.json({
+          nightflo_score: subscore.nightfloScore,
+          score_label: subscore.scoreLabel,
+          score_delta_vs_baseline: subscore.scoreDeltaVsBaseline || 0,
+          trend_direction: subscore.trendDirection || 'flat',
+          total_sleep_duration: `${totalHours}h ${totalMinutes}m`,
+          time_in_bed: `${bedHours}h ${bedMinutes}m`,
+          sleep_efficiency_pct: Math.round(night.sleepEfficiencyPct || 0),
+          deep_sleep_pct: Math.round(night.deepPct || 0),
+          rem_sleep_pct: Math.round(night.remPct || 0),
+          bedtime_local: night.bedtimeLocal || 'N/A',
+          waketime_local: night.waketimeLocal || 'N/A',
+          headline_insight: subscore.headlineInsight || 'Sleep data available',
+        });
+      }
+
+      // No cached data - need to compute from latest sleep night
+      // First, update baselines
+      await calculateSleepBaselinesForUser(userId);
+
+      // Get most recent sleep night (within last 2 days)
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+      const cutoffDate = twoDaysAgo.toISOString().split('T')[0];
+
+      const recentNight = await db
+        .select()
+        .from(sleepNights)
+        .where(
+          and(
+            eq(sleepNights.userId, userId),
+            gte(sleepNights.sleepDate, cutoffDate)
+          )
+        )
+        .orderBy(desc(sleepNights.sleepDate))
+        .limit(1);
+
+      if (recentNight.length === 0) {
+        return res.status(404).json({
+          error: "No recent sleep data available",
+          message: "Please ensure you have synced HealthKit sleep data"
+        });
+      }
+
+      const night = recentNight[0];
+
+      // Calculate sleep score
+      const scoreResult = await calculateSleepScore({
+        userId,
+        sleepDate: night.sleepDate,
+        totalSleepMin: night.totalSleepMin || 0,
+        sleepEfficiencyPct: night.sleepEfficiencyPct || 0,
+        sleepLatencyMin: night.sleepLatencyMin || undefined,
+        wasoMin: night.wasoMin || undefined,
+        deepPct: night.deepPct || 0,
+        remPct: night.remPct || 0,
+        midSleepTimeLocal: night.midSleepTimeLocal || undefined,
+        restingHrBpm: night.restingHrBpm || undefined,
+        hrvMs: night.hrvMs || undefined,
+        respiratoryRate: night.respiratoryRate || undefined,
+        wristTemperature: night.wristTemperature || undefined,
+        oxygenSaturation: night.oxygenSaturation || undefined,
+      });
+
+      // Generate AI insight (simple for now, can enhance with OpenAI later)
+      let headlineInsight = `Your sleep score is ${scoreResult.scoreLabel.toLowerCase()}.`;
+      if (scoreResult.durationScore && scoreResult.durationScore < 60) {
+        headlineInsight += ` Try to get more sleep tonight.`;
+      } else if (scoreResult.structureScore && scoreResult.structureScore < 60) {
+        headlineInsight += ` Consider improving your sleep environment for better deep sleep.`;
+      } else if (scoreResult.efficiencyScore && scoreResult.efficiencyScore < 70) {
+        headlineInsight += ` Focus on sleep hygiene to reduce wake time.`;
+      } else {
+        headlineInsight += ` Keep up the great sleep habits!`;
+      }
+
+      // Store the computed subscores
+      await db.insert(sleepSubscores).values({
+        userId,
+        sleepDate: night.sleepDate,
+        durationScore: scoreResult.durationScore,
+        efficiencyScore: scoreResult.efficiencyScore,
+        structureScore: scoreResult.structureScore,
+        consistencyScore: scoreResult.consistencyScore,
+        recoveryScore: scoreResult.recoveryScore,
+        nightfloScore: scoreResult.nightfloScore,
+        scoreLabel: scoreResult.scoreLabel,
+        scoreDeltaVsBaseline: scoreResult.scoreDeltaVsBaseline,
+        trendDirection: scoreResult.trendDirection,
+        headlineInsight,
+      });
+
+      logger.info(`[Sleep] Computed and stored sleep score for user ${userId}, ${night.sleepDate}: ${scoreResult.nightfloScore}`);
+
+      // Format response
+      const totalHours = Math.floor((night.totalSleepMin || 0) / 60);
+      const totalMinutes = Math.round((night.totalSleepMin || 0) % 60);
+      const bedHours = Math.floor((night.timeInBedMin || 0) / 60);
+      const bedMinutes = Math.round((night.timeInBedMin || 0) % 60);
+
+      res.json({
+        nightflo_score: scoreResult.nightfloScore,
+        score_label: scoreResult.scoreLabel,
+        score_delta_vs_baseline: scoreResult.scoreDeltaVsBaseline || 0,
+        trend_direction: scoreResult.trendDirection || 'flat',
+        total_sleep_duration: `${totalHours}h ${totalMinutes}m`,
+        time_in_bed: `${bedHours}h ${bedMinutes}m`,
+        sleep_efficiency_pct: Math.round(night.sleepEfficiencyPct || 0),
+        deep_sleep_pct: Math.round(night.deepPct || 0),
+        rem_sleep_pct: Math.round(night.remPct || 0),
+        bedtime_local: night.bedtimeLocal || 'N/A',
+        waketime_local: night.waketimeLocal || 'N/A',
+        headline_insight: headlineInsight,
+      });
+    } catch (error: any) {
+      logger.error("[Sleep] Error getting today's sleep score:", error);
       return res.status(500).json({ error: error.message });
     }
   });
