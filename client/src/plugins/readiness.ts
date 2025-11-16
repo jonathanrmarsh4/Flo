@@ -1,23 +1,20 @@
-import Health from '@healthpilot/healthkit';
+import { registerPlugin } from '@capacitor/core';
 
 export interface ReadinessPlugin {
   syncReadinessData(options: { days: number }): Promise<{ success: boolean; days: number; message: string }>;
 }
 
-const Readiness: ReadinessPlugin = {
-  async syncReadinessData(options: { days: number }) {
-    try {
-      const result = await (Health as any).syncReadinessData(options);
-      return result as { success: boolean; days: number; message: string };
-    } catch (error) {
-      console.error('[Readiness] Sync error:', error);
+const Readiness = registerPlugin<ReadinessPlugin>('HealthSyncPlugin', {
+  web: () => ({
+    async syncReadinessData(options: { days: number }) {
+      console.log('[HealthSync Web] Mock auto-sync called with days:', options.days);
       return { 
-        success: false, 
+        success: true, 
         days: options.days, 
-        message: error instanceof Error ? error.message : 'Unknown error during sync' 
+        message: 'Web mock - automatic readiness sync not available on web' 
       };
-    }
-  },
-};
+    },
+  }),
+});
 
 export default Readiness;
