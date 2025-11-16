@@ -2537,7 +2537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const metrics = validationResult.data;
 
       logger.info(`[HealthKit] Ingesting daily metrics for user ${userId}, date ${metrics.localDate}`);
-      logger.debug(`[HealthKit] Received metrics:`, JSON.stringify(metrics, null, 2));
+      logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
       // Upsert: insert or update if already exists for this user+date
       const { and, sql: drizzleSql } = await import("drizzle-orm");
@@ -2604,9 +2604,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (existing.length > 0) {
-        // Return cached readiness
+        // Return cached readiness - transform DB format to API format
         logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
-        return res.json(existing[0]);
+        const dbRecord = existing[0];
+        return res.json({
+          readinessScore: dbRecord.readinessScore,
+          readinessBucket: dbRecord.readinessBucket,
+          sleepScore: dbRecord.sleepScore,
+          recoveryScore: dbRecord.recoveryScore,
+          loadScore: dbRecord.loadScore,
+          trendScore: dbRecord.trendScore,
+          isCalibrating: dbRecord.isCalibrating,
+          explanations: dbRecord.notesJson || {
+            summary: "No data available",
+            sleep: "No sleep data",
+            recovery: "No recovery data",
+            load: "No activity data",
+            trend: "No trend data"
+          }
+        });
       }
 
       // Update baselines first (ensure they're fresh)
