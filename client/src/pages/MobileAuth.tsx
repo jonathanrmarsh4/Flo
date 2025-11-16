@@ -74,7 +74,6 @@ export default function MobileAuth() {
       logger.debug('Apple Sign-In: Starting authorization');
       const result = await SignInWithApple.authorize({
         clientId: 'com.flo.healthapp',
-        redirectURI: 'https://get-flo.com/auth/apple/callback',
         scopes: 'email name',
         state: crypto.randomUUID(),
         nonce: crypto.randomUUID(),
