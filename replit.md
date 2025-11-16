@@ -28,14 +28,16 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 - **Mobile Authentication:** Uses `MobileAuth.tsx` with Apple Sign-In and Email/Password, `react-hook-form` validation, and a glassmorphism design.
 - **iOS WKWebView Optimization:** A multi-layer fix for rubber band overscroll bounce, ensuring a consistent background.
 - **DEXA Scan Display:** Integrates into the Diagnostics page, displaying bone density T-scores, WHO classification, body fat percentage with sex-specific categorization, and visceral adipose tissue (VAT) area.
-- **HealthKit Integration:** Native iOS integration using `@healthpilot/healthkit` plugin with 26 health data types across four categories:
+- **HealthKit Integration:** Native iOS integration with Swift plugin directly embedded in the iOS app (not npm package), supporting 26 health data types across four categories:
   - Daily Readiness (6): HRV, resting heart rate, respiratory rate, oxygen saturation, sleep analysis, body temperature
   - Body Composition (6): weight, height, BMI, body fat %, lean body mass, waist circumference
   - Cardiometabolic (7): heart rate variants, blood pressure, blood glucose, VO2 max
   - Activity (7): steps, distance, calories, flights climbed, exercise time, stand time
-  - UI at `/healthkit` for permissions management and data viewing
-  - TypeScript service layer (`client/src/services/healthkit.ts`) with 26 typed data types
-  - iOS permissions configured in `Info.plist` with privacy descriptions
+  - **Swift Implementation:** Three files in `ios/App/App/`: Health.swift (core manager with 26 data types), HealthPlugin.swift (Capacitor plugin wrapper), BackgroundSyncManager.swift (background sync with UserDefaults queue)
+  - **Backend API:** POST /api/healthkit/samples (batch upload with duplicate detection), GET /api/healthkit/samples (retrieve with optional dataType filter)
+  - **Database:** `healthkit_samples` table with UUID-based deduplication, indexed for efficient queries by userId, dataType, and startDate
+  - **Frontend:** TypeScript service layer (`client/src/services/healthkit.ts`), type definitions (`client/src/types/healthkit.ts`), permissions UI at `/healthkit`
+  - **iOS Setup:** Requires physical device, HealthKit capability enabled in Xcode, Swift files added to Xcode project, privacy descriptions in `Info.plist`
 
 **Backend:** Developed with Express.js and TypeScript, providing a RESTful API.
 - **Authentication:** Unified authentication system (`server/replitAuth.ts::isAuthenticated`) supporting both:
