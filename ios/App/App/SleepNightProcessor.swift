@@ -3,17 +3,19 @@ import HealthKit
 
 /// Comprehensive sleep night processor following the Flo sleep framework spec
 /// Implements: 15:00-15:00 window, 7 sleep stages, detailed metrics, source prioritization
-class SleepNightProcessor {
+public class SleepNightProcessor {
     private let healthStore = HKHealthStore()
     private let calendar = Calendar.current
     private let MIN_AWAKE_DURATION_MIN = 2.0 // Minimum awake duration to count as awakening
+    
+    public init() {}
     
     /// Process sleep night for a given date
     /// @param sleepDate The local calendar day (YYYY-MM-DD) of the final wake time
     /// @param timezone User's timezone
     /// @param userId User identifier
     /// @param completion Callback with sleep night data or nil if insufficient data
-    func processSleepNight(
+    public func processSleepNight(
         sleepDate: String,
         timezone: TimeZone,
         userId: String,

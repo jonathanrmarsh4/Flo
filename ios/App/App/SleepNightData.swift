@@ -2,7 +2,7 @@ import Foundation
 import HealthKit
 
 /// Comprehensive sleep night data structure matching backend sleep_nights table
-struct SleepNightData: Codable {
+public struct SleepNightData: Codable {
     let userId: String
     let sleepDate: String  // YYYY-MM-DD (local calendar day of final wake)
     let timezone: String   // IANA timezone
