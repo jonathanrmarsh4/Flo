@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
 import { Capacitor } from '@capacitor/core';
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -25,6 +26,9 @@ import AdminDashboard from "@/pages/admin-dashboard";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const isNative = Capacitor.isNativePlatform();
+  
+  // Automatically sync HealthKit data in background on app launch
+  useHealthKitAutoSync();
 
   if (isLoading) {
     return (
