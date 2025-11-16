@@ -1358,6 +1358,10 @@ export const insertUserDailyMetricsSchema = createInsertSchema(userDailyMetrics)
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  // Accept ISO8601 strings from iOS and coerce to Date objects
+  utcDayStart: z.union([z.date(), z.string().transform(str => new Date(str))]),
+  utcDayEnd: z.union([z.date(), z.string().transform(str => new Date(str))]),
 });
 
 export type InsertUserDailyMetrics = z.infer<typeof insertUserDailyMetricsSchema>;
