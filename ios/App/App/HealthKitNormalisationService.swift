@@ -556,7 +556,11 @@ public class HealthKitNormalisationService {
                     print("[Normalisation] Successfully uploaded metrics for \(metrics.localDate)")
                     completion(true, nil)
                 } else {
-                    let errorMsg = "Upload failed with status \(httpResponse.statusCode)"
+                    var errorMsg = "Upload failed with status \(httpResponse.statusCode)"
+                    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                        print("[Normalisation] Response body: \(responseBody)")
+                        errorMsg += " - \(responseBody)"
+                    }
                     print("[Normalisation] \(errorMsg) for \(metrics.localDate)")
                     completion(false, NSError(domain: "NormalisationService", code: 5, userInfo: [NSLocalizedDescriptionKey: errorMsg]))
                 }

@@ -1,0 +1,49 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/7F6C5D16-345C-4B62-BD08-26AC36CAC36B/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+Networking process (0x11505c190) took 6.788564 seconds to launch
+GPU process (0x1151101e0) took 2.602181 seconds to launch
+WebContent process (0x1150f0100) took 2.615365 seconds to launch
+0x1150f0100 - [PID=39933] WebProcessProxy::didBecomeUnresponsive:
+0x1097a9c18 - [pageProxyID=7, webPageID=8, PID=39933] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[39933] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 20480696
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+⚡️  To Native ->  SecureStoragePlugin get 20480697
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 20480698
+🔄 [HealthSyncPlugin] Starting automatic readiness data sync for last 7 days...
+🔑 [HealthSyncPlugin] Auth token received and stored
+[Normalisation] Syncing last 7 days: 2025-11-09 08:58:05 +0000 to 2025-11-16 08:58:05 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+⚡️  To Native ->  SecureStoragePlugin get 20480699
+⚡️  To Native ->  SecureStoragePlugin get 20480700
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  To Native ->  SecureStoragePlugin get 20480701
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+[Normalisation] Upload failed with status 400 for 2025-11-09
+[Normalisation] Upload failed with status 400 for 2025-11-15
+⚡️  [error] - [ERROR] API request failed {"status":400,"response":"{\"error\":\"Date of birth not found. Please complete your profile to calculate biological age.\",\"missingData\":\"dateOfBirth\"}"}
+[Normalisation] Upload failed with status 400 for 2025-11-16
+[Normalisation] Upload failed with status 400 for 2025-11-10
+[Normalisation] Upload failed with status 400 for 2025-11-13
+[Normalisation] Upload failed with status 400 for 2025-11-12
+[Normalisation] Upload failed with status 400 for 2025-11-11
+[Normalisation] Upload failed with status 400 for 2025-11-14
+[Normalisation] Upload completed with 8 errors
+❌ [HealthSyncPlugin] Sync failed: Upload failed with status 400
+ERROR MESSAGE:  {"message":"Readiness sync failed: Upload failed with status 400","errorMessage":"Readiness sync failed: Upload failed with status 400"}
+⚡️  [error] - {"message":"Readiness sync failed: Upload failed with status 400","errorMessage":"Readiness sync failed: Upload failed with status 400"}
+⚡️  [error] - [Readiness] Failed to get auth token: {"errorMessage":"Readiness sync failed: Upload failed with status 400"}
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 20480702
+🔄 [HealthSyncPlugin] Starting automatic readiness data sync for last 7 days...
+[Normalisation] Syncing last 7 days: 2025-11-09 08:58:07 +0000 to 2025-11-16 08:58:07 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+❌ [HealthSyncPlugin] Sync failed: No authentication token found
+ERROR MESSAGE:  {"message":"Readiness sync failed: No authentication token found","errorMessage":"Readiness sync failed: No authentication token found"}
+⚡️  [error] - {"message":"Readiness sync failed: No authentication token found","errorMessage":"Readiness sync failed: No authentication token found"}
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No data available to compute readiness\",\"message\":\"Please ensure you have synced HealthKit data for today.\"}"}
