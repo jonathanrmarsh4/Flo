@@ -1,0 +1,17 @@
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = 930FE61C-BE62-49B9-873E-CE3AE395791D
+⚡️  To Native ->  SecureStoragePlugin get 26525430
+ERROR MESSAGE:  {"message":"Item with given key does not exist","errorMessage":"Item with given key does not exist"}
+⚡️  [error] - {"message":"Item with given key does not exist","errorMessage":"Item with given key does not exist"}
+Reporter disconnected or already stopped. { func=stop, reporterID=171437914587139 }
+⚡️  To Native ->  SecureStoragePlugin set 26525431
+⚡️  TO JS {"value":true}
+⚡️  To Native ->  SecureStoragePlugin get 26525432
+⚡️  To Native ->  SecureStoragePlugin get 26525433
+⚡️  To Native ->  SecureStoragePlugin get 26525434
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  To Native ->  SecureStoragePlugin get 26525435
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No data available to compute readiness\",\"message\":\"Please ensure you have synced HealthKit data for today.\"}"}
+⚡️  [error] - [ERROR] API request failed {"status":400,"response":"{\"error\":\"Date of birth not found. Please complete your profile to calculate biological age.\",\"missingData\":\"dateOfBirth\"}"}
