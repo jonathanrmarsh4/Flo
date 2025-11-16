@@ -2581,13 +2581,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
         logger.info(`[HealthKit] Updated daily metrics for ${userId}, ${metrics.localDate}`);
-        res.json({ status: "updated", date: metrics.localDate });
       } else {
         // Insert new record
         await db.insert(userDailyMetrics).values(metrics);
 
         logger.info(`[HealthKit] Inserted daily metrics for ${userId}, ${metrics.localDate}`);
-        res.json({ status: "created", date: metrics.localDate });
+      }
+
+      // Calculate Flōmentum score after storing metrics
+      try {
+        const { calculateFlomentumBaselines } = await import("./services/flomentumBaselineCalculator");
+        const baselines = await calculateFlomentumBaselines(userId, metrics.localDate);
+
+        // Get user settings
+        const [userSettings] = await db.select().from(userSettingsTable).where(eq(userSettingsTable.userId, userId)).limit(1);
+        
+        if (userSettings && userSettings.flomentumEnabled) {
+          const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
+          
+          // Map userDailyMetrics fields to Flōmentum metrics
+          // Note: userDailyMetrics has limited fields, so some will be null
+          const flomentumMetrics: any = {
+            sleepTotalMinutes: metrics.sleepHours ? metrics.sleepHours * 60 : null,
+            hrvSdnnMs: metrics.hrvMs ?? null,
+            restingHr: metrics.restingHrBpm ?? null,
+            respiratoryRate: null, // Not available in userDailyMetrics
+            bodyTempDeviationC: null, // Not available in userDailyMetrics
+            oxygenSaturationAvg: null, // Not available in userDailyMetrics
+            steps: metrics.stepsNormalized ?? null,
+            activeKcal: metrics.activeEnergyKcal ?? null,
+            exerciseMinutes: null, // Not available in userDailyMetrics
+            standHours: null, // Not available in userDailyMetrics
+          };
+
+          const context: any = {
+            stepsTarget: userSettings.stepsTarget,
+            sleepTargetMinutes: userSettings.sleepTargetMinutes,
+            restingHrBaseline: baselines.restingHrBaseline,
+            hrvBaseline: baselines.hrvBaseline,
+            respRateBaseline: baselines.respRateBaseline,
+          };
+
+          const scoreResult = calculateFlomentumScore(flomentumMetrics, context);
+
+          // Store the daily Flōmentum score
+          await db.insert(flomentumDaily).values({
+            date: metrics.localDate,
+            userId,
+            score: scoreResult.score,
+            zone: scoreResult.zone,
+            factors: scoreResult.factors,
+            dailyFocus: scoreResult.dailyFocus,
+          }).onConflictDoUpdate({
+            target: [flomentumDaily.userId, flomentumDaily.date],
+            set: {
+              score: scoreResult.score,
+              zone: scoreResult.zone,
+              factors: scoreResult.factors,
+              dailyFocus: scoreResult.dailyFocus,
+            },
+          });
+
+          logger.info(`[Flōmentum] Score calculated for ${userId}, ${metrics.localDate}: ${scoreResult.score} (${scoreResult.zone})`);
+          
+          res.json({ 
+            status: existing.length > 0 ? "updated" : "created", 
+            date: metrics.localDate,
+            flomentumScore: scoreResult.score,
+            flomentumZone: scoreResult.zone,
+          });
+        } else {
+          res.json({ status: existing.length > 0 ? "updated" : "created", date: metrics.localDate });
+        }
+      } catch (flomentumError: any) {
+        logger.error(`[Flōmentum] Error calculating score for ${userId}, ${metrics.localDate}:`, flomentumError);
+        // Return success for metrics storage even if Flōmentum fails
+        res.json({ status: existing.length > 0 ? "updated" : "created", date: metrics.localDate });
       }
     } catch (error: any) {
       logger.error("[HealthKit] Daily metrics ingestion error:", error);
