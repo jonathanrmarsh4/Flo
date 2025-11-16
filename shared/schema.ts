@@ -82,6 +82,9 @@ export const diagnosticStatusEnum = pgEnum("diagnostic_status", [
 // Readiness enums
 export const readinessBucketEnum = pgEnum("readiness_bucket", ["recover", "ok", "ready"]);
 
+// Flōmentum enums
+export const flomentumZoneEnum = pgEnum("flomentum_zone", ["BUILDING", "MAINTAINING", "DRAINING"]);
+
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
 export const UserStatusEnum = z.enum(["active", "suspended"]);
@@ -142,6 +145,8 @@ export const DiagnosticSourceEnum = z.enum(["uploaded_pdf", "uploaded_pdf_experi
 export const DiagnosticStatusEnum = z.enum(["parsed", "needs_review", "failed"]);
 
 export const ReadinessBucketEnum = z.enum(["recover", "ok", "ready"]);
+
+export const FlomentumZoneEnum = z.enum(["BUILDING", "MAINTAINING", "DRAINING"]);
 
 // Health baseline schema (for JSONB validation)
 export const healthBaselineSchema = z.object({
@@ -748,6 +753,100 @@ export const sleepBaselines = pgTable("sleep_baselines", {
 }, (table) => [
   uniqueIndex("idx_sleep_baselines_unique").on(table.userId, table.metricKey),
   index("idx_sleep_baselines_user").on(table.userId),
+]);
+
+// Flōmentum user settings
+export const userSettings = pgTable("user_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").unique().notNull().references(() => users.id, { onDelete: "cascade" }),
+  timezone: text("timezone").notNull().default("UTC"),
+  stepsTarget: integer("steps_target").notNull().default(7000),
+  sleepTargetMinutes: integer("sleep_target_minutes").notNull().default(480),
+  flomentumEnabled: boolean("flomentum_enabled").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_user_settings_user").on(table.userId),
+]);
+
+// Health daily metrics aggregated from HealthKit
+export const healthDailyMetrics = pgTable("health_daily_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // YYYY-MM-DD
+  sleepTotalMinutes: integer("sleep_total_minutes"),
+  sleepMainStart: timestamp("sleep_main_start"),
+  sleepMainEnd: timestamp("sleep_main_end"),
+  hrvSdnnMs: integer("hrv_sdnn_ms"),
+  restingHr: integer("resting_hr"),
+  respiratoryRate: real("respiratory_rate"),
+  bodyTempDeviationC: real("body_temp_deviation_c"),
+  oxygenSaturationAvg: real("oxygen_saturation_avg"),
+  steps: integer("steps"),
+  distanceMeters: integer("distance_meters"),
+  activeKcal: integer("active_kcal"),
+  exerciseMinutes: integer("exercise_minutes"),
+  standHours: integer("stand_hours"),
+  weightKg: real("weight_kg"),
+  bodyFatPct: real("body_fat_pct"),
+  leanMassKg: real("lean_mass_kg"),
+  bmi: real("bmi"),
+  waistCircumferenceCm: real("waist_circumference_cm"),
+  source: text("source").notNull().default("healthkit_v1"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_health_daily_metrics_unique").on(table.userId, table.date),
+  index("idx_health_daily_metrics_user_date").on(table.userId, table.date),
+]);
+
+// Flōmentum daily scores and factors
+export const flomentumDaily = pgTable("flomentum_daily", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // YYYY-MM-DD
+  score: integer("score").notNull(),
+  zone: flomentumZoneEnum("zone").notNull(),
+  deltaVsYesterday: integer("delta_vs_yesterday"),
+  factors: jsonb("factors").notNull(), // Array of factor objects
+  dailyFocus: jsonb("daily_focus"), // { title, body, componentKey }
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_flomentum_daily_unique").on(table.userId, table.date),
+  index("idx_flomentum_daily_user_date").on(table.userId, table.date),
+]);
+
+// Flōmentum weekly aggregations
+export const flomentumWeekly = pgTable("flomentum_weekly", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  weekStartDate: text("week_start_date").notNull(), // YYYY-MM-DD (Monday)
+  averageScore: integer("average_score").notNull(),
+  deltaVsPreviousWeek: integer("delta_vs_previous_week"),
+  dailyScores: jsonb("daily_scores").notNull(), // Array of { date, label, score, zone }
+  whatHelped: jsonb("what_helped").notNull(), // Array of strings
+  whatHeldBack: jsonb("what_held_back").notNull(), // Array of strings
+  focusNextWeek: text("focus_next_week").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_flomentum_weekly_unique").on(table.userId, table.weekStartDate),
+  index("idx_flomentum_weekly_user_week").on(table.userId, table.weekStartDate),
+]);
+
+// Health baselines for recovery metrics (30-day rolling)
+export const healthBaselines = pgTable("health_baselines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  metricKey: text("metric_key").notNull(), // 'resting_hr', 'hrv_sdnn_ms', 'respiratory_rate'
+  baseline: real("baseline"), // The calculated baseline value
+  windowDays: integer("window_days").notNull().default(30),
+  numSamples: integer("num_samples").notNull(), // Number of days used
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_health_baselines_unique").on(table.userId, table.metricKey),
+  index("idx_health_baselines_user").on(table.userId),
 ]);
 
 // Body fat reference ranges for DEXA scans
@@ -1558,3 +1657,48 @@ export const bodyFatReferenceRangeSchema = z.object({
 
 export type InsertBodyFatReferenceRange = z.infer<typeof insertBodyFatReferenceRangeSchema>;
 export type BodyFatReferenceRange = typeof bodyFatReferenceRanges.$inferSelect;
+
+// Flōmentum schemas
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type UserSettings = typeof userSettings.$inferSelect;
+
+export const insertHealthDailyMetricsSchema = createInsertSchema(healthDailyMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertHealthDailyMetrics = z.infer<typeof insertHealthDailyMetricsSchema>;
+export type HealthDailyMetrics = typeof healthDailyMetrics.$inferSelect;
+
+export const insertFlomentumDailySchema = createInsertSchema(flomentumDaily).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFlomentumDaily = z.infer<typeof insertFlomentumDailySchema>;
+export type FlomentumDaily = typeof flomentumDaily.$inferSelect;
+
+export const insertFlomentumWeeklySchema = createInsertSchema(flomentumWeekly).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFlomentumWeekly = z.infer<typeof insertFlomentumWeeklySchema>;
+export type FlomentumWeekly = typeof flomentumWeekly.$inferSelect;
+
+export const insertHealthBaselinesSchema = createInsertSchema(healthBaselines).omit({
+  id: true,
+  lastCalculatedAt: true,
+});
+
+export type InsertHealthBaselines = z.infer<typeof insertHealthBaselinesSchema>;
+export type HealthBaselines = typeof healthBaselines.$inferSelect;

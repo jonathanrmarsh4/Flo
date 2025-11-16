@@ -3,9 +3,11 @@ import { HeartMetabolicTile } from './dashboard/HeartMetabolicTile';
 import { BodyCompositionTile } from './dashboard/BodyCompositionTile';
 import { ReadinessTile } from './dashboard/ReadinessTile';
 import { SleepTile } from './dashboard/SleepTile';
+import { FlomentumTile } from './dashboard/FlomentumTile';
 import { FloLogo } from './FloLogo';
 import { Bell, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 
 interface DashboardScreenProps {
   isDark: boolean;
@@ -13,6 +15,8 @@ interface DashboardScreenProps {
 }
 
 export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProps) {
+  const [, setLocation] = useLocation();
+  
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
   });
@@ -116,6 +120,9 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
                 boneHealth={dashboardData?.details?.bodyCompositionDetails?.boneHealth}
               />
             </div>
+
+            {/* Full Width - Flōmentum */}
+            <FlomentumTile isDark={isDark} onClick={() => setLocation('/flomentum')} />
 
             {/* Full Width - Daily Readiness */}
             <ReadinessTile isDark={isDark} />

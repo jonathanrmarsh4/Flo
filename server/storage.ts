@@ -22,6 +22,7 @@ import {
   healthInsights,
   diagnosticsStudies,
   diagnosticMetrics,
+  userSettings,
   type User,
   type UpsertUser,
   type Profile,
@@ -59,6 +60,8 @@ import {
   type InsertDiagnosticsStudy,
   type DiagnosticMetric,
   type InsertDiagnosticMetric,
+  type UserSettings,
+  type InsertUserSettings,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql, lt, gt } from "drizzle-orm";
@@ -76,6 +79,9 @@ export interface IStorage {
   updateHealthBaseline(userId: string, data: UpdateHealthBaseline): Promise<Profile>;
   updateGoals(userId: string, data: UpdateGoals): Promise<Profile>;
   updateAIPersonalization(userId: string, data: UpdateAIPersonalization): Promise<Profile>;
+  
+  // User settings operations (Flōmentum)
+  initializeUserSettings(userId: string, timezone?: string): Promise<UserSettings>;
   
   // Blood work operations
   createBloodWorkRecord(record: InsertBloodWorkRecord): Promise<BloodWorkRecord>;
@@ -253,6 +259,10 @@ export class DatabaseStorage implements IStorage {
           },
         })
         .returning();
+      
+      // Initialize user settings for Flōmentum (idempotent - won't duplicate if exists)
+      await this.initializeUserSettings(user.id);
+      
       return user;
     } catch (error: any) {
       // Handle duplicate email constraint violation gracefully
@@ -269,6 +279,10 @@ export class DatabaseStorage implements IStorage {
             })
             .where(eq(users.id, existingUser.id))
             .returning();
+          
+          // Initialize user settings for Flōmentum (idempotent)
+          await this.initializeUserSettings(updated.id);
+          
           return updated;
         }
       }
@@ -317,6 +331,32 @@ export class DatabaseStorage implements IStorage {
 
   async updateAIPersonalization(userId: string, data: UpdateAIPersonalization): Promise<Profile> {
     return await this.upsertProfile(userId, data);
+  }
+
+  // User settings operations (Flōmentum)
+  async initializeUserSettings(userId: string, timezone: string = "UTC"): Promise<UserSettings> {
+    const [settings] = await db
+      .insert(userSettings)
+      .values({
+        userId,
+        timezone,
+        stepsTarget: 7000,
+        sleepTargetMinutes: 480,
+        flomentumEnabled: true,
+      })
+      .onConflictDoNothing()
+      .returning();
+    
+    // If already exists, fetch it
+    if (!settings) {
+      const [existing] = await db
+        .select()
+        .from(userSettings)
+        .where(eq(userSettings.userId, userId));
+      return existing;
+    }
+    
+    return settings;
   }
 
   // Blood work operations

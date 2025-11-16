@@ -20,6 +20,7 @@ import Results from "@/pages/results";
 import Profile from "@/pages/profile";
 import DiagnosticsPage from "@/pages/diagnostics";
 import HealthKitPage from "@/pages/healthkit";
+import FlomentumScreen from "@/pages/FlomentumScreen";
 import AdminUsers from "@/pages/admin-users";
 import AdminDashboard from "@/pages/admin-dashboard";
 
@@ -63,6 +64,7 @@ function Router() {
           <Route path="/profile" component={Profile} />
           <Route path="/diagnostics" component={DiagnosticsPage} />
           <Route path="/healthkit" component={HealthKitPage} />
+          <Route path="/flomentum" component={FlomentumScreen} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />

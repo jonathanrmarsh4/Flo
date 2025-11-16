@@ -10,7 +10,7 @@ import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
 import { logger } from "./logger";
-import { eq, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -31,6 +31,11 @@ import {
   sleepSubscores,
   insertSleepNightsSchema,
   insertSleepSubscoresSchema,
+  userSettings as userSettingsTable,
+  healthDailyMetrics,
+  flomentumDaily,
+  flomentumWeekly,
+  healthBaselines,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -3638,6 +3643,227 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error fetching dashboard overview:', error);
       res.status(500).json({ error: "Failed to fetch dashboard overview" });
+    }
+  });
+
+  // Flōmentum API endpoints
+  app.post("/api/health/daily-summary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const summaryData = req.body;
+      
+      // Validate payload
+      if (!summaryData.date || typeof summaryData.date !== 'string') {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+
+      logger.info('Received daily summary from iOS', { userId, date: summaryData.date });
+
+      // Store the daily metrics
+      await db.insert(healthDailyMetrics).values({
+        userId,
+        date: summaryData.date,
+        sleepTotalMinutes: summaryData.sleep_total_minutes ?? null,
+        hrvSdnnMs: summaryData.hrv_sdnn_ms ?? null,
+        restingHr: summaryData.resting_hr ?? null,
+        respiratoryRate: summaryData.respiratory_rate ?? null,
+        bodyTempDeviationC: summaryData.body_temp_deviation_c ?? null,
+        oxygenSaturationAvg: summaryData.oxygen_saturation_avg ?? null,
+        steps: summaryData.steps ?? null,
+        activeKcal: summaryData.active_kcal ?? null,
+        exerciseMinutes: summaryData.exercise_minutes ?? null,
+        standHours: summaryData.stand_hours ?? null,
+      }).onConflictDoUpdate({
+        target: [healthDailyMetrics.userId, healthDailyMetrics.date],
+        set: {
+          sleepTotalMinutes: summaryData.sleep_total_minutes ?? null,
+          hrvSdnnMs: summaryData.hrv_sdnn_ms ?? null,
+          restingHr: summaryData.resting_hr ?? null,
+          respiratoryRate: summaryData.respiratory_rate ?? null,
+          bodyTempDeviationC: summaryData.body_temp_deviation_c ?? null,
+          oxygenSaturationAvg: summaryData.oxygen_saturation_avg ?? null,
+          steps: summaryData.steps ?? null,
+          activeKcal: summaryData.active_kcal ?? null,
+          exerciseMinutes: summaryData.exercise_minutes ?? null,
+          standHours: summaryData.stand_hours ?? null,
+        },
+      });
+
+      // Calculate baselines
+      const { calculateFlomentumBaselines } = await import("./services/flomentumBaselineCalculator");
+      const baselines = await calculateFlomentumBaselines(userId, summaryData.date);
+
+      // Get user settings for targets
+      const [userSettings] = await db.select().from(userSettingsTable).where(eq(userSettingsTable.userId, userId)).limit(1);
+      
+      if (!userSettings || !userSettings.flomentumEnabled) {
+        logger.debug('Flōmentum not enabled for user', { userId });
+        return res.json({ success: true, flomentumEnabled: false });
+      }
+
+      // Calculate Flōmentum score
+      const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
+      
+      const metrics: any = {
+        sleepTotalMinutes: summaryData.sleep_total_minutes ?? null,
+        hrvSdnnMs: summaryData.hrv_sdnn_ms ?? null,
+        restingHr: summaryData.resting_hr ?? null,
+        respiratoryRate: summaryData.respiratory_rate ?? null,
+        bodyTempDeviationC: summaryData.body_temp_deviation_c ?? null,
+        oxygenSaturationAvg: summaryData.oxygen_saturation_avg ?? null,
+        steps: summaryData.steps ?? null,
+        activeKcal: summaryData.active_kcal ?? null,
+        exerciseMinutes: summaryData.exercise_minutes ?? null,
+        standHours: summaryData.stand_hours ?? null,
+      };
+
+      const context: any = {
+        stepsTarget: userSettings.stepsTarget,
+        sleepTargetMinutes: userSettings.sleepTargetMinutes,
+        restingHrBaseline: baselines.restingHrBaseline,
+        hrvBaseline: baselines.hrvBaseline,
+        respRateBaseline: baselines.respRateBaseline,
+      };
+
+      const scoreResult = calculateFlomentumScore(metrics, context);
+
+      // Store the daily score
+      await db.insert(flomentumDaily).values({
+        date: summaryData.date,
+        userId,
+        score: scoreResult.score,
+        zone: scoreResult.zone,
+        factors: scoreResult.factors,
+        dailyFocus: scoreResult.dailyFocus,
+      }).onConflictDoUpdate({
+        target: [flomentumDaily.userId, flomentumDaily.date],
+        set: {
+          score: scoreResult.score,
+          zone: scoreResult.zone,
+          factors: scoreResult.factors,
+          dailyFocus: scoreResult.dailyFocus,
+        },
+      });
+
+      logger.info('Flōmentum score calculated', { 
+        userId, 
+        date: summaryData.date, 
+        score: scoreResult.score,
+        zone: scoreResult.zone,
+      });
+
+      res.json({ 
+        success: true, 
+        flomentumEnabled: true,
+        score: scoreResult.score,
+        zone: scoreResult.zone,
+      });
+    } catch (error) {
+      logger.error('Error processing daily summary:', error);
+      res.status(500).json({ error: "Failed to process daily summary" });
+    }
+  });
+
+  app.get("/api/flomentum/weekly", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get user settings
+      const [userSettings] = await db.select().from(userSettingsTable).where(eq(userSettingsTable.userId, userId)).limit(1);
+      
+      if (!userSettings || !userSettings.flomentumEnabled) {
+        return res.status(404).json({ error: "Flōmentum not enabled" });
+      }
+
+      // Get this week's start date (Monday)
+      const { getMondayOfWeek } = await import("./services/flomentumWeeklyAggregator");
+      const weekStartDate = getMondayOfWeek(new Date());
+
+      // Get weekly insight
+      const [weeklyData] = await db
+        .select()
+        .from(flomentumWeekly)
+        .where(
+          and(
+            eq(flomentumWeekly.userId, userId),
+            eq(flomentumWeekly.weekStartDate, weekStartDate)
+          )
+        )
+        .limit(1);
+
+      if (!weeklyData) {
+        return res.status(404).json({ error: "No weekly data available yet" });
+      }
+
+      res.json({
+        weekStartDate: weeklyData.weekStartDate,
+        averageScore: weeklyData.averageScore,
+        dailyScores: weeklyData.dailyScores,
+        whatHelped: weeklyData.whatHelped,
+        whatHeldBack: weeklyData.whatHeldBack,
+        focusNextWeek: weeklyData.focusNextWeek,
+      });
+    } catch (error) {
+      logger.error('Error fetching Flōmentum weekly:', error);
+      res.status(500).json({ error: "Failed to fetch weekly Flōmentum data" });
+    }
+  });
+
+  app.get("/api/flomentum/today", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get user settings
+      const [userSettings] = await db.select().from(userSettingsTable).where(eq(userSettingsTable.userId, userId)).limit(1);
+      
+      if (!userSettings || !userSettings.flomentumEnabled) {
+        return res.status(404).json({ error: "Flōmentum not enabled" });
+      }
+
+      // Get today's date in user's timezone
+      const today = new Date().toISOString().split('T')[0];
+
+      // Get today's Flōmentum score
+      const [dailyScore] = await db
+        .select()
+        .from(flomentumDaily)
+        .where(and(
+          eq(flomentumDaily.userId, userId),
+          eq(flomentumDaily.date, today)
+        ))
+        .limit(1);
+
+      if (!dailyScore) {
+        return res.status(404).json({ error: "No Flōmentum score for today" });
+      }
+
+      // Get quick snapshot (recent 3 scores for trend)
+      const recentScores = await db
+        .select({
+          date: flomentumDaily.date,
+          score: flomentumDaily.score,
+        })
+        .from(flomentumDaily)
+        .where(eq(flomentumDaily.userId, userId))
+        .orderBy(sql`${flomentumDaily.date} DESC`)
+        .limit(3);
+
+      const quickSnapshot = recentScores.map(s => ({
+        date: s.date,
+        score: s.score,
+      }));
+
+      res.json({
+        date: dailyScore.date,
+        score: dailyScore.score,
+        zone: dailyScore.zone,
+        factors: dailyScore.factors,
+        dailyFocus: dailyScore.dailyFocus,
+        quickSnapshot,
+      });
+    } catch (error) {
+      logger.error('Error fetching Flōmentum today:', error);
+      res.status(500).json({ error: "Failed to fetch Flōmentum data" });
     }
   });
 

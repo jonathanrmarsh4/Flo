@@ -3,6 +3,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startBaselineScheduler } from "./services/baselineScheduler";
+import { startFlomentumWeeklyScheduler } from "./services/flomentumWeeklyScheduler";
 
 const app = express();
 
@@ -103,5 +104,8 @@ app.use((req, res, next) => {
     
     // Start the daily baseline update scheduler
     startBaselineScheduler();
+    
+    // Start the weekly Flōmentum aggregation scheduler
+    startFlomentumWeeklyScheduler();
   });
 })();
