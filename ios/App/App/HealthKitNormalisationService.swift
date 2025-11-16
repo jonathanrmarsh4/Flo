@@ -578,7 +578,7 @@ public class HealthKitNormalisationService {
     }
     
     private func getBackendURL() -> String {
-        // TODO: Get from config
-        return "https://\(Bundle.main.bundleIdentifier ?? "").replit.app"
+        // Production URL for mobile app (matches queryClient.ts)
+        return "https://get-flo.com"
     }
 }
