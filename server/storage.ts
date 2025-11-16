@@ -121,6 +121,19 @@ export interface IStorage {
   }>;
   getAuditLogs(limit?: number): Promise<AuditLog[]>;
   
+  // HealthKit admin operations
+  getHealthKitStats(): Promise<{
+    totalSamples: number;
+    totalUsers: number;
+    samplesByDataType: Array<{ dataType: string; count: number }>;
+    recentSamples: Array<{ userId: string; dataType: string; count: number; latestDate: string }>;
+  }>;
+  checkHealthKitStatus(): Promise<{
+    status: 'operational' | 'degraded' | 'down';
+    lastSync: string | null;
+    sampleCount24h: number;
+  }>;
+  
   // Billing operations
   getBillingInfo(userId: string): Promise<{ customer?: BillingCustomer; subscription?: Subscription; lastPayment?: Payment }>;
   createAuditLog(log: { adminId: string; targetUserId?: string; action: string; changes?: any; actionMetadata?: any }): Promise<void>;
@@ -1324,6 +1337,94 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(diagnosticsStudies.studyDate))
       .limit(1);
     return study || null;
+  }
+
+  async getHealthKitStats() {
+    const { healthkitSamples } = await import("@shared/schema");
+    
+    const [totalSamplesResult] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(healthkitSamples);
+    
+    const [totalUsersResult] = await db
+      .select({ count: sql<number>`count(distinct ${healthkitSamples.userId})::int` })
+      .from(healthkitSamples);
+    
+    const samplesByDataType = await db
+      .select({
+        dataType: healthkitSamples.dataType,
+        count: sql<number>`count(*)::int`
+      })
+      .from(healthkitSamples)
+      .groupBy(healthkitSamples.dataType)
+      .orderBy(desc(sql`count(*)`))
+      .limit(10);
+    
+    const recentSamples = await db
+      .select({
+        userId: healthkitSamples.userId,
+        dataType: healthkitSamples.dataType,
+        count: sql<number>`count(*)::int`,
+        latestDate: sql<string>`max(${healthkitSamples.startDate})::text`
+      })
+      .from(healthkitSamples)
+      .groupBy(healthkitSamples.userId, healthkitSamples.dataType)
+      .orderBy(desc(sql`max(${healthkitSamples.startDate})`))
+      .limit(20);
+    
+    return {
+      totalSamples: totalSamplesResult?.count || 0,
+      totalUsers: totalUsersResult?.count || 0,
+      samplesByDataType: samplesByDataType.map(s => ({ dataType: s.dataType, count: s.count })),
+      recentSamples: recentSamples.map(s => ({
+        userId: s.userId,
+        dataType: s.dataType,
+        count: s.count,
+        latestDate: s.latestDate
+      }))
+    };
+  }
+
+  async checkHealthKitStatus() {
+    try {
+      const { healthkitSamples } = await import("@shared/schema");
+      
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      const [recentCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(healthkitSamples)
+        .where(gt(healthkitSamples.startDate, oneDayAgo));
+      
+      const [latestSample] = await db
+        .select({ startDate: healthkitSamples.startDate })
+        .from(healthkitSamples)
+        .orderBy(desc(healthkitSamples.startDate))
+        .limit(1);
+      
+      const sampleCount24h = recentCount?.count || 0;
+      const lastSync = latestSample?.startDate || null;
+      
+      let status: 'operational' | 'degraded' | 'down' = 'operational';
+      
+      if (!latestSample) {
+        status = 'down';
+      } else if (sampleCount24h === 0) {
+        status = 'degraded';
+      }
+      
+      return {
+        status,
+        lastSync,
+        sampleCount24h
+      };
+    } catch (error) {
+      return {
+        status: 'down' as const,
+        lastSync: null,
+        sampleCount24h: 0
+      };
+    }
   }
 }
 

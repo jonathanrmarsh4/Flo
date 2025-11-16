@@ -221,4 +221,31 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ error: "Failed to delete user" });
     }
   });
+
+  app.get('/api/admin/healthkit/stats', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const cacheKey = 'admin:healthkit:stats';
+      let stats = getCached(cacheKey);
+      
+      if (!stats) {
+        stats = await storage.getHealthKitStats();
+        setCache(cacheKey, stats);
+      }
+      
+      res.json(stats);
+    } catch (error) {
+      logger.error('Error fetching HealthKit stats', error);
+      res.status(500).json({ error: "Failed to fetch HealthKit statistics" });
+    }
+  });
+
+  app.get('/api/admin/healthkit/status', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const status = await storage.checkHealthKitStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error('Error checking HealthKit status', error);
+      res.status(500).json({ error: "Failed to check HealthKit status", status: "error" });
+    }
+  });
 }
