@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Activity, Heart, Scale, TrendingUp, AlertCircle, Check, Clock, RefreshCw } from 'lucide-react';
+import { Activity, Heart, Scale, TrendingUp, AlertCircle, Check, Clock } from 'lucide-react';
 import { HealthKitService } from '@/services/healthkit';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
+import Readiness from '@/plugins/readiness';
 import {
   DAILY_READINESS_DATA_TYPES,
   BODY_COMPOSITION_DATA_TYPES,
@@ -22,7 +23,6 @@ export default function HealthKitPage() {
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [authStatus, setAuthStatus] = useState<AuthorizationStatus | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,72 +57,26 @@ export default function HealthKitPage() {
         readAuthorized: result.readAuthorized.length,
       });
       
-      toast({
-        title: "Permissions Granted",
-        description: "You can now sync your health data using the button below.",
-      });
+      // Automatically sync readiness data after successful permission grant
+      try {
+        logger.info('Starting automatic readiness data sync...');
+        const syncResult = await Readiness.syncReadinessData({ days: 7 });
+        logger.info('Automatic readiness sync completed', syncResult);
+        
+        toast({
+          title: "Connected Successfully",
+          description: "Your health data is now syncing automatically.",
+        });
+      } catch (error) {
+        logger.error('Automatic readiness sync failed', error);
+        toast({
+          title: "Connected",
+          description: "Permissions granted. Data sync will happen in the background.",
+        });
+      }
     }
 
     setIsRequesting(false);
-  };
-
-  const syncReadinessData = async () => {
-    setIsSyncing(true);
-    
-    try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7); // Last 7 days
-
-      const dataTypes: HealthDataType[] = [
-        ...DAILY_READINESS_DATA_TYPES,
-        ...BODY_COMPOSITION_DATA_TYPES,
-        ...ACTIVITY_DATA_TYPES,
-      ];
-
-      logger.info('Starting readiness data sync for last 7 days...');
-
-      // Query all health data types
-      for (const dataType of dataTypes) {
-        try {
-          const samples = await HealthKitService.readSamples({
-            dataType,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            limit: 1000,
-          });
-
-          if (samples && samples.length > 0) {
-            // Upload to backend
-            await fetch('/api/healthkit/samples', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ samples }),
-            });
-            
-            logger.info(`Uploaded ${samples.length} samples for ${dataType}`);
-          }
-        } catch (error) {
-          logger.error(`Failed to sync ${dataType}`, error);
-        }
-      }
-
-      toast({
-        title: "Sync Complete",
-        description: "Your health data has been synced successfully.",
-      });
-      
-      logger.info('Readiness data sync completed');
-    } catch (error) {
-      logger.error('Readiness sync failed', error);
-      toast({
-        title: "Sync Failed",
-        description: "There was an error syncing your health data.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
   };
 
   const checkPermissions = async () => {
@@ -222,39 +176,22 @@ export default function HealthKitPage() {
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Status:</p>
-                  <Badge variant="default">Active</Badge>
+                  <Badge variant="default">Auto-Sync Active</Badge>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={syncReadinessData}
-                  disabled={isSyncing}
-                  data-testid="button-sync-readiness"
-                  className="flex-1"
-                >
-                  {isSyncing ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Sync Health Data
-                    </>
-                  )}
-                </Button>
-                
-                <Button
-                  onClick={checkPermissions}
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-refresh-permissions"
-                >
-                  Refresh
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Your health data syncs automatically in the background. Check your dashboard to see your latest readiness score.
+              </p>
+
+              <Button
+                onClick={checkPermissions}
+                variant="outline"
+                size="sm"
+                data-testid="button-refresh-permissions"
+              >
+                Refresh Permissions
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
