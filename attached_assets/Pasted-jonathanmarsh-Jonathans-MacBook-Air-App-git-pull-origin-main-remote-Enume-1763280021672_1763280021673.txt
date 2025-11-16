@@ -1,0 +1,42 @@
+jonathanmarsh@Jonathans-MacBook-Air App % git pull origin main                        
+remote: Enumerating objects: 65, done.
+remote: Counting objects: 100% (65/65), done.
+remote: Compressing objects: 100% (12/12), done.
+remote: Total 53 (delta 44), reused 50 (delta 41), pack-reused 0 (from 0)
+Unpacking objects: 100% (53/53), 4.50 MiB | 8.59 MiB/s, done.
+From https://github.com/jonathanrmarsh4/flo
+ * branch            main       -> FETCH_HEAD
+   b6b74c9..184b0e7  main       -> origin/main
+Updating b6b74c9..184b0e7
+Fast-forward
+ ...tingHeartRate-respiratoryRate-oxygenSatu-1763279151025_1763279151025.txt |  17 +++++
+ ...tingHeartRate-respiratoryRate-oxygenSatu-1763279688259_1763279688259.txt |  17 +++++
+ ...-will-result-in-an-assert-in-the-future--1763277405933_1763277405933.txt |  36 ++++++++++
+ ...-will-result-in-an-assert-in-the-future--1763278180350_1763278180351.txt |  19 ++++++
+ ...-will-result-in-an-assert-in-the-future--1763278974275_1763278974276.txt | 133 ++++++++++++++++++++++++++++++++++++
+ .../Screenshot 2025-11-16 at 3.17.43\342\200\257pm_1763277481741.png"       | Bin 0 -> 2824350 bytes
+ .../Screenshot 2025-11-16 at 3.32.41\342\200\257pm_1763278387370.png"       | Bin 0 -> 1683484 bytes
+ attached_assets/image_1763277213789.png                                     | Bin 0 -> 95337 bytes
+ attached_assets/image_1763277650297.png                                     | Bin 0 -> 19698 bytes
+ attached_assets/image_1763277719190.png                                     | Bin 0 -> 116309 bytes
+ capacitor.config.ts                                                         |  12 ++++
+ client/src/hooks/useHealthKitAutoSync.ts                                    |   2 +
+ client/src/pages/healthkit.tsx                                              |   2 +
+ server/routes.ts                                                            |   2 +-
+ server/storage.ts                                                           |   9 +--
+ 15 files changed, 244 insertions(+), 5 deletions(-)
+ create mode 100644 attached_assets/Pasted--TO-JS-readAuthorized-heartRateVariability-restingHeartRate-respiratoryRate-oxygenSatu-1763279151025_1763279151025.txt
+ create mode 100644 attached_assets/Pasted--TO-JS-readAuthorized-heartRateVariability-restingHeartRate-respiratoryRate-oxygenSatu-1763279688259_1763279688259.txt
+ create mode 100644 attached_assets/Pasted--UIScene-lifecycle-will-soon-be-required-Failure-to-adopt-will-result-in-an-assert-in-the-future--1763277405933_1763277405933.txt
+ create mode 100644 attached_assets/Pasted--UIScene-lifecycle-will-soon-be-required-Failure-to-adopt-will-result-in-an-assert-in-the-future--1763278180350_1763278180351.txt
+ create mode 100644 attached_assets/Pasted--UIScene-lifecycle-will-soon-be-required-Failure-to-adopt-will-result-in-an-assert-in-the-future--1763278974275_1763278974276.txt
+ create mode 100644 "attached_assets/Screenshot 2025-11-16 at 3.17.43\342\200\257pm_1763277481741.png"
+ create mode 100644 "attached_assets/Screenshot 2025-11-16 at 3.32.41\342\200\257pm_1763278387370.png"
+ create mode 100644 attached_assets/image_1763277213789.png
+ create mode 100644 attached_assets/image_1763277650297.png
+ create mode 100644 attached_assets/image_1763277719190.png
+jonathanmarsh@Jonathans-MacBook-Air App % npx cap sync ios
+[error] ios platform has not been added yet.
+        See the docs for adding the ios platform: https://capacitorjs.com/docs/ios#adding-the-ios-platform
+jonathanmarsh@Jonathans-MacBook-Air App % cd ~/Developer/flo
+jonathanmarsh@Jonathans-MacBook-Air flo % 
