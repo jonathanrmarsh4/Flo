@@ -79,6 +79,9 @@ export const diagnosticStatusEnum = pgEnum("diagnostic_status", [
   "failed"
 ]);
 
+// Readiness enums
+export const readinessBucketEnum = pgEnum("readiness_bucket", ["recover", "ok", "ready"]);
+
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
 export const UserStatusEnum = z.enum(["active", "suspended"]);
@@ -137,6 +140,8 @@ export const DiagnosticTypeEnum = z.enum([
 ]);
 export const DiagnosticSourceEnum = z.enum(["uploaded_pdf", "uploaded_pdf_experimental", "manual_entry", "api"]);
 export const DiagnosticStatusEnum = z.enum(["parsed", "needs_review", "failed"]);
+
+export const ReadinessBucketEnum = z.enum(["recover", "ok", "ready"]);
 
 // Health baseline schema (for JSONB validation)
 export const healthBaselineSchema = z.object({
@@ -610,6 +615,64 @@ export const healthkitSamples = pgTable("healthkit_samples", {
   index("idx_healthkit_user_type_date").on(table.userId, table.dataType, table.startDate),
   index("idx_healthkit_user_date").on(table.userId, table.startDate),
   index("idx_healthkit_uuid").on(table.uuid),
+]);
+
+// User Daily Metrics - Normalized HealthKit data aggregated per day
+export const userDailyMetrics = pgTable("user_daily_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  localDate: text("local_date").notNull(), // YYYY-MM-DD in user's local timezone
+  timezone: text("timezone").notNull(), // IANA timezone string (e.g., 'Australia/Perth')
+  utcDayStart: timestamp("utc_day_start").notNull(), // Start of local day in UTC
+  utcDayEnd: timestamp("utc_day_end").notNull(), // End of local day in UTC
+  stepsNormalized: integer("steps_normalized"), // Deduplicated steps (Watch > iPhone priority)
+  stepsRawSum: integer("steps_raw_sum"), // Raw sum before deduplication (for QA)
+  stepsSources: jsonb("steps_sources"), // Source metadata (primary, secondary, ignored)
+  activeEnergyKcal: real("active_energy_kcal"), // Total active energy for the day
+  sleepHours: real("sleep_hours"), // Total sleep hours (night before localDate)
+  restingHrBpm: real("resting_hr_bpm"), // Average resting heart rate
+  hrvMs: real("hrv_ms"), // Average HRV in milliseconds
+  normalizationVersion: text("normalization_version").notNull().default("norm_v1"), // Track algorithm version
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_user_daily_metrics_unique").on(table.userId, table.localDate),
+  index("idx_user_daily_metrics_user_date").on(table.userId, table.localDate),
+]);
+
+// User Metric Baselines - Rolling 30-day statistics per user per metric
+export const userMetricBaselines = pgTable("user_metric_baselines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  metricKey: text("metric_key").notNull(), // 'sleep_hours', 'resting_hr', 'hrv_ms', 'active_energy_kcal'
+  windowDays: integer("window_days").notNull().default(30), // Rolling window size
+  mean: real("mean"), // Average value over window
+  stdDev: real("std_dev"), // Standard deviation
+  numSamples: integer("num_samples").notNull(), // Number of data points used
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_user_metric_baselines_unique").on(table.userId, table.metricKey),
+  index("idx_user_metric_baselines_user").on(table.userId),
+]);
+
+// User Daily Readiness - Computed readiness scores with components
+export const userDailyReadiness = pgTable("user_daily_readiness", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // YYYY-MM-DD
+  readinessScore: real("readiness_score").notNull(), // 0-100
+  readinessBucket: readinessBucketEnum("readiness_bucket").notNull(), // 'recover' | 'ok' | 'ready'
+  sleepScore: real("sleep_score"), // 0-100
+  recoveryScore: real("recovery_score"), // 0-100 (HRV + RHR)
+  loadScore: real("load_score"), // 0-100 (activity load)
+  trendScore: real("trend_score"), // 0-100 (3-day smoothing)
+  isCalibrating: boolean("is_calibrating").notNull().default(false), // True if baselines immature (<14 days)
+  notesJson: jsonb("notes_json"), // Extra explanation data
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_user_daily_readiness_unique").on(table.userId, table.date),
+  index("idx_user_daily_readiness_user_date").on(table.userId, table.date),
 ]);
 
 // Body fat reference ranges for DEXA scans
@@ -1289,6 +1352,35 @@ export const healthkitSampleSchema = z.object({
 
 export type InsertHealthkitSample = z.infer<typeof insertHealthkitSampleSchema>;
 export type HealthkitSample = typeof healthkitSamples.$inferSelect;
+
+// User Daily Metrics schemas
+export const insertUserDailyMetricsSchema = createInsertSchema(userDailyMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUserDailyMetrics = z.infer<typeof insertUserDailyMetricsSchema>;
+export type UserDailyMetrics = typeof userDailyMetrics.$inferSelect;
+
+// User Metric Baselines schemas
+export const insertUserMetricBaselinesSchema = createInsertSchema(userMetricBaselines).omit({
+  id: true,
+  lastCalculatedAt: true,
+});
+
+export type InsertUserMetricBaselines = z.infer<typeof insertUserMetricBaselinesSchema>;
+export type UserMetricBaselines = typeof userMetricBaselines.$inferSelect;
+
+// User Daily Readiness schemas
+export const insertUserDailyReadinessSchema = createInsertSchema(userDailyReadiness).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUserDailyReadiness = z.infer<typeof insertUserDailyReadinessSchema>;
+export type UserDailyReadiness = typeof userDailyReadiness.$inferSelect;
 
 // Mobile auth request schemas
 export const appleSignInSchema = z.object({

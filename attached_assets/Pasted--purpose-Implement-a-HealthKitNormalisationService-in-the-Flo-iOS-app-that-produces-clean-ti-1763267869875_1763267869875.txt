@@ -1,0 +1,206 @@
+{
+  "purpose": "Implement a HealthKitNormalisationService in the Flo iOS app that produces clean, timezone-aware, per-day normalized metrics (steps, sleep, active energy, HRV, resting HR). These normalized daily metrics will be sent to the Flo backend and used by the Readiness Score engine instead of raw HealthKit samples.",
+  "platform": {
+    "language": "Swift",
+    "framework": "iOS (SwiftUI/UIKit is fine, focus on HealthKit)",
+    "healthkit": true
+  },
+  "design_goals": [
+    "All metrics MUST be aggregated in the USER'S LOCAL DAY, not UTC.",
+    "Steps MUST be deduplicated and merged across Apple Watch and iPhone without double counting.",
+    "The service MUST produce a single normalized payload per user per local_date.",
+    "Readiness engine MUST ONLY consume normalized metrics, never raw HealthKit samples."
+  ],
+  "file_and_type_structure": {
+    "primary_file": "HealthKitNormalisationService.swift",
+    "types_to_create": [
+      {
+        "name": "NormalizedDailyMetrics",
+        "kind": "struct",
+        "description": "Clean, normalized metrics for one local calendar day, ready to send to backend.",
+        "fields": {
+          "localDate": "String // 'YYYY-MM-DD' in user's local timezone",
+          "timezoneIdentifier": "String // IANA timezone, e.g. 'Australia/Perth'",
+          "utcDayStart": "Date // start of local day in UTC",
+          "utcDayEnd": "Date // end of local day in UTC",
+          "stepsNormalized": "Int?",
+          "stepsRawSum": "Int?",
+          "stepsSources": "StepsSourcesMetadata?",
+          "activeEnergyKcal": "Double?",
+          "sleepHours": "Double?",
+          "restingHRBpm": "Double?",
+          "hrvMs": "Double?",
+          "normalizationVersion": "String // e.g. 'norm_v1'",
+          "createdAt": "Date"
+        }
+      },
+      {
+        "name": "StepsSourcesMetadata",
+        "kind": "struct",
+        "description": "Information about how steps were derived and from which devices.",
+        "fields": {
+          "primarySource": "String? // 'apple_watch' | 'iphone' | 'other' | null",
+          "secondarySourcesUsed": "[String]",
+          "ignoredSources": "[String]",
+          "suspiciousSteps": "Bool // flagged if extreme outlier vs history (optional for now)",
+          "rawSampleCount": "Int"
+        }
+      },
+      {
+        "name": "HealthKitNormalisationService",
+        "kind": "class",
+        "description": "Central orchestrator for querying HealthKit, normalising raw samples into daily metrics, and providing them to the app/backend.",
+        "properties": {
+          "healthStore": "HKHealthStore",
+          "calendar": "Calendar",
+          "timeZone": "TimeZone"
+        }
+      }
+    ]
+  },
+  "public_api_requirements": {
+    "functions": [
+      {
+        "signature": "func fetchNormalizedMetrics(for localDate: Date, completion: @escaping (Result<NormalizedDailyMetrics, Error>) -> Void)",
+        "behaviour": [
+          "1. Determine user timezone (TimeZone.current OR injected).",
+          "2. Compute localStart and localEnd for the given localDate using the calendar and timezone.",
+          "3. In parallel, query:",
+          "   - Step samples within [localStart, localEnd]",
+          "   - Active energy samples within [localStart, localEnd]",
+          "   - Sleep samples for the relevant 'last night' associated with this local day",
+          "   - Resting HR and HRV samples for this day (or best available aggregate).",
+          "4. Normalise each metric using dedicated helper functions (see below).",
+          "5. Compose a NormalizedDailyMetrics object with localDate string, timezoneIdentifier, utcDayStart/utcDayEnd, and all computed values.",
+          "6. Return via completion(Result.success) or completion(.failure)."
+        ]
+      },
+      {
+        "signature": "func syncLastNDays(n: Int, completion: @escaping (Result<[NormalizedDailyMetrics], Error>) -> Void)",
+        "behaviour": [
+          "1. Starting from today (local timezone), iterate backwards n days.",
+          "2. For each local date, call fetchNormalizedMetrics(for:).",
+          "3. Collect results in chronological order.",
+          "4. Return an array of NormalizedDailyMetrics via completion.",
+          "5. This will be used by the app to push daily summaries to the backend."
+        ]
+      }
+    ]
+  },
+  "steps_normalisation_logic": {
+    "healthkit_type": "HKQuantityTypeIdentifier.stepCount",
+    "high_level_goal": "Produce a single stepsNormalized integer per local day that avoids double counting across Apple Watch, iPhone, and other sources.",
+    "source_priority": [
+      "apple_watch",
+      "iphone",
+      "other"
+    ],
+    "implementation_details": [
+      "1. Query all HKQuantitySample for stepCount where sample.startDate < localEnd AND sample.endDate > localStart.",
+      "2. For each sample, detect its source category:",
+      "   - If sample.device?.model/name indicates Apple Watch → 'apple_watch'.",
+      "   - If sample.device?.model/name indicates iPhone → 'iphone'.",
+      "   - Else → 'other'.",
+      "3. For any sample that crosses local day boundaries, split it into one or more 'virtual' samples that fit inside [localStart, localEnd]. Split the count proportionally by duration.",
+      "4. Partition samples into arrays: watchSamples, phoneSamples, otherSamples.",
+      "5. If watchSamples is non-empty:",
+      "   - Build a 'coverage timeline' of Apple Watch presence (union of watchSamples time intervals).",
+      "   - Sum all watchSamples.count → baseWatchSteps.",
+      "   - For each phone sample:",
+      "       • If its time range overlaps ANY watch coverage, ignore its steps to avoid double counting.",
+      "       • If it lies entirely outside watch coverage (e.g. early morning before watch worn), include its steps.",
+      "   - Ignore otherSamples by default (can be revisited later).",
+      "   - stepsNormalized = baseWatchSteps + phoneStepsOutsideWatchCoverage.",
+      "6. If watchSamples is empty:",
+      "   - stepsNormalized = sum of all phoneSamples (Optionally also include some trusted otherSamples if needed in future).",
+      "7. stepsRawSum = sum of ALL samples from ALL sources (watch + phone + other) BEFORE deduplication, for debugging and QA.",
+      "8. Create StepsSourcesMetadata:",
+      "   - primarySource: 'apple_watch' if watchSamples exist, else 'iphone' if phoneSamples exist, else null/other.",
+      "   - secondarySourcesUsed: ['iphone'] if phoneStepsOutsideWatchCoverage > 0.",
+      "   - ignoredSources: ['other'] if otherSamples exist and are ignored.",
+      "   - rawSampleCount: total number of original HK samples fetched.",
+      "9. (Optional future step) Compare stepsNormalized vs prior 30-day median (if you have it) to set suspiciousSteps = true when it is an extreme outlier."
+    ]
+  },
+  "sleep_normalisation_logic": {
+    "healthkit_type": "HKCategoryTypeIdentifier.sleepAnalysis",
+    "goal": "Compute 'sleepHours' for the night leading into the given localDate (i.e. the sleep that ends on the morning of localDate).",
+    "implementation_details": [
+      "1. For a given localDate, define a 'sleep window' that starts in the evening of localDate - 1 (e.g. 18:00) and ends at localDate + 1 morning (e.g. 12:00).",
+      "2. Convert this window into actual Date objects using the user's timezone.",
+      "3. Query all sleepAnalysis samples that intersect this window.",
+      "4. Filter for categories that represent 'asleep' states (e.g. .asleep, .asleepCore, .asleepDeep, .asleepREM depending on OS version).",
+      "5. For any sample spanning across midnight, split it by local day boundaries when necessary for other uses, but for sleepHours you primarily care about the total asleep duration ending on localDate morning.",
+      "6. Sum durations (in hours) of all qualifying asleep samples that fall into this window.",
+      "7. sleepHours = totalAsleepDurationInSeconds / 3600.0.",
+      "8. If no valid sleep data is found, set sleepHours = nil."
+    ]
+  },
+  "active_energy_normalisation_logic": {
+    "healthkit_type": "HKQuantityTypeIdentifier.activeEnergyBurned",
+    "implementation_details": [
+      "1. Query all active energy samples in [localStart, localEnd] for the given localDate.",
+      "2. Optionally inspect device/source; for now it is acceptable to sum all samples.",
+      "3. Sum all sample quantities in kilocalories (convert if necessary).",
+      "4. activeEnergyKcal = totalRoundedToReasonablePrecision.",
+      "5. If no data, set activeEnergyKcal = nil."
+    ]
+  },
+  "hr_and_hrv_normalisation_logic": {
+    "resting_hr": {
+      "healthkit_type": "HKQuantityTypeIdentifier.restingHeartRate",
+      "implementation_details": [
+        "1. Query resting heart rate samples within [localStart, localEnd].",
+        "2. If multiple samples exist, compute a simple average for the day.",
+        "3. restingHRBpm = averageBPM.",
+        "4. If none, set restingHRBpm = nil."
+      ]
+    },
+    "hrv": {
+      "healthkit_type": "HKQuantityTypeIdentifier.heartRateVariabilitySDNN",
+      "implementation_details": [
+        "1. Query HRV samples within [localStart, localEnd].",
+        "2. If multiple samples exist, compute a simple average in milliseconds.",
+        "3. hrvMs = averageMs.",
+        "4. If none, set hrvMs = nil."
+      ]
+    }
+  },
+  "timezone_handling": {
+    "rules": [
+      "Use Calendar and TimeZone explicitly; do NOT rely on implicit system defaults without passing timezone where required.",
+      "For a given Date representing localDate (e.g. noon on that day), compute localStart = calendar.startOfDay(for: localDate) in the chosen timezone.",
+      "localEnd = calendar.date(byAdding: .day, value: 1, to: localStart).",
+      "Convert localStart/localEnd to UTC to populate utcDayStart and utcDayEnd on NormalizedDailyMetrics.",
+      "All HealthKit queries for daily aggregates MUST use localStart/localEnd as their predicate bounds."
+    ]
+  },
+  "integration_with_backend_and_readiness": {
+    "requirements": [
+      "The iOS app will call syncLastNDays(n:) (e.g. n=7 or 30) on foreground launch and periodically in background where possible.",
+      "For each NormalizedDailyMetrics produced, post a JSON payload to the Flo backend ingestion endpoint, matching the backend schema:",
+      "  - user_id (from auth/session)",
+      "  - local_date (NormalizedDailyMetrics.localDate)",
+      "  - timezone (NormalizedDailyMetrics.timezoneIdentifier)",
+      "  - utc_day_start, utc_day_end",
+      "  - steps_normalized, steps_raw_sum, steps_sources_json",
+      "  - active_energy_kcal, sleep_hours, resting_hr_bpm, hrv_ms",
+      "  - normalization_version",
+      "The backend then stores these in user_daily_metrics and the Readiness engine uses them as inputs.",
+      "Readiness computation DOES NOT see raw HealthKit samples; only these normalized daily fields."
+    ]
+  },
+  "quality_and_testing": {
+    "unit_tests": [
+      "Test steps normalization with overlapping Apple Watch + iPhone samples (ensure no double counting).",
+      "Test behavior when only iPhone steps exist (no watch).",
+      "Test splitting of samples that cross midnight in the user's timezone.",
+      "Test sleepHours calculation for typical '23:00–07:00' sleep and naps.",
+      "Test timezone changes by simulating users in different IANA zones."
+    ],
+    "debugging": [
+      "Log sample counts and stepsRawSum vs stepsNormalized in debug builds.",
+      "Expose a debug view (if easy) that shows raw vs normalized for a given day."
+    ]
+  }
+}
