@@ -9,6 +9,12 @@ public struct NormalizedDailyMetrics: Codable {
     /// User's timezone identifier (e.g., "America/Los_Angeles")
     let timezone: String
     
+    /// UTC timestamp for start of local day (00:00 in user's timezone)
+    let utcDayStart: String
+    
+    /// UTC timestamp for end of local day (23:59:59 in user's timezone)
+    let utcDayEnd: String
+    
     // MARK: - Daily Readiness Metrics
     
     /// Total sleep duration in hours (sleep ending on this morning)
@@ -94,6 +100,8 @@ public struct NormalizedDailyMetrics: Codable {
     enum CodingKeys: String, CodingKey {
         case localDate = "local_date"
         case timezone
+        case utcDayStart = "utc_day_start"
+        case utcDayEnd = "utc_day_end"
         case sleepHours = "sleep_hours"
         case restingHrBpm = "resting_hr_bpm"
         case hrvMs = "hrv_ms"

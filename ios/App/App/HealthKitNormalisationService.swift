@@ -79,11 +79,20 @@ public class HealthKitNormalisationService {
     
     // MARK: - Normalize Single Day
     
+    /// Convert Date to ISO8601 UTC string for backend
+    private func toISO8601UTC(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
+    }
+    
     /// Normalize all metrics for a single day
     private func normalizeDayMetrics(dayStart: Date, dayEnd: Date, localDate: String, completion: @escaping (NormalizedDailyMetrics?) -> Void) {
         var metrics = NormalizedDailyMetrics(
             localDate: localDate,
             timezone: userTimezone.identifier,
+            utcDayStart: toISO8601UTC(dayStart),
+            utcDayEnd: toISO8601UTC(dayEnd),
             sleepHours: nil,
             restingHrBpm: nil,
             hrvMs: nil,
@@ -116,6 +125,8 @@ public class HealthKitNormalisationService {
             metrics = NormalizedDailyMetrics(
                 localDate: metrics.localDate,
                 timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
                 sleepHours: sleepHours,
                 restingHrBpm: metrics.restingHrBpm,
                 hrvMs: metrics.hrvMs,
@@ -148,6 +159,8 @@ public class HealthKitNormalisationService {
             metrics = NormalizedDailyMetrics(
                 localDate: metrics.localDate,
                 timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
                 sleepHours: metrics.sleepHours,
                 restingHrBpm: metrics.restingHrBpm,
                 hrvMs: hrv,
@@ -180,6 +193,8 @@ public class HealthKitNormalisationService {
             metrics = NormalizedDailyMetrics(
                 localDate: metrics.localDate,
                 timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
                 sleepHours: metrics.sleepHours,
                 restingHrBpm: rhr,
                 hrvMs: metrics.hrvMs,
@@ -212,6 +227,8 @@ public class HealthKitNormalisationService {
             metrics = NormalizedDailyMetrics(
                 localDate: metrics.localDate,
                 timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
                 sleepHours: metrics.sleepHours,
                 restingHrBpm: metrics.restingHrBpm,
                 hrvMs: metrics.hrvMs,
@@ -244,6 +261,8 @@ public class HealthKitNormalisationService {
             metrics = NormalizedDailyMetrics(
                 localDate: metrics.localDate,
                 timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
                 sleepHours: metrics.sleepHours,
                 restingHrBpm: metrics.restingHrBpm,
                 hrvMs: metrics.hrvMs,
@@ -537,8 +556,15 @@ public class HealthKitNormalisationService {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         do {
-            let jsonData = try JSONEncoder().encode(metrics)
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let jsonData = try encoder.encode(metrics)
             request.httpBody = jsonData
+            
+            // Debug: Print what we're sending
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                print("[Normalisation] Sending payload for \(metrics.localDate): \(jsonString.prefix(200))...")
+            }
             
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
