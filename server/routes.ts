@@ -26,6 +26,7 @@ import {
   healthkitSamples,
   userDailyMetrics,
   insertUserDailyMetricsSchema,
+  userDailyReadiness,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -41,6 +42,8 @@ import { extractCalciumScoreExperimental } from "./services/calciumScoreExtracto
 import { extractDexaScan } from "./services/dexaScanExtractor";
 import { extractDexaScanExperimental } from "./services/dexaScanExtractorExperimental";
 import { normalizeMeasurement } from "@shared/domain/biomarkers";
+import { computeDailyReadiness } from "./services/readinessEngine";
+import { updateAllBaselines } from "./services/baselineCalculator";
 import { 
   calculatePhenoAge, 
   calculatePhenoAgeAccel, 
@@ -2576,6 +2579,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error: any) {
       logger.error("[HealthKit] Daily metrics ingestion error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Readiness Score Routes
+  // Get today's readiness score (compute if needed)
+  app.get("/api/readiness/today", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Check if already computed
+      const existing = await db
+        .select()
+        .from(userDailyReadiness)
+        .where(
+          and(
+            eq(userDailyReadiness.userId, userId),
+            eq(userDailyReadiness.date, today)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Return cached readiness
+        logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
+        return res.json(existing[0]);
+      }
+
+      // Update baselines first (ensure they're fresh)
+      await updateAllBaselines(userId);
+
+      // Compute readiness
+      const readiness = await computeDailyReadiness(userId, today);
+
+      if (!readiness) {
+        return res.status(404).json({ 
+          error: "No data available to compute readiness",
+          message: "Please ensure you have synced HealthKit data for today."
+        });
+      }
+
+      // Store the computed readiness
+      await db.insert(userDailyReadiness).values({
+        userId: readiness.userId,
+        date: readiness.date,
+        readinessScore: readiness.readinessScore,
+        readinessBucket: readiness.readinessBucket,
+        sleepScore: readiness.sleepScore,
+        recoveryScore: readiness.recoveryScore,
+        loadScore: readiness.loadScore,
+        trendScore: readiness.trendScore,
+        isCalibrating: readiness.isCalibrating,
+        notesJson: readiness.explanations,
+      });
+
+      logger.info(`[Readiness] Computed and stored readiness for user ${userId}, ${today}: ${readiness.readinessScore}`);
+
+      res.json(readiness);
+    } catch (error: any) {
+      logger.error("[Readiness] Error getting today's readiness:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get historical readiness scores
+  app.get("/api/readiness/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { days = 30 } = req.query;
+      const daysNum = Math.min(parseInt(days as string) || 30, 90);
+
+      const history = await db
+        .select()
+        .from(userDailyReadiness)
+        .where(eq(userDailyReadiness.userId, userId))
+        .orderBy(desc(userDailyReadiness.date))
+        .limit(daysNum);
+
+      res.json({ history });
+    } catch (error: any) {
+      logger.error("[Readiness] Error getting history:", error);
       return res.status(500).json({ error: error.message });
     }
   });
