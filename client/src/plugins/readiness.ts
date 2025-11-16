@@ -21,8 +21,8 @@ const Readiness = registerPlugin<ReadinessPlugin>('HealthSyncPlugin', {
 // Wrapper to automatically include auth token
 async function syncWithAuth(days: number) {
   try {
-    // Get JWT token from secure storage
-    const { value: token } = await SecureStoragePlugin.get({ key: 'authToken' });
+    // Get JWT token from secure storage (same key as queryClient uses)
+    const { value: token } = await SecureStoragePlugin.get({ key: 'auth_token' });
     
     // Pass token to Swift plugin
     return await Readiness.syncReadinessData({ days, token });
