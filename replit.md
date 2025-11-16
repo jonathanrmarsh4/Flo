@@ -28,12 +28,14 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 - **Mobile Authentication:** Uses `MobileAuth.tsx` with Apple Sign-In and Email/Password, `react-hook-form` validation, and a glassmorphism design.
 - **iOS WKWebView Optimization:** A multi-layer fix for rubber band overscroll bounce, ensuring a consistent background.
 - **DEXA Scan Display:** Integrates into the Diagnostics page, displaying bone density T-scores, WHO classification, body fat percentage with sex-specific categorization, and visceral adipose tissue (VAT) area.
-- **HealthKit Integration:** Native iOS integration with Swift plugin directly embedded in the iOS app (not npm package), supporting 26 health data types across four categories:
+- **HealthKit Integration:** Native iOS integration with automatic background syncing, supporting 26 health data types across four categories:
   - Daily Readiness (6): HRV, resting heart rate, respiratory rate, oxygen saturation, sleep analysis, body temperature
   - Body Composition (6): weight, height, BMI, body fat %, lean body mass, waist circumference
   - Cardiometabolic (7): heart rate variants, blood pressure, blood glucose, VO2 max
   - Activity (7): steps, distance, calories, flights climbed, exercise time, stand time
-  - **Swift Implementation:** Three files in `ios/App/App/`: Health.swift (core manager with 26 data types), HealthPlugin.swift (Capacitor plugin wrapper), BackgroundSyncManager.swift (background sync with UserDefaults queue)
+  - **Automatic Sync:** Seamless user experience - data syncs automatically after permissions granted and on every app launch (no manual buttons)
+  - **Swift Implementation:** Four files in `ios/App/App/`: Health.swift (core manager), HealthPlugin.swift (npm package plugin), HealthKitNormalisationService.swift (data normalization), ReadinessPlugin.swift (auto-sync Capacitor plugin)
+  - **TypeScript Integration:** ReadinessPlugin wrapper (`client/src/plugins/readiness.ts`), auto-sync hook (`client/src/hooks/useHealthKitAutoSync.ts`) triggers sync on app launch
   - **Backend API:** POST /api/healthkit/samples (batch upload with duplicate detection), GET /api/healthkit/samples (retrieve with optional dataType filter)
   - **Database:** `healthkit_samples` table with UUID-based deduplication, indexed for efficient queries by userId, dataType, and startDate
   - **Frontend:** TypeScript service layer (`client/src/services/healthkit.ts`), type definitions (`client/src/types/healthkit.ts`), permissions UI at `/healthkit`
