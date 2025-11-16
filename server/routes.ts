@@ -2,6 +2,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
@@ -9,6 +10,7 @@ import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
 import { logger } from "./logger";
+import { eq, desc } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -21,6 +23,7 @@ import {
   getBiomarkersQuerySchema,
   getBiomarkerUnitsQuerySchema,
   getBiomarkerReferenceRangeQuerySchema,
+  healthkitSamples,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -2412,6 +2415,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       return res.status(400).json({ error: error.message });
+    }
+  });
+
+  // HealthKit Integration Routes
+  // Batch upload HealthKit samples from iOS app
+  app.post("/api/healthkit/samples", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { samples } = req.body;
+
+      if (!samples || !Array.isArray(samples)) {
+        return res.status(400).json({ error: "Samples array required" });
+      }
+
+      if (samples.length === 0) {
+        return res.json({ inserted: 0, duplicates: 0 });
+      }
+
+      logger.info(`[HealthKit] Batch upload: ${samples.length} samples from user ${userId}`);
+
+      let inserted = 0;
+      let duplicates = 0;
+
+      for (const sample of samples) {
+        try {
+          const insertData = {
+            userId,
+            dataType: sample.dataType,
+            value: sample.value,
+            unit: sample.unit,
+            startDate: new Date(sample.startDate),
+            endDate: new Date(sample.endDate),
+            sourceName: sample.sourceName || null,
+            sourceBundleId: sample.sourceBundleId || null,
+            deviceName: sample.deviceName || null,
+            deviceManufacturer: sample.deviceManufacturer || null,
+            deviceModel: sample.deviceModel || null,
+            metadata: sample.metadata || null,
+            uuid: sample.uuid || null,
+          };
+
+          await db.insert(healthkitSamples).values(insertData);
+          inserted++;
+        } catch (error: any) {
+          if (error.code === '23505') {
+            duplicates++;
+            logger.debug(`[HealthKit] Duplicate sample UUID: ${sample.uuid}`);
+          } else {
+            logger.error(`[HealthKit] Failed to insert sample:`, error);
+            throw error;
+          }
+        }
+      }
+
+      logger.info(`[HealthKit] Batch upload complete: ${inserted} inserted, ${duplicates} duplicates`);
+
+      res.json({ 
+        inserted,
+        duplicates,
+        total: samples.length
+      });
+    } catch (error: any) {
+      logger.error("[HealthKit] Batch upload error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get latest HealthKit samples for a user (optional: filtered by dataType)
+  app.get("/api/healthkit/samples", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { dataType, limit = 100 } = req.query;
+
+      let query = db
+        .select()
+        .from(healthkitSamples)
+        .where(eq(healthkitSamples.userId, userId))
+        .orderBy(desc(healthkitSamples.startDate))
+        .limit(Math.min(parseInt(limit as string) || 100, 1000));
+
+      if (dataType) {
+        query = query.where(eq(healthkitSamples.dataType, dataType as string)) as any;
+      }
+
+      const samples = await query;
+
+      res.json({ samples });
+    } catch (error: any) {
+      logger.error("[HealthKit] Get samples error:", error);
+      return res.status(500).json({ error: error.message });
     }
   });
 
