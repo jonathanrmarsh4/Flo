@@ -59,8 +59,10 @@ export default function HealthKitPage() {
       
       // Automatically sync readiness data after successful permission grant
       try {
+        console.log('🎯 [HealthKit] Permissions granted! Starting automatic sync...');
         logger.info('Starting automatic readiness data sync...');
         const syncResult = await Readiness.syncReadinessData({ days: 7 });
+        console.log('🎯 [HealthKit] Sync completed:', syncResult);
         logger.info('Automatic readiness sync completed', syncResult);
         
         toast({

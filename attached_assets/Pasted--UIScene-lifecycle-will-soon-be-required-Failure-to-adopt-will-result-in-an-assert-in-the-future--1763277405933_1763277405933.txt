@@ -1,0 +1,36 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/1361AAAC-995B-4BEE-8DFF-5EC56623FD93/App.app'
+⚡️  Loading app at capacitor://localhost...
+Networking process (0x114054190) took 5.135249 seconds to launch
+0x1140fc100 - [PID=39518] WebProcessProxy::didBecomeUnresponsive:
+0x1093a1c18 - [pageProxyID=7, webPageID=8, PID=39518] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[39518] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 96222409
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  To Native ->  SecureStoragePlugin get 96222410
+⚡️  [error] - [ERROR] Error checking HealthKit availability {"error":{"message":"\"Health\" plugin is not implemented on ios","stack":"vh@capacitor://localhost/assets/index-e-IaUy6f.js:48:46533\np@capacitor://localhost/assets/index-e-IaUy6f.js:48:47732\n@capacitor://localhost/assets/index-e-IaUy6f.js:48:47855"}}
+⚡️  To Native ->  SecureStoragePlugin get 96222411
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  To Native ->  SecureStoragePlugin get 96222412
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"and is not defined\"}"}
+<0x1091fa440> Gesture: System gesture gate timed out.
+<0x1091fa580> Touch: System gesture gate timed out.
+⚡️  To Native ->  SecureStoragePlugin get 96222413
+⚡️  To Native ->  SecureStoragePlugin get 96222414
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  To Native ->  SecureStoragePlugin get 96222415
+⚡️  To Native ->  SecureStoragePlugin get 96222416
+⚡️  To Native ->  SecureStoragePlugin get 96222417
+⚡️  To Native ->  SecureStoragePlugin get 96222418
+⚡️  To Native ->  SecureStoragePlugin get 96222419
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  To Native ->  SecureStoragePlugin get 96222420
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS

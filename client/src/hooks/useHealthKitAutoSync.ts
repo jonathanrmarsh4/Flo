@@ -24,10 +24,12 @@ export function useHealthKitAutoSync() {
 
     const syncHealthData = async () => {
       try {
+        console.log('🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...');
         logger.info('App launched - triggering automatic HealthKit background sync...');
         
         // Trigger background sync (non-blocking)
         const syncResult = await Readiness.syncReadinessData({ days: 7 });
+        console.log('🚀 [AutoSync] Sync result:', syncResult);
         
         if (syncResult.success) {
           logger.info('Background HealthKit sync completed successfully on app launch', {
