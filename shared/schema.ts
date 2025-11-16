@@ -589,6 +589,29 @@ export const bloodPressureReadings = pgTable("blood_pressure_readings", {
   index("idx_blood_pressure_user_date").on(table.userId, table.measuredAt),
 ]);
 
+// HealthKit samples - stores all 26 data types from iOS HealthKit
+export const healthkitSamples = pgTable("healthkit_samples", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  dataType: text("data_type").notNull(), // steps, heartRate, weight, etc. (26 types)
+  value: real("value").notNull(), // Numeric value or category value
+  unit: text("unit").notNull(), // count, bpm, kg, etc.
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  sourceName: text("source_name"), // App/device that recorded the data
+  sourceBundleId: text("source_bundle_id"), // Bundle identifier of source app
+  deviceName: text("device_name"), // Device name (e.g., "Apple Watch")
+  deviceManufacturer: text("device_manufacturer"), // Device manufacturer
+  deviceModel: text("device_model"), // Device model
+  metadata: jsonb("metadata"), // Additional metadata from HealthKit
+  uuid: text("uuid").unique(), // HealthKit sample UUID (for deduplication)
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_healthkit_user_type_date").on(table.userId, table.dataType, table.startDate),
+  index("idx_healthkit_user_date").on(table.userId, table.startDate),
+  index("idx_healthkit_uuid").on(table.uuid),
+]);
+
 // Body fat reference ranges for DEXA scans
 export const bodyFatReferenceRanges = pgTable("body_fat_reference_ranges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1239,6 +1262,33 @@ export const bloodPressureReadingSchema = z.object({
 
 export type InsertBloodPressureReading = z.infer<typeof insertBloodPressureReadingSchema>;
 export type BloodPressureReading = typeof bloodPressureReadings.$inferSelect;
+
+// HealthKit Sample schemas
+export const insertHealthkitSampleSchema = createInsertSchema(healthkitSamples).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const healthkitSampleSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  dataType: z.string(),
+  value: z.number(),
+  unit: z.string(),
+  startDate: z.date(),
+  endDate: z.date(),
+  sourceName: z.string().nullable(),
+  sourceBundleId: z.string().nullable(),
+  deviceName: z.string().nullable(),
+  deviceManufacturer: z.string().nullable(),
+  deviceModel: z.string().nullable(),
+  metadata: z.record(z.unknown()).nullable(),
+  uuid: z.string().nullable(),
+  createdAt: z.date(),
+});
+
+export type InsertHealthkitSample = z.infer<typeof insertHealthkitSampleSchema>;
+export type HealthkitSample = typeof healthkitSamples.$inferSelect;
 
 // Mobile auth request schemas
 export const appleSignInSchema = z.object({
