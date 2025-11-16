@@ -54,12 +54,44 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 - **DEXA Scan Extraction:** AI-powered extraction from PDFs using GPT-4o or OCR + GPT-5 for experimental mode, with intelligent fallback and schema validation. Includes body fat categorization based on reference ranges.
 - **Admin Endpoints:** Cached endpoints for various statistics and audit logs.
 - **Mobile Authentication Endpoints:** 7 REST endpoints for various authentication flows (Apple Sign-In, Google Sign-In, Email/Password, password reset, account linking). Includes robust error handling with try-catch wrappers for external API calls (Google/Apple tokeninfo endpoints) to handle network failures gracefully.
-- **Dashboard Scoring System:** Calculates health scores across Cardiometabolic, Body Composition, Inflammation, and Daily Readiness (planned) areas, using biomarker aliases and latest values. The Flō Score is a weighted average.
+- **Dashboard Scoring System:** Calculates health scores across Cardiometabolic, Body Composition, Inflammation, and Daily Readiness areas, using biomarker aliases and latest values. The Flō Score is a weighted average.
 - **Biological Age Endpoint:** Selects the blood work session with the most required PhenoAge biomarkers to calculate biological age.
+- **HealthKit Readiness System:** Complete AI-powered daily readiness scoring system integrating iOS normalization, backend baseline calculation, and personalized readiness algorithm:
+  - **Philosophy:** "Normalize first, analyze later" - iOS cleans and aggregates raw HealthKit data into daily metrics before backend analysis
+  - **Database Schema:** 3 tables - `user_daily_metrics` (normalized daily health data), `user_metric_baselines` (30-day rolling mean/std), `user_daily_readiness` (computed readiness scores with explanations)
+  - **iOS Normalization Layer:**
+    - **Data Models:** `NormalizedDailyMetrics.swift` (26 health metrics), `StepsSourcesMetadata.swift` (deduplication transparency)
+    - **HealthKitNormalisationService.swift:** Timezone-aware day bucketing, sleep aggregation (18:00 yesterday → 12:00 today "night before" approach), HRV/RHR during sleep window, active energy full-day sum
+    - **Steps Normalization:** Apple Watch > iPhone > Other apps priority, overlap detection, gap-filling with lower-priority sources
+    - **Batch Upload:** `syncLastNDays(days: 7)` function uploads normalized metrics via POST /api/healthkit/daily-metrics
+  - **Backend Baseline Calculator:** (`server/services/baselineCalculator.ts`)
+    - Calculates rolling 30-day mean/std for sleep_hours, resting_hr, hrv_ms, active_energy_kcal per user
+    - Personalization: scores based on user's own baseline, not population norms
+    - Calibration mode: when <14 samples available
+    - Scheduled updater: daily recalculation at 3:00 AM via `baselineScheduler.ts`
+  - **Readiness Engine:** (`server/services/readinessEngine.ts`)
+    - **Sleep Score (35%):** Deviation from personal baseline, penalizes <5hr sleep
+    - **Recovery Score (35%):** Combined HRV (60%) + RHR (40%), higher HRV = better recovery
+    - **Load Score (20%):** Yesterday's active energy vs. baseline, high load = lower readiness
+    - **Trend Score (10%):** 3-day smoothing to reduce day-to-day noise
+    - **Dynamic Weight Normalization:** Automatically renormalizes weights when components missing
+    - **Calibration Mode:** Narrower score range (50-90) until 14+ days of data
+    - **Bucket Classification:** recover (<60), ok (60-79), ready (80+)
+    - **Explanations:** Human-readable summaries for each component and overall status
+  - **API Endpoints:**
+    - POST /api/healthkit/daily-metrics (iOS ingestion with upsert logic)
+    - GET /api/readiness/today (compute if needed, with caching)
+    - GET /api/readiness/history (up to 90 days)
+  - **Dashboard Integration:** `ReadinessTile` component displays readiness score, bucket status, component breakdowns (sleep, recovery, load, trend), calibration indicator, circular progress visualization
+  - **Key Design Decisions:**
+    - Timezone respect: day boundaries in user's local time, not UTC
+    - Sleep logic: "Night before" approach (sleep ending on morning of localDate)
+    - Steps deduplication: priority-based with transparency metadata
+    - Personalized scoring: baseline adapts to each user's physiology
 - **Error Handling:** All production code uses structured error logging with proper error context, replacing raw console statements for production safety and better debugging.
 
 ### Data Storage
-The project uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, sessions, comprehensive profiles (demographics, health baseline, goals, AI personalization), blood work records, AI analysis results (JSONB), diagnostic studies (calcium scores, DEXA scans), body fat reference ranges, billing customers, subscriptions, payments, audit logs, and authentication credentials.
+The project uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, sessions, comprehensive profiles (demographics, health baseline, goals, AI personalization), blood work records, AI analysis results (JSONB), diagnostic studies (calcium scores, DEXA scans), body fat reference ranges, HealthKit samples, HealthKit daily metrics (normalized), HealthKit metric baselines (30-day rolling stats), daily readiness scores, billing customers, subscriptions, payments, audit logs, and authentication credentials.
 
 ### Admin User Management
 Implements comprehensive Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, and `active`, `suspended` statuses. The admin dashboard (`/admin-dashboard` or `/admin`) provides:
