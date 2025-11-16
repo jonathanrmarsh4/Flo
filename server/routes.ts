@@ -2601,6 +2601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Map userDailyMetrics fields to Flōmentum metrics
           // Note: userDailyMetrics has limited fields, so some will be null
+          // IMPORTANT: Use stepsRawSum for actual step count, not stepsNormalized (which is 0-1 score)
           const flomentumMetrics: any = {
             sleepTotalMinutes: metrics.sleepHours ? metrics.sleepHours * 60 : null,
             hrvSdnnMs: metrics.hrvMs ?? null,
@@ -2608,7 +2609,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             respiratoryRate: null, // Not available in userDailyMetrics
             bodyTempDeviationC: null, // Not available in userDailyMetrics
             oxygenSaturationAvg: null, // Not available in userDailyMetrics
-            steps: metrics.stepsNormalized ?? null,
+            steps: metrics.stepsRawSum ?? metrics.stepsNormalized ?? null, // Use raw sum, fallback to normalized
             activeKcal: metrics.activeEnergyKcal ?? null,
             exerciseMinutes: null, // Not available in userDailyMetrics
             standHours: null, // Not available in userDailyMetrics
