@@ -2488,18 +2488,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { dataType, limit = 100 } = req.query;
 
-      let query = db
-        .select()
-        .from(healthkitSamples)
-        .where(eq(healthkitSamples.userId, userId))
-        .orderBy(desc(healthkitSamples.startDate))
-        .limit(Math.min(parseInt(limit as string) || 100, 1000));
-
+      const { and } = await import("drizzle-orm");
+      
+      const conditions = [eq(healthkitSamples.userId, userId)];
       if (dataType) {
-        query = query.where(eq(healthkitSamples.dataType, dataType as string)) as any;
+        conditions.push(eq(healthkitSamples.dataType, dataType as string));
       }
 
-      const samples = await query;
+      const samples = await db
+        .select()
+        .from(healthkitSamples)
+        .where(and(...conditions))
+        .orderBy(desc(healthkitSamples.startDate))
+        .limit(Math.min(parseInt(limit as string) || 100, 1000));
 
       res.json({ samples });
     } catch (error: any) {
