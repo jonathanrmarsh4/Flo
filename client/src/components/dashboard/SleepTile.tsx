@@ -36,6 +36,7 @@ const DEFAULT_DATA = {
 export function SleepTile({ data = DEFAULT_DATA }: SleepTileProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  // Styled to match Flō Overview tile
 
   const getScoreColors = () => {
     if (data.nightflo_score >= 80) {
