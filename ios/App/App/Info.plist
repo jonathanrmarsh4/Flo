@@ -51,5 +51,9 @@
         <string>Flō needs access to your photo library to select blood work results and health documents for analysis.</string>
         <key>NSPhotoLibraryAddUsageDescription</key>
         <string>Flō would like to save health documents to your photo library.</string>
+        <key>NSHealthShareUsageDescription</key>
+        <string>Flō needs access to your health data to provide personalized insights and track your wellness metrics alongside your blood work results.</string>
+        <key>NSHealthUpdateUsageDescription</key>
+        <string>Flō would like to save health metrics and wellness data to your Apple Health app.</string>
 </dict>
 </plist>
