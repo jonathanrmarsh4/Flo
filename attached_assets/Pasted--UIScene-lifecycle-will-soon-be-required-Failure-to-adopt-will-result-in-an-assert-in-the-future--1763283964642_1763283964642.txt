@@ -1,0 +1,81 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/72D3B44C-7FA7-4761-966F-DA23B018C8B7/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+Networking process (0x113058190) took 4.530649 seconds to launch
+GPU process (0x1131141e0) took 1.450963 seconds to launch
+WebContent process (0x1130ec100) took 1.464347 seconds to launch
+0x1130ec100 - [PID=39959] WebProcessProxy::didBecomeUnresponsive:
+0x1077c1c18 - [pageProxyID=7, webPageID=8, PID=39959] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[39959] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 109961404
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+⚡️  To Native ->  SecureStoragePlugin get 109961405
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 109961406
+🔄 [HealthSyncPlugin] Starting automatic readiness data sync for last 7 days...
+🔑 [HealthSyncPlugin] Auth token received and stored
+[Normalisation] Syncing last 7 days: 2025-11-09 09:05:38 +0000 to 2025-11-16 09:05:38 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-09: {"timezone":"Australia\/Perth","utc_day_start":"2025-11-08T16:00:00.000Z","utc_day_end":"2025-11-09T16:00:00.000Z","local_date":"2025-11-09"}...
+[Normalisation] Sending payload for 2025-11-10: {"utc_day_end":"2025-11-10T16:00:00.000Z","local_date":"2025-11-10","timezone":"Australia\/Perth","utc_day_start":"2025-11-09T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-12: {"timezone":"Australia\/Perth","utc_day_start":"2025-11-11T16:00:00.000Z","utc_day_end":"2025-11-12T16:00:00.000Z","local_date":"2025-11-12"}...
+[Normalisation] Sending payload for 2025-11-13: {"utc_day_end":"2025-11-13T16:00:00.000Z","local_date":"2025-11-13","timezone":"Australia\/Perth","utc_day_start":"2025-11-12T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-11: {"timezone":"Australia\/Perth","utc_day_start":"2025-11-10T16:00:00.000Z","utc_day_end":"2025-11-11T16:00:00.000Z","local_date":"2025-11-11"}...
+[Normalisation] Sending payload for 2025-11-14: {"utc_day_end":"2025-11-14T16:00:00.000Z","local_date":"2025-11-14","timezone":"Australia\/Perth","utc_day_start":"2025-11-13T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-15: {"timezone":"Australia\/Perth","utc_day_start":"2025-11-14T16:00:00.000Z","utc_day_end":"2025-11-15T16:00:00.000Z","local_date":"2025-11-15"}...
+[Normalisation] Sending payload for 2025-11-16: {"utc_day_end":"2025-11-16T16:00:00.000Z","local_date":"2025-11-16","timezone":"Australia\/Perth","utc_day_start":"2025-11-15T16:00:00.000Z"}...
+⚡️  To Native ->  Health isAvailable 109961407
+⚡️  To Native ->  SecureStoragePlugin get 109961408
+⚡️  To Native ->  SecureStoragePlugin get 109961409
+⚡️  TO JS {"available":true,"platform":"ios"}
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  To Native ->  Health requestAuthorization 109961410
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+⚡️  To Native ->  SecureStoragePlugin get 109961411
+(501) Invalidation handler invoked, clearing connection
+(501) personaAttributesForPersonaType for type:0 failed with error Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated from this process." UserInfo={NSDebugDescription=The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated from this process.}
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5MDA4Y2MxYi0xOTlkLTQxMWEtODAzNi0zYTM2NDgwY2ZlMzIiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI4MzM3NywiZXhwIjoxNzYzODg4MTc3fQ.MZykb2KKUHAwRy
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+[0x1076d3840:UISceneHosting-com.flo.healthapp:UIHostedScene-com.apple.HealthPrivacyService-2414EADB-28EC-461E-B6CD-E65F1C096D73] Send action timed out.
+[0x1076d3840:UISceneHosting-com.flo.healthapp:UIHostedScene-com.apple.HealthPrivacyService-2414EADB-28EC-461E-B6CD-E65F1C096D73] Send action timed out.
+⚡️  [error] - [ERROR] API request failed {"status":400,"response":"{\"error\":\"No biomarker data found. Please add test results to calculate biological age.\",\"missingData\":\"biomarkers\"}"}
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-09
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No data available to compute readiness\",\"message\":\"Please ensure you have synced HealthKit data for today.\"}"}
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-15
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-16
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-10
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-13
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-14
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-12
+[Normalisation] Response body: {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+[Normalisation] Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""} for 2025-11-11
+[Normalisation] Upload completed with 8 errors
+❌ [HealthSyncPlugin] Sync failed: Upload failed with status 400 - {"error":"Invalid daily metrics data","details":"Validation error: Required at \"localDate\"; Required at \"utcDayStart\"; Required at \"utcDayEnd\""}
+ERROR MESSAGE:  {"message":"Readiness sync failed: Upload failed with status 400 - {\"error\":\"Invalid daily metrics data\",\"details\":\"Validation error: Required at \\\"localDate\\\"; Required at \\\"utcDayStart\\\"; Required at \\\"utcDayEnd\\\"\"}","errorMessage":"Readiness sync failed: Upload failed with status 400 - {\"error\":\"Invalid daily metrics data\",\"details\":\"Validation error: Required at \\\"localDate\\\"; Required at \\\"utcDayStart\\\"; Required at \\\"utcDayEnd\\\"\"}"}
+⚡️  [error] - {"message":"Readiness sync failed: Upload failed with status 400 - {\"error\":\"Invalid daily metrics data\",\"details\":\"Validation error: Required at \\\"localDate\\\"; Required at \\\"utcDayStart\\\"; Required at \\\"utcDayEnd\\\"\"}","errorMessage":"Readiness sync failed: Upload failed with status 400 - {\"error\":\"Invalid daily metrics data\",\"details\":\"Validation error: Required at \\\"localDate\\\"; Required at \\\"utcDayStart\\\"; Required at \\\"utcDayEnd\\\"\"}"}
+⚡️  [error] - [Readiness] Failed to get auth token: {"errorMessage":"Readiness sync failed: Upload failed with status 400 - {\"error\":\"Invalid daily metrics data\",\"details\":\"Validation error: Required at \\\"localDate\\\"; Required at \\\"utcDayStart\\\"; Required at \\\"utcDayEnd\\\"\"}"}
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 109961412
+🔄 [HealthSyncPlugin] Starting automatic readiness data sync for last 7 days...
+[Normalisation] Syncing last 7 days: 2025-11-09 09:05:50 +0000 to 2025-11-16 09:05:50 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+❌ [HealthSyncPlugin] Sync failed: No authentication token found
+ERROR MESSAGE:  {"message":"Readiness sync failed: No authentication token found","errorMessage":"Readiness sync failed: No authentication token found"}
+⚡️  [error] - {"message":"Readiness sync failed: No authentication token found","errorMessage":"Readiness sync failed: No authentication token found"}
+⚡️  TO JS {"writeDenied":[],"readDenied":[],"readAuthorized":["heartRateVariability","restingHeartRate","respiratoryRate","oxygenSaturation","sleepAnalysis","bodyTemperature","weight","height","bmi","bodyFatPercentage","leanBodyMass","waistCircumference","heartRate"

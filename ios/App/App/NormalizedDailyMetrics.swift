@@ -98,31 +98,31 @@ public struct NormalizedDailyMetrics: Codable {
     let notes: String?
     
     enum CodingKeys: String, CodingKey {
-        case localDate = "local_date"
+        case localDate
         case timezone
-        case utcDayStart = "utc_day_start"
-        case utcDayEnd = "utc_day_end"
-        case sleepHours = "sleep_hours"
-        case restingHrBpm = "resting_hr_bpm"
-        case hrvMs = "hrv_ms"
-        case activeEnergyKcal = "active_energy_kcal"
-        case weightKg = "weight_kg"
-        case heightCm = "height_cm"
+        case utcDayStart
+        case utcDayEnd
+        case sleepHours
+        case restingHrBpm
+        case hrvMs
+        case activeEnergyKcal
+        case weightKg
+        case heightCm
         case bmi
-        case bodyFatPercent = "body_fat_percent"
-        case leanBodyMassKg = "lean_body_mass_kg"
-        case waistCircumferenceCm = "waist_circumference_cm"
-        case stepCount = "step_count"
-        case distanceMeters = "distance_meters"
-        case flightsClimbed = "flights_climbed"
-        case exerciseMinutes = "exercise_minutes"
-        case standHours = "stand_hours"
-        case avgHeartRateBpm = "avg_heart_rate_bpm"
-        case systolicBp = "systolic_bp"
-        case diastolicBp = "diastolic_bp"
-        case bloodGlucoseMgDl = "blood_glucose_mg_dl"
-        case vo2Max = "vo2_max"
-        case stepsSourcesMetadata = "steps_sources_metadata"
+        case bodyFatPercent
+        case leanBodyMassKg
+        case waistCircumferenceCm
+        case stepCount
+        case distanceMeters
+        case flightsClimbed
+        case exerciseMinutes
+        case standHours
+        case avgHeartRateBpm
+        case systolicBp
+        case diastolicBp
+        case bloodGlucoseMgDl
+        case vo2Max
+        case stepsSourcesMetadata
         case notes
     }
 }
