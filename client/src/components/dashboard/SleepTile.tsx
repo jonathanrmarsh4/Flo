@@ -1,7 +1,7 @@
 import { Moon, TrendingUp, TrendingDown, Minus, Sunrise, Sunset, Lightbulb } from 'lucide-react';
-import { useTheme } from 'next-themes';
 
 interface SleepTileProps {
+  isDark: boolean;
   data?: {
     nightflo_score: number;
     score_label: string;
@@ -33,9 +33,7 @@ const DEFAULT_DATA = {
   headline_insight: 'Solid recovery, but a bit light on deep sleep tonight.'
 };
 
-export function SleepTile({ data = DEFAULT_DATA }: SleepTileProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+export function SleepTile({ isDark, data = DEFAULT_DATA }: SleepTileProps) {
   // Styled to match Flō Overview tile
 
   const getScoreColors = () => {
