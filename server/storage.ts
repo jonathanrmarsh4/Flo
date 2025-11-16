@@ -463,11 +463,12 @@ export class DatabaseStorage implements IStorage {
     // Format dates and ensure types match AdminUserSummary
     const formattedUsers = enrichedUsers.map(user => ({
       ...user,
+      email: user.email || '',
       subscriptionStatus: (user.subscriptionStatus || 'free') as 'free' | 'premium',
       measurementCount: Number(user.measurementCount || 0),
       lastUpload: user.lastUpload ? new Date(user.lastUpload).toISOString() : null,
-      createdAt: new Date(user.createdAt).toISOString(),
-      updatedAt: new Date(user.updatedAt).toISOString(),
+      createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : new Date().toISOString(),
     }));
     
     return {
@@ -1389,7 +1390,7 @@ export class DatabaseStorage implements IStorage {
     try {
       const { healthkitSamples } = await import("@shared/schema");
       
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
       
       const [recentCount] = await db
         .select({ count: sql<number>`count(*)::int` })
@@ -1403,7 +1404,7 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       
       const sampleCount24h = recentCount?.count || 0;
-      const lastSync = latestSample?.startDate || null;
+      const lastSync = latestSample?.startDate ? latestSample.startDate.toISOString() : null;
       
       let status: 'operational' | 'degraded' | 'down' = 'operational';
       

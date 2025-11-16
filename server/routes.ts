@@ -10,7 +10,7 @@ import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
 import { logger } from "./logger";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
