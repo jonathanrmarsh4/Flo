@@ -18,6 +18,7 @@ import History from "@/pages/history";
 import Results from "@/pages/results";
 import Profile from "@/pages/profile";
 import DiagnosticsPage from "@/pages/diagnostics";
+import HealthKitPage from "@/pages/healthkit";
 import AdminUsers from "@/pages/admin-users";
 import AdminDashboard from "@/pages/admin-dashboard";
 
@@ -57,6 +58,7 @@ function Router() {
           <Route path="/results/:id" component={Results} />
           <Route path="/profile" component={Profile} />
           <Route path="/diagnostics" component={DiagnosticsPage} />
+          <Route path="/healthkit" component={HealthKitPage} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />
