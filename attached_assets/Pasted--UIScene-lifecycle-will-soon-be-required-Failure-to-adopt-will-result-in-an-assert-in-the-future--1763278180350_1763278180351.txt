@@ -1,0 +1,19 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/ABF808F9-1C64-422A-9886-06FAA34E138E/App.app'
+⚡️  Loading app at capacitor://localhost...
+Networking process (0x116054190) took 5.126121 seconds to launch
+GPU process (0x11610c1e0) took 1.575762 seconds to launch
+WebContent process (0x1160ec100) took 1.589738 seconds to launch
+0x1160ec100 - [PID=39557] WebProcessProxy::didBecomeUnresponsive:
+0x11e3bdc18 - [pageProxyID=7, webPageID=8, PID=39557] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[39557] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 71250607
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  To Native ->  SecureStoragePlugin get 71250608
+⚡️  To Native ->  SecureStoragePlugin get 71250609
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  To Native ->  SecureStoragePlugin get 71250610
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"and is not defined\"}"}
