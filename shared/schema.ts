@@ -675,6 +675,81 @@ export const userDailyReadiness = pgTable("user_daily_readiness", {
   index("idx_user_daily_readiness_user_date").on(table.userId, table.date),
 ]);
 
+// Sleep Nights - Detailed nightly sleep metrics from HealthKit sleepAnalysis
+export const sleepNights = pgTable("sleep_nights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sleepDate: text("sleep_date").notNull(), // YYYY-MM-DD (local calendar day of final wake)
+  timezone: text("timezone").notNull(), // IANA timezone (e.g., 'America/Los_Angeles')
+  nightStart: timestamp("night_start"), // First in-bed or sleep segment start (UTC)
+  finalWake: timestamp("final_wake"), // Last in-bed or sleep segment end (UTC)
+  sleepOnset: timestamp("sleep_onset"), // First asleep* segment start (UTC)
+  timeInBedMin: real("time_in_bed_min"), // Total in-bed duration
+  totalSleepMin: real("total_sleep_min"), // Total asleep duration
+  sleepEfficiencyPct: real("sleep_efficiency_pct"), // 100 * totalSleep / timeInBed
+  sleepLatencyMin: real("sleep_latency_min"), // Minutes from in-bed to sleep onset
+  wasoMin: real("waso_min"), // Wake after sleep onset
+  numAwakenings: integer("num_awakenings"), // Count of awake segments >= MIN_AWAKE_DURATION
+  coreSleepMin: real("core_sleep_min"), // Light sleep duration
+  deepSleepMin: real("deep_sleep_min"), // Deep sleep duration
+  remSleepMin: real("rem_sleep_min"), // REM sleep duration
+  unspecifiedSleepMin: real("unspecified_sleep_min"), // Unspecified or legacy asleep
+  awakeInBedMin: real("awake_in_bed_min"), // Awake time while in bed
+  midSleepTimeLocal: real("mid_sleep_time_local"), // Minutes since midnight (local)
+  fragmentationIndex: real("fragmentation_index"), // numAwakenings / (totalSleep / 60)
+  deepPct: real("deep_pct"), // 100 * deep / totalSleep
+  remPct: real("rem_pct"), // 100 * REM / totalSleep
+  corePct: real("core_pct"), // 100 * core / totalSleep
+  bedtimeLocal: text("bedtime_local"), // Formatted bedtime (e.g., "10:47 pm")
+  waketimeLocal: text("waketime_local"), // Formatted wake time (e.g., "6:19 am")
+  restingHrBpm: real("resting_hr_bpm"), // Optional: resting HR during sleep
+  hrvMs: real("hrv_ms"), // Optional: HRV during sleep
+  respiratoryRate: real("respiratory_rate"), // Optional: respiratory rate
+  wristTemperature: real("wrist_temperature"), // Optional: wrist temperature
+  oxygenSaturation: real("oxygen_saturation"), // Optional: SpO2
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_sleep_nights_unique").on(table.userId, table.sleepDate),
+  index("idx_sleep_nights_user_date").on(table.userId, table.sleepDate),
+]);
+
+// Sleep Subscores - Individual component scores for nightly sleep
+export const sleepSubscores = pgTable("sleep_subscores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sleepDate: text("sleep_date").notNull(), // YYYY-MM-DD (matches sleepNights)
+  durationScore: real("duration_score"), // 0-100 (25% weight)
+  efficiencyScore: real("efficiency_score"), // 0-100 (20% weight)
+  structureScore: real("structure_score"), // 0-100 (20% weight)
+  consistencyScore: real("consistency_score"), // 0-100 (20% weight)
+  recoveryScore: real("recovery_score"), // 0-100 (15% weight, optional)
+  nightfloScore: real("nightflo_score").notNull(), // 0-100 (final weighted score)
+  scoreLabel: text("score_label").notNull(), // 'Low' | 'Fair' | 'Good' | 'Excellent'
+  scoreDeltaVsBaseline: real("score_delta_vs_baseline"), // +/- points vs. baseline
+  trendDirection: text("trend_direction"), // 'up' | 'down' | 'flat'
+  headlineInsight: text("headline_insight"), // AI-generated insight
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_sleep_subscores_unique").on(table.userId, table.sleepDate),
+  index("idx_sleep_subscores_user_date").on(table.userId, table.sleepDate),
+]);
+
+// Sleep Baselines - 28-day rolling statistics for personalization
+export const sleepBaselines = pgTable("sleep_baselines", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  metricKey: text("metric_key").notNull(), // 'total_sleep_min', 'deep_pct', 'rem_pct', 'sleep_efficiency_pct', etc.
+  windowDays: integer("window_days").notNull().default(28), // Rolling window size
+  median: real("median"), // Median value over window
+  stdDev: real("std_dev"), // Standard deviation
+  numSamples: integer("num_samples").notNull(), // Number of nights used
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_sleep_baselines_unique").on(table.userId, table.metricKey),
+  index("idx_sleep_baselines_user").on(table.userId),
+]);
+
 // Body fat reference ranges for DEXA scans
 export const bodyFatReferenceRanges = pgTable("body_fat_reference_ranges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1385,6 +1460,39 @@ export const insertUserDailyReadinessSchema = createInsertSchema(userDailyReadin
 
 export type InsertUserDailyReadiness = z.infer<typeof insertUserDailyReadinessSchema>;
 export type UserDailyReadiness = typeof userDailyReadiness.$inferSelect;
+
+// Sleep Nights schemas
+export const insertSleepNightsSchema = createInsertSchema(sleepNights).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  // Accept ISO8601 strings from iOS and coerce to Date objects
+  nightStart: z.union([z.date(), z.string().transform(str => new Date(str))]).nullable().optional(),
+  finalWake: z.union([z.date(), z.string().transform(str => new Date(str))]).nullable().optional(),
+  sleepOnset: z.union([z.date(), z.string().transform(str => new Date(str))]).nullable().optional(),
+});
+
+export type InsertSleepNight = z.infer<typeof insertSleepNightsSchema>;
+export type SleepNight = typeof sleepNights.$inferSelect;
+
+// Sleep Subscores schemas
+export const insertSleepSubscoresSchema = createInsertSchema(sleepSubscores).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertSleepSubscore = z.infer<typeof insertSleepSubscoresSchema>;
+export type SleepSubscore = typeof sleepSubscores.$inferSelect;
+
+// Sleep Baselines schemas
+export const insertSleepBaselinesSchema = createInsertSchema(sleepBaselines).omit({
+  id: true,
+  lastCalculatedAt: true,
+});
+
+export type InsertSleepBaseline = z.infer<typeof insertSleepBaselinesSchema>;
+export type SleepBaseline = typeof sleepBaselines.$inferSelect;
 
 // Mobile auth request schemas
 export const appleSignInSchema = z.object({
