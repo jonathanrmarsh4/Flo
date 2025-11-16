@@ -783,6 +783,16 @@ public class HealthKitNormalisationService {
         userId: String,
         completion: @escaping (SleepNightData?) -> Void
     ) {
+        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
+        
+        // Check authorization status first
+        let authStatus = healthStore.authorizationStatus(for: sleepType)
+        guard authStatus == .sharingAuthorized else {
+            print("[Sleep] Authorization not granted for sleep data: \(authStatus.rawValue)")
+            completion(nil)
+            return
+        }
+        
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         dateFormatter.timeZone = timezone
@@ -802,8 +812,6 @@ public class HealthKitNormalisationService {
         }
         
         print("[Sleep] Querying sleep for \(sleepDate): \(windowStart) to \(windowEnd)")
-        
-        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
         let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: .strictStartDate)
         
         let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (_, samples, error) in

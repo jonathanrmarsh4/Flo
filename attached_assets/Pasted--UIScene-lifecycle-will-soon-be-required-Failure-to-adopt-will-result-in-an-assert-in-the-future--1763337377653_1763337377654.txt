@@ -1,0 +1,86 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/2FD63C93-AADB-4095-8B53-9C9CD3CDD03F/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+Networking process (0x111054190) took 7.167512 seconds to launch
+GPU process (0x1111181e0) took 2.109123 seconds to launch
+WebContent process (0x1110e8100) took 2.120558 seconds to launch
+0x1110e8100 - [PID=42475] WebProcessProxy::didBecomeUnresponsive:
+0x1483c5c18 - [pageProxyID=7, webPageID=8, PID=42475] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[42475] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 5583799
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+⚡️  To Native ->  SecureStoragePlugin get 5583800
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 5583801
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days...
+🔑 [HealthSyncPlugin] Auth token received and stored
+⚡️  TO JS {"message":"Background sync started","success":true,"days":7}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"message":"Background sync started","success":true,"days":7}
+[Normalisation] Syncing last 7 days: 2025-11-09 23:55:47 +0000 to 2025-11-16 23:55:47 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-10: {"localDate":"2025-11-10","timezone":"Australia\/Perth","utcDayStart":"2025-11-09T16:00:00.000Z","utcDayEnd":"2025-11-10T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-11: {"localDate":"2025-11-11","timezone":"Australia\/Perth","utcDayStart":"2025-11-10T16:00:00.000Z","utcDayEnd":"2025-11-11T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-12: {"localDate":"2025-11-12","timezone":"Australia\/Perth","utcDayStart":"2025-11-11T16:00:00.000Z","utcDayEnd":"2025-11-12T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-13: {"localDate":"2025-11-13","timezone":"Australia\/Perth","utcDayStart":"2025-11-12T16:00:00.000Z","utcDayEnd":"2025-11-13T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-14: {"localDate":"2025-11-14","timezone":"Australia\/Perth","utcDayStart":"2025-11-13T16:00:00.000Z","utcDayEnd":"2025-11-14T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-15: {"localDate":"2025-11-15","timezone":"Australia\/Perth","utcDayStart":"2025-11-14T16:00:00.000Z","utcDayEnd":"2025-11-15T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-16: {"localDate":"2025-11-16","timezone":"Australia\/Perth","utcDayStart":"2025-11-15T16:00:00.000Z","utcDayEnd":"2025-11-16T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-17: {"localDate":"2025-11-17","timezone":"Australia\/Perth","utcDayStart":"2025-11-16T16:00:00.000Z","utcDayEnd":"2025-11-17T16:00:00.000Z"}...
+⚡️  To Native ->  Health isAvailable 5583802
+⚡️  To Native ->  SecureStoragePlugin get 5583803
+⚡️  To Native ->  SecureStoragePlugin get 5583804
+⚡️  To Native ->  SecureStoragePlugin get 5583805
+⚡️  TO JS {"available":true,"platform":"ios"}
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  To Native ->  Health requestAuthorization 5583806
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  To Native ->  SecureStoragePlugin get 5583807
+⚡️  To Native ->  SecureStoragePlugin get 5583808
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-10
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+(501) Invalidation handler invoked, clearing connection
+(501) personaAttributesForPersonaType for type:0 failed with error Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated: Connection init failed at lookup with error 159 - Sandbox restriction." UserInfo={NSDebugDescription=The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated: Connection init failed at lookup with error 159 - Sandbox restriction.}
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded all metrics
+[Normalisation] Processing sleep nights for 8 days
+[Sleep] Querying sleep for 2025-11-10: 2025-11-09 07:00:00 +0000 to 2025-11-10 07:00:00 +0000
+[Sleep] Querying sleep for 2025-11-11: 2025-11-10 07:00:00 +0000 to 2025-11-11 07:00:00 +0000
+[Sleep] Querying sleep for 2025-11-12: 2025-11-11 07:00:00 +0000 to 2025-11-12 07:00:00 +0000
+[Sleep] Querying sleep for 2025-11-13: 2025-11-12 07:00:00 +0000 to 2025-11-13 07:00:00 +0000
+[Sleep] Querying sleep for 2025-11-14: 2025-11-13 07:00:00 +0000 to 2025-11-14 07:00:00 +0000
+[Sleep] Querying sleep for 2025-11-15: 2025-11-14 07:00:00 +0000 to 2025-11-15 07:00:00 +0000
+[Sleep] Querying sleep for 2025-11-16: 2025-11-15 07:00:00 +0000 to 2025-11-16 07:00:00 +0000
+[Sleep] HealthKit query error for 2025-11-10: Authorization not determined
+[Normalisation] No sleep data for 2025-11-10
+[Sleep] Querying sleep for 2025-11-17: 2025-11-16 07:00:00 +0000 to 2025-11-17 07:00:00 +0000
+[Sleep] HealthKit query error for 2025-11-11: Authorization not determined
+[Normalisation] No sleep data for 2025-11-11
+[Sleep] HealthKit query error for 2025-11-12: Authorization not determined
+[Sleep] HealthKit query error for 2025-11-13: Authorization not determined
+[Sleep] HealthKit query error for 2025-11-14: Authorization not determined
+[Sleep] HealthKit query error for 2025-11-15: Authorization not determined
+[Sleep] HealthKit query error for 2025-11-16: Authorization not determined
+[Sleep] HealthKit query error for 2025-11-17: Authorization not determined
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No recent sleep data available\",\"message\":\"Please ensure you have synced HealthKit sleep data\"}"}
+[Normalisation] Successfully uploaded 0 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+⚡️  TO JS {"writeAuthorized":[],"writeDenied":[],"readDenied":[],"readAuthorized":["heartRateVariability","restingHeartRate","respiratoryRate","oxygenSaturation","sleepAnalysis","bodyTemperature","weight","height","bmi","bodyFatPercentage","leanBodyMass","waistCircu
