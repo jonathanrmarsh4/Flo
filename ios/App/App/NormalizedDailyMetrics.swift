@@ -2,7 +2,7 @@ import Foundation
 
 /// Normalized daily health metrics ready for backend ingestion
 /// Represents a single day's aggregated health data in user's local timezone
-struct NormalizedDailyMetrics: Codable {
+public struct NormalizedDailyMetrics: Codable {
     /// Date in local timezone (YYYY-MM-DD format)
     let localDate: String
     

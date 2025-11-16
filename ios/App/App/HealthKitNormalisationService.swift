@@ -3,7 +3,7 @@ import HealthKit
 
 /// Service for normalizing raw HealthKit data into daily aggregated metrics
 /// Philosophy: Normalize first, analyze later - clean data on iOS before backend touches it
-class HealthKitNormalisationService {
+public class HealthKitNormalisationService {
     private let healthStore = HKHealthStore()
     private let calendar = Calendar.current
     

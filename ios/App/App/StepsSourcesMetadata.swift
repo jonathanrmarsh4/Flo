@@ -2,7 +2,7 @@ import Foundation
 
 /// Metadata about steps data sources for transparency and debugging
 /// Tracks which devices/apps contributed steps and how deduplication was performed
-struct StepsSourcesMetadata: Codable {
+public struct StepsSourcesMetadata: Codable {
     /// Total steps from Apple Watch (if available)
     let watchSteps: Int?
     
