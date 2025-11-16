@@ -42,8 +42,8 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
       <div 
         className={`backdrop-blur-xl rounded-3xl border p-5 transition-all ${
           isDark 
-            ? 'bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 border-white/10' 
-            : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-black/10'
+            ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+            : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
         }`}
         data-testid="tile-readiness"
       >
@@ -70,8 +70,8 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
       <div 
         className={`backdrop-blur-xl rounded-3xl border p-5 transition-all ${
           isDark 
-            ? 'bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 border-white/10' 
-            : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 border-black/10'
+            ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+            : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
         }`}
         data-testid="tile-readiness"
       >
@@ -151,7 +151,11 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
 
   return (
     <div 
-      className={`backdrop-blur-xl rounded-3xl border p-5 transition-all bg-gradient-to-br ${colors.bg} ${colors.border}`}
+      className={`backdrop-blur-xl rounded-3xl border p-5 transition-all ${
+        isDark 
+          ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+          : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
+      }`}
       data-testid="tile-readiness"
     >
       {/* Header */}

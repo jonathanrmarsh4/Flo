@@ -85,8 +85,8 @@ export function SleepTile({ data = DEFAULT_DATA }: SleepTileProps) {
     <div 
       className={`backdrop-blur-xl rounded-3xl border p-5 transition-all cursor-pointer hover-elevate active-elevate-2 ${
         isDark 
-          ? 'bg-gradient-to-br from-slate-800/80 via-slate-900/80 to-slate-800/80 border-white/10' 
-          : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-black/10'
+          ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+          : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
       }`}
       data-testid="tile-sleep"
     >
