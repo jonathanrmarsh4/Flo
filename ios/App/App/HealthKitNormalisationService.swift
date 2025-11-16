@@ -6,6 +6,7 @@ import HealthKit
 public class HealthKitNormalisationService {
     private let healthStore = HKHealthStore()
     private let calendar = Calendar.current
+    private let sleepProcessor = SleepNightProcessor()
     
     /// Get user's current timezone
     private var userTimezone: TimeZone {
@@ -48,7 +49,13 @@ public class HealthKitNormalisationService {
         dispatchGroup.notify(queue: .main) {
             // Upload all metrics to backend
             self.uploadMetricsToBackend(metrics: allMetrics) { success, error in
-                completion(success, error)
+                if !success {
+                    completion(success, error)
+                    return
+                }
+                
+                // After daily metrics, upload sleep nights
+                self.uploadSleepNights(for: dayBoundaries, completion: completion)
             }
         }
     }
@@ -595,6 +602,113 @@ public class HealthKitNormalisationService {
             task.resume()
         } catch {
             print("[Normalisation] JSON encoding error: \(error.localizedDescription)")
+            completion(false, error)
+        }
+    }
+    
+    /// Process and upload sleep night data for multiple days
+    private func uploadSleepNights(for dayBoundaries: [(Date, Date, String)], completion: @escaping (Bool, Error?) -> Void) {
+        guard let token = getJWTToken() else {
+            print("[Normalisation] No auth token for sleep upload")
+            completion(false, NSError(domain: "NormalisationService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No authentication token found"]))
+            return
+        }
+        
+        let dispatchGroup = DispatchGroup()
+        var uploadErrors: [Error] = []
+        var successCount = 0
+        
+        print("[Normalisation] Processing sleep nights for \(dayBoundaries.count) days")
+        
+        for (_, _, localDateStr) in dayBoundaries {
+            dispatchGroup.enter()
+            
+            sleepProcessor.processSleepNight(
+                sleepDate: localDateStr,
+                timezone: userTimezone,
+                userId: "" // Will be set from JWT on backend
+            ) { [weak self] sleepNightData in
+                guard let self = self else {
+                    dispatchGroup.leave()
+                    return
+                }
+                
+                if let sleepNight = sleepNightData {
+                    // Upload sleep night to backend
+                    self.uploadSleepNightToBackend(sleepNight: sleepNight, token: token) { success, error in
+                        if success {
+                            successCount += 1
+                        } else if let error = error {
+                            uploadErrors.append(error)
+                        }
+                        dispatchGroup.leave()
+                    }
+                } else {
+                    // No sleep data for this day - that's okay
+                    print("[Normalisation] No sleep data for \(localDateStr)")
+                    dispatchGroup.leave()
+                }
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if uploadErrors.isEmpty {
+                print("[Normalisation] Successfully uploaded \(successCount) sleep nights")
+                completion(true, nil)
+            } else {
+                print("[Normalisation] Sleep upload completed with \(uploadErrors.count) errors, \(successCount) successes")
+                // Don't fail the entire sync if only sleep fails
+                completion(true, nil)
+            }
+        }
+    }
+    
+    /// Upload a single sleep night to backend
+    private func uploadSleepNightToBackend(sleepNight: SleepNightData, token: String, completion: @escaping (Bool, Error?) -> Void) {
+        let baseURL = getBackendURL()
+        guard let url = URL(string: "\(baseURL)/api/sleep/nights") else {
+            completion(false, NSError(domain: "NormalisationService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"]))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let jsonData = try encoder.encode(sleepNight)
+            request.httpBody = jsonData
+            
+            print("[Normalisation] Uploading sleep night for \(sleepNight.sleepDate)")
+            
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("[Normalisation] Sleep upload error for \(sleepNight.sleepDate): \(error.localizedDescription)")
+                    completion(false, error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(false, NSError(domain: "NormalisationService", code: 4, userInfo: [NSLocalizedDescriptionKey: "Invalid response"]))
+                    return
+                }
+                
+                if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    print("[Normalisation] Successfully uploaded sleep for \(sleepNight.sleepDate)")
+                    completion(true, nil)
+                } else {
+                    let errorMsg = "HTTP \(httpResponse.statusCode)"
+                    print("[Normalisation] Sleep upload failed for \(sleepNight.sleepDate): \(errorMsg)")
+                    completion(false, NSError(domain: "NormalisationService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg]))
+                }
+            }
+            
+            task.resume()
+        } catch {
+            print("[Normalisation] Sleep encoding error: \(error.localizedDescription)")
             completion(false, error)
         }
     }
