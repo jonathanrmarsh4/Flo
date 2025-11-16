@@ -2537,6 +2537,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const metrics = validationResult.data;
 
       logger.info(`[HealthKit] Ingesting daily metrics for user ${userId}, date ${metrics.localDate}`);
+      logger.debug(`[HealthKit] Received metrics:`, JSON.stringify(metrics, null, 2));
 
       // Upsert: insert or update if already exists for this user+date
       const { and, sql: drizzleSql } = await import("drizzle-orm");

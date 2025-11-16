@@ -98,31 +98,33 @@ public struct NormalizedDailyMetrics: Codable {
     let notes: String?
     
     enum CodingKeys: String, CodingKey {
+        // Backend validation expects camelCase for these core fields
         case localDate
         case timezone
         case utcDayStart
         case utcDayEnd
-        case sleepHours
-        case restingHrBpm
-        case hrvMs
-        case activeEnergyKcal
-        case weightKg
-        case heightCm
+        // But health metrics map to snake_case DB columns
+        case sleepHours = "sleepHours"
+        case restingHrBpm = "restingHrBpm"
+        case hrvMs = "hrvMs"
+        case activeEnergyKcal = "activeEnergyKcal"
+        case weightKg = "weightKg"
+        case heightCm = "heightCm"
         case bmi
-        case bodyFatPercent
-        case leanBodyMassKg
-        case waistCircumferenceCm
-        case stepCount
-        case distanceMeters
-        case flightsClimbed
-        case exerciseMinutes
-        case standHours
-        case avgHeartRateBpm
-        case systolicBp
-        case diastolicBp
-        case bloodGlucoseMgDl
-        case vo2Max
-        case stepsSourcesMetadata
+        case bodyFatPercent = "bodyFatPercent"
+        case leanBodyMassKg = "leanBodyMassKg"
+        case waistCircumferenceCm = "waistCircumferenceCm"
+        case stepCount = "stepsNormalized"
+        case distanceMeters = "distanceMeters"
+        case flightsClimbed = "flightsClimbed"
+        case exerciseMinutes = "exerciseMinutes"
+        case standHours = "standHours"
+        case avgHeartRateBpm = "avgHeartRateBpm"
+        case systolicBp = "systolicBp"
+        case diastolicBp = "diastolicBp"
+        case bloodGlucoseMgDl = "bloodGlucoseMgDl"
+        case vo2Max = "vo2Max"
+        case stepsSourcesMetadata = "stepsSourcesMetadata"
         case notes
     }
 }
