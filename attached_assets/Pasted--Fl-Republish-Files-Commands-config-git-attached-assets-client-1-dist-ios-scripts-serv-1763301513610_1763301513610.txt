@@ -1,0 +1,251 @@
+
+
+Flō
+
+
+
+
+Republish
+
+
+Files
+
+
+
+Commands
+
+.config
+.git
+attached_assets
+client
+1
+dist
+ios
+scripts
+server
+shared
+.gitignore
+capacitor.config.ts
+CAPACITOR.md
+components.json
+design_guidelines.md
+drizzle.config.ts
+eng.traineddata
+HEALTHKIT_SETUP.md
+postcss.config.js
+replit.md
+tailwind.config.ts
+test-backend.ts
+tsconfig.json
+vite.config.ts
+Packager files
+.upm
+node_modules
+package-lock.json
+package.json
+Config files
+.replit
+
+
+Overview
+
+Logs
+
+Analytics
+
+Resources
+
+Domains
+
+Manage
+
+Republish
+
+Advanced settings
+
+Run security scan
+Production
+Status
+Jonathan published about 1 hour ago
+
+Visibility
+Public
+Domain
+https://get-flo.replit.app
+
+
+https://get-flo.com
+
+
+
+Buy a new domain
+Beta
+Type
+Reserved VM
+(0.5 vCPU / 2 GiB RAM)
+Database
+Production database connected
+52410e40
+JM
+
+jonathanrmarsh4
+Jonathan
+published about 3 hours ago
+5dec4968
+JM
+
+jonathanrmarsh4
+Jonathan
+published about 8 hours ago
+322ee4a1
+JM
+
+jonathanrmarsh4
+Jonathan
+failed to publish about 9 hours ago
+bf416b73
+JM
+
+jonathanrmarsh4
+Jonathan
+published about 10 hours ago
+57ce93cb
+JM
+
+jonathanrmarsh4
+Jonathan
+published about 10 hours ago
+09b7b053
+JM
+
+jonathanrmarsh4
+Jonathan
+published about 11 hours ago
+638f3451
+JM
+
+jonathanrmarsh4
+Jonathan
+published about 13 hours ago
+5c69bca4
+JM
+
+jonathanrmarsh4
+Jonathan
+published about 14 hours ago
+600e8c08
+JM
+
+jonathanrmarsh4
+Jonathan
+published 1 day ago
+67a6e37a
+JM
+
+jonathanrmarsh4
+Jonathan
+published 1 day ago
+f79a08c3
+JM
+
+jonathanrmarsh4
+Jonathan
+published 1 day ago
+f79a08c3
+JM
+
+jonathanrmarsh4
+Jonathan
+published 1 day ago
+Unknown Error
+INVALID_STATE
+We ran into an unknown error that we don't have a description for. This is probably a bug with the app.
+
+Dismiss
+
+main
+
+
+Remote Updates
+jonathanrmarsh4/Flo
+origin/main•upstream
+last fetched 53 min ago
+
+Fetch
+7 commits to push
+
+Sync with Remote
+
+Pull
+
+Push
+Commit
+
+Message
+*
+Commit:
+⌘
+↵
+
+
+Review Changes
+1 changed file
+
+Discard All
+
+Stage All
+FlomentumScreen.tsx
+Modified
+
+
+Committing will automatically stage your changes.
+
+Stage and commit all changes
+
+Back to my page
+External page
+Open a new tab to test authentication and file uploads.
+New tab
+Learn more
+
+
+
+
+npm run dev
+
+Ask Agent…
+1m
+ • 
+2 minutes ago
+
+
+
+All Databases
+
+Refresh
+Databases
+Development Database
+33.88MB / 10GB
+Production Database
+32.93MB / 100GB
+Billing Period
+Renews monthly, 6 Dec
+Hours of Compute Used
+64.45 hours
+
+
+
+Enable "Accessible Terminal" in Workspace Settings to use a screen reader with the shell.
+
+
+Add detailed health metrics to user dashboard tiles
+
+Agent 3
+
+In progress tasks
+6 / 6
+
+Change screen background to dark navy
+Fix tab switcher look and spacing
+Update score card background color
+Ensure focus cards have white backgrounds
