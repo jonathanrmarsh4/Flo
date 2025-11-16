@@ -158,7 +158,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      <div className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/5 border-white/10">
+      <div className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/5 border-white/10 pt-[env(safe-area-inset-top)]">
         <div className="px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
