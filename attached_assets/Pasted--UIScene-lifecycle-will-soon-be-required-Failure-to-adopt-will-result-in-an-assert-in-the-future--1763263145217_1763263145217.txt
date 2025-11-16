@@ -1,0 +1,122 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/763AF6B6-FB50-4322-BF05-E6A763F917A8/App.app'
+⚡️  Loading app at capacitor://localhost...
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+Networking process (0x10a054190) took 5.356107 seconds to launch
+GPU process (0x10a1181e0) took 1.641126 seconds to launch
+WebContent process (0x10a0f4100) took 1.655380 seconds to launch
+0x10a0f4100 - [PID=38366] WebProcessProxy::didBecomeUnresponsive:
+0x10c395518 - [pageProxyID=7, webPageID=8, PID=38366] WebPageProxy::processDidBecomeUnresponsive:
+Updated list with error: DownloadFailed
+WebContent[38366] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 75475004
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+⚡️  To Native ->  SecureStoragePlugin get 75475005
+⚡️  To Native ->  SecureStoragePlugin get 75475006
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [error] - [API Error] Status: 400
+⚡️  [error] - [API Error] Response: {"error":"Date of birth not found. Please complete your profile to calculate biological age.","missingData":"dateOfBirth"}
+⚡️  [log] - [Age Calculation] No profile DOB available
+⚡️  [log] - [Age Calculation] Profile data: undefined
+⚡️  [log] - [Age Calculation] BiologicalAgeData: undefined
+<0x10c1da440> Gesture: System gesture gate timed out.
+<0x10c1da580> Touch: System gesture gate timed out.
+⚡️  To Native ->  SecureStoragePlugin get 75475007
+⚡️  To Native ->  SecureStoragePlugin get 75475008
+⚡️  To Native ->  SecureStoragePlugin get 75475009
+⚡️  To Native ->  SecureStoragePlugin get 75475010
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [error] - [API Error] Status: 400
+⚡️  [error] - [API Error] Response: {"error":"Date of birth not found. Please complete your profile to calculate biological age.","missingData":"dateOfBirth"}
+⚡️  [log] - [Age Calculation] No profile DOB available
+⚡️  [log] - [Age Calculation] Profile data: {"id":"dc5979f5-e78e-4b06-ab48-be20391224ac","userId":"2c953e8f-cad8-4ae6-902e-77c9f3a0c979","dateOfBirth":null,"sex":null,"weight":null,"weightUnit":"kg","height":null,"heightUnit":"cm","goals":null,"healthBaseline":null,"aiPersonalization":null,"createdAt":"2025-11-15T11:54:45.311Z","updatedAt":"2025-11-15T11:54:45.311Z"}
+⚡️  [log] - [Age Calculation] BiologicalAgeData: undefined
+⚡️  [error] - [API Error] Status: 404
+⚡️  [error] - [API Error] Response: {"error":"No health insights found. Generate insights first by making a POST request to this endpoint."}
+⚡️  [log] - [Age Calculation] No profile DOB available
+⚡️  [log] - [Age Calculation] Profile data: {"id":"dc5979f5-e78e-4b06-ab48-be20391224ac","userId":"2c953e8f-cad8-4ae6-902e-77c9f3a0c979","dateOfBirth":null,"sex":null,"weight":null,"weightUnit":"kg","height":null,"heightUnit":"cm","goals":null,"healthBaseline":null,"aiPersonalization":null,"createdAt":"2025-11-15T11:54:45.311Z","updatedAt":"2025-11-15T11:54:45.311Z"}
+⚡️  [log] - [Age Calculation] BiologicalAgeData: undefined
+⚡️  To Native ->  SecureStoragePlugin get 75475011
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [error] - [API Error] Status: 400
+⚡️  [error] - [API Error] Response: {"error":"Date of birth not found. Please complete your profile to calculate biological age.","missingData":"dateOfBirth"}
+⚡️  To Native ->  SecureStoragePlugin get 75475012
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  To Native ->  SecureStoragePlugin get 75475013
+⚡️  To Native ->  SecureStoragePlugin get 75475014
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [Age Calculation] No profile DOB available
+⚡️  [log] - [Age Calculation] Profile data: {"id":"dc5979f5-e78e-4b06-ab48-be20391224ac","userId":"2c953e8f-cad8-4ae6-902e-77c9f3a0c979","dateOfBirth":null,"sex":null,"weight":null,"weightUnit":"kg","height":null,"heightUnit":"cm","goals":null,"healthBaseline":null,"aiPersonalization":null,"createdAt":"2025-11-15T11:54:45.311Z","updatedAt":"2025-11-15T11:54:45.311Z"}
+⚡️  [log] - [Age Calculation] BiologicalAgeData: undefined
+⚡️  To Native ->  SecureStoragePlugin get 75475015
+⚡️  To Native ->  SecureStoragePlugin get 75475016
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [error] - [API Error] Status: 404
+⚡️  [error] - [API Error] Response: {"error":"No health insights found. Generate insights first by making a POST request to this endpoint."}
+⚡️  [error] - [API Error] Status: 400
+⚡️  [error] - [API Error] Response: {"error":"Date of birth not found. Please complete your profile to calculate biological age.","missingData":"dateOfBirth"}
+⚡️  To Native ->  SecureStoragePlugin get 75475017
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [error] - [API Error] Status: 400
+⚡️  [error] - [API Error] Response: {"error":"Date of birth not found. Please complete your profile to calculate biological age.","missingData":"dateOfBirth"}
+<0x10c1da440> Gesture: System gesture gate timed out.
+⚡️  [log] - [API Request] POST https://get-flo.com/api/health-insights
+⚡️  To Native ->  SecureStoragePlugin get 75475018
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [log] - [API Response] 422 Bad Request
+⚡️  [error] - [API Error] Status: 422
+⚡️  [error] - [API Error] Response: {"error":"Insufficient profile data. Please complete your age and sex in your profile to generate comprehensive insights.","missingData":["dateOfBirth","sex"]}
+⚡️  [error] - [API Request Failed] {}
+⚡️  To Native ->  SecureStoragePlugin get 75475019
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [error] - [API Error] Status: 400
+⚡️  [error] - [API Error] Response: {"error":"Date of birth not found. Please complete your profile to calculate biological age.","missingData":"dateOfBirth"}
+⚡️  To Native ->  SecureStoragePlugin get 75475020
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [log] - [getAuthToken] Retrieved token: eyJhbGciOiJIUzI1NiIs...
+⚡️  [log] - [getAuthHeaders] Adding Authorization header with token
+⚡️  [error] - [API Error] Status: 400
+⚡️  [error] - [API Error] Response: {"error":"Date of birth not found. Please complete your profile to calculate biological age.","missingData":"dateOfBirth"}
