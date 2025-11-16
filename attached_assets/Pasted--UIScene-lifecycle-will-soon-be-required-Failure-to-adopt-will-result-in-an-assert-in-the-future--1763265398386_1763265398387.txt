@@ -1,0 +1,35 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/5CD8DBE3-1E6A-4E9F-8983-BFA5563ECC49/App.app'
+⚡️  Loading app at capacitor://localhost...
+Networking process (0x117054190) took 4.166259 seconds to launch
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+0x1170e8100 - [PID=38603] WebProcessProxy::didBecomeUnresponsive:
+0x10b7bdc18 - [pageProxyID=7, webPageID=8, PID=38603] WebPageProxy::processDidBecomeUnresponsive:
+Updated list with error: DownloadFailed
+WebContent[38603] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 115047268
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+⚡️  To Native ->  SecureStoragePlugin get 115047269
+⚡️  To Native ->  SecureStoragePlugin get 115047270
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  [error] - [ERROR] API request failed {"status":400,"response":"{\"error\":\"Date of birth not found. Please complete your profile to calculate biological age.\",\"missingData\":\"dateOfBirth\"}"}
+⚡️  To Native ->  SecureStoragePlugin get 115047271
+⚡️  To Native ->  SecureStoragePlugin get 115047272
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  To Native ->  SecureStoragePlugin get 115047273
+⚡️  To Native ->  SecureStoragePlugin get 115047274
+⚡️  To Native ->  SecureStoragePlugin get 115047275
+⚡️  To Native ->  SecureStoragePlugin get 115047276
+⚡️  To Native ->  SecureStoragePlugin get 115047277
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzIwNzY4NSwiZXhwIjoxNzYzODEyNDg1fQ.nEvdvE-JPYbVeS
