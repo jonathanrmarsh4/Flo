@@ -1,0 +1,187 @@
+Step 1: Install the Package
+npm install git+https://github.com/jonathanrmarsh4/healthpilot-healthkit.git
+
+This installs the plugin directly from your GitHub repository.
+
+Step 2: Sync with Capacitor
+npx cap sync ios
+
+This will:
+
+Copy the plugin's Swift files into your Xcode project
+Update the Podfile with the plugin reference
+Prepare the iOS native code for building
+Step 3: Configure iOS Permissions
+Add HealthKit permissions to ios/App/App/Info.plist:
+
+<key>NSHealthShareUsageDescription</key>
+<string>HealthPilot needs access to your health data to provide personalized recommendations</string>
+<key>NSHealthUpdateUsageDescription</key>
+<string>HealthPilot needs permission to save health data</string>
+
+Step 4: Enable HealthKit Capability in Xcode
+Open the iOS project in Xcode:
+npx cap open ios
+
+In Xcode:
+Select your App target
+Go to Signing & Capabilities tab
+Click + Capability
+Add HealthKit
+Step 5: Import and Use in Your Code
+TypeScript/JavaScript Usage:
+import { registerPlugin } from '@capacitor/core';
+// Register the Health plugin
+const Health = registerPlugin<any>('Health');
+// Check if HealthKit is available
+const availability = await Health.isAvailable();
+console.log('HealthKit available:', availability.available);
+// Request authorization for specific data types
+await Health.requestAuthorization({
+  read: [
+    'steps',
+    'heartRate',
+    'heartRateVariability',
+    'weight',
+    'sleepAnalysis',
+    'restingHeartRate',
+    'bloodPressureSystolic',
+    'bloodPressureDiastolic',
+    'oxygenSaturation',
+    'bloodGlucose',
+    'bodyFatPercentage',
+    'leanBodyMass',
+    'vo2Max',
+    // ... up to 26 data types
+  ],
+  write: ['weight', 'steps'] // Optional: types you want to write
+});
+// Read samples
+const samples = await Health.readSamples({
+  dataType: 'heartRateVariability',
+  startDate: '2024-11-01T00:00:00Z',
+  endDate: '2024-11-16T23:59:59Z',
+  limit: 100,
+  ascending: false
+});
+console.log('HRV samples:', samples);
+
+Step 6: All 26 Supported Data Types
+You can request authorization for any of these:
+
+const ALL_DATA_TYPES = [
+  'steps',
+  'distance',
+  'calories',
+  'heartRate',
+  'weight',
+  'heartRateVariability',
+  'restingHeartRate',
+  'bloodPressureSystolic',
+  'bloodPressureDiastolic',
+  'oxygenSaturation',
+  'respiratoryRate',
+  'height',
+  'bmi',
+  'bodyFatPercentage',
+  'leanBodyMass',
+  'basalEnergyBurned',
+  'flightsClimbed',
+  'bloodGlucose',
+  'bodyTemperature',
+  'vo2Max',
+  'walkingHeartRateAverage',
+  'waistCircumference',
+  'dietaryWater',
+  'appleExerciseTime',
+  'appleStandTime',
+  'sleepAnalysis'
+];
+
+Step 7: Read Category Samples (Sleep)
+For sleep data, use the specialized category method:
+
+const sleepSamples = await Health.readCategorySamples({
+  dataType: 'sleepAnalysis',
+  startDate: '2024-11-15T00:00:00Z',
+  endDate: '2024-11-16T23:59:59Z',
+  limit: 50,
+  ascending: false
+});
+// Sleep samples include category: 'asleep', 'awake', 'core', 'deep', 'rem', 'inBed'
+console.log('Sleep data:', sleepSamples);
+
+Step 8: Write/Save Data to HealthKit
+await Health.saveSample({
+  dataType: 'weight',
+  value: 75.5,
+  unit: 'kilogram',
+  startDate: new Date().toISOString(),
+  endDate: new Date().toISOString()
+});
+
+Step 9: Build and Test
+# Build the iOS app
+npx cap build ios
+# Or open in Xcode and run
+npx cap open ios
+# Then press ▶️ to build and run on simulator/device
+
+Troubleshooting
+Plugin not found error:
+# Re-sync Capacitor
+npx cap sync ios --force
+# Clean and reinstall
+rm -rf ios/App/Pods
+cd ios/App && pod install
+
+Permission denied:
+Check Info.plist has the health usage descriptions
+Ensure HealthKit capability is enabled in Xcode
+No data returned:
+HealthKit requires real iOS device (simulator has no health data)
+User must grant permissions in Settings → Privacy → Health
+Complete Example Implementation
+import { registerPlugin } from '@capacitor/core';
+const Health = registerPlugin<any>('Health');
+export class HealthKitService {
+  async initialize() {
+    // Check availability
+    const { available } = await Health.isAvailable();
+    if (!available) {
+      throw new Error('HealthKit not available');
+    }
+    // Request permissions
+    await Health.requestAuthorization({
+      read: [
+        'steps',
+        'heartRate',
+        'heartRateVariability',
+        'weight',
+        'sleepAnalysis',
+        'restingHeartRate'
+      ],
+      write: []
+    });
+  }
+  async getRecentHRV() {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7); // Last 7 days
+    const samples = await Health.readSamples({
+      dataType: 'heartRateVariability',
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      limit: 100,
+      ascending: false
+    });
+    return samples;
+  }
+}
+
+Package Details
+Name: @healthpilot/healthkit
+GitHub: https://github.com/jonathanrmarsh4/healthpilot-healthkit
+Size: ~60KB (clean plugin only)
+Capacitor: 7.x compatible
+iOS: Requires iOS 14.0+
