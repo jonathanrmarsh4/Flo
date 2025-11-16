@@ -6,6 +6,7 @@ import { DashboardScreen } from '@/components/DashboardScreen';
 import { BottomNav } from '@/components/BottomNav';
 import { UnifiedUploadModal } from '@/components/UnifiedUploadModal';
 import { useAuth } from '@/hooks/useAuth';
+import { useHealthKitAutoPermission } from '@/hooks/useHealthKitAutoPermission';
 import { queryClient } from '@/lib/queryClient';
 import { logger } from '@/lib/logger';
 
@@ -14,6 +15,9 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [isDark, setIsDark] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Automatically request HealthKit permissions on iOS app launch
+  useHealthKitAutoPermission();
 
   const handleLogout = async () => {
     if (Capacitor.isNativePlatform()) {
