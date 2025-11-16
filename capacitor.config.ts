@@ -18,7 +18,8 @@ const config: CapacitorConfig = {
         'PreferencesPlugin',
         'SocialLoginPlugin',
         'HealthPlugin',
-        'SecureStoragePlugin'
+        'SecureStoragePlugin',
+        'HealthSyncPlugin'
       ]
     }
   }

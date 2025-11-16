@@ -2,7 +2,13 @@ import Foundation
 import Capacitor
 
 @objc(HealthSyncPlugin)
-public class HealthSyncPlugin: CAPPlugin {
+public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "HealthSyncPlugin"
+    public let jsName = "HealthSyncPlugin"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "syncReadinessData", returnType: CAPPluginReturnPromise)
+    ]
+    
     @objc func syncReadinessData(_ call: CAPPluginCall) {
         let days = call.getInt("days") ?? 7
         

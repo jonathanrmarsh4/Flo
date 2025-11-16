@@ -1,0 +1,34 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/98505ED3-D208-45EB-B3D0-9553D44DA406/App.app'
+⚡️  Loading app at capacitor://localhost...
+Networking process (0x114054190) took 7.996822 seconds to launch
+GPU process (0x1141101e0) took 2.576421 seconds to launch
+WebContent process (0x1140f0100) took 2.599134 seconds to launch
+0x1140f0100 - [PID=39821] WebProcessProxy::didBecomeUnresponsive:
+0x1093b1c18 - [pageProxyID=7, webPageID=8, PID=39821] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[39821] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 89864685
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  To Native ->  Health isAvailable 89864686
+⚡️  To Native ->  SecureStoragePlugin get 89864687
+⚡️  To Native ->  SecureStoragePlugin get 89864688
+⚡️  TO JS {"available":true,"platform":"ios"}
+⚡️  To Native ->  Health requestAuthorization 89864689
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  To Native ->  SecureStoragePlugin get 89864690
+(501) Invalidation handler invoked, clearing connection
+(501) personaAttributesForPersonaType for type:0 failed with error Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated: Connection init failed at lookup with error 159 - Sandbox restriction." UserInfo={NSDebugDescription=The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated: Connection init failed at lookup with error 159 - Sandbox restriction.}
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"and is not defined\"}"}
+⚡️  TO JS {"readDenied":[],"writeDenied":[],"readAuthorized":["heartRateVariability","restingHeartRate","respiratoryRate","oxygenSaturation","sleepAnalysis","bodyTemperature","weight","height","bmi","bodyFatPercentage","leanBodyMass","waistCircumference","heartRate"
