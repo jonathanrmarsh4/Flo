@@ -147,8 +147,7 @@ export default function FlomentumScreen() {
 
       {/* Content */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'today' | 'weekly')} className="px-4 py-6">
-        <TabsContent value="today" className="space-y-4 pb-8 mt-0">{
-          <>
+        <TabsContent value="today" className="space-y-4 pb-8 mt-0">
             {isDailyLoading ? (
               <div className={`text-center py-12 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                 Loading today's momentum...
@@ -304,8 +303,7 @@ export default function FlomentumScreen() {
             )}
         </TabsContent>
 
-        <TabsContent value="weekly" className="space-y-4 pb-8 mt-0">{
-          <>
+        <TabsContent value="weekly" className="space-y-4 pb-8 mt-0">
             {isWeeklyLoading ? (
               <div className={`text-center py-12 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                 Loading weekly insights...
