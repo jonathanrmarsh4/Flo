@@ -1,0 +1,20 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/48BE4FF5-3716-447F-91BF-87DE22EA85FD/App.app'
+⚡️  Loading app at capacitor://localhost...
+Networking process (0x115058190) took 5.182581 seconds to launch
+GPU process (0x11510c1e0) took 1.526948 seconds to launch
+WebContent process (0x1150ec100) took 1.538980 seconds to launch
+0x1150ec100 - [PID=39843] WebProcessProxy::didBecomeUnresponsive:
+0x1097b1c18 - [pageProxyID=7, webPageID=8, PID=39843] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[39843] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 114196357
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  To Native ->  SecureStoragePlugin get 114196358
+⚡️  To Native ->  SecureStoragePlugin get 114196359
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+⚡️  To Native ->  SecureStoragePlugin get 114196360
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyYzk1M2U4Zi1jYWQ4LTRhZTYtOTAyZS03N2M5ZjNhMGM5NzkiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzI3ODk0NCwiZXhwIjoxNzYzODgzNzQ0fQ.aJEdTlEgzcVzyB
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"and is not defined\"}"}
