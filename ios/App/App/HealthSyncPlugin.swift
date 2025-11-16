@@ -13,7 +13,7 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         let days = call.getInt("days") ?? 7
         let token = call.getString("token")
         
-        print("🔄 [HealthSyncPlugin] Starting automatic readiness data sync for last \(days) days...")
+        print("🔄 [HealthSyncPlugin] Queuing background sync for last \(days) days...")
         
         // Store token in UserDefaults temporarily for normalization service to access
         if let token = token {
@@ -21,25 +21,27 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             print("🔑 [HealthSyncPlugin] Auth token received and stored")
         }
         
-        let normalizationService = HealthKitNormalisationService()
-        normalizationService.syncLastNDays(days: days) { success, error in
-            DispatchQueue.main.async {
+        // PERFORMANCE FIX: Return immediately to unblock app launch
+        // Run sync in background without blocking JS bridge
+        call.resolve([
+            "success": true,
+            "days": days,
+            "message": "Background sync started"
+        ])
+        
+        // Dispatch sync work to background queue
+        DispatchQueue.global(qos: .background).async {
+            let normalizationService = HealthKitNormalisationService()
+            normalizationService.syncLastNDays(days: days) { success, error in
                 // Clear token from UserDefaults after sync
                 UserDefaults.standard.removeObject(forKey: "jwt_token")
                 
                 if let error = error {
-                    print("❌ [HealthSyncPlugin] Sync failed: \(error.localizedDescription)")
-                    call.reject("Readiness sync failed: \(error.localizedDescription)", nil, error)
+                    print("❌ [HealthSyncPlugin] Background sync failed: \(error.localizedDescription)")
                 } else if success {
-                    print("✅ [HealthSyncPlugin] Successfully synced \(days) days of readiness data automatically!")
-                    call.resolve([
-                        "success": true,
-                        "days": days,
-                        "message": "Successfully synced \(days) days of readiness data"
-                    ])
+                    print("✅ [HealthSyncPlugin] Successfully synced \(days) days in background!")
                 } else {
-                    print("⚠️ [HealthSyncPlugin] Sync completed but returned false")
-                    call.reject("Sync completed but returned unsuccessful status")
+                    print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
                 }
             }
         }

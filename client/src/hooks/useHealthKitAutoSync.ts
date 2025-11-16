@@ -27,7 +27,7 @@ export function useHealthKitAutoSync() {
         console.log('🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...');
         logger.info('App launched - triggering automatic HealthKit background sync...');
         
-        // Trigger background sync (non-blocking)
+        // Sync last 7 days to ensure we don't miss data if user hasn't opened app
         const syncResult = await Readiness.syncReadinessData({ days: 7 });
         console.log('🚀 [AutoSync] Sync result:', syncResult);
         
@@ -46,7 +46,7 @@ export function useHealthKitAutoSync() {
     // Mark as run before executing to prevent duplicate calls
     hasRun.current = true;
 
-    // Run sync after a small delay to not block initial app render
-    setTimeout(syncHealthData, 2000);
+    // PERFORMANCE FIX: Reduce delay to 500ms for faster sync after first paint
+    setTimeout(syncHealthData, 500);
   }, [isNative]);
 }

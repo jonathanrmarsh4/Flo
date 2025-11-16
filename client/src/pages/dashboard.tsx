@@ -67,19 +67,20 @@ export default function Dashboard() {
   } | null>(null);
 
   // Fetch biomarker sessions with measurements (new system)
-  const { data: sessionsData } = useQuery<any>({
+  const { data: sessionsData, isLoading: isLoadingSessions } = useQuery<any>({
     queryKey: ['/api/biomarker-sessions'],
     enabled: !!user,
   });
 
   // Fetch all biomarkers catalog
-  const { data: biomarkersData } = useQuery<any>({
+  const { data: biomarkersData, isLoading: isLoadingBiomarkers } = useQuery<any>({
     queryKey: ['/api/biomarkers'],
     enabled: !!user,
   });
 
   const sessions = sessionsData?.sessions || [];
   const biomarkers = biomarkersData?.biomarkers || [];
+  const isLoading = isLoadingSessions || isLoadingBiomarkers;
 
   // Build measurements map: biomarkerId -> array of measurements with dates
   const measurementsByBiomarker = new Map<string, Array<{
@@ -238,7 +239,28 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="px-3 py-3">
-        {trackedBiomarkerIds.length === 0 ? (
+        {/* PERFORMANCE FIX: Show skeletons while loading */}
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className={`backdrop-blur-xl rounded-2xl border p-4 animate-pulse ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="space-y-2 flex-1">
+                    <div className={`h-4 rounded w-32 ${isDark ? 'bg-white/20' : 'bg-gray-300'}`}></div>
+                    <div className={`h-3 rounded w-20 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}></div>
+                  </div>
+                  <div className={`h-12 w-12 rounded-lg ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}></div>
+                </div>
+                <div className={`h-24 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}></div>
+              </div>
+            ))}
+          </div>
+        ) : trackedBiomarkerIds.length === 0 ? (
           <div className={`backdrop-blur-xl rounded-2xl border p-8 text-center ${
             isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
           }`}>
