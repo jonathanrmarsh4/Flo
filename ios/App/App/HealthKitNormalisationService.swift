@@ -6,6 +6,7 @@ import HealthKit
 public class HealthKitNormalisationService {
     private let healthStore = HKHealthStore()
     private let calendar = Calendar.current
+    private let sleepProcessor = SleepNightProcessor()
     
     /// Get user's current timezone
     private var userTimezone: TimeZone {
@@ -48,9 +49,13 @@ public class HealthKitNormalisationService {
         dispatchGroup.notify(queue: .main) {
             // Upload all metrics to backend
             self.uploadMetricsToBackend(metrics: allMetrics) { success, error in
-                // TODO: Re-enable sleep night upload after fixing Xcode build issues
-                // self.uploadSleepNights(for: dayBoundaries, completion: completion)
-                completion(success, error)
+                if !success {
+                    completion(success, error)
+                    return
+                }
+                
+                // After daily metrics, upload sleep nights
+                self.uploadSleepNights(for: dayBoundaries, completion: completion)
             }
         }
     }
@@ -601,7 +606,6 @@ public class HealthKitNormalisationService {
         }
     }
     
-    /* TEMPORARILY DISABLED - Sleep sync will be re-enabled after fixing Xcode build issues
     /// Process and upload sleep night data for multiple days
     private func uploadSleepNights(for dayBoundaries: [(Date, Date, String)], completion: @escaping (Bool, Error?) -> Void) {
         guard let token = getJWTToken() else {
@@ -708,7 +712,6 @@ public class HealthKitNormalisationService {
             completion(false, error)
         }
     }
-    */ // END TEMPORARILY DISABLED SLEEP SYNC
     
     // MARK: - Helpers
     
