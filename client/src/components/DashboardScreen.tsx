@@ -121,7 +121,7 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
             <ReadinessTile isDark={isDark} />
 
             {/* Full Width - Sleep Index */}
-            <SleepTile isDark={isDark} data={sleepData} />
+            <SleepTile data={sleepData} />
 
             {/* Quick Stats Row */}
             <div className="grid grid-cols-2 gap-4">
