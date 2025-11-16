@@ -788,6 +788,7 @@ public class HealthKitNormalisationService {
         dateFormatter.timeZone = timezone
         
         guard let date = dateFormatter.date(from: sleepDate) else {
+            print("[Sleep] Invalid date format: \(sleepDate)")
             completion(nil)
             return
         }
@@ -795,19 +796,31 @@ public class HealthKitNormalisationService {
         guard let windowEnd = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: date),
               let yesterday = calendar.date(byAdding: .day, value: -1, to: date),
               let windowStart = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: yesterday) else {
+            print("[Sleep] Failed to create window for \(sleepDate)")
             completion(nil)
             return
         }
+        
+        print("[Sleep] Querying sleep for \(sleepDate): \(windowStart) to \(windowEnd)")
         
         let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
         let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: .strictStartDate)
         
         let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (_, samples, error) in
-            guard let self = self,
-                  let samples = samples as? [HKCategorySample], !samples.isEmpty else {
+            if let error = error {
+                print("[Sleep] HealthKit query error for \(sleepDate): \(error.localizedDescription)")
                 completion(nil)
                 return
             }
+            
+            guard let self = self,
+                  let samples = samples as? [HKCategorySample], !samples.isEmpty else {
+                print("[Sleep] No sleep samples found for \(sleepDate)")
+                completion(nil)
+                return
+            }
+            
+            print("[Sleep] Found \(samples.count) sleep samples for \(sleepDate)")
             
             var segments: [SleepSegment] = []
             for sample in samples {
@@ -832,7 +845,12 @@ public class HealthKitNormalisationService {
         let inBedSegments = segments.filter { $0.value == .inBed }
         let stageSegments = segments.filter { $0.value != .inBed }
         
-        guard !inBedSegments.isEmpty || !stageSegments.isEmpty else { return nil }
+        print("[Sleep] Building night for \(sleepDate): \(inBedSegments.count) inBed, \(stageSegments.count) stages")
+        
+        guard !inBedSegments.isEmpty || !stageSegments.isEmpty else {
+            print("[Sleep] No valid segments for \(sleepDate)")
+            return nil
+        }
         
         let nightStart = min(inBedSegments.map { $0.start }.min() ?? Date.distantFuture, stageSegments.map { $0.start }.min() ?? Date.distantFuture)
         let finalWake = max(inBedSegments.map { $0.end }.max() ?? Date.distantPast, stageSegments.map { $0.end }.max() ?? Date.distantPast)
@@ -854,7 +872,12 @@ public class HealthKitNormalisationService {
         let timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
         let totalSleepMin = asleepSegments.reduce(0.0) { $0 + $1.durationMinutes }
         
-        guard totalSleepMin >= 180 else { return nil }
+        print("[Sleep] \(sleepDate): \(Int(timeInBedMin))min in bed, \(Int(totalSleepMin))min asleep")
+        
+        guard totalSleepMin >= 180 else {
+            print("[Sleep] Insufficient sleep for \(sleepDate): \(Int(totalSleepMin))min < 180min required")
+            return nil
+        }
         
         let iso8601 = ISO8601DateFormatter()
         iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
