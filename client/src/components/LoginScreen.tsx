@@ -1,5 +1,8 @@
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowRight, Sparkles, Mail, Lock, AlertCircle } from 'lucide-react';
 import { FloLogo } from './FloLogo';
+import { useLocation } from 'wouter';
+import { logger } from '@/lib/logger';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -7,9 +10,48 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
-  const handleLogin = () => {
-    // Redirect to Replit Auth - provides Google, Apple, GitHub, X, and email/password
+  const [, navigate] = useLocation();
+  const [showEmailLogin, setShowEmailLogin] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleReplitLogin = () => {
     window.location.href = '/api/login';
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/mobile/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Login failed');
+        setIsLoading(false);
+        return;
+      }
+
+      // Store JWT token
+      localStorage.setItem('auth_token', data.token);
+      logger.info('Email login successful, redirecting to dashboard');
+      
+      // Redirect to dashboard
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      logger.error('Email login error:', err);
+      setError('An error occurred. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -59,24 +101,147 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
             </p>
           </div>
 
-          {/* Sign In Button */}
-          <button
-            onClick={handleLogin}
-            className={`w-full py-3.5 rounded-xl text-white flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] text-sm ${
-              isDark
-                ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30'
-                : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30'
-            }`}
-            data-testid="button-login-replit"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Continue to Flō</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+          {!showEmailLogin ? (
+            <>
+              {/* Replit Auth Button */}
+              <button
+                onClick={handleReplitLogin}
+                className={`w-full py-3.5 rounded-xl text-white flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] text-sm ${
+                  isDark
+                    ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30'
+                    : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30'
+                }`}
+                data-testid="button-login-replit"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Continue with Replit</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
 
-          <p className={`text-xs text-center mt-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-            Supports Google, Apple, GitHub, X, and Email
-          </p>
+              <p className={`text-xs text-center mt-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Supports Google, Apple, GitHub, X, and Email
+              </p>
+
+              {/* Divider */}
+              <div className="relative my-6">
+                <div className={`absolute inset-0 flex items-center`}>
+                  <div className={`w-full border-t ${isDark ? 'border-white/10' : 'border-black/10'}`}></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className={`px-2 ${isDark ? 'bg-white/5 text-white/50' : 'bg-white/60 text-gray-500'}`}>
+                    or
+                  </span>
+                </div>
+              </div>
+
+              {/* Email Login Toggle */}
+              <button
+                onClick={() => setShowEmailLogin(true)}
+                className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm border ${
+                  isDark
+                    ? 'border-white/20 text-white/70 hover:bg-white/5'
+                    : 'border-black/20 text-gray-700 hover:bg-black/5'
+                }`}
+                data-testid="button-toggle-email-login"
+              >
+                <Mail className="w-4 h-4" />
+                <span>Sign in with Email</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Email Login Form */}
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                {error && (
+                  <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${
+                    isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'
+                  }`}>
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className={`block text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      required
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm transition-all ${
+                        isDark
+                          ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:border-cyan-500/50 focus:bg-white/10'
+                          : 'bg-white/80 border border-black/10 text-gray-900 placeholder:text-gray-400 focus:border-cyan-500 focus:bg-white'
+                      }`}
+                      data-testid="input-email"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={`block text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm transition-all ${
+                        isDark
+                          ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:border-cyan-500/50 focus:bg-white/10'
+                          : 'bg-white/80 border border-black/10 text-gray-900 placeholder:text-gray-400 focus:border-cyan-500 focus:bg-white'
+                      }`}
+                      data-testid="input-password"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className={`w-full py-3.5 rounded-xl text-white flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] text-sm ${
+                    isLoading
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30'
+                  }`}
+                  data-testid="button-submit-login"
+                >
+                  {isLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign In</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Back to options */}
+              <button
+                onClick={() => {
+                  setShowEmailLogin(false);
+                  setError('');
+                }}
+                className={`w-full mt-4 text-xs ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
+                data-testid="button-back-to-options"
+              >
+                ← Back to sign in options
+              </button>
+            </>
+          )}
         </div>
 
         {/* Medical Disclaimer */}
