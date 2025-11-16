@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 
 /// Comprehensive sleep night data structure matching backend sleep_nights table
 struct SleepNightData: Codable {
@@ -49,7 +50,7 @@ struct SleepNightData: Codable {
 struct SleepSegment {
     let start: Date
     let end: Date
-    let value: HKCategoryValueSleepAnalysis
+    let value: Int  // HKCategoryValueSleepAnalysis raw value
     let source: String?
     
     var duration: TimeInterval {
