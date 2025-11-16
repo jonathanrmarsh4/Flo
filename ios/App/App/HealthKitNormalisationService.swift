@@ -6,7 +6,6 @@ import HealthKit
 public class HealthKitNormalisationService {
     private let healthStore = HKHealthStore()
     private let calendar = Calendar.current
-    private let sleepProcessor = SleepNightProcessor()
     
     /// Get user's current timezone
     private var userTimezone: TimeZone {
@@ -623,10 +622,10 @@ public class HealthKitNormalisationService {
         for (_, _, localDateStr) in dayBoundaries {
             dispatchGroup.enter()
             
-            sleepProcessor.processSleepNight(
+            self.processSleepNightData(
                 sleepDate: localDateStr,
                 timezone: userTimezone,
-                userId: "" // Will be set from JWT on backend
+                userId: ""
             ) { [weak self] sleepNightData in
                 guard let self = self else {
                     dispatchGroup.leave()
@@ -726,5 +725,158 @@ public class HealthKitNormalisationService {
         return "https://7de3d6a7-d19a-4ca9-b491-86cd4eba9a01-00-36fnrwc0flg0z.picard.replit.dev"
         // PROD: Uncomment this when deploying to production
         // return "https://get-flo.com"
+    }
+    
+    // MARK: - Sleep Night Processing (Inline to avoid Xcode config issues)
+    
+    /// Comprehensive sleep night data structure matching backend sleep_nights table
+    private struct SleepNightData: Codable {
+        let userId: String
+        let sleepDate: String
+        let timezone: String
+        let nightStart: String?
+        let finalWake: String?
+        let sleepOnset: String?
+        let timeInBedMin: Double?
+        let totalSleepMin: Double?
+        let sleepEfficiencyPct: Double?
+        let sleepLatencyMin: Double?
+        let wasoMin: Double?
+        let numAwakenings: Int?
+        let coreSleepMin: Double?
+        let deepSleepMin: Double?
+        let remSleepMin: Double?
+        let unspecifiedSleepMin: Double?
+        let awakeInBedMin: Double?
+        let midSleepTimeLocal: Double?
+        let fragmentationIndex: Double?
+        let deepPct: Double?
+        let remPct: Double?
+        let corePct: Double?
+        let bedtimeLocal: String?
+        let waketimeLocal: String?
+        let restingHrBpm: Double?
+        let hrvMs: Double?
+        let respiratoryRate: Double?
+        let wristTemperature: Double?
+        let oxygenSaturation: Double?
+    }
+    
+    private struct SleepSegment {
+        let start: Date
+        let end: Date
+        let value: HKCategoryValueSleepAnalysis
+        let source: String?
+        
+        var duration: TimeInterval {
+            return end.timeIntervalSince(start)
+        }
+        
+        var durationMinutes: Double {
+            return duration / 60.0
+        }
+    }
+    
+    private func processSleepNightData(
+        sleepDate: String,
+        timezone: TimeZone,
+        userId: String,
+        completion: @escaping (SleepNightData?) -> Void
+    ) {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = timezone
+        
+        guard let date = dateFormatter.date(from: sleepDate) else {
+            completion(nil)
+            return
+        }
+        
+        guard let windowEnd = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: date),
+              let yesterday = calendar.date(byAdding: .day, value: -1, to: date),
+              let windowStart = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: yesterday) else {
+            completion(nil)
+            return
+        }
+        
+        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
+        let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: .strictStartDate)
+        
+        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (_, samples, error) in
+            guard let self = self,
+                  let samples = samples as? [HKCategorySample], !samples.isEmpty else {
+                completion(nil)
+                return
+            }
+            
+            var segments: [SleepSegment] = []
+            for sample in samples {
+                if let value = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
+                    segments.append(SleepSegment(
+                        start: sample.startDate,
+                        end: sample.endDate,
+                        value: value,
+                        source: sample.sourceRevision.source.bundleIdentifier
+                    ))
+                }
+            }
+            
+            let sleepNight = self.buildSleepNight(segments: segments, sleepDate: sleepDate, timezone: timezone, userId: userId)
+            completion(sleepNight)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    private func buildSleepNight(segments: [SleepSegment], sleepDate: String, timezone: TimeZone, userId: String) -> SleepNightData? {
+        let inBedSegments = segments.filter { $0.value == .inBed }
+        let stageSegments = segments.filter { $0.value != .inBed }
+        
+        guard !inBedSegments.isEmpty || !stageSegments.isEmpty else { return nil }
+        
+        let nightStart = min(inBedSegments.map { $0.start }.min() ?? Date.distantFuture, stageSegments.map { $0.start }.min() ?? Date.distantFuture)
+        let finalWake = max(inBedSegments.map { $0.end }.max() ?? Date.distantPast, stageSegments.map { $0.end }.max() ?? Date.distantPast)
+        let asleepSegments = stageSegments.filter { $0.value == .asleepCore || $0.value == .asleepDeep || $0.value == .asleepREM || $0.value == .asleepUnspecified || $0.value == .asleep }
+        let sleepOnset = asleepSegments.first?.start
+        
+        let timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
+        let totalSleepMin = asleepSegments.reduce(0.0) { $0 + $1.durationMinutes }
+        
+        guard totalSleepMin >= 180 else { return nil }
+        
+        let iso8601 = ISO8601DateFormatter()
+        iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        return SleepNightData(
+            userId: userId,
+            sleepDate: sleepDate,
+            timezone: timezone.identifier,
+            nightStart: iso8601.string(from: nightStart),
+            finalWake: iso8601.string(from: finalWake),
+            sleepOnset: sleepOnset != nil ? iso8601.string(from: sleepOnset!) : nil,
+            timeInBedMin: timeInBedMin,
+            totalSleepMin: totalSleepMin,
+            sleepEfficiencyPct: timeInBedMin > 0 ? min(100.0, (totalSleepMin / timeInBedMin) * 100.0) : nil,
+            sleepLatencyMin: nil,
+            wasoMin: nil,
+            numAwakenings: nil,
+            coreSleepMin: stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes },
+            deepSleepMin: stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes },
+            remSleepMin: stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes },
+            unspecifiedSleepMin: stageSegments.filter { $0.value == .asleepUnspecified || $0.value == .asleep }.reduce(0.0) { $0 + $1.durationMinutes },
+            awakeInBedMin: stageSegments.filter { $0.value == .awake }.reduce(0.0) { $0 + $1.durationMinutes },
+            midSleepTimeLocal: nil,
+            fragmentationIndex: nil,
+            deepPct: totalSleepMin > 0 ? (stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes } / totalSleepMin) * 100.0 : nil,
+            remPct: totalSleepMin > 0 ? (stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes } / totalSleepMin) * 100.0 : nil,
+            corePct: totalSleepMin > 0 ? (stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes } / totalSleepMin) * 100.0 : nil,
+            bedtimeLocal: nil,
+            waketimeLocal: nil,
+            restingHrBpm: nil,
+            hrvMs: nil,
+            respiratoryRate: nil,
+            wristTemperature: nil,
+            oxygenSaturation: nil
+        )
     }
 }
