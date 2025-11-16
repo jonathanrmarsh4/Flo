@@ -5,7 +5,7 @@ import {
   Users, DollarSign, Activity, TrendingUp, Search,
   Settings, BarChart3, Zap, Database, AlertCircle, CheckCircle, XCircle,
   CreditCard, Ban, Shield, FileText, Bell, Server, Link, Wifi, Edit2, Trash2,
-  ChevronDown
+  ChevronDown, Heart
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +28,7 @@ interface AdminUserSummary {
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'billing' | 'api' | 'analytics' | 'settings' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'billing' | 'api' | 'analytics' | 'settings' | 'logs' | 'healthkit' | 'systems'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [editingUser, setEditingUser] = useState<string | null>(null);
@@ -60,6 +60,16 @@ export default function AdminDashboard() {
   const { data: auditLogsData } = useQuery({
     queryKey: ['/api/admin/audit-logs'],
     refetchInterval: 30000,
+  });
+
+  const { data: healthKitStatsData } = useQuery({
+    queryKey: ['/api/admin/healthkit/stats'],
+    refetchInterval: 30000,
+  });
+
+  const { data: healthKitStatusData } = useQuery({
+    queryKey: ['/api/admin/healthkit/status'],
+    refetchInterval: 10000,
   });
 
   const updateUserMutation = useMutation({
@@ -140,6 +150,8 @@ export default function AdminDashboard() {
     { id: 'billing', label: 'Billing', icon: DollarSign },
     { id: 'api', label: 'API Usage', icon: Zap },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+    { id: 'healthkit', label: 'HealthKit', icon: Heart },
+    { id: 'systems', label: 'Systems', icon: Server },
     { id: 'logs', label: 'Audit Logs', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -555,6 +567,140 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-8 text-white/50">No AI API usage data available</div>
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'healthkit' && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Heart className="w-5 h-5" />
+                HealthKit Overview
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Total Samples</div>
+                  <div className="text-2xl text-white mt-1">
+                    {healthKitStatsData ? (healthKitStatsData as any).totalSamples?.toLocaleString() || '0' : '0'}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Active Users</div>
+                  <div className="text-2xl text-white mt-1">
+                    {healthKitStatsData ? (healthKitStatsData as any).totalUsers?.toLocaleString() || '0' : '0'}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Last 24h Syncs</div>
+                  <div className="text-2xl text-white mt-1">
+                    {healthKitStatusData ? (healthKitStatusData as any).sampleCount24h?.toLocaleString() || '0' : '0'}
+                  </div>
+                </div>
+              </div>
+
+              <h4 className="text-sm text-white/70 mb-3">Samples by Data Type</h4>
+              {healthKitStatsData && (healthKitStatsData as any).samplesByDataType?.length > 0 ? (
+                <div className="space-y-2 mb-6">
+                  {(healthKitStatsData as any).samplesByDataType.map((item: any, idx: number) => (
+                    <div key={idx} className="flex items-center justify-between p-3 rounded-xl border bg-white/5 border-white/10">
+                      <span className="text-sm text-white">{item.dataType}</span>
+                      <span className="text-sm text-purple-400">{item.count.toLocaleString()} samples</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-white/50 text-sm">No data types recorded yet</div>
+              )}
+
+              <h4 className="text-sm text-white/70 mb-3">Recent User Activity</h4>
+              {healthKitStatsData && (healthKitStatsData as any).recentSamples?.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="border-b border-white/10">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs text-white/70">User ID</th>
+                        <th className="px-4 py-3 text-left text-xs text-white/70">Data Type</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/70">Count</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/70">Latest Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(healthKitStatsData as any).recentSamples.map((item: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-white/5">
+                          <td className="px-4 py-3 text-sm text-white font-mono text-xs">{item.userId.substring(0, 8)}...</td>
+                          <td className="px-4 py-3 text-sm text-purple-400">{item.dataType}</td>
+                          <td className="px-4 py-3 text-sm text-white text-right">{item.count}</td>
+                          <td className="px-4 py-3 text-sm text-white/70 text-right text-xs">
+                            {new Date(item.latestDate).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-white/50 text-sm">No user activity yet</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'systems' && (
+          <div className="space-y-6">
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Server className="w-5 h-5" />
+                Systems Integration
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-xl border bg-white/5 border-white/10">
+                  <div className="flex items-center gap-3">
+                    <Heart className="w-5 h-5 text-pink-400" />
+                    <div>
+                      <div className="text-sm text-white">HealthKit API</div>
+                      <div className="text-xs text-white/50">iOS Health Data Integration</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {healthKitStatusData ? (
+                      <>
+                        {(healthKitStatusData as any).status === 'operational' ? (
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-400" data-testid="status-healthkit-operational" />
+                            <span className="text-sm text-green-400">Operational</span>
+                          </div>
+                        ) : (healthKitStatusData as any).status === 'degraded' ? (
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="w-5 h-5 text-yellow-400" data-testid="status-healthkit-degraded" />
+                            <span className="text-sm text-yellow-400">Degraded</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <XCircle className="w-5 h-5 text-red-400" data-testid="status-healthkit-down" />
+                            <span className="text-sm text-red-400">Down</span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-white/50 animate-pulse" />
+                        <span className="text-sm text-white/50">Checking...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {healthKitStatusData && (healthKitStatusData as any).lastSync && (
+                  <div className="p-4 rounded-xl border bg-white/5 border-white/10">
+                    <div className="text-xs text-white/50 mb-1">Last Sync</div>
+                    <div className="text-sm text-white">
+                      {new Date((healthKitStatusData as any).lastSync).toLocaleString()}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
