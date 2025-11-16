@@ -13,7 +13,8 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "readSamples", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readCategorySamples", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveSample", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getPluginVersion", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "getPluginVersion", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "syncReadinessData", returnType: CAPPluginReturnPromise)
     ]
 
     private let implementation = Health()
@@ -164,6 +165,32 @@ public class HealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func getPluginVersion(_ call: CAPPluginCall) {
         call.resolve(["version": self.pluginVersion])
+    }
+    
+    @objc func syncReadinessData(_ call: CAPPluginCall) {
+        let days = call.getInt("days") ?? 7
+        
+        print("🔄 [HealthPlugin] Starting automatic readiness data sync for last \(days) days...")
+        
+        let normalizationService = HealthKitNormalisationService()
+        normalizationService.syncLastNDays(days: days) { success, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ [HealthPlugin] Sync failed: \(error.localizedDescription)")
+                    call.reject("Readiness sync failed: \(error.localizedDescription)", nil, error)
+                } else if success {
+                    print("✅ [HealthPlugin] Successfully synced \(days) days of readiness data automatically!")
+                    call.resolve([
+                        "success": true,
+                        "days": days,
+                        "message": "Successfully synced \(days) days of readiness data"
+                    ])
+                } else {
+                    print("⚠️ [HealthPlugin] Sync completed but returned false")
+                    call.reject("Sync completed but returned unsuccessful status")
+                }
+            }
+        }
     }
 
 }
