@@ -24,6 +24,8 @@ import {
   getBiomarkerUnitsQuerySchema,
   getBiomarkerReferenceRangeQuerySchema,
   healthkitSamples,
+  userDailyMetrics,
+  insertUserDailyMetricsSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -2505,6 +2507,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ samples });
     } catch (error: any) {
       logger.error("[HealthKit] Get samples error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Ingest normalized daily metrics from iOS
+  app.post("/api/healthkit/daily-metrics", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const dailyMetrics = req.body;
+
+      // Validate input
+      const validationResult = insertUserDailyMetricsSchema.safeParse({
+        ...dailyMetrics,
+        userId,
+      });
+
+      if (!validationResult.success) {
+        logger.error("[HealthKit] Daily metrics validation failed:", fromError(validationResult.error).toString());
+        return res.status(400).json({ 
+          error: "Invalid daily metrics data",
+          details: fromError(validationResult.error).toString()
+        });
+      }
+
+      const metrics = validationResult.data;
+
+      logger.info(`[HealthKit] Ingesting daily metrics for user ${userId}, date ${metrics.localDate}`);
+
+      // Upsert: insert or update if already exists for this user+date
+      const { and, sql: drizzleSql } = await import("drizzle-orm");
+      
+      // Check if record exists
+      const existing = await db
+        .select()
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, metrics.localDate)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Update existing record
+        await db
+          .update(userDailyMetrics)
+          .set({
+            ...metrics,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(userDailyMetrics.userId, userId),
+              eq(userDailyMetrics.localDate, metrics.localDate)
+            )
+          );
+
+        logger.info(`[HealthKit] Updated daily metrics for ${userId}, ${metrics.localDate}`);
+        res.json({ status: "updated", date: metrics.localDate });
+      } else {
+        // Insert new record
+        await db.insert(userDailyMetrics).values(metrics);
+
+        logger.info(`[HealthKit] Inserted daily metrics for ${userId}, ${metrics.localDate}`);
+        res.json({ status: "created", date: metrics.localDate });
+      }
+    } catch (error: any) {
+      logger.error("[HealthKit] Daily metrics ingestion error:", error);
       return res.status(500).json({ error: error.message });
     }
   });
