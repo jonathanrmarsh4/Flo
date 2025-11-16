@@ -2,6 +2,7 @@ import { FloOverviewTile } from './dashboard/FloOverviewTile';
 import { HeartMetabolicTile } from './dashboard/HeartMetabolicTile';
 import { BodyCompositionTile } from './dashboard/BodyCompositionTile';
 import { ReadinessTile } from './dashboard/ReadinessTile';
+import { SleepTile } from './dashboard/SleepTile';
 import { FloLogo } from './FloLogo';
 import { Bell, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -18,6 +19,10 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
 
   const { data: bioAgeData } = useQuery<any>({
     queryKey: ['/api/biological-age'],
+  });
+
+  const { data: sleepData } = useQuery<any>({
+    queryKey: ['/api/sleep/today'],
   });
 
   return (
@@ -114,6 +119,9 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
 
             {/* Full Width - Daily Readiness */}
             <ReadinessTile isDark={isDark} />
+
+            {/* Full Width - Sleep Index */}
+            <SleepTile isDark={isDark} data={sleepData} />
 
             {/* Quick Stats Row */}
             <div className="grid grid-cols-2 gap-4">
