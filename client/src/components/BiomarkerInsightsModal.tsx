@@ -134,16 +134,9 @@ export function BiomarkerInsightsModal({
   const { data: insightsData, isLoading, error } = useQuery<any>({
     queryKey: ['/api/biomarkers', biomarkerId, 'insights'],
     queryFn: async () => {
-      const response = await fetch(`/api/biomarkers/${biomarkerId}/insights`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ forceRefresh: false }),
-        credentials: 'include',
+      const response = await apiRequest('POST', `/api/biomarkers/${biomarkerId}/insights`, {
+        forceRefresh: false,
       });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch insights');
-      }
       return response.json();
     },
     enabled: isOpen && !!biomarkerId,
