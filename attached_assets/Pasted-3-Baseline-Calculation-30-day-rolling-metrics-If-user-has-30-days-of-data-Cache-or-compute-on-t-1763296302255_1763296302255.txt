@@ -1,0 +1,55 @@
+3. Baseline Calculation – 30-day rolling metrics
+If user has <30 days of data? Cache or compute on the fly?
+Answer:
+Less than 30 days of data:
+Use whatever is available, but:
+Require a minimum of 5 days to treat a baseline as “valid”.
+If < 5 days, fall back to generic defaults / population norms and mark baselines as “immature”.
+Caching vs on-the-fly:
+Baselines should be cached and incrementally updated, not recomputed from scratch on every scoring call.
+Best approach:
+Every time /api/health/daily-summary is ingested, update or recompute:
+baseline_resting_hr
+baseline_hrv
+baseline_respiratory_rate
+etc.
+Store them in a table like health_baselines or as JSON on the user row.
+The Flomentum / readiness calculation then just reads the cached baselines.
+So:
+If days_of_data >= 30 → use strict 30-day rolling baseline.
+If 5 ≤ days_of_data < 30 → use all available days as a provisional baseline.
+If days_of_data < 5 → use generic defaults and flag baseline as weak.
+Baselines are stored, not recalculated from full history each time.
+4. Weekly Job Timing – cron & timezone
+Weekly cron “early Monday morning” – which timezone? User’s or UTC?
+Answer:
+The cron process itself will run in UTC (e.g. Monday 03:00 UTC).
+For each user, all windows and dates are calculated in that user’s timezone.
+So the logic is:
+Cron triggers at Monday 03:00 UTC.
+For each user:
+Use their primary_time_zone from user_settings.
+Determine their most recent local “week” (e.g. last Mon–Sun in their local time).
+Run weekly summary / Flomentum week scoring based on their local week.
+This keeps operational simplicity (one cron) but ensures “your week” is truly your week.
+5. First-Day Experience – when does hasData become true?
+Hero tile hasData – after first /api/health/daily-summary POST, or after first Flomentum calculation?
+Answer:
+Let’s define two separate internal flags (even if only one is exposed to the UI right now):
+hasDailySummaryData – at least one daily summary row exists.
+hasFlomentumScore – at least one successful Flomentum / readiness calculation exists.
+For the hero Flomentum tile, we care about “do we have a score to show?”
+hasData for the hero tile should become true after the first successful Flomentum calculation completes.
+Behaviour:
+After first successful /api/health/daily-summary POST:
+Backend stores the daily summary.
+It then runs the Flomentum job.
+If the Flomentum job produces a valid score (i.e. minimum required inputs exist), set:
+hasFlomentumScore = true
+UI hero tile: hasData = true, render score.
+If you want to show a transitional state:
+When hasDailySummaryData = true but hasFlomentumScore = false:
+The hero tile can show a message like: “Collecting more data to calculate your readiness score”.
+But for the simple yes/no the dev is asking:
+When does hasData flip for the hero tile?
+👉 Answer: after the first successful Flomentum calculation, not merely after the first summary POST.

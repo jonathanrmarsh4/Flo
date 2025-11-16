@@ -1,0 +1,253 @@
+import { TrendingUp, TrendingDown, ChevronRight, Info } from 'lucide-react';
+import { useState } from 'react';
+
+interface FlomentumTileProps {
+  isDark: boolean;
+  onTileClick: () => void;
+}
+
+const DEFAULT_DATA = {
+  score: 73,
+  zone: 'Building' as 'Building' | 'Maintaining' | 'Draining',
+  trend: 'up' as const,
+  delta: 9,
+  hasData: true,
+  isFirstDay: false
+};
+
+export function FlomentumTile({ isDark, onTileClick }: FlomentumTileProps) {
+  const [showExplainer, setShowExplainer] = useState(false);
+  const data = DEFAULT_DATA;
+
+  const getZoneColors = (zone: 'Building' | 'Maintaining' | 'Draining') => {
+    if (zone === 'Building') {
+      return {
+        gradient: { start: '#14b8a6', end: '#10b981' }, // teal to green
+        textColor: isDark ? 'text-teal-400' : 'text-teal-600',
+        badgeBg: isDark ? 'bg-teal-500/20' : 'bg-teal-100',
+        badgeText: isDark ? 'text-teal-400' : 'text-teal-700'
+      };
+    } else if (zone === 'Maintaining') {
+      return {
+        gradient: { start: '#3b82f6', end: '#6366f1' }, // blue to indigo
+        textColor: isDark ? 'text-blue-400' : 'text-blue-600',
+        badgeBg: isDark ? 'bg-blue-500/20' : 'bg-blue-100',
+        badgeText: isDark ? 'text-blue-400' : 'text-blue-700'
+      };
+    } else {
+      return {
+        gradient: { start: '#f59e0b', end: '#ef4444' }, // amber to red
+        textColor: isDark ? 'text-amber-400' : 'text-amber-600',
+        badgeBg: isDark ? 'bg-amber-500/20' : 'bg-amber-100',
+        badgeText: isDark ? 'text-amber-400' : 'text-amber-700'
+      };
+    }
+  };
+
+  const colors = getZoneColors(data.zone);
+
+  // No data state
+  if (!data.hasData) {
+    return (
+      <div 
+        onClick={onTileClick}
+        className={`backdrop-blur-xl rounded-3xl border p-6 transition-all cursor-pointer hover:scale-[1.01] relative overflow-hidden ${
+          isDark 
+            ? 'bg-gradient-to-br from-slate-800/80 via-slate-900/80 to-slate-800/80 border-white/10' 
+            : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-black/10'
+        }`}
+      >
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Flōmentum
+            </h3>
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+          </div>
+          
+          <div className="text-center py-8">
+            <p className={`text-sm leading-relaxed mb-4 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+              Flōmentum will appear after we've collected a full day of movement, sleep and heart data.
+            </p>
+            <button className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+              Connect Apple Health
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div 
+        onClick={onTileClick}
+        className={`backdrop-blur-xl rounded-3xl border p-6 transition-all cursor-pointer hover:scale-[1.01] relative overflow-hidden ${
+          isDark 
+            ? 'bg-gradient-to-br from-slate-800/80 via-slate-900/80 to-slate-800/80 border-white/10' 
+            : 'bg-gradient-to-br from-white/80 to-gray-50/80 border-black/10'
+        }`}
+      >
+        {/* Ambient glow */}
+        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-teal-500/20 via-cyan-500/20 to-green-500/20 rounded-full blur-3xl"></div>
+
+        {/* Header */}
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <h3 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Flōmentum
+              </h3>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowExplainer(true);
+                }}
+                className={`p-1 rounded-full transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+              >
+                <Info className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+              </button>
+            </div>
+            <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+          </div>
+
+          {/* Score Display */}
+          <div className="flex items-center justify-between mb-6">
+            {/* Circular Gauge */}
+            <div className="relative w-32 h-32 flex-shrink-0">
+              <svg className="w-32 h-32 transform -rotate-90">
+                {/* Background ring */}
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="56"
+                  stroke={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
+                  strokeWidth="10"
+                  fill="none"
+                />
+                {/* Progress ring with gradient */}
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="56"
+                  stroke="url(#flomentumGradient)"
+                  strokeWidth="10"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(data.score / 100) * 351.86} 351.86`}
+                  className="transition-all duration-1000 ease-out"
+                  style={{ filter: 'drop-shadow(0 0 8px rgba(20, 184, 166, 0.6))' }}
+                />
+                <defs>
+                  <linearGradient id="flomentumGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor={colors.gradient.start} />
+                    <stop offset="100%" stopColor={colors.gradient.end} />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {data.score}
+                </span>
+              </div>
+            </div>
+
+            {/* Zone & Trend */}
+            <div className="flex-1 ml-6">
+              <div className={`px-3 py-1.5 rounded-full text-xs mb-3 inline-block uppercase tracking-wide ${colors.badgeBg} ${colors.badgeText}`}>
+                {data.zone}
+              </div>
+              <div className={`text-sm mb-1 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                Today's momentum
+              </div>
+              {data.isFirstDay ? (
+                <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  First Flōmentum day logged
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  {data.trend === 'up' ? (
+                    <TrendingUp className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                  ) : (
+                    <TrendingDown className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                  )}
+                  <span className={`text-sm ${
+                    data.trend === 'up' 
+                      ? isDark ? 'text-green-400' : 'text-green-600'
+                      : isDark ? 'text-red-400' : 'text-red-600'
+                  }`}>
+                    {data.trend === 'up' ? '+' : ''}{data.delta} from yesterday
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Snapshot */}
+          <div className={`rounded-2xl p-4 ${
+            isDark ? 'bg-white/5 border border-white/10' : 'bg-blue-50/50 border border-blue-200/50'
+          }`}>
+            <div className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              Quick Snapshot
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-green-400' : 'bg-green-600'}`}></div>
+                <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  Hit your step target
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-green-400' : 'bg-green-600'}`}></div>
+                <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  Sleep in optimal range
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${isDark ? 'bg-amber-400' : 'bg-amber-600'}`}></div>
+                <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  Low exercise intensity
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Explainer Modal */}
+      {showExplainer && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowExplainer(false)}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`max-w-sm w-full rounded-3xl p-6 backdrop-blur-xl border ${
+              isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-black/10'
+            }`}
+          >
+            <h3 className={`text-xl mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              What is Flōmentum?
+            </h3>
+            <p className={`text-sm leading-relaxed mb-6 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+              Flōmentum is your daily health momentum score (0–100) based on sleep, movement and recovery from Apple Health.
+            </p>
+            <button
+              onClick={() => setShowExplainer(false)}
+              className={`w-full py-3 rounded-xl transition-all ${
+                isDark 
+                  ? 'bg-cyan-500 text-white hover:bg-cyan-600' 
+                  : 'bg-cyan-600 text-white hover:bg-cyan-700'
+              }`}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
