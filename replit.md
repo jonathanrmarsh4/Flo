@@ -1,7 +1,7 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It features a dashboard-centric design with four intelligent tiles that synthesize lab results, diagnostic studies, and future HomeKit data into actionable health scores. The platform tracks health metrics over time, integrates OpenAI's GPT models for insights, and includes user authentication, a comprehensive profile system, admin tools, and billing via Stripe and Apple Pay. Its purpose is to deliver trusted, clear, and actionable health information.
+Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It features a dashboard-centric design with four intelligent tiles that synthesize lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics over time, integrates OpenAI's GPT models for insights, Apple HealthKit for real-time wellness data (26 data types including HRV, sleep, steps, heart rate, and body composition), and includes user authentication, a comprehensive profile system, admin tools, and billing via Stripe and Apple Pay. Its purpose is to deliver trusted, clear, and actionable health information.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -28,6 +28,14 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 - **Mobile Authentication:** Uses `MobileAuth.tsx` with Apple Sign-In and Email/Password, `react-hook-form` validation, and a glassmorphism design.
 - **iOS WKWebView Optimization:** A multi-layer fix for rubber band overscroll bounce, ensuring a consistent background.
 - **DEXA Scan Display:** Integrates into the Diagnostics page, displaying bone density T-scores, WHO classification, body fat percentage with sex-specific categorization, and visceral adipose tissue (VAT) area.
+- **HealthKit Integration:** Native iOS integration using `@healthpilot/healthkit` plugin with 26 health data types across four categories:
+  - Daily Readiness (6): HRV, resting heart rate, respiratory rate, oxygen saturation, sleep analysis, body temperature
+  - Body Composition (6): weight, height, BMI, body fat %, lean body mass, waist circumference
+  - Cardiometabolic (7): heart rate variants, blood pressure, blood glucose, VO2 max
+  - Activity (7): steps, distance, calories, flights climbed, exercise time, stand time
+  - UI at `/healthkit` for permissions management and data viewing
+  - TypeScript service layer (`client/src/services/healthkit.ts`) with 26 typed data types
+  - iOS permissions configured in `Info.plist` with privacy descriptions
 
 **Backend:** Developed with Express.js and TypeScript, providing a RESTful API.
 - **Authentication:** Unified authentication system (`server/replitAuth.ts::isAuthenticated`) supporting both:
@@ -73,5 +81,5 @@ Utilizes Stripe (via Replit Stripe Integration) for credit/debit card processing
 - **OpenAI:** GPT-4o and GPT-5 models.
 
 ### Key Technologies/Libraries
-- **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`, `@capacitor/*`, `capacitor-secure-storage-plugin`.
+- **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`, `@capacitor/*`, `capacitor-secure-storage-plugin`, `@healthpilot/healthkit`.
 - **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`, `jose`, `jsonwebtoken`, `pdf-parse`.
