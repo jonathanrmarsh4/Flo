@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useLocation } from 'wouter';
+import { BottomNav } from '@/components/BottomNav';
 
 interface FlomentumFactor {
   status: 'positive' | 'neutral' | 'negative';
@@ -47,15 +48,18 @@ interface FlomentumWeeklyData {
 export default function FlomentumScreen() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
+  const [isDark] = useState(true); // Match dashboard default
 
   const { data: dailyData, isLoading: isDailyLoading } = useQuery<FlomentumDailyData>({
     queryKey: ['/api/flomentum/today'],
     retry: false,
+    refetchOnMount: 'always',
   });
 
   const { data: weeklyData, isLoading: isWeeklyLoading } = useQuery<FlomentumWeeklyData>({
     queryKey: ['/api/flomentum/weekly'],
     retry: false,
+    refetchOnMount: 'always',
   });
 
   const zoneColors = {
@@ -77,24 +81,34 @@ export default function FlomentumScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen pb-24 ${
+      isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+    }`}>
       {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-xl bg-background/80 border-b border-white/10">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation('/')}
-            data-testid="button-back"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-orange-400" />
-            <h1 className="text-lg font-semibold">Flōmentum</h1>
+      <header className={`sticky top-0 z-40 backdrop-blur-xl border-b transition-colors ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`}>
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/')}
+              data-testid="button-back"
+            >
+              <ChevronLeft className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </Button>
+            <div className="flex items-center gap-2">
+              <Flame className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+              <h1 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Flōmentum
+              </h1>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'daily' | 'weekly')} className="px-4 pt-4">
@@ -315,6 +329,8 @@ export default function FlomentumScreen() {
           )}
         </TabsContent>
       </Tabs>
+
+      <BottomNav isDark={isDark} />
     </div>
   );
 }
