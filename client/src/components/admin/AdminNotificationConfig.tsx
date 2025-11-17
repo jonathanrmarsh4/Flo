@@ -182,10 +182,10 @@ export function AdminNotificationConfig() {
 
   if (isLoading) {
     return (
-      <Card>
+      <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardContent className="p-6">
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+            <div className="animate-spin h-8 w-8 border-4 border-cyan-500 border-t-transparent rounded-full" />
           </div>
         </CardContent>
       </Card>
@@ -194,15 +194,15 @@ export function AdminNotificationConfig() {
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card className="bg-white/5 backdrop-blur-xl border-white/10">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-white">
                 <Bell className="h-5 w-5" />
                 Notification Triggers
               </CardTitle>
-              <CardDescription className="mt-1">
+              <CardDescription className="mt-1 text-white/60">
                 Configure automatic notifications for health events
               </CardDescription>
             </div>
@@ -214,6 +214,7 @@ export function AdminNotificationConfig() {
               }}
               size="sm"
               data-testid="button-create-trigger"
+              className="bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg hover:shadow-xl"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Trigger
@@ -223,7 +224,7 @@ export function AdminNotificationConfig() {
         <CardContent>
           <div className="space-y-3">
             {triggers.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
+              <div className="text-center py-12 text-white/60">
                 <Bell className="h-12 w-12 mx-auto mb-3 opacity-20" />
                 <p>No notification triggers configured</p>
                 <p className="text-sm mt-1">Create your first trigger to start sending automated notifications</p>
@@ -232,7 +233,7 @@ export function AdminNotificationConfig() {
               triggers.map((trigger) => (
                 <div
                   key={trigger.id}
-                  className="flex items-start gap-3 p-4 rounded-lg border bg-card hover-elevate"
+                  className="flex items-start gap-3 p-4 rounded-lg border border-white/10 bg-white/5 hover-elevate"
                   data-testid={`trigger-card-${trigger.id}`}
                 >
                   <div className="mt-1">{getTriggerIcon(trigger.triggerType)}</div>
@@ -240,8 +241,8 @@ export function AdminNotificationConfig() {
                   <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{trigger.title}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">{trigger.body}</p>
+                        <p className="font-medium text-sm truncate text-white">{trigger.title}</p>
+                        <p className="text-xs text-white/60 line-clamp-2">{trigger.body}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <Switch
@@ -258,11 +259,11 @@ export function AdminNotificationConfig() {
                     </div>
                     
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/80">
                         {getTriggerTypeLabel(trigger.triggerType)}
                       </span>
                       {trigger.biomarkerName && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">
                           {trigger.biomarkerName}
                         </span>
                       )}
@@ -275,6 +276,7 @@ export function AdminNotificationConfig() {
                       variant="ghost"
                       onClick={() => handleEdit(trigger)}
                       data-testid={`button-edit-${trigger.id}`}
+                      className="text-white/70 hover:text-white"
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
@@ -287,8 +289,9 @@ export function AdminNotificationConfig() {
                         }
                       }}
                       data-testid={`button-delete-${trigger.id}`}
+                      className="text-red-400 hover:text-red-300"
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
