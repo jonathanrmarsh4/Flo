@@ -16,13 +16,8 @@ export function useHealthKitAutoSync() {
   const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
-    // Only run on native platforms
-    if (!isNative) {
-      return;
-    }
-
-    // Only run once per app session
-    if (hasRun.current) {
+    // Only run on native platforms and only once per session
+    if (!isNative || hasRun.current) {
       return;
     }
 
