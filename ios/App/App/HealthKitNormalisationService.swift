@@ -735,10 +735,10 @@ public class HealthKitNormalisationService {
     }
     
     private func getBackendURL() -> String {
-        // DEV: Use Replit dev domain
-        return "https://7de3d6a7-d19a-4ca9-b491-86cd4eba9a01-00-36fnrwc0flg0z.picard.replit.dev"
-        // PROD: Uncomment this when deploying to production
-        // return "https://get-flo.com"
+        // PROD: Production domain
+        return "https://get-flo.com"
+        // DEV: Uncomment this for local development
+        // return "https://7de3d6a7-d19a-4ca9-b491-86cd4eba9a01-00-36fnrwc0flg0z.picard.replit.dev"
     }
     
     // MARK: - Sleep Night Processing (Inline to avoid Xcode config issues)
