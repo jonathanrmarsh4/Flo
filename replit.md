@@ -32,7 +32,70 @@ The platform features an Apple Human Interface Guidelines-inspired design, focus
 - **Google Cloud Storage:** For object storage.
 - **Stripe:** Payment processing.
 - **OpenAI:** GPT-4o and GPT-5 models.
+- **OneSignal:** Push notification delivery for iOS devices.
 
 ### Key Technologies/Libraries
-- **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`, `@capacitor/*`, `capacitor-secure-storage-plugin`, `@healthpilot/healthkit`.
-- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`, `jose`, `jsonwebtoken`, `pdf-parse`.
+- **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`, `@capacitor/*`, `capacitor-secure-storage-plugin`, `@healthpilot/healthkit`, `onesignal-cordova-plugin`.
+- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`, `jose`, `jsonwebtoken`, `pdf-parse`, `@onesignal/node-onesignal`.
+## Push Notifications (OneSignal)
+
+Flō integrates OneSignal for push notifications to deliver Flōmentum daily scores, weekly summaries, lab results, and health insights directly to users' iOS devices.
+
+### Architecture
+- **Backend:** Node SDK (`@onesignal/node-onesignal`) sends notifications via REST API
+- **Frontend:** Cordova plugin (`onesignal-cordova-plugin`) handles device registration and notification events
+- **User Targeting:** External user IDs (Flō user IDs) enable user-specific targeting
+- **Database:** `notification_preferences` table stores user preferences (enabled/disabled, notification times, timezone)
+
+### Backend Implementation
+- **NotificationService** (`server/services/notificationService.ts`): Handles all OneSignal API calls
+- **API Endpoints** (`server/routes.ts`):
+  - `GET /api/notifications/preferences`: Get user notification settings
+  - `PUT /api/notifications/preferences`: Update notification preferences
+  - `POST /api/notifications/register-device`: Register OneSignal player ID (device token)
+  - `POST /api/notifications/test`: Send test notification
+- **Auto-notification**: When iOS syncs HealthKit data via `/api/healthkit/daily-metrics`, the backend automatically calculates Flōmentum score and sends push notification if user preferences allow
+
+### Frontend Implementation
+- **PushNotificationService** (`client/src/services/pushNotifications.ts`): Singleton service managing OneSignal SDK
+- **Initialization**: Automatic on app launch when user is authenticated (App.tsx)
+- **Permission Handling**: Requests push notification permission on first launch
+- **Notification Routing**: Deep links to relevant screens (Dashboard, Flōmentum, Labs, Insights)
+- **Event Handlers**: Registered handlers for different notification types (daily score, weekly summary, health insights, lab results)
+
+### iOS Xcode Setup (Required for Push Notifications)
+
+**IMPORTANT:** Push notifications only work on physical iOS devices, not the Xcode simulator.
+
+1. **Enable Push Notifications Capability**
+   - Open `ios/App/App.xcodeproj` in Xcode
+   - Select the App target → Signing & Capabilities
+   - Click "+ Capability" → Search for "Push Notifications"
+   - Add the capability (no configuration needed)
+
+2. **Configure OneSignal App ID**
+   - OneSignal App ID is set in `capacitor.config.ts` and automatically loaded from `ONESIGNAL_APP_ID` environment variable
+   - No manual Xcode configuration needed - Capacitor handles this
+
+3. **Build and Deploy**
+   - Ensure you're building for a physical device (not simulator)
+   - Push notifications require a valid provisioning profile with Push Notifications entitlement
+   - Test on device by enabling HealthKit sync, which triggers Flōmentum scoring and push notification
+
+4. **Testing Push Notifications**
+   - Use `/api/notifications/test` endpoint to send test notification
+   - Trigger Flōmentum scoring by syncing HealthKit data
+   - Check notification preferences are enabled in user settings
+   - Verify OneSignal player ID is registered via `/api/notifications/register-device`
+
+### Notification Templates
+- **Flōmentum Daily Score**: "Your Flōmentum Score: {score}" → Deep links to `/flomentum`
+- **Flōmentum Weekly Summary**: "Your Weekly Flōmentum Summary" → Deep links to `/flomentum`
+- **Health Insights**: "Health Insight: {title}" → Deep links to `/dashboard`
+- **Lab Results**: "Your Lab Results Are Ready" → Deep links to `/labs`
+- **Milestones**: "Milestone Achieved! 🎉" → Deep links to `/flomentum`
+
+### Environment Variables
+- `ONESIGNAL_APP_ID`: OneSignal application ID (stored in Replit Secrets)
+- `ONESIGNAL_REST_API_KEY`: OneSignal REST API key for backend (stored in Replit Secrets)
+- `VITE_ONESIGNAL_APP_ID`: OneSignal app ID for frontend (Vite env var, same as ONESIGNAL_APP_ID)
