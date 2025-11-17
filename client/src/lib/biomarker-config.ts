@@ -49,7 +49,9 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   // Lipid & Cardiovascular Health
   'Total Cholesterol': { unit: 'mg/dL', min: 125, max: 200, category: 'Lipid & Cardiovascular Health' },
   'HDL': { unit: 'mg/dL', min: 40, max: 100, category: 'Lipid & Cardiovascular Health' },
+  'HDL Cholesterol': { unit: 'mg/dL', min: 40, max: 100, category: 'Lipid & Cardiovascular Health' },
   'LDL': { unit: 'mg/dL', min: 50, max: 100, category: 'Lipid & Cardiovascular Health' },
+  'LDL Cholesterol': { unit: 'mg/dL', min: 50, max: 100, category: 'Lipid & Cardiovascular Health' },
   'Triglycerides': { unit: 'mg/dL', min: 50, max: 150, category: 'Lipid & Cardiovascular Health' },
   'Non-HDL Cholesterol': { unit: 'mg/dL', min: 60, max: 130, category: 'Lipid & Cardiovascular Health' },
   'ApoA1': { unit: 'mg/dL', min: 120, max: 180, category: 'Lipid & Cardiovascular Health' },
