@@ -718,7 +718,10 @@ public class HealthKitNormalisationService {
                     return
                 }
                 
+                print("[Sleep] DEBUG: Received \(samples.count) samples for \(localDateStr) in completion handler")
+                
                 if !samples.isEmpty {
+                    print("[Sleep] DEBUG: About to upload \(samples.count) samples for \(localDateStr)")
                     // Upload raw samples to backend for processing
                     self.uploadRawSleepSamples(samples: samples, sleepDate: localDateStr, token: token) { success, error in
                         if success {
