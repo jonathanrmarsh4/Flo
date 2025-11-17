@@ -1,6 +1,22 @@
 import Foundation
 import HealthKit
 
+/// Internal structure for sleep segment processing within SleepNightProcessor
+private struct SleepSegment {
+    let start: Date
+    let end: Date
+    let value: HKCategoryValueSleepAnalysis
+    let source: String?
+    
+    var duration: TimeInterval {
+        return end.timeIntervalSince(start)
+    }
+    
+    var durationMinutes: Double {
+        return duration / 60.0
+    }
+}
+
 /// Comprehensive sleep night processor following the Flo sleep framework spec
 /// Implements: 15:00-15:00 window, 7 sleep stages, detailed metrics, source prioritization
 public class SleepNightProcessor {
@@ -153,10 +169,20 @@ public class SleepNightProcessor {
         // Calculate durations
         let timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
         let totalSleepMin = asleepSegments.reduce(0.0) { $0 + $1.durationMinutes }
-        let coreSleepMin = stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes }
-        let deepSleepMin = stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes }
-        let remSleepMin = stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes }
-        let unspecifiedSleepMin = stageSegments.filter { $0.value == .asleepUnspecified || $0.value == .asleep }.reduce(0.0) { $0 + $1.durationMinutes }
+        
+        var coreSleepMin: Double = 0.0
+        var deepSleepMin: Double = 0.0
+        var remSleepMin: Double = 0.0
+        var unspecifiedSleepMin: Double = 0.0
+        
+        if #available(iOS 16.0, *) {
+            coreSleepMin = stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes }
+            deepSleepMin = stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes }
+            remSleepMin = stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes }
+            unspecifiedSleepMin = stageSegments.filter { $0.value == .asleepUnspecified || $0.value == .asleep }.reduce(0.0) { $0 + $1.durationMinutes }
+        } else {
+            unspecifiedSleepMin = totalSleepMin
+        }
         
         // Awake segments
         let awakeSegments = stageSegments.filter { $0.value == .awake }
@@ -196,9 +222,15 @@ public class SleepNightProcessor {
         let fragmentationIndex = totalSleepMin > 0 ? Double(numAwakenings ?? 0) / max(totalSleepMin / 60.0, 0.1) : nil
         
         // Stage percentages
-        let deepPct = totalSleepMin > 0 ? (deepSleepMin / totalSleepMin) * 100.0 : nil
-        let remPct = totalSleepMin > 0 ? (remSleepMin / totalSleepMin) * 100.0 : nil
-        let corePct = totalSleepMin > 0 ? (coreSleepMin / totalSleepMin) * 100.0 : nil
+        var deepPct: Double? = nil
+        var remPct: Double? = nil
+        var corePct: Double? = nil
+        
+        if #available(iOS 16.0, *), totalSleepMin > 0 {
+            deepPct = (deepSleepMin / totalSleepMin) * 100.0
+            remPct = (remSleepMin / totalSleepMin) * 100.0
+            corePct = (coreSleepMin / totalSleepMin) * 100.0
+        }
         
         // Format bedtime/waketime
         let bedtimeLocal = formatLocalTime(nightStart, timezone: timezone)
@@ -247,8 +279,12 @@ public class SleepNightProcessor {
     // MARK: - Helpers
     
     private func isAsleepValue(_ value: HKCategoryValueSleepAnalysis) -> Bool {
-        return value == .asleepCore || value == .asleepDeep || value == .asleepREM || 
-               value == .asleepUnspecified || value == .asleep
+        if #available(iOS 16.0, *) {
+            return value == .asleepCore || value == .asleepDeep || value == .asleepREM || 
+                   value == .asleepUnspecified || value == .asleep
+        } else {
+            return value == .asleep
+        }
     }
     
     private func toISO8601UTC(_ date: Date) -> String {
