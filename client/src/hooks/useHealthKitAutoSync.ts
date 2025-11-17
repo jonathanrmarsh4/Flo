@@ -62,6 +62,11 @@ export function useHealthKitAutoSync() {
             days: syncResult.days,
           });
           
+          // Wait for backend upload to complete before invalidating cache
+          // The Swift plugin returns immediately but uploads data asynchronously
+          console.log('⏳ [AutoSync] Waiting 4s for backend upload to complete...');
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          
           // Invalidate all health-related queries to refresh UI with new data
           console.log('🔄 [AutoSync] About to invalidate cache...');
           try {
@@ -99,6 +104,10 @@ export function useHealthKitAutoSync() {
             logger.info('🔄 [AutoSync] Running auth-aware sync to capture sleep data...');
             await Readiness.syncReadinessData({ days: 7, waitForAuth: true });
             logger.info('✅ [AutoSync] Auth-aware sync completed');
+            
+            // Wait for backend upload to complete
+            logger.info('⏳ [AutoSync] Waiting 4s for sleep data upload...');
+            await new Promise(resolve => setTimeout(resolve, 4000));
           } catch (err) {
             logger.debug('Auth-aware sync failed - likely no new data');
           } finally {
