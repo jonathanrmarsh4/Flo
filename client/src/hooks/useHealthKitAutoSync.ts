@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import Readiness from '@/plugins/readiness';
 import { logger } from '@/lib/logger';
+import { sendNotification } from '@/lib/notifications';
 
 /**
  * Hook to automatically sync HealthKit data when the app launches
@@ -35,6 +36,12 @@ export function useHealthKitAutoSync() {
           logger.info('Background HealthKit sync completed successfully on app launch', {
             days: syncResult.days,
           });
+          
+          // Notify user of successful sync
+          sendNotification(
+            'Health data synced ✓',
+            'Your latest HealthKit metrics are ready'
+          );
         }
         
         // SLEEP DATA FIX: Do a second sync with waitForAuth=true to capture sleep data
