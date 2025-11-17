@@ -418,13 +418,18 @@ function generateFlags(
 export const SCORE_CALCULATOR_ALIASES: Record<string, string> = {
   // Lipid Panel
   'LDL Cholesterol': 'LDL_C',
+  'LDL': 'LDL_C',
   'HDL Cholesterol': 'HDL_C',
+  'HDL': 'HDL_C',
   'Total Cholesterol': 'TOTAL_CHOL',
   'Triglycerides': 'TRIGLYCERIDES',
   'Apolipoprotein B': 'APOB',
+  'ApoB': 'APOB',
   
   // Glycemic
   'Glucose': 'GLUCOSE',
+  'Fasting Glucose': 'GLUCOSE',
+  'Glucose (Fasting)': 'GLUCOSE',
   'HbA1c': 'HBA1C',
   'Insulin': 'INSULIN',
   
