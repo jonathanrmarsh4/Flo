@@ -402,6 +402,38 @@ export const notificationLogs = pgTable("notification_logs", {
   createdAtIdx: index("notification_logs_created_at_idx").on(table.createdAt),
 }));
 
+// Device tokens for push notifications
+export const deviceTokens = pgTable("device_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  deviceToken: text("device_token").notNull().unique(),
+  platform: text("platform").notNull().default("ios"), // Future: support android
+  isActive: boolean("is_active").default(true).notNull(),
+  lastUsedAt: timestamp("last_used_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("device_tokens_user_idx").on(table.userId),
+  activeIdx: index("device_tokens_active_idx").on(table.isActive),
+  tokenIdx: uniqueIndex("device_tokens_token_idx").on(table.deviceToken),
+}));
+
+// APNs configuration (admin-managed)
+export const apnsConfiguration = pgTable("apns_configuration", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  environment: text("environment").notNull().default("sandbox"), // "sandbox" or "production"
+  teamId: text("team_id").notNull(),
+  keyId: text("key_id").notNull(),
+  signingKey: text("signing_key").notNull(), // .p8 file content (encrypted at rest)
+  bundleId: text("bundle_id").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  envIdx: index("apns_config_env_idx").on(table.environment),
+  activeIdx: index("apns_config_active_idx").on(table.isActive),
+}));
+
 // Biomarker dictionary tables
 export const biomarkers = pgTable("biomarkers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1825,3 +1857,23 @@ export const insertNotificationLogSchema = createInsertSchema(notificationLogs).
 
 export type InsertNotificationLog = z.infer<typeof insertNotificationLogSchema>;
 export type NotificationLog = typeof notificationLogs.$inferSelect;
+
+// Device token schemas
+export const insertDeviceTokenSchema = createInsertSchema(deviceTokens).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDeviceToken = z.infer<typeof insertDeviceTokenSchema>;
+export type DeviceToken = typeof deviceTokens.$inferSelect;
+
+// APNs configuration schemas
+export const insertApnsConfigurationSchema = createInsertSchema(apnsConfiguration).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertApnsConfiguration = z.infer<typeof insertApnsConfigurationSchema>;
+export type ApnsConfiguration = typeof apnsConfiguration.$inferSelect;
