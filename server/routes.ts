@@ -39,6 +39,7 @@ import {
   notificationPreferences,
   insertNotificationPreferencesSchema,
   updateNotificationPreferencesSchema,
+  users,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -2670,6 +2671,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           logger.info(`[Flōmentum] Score calculated for ${userId}, ${metrics.localDate}: ${scoreResult.score} (${scoreResult.zone})`);
+
+          // Check notification preferences and send notification if enabled
+          try {
+            const [prefs] = await db
+              .select()
+              .from(notificationPreferences)
+              .where(eq(notificationPreferences.userId, userId))
+              .limit(1);
+
+            if (prefs?.flomentumDailyEnabled) {
+              // Get user info for personalized notification
+              const [user] = await db
+                .select({ firstName: users.firstName })
+                .from(users)
+                .where(eq(users.id, userId))
+                .limit(1);
+
+              await notificationService.sendFlomentumDailyScore(
+                userId,
+                scoreResult.score,
+                scoreResult.zone,
+                user?.firstName || undefined
+              );
+
+              logger.info(`[Flōmentum] Notification sent for ${userId}, score: ${scoreResult.score}`);
+            }
+          } catch (notificationError) {
+            // Log but don't fail the request if notification fails
+            logger.error(`[Flōmentum] Failed to send notification:`, notificationError);
+          }
           
           res.json({ 
             status: existing.length > 0 ? "updated" : "created", 
