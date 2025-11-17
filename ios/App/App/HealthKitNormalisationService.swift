@@ -803,15 +803,22 @@ public class HealthKitNormalisationService {
             return
         }
         
-        guard let windowEnd = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: date),
-              let yesterday = calendar.date(byAdding: .day, value: -1, to: date),
-              let windowStart = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: yesterday) else {
+        // Create 24-hour window in user's local timezone
+        // Query from midnight to midnight of the target day to capture all sleep
+        var calendar = Calendar.current
+        calendar.timeZone = timezone
+        
+        // Start of day (00:00 local time)
+        let windowStart = calendar.startOfDay(for: date)
+        
+        // End of day (next midnight in local time)
+        guard let windowEnd = calendar.date(byAdding: .day, value: 1, to: windowStart) else {
             print("[Sleep] Failed to create window for \(sleepDate)")
             completion(nil)
             return
         }
         
-        print("[Sleep] Querying sleep for \(sleepDate): \(windowStart) to \(windowEnd)")
+        print("[Sleep] Querying sleep for \(sleepDate): \(windowStart) to \(windowEnd) (timezone: \(timezone.identifier))")
         let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: .strictStartDate)
         
         let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (_, samples, error) in

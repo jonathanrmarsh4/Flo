@@ -1,0 +1,139 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/06C944C9-82DD-48AC-932B-172F9B9BBB95/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+WebContent process (0x1160e4100) took 2.284671 seconds to launch
+GPU process (0x1161081e0) took 2.267053 seconds to launch
+Networking process (0x116054190) took 6.734038 seconds to launch
+0x1160e4100 - [PID=42670] WebProcessProxy::didBecomeUnresponsive:
+0x1183d9c18 - [pageProxyID=7, webPageID=8, PID=42670] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[42670] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 89693851
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+⚡️  To Native ->  SecureStoragePlugin get 89693852
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 89693853
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: false)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"days":7,"success":true,"message":"Background sync started"}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"days":7,"success":true,"message":"Background sync started"}
+[Normalisation] Syncing last 7 days: 2025-11-10 00:22:27 +0000 to 2025-11-17 00:22:27 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-10: {"restingHrBpm":73,"stepsSourcesMetadata":{"overlaps_detected":0,"iphone_steps":6874,"final_steps":6874,"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","c...
+[Normalisation] Sending payload for 2025-11-11: {"restingHrBpm":72,"stepsSourcesMetadata":{"gaps_filled":0,"overlaps_detected":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1...
+[Normalisation] Sending payload for 2025-11-12: {"stepsNormalized":6113,"utcDayEnd":"2025-11-12T16:00:00.000Z","stepsSourcesMetadata":{"overlaps_detected":0,"iphone_steps":6113,"final_steps":6113,"gaps_filled":0,"source_identifiers":["com.apple.hea...
+[Normalisation] Sending payload for 2025-11-13: {"utcDayStart":"2025-11-12T16:00:00.000Z","restingHrBpm":72,"localDate":"2025-11-13","stepsNormalized":10986,"hrvMs":23.89132997023324,"activeEnergyKcal":916.2336251644526,"stepsSourcesMetadata":{"gap...
+[Normalisation] Sending payload for 2025-11-14: {"restingHrBpm":72,"stepsSourcesMetadata":{"overlaps_detected":0,"iphone_steps":10019,"final_steps":10019,"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D",...
+[Normalisation] Sending payload for 2025-11-15: {"stepsNormalized":7890,"utcDayEnd":"2025-11-15T16:00:00.000Z","stepsSourcesMetadata":{"gaps_filled":0,"overlaps_detected":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9...
+[Normalisation] Sending payload for 2025-11-17: {"stepsNormalized":283,"utcDayEnd":"2025-11-17T16:00:00.000Z","stepsSourcesMetadata":{"gaps_filled":0,"overlaps_detected":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D...
+[Normalisation] Sending payload for 2025-11-16: {"stepsNormalized":5072,"localDate":"2025-11-16","utcDayEnd":"2025-11-16T16:00:00.000Z","hrvMs":25.56843750609644,"activeEnergyKcal":516.7341124295366,"restingHrBpm":64,"timezone":"Australia\/Perth","...
+⚡️  To Native ->  SecureStoragePlugin get 89693854
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 89693855
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 2
+⚡️  TO JS {"success":true,"message":"Background sync started","days":7}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-10 00:22:29 +0000 to 2025-11-17 00:22:29 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-10: {"hrvMs":19.51217507478063,"activeEnergyKcal":422.34518014908747,"utcDayEnd":"2025-11-10T16:00:00.000Z","timezone":"Australia\/Perth","stepsSourcesMetadata":{"final_steps":6874,"overlaps_detected":0,"...
+[Normalisation] Sending payload for 2025-11-11: {"utcDayStart":"2025-11-10T16:00:00.000Z","localDate":"2025-11-11","timezone":"Australia\/Perth","stepsNormalized":9977,"activeEnergyKcal":1021.7799376328956,"stepsSourcesMetadata":{"priority_order":"...
+[Normalisation] Sending payload for 2025-11-12: {"hrvMs":20.54355666342092,"activeEnergyKcal":735.812018647499,"utcDayEnd":"2025-11-12T16:00:00.000Z","timezone":"Australia\/Perth","stepsSourcesMetadata":{"final_steps":6113,"overlaps_detected":0,"ip...
+[Normalisation] Sending payload for 2025-11-13: {"utcDayStart":"2025-11-12T16:00:00.000Z","localDate":"2025-11-13","timezone":"Australia\/Perth","stepsNormalized":10986,"activeEnergyKcal":916.2336251644526,"stepsSourcesMetadata":{"priority_order":"...
+[Normalisation] Sending payload for 2025-11-14: {"hrvMs":24.72718971033541,"activeEnergyKcal":682.7790315537134,"utcDayEnd":"2025-11-14T16:00:00.000Z","timezone":"Australia\/Perth","stepsSourcesMetadata":{"final_steps":10019,"overlaps_detected":0,"...
+[Normalisation] Sending payload for 2025-11-15: {"utcDayStart":"2025-11-14T16:00:00.000Z","localDate":"2025-11-15","timezone":"Australia\/Perth","stepsNormalized":7890,"activeEnergyKcal":733.2035693585397,"stepsSourcesMetadata":{"priority_order":"i...
+[Normalisation] Sending payload for 2025-11-16: {"hrvMs":25.56843750609644,"activeEnergyKcal":516.7341124295366,"utcDayEnd":"2025-11-16T16:00:00.000Z","timezone":"Australia\/Perth","stepsSourcesMetadata":{"final_steps":5072,"overlaps_detected":0,"i...
+[Normalisation] Sending payload for 2025-11-17: {"utcDayStart":"2025-11-16T16:00:00.000Z","localDate":"2025-11-17","timezone":"Australia\/Perth","stepsNormalized":283,"activeEnergyKcal":41.34699999999999,"stepsSourcesMetadata":{"priority_order":"iP...
+⚡️  To Native ->  SecureStoragePlugin get 89693856
+⚡️  To Native ->  SecureStoragePlugin get 89693857
+⚡️  To Native ->  SecureStoragePlugin get 89693858
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+[Normalisation] Successfully uploaded metrics for 2025-11-10
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+⚡️  To Native ->  SecureStoragePlugin get 89693859
+⚡️  To Native ->  SecureStoragePlugin get 89693860
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+[Normalisation] Successfully uploaded all metrics
+[Normalisation] Processing sleep nights for 8 days
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-10: 2025-11-09 07:00:00 +0000 to 2025-11-10 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-11: 2025-11-10 07:00:00 +0000 to 2025-11-11 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-12: 2025-11-11 07:00:00 +0000 to 2025-11-12 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-13: 2025-11-12 07:00:00 +0000 to 2025-11-13 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-14: 2025-11-13 07:00:00 +0000 to 2025-11-14 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-15: 2025-11-14 07:00:00 +0000 to 2025-11-15 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-16: 2025-11-15 07:00:00 +0000 to 2025-11-16 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-17: 2025-11-16 07:00:00 +0000 to 2025-11-17 07:00:00 +0000
+[Sleep] No sleep samples found for 2025-11-10
+[Sleep] No sleep samples found for 2025-11-11
+[Sleep] No sleep samples found for 2025-11-12
+[Sleep] No sleep samples found for 2025-11-13
+[Sleep] No sleep samples found for 2025-11-14
+[Sleep] No sleep samples found for 2025-11-15
+[Sleep] No sleep samples found for 2025-11-17
+[Sleep] No sleep samples found for 2025-11-16
+[Normalisation] Successfully uploaded 0 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #1 completed, 1 active syncs remaining
+[Normalisation] Successfully uploaded metrics for 2025-11-10
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded all metrics
+[Normalisation] Processing sleep nights for 8 days
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-10: 2025-11-09 07:00:00 +0000 to 2025-11-10 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-11: 2025-11-10 07:00:00 +0000 to 2025-11-11 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-12: 2025-11-11 07:00:00 +0000 to 2025-11-12 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-13: 2025-11-12 07:00:00 +0000 to 2025-11-13 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-14: 2025-11-13 07:00:00 +0000 to 2025-11-14 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-15: 2025-11-14 07:00:00 +0000 to 2025-11-15 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-16: 2025-11-15 07:00:00 +0000 to 2025-11-16 07:00:00 +0000
+[Sleep] Attempting to query sleep data (auth status not reliable for category types)...
+[Sleep] Querying sleep for 2025-11-17: 2025-11-16 07:00:00 +0000 to 2025-11-17 07:00:00 +0000
+[Sleep] No sleep samples found for 2025-11-11
+[Sleep] No sleep samples found for 2025-11-10
+[Sleep] No sleep samples found for 2025-11-12
+[Sleep] No sleep samples found for 2025-11-14
+[Sleep] No sleep samples found for 2025-11-15
+[Sleep] No sleep samples found for 2025-11-13
+[Sleep] No sleep samples found for 2025-11-17
+[Sleep] No sleep samples found for 2025-11-16
+[Normalisation] Successfully uploaded 0 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #2 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No recent sleep data available\",\"message\":\"Please ensure you have synced HealthKit sleep data\"}"}
