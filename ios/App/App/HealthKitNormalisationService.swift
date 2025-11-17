@@ -716,11 +716,7 @@ public class HealthKitNormalisationService {
             // 1. No retain cycle - just an async callback that completes and releases
             // 2. DispatchGroup ensures the service stays alive until all queries finish
             self.collectRawSleepSamples(sleepDate: localDateStr) { samples in
-                print("[Sleep] DEBUG: Completion block ENTERED for \(localDateStr) with \(samples.count) samples")
-                print("[Sleep] DEBUG: Received \(samples.count) samples for \(localDateStr) in completion handler")
-                
                 if !samples.isEmpty {
-                    print("[Sleep] DEBUG: About to upload \(samples.count) samples for \(localDateStr)")
                     // Upload raw samples to backend for processing
                     self.uploadRawSleepSamples(samples: samples, sleepDate: localDateStr, token: token) { success, error in
                         if success {
@@ -784,13 +780,10 @@ public class HealthKitNormalisationService {
             }
             
             print("[Sleep] Found \(samples.count) raw sleep samples for \(sleepDate)")
-            print("[Sleep] DEBUG: Starting conversion of \(samples.count) samples")
             
             // Convert to simple JSON-serializable format
             let iso8601 = ISO8601DateFormatter()
             iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            
-            print("[Sleep] DEBUG: ISO8601 formatter created")
             
             let rawSamples = samples.map { sample -> [String: Any] in
                 let stageValue = sample.value
@@ -837,13 +830,9 @@ public class HealthKitNormalisationService {
                 ]
             }
             
-            print("[Sleep] DEBUG: Converted \(rawSamples.count) samples successfully")
-            print("[Sleep] DEBUG: About to call completion handler with \(rawSamples.count) samples")
-            
             // CRITICAL: Dispatch to main queue to ensure completion handler is received
             DispatchQueue.main.async {
                 completion(rawSamples)
-                print("[Sleep] DEBUG: Completion handler called on main queue")
             }
         }
         
