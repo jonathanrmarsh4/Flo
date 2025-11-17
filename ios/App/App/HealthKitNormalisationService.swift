@@ -828,9 +828,9 @@ public class HealthKitNormalisationService {
         formatter.timeZone = timezone
         print("[Sleep] 🔍 Query window: \(formatter.string(from: windowStart)) to \(formatter.string(from: windowEnd))")
         
-        // Use .strictEndDate to include samples that overlap with this day
-        // This captures sleep that started before midnight but ended during the day
-        let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: .strictEndDate)
+        // Use empty options to capture ANY sleep that overlaps with this day
+        // This includes sleep that starts before or ends after the window boundaries
+        let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: [])
         
         let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (_, samples, error) in
             if let error = error {
