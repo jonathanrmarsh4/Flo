@@ -300,12 +300,12 @@ export function AdminNotificationConfig() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto bg-slate-900/95 backdrop-blur-xl border-white/10 text-white">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-white">
               {editingTrigger ? 'Edit Notification Trigger' : 'Create Notification Trigger'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-white/60">
               Configure when and how users receive notifications
             </DialogDescription>
           </DialogHeader>
@@ -313,15 +313,15 @@ export function AdminNotificationConfig() {
           <div className="space-y-4 py-4">
             {/* Trigger Type */}
             <div className="space-y-2">
-              <Label htmlFor="trigger-type">Trigger Type</Label>
+              <Label htmlFor="trigger-type" className="text-white/90">Trigger Type</Label>
               <Select
                 value={formData.triggerType}
                 onValueChange={(value: any) => setFormData({ ...formData, triggerType: value })}
               >
-                <SelectTrigger id="trigger-type" data-testid="select-trigger-type">
+                <SelectTrigger id="trigger-type" data-testid="select-trigger-type" className="bg-white/5 border-white/10 text-white">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-white/10">
                   <SelectItem value="biomarker_out_of_range">Biomarker Out of Range</SelectItem>
                   <SelectItem value="biomarker_critical">Biomarker Critical</SelectItem>
                   <SelectItem value="flomentum_zone_change">Flōmentum Zone Change</SelectItem>
@@ -334,15 +334,15 @@ export function AdminNotificationConfig() {
             {/* Biomarker Selection (for biomarker triggers) */}
             {(formData.triggerType === 'biomarker_out_of_range' || formData.triggerType === 'biomarker_critical') && (
               <div className="space-y-2">
-                <Label htmlFor="biomarker">Biomarker</Label>
+                <Label htmlFor="biomarker" className="text-white/90">Biomarker</Label>
                 <Select
                   value={formData.biomarkerId || 'ALL_BIOMARKERS'}
                   onValueChange={(value) => setFormData({ ...formData, biomarkerId: value === 'ALL_BIOMARKERS' ? null : value })}
                 >
-                  <SelectTrigger id="biomarker" data-testid="select-biomarker">
+                  <SelectTrigger id="biomarker" data-testid="select-biomarker" className="bg-white/5 border-white/10 text-white">
                     <SelectValue placeholder="Select a biomarker" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-slate-900 border-white/10">
                     <SelectItem value="ALL_BIOMARKERS">All Biomarkers</SelectItem>
                     {biomarkers.map((biomarker) => (
                       <SelectItem key={biomarker.id} value={biomarker.id}>
@@ -351,7 +351,7 @@ export function AdminNotificationConfig() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-white/50">
                   Leave blank to trigger for any biomarker that meets the condition
                 </p>
               </div>
@@ -359,19 +359,20 @@ export function AdminNotificationConfig() {
 
             {/* Notification Title */}
             <div className="space-y-2">
-              <Label htmlFor="title">Notification Title</Label>
+              <Label htmlFor="title" className="text-white/90">Notification Title</Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="e.g., LDL Cholesterol Alert"
                 data-testid="input-title"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
             </div>
 
             {/* Notification Body */}
             <div className="space-y-2">
-              <Label htmlFor="body">Notification Body</Label>
+              <Label htmlFor="body" className="text-white/90">Notification Body</Label>
               <Textarea
                 id="body"
                 value={formData.body}
@@ -379,17 +380,18 @@ export function AdminNotificationConfig() {
                 placeholder="e.g., Your LDL cholesterol is outside the healthy range. Review your results."
                 rows={3}
                 data-testid="textarea-body"
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-white/50">
                 Tip: Use clear, actionable language. Variables like biomarker name and value will be added automatically.
               </p>
             </div>
 
             {/* Active Status */}
-            <div className="flex items-center justify-between p-3 rounded-lg border">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5">
               <div>
-                <Label htmlFor="is-active" className="font-medium">Active</Label>
-                <p className="text-xs text-muted-foreground">Enable this trigger immediately</p>
+                <Label htmlFor="is-active" className="font-medium text-white/90">Active</Label>
+                <p className="text-xs text-white/50">Enable this trigger immediately</p>
               </div>
               <Switch
                 id="is-active"
@@ -409,6 +411,7 @@ export function AdminNotificationConfig() {
                 resetForm();
               }}
               data-testid="button-cancel"
+              className="border-white/10 text-white hover:bg-white/5"
             >
               Cancel
             </Button>
@@ -416,6 +419,7 @@ export function AdminNotificationConfig() {
               onClick={handleSubmit}
               disabled={createMutation.isPending || updateMutation.isPending}
               data-testid="button-submit"
+              className="bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg hover:shadow-xl transition-all"
             >
               {createMutation.isPending || updateMutation.isPending ? (
                 <>Saving...</>
