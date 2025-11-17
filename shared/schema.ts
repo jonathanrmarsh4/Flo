@@ -338,6 +338,70 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Notification system enums and tables
+export const notificationTriggerTypeEnum = pgEnum("notification_trigger_type", [
+  "biomarker_out_of_range",
+  "biomarker_critical",
+  "flomentum_zone_change",
+  "ai_insight_generated",
+  "custom"
+]);
+
+export const notificationStatusEnum = pgEnum("notification_status", [
+  "pending",
+  "sent",
+  "failed",
+  "cancelled"
+]);
+
+// Admin notification trigger configuration
+export const notificationTriggers = pgTable("notification_triggers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  triggerType: notificationTriggerTypeEnum("trigger_type").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  
+  // Biomarker-specific configuration
+  biomarkerId: varchar("biomarker_id").references(() => biomarkers.id, { onDelete: "cascade" }),
+  
+  // Notification content
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  
+  // Trigger conditions (JSON)
+  triggerConditions: jsonb("trigger_conditions"), // e.g., { thresholdType: "critical", scope: "all_users" }
+  
+  // Metadata
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  biomarkerIdx: index("notification_triggers_biomarker_idx").on(table.biomarkerId),
+  activeIdx: index("notification_triggers_active_idx").on(table.isActive),
+}));
+
+// Notification delivery logs
+export const notificationLogs = pgTable("notification_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  triggerId: varchar("trigger_id").references(() => notificationTriggers.id, { onDelete: "set null" }),
+  
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  
+  status: notificationStatusEnum("status").default("pending").notNull(),
+  sentAt: timestamp("sent_at"),
+  failureReason: text("failure_reason"),
+  
+  // Context data (what triggered this notification)
+  contextData: jsonb("context_data"), // e.g., { bloodWorkId, biomarkerId, value, referenceRange }
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("notification_logs_user_idx").on(table.userId),
+  statusIdx: index("notification_logs_status_idx").on(table.status),
+  createdAtIdx: index("notification_logs_created_at_idx").on(table.createdAt),
+}));
+
 // Biomarker dictionary tables
 export const biomarkers = pgTable("biomarkers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1703,3 +1767,38 @@ export const insertHealthBaselinesSchema = createInsertSchema(healthBaselines).o
 
 export type InsertHealthBaselines = z.infer<typeof insertHealthBaselinesSchema>;
 export type HealthBaselines = typeof healthBaselines.$inferSelect;
+
+// Notification system Zod enums
+export const NotificationTriggerTypeEnum = z.enum([
+  "biomarker_out_of_range",
+  "biomarker_critical",
+  "flomentum_zone_change",
+  "ai_insight_generated",
+  "custom"
+]);
+
+export const NotificationStatusEnum = z.enum([
+  "pending",
+  "sent",
+  "failed",
+  "cancelled"
+]);
+
+// Notification trigger schemas
+export const insertNotificationTriggerSchema = createInsertSchema(notificationTriggers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertNotificationTrigger = z.infer<typeof insertNotificationTriggerSchema>;
+export type NotificationTrigger = typeof notificationTriggers.$inferSelect;
+
+// Notification log schemas
+export const insertNotificationLogSchema = createInsertSchema(notificationLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertNotificationLog = z.infer<typeof insertNotificationLogSchema>;
+export type NotificationLog = typeof notificationLogs.$inferSelect;
