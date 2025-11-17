@@ -1,0 +1,161 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/9F7CE815-B306-4B6E-B241-5FBA9767AEF1/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+WebContent process (0x1130ec100) took 2.528307 seconds to launch
+Networking process (0x113054190) took 6.520624 seconds to launch
+GPU process (0x1131101e0) took 2.512702 seconds to launch
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+Updated list with error: DownloadFailed
+0x1130ec100 - [PID=44886] WebProcessProxy::didBecomeUnresponsive:
+0x1077edc18 - [pageProxyID=7, webPageID=8, PID=44886] WebPageProxy::processDidBecomeUnresponsive:
+Updated list with error: DownloadFailed
+WebContent[44886] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 28405892
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+⚡️  To Native ->  SecureStoragePlugin get 28405893
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 28405894
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: false)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"success":true,"message":"Background sync started","days":7}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"success":true,"message":"Background sync started","days":7}
+[Normalisation] Syncing last 7 days: 2025-11-10 06:08:08 +0000 to 2025-11-17 06:08:08 +0000
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 4599 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2275 steps
+[Steps] Using iPhone primary source: 4599 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6381 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3596 steps
+[Steps] Using iPhone primary source: 6381 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3777 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2336 steps
+[Steps] Using iPhone primary source: 3777 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7233 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3753 steps
+[Steps] Using iPhone primary source: 7233 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6534 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3485 steps
+[Steps] Using iPhone primary source: 6534 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 4942 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2948 steps
+[Steps] Using iPhone primary source: 4942 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 2836 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2236 steps
+[Steps] Using iPhone primary source: 2836 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3487 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 905 steps
+[Steps] Using iPhone primary source: 3487 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-10: {"utcDayStart":"2025-11-09T16:00:00.000Z","activeEnergyKcal":422.34518014908747,"hrvMs":19.51217507478063,"utcDayEnd":"2025-11-10T16:00:00.000Z","stepsNormalized":4599,"timezone":"Australia\/Perth","l...
+[Normalisation] Sending payload for 2025-11-11: {"stepsNormalized":6381,"exerciseMinutes":49,"localDate":"2025-11-11","utcDayStart":"2025-11-10T16:00:00.000Z","stepsSourcesMetadata":{"iphone_steps":6381,"final_steps":6381,"gaps_filled":0,"priority_...
+[Normalisation] Sending payload for 2025-11-12: {"utcDayEnd":"2025-11-12T16:00:00.000Z","hrvMs":20.54355666342092,"timezone":"Australia\/Perth","exerciseMinutes":47,"restingHrBpm":71,"localDate":"2025-11-12","utcDayStart":"2025-11-11T16:00:00.000Z"...
+[Normalisation] Sending payload for 2025-11-13: {"exerciseMinutes":46,"utcDayEnd":"2025-11-13T16:00:00.000Z","localDate":"2025-11-13","utcDayStart":"2025-11-12T16:00:00.000Z","stepsNormalized":7233,"restingHrBpm":72,"stepsSourcesMetadata":{"gaps_fi...
+[Normalisation] Sending payload for 2025-11-14: {"utcDayStart":"2025-11-13T16:00:00.000Z","activeEnergyKcal":682.7790315537134,"hrvMs":24.72718971033541,"utcDayEnd":"2025-11-14T16:00:00.000Z","stepsNormalized":6534,"timezone":"Australia\/Perth","lo...
+[Normalisation] Sending payload for 2025-11-15: {"stepsNormalized":4942,"exerciseMinutes":43,"localDate":"2025-11-15","utcDayStart":"2025-11-14T16:00:00.000Z","stepsSourcesMetadata":{"iphone_steps":4942,"final_steps":4942,"gaps_filled":0,"priority_...
+[Normalisation] Sending payload for 2025-11-16: {"utcDayEnd":"2025-11-16T16:00:00.000Z","hrvMs":25.56843750609644,"timezone":"Australia\/Perth","exerciseMinutes":33,"restingHrBpm":64,"localDate":"2025-11-16","utcDayStart":"2025-11-15T16:00:00.000Z"...
+[Normalisation] Sending payload for 2025-11-17: {"utcDayStart":"2025-11-16T16:00:00.000Z","activeEnergyKcal":281.6051831221702,"hrvMs":23.664055756296744,"utcDayEnd":"2025-11-17T16:00:00.000Z","stepsNormalized":3487,"timezone":"Australia\/Perth","l...
+quic_conn_process_inbound [C1.1.1.1:2] [-fa09c9eec3a20ed0] unable to parse packet
+⚡️  To Native ->  SecureStoragePlugin get 28405895
+⚡️  To Native ->  SecureStoragePlugin get 28405896
+⚡️  To Native ->  SecureStoragePlugin get 28405897
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-16
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-11
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-10
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-13
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-12
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-15
+⚡️  To Native ->  SecureStoragePlugin get 28405898
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 28405899
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 2
+⚡️  TO JS {"days":7,"success":true,"message":"Background sync started"}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-10 06:08:10 +0000 to 2025-11-17 06:08:10 +0000
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 4599 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2275 steps
+[Steps] Using iPhone primary source: 4599 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6381 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3596 steps
+[Steps] Using iPhone primary source: 6381 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3777 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2336 steps
+[Steps] Using iPhone primary source: 3777 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7233 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3753 steps
+[Steps] Using iPhone primary source: 7233 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6534 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3485 steps
+[Steps] Using iPhone primary source: 6534 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 4942 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2948 steps
+[Steps] Using iPhone primary source: 4942 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 2836 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2236 steps
+[Steps] Using iPhone primary source: 2836 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3487 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 905 steps
+[Steps] Using iPhone primary source: 3487 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-10: {"utcDayStart":"2025-11-09T16:00:00.000Z","activeEnergyKcal":422.34518014908747,"hrvMs":19.51217507478063,"utcDayEnd":"2025-11-10T16:00:00.000Z","stepsNormalized":4599,"timezone":"Australia\/Perth","l...
+[Normalisation] Sending payload for 2025-11-11: {"localDate":"2025-11-11","utcDayStart":"2025-11-10T16:00:00.000Z","restingHrBpm":72,"utcDayEnd":"2025-11-11T16:00:00.000Z","timezone":"Australia\/Perth","stepsSourcesMetadata":{"gaps_filled":0,"iphon...
+[Normalisation] Sending payload for 2025-11-12: {"restingHrBpm":71,"stepsNormalized":3777,"hrvMs":20.54355666342092,"exerciseMinutes":47,"utcDayEnd":"2025-11-12T16:00:00.000Z","utcDayStart":"2025-11-11T16:00:00.000Z","activeEnergyKcal":735.81201864...
+[Normalisation] Sending payload for 2025-11-13: {"utcDayStart":"2025-11-12T16:00:00.000Z","activeEnergyKcal":916.2336251644526,"hrvMs":23.89132997023324,"utcDayEnd":"2025-11-13T16:00:00.000Z","stepsNormalized":7233,"timezone":"Australia\/Perth","lo...
+[Normalisation] Sending payload for 2025-11-14: {"utcDayStart":"2025-11-13T16:00:00.000Z","localDate":"2025-11-14","restingHrBpm":72,"utcDayEnd":"2025-11-14T16:00:00.000Z","timezone":"Australia\/Perth","stepsSourcesMetadata":{"gaps_filled":0,"iphon...
+[Normalisation] Sending payload for 2025-11-15: {"restingHrBpm":68,"stepsNormalized":4942,"hrvMs":20.568624187055768,"exerciseMinutes":43,"utcDayEnd":"2025-11-15T16:00:00.000Z","utcDayStart":"2025-11-14T16:00:00.000Z","activeEnergyKcal":733.2035693...
+[Normalisation] Sending payload for 2025-11-16: {"utcDayStart":"2025-11-15T16:00:00.000Z","activeEnergyKcal":516.7341124295366,"hrvMs":25.56843750609644,"utcDayEnd":"2025-11-16T16:00:00.000Z","stepsNormalized":2836,"timezone":"Australia\/Perth","lo...
+[Normalisation] Sending payload for 2025-11-17: {"utcDayStart":"2025-11-16T16:00:00.000Z","localDate":"2025-11-17","restingHrBpm":71,"utcDayEnd":"2025-11-17T16:00:00.000Z","timezone":"Australia\/Perth","stepsSourcesMetadata":{"gaps_filled":0,"iphon...
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-10
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-16
+⚡️  To Native ->  SecureStoragePlugin get 28405900
+⚡️  To Native ->  SecureStoragePlugin get 28405901
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-17
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-15
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-12
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-14
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-17
+[Normalisation] Upload completed with 8 errors
+❌ [HealthSyncPlugin] Background sync failed: Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"}
+📊 [HealthSyncPlugin] Sync #1 completed, 1 active syncs remaining
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"column \\\"exercise_minutes\\\" does not exist\"}"}
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-11
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-13
+[Normalisation] Response body: {"error":"column \"exercise_minutes\" does not exist"}
+[Normalisation] Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"} for 2025-11-14
+[Normalisation] Upload completed with 8 errors
+❌ [HealthSyncPlugin] Background sync failed: Upload failed with status 500 - {"error":"column \"exercise_minutes\" does not exist"}
+📊 [HealthSyncPlugin] Sync #2 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+⚡️  To Native ->  SecureStoragePlugin get 28405902
+⚡️  To Native ->  SecureStoragePlugin get 28405903
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No weekly data available yet\"}"}
