@@ -37,15 +37,15 @@ export function useHealthKitAutoSync() {
           });
         }
         
-        // SLEEP DATA FIX: Do a second sync after 2s to catch sleep data
-        // (First sync might run before HealthKit permissions are fully initialized)
+        // SLEEP DATA FIX: Do a second sync with waitForAuth=true to capture sleep data
+        // This waits for HealthKit permissions to be fully initialized before syncing
         setTimeout(async () => {
           try {
-            logger.info('🔄 [AutoSync] Running delayed sync to capture sleep data...');
-            await Readiness.syncReadinessData({ days: 7 });
-            logger.info('✅ [AutoSync] Delayed sync completed');
+            logger.info('🔄 [AutoSync] Running auth-aware sync to capture sleep data...');
+            await Readiness.syncReadinessData({ days: 7, waitForAuth: true });
+            logger.info('✅ [AutoSync] Auth-aware sync completed');
           } catch (err) {
-            logger.debug('Delayed sync failed - likely no new data');
+            logger.debug('Auth-aware sync failed - likely no new data');
           }
         }, 2000);
       } catch (error) {

@@ -105,7 +105,7 @@ export function useHealthKitAutoPermission() {
           logger.info('🔄 [AutoPermission] Re-syncing after permissions granted...');
           setTimeout(async () => {
             try {
-              await Readiness.syncReadinessData({ days: 7 });
+              await Readiness.syncReadinessData({ days: 7, waitForAuth: true });
               logger.info('✅ [AutoPermission] Re-sync completed successfully');
             } catch (err) {
               logger.error('[AutoPermission] Re-sync failed', err);
