@@ -848,17 +848,23 @@ public class HealthKitNormalisationService {
             return
         }
         
-        // Create 24-hour window in user's local timezone
-        // Query from midnight to midnight of the target day to capture all sleep
+        // Create query window to capture overnight sleep
+        // Sleep typically starts the evening BEFORE the sleep_date and ends on sleep_date morning
+        // Query from previous day at 12:00 PM to current day at 6:00 PM to capture full night
         var calendar = Calendar.current
         calendar.timeZone = timezone
         
-        // Start of day (00:00 local time)
-        let windowStart = calendar.startOfDay(for: date)
+        // Previous day at noon (12:00 PM)
+        guard let previousDay = calendar.date(byAdding: .day, value: -1, to: date),
+              let windowStart = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: previousDay) else {
+            print("[Sleep] Failed to create query start for \(sleepDate)")
+            completion(nil)
+            return
+        }
         
-        // End of day (next midnight in local time)
-        guard let windowEnd = calendar.date(byAdding: .day, value: 1, to: windowStart) else {
-            print("[Sleep] Failed to create window for \(sleepDate)")
+        // Current day at 6:00 PM
+        guard let windowEnd = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: date) else {
+            print("[Sleep] Failed to create query end for \(sleepDate)")
             completion(nil)
             return
         }
