@@ -2698,8 +2698,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { apnsService } = await import("./services/apnsService");
       await apnsService.reset();
 
+      // Don't expose signingKey in response (security)
+      const { signingKey, ...safeConfig } = config;
+
       logger.info(`[Admin] APNs configuration created by ${adminId}`);
-      res.json(config);
+      res.json(safeConfig);
     } catch (error) {
       logger.error('Error creating APNs config:', error);
       res.status(500).json({ error: "Failed to create APNs configuration" });
@@ -2736,8 +2739,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { apnsService } = await import("./services/apnsService");
       await apnsService.reset();
 
+      // Don't expose signingKey in response (security)
+      const { signingKey, ...safeConfig } = config;
+
       logger.info(`[Admin] APNs configuration updated: ${configId} by ${adminId}`);
-      res.json(config);
+      res.json(safeConfig);
     } catch (error) {
       logger.error('Error updating APNs config:', error);
       res.status(500).json({ error: "Failed to update APNs configuration" });
