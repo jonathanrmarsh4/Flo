@@ -929,19 +929,6 @@ public class HealthKitNormalisationService {
             return nil
         }
         
-        // Debug: Log all segment times to diagnose bedtime discrepancies
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "h:mm a"
-        timeFormatter.timeZone = timezone
-        print("[Sleep] 🕐 DEBUG - First 5 segments for \(sleepDate):")
-        for (i, segment) in segments.prefix(5).enumerated() {
-            let startStr = timeFormatter.string(from: segment.start)
-            let endStr = timeFormatter.string(from: segment.end)
-            let valueStr = segment.value.rawValue
-            print("[Sleep]   [\(i)] \(startStr) - \(endStr): rawValue=\(valueStr)")
-        }
-        print("[Sleep] 🕐 Calculated nightStart: \(timeFormatter.string(from: nightStart)), finalWake: \(timeFormatter.string(from: finalWake))")
-        
         // iOS 16+ sleep stages or fallback to generic asleep
         let asleepSegments: [SleepSegment]
         if #available(iOS 16.0, *) {
