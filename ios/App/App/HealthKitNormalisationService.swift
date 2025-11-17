@@ -842,13 +842,16 @@ public class HealthKitNormalisationService {
             
             print("[Sleep] ✅ Query completed successfully. Raw sample count: \(samples?.count ?? 0)")
             
-            // Debug: Check sample types
+            // Debug: Check ALL sample types
             if let samples = samples, !samples.isEmpty {
-                print("[Sleep] 🔍 First sample type: \(type(of: samples[0]))")
-                if let catSample = samples[0] as? HKCategorySample {
-                    print("[Sleep] 🔍 Cast successful! Value: \(catSample.value)")
-                } else {
-                    print("[Sleep] ⚠️ Cast to HKCategorySample failed!")
+                var typeBreakdown: [String: Int] = [:]
+                for sample in samples {
+                    let typeName = String(describing: type(of: sample))
+                    typeBreakdown[typeName, default: 0] += 1
+                }
+                print("[Sleep] 🔍 Sample type breakdown:")
+                for (typeName, count) in typeBreakdown.sorted(by: { $0.key < $1.key }) {
+                    print("[Sleep]    - \(typeName): \(count)")
                 }
             }
             
