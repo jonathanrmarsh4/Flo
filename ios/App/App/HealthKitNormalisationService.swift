@@ -777,6 +777,37 @@ public class HealthKitNormalisationService {
         }
     }
     
+    // Merge overlapping time intervals to get accurate total duration
+    private func mergeOverlappingIntervals(_ segments: [SleepSegment]) -> Double {
+        guard !segments.isEmpty else { return 0.0 }
+        
+        // Sort by start time
+        let sorted = segments.sorted { $0.start < $1.start }
+        
+        var merged: [(start: Date, end: Date)] = []
+        var currentStart = sorted[0].start
+        var currentEnd = sorted[0].end
+        
+        for segment in sorted.dropFirst() {
+            if segment.start <= currentEnd {
+                // Overlapping or adjacent - extend current interval
+                currentEnd = max(currentEnd, segment.end)
+            } else {
+                // Non-overlapping - save current and start new
+                merged.append((currentStart, currentEnd))
+                currentStart = segment.start
+                currentEnd = segment.end
+            }
+        }
+        
+        // Don't forget the last interval
+        merged.append((currentStart, currentEnd))
+        
+        // Sum the merged intervals
+        let totalSeconds = merged.reduce(0.0) { $0 + $1.end.timeIntervalSince($1.start) }
+        return totalSeconds / 60.0 // Convert to minutes
+    }
+    
     private func processSleepNightData(
         sleepDate: String,
         timezone: TimeZone,
@@ -898,19 +929,19 @@ public class HealthKitNormalisationService {
         
         let sleepOnset = asleepSegments.first?.start
         
-        // Calculate total time in bed:
+        // Calculate total time in bed (merge overlapping intervals)
         // - If explicit .inBed samples exist, use those
-        // - Otherwise, sum all sleep-related samples (asleep stages + awake in bed)
+        // - Otherwise, use all sleep-related samples (asleep stages + awake in bed)
         let timeInBedMin: Double
         if !inBedSegments.isEmpty {
             // Use explicit inBed samples
-            timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
+            timeInBedMin = mergeOverlappingIntervals(inBedSegments)
         } else {
-            // Sum all sleep session samples (all stages including awake)
-            timeInBedMin = stageSegments.reduce(0.0) { $0 + $1.durationMinutes }
+            // Use all sleep session samples (all stages including awake)
+            timeInBedMin = mergeOverlappingIntervals(stageSegments)
         }
         
-        let totalSleepMin = asleepSegments.reduce(0.0) { $0 + $1.durationMinutes }
+        let totalSleepMin = mergeOverlappingIntervals(asleepSegments)
         
         print("[Sleep] \(sleepDate): \(Int(timeInBedMin))min in bed, \(Int(totalSleepMin))min asleep")
         
@@ -922,22 +953,22 @@ public class HealthKitNormalisationService {
         let iso8601 = ISO8601DateFormatter()
         iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         
-        // Calculate stage durations (iOS 16+ only)
+        // Calculate stage durations (iOS 16+ only) - merge overlapping intervals
         var coreSleepMin: Double = 0
         var deepSleepMin: Double = 0
         var remSleepMin: Double = 0
         var unspecifiedSleepMin: Double = 0
         
         if #available(iOS 16.0, *) {
-            coreSleepMin = stageSegments.filter { $0.value == .asleepCore }.reduce(0.0) { $0 + $1.durationMinutes }
-            deepSleepMin = stageSegments.filter { $0.value == .asleepDeep }.reduce(0.0) { $0 + $1.durationMinutes }
-            remSleepMin = stageSegments.filter { $0.value == .asleepREM }.reduce(0.0) { $0 + $1.durationMinutes }
-            unspecifiedSleepMin = stageSegments.filter { $0.value == .asleepUnspecified || $0.value == .asleep }.reduce(0.0) { $0 + $1.durationMinutes }
+            coreSleepMin = mergeOverlappingIntervals(stageSegments.filter { $0.value == .asleepCore })
+            deepSleepMin = mergeOverlappingIntervals(stageSegments.filter { $0.value == .asleepDeep })
+            remSleepMin = mergeOverlappingIntervals(stageSegments.filter { $0.value == .asleepREM })
+            unspecifiedSleepMin = mergeOverlappingIntervals(stageSegments.filter { $0.value == .asleepUnspecified || $0.value == .asleep })
         } else {
             unspecifiedSleepMin = totalSleepMin
         }
         
-        let awakeInBedMin = stageSegments.filter { $0.value == .awake }.reduce(0.0) { $0 + $1.durationMinutes }
+        let awakeInBedMin = mergeOverlappingIntervals(stageSegments.filter { $0.value == .awake })
         
         // Calculate percentages
         var deepPct: Double? = nil
