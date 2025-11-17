@@ -792,9 +792,6 @@ public class HealthKitNormalisationService {
         
         // Log detailed permission info for debugging
         let authStatus = healthStore.authorizationStatus(for: sleepType)
-        print("[Sleep] 🔐 Authorization status for sleep: \(authStatus.rawValue) (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)")
-        print("[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted")
-        print("[Sleep] Attempting to query sleep data...")
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -840,28 +837,8 @@ public class HealthKitNormalisationService {
                 return
             }
             
-            print("[Sleep] ✅ Query completed successfully. Raw sample count: \(samples?.count ?? 0)")
-            
-            // Debug: Check ALL sample types
-            if let samples = samples, !samples.isEmpty {
-                var typeBreakdown: [String: Int] = [:]
-                for sample in samples {
-                    let typeName = String(describing: type(of: sample))
-                    typeBreakdown[typeName, default: 0] += 1
-                }
-                print("[Sleep] 🔍 Sample type breakdown:")
-                for (typeName, count) in typeBreakdown.sorted(by: { $0.key < $1.key }) {
-                    print("[Sleep]    - \(typeName): \(count)")
-                }
-            }
-            
             guard let samples = samples as? [HKCategorySample], !samples.isEmpty else {
-                print("[Sleep] ⚠️ No sleep samples found for \(sleepDate)")
-                print("[Sleep] 💡 This might indicate:")
-                print("[Sleep]    - No sleep data exists for this date")
-                print("[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)")
-                print("[Sleep]    - Query date range doesn't match sleep recording times")
-                print("[Sleep]    - Type cast from HKSample to HKCategorySample failed")
+                print("[Sleep] No sleep data found for \(sleepDate)")
                 completion(nil)
                 return
             }
