@@ -53,9 +53,8 @@ public class HealthKitNormalisationService {
                     return
                 }
                 
-                // TODO: Re-enable sleep tracking after fixing Xcode compilation issue
-                // self.uploadSleepNights(for: dayBoundaries, completion: completion)
-                completion(true, nil)
+                // Upload raw sleep samples to backend for processing
+                self.uploadSleepNights(for: dayBoundaries, completion: completion)
             }
         }
     }
@@ -695,10 +694,10 @@ public class HealthKitNormalisationService {
         }
     }
     
-    /// Process and upload sleep night data for multiple days
+    /// Collect and upload raw sleep samples to backend for processing
     private func uploadSleepNights(for dayBoundaries: [(Date, Date, String)], completion: @escaping (Bool, Error?) -> Void) {
         guard let token = getJWTToken() else {
-            print("[Normalisation] No auth token for sleep upload")
+            print("[Sleep] No auth token for sleep upload")
             completion(false, NSError(domain: "NormalisationService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No authentication token found"]))
             return
         }
@@ -707,24 +706,21 @@ public class HealthKitNormalisationService {
         var uploadErrors: [Error] = []
         var successCount = 0
         
-        print("[Normalisation] Processing sleep nights for \(dayBoundaries.count) days")
+        print("[Sleep] Collecting raw sleep samples for \(dayBoundaries.count) days")
         
         for (_, _, localDateStr) in dayBoundaries {
             dispatchGroup.enter()
             
-            self.processSleepNightData(
-                sleepDate: localDateStr,
-                timezone: userTimezone,
-                userId: ""
-            ) { [weak self] sleepNightData in
+            // Collect raw samples for this sleep date
+            self.collectRawSleepSamples(sleepDate: localDateStr) { [weak self] samples in
                 guard let self = self else {
                     dispatchGroup.leave()
                     return
                 }
                 
-                if let sleepNight = sleepNightData {
-                    // Upload sleep night to backend
-                    self.uploadSleepNightToBackend(sleepNight: sleepNight, token: token) { success, error in
+                if !samples.isEmpty {
+                    // Upload raw samples to backend for processing
+                    self.uploadRawSleepSamples(samples: samples, sleepDate: localDateStr, token: token) { success, error in
                         if success {
                             successCount += 1
                         } else if let error = error {
@@ -734,7 +730,7 @@ public class HealthKitNormalisationService {
                     }
                 } else {
                     // No sleep data for this day - that's okay
-                    print("[Normalisation] No sleep data for \(localDateStr)")
+                    print("[Sleep] No sleep samples for \(localDateStr)")
                     dispatchGroup.leave()
                 }
             }
@@ -742,13 +738,161 @@ public class HealthKitNormalisationService {
         
         dispatchGroup.notify(queue: .main) {
             if uploadErrors.isEmpty {
-                print("[Normalisation] Successfully uploaded \(successCount) sleep nights")
+                print("[Sleep] Successfully uploaded \(successCount) sleep nights")
                 completion(true, nil)
             } else {
-                print("[Normalisation] Sleep upload completed with \(uploadErrors.count) errors, \(successCount) successes")
+                print("[Sleep] Sleep upload completed with \(uploadErrors.count) errors, \(successCount) successes")
                 // Don't fail the entire sync if only sleep fails
                 completion(true, nil)
             }
+        }
+    }
+    
+    /// Collect raw sleep samples for a given sleep date (15:00 prev day → 15:00 current day)
+    private func collectRawSleepSamples(sleepDate: String, completion: @escaping ([[String: Any]]) -> Void) {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.timeZone = userTimezone
+        
+        guard let date = dateFormatter.date(from: sleepDate) else {
+            print("[Sleep] Invalid sleep date: \(sleepDate)")
+            completion([])
+            return
+        }
+        
+        // Define query window: 15:00 previous day → 15:00 current day
+        guard let windowEnd = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: date),
+              let yesterday = calendar.date(byAdding: .day, value: -1, to: date),
+              let windowStart = calendar.date(bySettingHour: 15, minute: 0, second: 0, of: yesterday) else {
+            completion([])
+            return
+        }
+        
+        print("[Sleep] Querying samples for \(sleepDate), window: \(windowStart) to \(windowEnd)")
+        
+        let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
+        let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: .strictStartDate)
+        let sortDescriptors = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        
+        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: sortDescriptors) { (_, samples, error) in
+            guard let samples = samples as? [HKCategorySample], error == nil else {
+                print("[Sleep] Query error: \(error?.localizedDescription ?? "unknown")")
+                completion([])
+                return
+            }
+            
+            print("[Sleep] Found \(samples.count) raw sleep samples for \(sleepDate)")
+            
+            // Convert to simple JSON-serializable format
+            let iso8601 = ISO8601DateFormatter()
+            iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            
+            let rawSamples = samples.map { sample -> [String: Any] in
+                let stageValue = sample.value
+                var stage = "unspecified"
+                
+                if #available(iOS 16.0, *) {
+                    switch HKCategoryValueSleepAnalysis(rawValue: stageValue) {
+                    case .inBed:
+                        stage = "inBed"
+                    case .asleep:
+                        stage = "asleep"
+                    case .awake:
+                        stage = "awake"
+                    case .asleepCore:
+                        stage = "core"
+                    case .asleepDeep:
+                        stage = "deep"
+                    case .asleepREM:
+                        stage = "rem"
+                    case .asleepUnspecified:
+                        stage = "unspecified"
+                    default:
+                        stage = "unspecified"
+                    }
+                } else {
+                    // iOS 15 and earlier
+                    switch HKCategoryValueSleepAnalysis(rawValue: stageValue) {
+                    case .inBed:
+                        stage = "inBed"
+                    case .asleep:
+                        stage = "asleep"
+                    case .awake:
+                        stage = "awake"
+                    default:
+                        stage = "unspecified"
+                    }
+                }
+                
+                return [
+                    "start": iso8601.string(from: sample.startDate),
+                    "end": iso8601.string(from: sample.endDate),
+                    "stage": stage,
+                    "source": sample.sourceRevision.source.bundleIdentifier
+                ]
+            }
+            
+            completion(rawSamples)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Upload raw sleep samples to backend for processing
+    private func uploadRawSleepSamples(samples: [[String: Any]], sleepDate: String, token: String, completion: @escaping (Bool, Error?) -> Void) {
+        let baseURL = getBackendURL()
+        guard let url = URL(string: "\(baseURL)/api/healthkit/sleep-samples") else {
+            completion(false, NSError(domain: "NormalisationService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"]))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let payload: [String: Any] = [
+            "samples": samples,
+            "sleepDate": sleepDate,
+            "timezone": userTimezone.identifier
+        ]
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: payload)
+            request.httpBody = jsonData
+            
+            print("[Sleep] Uploading \(samples.count) raw samples for \(sleepDate)")
+            
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("[Sleep] Upload error for \(sleepDate): \(error.localizedDescription)")
+                    completion(false, error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(false, NSError(domain: "NormalisationService", code: 4, userInfo: [NSLocalizedDescriptionKey: "Invalid response"]))
+                    return
+                }
+                
+                if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    print("[Sleep] Successfully uploaded raw samples for \(sleepDate)")
+                    completion(true, nil)
+                } else {
+                    var errorMsg = "HTTP \(httpResponse.statusCode)"
+                    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                        print("[Sleep] Response: \(responseBody)")
+                        errorMsg += " - \(responseBody)"
+                    }
+                    print("[Sleep] Upload failed for \(sleepDate): \(errorMsg)")
+                    completion(false, NSError(domain: "NormalisationService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg]))
+                }
+            }
+            
+            task.resume()
+        } catch {
+            print("[Sleep] JSON encoding error: \(error.localizedDescription)")
+            completion(false, error)
         }
     }
     
