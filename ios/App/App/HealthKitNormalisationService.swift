@@ -712,15 +712,11 @@ public class HealthKitNormalisationService {
             dispatchGroup.enter()
             
             // Collect raw samples for this sleep date
-            self.collectRawSleepSamples(sleepDate: localDateStr) { [weak self] samples in
+            // NOTE: Using strong self capture (no [weak self]) because:
+            // 1. No retain cycle - just an async callback that completes and releases
+            // 2. DispatchGroup ensures the service stays alive until all queries finish
+            self.collectRawSleepSamples(sleepDate: localDateStr) { samples in
                 print("[Sleep] DEBUG: Completion block ENTERED for \(localDateStr) with \(samples.count) samples")
-                
-                guard let self = self else {
-                    print("[Sleep] DEBUG: self is nil, exiting early")
-                    dispatchGroup.leave()
-                    return
-                }
-                
                 print("[Sleep] DEBUG: Received \(samples.count) samples for \(localDateStr) in completion handler")
                 
                 if !samples.isEmpty {
