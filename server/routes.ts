@@ -2919,6 +2919,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // NEW: Process raw sleep samples from iOS (backend processing)
+  app.post("/api/healthkit/sleep-samples", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { samples, sleepDate, timezone } = req.body;
+
+      if (!samples || !Array.isArray(samples) || !sleepDate || !timezone) {
+        return res.status(400).json({ 
+          error: "Missing required fields: samples, sleepDate, timezone" 
+        });
+      }
+
+      logger.info(`[Sleep] Processing ${samples.length} raw sleep samples for ${userId}, ${sleepDate}`);
+
+      // Import the sleep processor
+      const { processSleepSamples } = await import('./services/sleepSampleProcessor');
+
+      // Process samples on backend
+      const sleepNight = await processSleepSamples(samples, sleepDate, timezone);
+
+      if (!sleepNight) {
+        logger.info(`[Sleep] Insufficient data to create sleep night for ${sleepDate}`);
+        return res.json({ status: "skipped", message: "Insufficient sleep data" });
+      }
+
+      // Check if this sleep night already exists
+      const existing = await db
+        .select()
+        .from(sleepNights)
+        .where(
+          and(
+            eq(sleepNights.userId, userId),
+            eq(sleepNights.sleepDate, sleepDate)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Update existing record
+        await db
+          .update(sleepNights)
+          .set({
+            nightStart: sleepNight.nightStart,
+            finalWake: sleepNight.finalWake,
+            sleepOnset: sleepNight.sleepOnset,
+            timeInBedMin: sleepNight.timeInBedMin,
+            totalSleepMin: sleepNight.totalSleepMin,
+            sleepEfficiencyPct: sleepNight.sleepEfficiencyPct,
+            sleepLatencyMin: sleepNight.sleepLatencyMin,
+            wasoMin: sleepNight.wasoMin,
+            numAwakenings: sleepNight.numAwakenings,
+            coreSleepMin: sleepNight.coreSleepMin,
+            deepSleepMin: sleepNight.deepSleepMin,
+            remSleepMin: sleepNight.remSleepMin,
+            unspecifiedSleepMin: sleepNight.unspecifiedSleepMin,
+            awakeInBedMin: sleepNight.awakeInBedMin,
+            midSleepTimeLocal: sleepNight.midSleepTimeLocal,
+            fragmentationIndex: sleepNight.fragmentationIndex,
+            deepPct: sleepNight.deepPct,
+            remPct: sleepNight.remPct,
+            corePct: sleepNight.corePct,
+            bedtimeLocal: sleepNight.bedtimeLocal,
+            waketimeLocal: sleepNight.waketimeLocal,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(sleepNights.userId, userId),
+              eq(sleepNights.sleepDate, sleepDate)
+            )
+          );
+
+        logger.info(`[Sleep] Updated sleep night from raw samples: ${userId}, ${sleepDate}`);
+        return res.json({ status: "updated", sleepDate });
+      } else {
+        // Insert new record
+        await db.insert(sleepNights).values({
+          userId,
+          sleepDate: sleepNight.sleepDate,
+          timezone: sleepNight.timezone,
+          nightStart: sleepNight.nightStart,
+          finalWake: sleepNight.finalWake,
+          sleepOnset: sleepNight.sleepOnset,
+          timeInBedMin: sleepNight.timeInBedMin,
+          totalSleepMin: sleepNight.totalSleepMin,
+          sleepEfficiencyPct: sleepNight.sleepEfficiencyPct,
+          sleepLatencyMin: sleepNight.sleepLatencyMin,
+          wasoMin: sleepNight.wasoMin,
+          numAwakenings: sleepNight.numAwakenings,
+          coreSleepMin: sleepNight.coreSleepMin,
+          deepSleepMin: sleepNight.deepSleepMin,
+          remSleepMin: sleepNight.remSleepMin,
+          unspecifiedSleepMin: sleepNight.unspecifiedSleepMin,
+          awakeInBedMin: sleepNight.awakeInBedMin,
+          midSleepTimeLocal: sleepNight.midSleepTimeLocal,
+          fragmentationIndex: sleepNight.fragmentationIndex,
+          deepPct: sleepNight.deepPct,
+          remPct: sleepNight.remPct,
+          corePct: sleepNight.corePct,
+          bedtimeLocal: sleepNight.bedtimeLocal,
+          waketimeLocal: sleepNight.waketimeLocal,
+          restingHrBpm: null,
+          hrvMs: null,
+          respiratoryRate: null,
+          wristTemperature: null,
+          oxygenSaturation: null,
+        });
+
+        logger.info(`[Sleep] Created sleep night from raw samples: ${userId}, ${sleepDate}`);
+        return res.json({ status: "created", sleepDate });
+      }
+    } catch (error: any) {
+      logger.error("[Sleep] Error processing raw sleep samples:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // Sleep Score Routes
   // Get today's sleep score and metrics
   app.get("/api/sleep/today", isAuthenticated, async (req: any, res) => {
