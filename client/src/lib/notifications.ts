@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core';
 
 let notificationsEnabled = false;
 let notificationId = 1;
+let listenersRegistered = false;
 
 /**
  * Initialize notification system and request permissions
@@ -45,9 +46,16 @@ export async function initializeNotifications() {
 }
 
 /**
- * Set up notification event listeners
+ * Set up notification event listeners (only once)
  */
 function setupListeners() {
+  // Prevent duplicate listener registration
+  if (listenersRegistered) {
+    return;
+  }
+  
+  listenersRegistered = true;
+
   // Handle notifications when app is in foreground
   LocalNotifications.addListener('localNotificationReceived', (notification) => {
     console.log('[Notifications] Received in foreground:', notification);
@@ -64,8 +72,20 @@ function setupListeners() {
 
 /**
  * Send a notification immediately
+ * Auto-initializes if not already enabled
  */
 export async function sendNotification(title: string, body: string, extra?: any) {
+  // Only run on native platforms
+  if (!Capacitor.isNativePlatform()) {
+    return;
+  }
+
+  // Auto-initialize if needed
+  if (!notificationsEnabled) {
+    await initializeNotifications();
+  }
+
+  // Double-check after initialization attempt
   if (!notificationsEnabled) {
     console.log('[Notifications] Disabled - skipping notification');
     return;
