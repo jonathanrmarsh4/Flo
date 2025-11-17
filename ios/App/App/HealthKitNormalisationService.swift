@@ -828,7 +828,7 @@ public class HealthKitNormalisationService {
                     "start": iso8601.string(from: sample.startDate),
                     "end": iso8601.string(from: sample.endDate),
                     "stage": stage,
-                    "source": sample.sourceRevision.source.bundleIdentifier
+                    "source": sample.sourceRevision.source.bundleIdentifier ?? "unknown"
                 ]
             }
             
