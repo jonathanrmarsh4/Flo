@@ -937,8 +937,8 @@ public class HealthKitNormalisationService {
         for (i, segment) in segments.prefix(5).enumerated() {
             let startStr = timeFormatter.string(from: segment.start)
             let endStr = timeFormatter.string(from: segment.end)
-            let valueStr = String(describing: segment.value)
-            print("[Sleep]   [\(i)] \(startStr) - \(endStr): \(valueStr)")
+            let valueStr = segment.value.rawValue
+            print("[Sleep]   [\(i)] \(startStr) - \(endStr): rawValue=\(valueStr)")
         }
         print("[Sleep] 🕐 Calculated nightStart: \(timeFormatter.string(from: nightStart)), finalWake: \(timeFormatter.string(from: finalWake))")
         
