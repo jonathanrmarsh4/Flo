@@ -82,19 +82,28 @@ export function useHealthKitAutoSync() {
           console.log('⏳ [AutoSync] Waiting 4s for backend upload to complete...');
           await new Promise(resolve => setTimeout(resolve, 4000));
           
-          // Invalidate all health-related queries to refresh UI with new data
-          console.log('🔄 [AutoSync] About to invalidate cache...');
+          // Explicitly refetch critical dashboard queries
+          // Don't await invalidateQueries - it can hang on network issues in iOS sandbox
+          console.log('🔄 [AutoSync] Refetching dashboard queries...');
           try {
-            console.log('🔄 [AutoSync] Calling queryClient.invalidateQueries...');
-            await queryClient.invalidateQueries({ 
+            // Fire-and-forget invalidation
+            queryClient.invalidateQueries({ 
               predicate: isHealthQuery,
               refetchType: 'active'
             });
-            console.log('✅ [AutoSync] Cache invalidation completed!');
-            logger.info('✅ Cache invalidated - UI will refresh with new health data');
+            
+            // Explicitly refetch the most important queries
+            await Promise.allSettled([
+              queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'overview'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'biomarkers'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/flomentum', 'daily'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
+            ]);
+            console.log('✅ [AutoSync] Dashboard refresh completed!');
+            logger.info('✅ Dashboard queries refetched - UI updated');
           } catch (err) {
-            console.error('❌ [AutoSync] Cache invalidation FAILED:', err);
-            logger.error('Failed to invalidate cache', err);
+            console.error('❌ [AutoSync] Dashboard refresh FAILED:', err);
+            logger.error('Failed to refetch dashboard', err);
           }
           
           // Only notify on initial sync, not periodic syncs (to avoid notification spam)
@@ -126,16 +135,23 @@ export function useHealthKitAutoSync() {
           } catch (err) {
             logger.debug('Auth-aware sync failed - likely no new data');
           } finally {
-            // Invalidate cache even if sync fails to ensure UI shows any partial data
+            // Refetch sleep and dashboard queries
             if (isMountedRef.current) {
               try {
-                await queryClient.invalidateQueries({ 
+                // Fire-and-forget invalidation
+                queryClient.invalidateQueries({ 
                   predicate: isHealthQuery,
                   refetchType: 'active'
                 });
-                logger.info('✅ Cache invalidated after sleep sync - sleep data refreshed');
+                
+                // Explicitly refetch sleep-related queries
+                await Promise.allSettled([
+                  queryClient.refetchQueries({ queryKey: ['/api/sleep'] }),
+                  queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'overview'] }),
+                ]);
+                logger.info('✅ Sleep data refetched - UI updated');
               } catch (err) {
-                logger.error('Failed to invalidate cache after sleep sync', err);
+                logger.error('Failed to refetch sleep data', err);
               }
             }
           }
