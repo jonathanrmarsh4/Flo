@@ -33,6 +33,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   // Fetch notification preferences
   const { data: notificationPrefs } = useNotificationPreferences();
   
+  // DEBUG: Log notification preferences data
+  console.log('[ProfileScreen] Notification prefs:', notificationPrefs);
+  console.log('[ProfileScreen] Profile data:', profile ? 'loaded' : 'null');
+  
   // Mutation hooks
   const updateDemographics = useUpdateDemographics();
   const updateHealthBaseline = useUpdateHealthBaseline();
@@ -943,6 +947,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         </div>
 
         {/* Notifications */}
+        {console.log('[ProfileScreen] RENDERING NOTIFICATIONS SECTION')}
         <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
           isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
         }`} data-testid="card-notifications">
