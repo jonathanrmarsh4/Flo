@@ -37,6 +37,11 @@ function Router() {
   useEffect(() => {
     if (isNative && isAuthenticated) {
       initializeNotifications();
+      // Also initialize Flōmentum notifications
+      import('@/lib/flomentumNotifications').then(({ initializeFlomentumNotifications, getNotificationConfig }) => {
+        const config = getNotificationConfig();
+        initializeFlomentumNotifications(config);
+      });
     }
   }, [isNative, isAuthenticated]);
 
