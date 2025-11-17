@@ -424,86 +424,94 @@ public class HealthKitNormalisationService {
     
     // MARK: - Steps Normalization
     
-    /// Normalize steps with Watch > iPhone > Other priority, overlap detection, and gap-filling
+    /// Normalize steps using HKStatisticsQuery to let HealthKit handle deduplication
     private func normalizeSteps(dayStart: Date, dayEnd: Date, completion: @escaping (Int?, StepsSourcesMetadata?) -> Void) {
         let stepsType = HKObjectType.quantityType(forIdentifier: .stepCount)!
         let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
         
-        let query = HKSampleQuery(sampleType: stepsType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { (query, samples, error) in
-            guard let samples = samples as? [HKQuantitySample], error == nil, !samples.isEmpty else {
+        // Use HKStatisticsQuery with .separateBySource to get accurate per-source totals
+        // This lets HealthKit handle intra-source deduplication automatically
+        let query = HKStatisticsQuery(
+            quantityType: stepsType,
+            quantitySamplePredicate: predicate,
+            options: [.cumulativeSum, .separateBySource]
+        ) { (query, statistics, error) in
+            guard let statistics = statistics, error == nil else {
+                print("[Steps] No statistics available")
                 completion(nil, nil)
                 return
             }
             
-            // Categorize samples by source
-            var watchSamples: [HKQuantitySample] = []
-            var iphoneSamples: [HKQuantitySample] = []
-            var otherSamples: [HKQuantitySample] = []
+            // Get per-source sums (HealthKit handles overlaps within each source)
+            guard let sources = statistics.sources else {
+                print("[Steps] No source data available")
+                completion(nil, nil)
+                return
+            }
             
-            for sample in samples {
-                let sourceBundleId = sample.sourceRevision.source.bundleIdentifier
+            // Categorize sources by type and sum their steps
+            var watchSteps: Int = 0
+            var iphoneSteps: Int = 0
+            var otherSteps: Int = 0
+            var sourceIds: [String] = []
+            
+            for source in sources {
+                let bundleId = source.bundleIdentifier
+                sourceIds.append(bundleId)
                 
-                if sourceBundleId.contains("watchOS") || sourceBundleId.contains("Watch") {
-                    watchSamples.append(sample)
-                } else if sourceBundleId.contains("com.apple.health") || sourceBundleId.contains("iPhone") {
-                    iphoneSamples.append(sample)
-                } else {
-                    otherSamples.append(sample)
+                if let sum = statistics.sumQuantity(for: source) {
+                    let steps = Int(sum.doubleValue(for: .count()))
+                    
+                    if bundleId.contains("watchOS") || bundleId.contains("Watch") {
+                        watchSteps += steps
+                        print("[Steps] Watch source \(bundleId): \(steps) steps")
+                    } else if bundleId.contains("com.apple.health") || bundleId.contains("iPhone") {
+                        iphoneSteps += steps
+                        print("[Steps] iPhone source \(bundleId): \(steps) steps")
+                    } else {
+                        otherSteps += steps
+                        print("[Steps] Other source \(bundleId): \(steps) steps")
+                    }
                 }
             }
             
-            // Priority: Watch > iPhone > Other
-            var finalSamples: [HKQuantitySample] = []
-            var sourceOrder = "Watch > iPhone > Other"
+            // Priority: Watch > iPhone > Other (no overlap between sources)
+            let finalSteps: Int
+            let sourceOrder: String
             
-            if !watchSamples.isEmpty {
-                finalSamples = watchSamples
-                // Fill gaps with iPhone data if available
-                let gapsFilled = self.fillGaps(primary: &finalSamples, fallback: iphoneSamples)
-                print("[Steps] Using Watch data with \(gapsFilled) gaps filled from iPhone")
-            } else if !iphoneSamples.isEmpty {
-                finalSamples = iphoneSamples
-                sourceOrder = "iPhone > Other"
-            } else {
-                finalSamples = otherSamples
+            if watchSteps > 0 {
+                finalSteps = watchSteps
+                sourceOrder = "Watch"
+                print("[Steps] Using Watch total: \(watchSteps) steps")
+            } else if iphoneSteps > 0 {
+                finalSteps = iphoneSteps
+                sourceOrder = "iPhone"
+                print("[Steps] Using iPhone total: \(iphoneSteps) steps")
+            } else if otherSteps > 0 {
+                finalSteps = otherSteps
                 sourceOrder = "Other"
+                print("[Steps] Using Other total: \(otherSteps) steps")
+            } else {
+                completion(nil, nil)
+                return
             }
-            
-            // Sum final steps
-            let totalSteps = finalSamples.reduce(0) { sum, sample in
-                return sum + Int(sample.quantity.doubleValue(for: .count()))
-            }
-            
-            // Create metadata
-            let watchTotal = watchSamples.reduce(0) { sum, sample in sum + Int(sample.quantity.doubleValue(for: .count())) }
-            let iphoneTotal = iphoneSamples.reduce(0) { sum, sample in sum + Int(sample.quantity.doubleValue(for: .count())) }
-            let otherTotal = otherSamples.reduce(0) { sum, sample in sum + Int(sample.quantity.doubleValue(for: .count())) }
-            
-            let sourceIds = Set(samples.map { $0.sourceRevision.source.bundleIdentifier }).sorted()
             
             let metadata = StepsSourcesMetadata(
-                watchSteps: watchTotal > 0 ? watchTotal : nil,
-                iphoneSteps: iphoneTotal > 0 ? iphoneTotal : nil,
-                otherSteps: otherTotal > 0 ? otherTotal : nil,
-                finalSteps: totalSteps,
-                overlapsDetected: 0, // TODO: Implement overlap detection
-                gapsFilled: 0, // TODO: Track gaps filled
+                watchSteps: watchSteps > 0 ? watchSteps : nil,
+                iphoneSteps: iphoneSteps > 0 ? iphoneSteps : nil,
+                otherSteps: otherSteps > 0 ? otherSteps : nil,
+                finalSteps: finalSteps,
+                overlapsDetected: 0, // HKStatisticsQuery handles this internally
+                gapsFilled: 0,
                 priorityOrder: sourceOrder,
-                sourceIdentifiers: sourceIds,
-                notes: nil
+                sourceIdentifiers: sourceIds.sorted(),
+                notes: "Using HKStatisticsQuery with .separateBySource for accurate deduplication"
             )
             
-            completion(totalSteps, metadata)
+            completion(finalSteps, metadata)
         }
         
         healthStore.execute(query)
-    }
-    
-    /// Fill gaps in primary samples with fallback samples (basic implementation)
-    private func fillGaps(primary: inout [HKQuantitySample], fallback: [HKQuantitySample]) -> Int {
-        // TODO: Implement sophisticated gap-filling logic
-        // For now, just append non-overlapping fallback samples
-        return 0
     }
     
     // MARK: - Backend Upload
