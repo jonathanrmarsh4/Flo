@@ -950,6 +950,13 @@ public class HealthKitNormalisationService {
             corePct = (coreSleepMin / totalSleepMin) * 100.0
         }
         
+        // Format bedtime and wake time
+        let timeFormatter = DateFormatter()
+        timeFormatter.dateFormat = "h:mm a"
+        timeFormatter.timeZone = timezone
+        let bedtimeLocal = timeFormatter.string(from: nightStart).lowercased()
+        let waketimeLocal = timeFormatter.string(from: finalWake).lowercased()
+        
         return SleepNightData(
             userId: userId,
             sleepDate: sleepDate,
@@ -973,8 +980,8 @@ public class HealthKitNormalisationService {
             deepPct: deepPct,
             remPct: remPct,
             corePct: corePct,
-            bedtimeLocal: nil,
-            waketimeLocal: nil,
+            bedtimeLocal: bedtimeLocal,
+            waketimeLocal: waketimeLocal,
             restingHrBpm: nil,
             hrvMs: nil,
             respiratoryRate: nil,
