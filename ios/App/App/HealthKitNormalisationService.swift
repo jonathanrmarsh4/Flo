@@ -935,25 +935,6 @@ public class HealthKitNormalisationService {
             return nil
         }
         
-        // Debug bedtime calculation
-        let debugFormatter = DateFormatter()
-        debugFormatter.dateFormat = "h:mm:ss a"
-        debugFormatter.timeZone = timezone
-        print("[Sleep] 🕐 \(sleepDate) nightStart raw: \(debugFormatter.string(from: nightStart))")
-        print("[Sleep] 🕐 \(sleepDate) First 5 segment starts with types:")
-        for (i, seg) in segments.prefix(5).enumerated() {
-            let valueStr: String
-            switch seg.value {
-            case .inBed: valueStr = "InBed"
-            case .asleep: valueStr = "Asleep"
-            case .awake: valueStr = "Awake"
-            case .asleepCore: valueStr = "Core"
-            case .asleepDeep: valueStr = "Deep"
-            case .asleepREM: valueStr = "REM"
-            @unknown default: valueStr = "Unknown(\(seg.value.rawValue))"
-            }
-            print("[Sleep]   [\(i)] \(debugFormatter.string(from: seg.start)) - \(debugFormatter.string(from: seg.end)): \(valueStr)")
-        }
         
         // iOS 16+ sleep stages or fallback to generic asleep
         let asleepSegments: [SleepSegment]
