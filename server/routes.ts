@@ -58,6 +58,7 @@ import { computeDailyReadiness } from "./services/readinessEngine";
 import { updateAllBaselines } from "./services/baselineCalculator";
 import { calculateSleepScore } from "./services/sleepScoringEngine";
 import { calculateSleepBaselinesForUser } from "./services/sleepBaselineCalculator";
+import { processBiomarkerNotifications } from "./services/notificationTriggerService";
 import { 
   calculatePhenoAge, 
   calculatePhenoAgeAccel, 
@@ -2209,6 +2210,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
 
+            // Trigger notifications for out-of-range biomarkers
+            try {
+              const biomarkerResults = extractedBiomarkers
+                .filter(b => successfulBiomarkers.includes(b.name))
+                .map(b => ({
+                  biomarkerName: b.name,
+                  value: b.value,
+                  unit: b.unit,
+                  referenceMin: b.referenceRangeLow,
+                  referenceMax: b.referenceRangeHigh,
+                  criticalLow: null, // TODO: Extract critical ranges if available
+                  criticalHigh: null,
+                }));
+
+              await processBiomarkerNotifications({
+                userId,
+                bloodWorkId: bloodWorkRecord.id,
+                biomarkerResults,
+              });
+            } catch (notifError) {
+              logger.error('Failed to process biomarker notifications:', notifError);
+              // Don't fail the upload if notifications fail
+            }
+
             finalStatus = failedBiomarkers.length > 0 ? "needs_review" : "completed";
             finalJobUpdate = {
               status: finalStatus,
@@ -2500,6 +2525,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error fetching biomarkers:', error);
       res.status(500).json({ error: "Failed to fetch biomarkers" });
+    }
+  });
+
+  // Mobile notification endpoints
+  app.get("/api/notifications/pending", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { getPendingNotifications } = await import("./services/notificationTriggerService");
+      const notifications = await getPendingNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      logger.error('Error fetching pending notifications:', error);
+      res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.post("/api/notifications/:id/mark-sent", isAuthenticated, async (req, res) => {
+    try {
+      const notificationId = req.params.id;
+      const { markNotificationSent } = await import("./services/notificationTriggerService");
+      await markNotificationSent(notificationId);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error marking notification as sent:', error);
+      res.status(500).json({ error: "Failed to mark notification as sent" });
     }
   });
 
