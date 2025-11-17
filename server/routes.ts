@@ -2680,7 +2680,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .where(eq(notificationPreferences.userId, userId))
               .limit(1);
 
-            if (prefs?.flomentumDailyEnabled) {
+            // Only send notification if user has explicitly enabled it and push notifications are enabled
+            const shouldNotify = prefs?.pushEnabled && prefs?.flomentumDailyEnabled;
+            
+            if (shouldNotify) {
               // Get user info for personalized notification
               const [user] = await db
                 .select({ firstName: users.firstName })
@@ -2688,18 +2691,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 .where(eq(users.id, userId))
                 .limit(1);
 
-              await notificationService.sendFlomentumDailyScore(
+              const result = await notificationService.sendFlomentumDailyScore(
                 userId,
                 scoreResult.score,
                 scoreResult.zone,
                 user?.firstName || undefined
               );
 
-              logger.info(`[Flōmentum] Notification sent for ${userId}, score: ${scoreResult.score}`);
+              if (result.success) {
+                logger.info(`[Flōmentum] Notification sent for ${userId}, score: ${scoreResult.score}`, { notificationId: result.notificationId });
+              } else {
+                logger.warn(`[Flōmentum] Notification failed for ${userId}`, { error: result.error });
+              }
+            } else {
+              logger.debug(`[Flōmentum] Notification skipped for ${userId} - user preferences disabled or not set`);
             }
           } catch (notificationError) {
-            // Log but don't fail the request if notification fails
-            logger.error(`[Flōmentum] Failed to send notification:`, notificationError);
+            // Log but don't fail the request if notification check/send fails - graceful degradation
+            logger.error(`[Flōmentum] Failed to process notification:`, notificationError);
           }
           
           res.json({ 

@@ -93,7 +93,9 @@ Flō integrates OneSignal for push notifications to deliver Flōmentum daily sco
 - **Flōmentum Weekly Summary**: "Your Weekly Flōmentum Summary" → Deep links to `/flomentum`
 - **Health Insights**: "Health Insight: {title}" → Deep links to `/dashboard`
 - **Lab Results**: "Your Lab Results Are Ready" → Deep links to `/labs`
-- **Milestones**: "Milestone Achieved! 🎉" → Deep links to `/flomentum`
+- **Milestones**: "Milestone Achieved" → Deep links to `/flomentum`
+
+Note: All notification copy is text-only (no emojis) per app guidelines for professional, accessible messaging.
 
 ### Environment Variables
 - `ONESIGNAL_APP_ID`: OneSignal application ID (stored in Replit Secrets)

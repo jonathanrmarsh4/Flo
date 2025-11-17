@@ -30,10 +30,10 @@ export interface SendNotificationOptions {
 }
 
 export class NotificationService {
-  async sendNotification(options: SendNotificationOptions): Promise<string | null> {
+  async sendNotification(options: SendNotificationOptions): Promise<{ success: boolean; notificationId?: string; error?: string }> {
     if (!client || !ONESIGNAL_APP_ID) {
       logger.warn('OneSignal not configured, skipping notification');
-      return null;
+      return { success: false, error: 'OneSignal not configured' };
     }
 
     try {
@@ -68,10 +68,11 @@ export class NotificationService {
       
       const response = await client.createNotification(notification);
       logger.info('OneSignal notification sent:', { id: response.id });
-      return response.id || null;
+      return { success: true, notificationId: response.id || undefined };
     } catch (error) {
+      // Log error but don't throw - graceful degradation
       logger.error('Failed to send OneSignal notification:', error);
-      throw error;
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -80,12 +81,12 @@ export class NotificationService {
     score: number, 
     zone: string,
     userName?: string
-  ): Promise<string | null> {
+  ) {
     return this.sendNotification({
       userIds: [userId],
       template: {
         title: `Your Flōmentum Score: ${score}`,
-        body: `${userName ? `${userName}, y` : 'Y'}ou're in the ${zone} zone today. Check your detailed breakdown!`,
+        body: `${userName ? `${userName}, y` : 'Y'}ou're in the ${zone} zone today. Check your detailed breakdown.`,
         data: {
           type: 'flomentum_daily',
           score,
@@ -101,13 +102,13 @@ export class NotificationService {
     avgScore: number,
     trend: 'up' | 'down' | 'stable',
     userName?: string
-  ): Promise<string | null> {
-    const trendEmoji = trend === 'up' ? '📈' : trend === 'down' ? '📉' : '➡️';
+  ) {
+    const trendText = trend === 'up' ? 'trending up' : trend === 'down' ? 'trending down' : 'holding steady';
     return this.sendNotification({
       userIds: [userId],
       template: {
         title: 'Your Weekly Flōmentum Summary',
-        body: `Average score: ${avgScore}. Trend: ${trendEmoji} ${trend}. Tap to see insights.`,
+        body: `Average score: ${avgScore}, ${trendText}. Tap to see insights.`,
         data: {
           type: 'flomentum_weekly',
           avgScore,
@@ -122,11 +123,11 @@ export class NotificationService {
     userId: string,
     milestone: string,
     userName?: string
-  ): Promise<string | null> {
+  ) {
     return this.sendNotification({
       userIds: [userId],
       template: {
-        title: 'Milestone Achieved! 🎉',
+        title: 'Milestone Achieved',
         body: `${userName ? `${userName}, c` : 'C'}ongratulations! ${milestone}`,
         data: {
           type: 'flomentum_milestone',
@@ -141,7 +142,7 @@ export class NotificationService {
     userId: string,
     title: string,
     message: string
-  ): Promise<string | null> {
+  ) {
     return this.sendNotification({
       userIds: [userId],
       template: {
@@ -158,7 +159,7 @@ export class NotificationService {
   async sendLabResultsReady(
     userId: string,
     userName?: string
-  ): Promise<string | null> {
+  ) {
     return this.sendNotification({
       userIds: [userId],
       template: {
