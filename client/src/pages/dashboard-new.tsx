@@ -37,9 +37,7 @@ export default function Dashboard() {
   };
 
   const handleSettingsClick = () => {
-    console.log('[Dashboard] GEAR ICON CLICKED - attempting to navigate to /profile');
     setLocation('/profile');
-    console.log('[Dashboard] setLocation called with /profile');
   };
 
   const toggleTheme = () => {
