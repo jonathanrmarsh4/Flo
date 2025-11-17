@@ -713,7 +713,10 @@ public class HealthKitNormalisationService {
             
             // Collect raw samples for this sleep date
             self.collectRawSleepSamples(sleepDate: localDateStr) { [weak self] samples in
+                print("[Sleep] DEBUG: Completion block ENTERED for \(localDateStr) with \(samples.count) samples")
+                
                 guard let self = self else {
+                    print("[Sleep] DEBUG: self is nil, exiting early")
                     dispatchGroup.leave()
                     return
                 }
