@@ -6,10 +6,13 @@ import { sendNotification } from '@/lib/notifications';
 
 /**
  * Hook to automatically sync HealthKit data when the app launches
- * Runs once per app session for authenticated users on native platforms
+ * and periodically while the app is open
+ * - Initial sync: Runs once per app session on launch
+ * - Periodic sync: Runs every 15 minutes while app is active
  */
 export function useHealthKitAutoSync() {
   const hasRun = useRef(false);
+  const periodicIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
@@ -23,25 +26,32 @@ export function useHealthKitAutoSync() {
       return;
     }
 
-    const syncHealthData = async () => {
+    const syncHealthData = async (isInitialSync = false, showNotification = true) => {
       try {
-        console.log('🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...');
-        logger.info('App launched - triggering automatic HealthKit background sync...');
+        if (isInitialSync) {
+          console.log('🚀 [AutoSync] App launched - triggering initial HealthKit sync...');
+          logger.info('App launched - triggering initial HealthKit sync...');
+        } else {
+          console.log('🔄 [AutoSync] Periodic sync - updating HealthKit data...');
+          logger.info('Periodic HealthKit sync triggered');
+        }
         
         // Sync last 7 days to ensure we don't miss data if user hasn't opened app
         const syncResult = await Readiness.syncReadinessData({ days: 7 });
         console.log('🚀 [AutoSync] Sync result:', syncResult);
         
         if (syncResult.success) {
-          logger.info('Background HealthKit sync completed successfully on app launch', {
+          logger.info(`HealthKit sync completed successfully (${isInitialSync ? 'initial' : 'periodic'})`, {
             days: syncResult.days,
           });
           
-          // Notify user of successful sync
-          sendNotification(
-            'Health data synced ✓',
-            'Your latest HealthKit metrics are ready'
-          );
+          // Only notify on initial sync, not periodic syncs (to avoid notification spam)
+          if (isInitialSync && showNotification) {
+            sendNotification(
+              'Health data synced ✓',
+              'Your latest HealthKit metrics are ready'
+            );
+          }
         }
         
         // SLEEP DATA FIX: Do a second sync with waitForAuth=true to capture sleep data
@@ -58,7 +68,7 @@ export function useHealthKitAutoSync() {
       } catch (error) {
         // Silently fail - don't block app launch or show errors
         // User might not have granted permissions yet
-        logger.debug('Background HealthKit sync skipped or failed');
+        logger.debug('HealthKit sync skipped or failed');
       }
     };
 
@@ -66,6 +76,19 @@ export function useHealthKitAutoSync() {
     hasRun.current = true;
 
     // PERFORMANCE FIX: Reduce delay to 500ms for faster sync after first paint
-    setTimeout(syncHealthData, 500);
+    setTimeout(() => syncHealthData(true), 500);
+
+    // Setup periodic sync every 15 minutes (900000ms)
+    periodicIntervalRef.current = setInterval(() => {
+      syncHealthData(false, false); // Periodic sync, no notification
+    }, 15 * 60 * 1000); // 15 minutes
+
+    // Cleanup interval on unmount
+    return () => {
+      if (periodicIntervalRef.current) {
+        clearInterval(periodicIntervalRef.current);
+        periodicIntervalRef.current = null;
+      }
+    };
   }, [isNative]);
 }
