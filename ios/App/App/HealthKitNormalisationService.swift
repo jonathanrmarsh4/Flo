@@ -840,8 +840,12 @@ public class HealthKitNormalisationService {
             
             print("[Sleep] DEBUG: Converted \(rawSamples.count) samples successfully")
             print("[Sleep] DEBUG: About to call completion handler with \(rawSamples.count) samples")
-            completion(rawSamples)
-            print("[Sleep] DEBUG: Completion handler called")
+            
+            // CRITICAL: Dispatch to main queue to ensure completion handler is received
+            DispatchQueue.main.async {
+                completion(rawSamples)
+                print("[Sleep] DEBUG: Completion handler called on main queue")
+            }
         }
         
         healthStore.execute(query)
