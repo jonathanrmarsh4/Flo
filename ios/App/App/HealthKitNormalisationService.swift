@@ -929,6 +929,13 @@ public class HealthKitNormalisationService {
             return nil
         }
         
+        // Debug bedtime calculation
+        let debugFormatter = DateFormatter()
+        debugFormatter.dateFormat = "h:mm:ss a"
+        debugFormatter.timeZone = timezone
+        print("[Sleep] 🕐 \(sleepDate) nightStart raw: \(debugFormatter.string(from: nightStart))")
+        print("[Sleep] 🕐 \(sleepDate) First 3 segment starts: \(segments.prefix(3).map { debugFormatter.string(from: $0.start) })")
+        
         // iOS 16+ sleep stages or fallback to generic asleep
         let asleepSegments: [SleepSegment]
         if #available(iOS 16.0, *) {
