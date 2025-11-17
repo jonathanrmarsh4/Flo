@@ -6,10 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
-import { pushNotificationService } from "@/services/pushNotifications";
 import { Capacitor } from '@capacitor/core';
-import { useEffect } from "react";
-import { useLocation } from "wouter";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
@@ -28,47 +25,11 @@ import AdminUsers from "@/pages/admin-users";
 import AdminDashboard from "@/pages/admin-dashboard";
 
 function Router() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const isNative = Capacitor.isNativePlatform();
-  const [, setLocation] = useLocation();
   
   // Automatically sync HealthKit data in background on app launch
   useHealthKitAutoSync();
-
-  // Initialize push notifications when user is authenticated
-  useEffect(() => {
-    if (isAuthenticated && user && isNative) {
-      pushNotificationService.initialize(user.id).catch(error => {
-        console.error('[App] Failed to initialize push notifications:', error);
-      });
-    }
-  }, [isAuthenticated, user, isNative]);
-
-  // Listen for notification navigation events
-  useEffect(() => {
-    const handleNotificationNav = (event: CustomEvent) => {
-      const { screen, data } = event.detail;
-      console.log('[App] Navigating from notification:', screen, data);
-      
-      // Map notification screens to routes
-      const routeMap: Record<string, string> = {
-        'dashboard': '/',
-        'flomentum': '/flomentum',
-        'labs': '/labs',
-        'insights': '/insights',
-        'profile': '/profile',
-      };
-      
-      const route = routeMap[screen] || '/';
-      setLocation(route);
-    };
-
-    window.addEventListener('notification-navigation', handleNotificationNav as EventListener);
-    
-    return () => {
-      window.removeEventListener('notification-navigation', handleNotificationNav as EventListener);
-    };
-  }, [setLocation]);
 
   if (isLoading) {
     return (
