@@ -10,6 +10,10 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "syncReadinessData", returnType: CAPPluginReturnPromise)
     ]
     
+    // Track active syncs to prevent premature token cleanup
+    private var activeSyncCount = 0
+    private let syncCountLock = NSLock()
+    
     @objc func syncReadinessData(_ call: CAPPluginCall) {
         let days = call.getInt("days") ?? 7
         let token = call.getString("token")
@@ -22,6 +26,13 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             UserDefaults.standard.set(token, forKey: "jwt_token")
             print("🔑 [HealthSyncPlugin] Auth token received and stored")
         }
+        
+        // Increment active sync counter
+        syncCountLock.lock()
+        activeSyncCount += 1
+        let currentSyncId = activeSyncCount
+        syncCountLock.unlock()
+        print("📊 [HealthSyncPlugin] Active syncs: \(currentSyncId)")
         
         // PERFORMANCE FIX: Return immediately to unblock app launch
         // Run sync in background without blocking JS bridge
@@ -39,19 +50,19 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 self.waitForHealthKitAuth(maxAttempts: 20) { ready in
                     if ready {
                         print("✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...")
-                        self.performSync(days: days)
+                        self.performSync(days: days, syncId: currentSyncId)
                     } else {
                         print("⚠️ [HealthSyncPlugin] HealthKit authorization timeout, syncing anyway...")
-                        self.performSync(days: days)
+                        self.performSync(days: days, syncId: currentSyncId)
                     }
                 }
             } else {
-                self.performSync(days: days)
+                self.performSync(days: days, syncId: currentSyncId)
             }
         }
     }
     
-    private func performSync(days: Int) {
+    private func performSync(days: Int, syncId: Int) {
         let normalizationService = HealthKitNormalisationService()
         normalizationService.syncLastNDays(days: days) { success, error in
             if let error = error {
@@ -62,8 +73,19 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
             }
             
-            // Clear token from UserDefaults AFTER sleep sync completes
-            UserDefaults.standard.removeObject(forKey: "jwt_token")
+            // Decrement active sync counter
+            self.syncCountLock.lock()
+            self.activeSyncCount -= 1
+            let remaining = self.activeSyncCount
+            self.syncCountLock.unlock()
+            
+            print("📊 [HealthSyncPlugin] Sync #\(syncId) completed, \(remaining) active syncs remaining")
+            
+            // Only clear token when ALL syncs are complete
+            if remaining == 0 {
+                print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
+                UserDefaults.standard.removeObject(forKey: "jwt_token")
+            }
         }
     }
     
@@ -75,6 +97,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         func checkAuth() {
             attempts += 1
             let status = healthStore.authorizationStatus(for: sleepType)
+            
+            print("🔍 [HealthSyncPlugin] Auth check attempt \(attempts)/\(maxAttempts): status = \(status.rawValue)")
             
             if status == .sharingAuthorized {
                 completion(true)
