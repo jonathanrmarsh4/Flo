@@ -57,15 +57,20 @@ export function useHealthKitAutoSync() {
         console.log('🚀 [AutoSync] Sync result:', syncResult);
         
         if (syncResult.success) {
+          console.log('✅ [AutoSync] Sync success block entered');
           logger.info(`HealthKit sync completed successfully (${isInitialSync ? 'initial' : 'periodic'})`, {
             days: syncResult.days,
           });
           
           // Invalidate all health-related queries to refresh UI with new data
+          console.log('🔄 [AutoSync] About to invalidate cache...');
           try {
+            console.log('🔄 [AutoSync] Calling queryClient.invalidateQueries...');
             await queryClient.invalidateQueries({ predicate: isHealthQuery });
+            console.log('✅ [AutoSync] Cache invalidation completed!');
             logger.info('✅ Cache invalidated - UI will refresh with new health data');
           } catch (err) {
+            console.error('❌ [AutoSync] Cache invalidation FAILED:', err);
             logger.error('Failed to invalidate cache', err);
           }
           
