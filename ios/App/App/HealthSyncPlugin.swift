@@ -33,9 +33,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.global(qos: .background).async {
             let normalizationService = HealthKitNormalisationService()
             normalizationService.syncLastNDays(days: days) { success, error in
-                // Clear token from UserDefaults after sync
-                UserDefaults.standard.removeObject(forKey: "jwt_token")
-                
                 if let error = error {
                     print("❌ [HealthSyncPlugin] Background sync failed: \(error.localizedDescription)")
                 } else if success {
@@ -43,6 +40,9 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 } else {
                     print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
                 }
+                
+                // Clear token from UserDefaults AFTER sleep sync completes
+                UserDefaults.standard.removeObject(forKey: "jwt_token")
             }
         }
     }
