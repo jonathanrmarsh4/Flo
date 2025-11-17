@@ -61,6 +61,122 @@ function isCritical(result: BiomarkerResult): boolean {
 }
 
 /**
+ * Evaluate admin-configured trigger conditions
+ * Conservative approach: reject (false) on malformed/unknown conditions with detailed logging
+ */
+function evaluateTriggerCondition(result: BiomarkerResult, condition: any): boolean {
+  // Empty object or null/undefined means use default reference range logic
+  if (!condition || Object.keys(condition).length === 0) {
+    return true;
+  }
+
+  try {
+    // Support simple threshold-based conditions
+    if (condition.operator !== undefined) {
+      const { operator, threshold } = condition;
+      
+      // Type guard: ensure threshold is a number
+      if (typeof threshold !== 'number') {
+        logger.warn(
+          `[Notification] Trigger condition rejected: threshold must be a number, got ${typeof threshold}`,
+          { biomarker: result.biomarkerName, condition }
+        );
+        return false;
+      }
+      
+      switch (operator) {
+        case 'greater_than':
+          return result.value > threshold;
+        case 'less_than':
+          return result.value < threshold;
+        case 'greater_than_or_equal':
+          return result.value >= threshold;
+        case 'less_than_or_equal':
+          return result.value <= threshold;
+        case 'equals':
+          return result.value === threshold;
+        case 'not_equals':
+          return result.value !== threshold;
+        default:
+          logger.warn(
+            `[Notification] Trigger condition rejected: unknown operator '${operator}'`,
+            { biomarker: result.biomarkerName, validOperators: ['greater_than', 'less_than', 'greater_than_or_equal', 'less_than_or_equal', 'equals', 'not_equals'] }
+          );
+          return false;
+      }
+    }
+
+    // Support range-based conditions (future extension)
+    if (condition.ranges !== undefined) {
+      if (!Array.isArray(condition.ranges)) {
+        logger.warn(
+          `[Notification] Trigger condition rejected: ranges must be an array, got ${typeof condition.ranges}`,
+          { biomarker: result.biomarkerName, condition }
+        );
+        return false;
+      }
+
+      if (condition.ranges.length === 0) {
+        logger.warn(
+          `[Notification] Trigger condition rejected: ranges array is empty`,
+          { biomarker: result.biomarkerName }
+        );
+        return false;
+      }
+
+      for (const range of condition.ranges) {
+        // Type guard: ensure range is an object with min/max
+        if (typeof range !== 'object' || range === null) {
+          logger.warn(
+            `[Notification] Trigger condition rejected: invalid range object`,
+            { biomarker: result.biomarkerName, range }
+          );
+          return false;
+        }
+
+        if (range.min !== undefined && typeof range.min !== 'number') {
+          logger.warn(
+            `[Notification] Trigger condition rejected: range.min must be a number, got ${typeof range.min}`,
+            { biomarker: result.biomarkerName, range }
+          );
+          return false;
+        }
+
+        if (range.max !== undefined && typeof range.max !== 'number') {
+          logger.warn(
+            `[Notification] Trigger condition rejected: range.max must be a number, got ${typeof range.max}`,
+            { biomarker: result.biomarkerName, range }
+          );
+          return false;
+        }
+
+        // Check if value is outside range
+        if (range.min !== undefined && result.value < range.min) {
+          return true;
+        }
+        if (range.max !== undefined && result.value > range.max) {
+          return true;
+        }
+      }
+      return false; // Value is within all ranges
+    }
+
+    // Unrecognized condition structure
+    logger.warn(
+      `[Notification] Trigger condition rejected: unrecognized structure (no operator or ranges)`,
+      { biomarker: result.biomarkerName, condition, supportedFields: ['operator + threshold', 'ranges'] }
+    );
+    return false;
+  } catch (error) {
+    logger.error(
+      `[Notification] Trigger condition evaluation error - notification suppressed`,
+      { biomarker: result.biomarkerName, condition, error: error instanceof Error ? error.message : String(error) }
+    );
+    return false;
+  }
+}
+
+/**
  * Create a notification log entry
  */
 async function logNotification(
@@ -130,6 +246,13 @@ export async function processBiomarkerNotifications(context: NotificationContext
           return false;
         }
 
+        // Evaluate admin-configured trigger conditions
+        if (trigger.triggerConditions) {
+          if (!evaluateTriggerCondition(result, trigger.triggerConditions)) {
+            return false;
+          }
+        }
+
         return true;
       });
 
@@ -144,7 +267,7 @@ export async function processBiomarkerNotifications(context: NotificationContext
           title,
           body,
           {
-            bloodWorkId: context.biomarkerResults,
+            bloodWorkId: context.bloodWorkId,
             biomarkerId: result.biomarkerId,
             biomarkerName: result.biomarkerName,
             value: result.value,

@@ -1784,11 +1784,34 @@ export const NotificationStatusEnum = z.enum([
   "cancelled"
 ]);
 
+// Trigger condition schemas for validation
+const thresholdConditionSchema = z.object({
+  operator: z.enum(['greater_than', 'less_than', 'greater_than_or_equal', 'less_than_or_equal', 'equals', 'not_equals']),
+  threshold: z.number(),
+});
+
+const rangeConditionSchema = z.object({
+  ranges: z.array(z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+  })).min(1),
+});
+
+// Union of all supported trigger condition types
+// Note: Severity-based conditions removed until backend implementation is complete
+export const triggerConditionSchema = z.union([
+  z.object({}).strict(), // Empty object (strict) = use default reference range logic
+  thresholdConditionSchema,
+  rangeConditionSchema,
+]).nullable().optional();
+
 // Notification trigger schemas
 export const insertNotificationTriggerSchema = createInsertSchema(notificationTriggers).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  triggerConditions: triggerConditionSchema,
 });
 
 export type InsertNotificationTrigger = z.infer<typeof insertNotificationTriggerSchema>;
