@@ -36,6 +36,9 @@ import {
   flomentumDaily,
   flomentumWeekly,
   healthBaselines,
+  notificationPreferences,
+  insertNotificationPreferencesSchema,
+  updateNotificationPreferencesSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -62,6 +65,7 @@ import {
   validatePhenoAgeInputs,
   type PhenoAgeInputs
 } from "@shared/utils/phenoage";
+import { NotificationService } from "./services/notificationService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -3956,6 +3960,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error fetching Flōmentum today:', error);
       res.status(500).json({ error: "Failed to fetch Flōmentum data" });
+    }
+  });
+
+  // =============================
+  // Notification Routes
+  // =============================
+
+  const notificationService = new NotificationService();
+
+  // Get user's notification preferences
+  app.get("/api/notifications/preferences", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const [prefs] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, userId))
+        .limit(1);
+
+      if (!prefs) {
+        // Return default preferences
+        return res.json({
+          pushEnabled: true,
+          flomentumDailyEnabled: true,
+          flomentumDailyTime: "09:00",
+          flomentumWeeklyEnabled: true,
+          labResultsEnabled: true,
+          healthInsightsEnabled: true,
+          timezone: "UTC",
+        });
+      }
+
+      res.json(prefs);
+    } catch (error) {
+      logger.error('Error fetching notification preferences:', error);
+      res.status(500).json({ error: "Failed to fetch notification preferences" });
+    }
+  });
+
+  // Update notification preferences
+  app.put("/api/notifications/preferences", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const validatedData = updateNotificationPreferencesSchema.parse(req.body);
+
+      // Check if preferences exist
+      const [existing] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, userId))
+        .limit(1);
+
+      if (existing) {
+        // Update existing
+        const [updated] = await db
+          .update(notificationPreferences)
+          .set({
+            ...validatedData,
+            updatedAt: new Date(),
+          })
+          .where(eq(notificationPreferences.userId, userId))
+          .returning();
+        res.json(updated);
+      } else {
+        // Create new
+        const [created] = await db
+          .insert(notificationPreferences)
+          .values({
+            userId,
+            ...validatedData,
+          })
+          .returning();
+        res.json(created);
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: fromError(error).toString() });
+      }
+      logger.error('Error updating notification preferences:', error);
+      res.status(500).json({ error: "Failed to update notification preferences" });
+    }
+  });
+
+  // Register/update OneSignal player ID (device token)
+  app.post("/api/notifications/register-device", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { playerId } = req.body;
+
+      if (!playerId || typeof playerId !== 'string') {
+        return res.status(400).json({ error: "playerId is required" });
+      }
+
+      // Upsert notification preferences with OneSignal player ID
+      const [existing] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(eq(notificationPreferences.userId, userId))
+        .limit(1);
+
+      if (existing) {
+        await db
+          .update(notificationPreferences)
+          .set({
+            oneSignalPlayerId: playerId,
+            updatedAt: new Date(),
+          })
+          .where(eq(notificationPreferences.userId, userId));
+      } else {
+        await db
+          .insert(notificationPreferences)
+          .values({
+            userId,
+            oneSignalPlayerId: playerId,
+          });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error registering device:', error);
+      res.status(500).json({ error: "Failed to register device" });
+    }
+  });
+
+  // Send a test notification (for testing purposes)
+  app.post("/api/notifications/test", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const result = await notificationService.sendNotification({
+        template: {
+          title: "Test Notification from Flō",
+          body: "This is a test notification to verify your push notification setup.",
+        },
+        userIds: [userId],
+      });
+
+      res.json({ success: true, result });
+    } catch (error) {
+      logger.error('Error sending test notification:', error);
+      res.status(500).json({ error: "Failed to send test notification" });
     }
   });
 
