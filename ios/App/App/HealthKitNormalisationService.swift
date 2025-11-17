@@ -832,7 +832,7 @@ public class HealthKitNormalisationService {
         // This includes sleep that starts before or ends after the window boundaries
         let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: [])
         
-        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (_, samples, error) in
+        let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { (_, samples, error) in
             if let error = error {
                 print("[Sleep] ❌ HealthKit query error for \(sleepDate): \(error.localizedDescription)")
                 print("[Sleep] ❌ Error code: \(error._code), domain: \(error._domain)")
@@ -855,8 +855,7 @@ public class HealthKitNormalisationService {
                 }
             }
             
-            guard let self = self,
-                  let samples = samples as? [HKCategorySample], !samples.isEmpty else {
+            guard let samples = samples as? [HKCategorySample], !samples.isEmpty else {
                 print("[Sleep] ⚠️ No sleep samples found for \(sleepDate)")
                 print("[Sleep] 💡 This might indicate:")
                 print("[Sleep]    - No sleep data exists for this date")
