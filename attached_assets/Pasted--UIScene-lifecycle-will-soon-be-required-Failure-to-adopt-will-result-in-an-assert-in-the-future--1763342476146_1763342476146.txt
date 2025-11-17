@@ -1,0 +1,267 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/408F862C-5F9E-4712-A1C9-098B185BB52E/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+WebContent process (0x1110e4100) took 2.212962 seconds to launch
+Networking process (0x111064190) took 5.989327 seconds to launch
+GPU process (0x1111081e0) took 2.202567 seconds to launch
+0x1110e4100 - [PID=43206] WebProcessProxy::didBecomeUnresponsive:
+0x12e3f1c18 - [pageProxyID=7, webPageID=8, PID=43206] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[43206] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 133295929
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering automatic HealthKit background sync...
+⚡️  To Native ->  SecureStoragePlugin get 133295930
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 133295931
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: false)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"success":true,"days":7,"message":"Background sync started"}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"success":true,"days":7,"message":"Background sync started"}
+[Normalisation] Syncing last 7 days: 2025-11-10 01:21:00 +0000 to 2025-11-17 01:21:00 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-10: {"hrvMs":19.51217507478063,"utcDayStart":"2025-11-09T16:00:00.000Z","localDate":"2025-11-10","stepsNormalized":6874,"utcDayEnd":"2025-11-10T16:00:00.000Z","stepsSourcesMetadata":{"overlaps_detected":0...
+[Normalisation] Sending payload for 2025-11-11: {"activeEnergyKcal":1021.7799376328956,"stepsNormalized":9977,"utcDayStart":"2025-11-10T16:00:00.000Z","restingHrBpm":72,"hrvMs":19.488889935344638,"timezone":"Australia\/Perth","utcDayEnd":"2025-11-1...
+[Normalisation] Sending payload for 2025-11-12: {"hrvMs":20.54355666342092,"utcDayStart":"2025-11-11T16:00:00.000Z","localDate":"2025-11-12","stepsNormalized":6113,"utcDayEnd":"2025-11-12T16:00:00.000Z","stepsSourcesMetadata":{"overlaps_detected":0...
+[Normalisation] Sending payload for 2025-11-13: {"utcDayEnd":"2025-11-13T16:00:00.000Z","utcDayStart":"2025-11-12T16:00:00.000Z","localDate":"2025-11-13","hrvMs":23.89132997023324,"timezone":"Australia\/Perth","activeEnergyKcal":916.2336251644526,"...
+[Normalisation] Sending payload for 2025-11-14: {"hrvMs":24.72718971033541,"restingHrBpm":72,"activeEnergyKcal":682.7790315537134,"stepsSourcesMetadata":{"overlaps_detected":0,"iphone_steps":10019,"final_steps":10019,"priority_order":"iPhone > Othe...
+[Normalisation] Sending payload for 2025-11-15: {"utcDayEnd":"2025-11-15T16:00:00.000Z","utcDayStart":"2025-11-14T16:00:00.000Z","localDate":"2025-11-15","hrvMs":20.568624187055768,"timezone":"Australia\/Perth","activeEnergyKcal":733.2035693585397,...
+[Normalisation] Sending payload for 2025-11-17: {"utcDayEnd":"2025-11-17T16:00:00.000Z","utcDayStart":"2025-11-16T16:00:00.000Z","localDate":"2025-11-17","hrvMs":21.4789307141297,"timezone":"Australia\/Perth","activeEnergyKcal":59.97564018679918,"s...
+[Normalisation] Sending payload for 2025-11-16: {"stepsSourcesMetadata":{"iphone_steps":5072,"final_steps":5072,"overlaps_detected":0,"priority_order":"iPhone > Other","source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","c...
+⚡️  To Native ->  SecureStoragePlugin get 133295932
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 133295933
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 2
+⚡️  TO JS {"success":true,"days":7,"message":"Background sync started"}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-10 01:21:02 +0000 to 2025-11-17 01:21:02 +0000
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-10: {"activeEnergyKcal":422.34518014908747,"stepsNormalized":6874,"restingHrBpm":73,"hrvMs":19.51217507478063,"utcDayStart":"2025-11-09T16:00:00.000Z","stepsSourcesMetadata":{"iphone_steps":6874,"gaps_fil...
+[Normalisation] Sending payload for 2025-11-11: {"utcDayStart":"2025-11-10T16:00:00.000Z","activeEnergyKcal":1021.7799376328956,"stepsSourcesMetadata":{"iphone_steps":9977,"gaps_filled":0,"overlaps_detected":0,"final_steps":9977,"source_identifiers...
+[Normalisation] Sending payload for 2025-11-12: {"activeEnergyKcal":735.812018647499,"stepsNormalized":6113,"restingHrBpm":71,"hrvMs":20.54355666342092,"utcDayStart":"2025-11-11T16:00:00.000Z","stepsSourcesMetadata":{"iphone_steps":6113,"gaps_fille...
+[Normalisation] Sending payload for 2025-11-13: {"utcDayStart":"2025-11-12T16:00:00.000Z","activeEnergyKcal":916.2336251644526,"stepsSourcesMetadata":{"iphone_steps":10986,"gaps_filled":0,"overlaps_detected":0,"final_steps":10986,"source_identifier...
+[Normalisation] Sending payload for 2025-11-14: {"activeEnergyKcal":682.7790315537134,"stepsNormalized":10019,"restingHrBpm":72,"hrvMs":24.72718971033541,"utcDayStart":"2025-11-13T16:00:00.000Z","stepsSourcesMetadata":{"iphone_steps":10019,"gaps_fi...
+[Normalisation] Sending payload for 2025-11-16: {"utcDayStart":"2025-11-15T16:00:00.000Z","activeEnergyKcal":516.7341124295366,"stepsSourcesMetadata":{"iphone_steps":5072,"gaps_filled":0,"overlaps_detected":0,"final_steps":5072,"source_identifiers"...
+[Normalisation] Sending payload for 2025-11-15: {"activeEnergyKcal":733.2035693585397,"stepsNormalized":7890,"restingHrBpm":68,"hrvMs":20.568624187055768,"utcDayStart":"2025-11-14T16:00:00.000Z","stepsSourcesMetadata":{"iphone_steps":7890,"gaps_fil...
+[Normalisation] Sending payload for 2025-11-17: {"utcDayStart":"2025-11-16T16:00:00.000Z","activeEnergyKcal":59.97564018679918,"stepsSourcesMetadata":{"iphone_steps":645,"gaps_filled":0,"overlaps_detected":0,"final_steps":645,"source_identifiers":[...
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-10
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+[Normalisation] Successfully uploaded metrics for 2025-11-10
+⚡️  To Native ->  SecureStoragePlugin get 133295934
+⚡️  To Native ->  SecureStoragePlugin get 133295935
+⚡️  To Native ->  SecureStoragePlugin get 133295936
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded all metrics
+[Normalisation] Processing sleep nights for 8 days
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-10: 2025-11-09 16:00:00 +0000 to 2025-11-10 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-10T00:00:00+08:00 to 2025-11-11T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-11: 2025-11-10 16:00:00 +0000 to 2025-11-11 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-11T00:00:00+08:00 to 2025-11-12T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-12: 2025-11-11 16:00:00 +0000 to 2025-11-12 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-12T00:00:00+08:00 to 2025-11-13T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-13: 2025-11-12 16:00:00 +0000 to 2025-11-13 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-13T00:00:00+08:00 to 2025-11-14T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-14: 2025-11-13 16:00:00 +0000 to 2025-11-14 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-14T00:00:00+08:00 to 2025-11-15T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-15: 2025-11-14 16:00:00 +0000 to 2025-11-15 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-15T00:00:00+08:00 to 2025-11-16T00:00:00+08:00
+[Sleep] ✅ Query completed successfully. Raw sample count: 30
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-16: 2025-11-15 16:00:00 +0000 to 2025-11-16 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-16T00:00:00+08:00 to 2025-11-17T00:00:00+08:00
+[Sleep] 🌙 Found 30 sleep samples for 2025-11-10
+[Sleep] Building night for 2025-11-10: 0 inBed, 30 stages
+[Sleep] 2025-11-10: 0min in bed, 385min asleep
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-17: 2025-11-16 16:00:00 +0000 to 2025-11-17 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-17T00:00:00+08:00 to 2025-11-18T00:00:00+08:00
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Uploading sleep night for 2025-11-10
+[Sleep] ✅ Query completed successfully. Raw sample count: 25
+[Sleep] ⚠️ No sleep samples found for 2025-11-11
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 39
+[Sleep] ⚠️ No sleep samples found for 2025-11-12
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 28
+[Sleep] ⚠️ No sleep samples found for 2025-11-13
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 24
+[Sleep] ⚠️ No sleep samples found for 2025-11-14
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 35
+[Sleep] ⚠️ No sleep samples found for 2025-11-16
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 38
+[Sleep] ⚠️ No sleep samples found for 2025-11-15
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 22
+[Sleep] ⚠️ No sleep samples found for 2025-11-17
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded sleep for 2025-11-10
+[Normalisation] Successfully uploaded 1 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #1 completed, 1 active syncs remaining
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded all metrics
+[Normalisation] Processing sleep nights for 8 days
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-10: 2025-11-09 16:00:00 +0000 to 2025-11-10 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-10T00:00:00+08:00 to 2025-11-11T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-11: 2025-11-10 16:00:00 +0000 to 2025-11-11 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-11T00:00:00+08:00 to 2025-11-12T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-12: 2025-11-11 16:00:00 +0000 to 2025-11-12 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-12T00:00:00+08:00 to 2025-11-13T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-13: 2025-11-12 16:00:00 +0000 to 2025-11-13 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-13T00:00:00+08:00 to 2025-11-14T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-14: 2025-11-13 16:00:00 +0000 to 2025-11-14 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-14T00:00:00+08:00 to 2025-11-15T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-15: 2025-11-14 16:00:00 +0000 to 2025-11-15 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] ✅ Query completed successfully. Raw sample count: 30
+[Sleep] 🌙 Found 30 sleep samples for 2025-11-10
+[Sleep] Building night for 2025-11-10: 0 inBed, 30 stages
+[Sleep] 2025-11-10: 0min in bed, 385min asleep
+[Sleep] 🔍 Query window: 2025-11-15T00:00:00+08:00 to 2025-11-16T00:00:00+08:00
+[Normalisation] Uploading sleep night for 2025-11-10
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-16: 2025-11-15 16:00:00 +0000 to 2025-11-16 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-16T00:00:00+08:00 to 2025-11-17T00:00:00+08:00
+[Sleep] 🔐 Authorization status for sleep: 1 (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)
+[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted
+[Sleep] Attempting to query sleep data...
+[Sleep] Querying sleep for 2025-11-17: 2025-11-16 16:00:00 +0000 to 2025-11-17 16:00:00 +0000 (timezone: Australia/Perth)
+[Sleep] 🔍 Query window: 2025-11-17T00:00:00+08:00 to 2025-11-18T00:00:00+08:00
+⚡️  To Native ->  SecureStoragePlugin get 133295937
+⚡️  To Native ->  SecureStoragePlugin get 133295938
+[Sleep] ✅ Query completed successfully. Raw sample count: 25
+[Sleep] ⚠️ No sleep samples found for 2025-11-11
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 28
+[Sleep] ⚠️ No sleep samples found for 2025-11-13
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 39
+[Sleep] ⚠️ No sleep samples found for 2025-11-12
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 38
+[Sleep] ⚠️ No sleep samples found for 2025-11-15
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 35
+[Sleep] ⚠️ No sleep samples found for 2025-11-16
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 24
+[Sleep] ⚠️ No sleep samples found for 2025-11-14
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+[Sleep] ✅ Query completed successfully. Raw sample count: 22
+[Sleep] ⚠️ No sleep samples found for 2025-11-17
+[Sleep] 💡 This might indicate:
+[Sleep]    - No sleep data exists for this date
+[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)
+[Sleep]    - Query date range doesn't match sleep recording times
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NjZlMjRiMy04MThmLTRmYTItOGFhYi0yOWI4YjRmZmRkYTQiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzMwMzU1NCwiZXhwIjoxNzYzOTA4MzU0fQ.8Pon-fH0mUe01h
+[Normalisation] Successfully uploaded sleep for 2025-11-10
+[Normalisation] Successfully uploaded 1 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #2 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No recent sleep data available\",\"message\":\"Please ensure you have synced HealthKit sleep data\"}"}

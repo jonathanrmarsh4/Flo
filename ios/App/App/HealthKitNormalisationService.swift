@@ -873,34 +873,49 @@ public class HealthKitNormalisationService {
     }
     
     private func buildSleepNight(segments: [SleepSegment], sleepDate: String, timezone: TimeZone, userId: String) -> SleepNightData? {
+        guard !segments.isEmpty else {
+            print("[Sleep] No valid segments for \(sleepDate)")
+            return nil
+        }
+        
+        // Separate inBed samples from sleep stage samples
         let inBedSegments = segments.filter { $0.value == .inBed }
         let stageSegments = segments.filter { $0.value != .inBed }
         
         print("[Sleep] Building night for \(sleepDate): \(inBedSegments.count) inBed, \(stageSegments.count) stages")
         
-        guard !inBedSegments.isEmpty || !stageSegments.isEmpty else {
-            print("[Sleep] No valid segments for \(sleepDate)")
+        // Calculate night boundaries from all segments
+        let allStarts = segments.map { $0.start }
+        let allEnds = segments.map { $0.end }
+        guard let nightStart = allStarts.min(), let finalWake = allEnds.max() else {
+            print("[Sleep] Could not determine night boundaries for \(sleepDate)")
             return nil
         }
-        
-        let nightStart = min(inBedSegments.map { $0.start }.min() ?? Date.distantFuture, stageSegments.map { $0.start }.min() ?? Date.distantFuture)
-        let finalWake = max(inBedSegments.map { $0.end }.max() ?? Date.distantPast, stageSegments.map { $0.end }.max() ?? Date.distantPast)
         
         // iOS 16+ sleep stages or fallback to generic asleep
         let asleepSegments: [SleepSegment]
         if #available(iOS 16.0, *) {
-            asleepSegments = stageSegments.filter { 
+            asleepSegments = segments.filter { 
                 $0.value == .asleepCore || $0.value == .asleepDeep || 
                 $0.value == .asleepREM || $0.value == .asleepUnspecified || 
                 $0.value == .asleep 
             }
         } else {
-            asleepSegments = stageSegments.filter { $0.value == .asleep }
+            asleepSegments = segments.filter { $0.value == .asleep }
         }
         
         let sleepOnset = asleepSegments.first?.start
         
-        let timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
+        // Calculate time in bed: use explicit .inBed samples if available,
+        // otherwise fall back to total span (nightStart to finalWake)
+        let timeInBedMin: Double
+        if !inBedSegments.isEmpty {
+            timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
+        } else {
+            // No explicit inBed samples - calculate from night boundaries
+            timeInBedMin = finalWake.timeIntervalSince(nightStart) / 60.0
+        }
+        
         let totalSleepMin = asleepSegments.reduce(0.0) { $0 + $1.durationMinutes }
         
         print("[Sleep] \(sleepDate): \(Int(timeInBedMin))min in bed, \(Int(totalSleepMin))min asleep")
