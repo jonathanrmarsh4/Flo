@@ -21,6 +21,10 @@ const config: CapacitorConfig = {
         'SecureStoragePlugin',
         'HealthSyncPlugin'
       ]
+    },
+    OneSignalPlugin: {
+      appId: process.env.ONESIGNAL_APP_ID || '',
+      autoRegister: false
     }
   }
 };
