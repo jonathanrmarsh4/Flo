@@ -37,6 +37,8 @@ import {
   flomentumWeekly,
   healthBaselines,
   notificationTriggers,
+  deviceTokens,
+  apnsConfiguration,
   biomarkers,
   insertNotificationTriggerSchema,
 } from "@shared/schema";
@@ -2550,6 +2552,241 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error marking notification as sent:', error);
       res.status(500).json({ error: "Failed to mark notification as sent" });
+    }
+  });
+
+  // Device token management (for push notifications)
+  app.post("/api/device-tokens", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { insertDeviceTokenSchema } = await import("@shared/schema");
+      
+      const validation = insertDeviceTokenSchema.safeParse({
+        userId,
+        deviceToken: req.body.deviceToken,
+        platform: req.body.platform || 'ios',
+      });
+
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid device token data" });
+      }
+
+      // Check if token already exists
+      const existing = await db
+        .select()
+        .from(deviceTokens)
+        .where(eq(deviceTokens.deviceToken, validation.data.deviceToken))
+        .limit(1);
+
+      if (existing.length > 0) {
+        // Update existing token
+        const [updated] = await db
+          .update(deviceTokens)
+          .set({
+            userId,
+            isActive: true,
+            lastUsedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(deviceTokens.deviceToken, validation.data.deviceToken))
+          .returning();
+        
+        logger.info(`[DeviceToken] Updated device token for user ${userId}`);
+        return res.json(updated);
+      }
+
+      // Insert new token
+      const [token] = await db
+        .insert(deviceTokens)
+        .values(validation.data)
+        .returning();
+
+      logger.info(`[DeviceToken] Registered new device token for user ${userId}`);
+      res.json(token);
+    } catch (error) {
+      logger.error('Error registering device token:', error);
+      res.status(500).json({ error: "Failed to register device token" });
+    }
+  });
+
+  app.get("/api/device-tokens", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const tokens = await db
+        .select()
+        .from(deviceTokens)
+        .where(eq(deviceTokens.userId, userId));
+
+      res.json(tokens);
+    } catch (error) {
+      logger.error('Error fetching device tokens:', error);
+      res.status(500).json({ error: "Failed to fetch device tokens" });
+    }
+  });
+
+  app.delete("/api/device-tokens/:token", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const token = req.params.token;
+
+      const [deleted] = await db
+        .delete(deviceTokens)
+        .where(
+          and(
+            eq(deviceTokens.deviceToken, token),
+            eq(deviceTokens.userId, userId)
+          )
+        )
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Device token not found" });
+      }
+
+      logger.info(`[DeviceToken] Removed device token for user ${userId}`);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error removing device token:', error);
+      res.status(500).json({ error: "Failed to remove device token" });
+    }
+  });
+
+  // APNs configuration management (admin only)
+  app.get("/api/admin/apns-config", requireAdmin, async (req, res) => {
+    try {
+      const configs = await db
+        .select({
+          id: apnsConfiguration.id,
+          environment: apnsConfiguration.environment,
+          teamId: apnsConfiguration.teamId,
+          keyId: apnsConfiguration.keyId,
+          bundleId: apnsConfiguration.bundleId,
+          isActive: apnsConfiguration.isActive,
+          createdAt: apnsConfiguration.createdAt,
+          updatedAt: apnsConfiguration.updatedAt,
+          // Don't expose signingKey
+        })
+        .from(apnsConfiguration)
+        .orderBy(apnsConfiguration.createdAt);
+
+      res.json(configs);
+    } catch (error) {
+      logger.error('Error fetching APNs config:', error);
+      res.status(500).json({ error: "Failed to fetch APNs configuration" });
+    }
+  });
+
+  app.post("/api/admin/apns-config", requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { insertApnsConfigurationSchema } = await import("@shared/schema");
+      
+      const validation = insertApnsConfigurationSchema.safeParse(req.body);
+
+      if (!validation.success) {
+        const validationError = fromError(validation.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const [config] = await db
+        .insert(apnsConfiguration)
+        .values(validation.data)
+        .returning();
+
+      // Reset APNs client to pick up new configuration
+      const { apnsService } = await import("./services/apnsService");
+      await apnsService.reset();
+
+      logger.info(`[Admin] APNs configuration created by ${adminId}`);
+      res.json(config);
+    } catch (error) {
+      logger.error('Error creating APNs config:', error);
+      res.status(500).json({ error: "Failed to create APNs configuration" });
+    }
+  });
+
+  app.patch("/api/admin/apns-config/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const configId = req.params.id;
+      const adminId = req.user.claims.sub;
+      const { insertApnsConfigurationSchema } = await import("@shared/schema");
+      
+      const validation = insertApnsConfigurationSchema.partial().safeParse(req.body);
+
+      if (!validation.success) {
+        const validationError = fromError(validation.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const [config] = await db
+        .update(apnsConfiguration)
+        .set({
+          ...validation.data,
+          updatedAt: new Date(),
+        })
+        .where(eq(apnsConfiguration.id, configId))
+        .returning();
+
+      if (!config) {
+        return res.status(404).json({ error: "APNs configuration not found" });
+      }
+
+      // Reset APNs client to pick up updated configuration
+      const { apnsService } = await import("./services/apnsService");
+      await apnsService.reset();
+
+      logger.info(`[Admin] APNs configuration updated: ${configId} by ${adminId}`);
+      res.json(config);
+    } catch (error) {
+      logger.error('Error updating APNs config:', error);
+      res.status(500).json({ error: "Failed to update APNs configuration" });
+    }
+  });
+
+  app.delete("/api/admin/apns-config/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const configId = req.params.id;
+      const adminId = req.user.claims.sub;
+
+      const [config] = await db
+        .delete(apnsConfiguration)
+        .where(eq(apnsConfiguration.id, configId))
+        .returning();
+
+      if (!config) {
+        return res.status(404).json({ error: "APNs configuration not found" });
+      }
+
+      // Reset APNs client
+      const { apnsService } = await import("./services/apnsService");
+      await apnsService.reset();
+
+      logger.info(`[Admin] APNs configuration deleted: ${configId} by ${adminId}`);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error deleting APNs config:', error);
+      res.status(500).json({ error: "Failed to delete APNs configuration" });
+    }
+  });
+
+  // Test push notification endpoint (admin only)
+  app.post("/api/admin/test-push", requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, title, body } = req.body;
+
+      if (!userId || !title || !body) {
+        return res.status(400).json({ error: "userId, title, and body are required" });
+      }
+
+      const { apnsService } = await import("./services/apnsService");
+      const result = await apnsService.sendToUser(userId, { title, body });
+
+      logger.info(`[Admin] Test push notification sent: ${result.devicesReached} devices reached`);
+      res.json(result);
+    } catch (error) {
+      logger.error('Error sending test push notification:', error);
+      res.status(500).json({ error: "Failed to send test push notification" });
     }
   });
 

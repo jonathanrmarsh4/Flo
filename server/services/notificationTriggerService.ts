@@ -177,7 +177,7 @@ function evaluateTriggerCondition(result: BiomarkerResult, condition: any): bool
 }
 
 /**
- * Create a notification log entry
+ * Create a notification log entry and send push notification
  */
 async function logNotification(
   userId: string,
@@ -187,16 +187,36 @@ async function logNotification(
   contextData: any
 ): Promise<void> {
   try {
-    await db.insert(notificationLogs).values({
+    // Create notification log entry
+    const [notificationLog] = await db.insert(notificationLogs).values({
       userId,
       triggerId,
       title,
       body,
-      status: 'pending', // Will be updated to 'sent' when mobile app confirms receipt
+      status: 'pending',
       contextData,
-    });
+    }).returning();
 
     logger.info(`[Notification] Logged notification for user ${userId}: ${title}`);
+
+    // Send push notification immediately if APNs is configured
+    try {
+      const { apnsService } = await import("./apnsService");
+      const result = await apnsService.sendToUser(
+        userId,
+        { title, body },
+        notificationLog.id
+      );
+
+      if (result.success) {
+        logger.info(`[Notification] Push notification sent to ${result.devicesReached} device(s) for user ${userId}`);
+      } else {
+        logger.warn(`[Notification] Failed to send push notification: ${result.error}`);
+      }
+    } catch (error) {
+      // Don't fail the entire notification process if push fails
+      logger.warn('[Notification] Push notification failed (non-critical):', error);
+    }
   } catch (error) {
     logger.error('[Notification] Failed to log notification:', error);
   }
