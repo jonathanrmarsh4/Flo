@@ -906,14 +906,16 @@ public class HealthKitNormalisationService {
         
         let sleepOnset = asleepSegments.first?.start
         
-        // Calculate time in bed: use explicit .inBed samples if available,
-        // otherwise fall back to total span (nightStart to finalWake)
+        // Calculate total time in bed:
+        // - If explicit .inBed samples exist, use those
+        // - Otherwise, sum all sleep-related samples (asleep stages + awake in bed)
         let timeInBedMin: Double
         if !inBedSegments.isEmpty {
+            // Use explicit inBed samples
             timeInBedMin = inBedSegments.reduce(0.0) { $0 + $1.durationMinutes }
         } else {
-            // No explicit inBed samples - calculate from night boundaries
-            timeInBedMin = finalWake.timeIntervalSince(nightStart) / 60.0
+            // Sum all sleep session samples (all stages including awake)
+            timeInBedMin = stageSegments.reduce(0.0) { $0 + $1.durationMinutes }
         }
         
         let totalSleepMin = asleepSegments.reduce(0.0) { $0 + $1.durationMinutes }
