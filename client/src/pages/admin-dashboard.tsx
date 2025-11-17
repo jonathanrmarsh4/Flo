@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { AdminNotificationConfig } from '@/components/admin/AdminNotificationConfig';
 
 interface AdminUserSummary {
   id: string;
@@ -28,7 +29,7 @@ interface AdminUserSummary {
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'billing' | 'api' | 'analytics' | 'settings' | 'logs' | 'healthkit' | 'systems'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'billing' | 'api' | 'analytics' | 'settings' | 'logs' | 'healthkit' | 'systems' | 'notifications'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [editingUser, setEditingUser] = useState<string | null>(null);
@@ -151,6 +152,7 @@ export default function AdminDashboard() {
     { id: 'api', label: 'API Usage', icon: Zap },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
     { id: 'healthkit', label: 'HealthKit', icon: Heart },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'systems', label: 'Systems', icon: Server },
     { id: 'logs', label: 'Audit Logs', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
@@ -733,6 +735,10 @@ export default function AdminDashboard() {
               <div className="text-center py-8 text-white/50">No audit logs available</div>
             )}
           </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <AdminNotificationConfig />
         )}
 
         {(activeTab === 'billing' || activeTab === 'analytics' || activeTab === 'settings') && (
