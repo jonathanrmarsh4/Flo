@@ -26,20 +26,35 @@ export function useHealthKitAutoSync() {
     // Helper to check if query key matches health-related paths
     const isHealthQuery = (query: any): boolean => {
       const queryKey = query.queryKey;
-      // Handle both string keys and array keys
-      const keyStr = typeof queryKey === 'string' 
-        ? queryKey 
-        : (Array.isArray(queryKey) && typeof queryKey[0] === 'string')
-          ? queryKey[0]
-          : '';
       
-      return (
-        keyStr.startsWith('/api/dashboard') ||
-        keyStr.startsWith('/api/flomentum') ||
-        keyStr.startsWith('/api/biological-age') ||
-        keyStr.startsWith('/api/sleep') ||
-        keyStr.startsWith('/api/labs')
-      );
+      // Check if any segment in the query key array matches our health paths
+      if (Array.isArray(queryKey)) {
+        return queryKey.some(key => {
+          if (typeof key !== 'string') return false;
+          return (
+            key.startsWith('/api/dashboard') ||
+            key.startsWith('/api/flomentum') ||
+            key.startsWith('/api/biological-age') ||
+            key.startsWith('/api/sleep') ||
+            key.startsWith('/api/labs') ||
+            key.startsWith('/api/healthkit')
+          );
+        });
+      }
+      
+      // Handle string keys
+      if (typeof queryKey === 'string') {
+        return (
+          queryKey.startsWith('/api/dashboard') ||
+          queryKey.startsWith('/api/flomentum') ||
+          queryKey.startsWith('/api/biological-age') ||
+          queryKey.startsWith('/api/sleep') ||
+          queryKey.startsWith('/api/labs') ||
+          queryKey.startsWith('/api/healthkit')
+        );
+      }
+      
+      return false;
     };
 
     const syncHealthData = async (isInitialSync = false, showNotification = true) => {
