@@ -785,10 +785,13 @@ public class HealthKitNormalisationService {
             }
             
             print("[Sleep] Found \(samples.count) raw sleep samples for \(sleepDate)")
+            print("[Sleep] DEBUG: Starting conversion of \(samples.count) samples")
             
             // Convert to simple JSON-serializable format
             let iso8601 = ISO8601DateFormatter()
             iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            
+            print("[Sleep] DEBUG: ISO8601 formatter created")
             
             let rawSamples = samples.map { sample -> [String: Any] in
                 let stageValue = sample.value
@@ -835,7 +838,10 @@ public class HealthKitNormalisationService {
                 ]
             }
             
+            print("[Sleep] DEBUG: Converted \(rawSamples.count) samples successfully")
+            print("[Sleep] DEBUG: About to call completion handler with \(rawSamples.count) samples")
             completion(rawSamples)
+            print("[Sleep] DEBUG: Completion handler called")
         }
         
         healthStore.execute(query)
