@@ -36,9 +36,12 @@ export function AdminNotificationConfig() {
     queryKey: ['/api/admin/notification-triggers'],
   });
 
-  const { data: biomarkers = [] } = useQuery<Array<{ id: string; name: string; category: string }>>({
+  const { data: biomarkersData, isLoading: isBiomarkersLoading } = useQuery<Array<{ id: string; name: string; category: string }>>({
     queryKey: ['/api/biomarkers'],
   });
+
+  // Ensure biomarkers is always an array to prevent .map() crashes
+  const biomarkers = biomarkersData || [];
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertNotificationTrigger) => {
