@@ -1,4 +1,3 @@
-import OneSignal from 'onesignal-cordova-plugin';
 import { Capacitor } from '@capacitor/core';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -12,6 +11,15 @@ interface NotificationOpenedEvent {
       [key: string]: any;
     };
   };
+}
+
+// Dynamic import helper for OneSignal (only available on native platforms)
+async function getOneSignal() {
+  if (!Capacitor.isNativePlatform()) {
+    throw new Error('OneSignal is only available on native platforms');
+  }
+  const { default: OneSignal } = await import('onesignal-cordova-plugin');
+  return OneSignal;
 }
 
 export class PushNotificationService {
@@ -47,6 +55,9 @@ export class PushNotificationService {
 
     try {
       console.log('[PushNotifications] Initializing OneSignal...');
+
+      // Dynamically import OneSignal (only available on native platforms)
+      const OneSignal = await getOneSignal();
 
       // Initialize OneSignal
       OneSignal.initialize(ONESIGNAL_APP_ID);
@@ -141,6 +152,7 @@ export class PushNotificationService {
     }
 
     try {
+      const OneSignal = await getOneSignal();
       return await OneSignal.Notifications.getPermissionAsync();
     } catch (error) {
       console.error('[PushNotifications] Failed to get permission status:', error);
@@ -157,6 +169,7 @@ export class PushNotificationService {
     }
 
     try {
+      const OneSignal = await getOneSignal();
       return await OneSignal.Notifications.requestPermission(true);
     } catch (error) {
       console.error('[PushNotifications] Failed to request permission:', error);
@@ -173,6 +186,7 @@ export class PushNotificationService {
     }
 
     try {
+      const OneSignal = await getOneSignal();
       OneSignal.logout();
       console.log('[PushNotifications] User logged out');
     } catch (error) {
@@ -189,6 +203,7 @@ export class PushNotificationService {
     }
 
     try {
+      const OneSignal = await getOneSignal();
       OneSignal.login(userId);
       console.log('[PushNotifications] User logged in:', userId);
     } catch (error) {
