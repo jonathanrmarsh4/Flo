@@ -1,0 +1,255 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/10F916BA-0D19-40F5-8E94-EAEC52AB5AAE/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+Networking process (0x11605c190) took 10.530791 seconds to launch
+GPU process (0x1161141e0) took 3.024972 seconds to launch
+WebContent process (0x1160f0100) took 3.037928 seconds to launch
+0x1160f0100 - [PID=48517] WebProcessProxy::didBecomeUnresponsive:
+0x10b3a9c18 - [pageProxyID=7, webPageID=8, PID=48517] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[48517] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 81334407
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin ⚡️  [log] - 🚀 [AutoSync] App launched - triggering initial HealthKit sync...
+get 81334408
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 81334409
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: false)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"message":"Background sync started","success":true,"days":7}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"message":"Background sync started","success":true,"days":7}
+⚡️  [log] - ✅ [AutoSync] Sync success block entered
+⚡️  [log] - ⏳ [AutoSync] Waiting 4s for backend upload to complete...
+[Normalisation] Syncing last 7 days: 2025-11-10 23:54:59 +0000 to 2025-11-17 23:54:59 +0000
+🔓 [HealthSyncPlugin] Authorization requested, success: true
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6381 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3596 steps
+[Steps] Using iPhone primary source: 6381 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3777 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2336 steps
+[Steps] Using iPhone primary source: 3777 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7233 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3753 steps
+[Steps] Using iPhone primary source: 7233 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6534 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3485 steps
+[Steps] Using iPhone primary source: 6534 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 4942 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2948 steps
+[Steps] Using iPhone primary source: 4942 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 2836 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2236 steps
+[Steps] Using iPhone primary source: 2836 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7274 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2293 steps
+[Steps] Using iPhone primary source: 7274 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 774 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 145 steps
+[Steps] Using iPhone primary source: 774 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-11: {"stepsNormalized":6381,"hrvMs":19.488889935344638,"utcDayEnd":"2025-11-11T16:00:00.000Z","restingHrBpm":72,"activeEnergyKcal":1021.7799376328956,"exerciseMinutes":49,"utcDayStart":"2025-11-10T16:00:0...
+[Normalisation] Sending payload for 2025-11-13: {"stepsNormalized":7233,"hrvMs":23.89132997023324,"utcDayEnd":"2025-11-13T16:00:00.000Z","restingHrBpm":72,"activeEnergyKcal":916.2336251644526,"exerciseMinutes":46,"utcDayStart":"2025-11-12T16:00:00....
+[Normalisation] Sending payload for 2025-11-12: {"stepsNormalized":3777,"hrvMs":20.54355666342092,"utcDayEnd":"2025-11-12T16:00:00.000Z","restingHrBpm":71,"activeEnergyKcal":735.812018647499,"exerciseMinutes":47,"utcDayStart":"2025-11-11T16:00:00.0...
+[Normalisation] Sending payload for 2025-11-14: {"stepsNormalized":6534,"hrvMs":24.72718971033541,"utcDayEnd":"2025-11-14T16:00:00.000Z","restingHrBpm":72,"activeEnergyKcal":682.7790315537134,"exerciseMinutes":15,"utcDayStart":"2025-11-13T16:00:00....
+[Normalisation] Sending payload for 2025-11-15: {"stepsNormalized":4942,"hrvMs":20.568624187055768,"utcDayEnd":"2025-11-15T16:00:00.000Z","restingHrBpm":68,"activeEnergyKcal":733.2035693585397,"exerciseMinutes":43,"utcDayStart":"2025-11-14T16:00:00...
+[Normalisation] Sending payload for 2025-11-16: {"exerciseMinutes":33,"stepsSourcesMetadata":{"iphone_steps":2836,"notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","source_identifiers":["com.apple.health.6E1CE527-B...
+[Normalisation] Sending payload for 2025-11-18: {"hrvMs":19.84829172197405,"restingHrBpm":72,"timezone":"Australia\/Perth","utcDayEnd":"2025-11-18T16:00:00.000Z","utcDayStart":"2025-11-17T16:00:00.000Z","stepsNormalized":774,"stepsSourcesMetadata":...
+[Normalisation] Sending payload for 2025-11-17: {"localDate":"2025-11-17","activeEnergyKcal":692.0133009641056,"stepsSourcesMetadata":{"notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_steps":7274,"final_st...
+quic_conn_process_inbound [C1.1.1.1:2] [-fd0e8ad057595527] unable to parse packet
+⚡️  To Native ->  LocalNotifications checkPermissions 81334410
+⚡️  TO JS {"display":"granted"}
+⚡️  To Native ->  SecureStoragePlugin get 81334411
+⚡️  To Native ->  SecureStoragePlugin get 81334412
+⚡️  To Native ->  SecureStoragePlugin get 81334413
+⚡️  To Native ->  LocalNotifications cancel 81334414
+⚡️  To Native ->  LocalNotifications addListener 81334415
+⚡️  To Native ->  LocalNotifications addListener 81334416
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS undefined
+⚡️  [log] - [Flōmentum Notifications] All scheduled notifications cancelled
+⚡️  To Native ->  LocalNotifications schedule 81334417
+⚡️  TO JS {"notifications":[{"id":100}]}
+⚡️  [log] - [Flōmentum Notifications] Daily score scheduled for 20:00
+⚡️  To Native ->  LocalNotifications schedule 81334418
+⚡️  TO JS {"notifications":[{"id":101}]}
+⚡️  [log] - [Flōmentum Notifications] Sync reminder scheduled for 09:00
+⚡️  To Native ->  LocalNotifications schedule 81334419
+⚡️  TO JS {"notifications":[{"id":102}]}
+⚡️  [log] - [Flōmentum Notifications] Weekly summary scheduled for Mondays at 8 AM
+⚡️  To Native ->  LocalNotifications schedule 81334420
+⚡️  TO JS {"notifications":[{"id":103}]}
+⚡️  To Native ->  LocalNotifications schedule 81334421
+⚡️  TO JS {"notifications":[{"id":104}]}
+⚡️  To Native ->  LocalNotifications schedule 81334422
+⚡️  TO JS {"notifications":[{"id":105}]}
+⚡️  [log] - [Flōmentum Notifications] Daily action reminders scheduled
+⚡️  [log] - [Flōmentum Notifications] Initialization complete
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+⚡️  To Native ->  SecureStoragePlugin get 81334423
+⚡️  To Native ->  SecureStoragePlugin get 81334424
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded metrics for 2025-11-18
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-11, window: 2025-11-10 07:00:00 +0000 to 2025-11-11 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-12, window: 2025-11-11 07:00:00 +0000 to 2025-11-12 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-13, window: 2025-11-12 07:00:00 +0000 to 2025-11-13 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-14, window: 2025-11-13 07:00:00 +0000 to 2025-11-14 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-15, window: 2025-11-14 07:00:00 +0000 to 2025-11-15 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-16, window: 2025-11-15 07:00:00 +0000 to 2025-11-16 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-17, window: 2025-11-16 07:00:00 +0000 to 2025-11-17 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-18, window: 2025-11-17 07:00:00 +0000 to 2025-11-18 07:00:00 +0000
+[Sleep] Found 23 raw sleep samples for 2025-11-13
+[Sleep] Found 27 raw sleep samples for 2025-11-11
+[Sleep] Uploading 23 raw samples for 2025-11-13
+[Sleep] Uploading 27 raw samples for 2025-11-11
+[Sleep] Found 38 raw sleep samples for 2025-11-12
+[Sleep] Uploading 38 raw samples for 2025-11-12
+[Sleep] Found 32 raw sleep samples for 2025-11-15
+[Sleep] Found 33 raw sleep samples for 2025-11-14
+[Sleep] Uploading 32 raw samples for 2025-11-15
+[Sleep] Found 34 raw sleep samples for 2025-11-16
+[Sleep] Uploading 33 raw samples for 2025-11-14
+[Sleep] Found 30 raw sleep samples for 2025-11-17
+[Sleep] Uploading 34 raw samples for 2025-11-16
+[Sleep] Found 26 raw sleep samples for 2025-11-18
+[Sleep] Uploading 30 raw samples for 2025-11-17
+[Sleep] Uploading 26 raw samples for 2025-11-18
+[Sleep] Successfully uploaded raw samples for 2025-11-13
+[Sleep] Successfully uploaded raw samples for 2025-11-11
+[Sleep] Successfully uploaded raw samples for 2025-11-12
+[Sleep] Successfully uploaded raw samples for 2025-11-17
+[Sleep] Successfully uploaded raw samples for 2025-11-16
+[Sleep] Successfully uploaded raw samples for 2025-11-15
+[Sleep] Successfully uploaded raw samples for 2025-11-14
+[Sleep] Successfully uploaded raw samples for 2025-11-18
+[Sleep] Successfully uploaded 8 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+⚡️  [log] - 🔄 [AutoSync] Refetching dashboard queries...
+⚡️  To Native ->  SecureStoragePlugin get 81334425
+⚡️  To Native ->  SecureStoragePlugin get 81334426
+⚡️  To Native ->  SecureStoragePlugin get 81334427
+⚡️  To Native ->  SecureStoragePlugin get 81334428
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - ✅ [AutoSync] Dashboard refresh completed!
+⚡️  To Native ->  LocalNotifications schedule 81334429
+⚡️  TO JS {"notifications":[{"id":1}]}
+⚡️  [log] - [Notifications] Sent: Health data synced ✓
+⚡️  TO JS {"id":1,"body":"Your latest HealthKit metrics are ready","actionTypeId":"","sound":"","schedule":{"at":"2025-11-17T23:55:05Z"},"title":"Health data synced ✓","extra":{},"attachments":[]}
+⚡️  [log] - [Notifications] Received in foreground: {"id":1,"body":"Your latest HealthKit metrics are ready","actionTypeId":"","sound":"","schedule":{"at":"2025-11-17T23:55:05Z"},"title":"Health data synced ✓","extra":{},"attachments":[]}
+⚡️  To Native ->  SecureStoragePlugin get 81334430
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 81334431
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"message":"Background sync started","success":true,"days":7}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-10 23:55:07 +0000 to 2025-11-17 23:55:07 +0000
+🔓 [HealthSyncPlugin] Authorization requested, success: true
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6381 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3596 steps
+[Steps] Using iPhone primary source: 6381 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3777 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2336 steps
+[Steps] Using iPhone primary source: 3777 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7233 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3753 steps
+[Steps] Using iPhone primary source: 7233 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6534 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3485 steps
+[Steps] Using iPhone primary source: 6534 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 4942 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2948 steps
+[Steps] Using iPhone primary source: 4942 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 2836 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2236 steps
+[Steps] Using iPhone primary source: 2836 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7274 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2293 steps
+[Steps] Using iPhone primary source: 7274 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 774 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 145 steps
+[Steps] Using iPhone primary source: 774 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-11: {"localDate":"2025-11-11","utcDayEnd":"2025-11-11T16:00:00.000Z","restingHrBpm":72,"stepsNormalized":6381,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps"...
+[Normalisation] Sending payload for 2025-11-12: {"localDate":"2025-11-12","utcDayEnd":"2025-11-12T16:00:00.000Z","restingHrBpm":71,"stepsNormalized":3777,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps"...
+[Normalisation] Sending payload for 2025-11-13: {"localDate":"2025-11-13","utcDayEnd":"2025-11-13T16:00:00.000Z","restingHrBpm":72,"stepsNormalized":7233,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps"...
+[Normalisation] Sending payload for 2025-11-14: {"localDate":"2025-11-14","utcDayEnd":"2025-11-14T16:00:00.000Z","restingHrBpm":72,"stepsNormalized":6534,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps"...
+[Normalisation] Sending payload for 2025-11-15: {"localDate":"2025-11-15","utcDayEnd":"2025-11-15T16:00:00.000Z","restingHrBpm":68,"stepsNormalized":4942,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps"...
+[Normalisation] Sending payload for 2025-11-16: {"localDate":"2025-11-16","utcDayEnd":"2025-11-16T16:00:00.000Z","restingHrBpm":64,"stepsNormalized":2836,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps"...
+[Normalisation] Sending payload for 2025-11-18: {"localDate":"2025-11-18","utcDayEnd":"2025-11-18T16:00:00.000Z","restingHrBpm":72,"stepsNormalized":774,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps":...
+[Normalisation] Sending payload for 2025-11-17: {"localDate":"2025-11-17","utcDayEnd":"2025-11-17T16:00:00.000Z","restingHrBpm":71,"stepsNormalized":7274,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"priority_order":"iPhone","iphone_steps"...
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-18
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-11, window: 2025-11-10 07:00:00 +0000 to 2025-11-11 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-12, window: 2025-11-11 07:00:00 +0000 to 2025-11-12 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-13, window: 2025-11-12 07:00:00 +0000 to 2025-11-13 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-14, window: 2025-11-13 07:00:00 +0000 to 2025-11-14 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-15, window: 2025-11-14 07:00:00 +0000 to 2025-11-15 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-16, window: 2025-11-15 07:00:00 +0000 to 2025-11-16 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-17, window: 2025-11-16 07:00:00 +0000 to 2025-11-17 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-18, window: 2025-11-17 07:00:00 +0000 to 2025-11-18 07:00:00 +0000
+[Sleep] Found 23 raw sleep samples for 2025-11-13
+[Sleep] Uploading 23 raw samples for 2025-11-13
+[Sleep] Found 27 raw sleep samples for 2025-11-11
+[Sleep] Found 38 raw sleep samples for 2025-11-12
+[Sleep] Uploading 27 raw samples for 2025-11-11
+[Sleep] Found 32 raw sleep samples for 2025-11-15
+[Sleep] Uploading 38 raw samples for 2025-11-12
+[Sleep] Found 34 raw sleep samples for 2025-11-16
+[Sleep] Uploading 32 raw samples for 2025-11-15
+[Sleep] Found 26 raw sleep samples for 2025-11-18
+[Sleep] Uploading 34 raw samples for 2025-11-16
+[Sleep] Found 33 raw sleep samples for 2025-11-14
+[Sleep] Uploading 26 raw samples for 2025-11-18
+[Sleep] Found 30 raw sleep samples for 2025-11-17
+[Sleep] Uploading 33 raw samples for 2025-11-14
+[Sleep] Uploading 30 raw samples for 2025-11-17
+[Sleep] Successfully uploaded raw samples for 2025-11-12
+[Sleep] Successfully uploaded raw samples for 2025-11-13
+[Sleep] Successfully uploaded raw samples for 2025-11-11
+[Sleep] Successfully uploaded raw samples for 2025-11-16
+[Sleep] Successfully uploaded raw samples for 2025-11-15
+[Sleep] Successfully uploaded raw samples for 2025-11-18
+[Sleep] Successfully uploaded raw samples for 2025-11-17
+[Sleep] Successfully uploaded raw samples for 2025-11-14
+[Sleep] Successfully uploaded 8 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+⚡️  To Native ->  SecureStoragePlugin get 81334432
+⚡️  To Native ->  SecureStoragePlugin get 81334433
+⚡️  To Native ->  SecureStoragePlugin get 81334434
+⚡️  To Native ->  SecureStoragePlugin get 81334435
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
