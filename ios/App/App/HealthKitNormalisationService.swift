@@ -790,8 +790,11 @@ public class HealthKitNormalisationService {
         // attempt the query - if permission is denied, the query will return empty results.
         // This is documented iOS behavior for HKCategoryType authorization status.
         
-        // Skip auth check for category types - just attempt the query
-        print("[Sleep] Attempting to query sleep data (auth status not reliable for category types)...")
+        // Log detailed permission info for debugging
+        let authStatus = healthStore.authorizationStatus(for: sleepType)
+        print("[Sleep] 🔐 Authorization status for sleep: \(authStatus.rawValue) (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)")
+        print("[Sleep] 📋 Note: Status 1 (sharingDenied) is normal for category types even when permission granted")
+        print("[Sleep] Attempting to query sleep data...")
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -819,23 +822,36 @@ public class HealthKitNormalisationService {
         }
         
         print("[Sleep] Querying sleep for \(sleepDate): \(windowStart) to \(windowEnd) (timezone: \(timezone.identifier))")
+        
+        // Log query details for debugging
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = timezone
+        print("[Sleep] 🔍 Query window: \(formatter.string(from: windowStart)) to \(formatter.string(from: windowEnd))")
+        
         let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: windowEnd, options: .strictStartDate)
         
         let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (_, samples, error) in
             if let error = error {
-                print("[Sleep] HealthKit query error for \(sleepDate): \(error.localizedDescription)")
+                print("[Sleep] ❌ HealthKit query error for \(sleepDate): \(error.localizedDescription)")
+                print("[Sleep] ❌ Error code: \(error._code), domain: \(error._domain)")
                 completion(nil)
                 return
             }
+            
+            print("[Sleep] ✅ Query completed successfully. Raw sample count: \(samples?.count ?? 0)")
             
             guard let self = self,
                   let samples = samples as? [HKCategorySample], !samples.isEmpty else {
-                print("[Sleep] No sleep samples found for \(sleepDate)")
+                print("[Sleep] ⚠️ No sleep samples found for \(sleepDate)")
+                print("[Sleep] 💡 This might indicate:")
+                print("[Sleep]    - No sleep data exists for this date")
+                print("[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)")
+                print("[Sleep]    - Query date range doesn't match sleep recording times")
                 completion(nil)
                 return
             }
             
-            print("[Sleep] Found \(samples.count) sleep samples for \(sleepDate)")
+            print("[Sleep] 🌙 Found \(samples.count) sleep samples for \(sleepDate)")
             
             var segments: [SleepSegment] = []
             for sample in samples {
