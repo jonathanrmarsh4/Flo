@@ -93,16 +93,25 @@ class ApnsService {
         return { success: false, error: 'APNs client not configured' };
       }
 
-      // Create notification
-      const notification = new Notification(deviceToken, {
-        alert: {
-          title: payload.title,
-          body: payload.body,
-        },
-        badge: payload.badge,
-        sound: payload.sound || 'default',
-        ...payload.data,
-      });
+      // Create notification with proper APNs payload structure
+      // Custom data should be in a separate object, not spread onto aps
+      const notificationPayload: any = {
+        aps: {
+          alert: {
+            title: payload.title,
+            body: payload.body,
+          },
+          badge: payload.badge,
+          sound: payload.sound || 'default',
+        }
+      };
+
+      // Add custom data if provided (separate from aps)
+      if (payload.data) {
+        Object.assign(notificationPayload, payload.data);
+      }
+
+      const notification = new Notification(deviceToken, notificationPayload);
 
       // Send notification
       logger.info(`[APNs] Sending notification to device: ${deviceToken.substring(0, 10)}...`);
@@ -162,6 +171,22 @@ class ApnsService {
     failed: number;
     results: Array<{ token: string; success: boolean; error?: string }>;
   }> {
+    // Check if client is available before attempting batch send
+    const isReady = await this.ensureInitialized();
+    if (!isReady || !this.client) {
+      logger.warn('[APNs] APNs client not available. Skipping batch send.');
+      return {
+        successful: 0,
+        failed: deviceTokens.length,
+        results: deviceTokens.map(token => ({
+          token,
+          success: false,
+          error: 'APNs client not configured'
+        }))
+      };
+    }
+
+    // Send to all devices concurrently
     const results = await Promise.all(
       deviceTokens.map(async (token) => {
         const result = await this.sendNotification(token, payload);
@@ -266,12 +291,28 @@ class ApnsService {
 
   /**
    * Reset the APNs client (force reinitialization)
+   * Called when APNs configuration is updated/deleted
    */
   async reset(): Promise<void> {
+    logger.info('[APNs] Resetting client and clearing cached configuration...');
+    
+    // Close existing client connection if open
+    if (this.client) {
+      try {
+        // apns2 client doesn't have explicit close method
+        // Setting to null will allow garbage collection
+        this.client = null;
+      } catch (error) {
+        logger.warn('[APNs] Error closing client:', error);
+      }
+    }
+
+    // Clear all cached state
     this.client = null;
     this.config = null;
     this.initializationPromise = null;
-    logger.info('[APNs] Client reset. Will reinitialize on next send.');
+
+    logger.info('[APNs] Client reset complete. Will reinitialize on next send.');
   }
 }
 
