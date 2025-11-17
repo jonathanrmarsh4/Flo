@@ -66,7 +66,10 @@ export function useHealthKitAutoSync() {
           console.log('🔄 [AutoSync] About to invalidate cache...');
           try {
             console.log('🔄 [AutoSync] Calling queryClient.invalidateQueries...');
-            await queryClient.invalidateQueries({ predicate: isHealthQuery });
+            await queryClient.invalidateQueries({ 
+              predicate: isHealthQuery,
+              refetchType: 'active'
+            });
             console.log('✅ [AutoSync] Cache invalidation completed!');
             logger.info('✅ Cache invalidated - UI will refresh with new health data');
           } catch (err) {
@@ -102,7 +105,10 @@ export function useHealthKitAutoSync() {
             // Invalidate cache even if sync fails to ensure UI shows any partial data
             if (isMountedRef.current) {
               try {
-                await queryClient.invalidateQueries({ predicate: isHealthQuery });
+                await queryClient.invalidateQueries({ 
+                  predicate: isHealthQuery,
+                  refetchType: 'active'
+                });
                 logger.info('✅ Cache invalidated after sleep sync - sleep data refreshed');
               } catch (err) {
                 logger.error('Failed to invalidate cache after sleep sync', err);

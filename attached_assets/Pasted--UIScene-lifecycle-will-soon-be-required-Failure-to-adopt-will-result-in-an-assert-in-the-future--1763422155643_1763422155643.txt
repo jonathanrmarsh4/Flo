@@ -1,0 +1,296 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/E52C95DE-4177-4517-81F4-5283DDC7EBB3/App.app'
+⚡️  Loading app at capacitor://localhost...
+✅ HealthSyncPlugin registered manually
+Networking process (0x115054190) took 7.118104 seconds to launch
+GPU process (0x1151101e0) took 2.633331 seconds to launch
+WebContent process (0x1150e8100) took 2.643479 seconds to launch
+0x1150e8100 - [PID=48266] WebProcessProxy::didBecomeUnresponsive:
+0x15a38dc18 - [pageProxyID=7, webPageID=8, PID=48266] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[48266] Unable to hide query parameters from script (missing data)
+⚡️  WebView loaded
+⚡️  To Native ->  SecureStoragePlugin get 30250727
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering initial HealthKit sync...
+⚡️  To Native ->  SecureStoragePlugin get 30250728
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 30250729
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: false)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"success":true,"days":7,"message":"Background sync started"}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"success":true,"days":7,"message":"Background sync started"}
+⚡️  [log] - ✅ [AutoSync] Sync success block entered
+⚡️  [log] - 🔄 [AutoSync] About to invalidate cache...
+⚡️  [log] - 🔄 [AutoSync] Calling queryClient.invalidateQueries...
+⚡️  [log] - ✅ [AutoSync] Cache invalidation completed!
+⚡️  To Native ->  LocalNotifications checkPermissions 30250730
+[Normalisation] Syncing last 7 days: 2025-11-10 23:28:36 +0000 to 2025-11-17 23:28:36 +0000
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  LocalNotifications requestPermissions 30250731
+⚡️  To Native ->  SecureStoragePlugin get 30250732
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 30250733
+(501) Invalidation handler invoked, clearing connection
+(501) personaAttributesForPersonaType for type:0 failed with error Error Domain=NSCocoaErrorDomain Code=4099 "The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated from this process." UserInfo={NSDebugDescription=The connection to service named com.apple.mobile.usermanagerd.xpc was invalidated from this process.}
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 2
+⚡️  TO JS {"days":7,"success":true,"message":"Background sync started"}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 0
+[Steps] No statistics available
+[Steps] No statistics available
+[Steps] No statistics available
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+[Steps] No statistics available
+[Steps] No statistics available
+[Steps] No statistics available
+[Steps] No statistics available
+[Steps] No statistics available
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-11: {"localDate":"2025-11-11","timezone":"Australia\/Perth","utcDayStart":"2025-11-10T16:00:00.000Z","utcDayEnd":"2025-11-11T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-12: {"localDate":"2025-11-12","timezone":"Australia\/Perth","utcDayStart":"2025-11-11T16:00:00.000Z","utcDayEnd":"2025-11-12T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-13: {"localDate":"2025-11-13","timezone":"Australia\/Perth","utcDayStart":"2025-11-12T16:00:00.000Z","utcDayEnd":"2025-11-13T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-14: {"localDate":"2025-11-14","timezone":"Australia\/Perth","utcDayStart":"2025-11-13T16:00:00.000Z","utcDayEnd":"2025-11-14T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-15: {"localDate":"2025-11-15","timezone":"Australia\/Perth","utcDayStart":"2025-11-14T16:00:00.000Z","utcDayEnd":"2025-11-15T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-16: {"localDate":"2025-11-16","timezone":"Australia\/Perth","utcDayStart":"2025-11-15T16:00:00.000Z","utcDayEnd":"2025-11-16T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-17: {"localDate":"2025-11-17","timezone":"Australia\/Perth","utcDayStart":"2025-11-16T16:00:00.000Z","utcDayEnd":"2025-11-17T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-11-18: {"localDate":"2025-11-18","timezone":"Australia\/Perth","utcDayStart":"2025-11-17T16:00:00.000Z","utcDayEnd":"2025-11-18T16:00:00.000Z"}...
+Received port for identifier response: <(null)> with error:Error Domain=RBSServiceErrorDomain Code=1 "Client not entitled" UserInfo={RBSEntitlement=com.apple.runningboard.process-state, NSLocalizedFailureReason=Client not entitled, RBSPermanent=false}
+elapsedCPUTimeForFrontBoard couldn't generate a task port
+⚡️  TO JS {"display":"granted"}
+🔍 [HealthSyncPlugin] Auth check attempt 2/20: status = 0
+⚡️  To Native ->  Health isAvailable 30250734
+⚡️  To Native ->  LocalNotifications checkPermissions 30250735
+⚡️  TO JS {"available":true,"platform":"ios"}
+⚡️  TO JS {"display":"granted"}
+⚡️  To Native ->  SecureStoragePlugin get 30250736
+⚡️  To Native ->  SecureStoragePlugin get 30250737
+⚡️  To Native ->  SecureStoragePlugin get 30250738
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  LocalNotifications addListener 30250739
+⚡️  To Native ->  LocalNotifications addListener 30250740
+⚡️  To Native ->  LocalNotifications schedule 30250741
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  LocalNotifications cancel 30250742
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - [Notifications] Permissions granted
+⚡️  To Native ->  Health requestAuthorization 30250743
+⚡️  TO JS {"notifications":[{"id":1}]}
+⚡️  TO JS undefined
+⚡️  [log] - [Notifications] Sent: Health data synced ✓
+⚡️  [log] - [Flōmentum Notifications] All scheduled notifications cancelled
+⚡️  To Native ->  LocalNotifications schedule 30250744
+⚡️  TO JS {"notifications":[{"id":100}]}
+⚡️  [log] - [Flōmentum Notifications] Daily score scheduled for 20:00
+⚡️  To Native ->  LocalNotifications schedule 30250745
+⚡️  TO JS {"notifications":[{"id":101}]}
+⚡️  To Native ->  LocalNotifications schedule 30250746
+⚡️  [log] - [Flōmentum Notifications] Sync reminder scheduled for 09:00
+⚡️  TO JS {"notifications":[{"id":102}]}
+⚡️  To Native ->  LocalNotifications schedule 30250747
+⚡️  [log] - [Flōmentum Notifications] Weekly summary scheduled for Mondays at 8 AM
+⚡️  TO JS {"notifications":[{"id":103}]}
+⚡️  To Native ->  LocalNotifications schedule 30250748
+⚡️  TO JS {"notifications":[{"id":104}]}
+⚡️  To Native ->  LocalNotifications schedule 30250749
+⚡️  TO JS {"notifications":[{"id":105}]}
+⚡️  [log] - [Flōmentum Notifications] Daily action reminders scheduled
+⚡️  [log] - [Flōmentum Notifications] Initialization complete
+⚡️  TO JS {"title":"Health data synced ✓","extra":{},"id":1,"attachments":[],"actionTypeId":"","body":"Your latest HealthKit metrics are ready","schedule":{"at":"2025-11-17T23:28:43Z"},"sound":""}
+⚡️  [log] - [Notifications] Received in foreground: {"title":"Health data synced ✓","extra":{},"id":1,"attachments":[],"actionTypeId":"","body":"Your latest HealthKit metrics are ready","schedule":{"at":"2025-11-17T23:28:43Z"},"sound":""}
+🔍 [HealthSyncPlugin] Auth check attempt 3/20: status = 0
+🔍 [HealthSyncPlugin] Auth check attempt 4/20: status = 0
+⚡️  To Native ->  SecureStoragePlugin get 30250750
+⚡️  To Native ->  SecureStoragePlugin get 30250751
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+🔍 [HealthSyncPlugin] Auth check attempt 5/20: status = 0
+🔍 [HealthSyncPlugin] Auth check attempt 6/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-10 23:28:45 +0000 to 2025-11-17 23:28:45 +0000
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6381 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3596 steps
+[Steps] Using iPhone primary source: 6381 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3777 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2336 steps
+[Steps] Using iPhone primary source: 3777 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7233 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3753 steps
+[Steps] Using iPhone primary source: 7233 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6534 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3485 steps
+[Steps] Using iPhone primary source: 6534 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 4942 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2948 steps
+[Steps] Using iPhone primary source: 4942 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 2836 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2236 steps
+[Steps] Using iPhone primary source: 2836 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7274 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2293 steps
+[Steps] Using iPhone primary source: 7274 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 534 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 103 steps
+[Steps] Using iPhone primary source: 534 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-11: {"timezone":"Australia\/Perth","stepsNormalized":6381,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_step...
+[Normalisation] Sending payload for 2025-11-12: {"timezone":"Australia\/Perth","stepsNormalized":3777,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_step...
+[Normalisation] Sending payload for 2025-11-13: {"timezone":"Australia\/Perth","stepsNormalized":7233,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_step...
+[Normalisation] Sending payload for 2025-11-14: {"timezone":"Australia\/Perth","stepsNormalized":6534,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_step...
+[Normalisation] Sending payload for 2025-11-15: {"timezone":"Australia\/Perth","stepsNormalized":4942,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_step...
+[Normalisation] Sending payload for 2025-11-16: {"timezone":"Australia\/Perth","stepsNormalized":2836,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_step...
+[Normalisation] Sending payload for 2025-11-18: {"timezone":"Australia\/Perth","stepsNormalized":534,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_steps...
+[Normalisation] Sending payload for 2025-11-17: {"timezone":"Australia\/Perth","stepsNormalized":7274,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","iphone_step...
+🔓 [HealthSyncPlugin] Authorization requested, success: true
+Attempt to present <HKHealthPrivacyHostAuthorizationViewController: 0x15ad3d400; service: com.apple.HealthPrivacyService; implementation: scene hosting> {
+    pid: 5398;
+    serviceViewControllerInterface: HKHealthPrivacyServiceRemoteAuthorizationViewController;
+    exportedInterface: HKHealthPrivacyHostRemoteViewController;
+    implementation: <_UIRemoteViewControllerSceneHostingImpl: 0x15ae78120; identityToken: 48263->app<com.apple.HealthPrivacyService(FEEDEEEE-DDDD-CCCC-BBBB-0000000001F5)>/UISceneHosting-com.flo.healthapp:UIHostedScene-com.apple.HealthPrivacyService-791241AF-6819-4CCA-BEA6-5C670630B730> {
+        session: <_UIViewServiceHostSession: 0x15ae9a7d0; service: com.apple.HealthPrivacyService; invalidated: NO> {
+            pid: 5398;
+            assertion: <RBSAssertion>;
+            legacyAssertion: <BKSProcessAssertion: 0x15b042530>;
+            endpoint: <BSServiceConnectionEndpoint: 0x15af11e40; target: com.apple.uikit.viewservice.com.apple.HealthPrivacyService; service: com.apple.uikit.viewservice.session>;
+            synchronizer: <FBSceneSynchronizer:0x15a18c940 FBProcess:[app<com.apple.HealthPrivacyService>:5398][5398]>;
+            connections: [
+                <NSXPCConnection: 0x15ac19f40> connection to service with pid 5398 named (null)
+            ];
+        };
+        auxiliaryConnection: <NSXPCConnection: 0x15ac19f40> connection to service with pid 5398 named (null);
+    };
+} on <HKHealthPrivacyHostAuthorizationViewController: 0x15ad3c400; service: com.apple.HealthPrivacyService; implementation: scene hosting> {
+    pid: 5398;
+    serviceViewControllerInterface: HKHealthPrivacyServiceRemoteAuthorizationViewController;
+    exportedInterface: HKHealthPrivacyHostRemoteViewController;
+
+    implementation: <_UIRemoteViewControllerSceneHostingImpl: 0x15a089f80; identityToken: 48263->app<com.apple.HealthPrivacyService(FEEDEEEE-DDDD-CCCC-BBBB-0000000001F5)>/UISceneHosting-com.flo.healthapp:UIHostedScene-com.apple.HealthPrivacyService-8C81582B-1A09-4018-9501-8F69C2514E97> {
+        session: <_UIViewServiceHostSession: 0x15a31bf70; service: com.apple.HealthPrivacyService; invalidated: NO> {
+            pid: 5398;
+            assertion: <RBSAssertion>;
+            legacyAssertion: <BKSProcessAssertion: 0x15ad8de50>;
+            endpoint: <BSServiceConnectionEndpoint: 0x15ad6aea0; target: com.apple.uikit.viewservice.com.apple.HealthPrivacyService; service: com.apple.uikit.viewservice.session>;
+            synchronizer: <FBSceneSynchronizer:0x15a18c940 FBProcess:[app<com.apple.HealthPrivacyService>:5398][5398]>;
+            connections: [
+                <NSXPCConnection: 0x15ad3a120> connection to service with pid 5398 named (null)
+            ];
+        };
+        auxiliaryConnection: <NSXPCConnection: 0x15ad3a120> connection to service with pid 5398 named (null);
+    };
+} (from <HKHealthPrivacyHostAuthorizationViewController: 0x15ad3c400; service: com.apple.HealthPrivacyService; implementation: scene hosting> {
+    pid: 5398;
+    serviceViewControllerInterface: HKHealthPrivacyServiceRemoteAuthorizationViewController;
+    exportedInterface: HKHealthPrivacyHostRemoteViewController;
+    implementation: <_UIRemoteViewControllerSceneHostingImpl: 0x15a089f80; identityToken: 48263->app<com.apple.HealthPrivacyService(FEEDEEEE-DDDD-CCCC-BBBB-0000000001F5)>/UISceneHosting-com.flo.healthapp:UIHostedScene-com.apple.HealthPrivacyService-8C81582B-1A09-4018-9501-8F69C2514E97> {
+        session: <_UIViewServiceHostSession: 0x15a31bf70; service: com.apple.HealthPrivacyService; invalidated: NO> {
+            pid: 5398;
+            assertion: <RBSAssertion>;
+            legacyAssertion: <BKSProcessAssertion: 0x15ad8de50>;
+            endpoint: <BSServiceConnectionEndpoint: 0x15ad6aea0; target: com.apple.uikit.viewservice.com.apple.HealthPrivacyService; service: com.apple.uikit.viewservice.session>;
+            synchronizer: <FBSceneSynchronizer:0x15a18c940 FBProcess:[app<com.apple.HealthPrivacyService>:5398][5398]>;
+            connections: [
+                <NSXPCConnection: 0x15ad3a120> connection to service with pid 5398 named (null)
+            ];
+        };
+        auxiliaryConnection: <NSXPCConnection: 0x15ad3a120> connection to service with pid 5398 named (null);
+    };
+}) whose view is not in the window hierarchy.
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-13
+[Normalisation] Successfully uploaded metrics for 2025-11-11
+[Normalisation] Successfully uploaded metrics for 2025-11-18
+[Normalisation] Successfully uploaded metrics for 2025-11-12
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-11, window: 2025-11-10 07:00:00 +0000 to 2025-11-11 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-12, window: 2025-11-11 07:00:00 +0000 to 2025-11-12 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-13, window: 2025-11-12 07:00:00 +0000 to 2025-11-13 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-14, window: 2025-11-13 07:00:00 +0000 to 2025-11-14 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-15, window: 2025-11-14 07:00:00 +0000 to 2025-11-15 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-16, window: 2025-11-15 07:00:00 +0000 to 2025-11-16 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-17, window: 2025-11-16 07:00:00 +0000 to 2025-11-17 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-18, window: 2025-11-17 07:00:00 +0000 to 2025-11-18 07:00:00 +0000
+[Sleep] Found 27 raw sleep samples for 2025-11-11
+[Sleep] Uploading 27 raw samples for 2025-11-11
+[Sleep] Found 23 raw sleep samples for 2025-11-13
+[Sleep] Uploading 23 raw samples for 2025-11-13
+[Sleep] Found 38 raw sleep samples for 2025-11-12
+[Sleep] Found 33 raw sleep samples for 2025-11-14
+[Sleep] Uploading 38 raw samples for 2025-11-12
+[Sleep] Found 34 raw sleep samples for 2025-11-16
+[Sleep] Uploading 33 raw samples for 2025-11-14
+[Sleep] Found 30 raw sleep samples for 2025-11-17
+[Sleep] Uploading 34 raw samples for 2025-11-16
+[Sleep] Found 32 raw sleep samples for 2025-11-15
+[Sleep] Uploading 30 raw samples for 2025-11-17
+[Sleep] Found 26 raw sleep samples for 2025-11-18
+[Sleep] Uploading 32 raw samples for 2025-11-15
+[Sleep] Uploading 26 raw samples for 2025-11-18
+[Normalisation] Successfully uploaded metrics for 2025-11-14
+[Normalisation] Successfully uploaded metrics for 2025-11-18
+[Normalisation] Successfully uploaded metrics for 2025-11-17
+[Normalisation] Successfully uploaded metrics for 2025-11-15
+[Normalisation] Successfully uploaded metrics for 2025-11-16
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-11, window: 2025-11-10 07:00:00 +0000 to 2025-11-11 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-12, window: 2025-11-11 07:00:00 +0000 to 2025-11-12 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-13, window: 2025-11-12 07:00:00 +0000 to 2025-11-13 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-14, window: 2025-11-13 07:00:00 +0000 to 2025-11-14 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-15, window: 2025-11-14 07:00:00 +0000 to 2025-11-15 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-16, window: 2025-11-15 07:00:00 +0000 to 2025-11-16 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-17, window: 2025-11-16 07:00:00 +0000 to 2025-11-17 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-18, window: 2025-11-17 07:00:00 +0000 to 2025-11-18 07:00:00 +0000
+[Sleep] Found 23 raw sleep samples for 2025-11-13
+[Sleep] Found 27 raw sleep samples for 2025-11-11
+[Sleep] Uploading 23 raw samples for 2025-11-13
+[Sleep] Found 38 raw sleep samples for 2025-11-12
+[Sleep] Uploading 27 raw samples for 2025-11-11
+[Sleep] Uploading 38 raw samples for 2025-11-12
+[Sleep] Found 34 raw sleep samples for 2025-11-16
+[Sleep] Found 33 raw sleep samples for 2025-11-14
+[Sleep] Uploading 34 raw samples for 2025-11-16
+[Sleep] Uploading 33 raw samples for 2025-11-14
+[Sleep] Found 32 raw sleep samples for 2025-11-15
+[Sleep] Found 26 raw sleep samples for 2025-11-18
+[Sleep] Uploading 32 raw samples for 2025-11-15
+[Sleep] Found 30 raw sleep samples for 2025-11-17
+[Sleep] Uploading 26 raw samples for 2025-11-18
+[Sleep] Uploading 30 raw samples for 2025-11-17
+[Sleep] Successfully uploaded raw samples for 2025-11-11
+[Sleep] Successfully uploaded raw samples for 2025-11-13
+[Sleep] Successfully uploaded raw samples for 2025-11-12
+[Sleep] Successfully uploaded raw samples for 2025-11-14
+[Sleep] Successfully uploaded raw samples for 2025-11-17
+[Sleep] Successfully uploaded raw samples for 2025-11-16
+[Sleep] Successfully uploaded raw samples for 2025-11-15
+[Sleep] Successfully uploaded raw samples for 2025-11-18
+[Sleep] Successfully uploaded 8 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #1 completed, 1 active syncs remaining
+[Sleep] Successfully uploaded raw samples for 2025-11-13
+[Sleep] Successfully uploaded raw samples for 2025-11-16
+[Sleep] Successfully uploaded raw samples for 2025-11-14
+[Sleep] Successfully uploaded raw samples for 2025-11-18
+[Sleep] Successfully uploaded raw samples for 2025-11-12
+[Sleep] Successfully uploaded raw samples for 2025-11-11
+[Sleep] Successfully uploaded raw samples for 2025-11-17
+[Sleep] Successfully uploaded raw samples for 2025-11-15
+[Sleep] Successfully uploaded 8 sleep nights
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+📊 [HealthSyncPlugin] Sync #2 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
