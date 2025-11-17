@@ -785,13 +785,13 @@ public class HealthKitNormalisationService {
     ) {
         let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
         
-        // Check authorization status first
-        let authStatus = healthStore.authorizationStatus(for: sleepType)
-        guard authStatus == .sharingAuthorized else {
-            print("[Sleep] Authorization not granted for sleep data: \(authStatus.rawValue)")
-            completion(nil)
-            return
-        }
+        // iOS PRIVACY NOTE: For category types like sleep, authorizationStatus() always returns
+        // .sharingDenied even when read permission is granted. We skip the auth check and just
+        // attempt the query - if permission is denied, the query will return empty results.
+        // This is documented iOS behavior for HKCategoryType authorization status.
+        
+        // Skip auth check for category types - just attempt the query
+        print("[Sleep] Attempting to query sleep data (auth status not reliable for category types)...")
         
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"

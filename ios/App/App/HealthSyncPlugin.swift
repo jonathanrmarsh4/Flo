@@ -100,9 +100,14 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             
             print("🔍 [HealthSyncPlugin] Auth check attempt \(attempts)/\(maxAttempts): status = \(status.rawValue)")
             
-            if status == .sharingAuthorized {
+            // For category types (sleep), authorizationStatus always returns sharingDenied (1)
+            // even when read permission is granted (iOS privacy feature).
+            // We just wait for status to change from notDetermined (0) to anything else.
+            if status != .notDetermined {
+                print("✅ [HealthSyncPlugin] Auth status determined (status=\(status.rawValue)), proceeding with sync")
                 completion(true)
             } else if attempts >= maxAttempts {
+                print("⏱️ [HealthSyncPlugin] Auth wait timeout after \(maxAttempts) attempts")
                 completion(false)
             } else {
                 // Wait 500ms and try again
