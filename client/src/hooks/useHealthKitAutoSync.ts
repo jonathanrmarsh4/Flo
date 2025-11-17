@@ -36,6 +36,18 @@ export function useHealthKitAutoSync() {
             days: syncResult.days,
           });
         }
+        
+        // SLEEP DATA FIX: Do a second sync after 2s to catch sleep data
+        // (First sync might run before HealthKit permissions are fully initialized)
+        setTimeout(async () => {
+          try {
+            logger.info('🔄 [AutoSync] Running delayed sync to capture sleep data...');
+            await Readiness.syncReadinessData({ days: 7 });
+            logger.info('✅ [AutoSync] Delayed sync completed');
+          } catch (err) {
+            logger.debug('Delayed sync failed - likely no new data');
+          }
+        }, 2000);
       } catch (error) {
         // Silently fail - don't block app launch or show errors
         // User might not have granted permissions yet

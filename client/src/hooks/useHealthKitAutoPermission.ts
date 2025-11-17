@@ -10,6 +10,7 @@ import { Capacitor } from '@capacitor/core';
 import { HealthKitService } from '@/services/healthkit';
 import { logger } from '@/lib/logger';
 import type { HealthDataType } from '@/types/healthkit';
+import Readiness from '@/plugins/readiness';
 
 const HEALTHKIT_PERMISSION_KEY = 'healthkit_permission_requested';
 
@@ -99,6 +100,17 @@ export function useHealthKitAutoPermission() {
           logger.info('HealthKit permissions granted', {
             readAuthorized: result.readAuthorized?.length || 0,
           });
+          
+          // Trigger a re-sync after permissions are granted (to capture sleep data)
+          logger.info('🔄 [AutoPermission] Re-syncing after permissions granted...');
+          setTimeout(async () => {
+            try {
+              await Readiness.syncReadinessData({ days: 7 });
+              logger.info('✅ [AutoPermission] Re-sync completed successfully');
+            } catch (err) {
+              logger.error('[AutoPermission] Re-sync failed', err);
+            }
+          }, 1000); // 1 second delay to ensure permissions are fully processed
         }
 
         // Mark as requested so we don't prompt again
