@@ -2923,13 +2923,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/healthkit/sleep-samples", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { samples, sleepDate, timezone } = req.body;
+      
+      // Zod validation schema for raw sleep samples
+      const rawSleepSamplesSchema = z.object({
+        samples: z.array(z.object({
+          start: z.string(), // ISO 8601 UTC timestamp
+          end: z.string(), // ISO 8601 UTC timestamp
+          stage: z.enum(['inBed', 'asleep', 'awake', 'core', 'deep', 'rem', 'unspecified']),
+          source: z.string()
+        })),
+        sleepDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
+        timezone: z.string() // IANA timezone identifier
+      });
 
-      if (!samples || !Array.isArray(samples) || !sleepDate || !timezone) {
+      // Validate request body
+      const validationResult = rawSleepSamplesSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        logger.error('[Sleep] Validation error', { error: validationError });
         return res.status(400).json({ 
-          error: "Missing required fields: samples, sleepDate, timezone" 
+          error: "Invalid request body",
+          details: validationError.toString()
         });
       }
+
+      const { samples, sleepDate, timezone } = validationResult.data;
 
       logger.info(`[Sleep] Processing ${samples.length} raw sleep samples for ${userId}, ${sleepDate}`);
 
@@ -2940,8 +2958,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sleepNight = await processSleepSamples(samples, sleepDate, timezone);
 
       if (!sleepNight) {
-        logger.info(`[Sleep] Insufficient data to create sleep night for ${sleepDate}`);
-        return res.json({ status: "skipped", message: "Insufficient sleep data" });
+        logger.info(`[Sleep] Insufficient data to create sleep night for ${sleepDate} (below 3h minimum or no valid samples)`);
+        return res.status(204).send(); // No content - not an error, just insufficient data
       }
 
       // Check if this sleep night already exists

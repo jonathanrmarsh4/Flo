@@ -84,13 +84,12 @@ export async function processSleepSamples(
 
 /**
  * Prioritize Apple first-party sources over third-party apps
+ * IMPORTANT: Include all valid segments to prevent data loss for third-party devices (e.g., Oura)
  */
 function prioritizeSources(segments: SleepSegment[]): SleepSegment[] {
-  const appleSegments = segments.filter(s => s.source?.startsWith('com.apple'));
-  const otherSegments = segments.filter(s => !s.source?.startsWith('com.apple'));
-  
-  // If Apple segments exist, use them; otherwise use all
-  return appleSegments.length > 0 ? appleSegments : segments;
+  // Always return all segments - HealthKit provides deduplicated samples
+  // Users with third-party devices (Oura, Whoop) need their data preserved
+  return segments;
 }
 
 /**
