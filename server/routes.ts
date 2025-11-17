@@ -36,6 +36,9 @@ import {
   flomentumDaily,
   flomentumWeekly,
   healthBaselines,
+  notificationTriggers,
+  biomarkers,
+  insertNotificationTriggerSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -2368,6 +2371,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error fetching billing info:', error);
       res.status(500).json({ error: "Failed to fetch billing info" });
+    }
+  });
+
+  // Admin notification trigger management
+  app.get("/api/admin/notification-triggers", requireAdmin, async (req, res) => {
+    try {
+      const triggers = await db
+        .select({
+          id: notificationTriggers.id,
+          triggerType: notificationTriggers.triggerType,
+          isActive: notificationTriggers.isActive,
+          biomarkerId: notificationTriggers.biomarkerId,
+          title: notificationTriggers.title,
+          body: notificationTriggers.body,
+          triggerConditions: notificationTriggers.triggerConditions,
+          createdBy: notificationTriggers.createdBy,
+          createdAt: notificationTriggers.createdAt,
+          updatedAt: notificationTriggers.updatedAt,
+          biomarkerName: biomarkers.name,
+        })
+        .from(notificationTriggers)
+        .leftJoin(biomarkers, eq(notificationTriggers.biomarkerId, biomarkers.id))
+        .orderBy(desc(notificationTriggers.createdAt));
+
+      res.json(triggers);
+    } catch (error) {
+      logger.error('Error fetching notification triggers:', error);
+      res.status(500).json({ error: "Failed to fetch notification triggers" });
+    }
+  });
+
+  app.post("/api/admin/notification-triggers", requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const validationResult = insertNotificationTriggerSchema.safeParse({
+        ...req.body,
+        createdBy: adminId,
+      });
+
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const [trigger] = await db
+        .insert(notificationTriggers)
+        .values(validationResult.data)
+        .returning();
+
+      logger.info(`[Admin] Notification trigger created: ${trigger.id} by ${adminId}`);
+      res.json(trigger);
+    } catch (error) {
+      logger.error('Error creating notification trigger:', error);
+      res.status(500).json({ error: "Failed to create notification trigger" });
+    }
+  });
+
+  app.patch("/api/admin/notification-triggers/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const triggerId = req.params.id;
+      const adminId = req.user.claims.sub;
+
+      const partialSchema = insertNotificationTriggerSchema.partial();
+      const validationResult = partialSchema.safeParse(req.body);
+
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const [trigger] = await db
+        .update(notificationTriggers)
+        .set({
+          ...validationResult.data,
+          updatedAt: new Date(),
+        })
+        .where(eq(notificationTriggers.id, triggerId))
+        .returning();
+
+      if (!trigger) {
+        return res.status(404).json({ error: "Trigger not found" });
+      }
+
+      logger.info(`[Admin] Notification trigger updated: ${triggerId} by ${adminId}`);
+      res.json(trigger);
+    } catch (error) {
+      logger.error('Error updating notification trigger:', error);
+      res.status(500).json({ error: "Failed to update notification trigger" });
+    }
+  });
+
+  app.delete("/api/admin/notification-triggers/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const triggerId = req.params.id;
+      const adminId = req.user.claims.sub;
+
+      const [trigger] = await db
+        .delete(notificationTriggers)
+        .where(eq(notificationTriggers.id, triggerId))
+        .returning();
+
+      if (!trigger) {
+        return res.status(404).json({ error: "Trigger not found" });
+      }
+
+      logger.info(`[Admin] Notification trigger deleted: ${triggerId} by ${adminId}`);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error deleting notification trigger:', error);
+      res.status(500).json({ error: "Failed to delete notification trigger" });
+    }
+  });
+
+  // Get list of all biomarkers for admin notification config
+  app.get("/api/biomarkers", isAuthenticated, async (req, res) => {
+    try {
+      const biomarkerList = await db
+        .select({
+          id: biomarkers.id,
+          name: biomarkers.name,
+          category: biomarkers.category,
+        })
+        .from(biomarkers)
+        .orderBy(biomarkers.category, biomarkers.name);
+
+      res.json(biomarkerList);
+    } catch (error) {
+      logger.error('Error fetching biomarkers:', error);
+      res.status(500).json({ error: "Failed to fetch biomarkers" });
     }
   });
 
