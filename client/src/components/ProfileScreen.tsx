@@ -1,10 +1,12 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Send } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
+import { useNotificationPreferences, useUpdateNotificationPreferences, useSendTestNotification } from '@/hooks/useNotificationPreferences';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -28,11 +30,16 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   // Fetch profile data from backend
   const { data: profile, isLoading, error } = useProfile();
   
+  // Fetch notification preferences
+  const { data: notificationPrefs } = useNotificationPreferences();
+  
   // Mutation hooks
   const updateDemographics = useUpdateDemographics();
   const updateHealthBaseline = useUpdateHealthBaseline();
   const updateGoals = useUpdateGoals();
   const updateAIPersonalization = useUpdateAIPersonalization();
+  const updateNotificationPreferences = useUpdateNotificationPreferences();
+  const sendTestNotification = useSendTestNotification();
   
   // Comprehensive insights generation mutation
   const generateInsights = useMutation({
@@ -931,6 +938,178 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Notifications */}
+        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+        }`} data-testid="card-notifications">
+          <div className="flex items-center gap-2 mb-4">
+            <Bell className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+            <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Notifications
+            </h2>
+          </div>
+
+          <div className="space-y-4">
+            {/* Push Notifications Master Toggle */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <div>
+                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Push Notifications
+                </span>
+                <p className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Enable notifications on your device
+                </p>
+              </div>
+              <Switch
+                checked={notificationPrefs?.pushEnabled ?? false}
+                onCheckedChange={(checked) => {
+                  updateNotificationPreferences.mutate({ pushEnabled: checked });
+                }}
+                disabled={updateNotificationPreferences.isPending}
+                data-testid="switch-push-enabled"
+              />
+            </div>
+
+            {/* Flōmentum Daily Score */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <div>
+                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
+                  Daily Flōmentum Score
+                </span>
+                <p className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Get your daily health momentum score
+                </p>
+              </div>
+              <Switch
+                checked={notificationPrefs?.flomentumDailyEnabled ?? false}
+                onCheckedChange={(checked) => {
+                  updateNotificationPreferences.mutate({ flomentumDailyEnabled: checked });
+                }}
+                disabled={!notificationPrefs?.pushEnabled || updateNotificationPreferences.isPending}
+                data-testid="switch-flomentum-daily"
+              />
+            </div>
+
+            {/* Flōmentum Weekly Summary */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <div>
+                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
+                  Weekly Flōmentum Summary
+                </span>
+                <p className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Weekly health trends and insights
+                </p>
+              </div>
+              <Switch
+                checked={notificationPrefs?.flomentumWeeklyEnabled ?? false}
+                onCheckedChange={(checked) => {
+                  updateNotificationPreferences.mutate({ flomentumWeeklyEnabled: checked });
+                }}
+                disabled={!notificationPrefs?.pushEnabled || updateNotificationPreferences.isPending}
+                data-testid="switch-flomentum-weekly"
+              />
+            </div>
+
+            {/* Lab Results */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <div>
+                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
+                  Lab Results
+                </span>
+                <p className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  When your lab analysis is complete
+                </p>
+              </div>
+              <Switch
+                checked={notificationPrefs?.labResultsEnabled ?? false}
+                onCheckedChange={(checked) => {
+                  updateNotificationPreferences.mutate({ labResultsEnabled: checked });
+                }}
+                disabled={!notificationPrefs?.pushEnabled || updateNotificationPreferences.isPending}
+                data-testid="switch-lab-results"
+              />
+            </div>
+
+            {/* Health Insights */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <div>
+                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
+                  Health Insights
+                </span>
+                <p className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  AI-powered health recommendations
+                </p>
+              </div>
+              <Switch
+                checked={notificationPrefs?.healthInsightsEnabled ?? false}
+                onCheckedChange={(checked) => {
+                  updateNotificationPreferences.mutate({ healthInsightsEnabled: checked });
+                }}
+                disabled={!notificationPrefs?.pushEnabled || updateNotificationPreferences.isPending}
+                data-testid="switch-health-insights"
+              />
+            </div>
+
+            {/* Notification Time */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <Bell className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  Preferred Time
+                </span>
+              </div>
+              <Select
+                value={notificationPrefs?.notificationTime ?? '09:00'}
+                onValueChange={(value) => {
+                  updateNotificationPreferences.mutate({ notificationTime: value });
+                }}
+                disabled={!notificationPrefs?.pushEnabled || updateNotificationPreferences.isPending}
+              >
+                <SelectTrigger className="w-32" data-testid="select-notification-time">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="06:00">6:00 AM</SelectItem>
+                  <SelectItem value="07:00">7:00 AM</SelectItem>
+                  <SelectItem value="08:00">8:00 AM</SelectItem>
+                  <SelectItem value="09:00">9:00 AM</SelectItem>
+                  <SelectItem value="10:00">10:00 AM</SelectItem>
+                  <SelectItem value="11:00">11:00 AM</SelectItem>
+                  <SelectItem value="12:00">12:00 PM</SelectItem>
+                  <SelectItem value="18:00">6:00 PM</SelectItem>
+                  <SelectItem value="19:00">7:00 PM</SelectItem>
+                  <SelectItem value="20:00">8:00 PM</SelectItem>
+                  <SelectItem value="21:00">9:00 PM</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Timezone Display */}
+            <div className="flex items-center justify-between py-3 border-b border-white/10">
+              <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                Timezone
+              </span>
+              <span className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`} data-testid="text-timezone">
+                {notificationPrefs?.timezone ?? 'UTC'}
+              </span>
+            </div>
+
+            {/* Test Notification Button */}
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => sendTestNotification.mutate()}
+                disabled={!notificationPrefs?.pushEnabled || sendTestNotification.isPending}
+                data-testid="button-test-notification"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {sendTestNotification.isPending ? 'Sending...' : 'Send Test Notification'}
+              </Button>
             </div>
           </div>
         </div>
