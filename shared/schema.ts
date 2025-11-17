@@ -634,6 +634,7 @@ export const userDailyMetrics = pgTable("user_daily_metrics", {
   stepsRawSum: integer("steps_raw_sum"), // Raw sum before deduplication (for QA)
   stepsSources: jsonb("steps_sources"), // Source metadata (primary, secondary, ignored)
   activeEnergyKcal: real("active_energy_kcal"), // Total active energy for the day
+  exerciseMinutes: real("exercise_minutes"), // Exercise minutes (source-deduplicated to avoid double-counting)
   sleepHours: real("sleep_hours"), // Total sleep hours (night before localDate)
   restingHrBpm: real("resting_hr_bpm"), // Average resting heart rate
   hrvMs: real("hrv_ms"), // Average HRV in milliseconds

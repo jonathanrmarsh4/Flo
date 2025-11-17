@@ -261,6 +261,40 @@ public class HealthKitNormalisationService {
             dispatchGroup.leave()
         }
         
+        // Exercise Minutes (with source deduplication)
+        dispatchGroup.enter()
+        aggregateExerciseMinutes(dayStart: dayStart, dayEnd: dayEnd) { exerciseMinutes in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
         // Steps (with deduplication)
         dispatchGroup.enter()
         normalizeSteps(dayStart: dayStart, dayEnd: dayEnd) { stepCount, metadata in
@@ -417,6 +451,47 @@ public class HealthKitNormalisationService {
             }
             
             completion(totalKcal)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    // MARK: - Exercise Minutes Aggregation
+    
+    /// Aggregate exercise minutes for a full day using source deduplication
+    /// Prevents double-counting when multiple apps track the same workout
+    private func aggregateExerciseMinutes(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        
+        // Use HKStatisticsQuery with .separateBySource to avoid double-counting
+        let query = HKStatisticsQuery(
+            quantityType: exerciseType,
+            quantitySamplePredicate: predicate,
+            options: [.cumulativeSum, .separateBySource]
+        ) { (query, statistics, error) in
+            guard let statistics = statistics, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            // Get per-source sums
+            guard let sources = statistics.sources else {
+                completion(nil)
+                return
+            }
+            
+            // Select primary source (highest exercise minutes) to avoid duplicates
+            var maxMinutes: Double = 0
+            
+            for source in sources {
+                if let sum = statistics.sumQuantity(for: source) {
+                    let minutes = sum.doubleValue(for: .minute())
+                    maxMinutes = max(maxMinutes, minutes)
+                }
+            }
+            
+            completion(maxMinutes > 0 ? maxMinutes : nil)
         }
         
         healthStore.execute(query)

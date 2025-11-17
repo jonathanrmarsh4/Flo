@@ -2550,6 +2550,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[HealthKit] Ingesting daily metrics for user ${userId}, date ${metrics.localDate}`);
       logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
+      // Also populate health_daily_metrics for Flōmentum consistency
+      await db.insert(healthDailyMetrics).values({
+        userId,
+        date: metrics.localDate,
+        sleepTotalMinutes: metrics.sleepHours ? Math.round(metrics.sleepHours * 60) : null,
+        hrvSdnnMs: metrics.hrvMs ? Math.round(metrics.hrvMs) : null,
+        restingHr: metrics.restingHrBpm ? Math.round(metrics.restingHrBpm) : null,
+        steps: metrics.stepsNormalized ?? null,
+        activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
+        exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
+      }).onConflictDoUpdate({
+        target: [healthDailyMetrics.userId, healthDailyMetrics.date],
+        set: {
+          sleepTotalMinutes: metrics.sleepHours ? Math.round(metrics.sleepHours * 60) : null,
+          hrvSdnnMs: metrics.hrvMs ? Math.round(metrics.hrvMs) : null,
+          restingHr: metrics.restingHrBpm ? Math.round(metrics.restingHrBpm) : null,
+          steps: metrics.stepsNormalized ?? null,
+          activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
+          exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
+        },
+      });
+
       // Upsert: insert or update if already exists for this user+date
       const { and, sql: drizzleSql } = await import("drizzle-orm");
       
@@ -2611,7 +2633,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             oxygenSaturationAvg: null, // Not available in userDailyMetrics
             steps: metrics.stepsRawSum ?? metrics.stepsNormalized ?? null, // Use raw sum, fallback to normalized
             activeKcal: metrics.activeEnergyKcal ?? null,
-            exerciseMinutes: null, // Not available in userDailyMetrics
+            exerciseMinutes: metrics.exerciseMinutes ?? null, // Now available from iOS HealthKit
             standHours: null, // Not available in userDailyMetrics
           };
 
