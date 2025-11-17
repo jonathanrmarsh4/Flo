@@ -14,6 +14,7 @@ import { queryClient } from '@/lib/queryClient';
 export function useHealthKitAutoSync() {
   const hasRun = useRef(false);
   const periodicIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
   const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
@@ -21,6 +22,25 @@ export function useHealthKitAutoSync() {
     if (!isNative || hasRun.current) {
       return;
     }
+
+    // Helper to check if query key matches health-related paths
+    const isHealthQuery = (query: any): boolean => {
+      const queryKey = query.queryKey;
+      // Handle both string keys and array keys
+      const keyStr = typeof queryKey === 'string' 
+        ? queryKey 
+        : (Array.isArray(queryKey) && typeof queryKey[0] === 'string')
+          ? queryKey[0]
+          : '';
+      
+      return (
+        keyStr.startsWith('/api/dashboard') ||
+        keyStr.startsWith('/api/flomentum') ||
+        keyStr.startsWith('/api/biological-age') ||
+        keyStr.startsWith('/api/sleep') ||
+        keyStr.startsWith('/api/labs')
+      );
+    };
 
     const syncHealthData = async (isInitialSync = false, showNotification = true) => {
       try {
@@ -42,11 +62,12 @@ export function useHealthKitAutoSync() {
           });
           
           // Invalidate all health-related queries to refresh UI with new data
-          await queryClient.invalidateQueries({ queryKey: ['/api/flomentum/daily'] });
-          await queryClient.invalidateQueries({ queryKey: ['/api/flomentum/weekly'] });
-          await queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
-          await queryClient.invalidateQueries({ queryKey: ['/api/labs'] });
-          logger.info('✅ Cache invalidated - UI will refresh with new health data');
+          try {
+            await queryClient.invalidateQueries({ predicate: isHealthQuery });
+            logger.info('✅ Cache invalidated - UI will refresh with new health data');
+          } catch (err) {
+            logger.error('Failed to invalidate cache', err);
+          }
           
           // Only notify on initial sync, not periodic syncs (to avoid notification spam)
           if (isInitialSync && showNotification) {
@@ -60,17 +81,28 @@ export function useHealthKitAutoSync() {
         // SLEEP DATA FIX: Do a second sync with waitForAuth=true to capture sleep data
         // This waits for HealthKit permissions to be fully initialized before syncing
         setTimeout(async () => {
+          // Guard against unmounted component
+          if (!isMountedRef.current) {
+            logger.debug('Component unmounted, skipping delayed sync');
+            return;
+          }
+
           try {
             logger.info('🔄 [AutoSync] Running auth-aware sync to capture sleep data...');
             await Readiness.syncReadinessData({ days: 7, waitForAuth: true });
             logger.info('✅ [AutoSync] Auth-aware sync completed');
-            
-            // Invalidate cache again after sleep data sync to ensure UI shows latest sleep metrics
-            await queryClient.invalidateQueries({ queryKey: ['/api/flomentum/daily'] });
-            await queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
-            logger.info('✅ Cache invalidated after sleep sync - sleep data refreshed');
           } catch (err) {
             logger.debug('Auth-aware sync failed - likely no new data');
+          } finally {
+            // Invalidate cache even if sync fails to ensure UI shows any partial data
+            if (isMountedRef.current) {
+              try {
+                await queryClient.invalidateQueries({ predicate: isHealthQuery });
+                logger.info('✅ Cache invalidated after sleep sync - sleep data refreshed');
+              } catch (err) {
+                logger.error('Failed to invalidate cache after sleep sync', err);
+              }
+            }
           }
         }, 2000);
       } catch (error) {
@@ -93,6 +125,7 @@ export function useHealthKitAutoSync() {
 
     // Cleanup interval on unmount
     return () => {
+      isMountedRef.current = false;
       if (periodicIntervalRef.current) {
         clearInterval(periodicIntervalRef.current);
         periodicIntervalRef.current = null;
