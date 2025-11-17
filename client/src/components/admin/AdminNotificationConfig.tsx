@@ -336,14 +336,14 @@ export function AdminNotificationConfig() {
               <div className="space-y-2">
                 <Label htmlFor="biomarker">Biomarker</Label>
                 <Select
-                  value={formData.biomarkerId || ''}
-                  onValueChange={(value) => setFormData({ ...formData, biomarkerId: value || null })}
+                  value={formData.biomarkerId || 'ALL_BIOMARKERS'}
+                  onValueChange={(value) => setFormData({ ...formData, biomarkerId: value === 'ALL_BIOMARKERS' ? null : value })}
                 >
                   <SelectTrigger id="biomarker" data-testid="select-biomarker">
                     <SelectValue placeholder="Select a biomarker" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Biomarkers</SelectItem>
+                    <SelectItem value="ALL_BIOMARKERS">All Biomarkers</SelectItem>
                     {biomarkers.map((biomarker) => (
                       <SelectItem key={biomarker.id} value={biomarker.id}>
                         {biomarker.name}
