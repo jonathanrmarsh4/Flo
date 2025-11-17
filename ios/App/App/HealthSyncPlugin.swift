@@ -21,6 +21,26 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         
         print("🔄 [HealthSyncPlugin] Queuing background sync for last \(days) days... (waitForAuth: \(waitForAuth))")
         
+        // Request HealthKit authorization on first sync
+        let healthStore = HKHealthStore()
+        let readTypes: Set<HKObjectType> = [
+            HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
+            HKObjectType.quantityType(forIdentifier: .stepCount)!,
+            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+            HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!,
+            HKObjectType.quantityType(forIdentifier: .heartRate)!,
+            HKObjectType.quantityType(forIdentifier: .restingHeartRate)!,
+            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
+        ]
+        
+        healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
+            if let error = error {
+                print("❌ [HealthSyncPlugin] Authorization request error: \(error.localizedDescription)")
+            } else {
+                print("🔓 [HealthSyncPlugin] Authorization requested, success: \(success)")
+            }
+        }
+        
         // Store token in UserDefaults temporarily for normalization service to access
         if let token = token {
             UserDefaults.standard.set(token, forKey: "jwt_token")
