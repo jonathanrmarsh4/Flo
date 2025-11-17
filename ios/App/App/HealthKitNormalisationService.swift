@@ -842,6 +842,16 @@ public class HealthKitNormalisationService {
             
             print("[Sleep] ✅ Query completed successfully. Raw sample count: \(samples?.count ?? 0)")
             
+            // Debug: Check sample types
+            if let samples = samples, !samples.isEmpty {
+                print("[Sleep] 🔍 First sample type: \(type(of: samples[0]))")
+                if let catSample = samples[0] as? HKCategorySample {
+                    print("[Sleep] 🔍 Cast successful! Value: \(catSample.value)")
+                } else {
+                    print("[Sleep] ⚠️ Cast to HKCategorySample failed!")
+                }
+            }
+            
             guard let self = self,
                   let samples = samples as? [HKCategorySample], !samples.isEmpty else {
                 print("[Sleep] ⚠️ No sleep samples found for \(sleepDate)")
@@ -849,6 +859,7 @@ public class HealthKitNormalisationService {
                 print("[Sleep]    - No sleep data exists for this date")
                 print("[Sleep]    - Sleep permission not granted (check Settings → Health → Flō → Sleep)")
                 print("[Sleep]    - Query date range doesn't match sleep recording times")
+                print("[Sleep]    - Type cast from HKSample to HKCategorySample failed")
                 completion(nil)
                 return
             }
