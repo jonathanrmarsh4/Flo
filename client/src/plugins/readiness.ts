@@ -2,7 +2,11 @@ import { registerPlugin } from '@capacitor/core';
 import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
 
 export interface ReadinessPlugin {
-  syncReadinessData(options: { days: number; token?: string }): Promise<{ success: boolean; days: number; message: string }>;
+  syncReadinessData(options: { 
+    days: number; 
+    token?: string;
+    waitForAuth?: boolean;
+  }): Promise<{ success: boolean; days: number; message: string }>;
 }
 
 const Readiness = registerPlugin<ReadinessPlugin>('HealthSyncPlugin', {
@@ -19,20 +23,21 @@ const Readiness = registerPlugin<ReadinessPlugin>('HealthSyncPlugin', {
 });
 
 // Wrapper to automatically include auth token
-async function syncWithAuth(days: number) {
+async function syncWithAuth(days: number, waitForAuth?: boolean) {
   try {
     // Get JWT token from secure storage (same key as queryClient uses)
     const { value: token } = await SecureStoragePlugin.get({ key: 'auth_token' });
     
     // Pass token to Swift plugin
-    return await Readiness.syncReadinessData({ days, token });
+    return await Readiness.syncReadinessData({ days, token, waitForAuth });
   } catch (error) {
     console.error('[Readiness] Failed to get auth token:', error);
     // Try without token (will fail but with better error message)
-    return await Readiness.syncReadinessData({ days });
+    return await Readiness.syncReadinessData({ days, waitForAuth });
   }
 }
 
 export default {
-  syncReadinessData: (options: { days: number }) => syncWithAuth(options.days)
+  syncReadinessData: (options: { days: number; waitForAuth?: boolean }) => 
+    syncWithAuth(options.days, options.waitForAuth)
 };
