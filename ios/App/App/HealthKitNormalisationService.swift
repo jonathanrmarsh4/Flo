@@ -449,10 +449,11 @@ public class HealthKitNormalisationService {
                 return
             }
             
-            // Categorize sources by type and sum their steps
-            var watchSteps: Int = 0
-            var iphoneSteps: Int = 0
-            var otherSteps: Int = 0
+            // Categorize sources and pick the PRIMARY source for each device type
+            // (don't sum multiple sources from same device - they overlap!)
+            var watchSources: [(bundleId: String, steps: Int)] = []
+            var iphoneSources: [(bundleId: String, steps: Int)] = []
+            var otherSources: [(bundleId: String, steps: Int)] = []
             var sourceIds: [String] = []
             
             for source in sources {
@@ -463,34 +464,39 @@ public class HealthKitNormalisationService {
                     let steps = Int(sum.doubleValue(for: .count()))
                     
                     if bundleId.contains("watchOS") || bundleId.contains("Watch") {
-                        watchSteps += steps
+                        watchSources.append((bundleId, steps))
                         print("[Steps] Watch source \(bundleId): \(steps) steps")
                     } else if bundleId.contains("com.apple.health") || bundleId.contains("iPhone") {
-                        iphoneSteps += steps
+                        iphoneSources.append((bundleId, steps))
                         print("[Steps] iPhone source \(bundleId): \(steps) steps")
                     } else {
-                        otherSteps += steps
+                        otherSources.append((bundleId, steps))
                         print("[Steps] Other source \(bundleId): \(steps) steps")
                     }
                 }
             }
             
-            // Priority: Watch > iPhone > Other (no overlap between sources)
+            // Pick the PRIMARY source (highest step count) from each device type
+            let watchSteps = watchSources.max(by: { $0.steps < $1.steps })?.steps ?? 0
+            let iphoneSteps = iphoneSources.max(by: { $0.steps < $1.steps })?.steps ?? 0
+            let otherSteps = otherSources.max(by: { $0.steps < $1.steps })?.steps ?? 0
+            
+            // Priority: Watch > iPhone > Other
             let finalSteps: Int
             let sourceOrder: String
             
             if watchSteps > 0 {
                 finalSteps = watchSteps
                 sourceOrder = "Watch"
-                print("[Steps] Using Watch total: \(watchSteps) steps")
+                print("[Steps] Using Watch primary source: \(watchSteps) steps (from \(watchSources.count) sources)")
             } else if iphoneSteps > 0 {
                 finalSteps = iphoneSteps
                 sourceOrder = "iPhone"
-                print("[Steps] Using iPhone total: \(iphoneSteps) steps")
+                print("[Steps] Using iPhone primary source: \(iphoneSteps) steps (from \(iphoneSources.count) sources)")
             } else if otherSteps > 0 {
                 finalSteps = otherSteps
                 sourceOrder = "Other"
-                print("[Steps] Using Other total: \(otherSteps) steps")
+                print("[Steps] Using Other primary source: \(otherSteps) steps (from \(otherSources.count) sources)")
             } else {
                 completion(nil, nil)
                 return
