@@ -14,11 +14,13 @@ interface NotificationOpenedEvent {
 }
 
 // Dynamic import helper for OneSignal (only available on native platforms)
+// Using string concatenation to prevent Vite from resolving at build time
 async function getOneSignal() {
   if (!Capacitor.isNativePlatform()) {
     throw new Error('OneSignal is only available on native platforms');
   }
-  const { default: OneSignal } = await import('onesignal-cordova-plugin');
+  const moduleName = 'onesignal' + '-cordova' + '-plugin';
+  const { default: OneSignal } = await import(/* @vite-ignore */ moduleName);
   return OneSignal;
 }
 
