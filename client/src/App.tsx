@@ -7,6 +7,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
 import { Capacitor } from '@capacitor/core';
+import { useEffect } from 'react';
+import { initializeNotifications } from "@/lib/notifications";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
@@ -30,6 +32,13 @@ function Router() {
   
   // Automatically sync HealthKit data in background on app launch
   useHealthKitAutoSync();
+
+  // Initialize notifications on app start (native only)
+  useEffect(() => {
+    if (isNative && isAuthenticated) {
+      initializeNotifications();
+    }
+  }, [isNative, isAuthenticated]);
 
   if (isLoading) {
     return (
