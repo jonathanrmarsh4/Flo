@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import Readiness from '@/plugins/readiness';
 import { logger } from '@/lib/logger';
 import { sendNotification } from '@/lib/notifications';
+import { queryClient } from '@/lib/queryClient';
 
 /**
  * Hook to automatically sync HealthKit data when the app launches
@@ -40,6 +41,13 @@ export function useHealthKitAutoSync() {
             days: syncResult.days,
           });
           
+          // Invalidate all health-related queries to refresh UI with new data
+          await queryClient.invalidateQueries({ queryKey: ['/api/flomentum/daily'] });
+          await queryClient.invalidateQueries({ queryKey: ['/api/flomentum/weekly'] });
+          await queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+          await queryClient.invalidateQueries({ queryKey: ['/api/labs'] });
+          logger.info('✅ Cache invalidated - UI will refresh with new health data');
+          
           // Only notify on initial sync, not periodic syncs (to avoid notification spam)
           if (isInitialSync && showNotification) {
             sendNotification(
@@ -56,6 +64,11 @@ export function useHealthKitAutoSync() {
             logger.info('🔄 [AutoSync] Running auth-aware sync to capture sleep data...');
             await Readiness.syncReadinessData({ days: 7, waitForAuth: true });
             logger.info('✅ [AutoSync] Auth-aware sync completed');
+            
+            // Invalidate cache again after sleep data sync to ensure UI shows latest sleep metrics
+            await queryClient.invalidateQueries({ queryKey: ['/api/flomentum/daily'] });
+            await queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
+            logger.info('✅ Cache invalidated after sleep sync - sleep data refreshed');
           } catch (err) {
             logger.debug('Auth-aware sync failed - likely no new data');
           }
