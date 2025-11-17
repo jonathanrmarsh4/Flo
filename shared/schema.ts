@@ -862,6 +862,24 @@ export const bodyFatReferenceRanges = pgTable("body_fat_reference_ranges", {
   index("idx_body_fat_sex_order").on(table.sex, table.displayOrder),
 ]);
 
+// Notification preferences for users
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  oneSignalPlayerId: varchar("onesignal_player_id"), // OneSignal device ID
+  pushEnabled: boolean("push_enabled").notNull().default(true),
+  flomentumDailyEnabled: boolean("flomentum_daily_enabled").notNull().default(true),
+  flomentumDailyTime: text("flomentum_daily_time").default("09:00"), // HH:MM format in user's timezone
+  flomentumWeeklyEnabled: boolean("flomentum_weekly_enabled").notNull().default(true),
+  labResultsEnabled: boolean("lab_results_enabled").notNull().default(true),
+  healthInsightsEnabled: boolean("health_insights_enabled").notNull().default(true),
+  timezone: text("timezone").default("UTC"), // User's IANA timezone
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_notification_prefs_user").on(table.userId),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   bloodWorkRecords: many(bloodWorkRecords),
@@ -1658,6 +1676,24 @@ export const bodyFatReferenceRangeSchema = z.object({
 
 export type InsertBodyFatReferenceRange = z.infer<typeof insertBodyFatReferenceRangeSchema>;
 export type BodyFatReferenceRange = typeof bodyFatReferenceRanges.$inferSelect;
+
+// Notification preferences schemas
+export const insertNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateNotificationPreferencesSchema = createInsertSchema(notificationPreferences).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+export type InsertNotificationPreferences = z.infer<typeof insertNotificationPreferencesSchema>;
+export type UpdateNotificationPreferences = z.infer<typeof updateNotificationPreferencesSchema>;
+export type NotificationPreferences = typeof notificationPreferences.$inferSelect;
 
 // Flōmentum schemas
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
