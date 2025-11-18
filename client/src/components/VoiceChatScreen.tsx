@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FloLogo } from './FloLogo';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import xaiLogo from '@assets/xai-logo.svg';
 
 interface Message {
   id: string;
@@ -168,9 +169,16 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 <h1 className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Flō Oracle
                 </h1>
-                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                  Your personal health AI
-                </p>
+                <div className="flex items-center gap-1">
+                  <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    powered by
+                  </p>
+                  <img 
+                    src={xaiLogo} 
+                    alt="xAI" 
+                    className={`h-3 ${isDark ? 'brightness-75' : 'brightness-50'}`}
+                  />
+                </div>
               </div>
             </div>
             <button
