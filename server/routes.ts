@@ -4753,9 +4753,18 @@ You are talking to one user only. Personalise everything. Never use generic advi
   // ElevenLabs Custom LLM Bridge - OpenAI-compatible endpoint
   app.post("/api/elevenlabs/llm/chat/completions", async (req: any, res) => {
     try {
+      logger.info('[ElevenLabs-Bridge] Received chat request from ElevenLabs', {
+        hasMessages: !!req.body?.messages,
+        messageCount: req.body?.messages?.length,
+        hasUserId: !!req.body?.user_id,
+        hasExtraBody: !!req.body?.elevenlabs_extra_body,
+        headers: req.headers
+      });
+
       const { messages, model, temperature, max_tokens, stream, user_id, elevenlabs_extra_body } = req.body;
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        logger.warn('[ElevenLabs-Bridge] No messages in request');
         return res.status(400).json({ 
           error: { message: "messages array is required", type: "invalid_request_error" }
         });
