@@ -3189,10 +3189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update baselines first (ensure they're fresh)
-      await updateAllBaselines(userId);
-
-      // Compute readiness
+      // Compute readiness (baselines are updated daily at 3AM by scheduler)
       const readiness = await computeDailyReadiness(userId, today);
 
       if (!readiness) {
