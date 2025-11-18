@@ -192,115 +192,103 @@ export function useHealthKitAutoSync() {
     };
   }, [isNative]);
 
-  // Separate effect for app foreground listener (always active)
+  // Separate effect for app foreground/visibility listener (always active)
   useEffect(() => {
     if (!isNative) {
       return;
     }
 
-    logger.info('🎯 [AutoSync] Setting up app foreground listener...');
+    logger.info('🎯 [AutoSync] Setting up app visibility listener...');
     
     // Track when app was last synced to avoid duplicate syncs
     let lastSyncTime = Date.now();
     
-    // Dynamically import App to avoid bundling issues during build
-    let cleanup: (() => void) | null = null;
-    
-    const setupListener = async () => {
-      const { App } = await import('@capacitor/app');
+    // Use Page Visibility API which works on both web and native
+    const handleVisibilityChange = async () => {
+      // Only sync when page becomes visible (app comes to foreground)
+      if (document.hidden) {
+        logger.debug('[Visibility] App went to background');
+        return;
+      }
       
-      const listener = await App.addListener('appStateChange', async ({ isActive }: { isActive: boolean }) => {
-        if (!isActive) {
-          logger.debug('[AppState] App went to background');
-          return;
-        }
+      // App came to foreground
+      const timeSinceLastSync = Date.now() - lastSyncTime;
+      const minimumSyncInterval = 60 * 1000; // 1 minute minimum between syncs
+      
+      if (timeSinceLastSync < minimumSyncInterval) {
+        logger.debug(`[Visibility] Skipping foreground sync - last sync was ${Math.round(timeSinceLastSync / 1000)}s ago`);
+        return;
+      }
+      
+      logger.info('🚀 [Visibility] App came to foreground - triggering HealthKit sync...');
+      lastSyncTime = Date.now();
+      
+      try {
+        // Sync last 7 days to catch any data user added while app was closed
+        const syncResult = await Readiness.syncReadinessData({ days: 7 });
         
-        // App came to foreground
-        const timeSinceLastSync = Date.now() - lastSyncTime;
-        const minimumSyncInterval = 60 * 1000; // 1 minute minimum between syncs
-        
-        if (timeSinceLastSync < minimumSyncInterval) {
-          logger.debug(`[AppState] Skipping foreground sync - last sync was ${Math.round(timeSinceLastSync / 1000)}s ago`);
-          return;
-        }
-        
-        logger.info('🚀 [AppState] App came to foreground - triggering HealthKit sync...');
-        lastSyncTime = Date.now();
-        
-        try {
-          // Sync last 7 days to catch any data user added while app was closed
-          const syncResult = await Readiness.syncReadinessData({ days: 7 });
+        if (syncResult.success) {
+          logger.info('[Visibility] Foreground sync completed successfully');
           
-          if (syncResult.success) {
-            logger.info('[AppState] Foreground sync completed successfully');
-            
-            // Wait for backend upload
-            await new Promise(resolve => setTimeout(resolve, 4000));
-            
-            // Refetch dashboard queries (silent, no notification)
-            try {
-              const isHealthQuery = (query: any): boolean => {
-                const queryKey = query.queryKey;
-                if (Array.isArray(queryKey)) {
-                  return queryKey.some(key => {
-                    if (typeof key !== 'string') return false;
-                    return (
-                      key.startsWith('/api/dashboard') ||
-                      key.startsWith('/api/flomentum') ||
-                      key.startsWith('/api/biological-age') ||
-                      key.startsWith('/api/sleep') ||
-                      key.startsWith('/api/labs') ||
-                      key.startsWith('/api/healthkit')
-                    );
-                  });
-                }
-                if (typeof queryKey === 'string') {
+          // Wait for backend upload
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          
+          // Refetch dashboard queries (silent, no notification)
+          try {
+            const isHealthQuery = (query: any): boolean => {
+              const queryKey = query.queryKey;
+              if (Array.isArray(queryKey)) {
+                return queryKey.some(key => {
+                  if (typeof key !== 'string') return false;
                   return (
-                    queryKey.startsWith('/api/dashboard') ||
-                    queryKey.startsWith('/api/flomentum') ||
-                    queryKey.startsWith('/api/biological-age') ||
-                    queryKey.startsWith('/api/sleep') ||
-                    queryKey.startsWith('/api/labs') ||
-                    queryKey.startsWith('/api/healthkit')
+                    key.startsWith('/api/dashboard') ||
+                    key.startsWith('/api/flomentum') ||
+                    key.startsWith('/api/biological-age') ||
+                    key.startsWith('/api/sleep') ||
+                    key.startsWith('/api/labs') ||
+                    key.startsWith('/api/healthkit')
                   );
-                }
-                return false;
-              };
-              
-              queryClient.invalidateQueries({ 
-                predicate: isHealthQuery,
-                refetchType: 'active'
-              });
-              
-              await Promise.allSettled([
-                queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'overview'] }),
-                queryClient.refetchQueries({ queryKey: ['/api/flomentum', 'daily'] }),
-              ]);
-              
-              logger.info('✅ [AppState] Dashboard refreshed after foreground sync');
-            } catch (err) {
-              logger.error('[AppState] Failed to refresh dashboard', err);
-            }
+                });
+              }
+              if (typeof queryKey === 'string') {
+                return (
+                  queryKey.startsWith('/api/dashboard') ||
+                  queryKey.startsWith('/api/flomentum') ||
+                  queryKey.startsWith('/api/biological-age') ||
+                  queryKey.startsWith('/api/sleep') ||
+                  queryKey.startsWith('/api/labs') ||
+                  queryKey.startsWith('/api/healthkit')
+                );
+              }
+              return false;
+            };
+            
+            queryClient.invalidateQueries({ 
+              predicate: isHealthQuery,
+              refetchType: 'active'
+            });
+            
+            await Promise.allSettled([
+              queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'overview'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/flomentum', 'daily'] }),
+            ]);
+            
+            logger.info('✅ [Visibility] Dashboard refreshed after foreground sync');
+          } catch (err) {
+            logger.error('[Visibility] Failed to refresh dashboard', err);
           }
-        } catch (error) {
-          logger.debug('[AppState] Foreground sync failed - likely no permissions or network issue');
         }
-      });
-      
-      // Store cleanup function
-      cleanup = () => listener.remove();
+      } catch (error) {
+        logger.debug('[Visibility] Foreground sync failed - likely no permissions or network issue');
+      }
     };
     
-    // Setup the listener
-    setupListener().catch(err => {
-      logger.error('[AutoSync] Failed to setup app state listener', err);
-    });
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
     // Cleanup listener on unmount
     return () => {
-      if (cleanup) {
-        cleanup();
-      }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isNative]);
 }
