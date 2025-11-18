@@ -101,11 +101,12 @@ export function useHealthKitAutoSync() {
             });
             
             // Explicitly refetch the most important queries
+            // NOTE: Query keys must match EXACTLY what's used in components
             await Promise.allSettled([
-              queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'overview'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'biomarkers'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/flomentum', 'daily'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
               queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/flomentum/daily'] }),
             ]);
             console.log('✅ [AutoSync] Dashboard refresh completed!');
             logger.info('✅ Dashboard queries refetched - UI updated');
@@ -154,8 +155,8 @@ export function useHealthKitAutoSync() {
                 
                 // Explicitly refetch sleep-related queries
                 await Promise.allSettled([
-                  queryClient.refetchQueries({ queryKey: ['/api/sleep'] }),
-                  queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'overview'] }),
+                  queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
+                  queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
                 ]);
                 logger.info('✅ Sleep data refetched - UI updated');
               } catch (err) {
@@ -269,8 +270,10 @@ export function useHealthKitAutoSync() {
             });
             
             await Promise.allSettled([
-              queryClient.refetchQueries({ queryKey: ['/api/dashboard', 'overview'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/flomentum', 'daily'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/flomentum/daily'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
             ]);
             
             logger.info('✅ [Visibility] Dashboard refreshed after foreground sync');
