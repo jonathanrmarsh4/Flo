@@ -6,6 +6,8 @@ export interface GrokChatMessage {
   content: string;
 }
 
+export type GrokMessageRole = 'system' | 'user' | 'assistant';
+
 export interface GrokChatOptions {
   model?: 'grok-3-mini' | 'grok-4' | 'grok-4-fast';
   maxTokens?: number;

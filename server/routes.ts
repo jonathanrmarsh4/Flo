@@ -4,6 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import type { GrokChatMessage } from "./services/grokClient";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
 import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
@@ -4658,23 +4659,23 @@ Tone examples:
 
 You are talking to one user only. Personalise everything. Never use generic advice unless explicitly asked for population-level context.`;
 
-      const messages = [
-        { role: 'system' as const, content: SYSTEM_PROMPT },
-        { role: 'user' as const, content: userContext },
+      const messages: GrokChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContext },
       ];
 
       if (conversationHistory && Array.isArray(conversationHistory)) {
         conversationHistory.slice(-6).forEach((msg: any) => {
           if (msg.type === 'user') {
-            messages.push({ role: 'user' as const, content: msg.content });
+            messages.push({ role: 'user', content: msg.content });
           } else {
-            messages.push({ role: 'assistant' as const, content: msg.content });
+            messages.push({ role: 'assistant', content: msg.content });
           }
         });
       }
 
       messages.push({
-        role: 'user' as const,
+        role: 'user',
         content: `USER QUESTION: ${inputGuardrails.sanitizedInput}`,
       });
 
