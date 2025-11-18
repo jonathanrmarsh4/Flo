@@ -4664,10 +4664,13 @@ You are talking to one user only. Personalise everything. Never use generic advi
       ];
 
       if (conversationHistory && Array.isArray(conversationHistory)) {
-        messages.push(...conversationHistory.slice(-6).map((msg: any) => ({
-          role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
-          content: msg.content,
-        })));
+        conversationHistory.slice(-6).forEach((msg: any) => {
+          if (msg.type === 'user') {
+            messages.push({ role: 'user' as const, content: msg.content });
+          } else {
+            messages.push({ role: 'assistant' as const, content: msg.content });
+          }
+        });
       }
 
       messages.push({

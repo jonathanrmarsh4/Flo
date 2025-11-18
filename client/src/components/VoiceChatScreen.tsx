@@ -124,14 +124,14 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         content: m.content,
       }));
 
-      const response = await apiRequest<{ response: string; violation: boolean }>({
+      const response = await apiRequest({
         method: 'POST',
         url: '/api/chat/grok',
         body: {
           message: userMessage,
           conversationHistory,
         },
-      });
+      }) as { response: string; violation: boolean };
 
       const floMessage: Message = {
         id: (Date.now() + 1).toString(),

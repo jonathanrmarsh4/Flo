@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Moon, Sun, LogOut } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
+import { AnimatePresence } from 'framer-motion';
 import { DashboardScreen } from '@/components/DashboardScreen';
 import { BottomNav } from '@/components/BottomNav';
-import { UnifiedUploadModal } from '@/components/UnifiedUploadModal';
+import { VoiceChatScreen } from '@/components/VoiceChatScreen';
 import { useAuth } from '@/hooks/useAuth';
 import { useHealthKitAutoPermission } from '@/hooks/useHealthKitAutoPermission';
 import { queryClient } from '@/lib/queryClient';
@@ -14,7 +15,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [isDark, setIsDark] = useState(true);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false);
 
   // Automatically request HealthKit permissions on iOS app launch
   useHealthKitAutoPermission();
@@ -53,16 +54,17 @@ export default function Dashboard() {
       
       <BottomNav 
         isDark={isDark}
-        onAddClick={() => setIsAddModalOpen(true)}
+        onAddClick={() => setIsVoiceChatOpen(true)}
       />
 
-      {isAddModalOpen && (
-        <UnifiedUploadModal 
-          isDark={isDark}
-          onClose={() => setIsAddModalOpen(false)}
-          initialMode="lab-results"
-        />
-      )}
+      <AnimatePresence>
+        {isVoiceChatOpen && (
+          <VoiceChatScreen 
+            isDark={isDark}
+            onClose={() => setIsVoiceChatOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -1,14 +1,16 @@
 import { db } from '../db';
 import { 
   profiles, 
-  bloodWork, 
-  diagnosticStudies, 
+  biomarkerTestSessions,
+  biomarkerMeasurements,
+  biomarkers,
+  diagnosticsStudies, 
   userDailyMetrics,
   flomentumDaily,
   sleepNights
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
-import logger from '../logger';
+import { logger } from '../logger';
 
 interface UserHealthContext {
   age: number | null;
@@ -115,67 +117,80 @@ export async function buildUserHealthContext(userId: string): Promise<string> {
     if (userProfile) {
       context.age = calculateAge(userProfile.dateOfBirth);
       context.sex = userProfile.sex || 'unknown';
-      context.primaryGoals = userProfile.primaryGoals || [];
+      context.primaryGoals = Array.isArray(userProfile.goals) ? userProfile.goals : [];
     }
 
-    const latestBlood = await db
+    const latestSession = await db
       .select()
-      .from(bloodWork)
-      .where(eq(bloodWork.userId, userId))
-      .orderBy(desc(bloodWork.testDate))
+      .from(biomarkerTestSessions)
+      .where(eq(biomarkerTestSessions.userId, userId))
+      .orderBy(desc(biomarkerTestSessions.testDate))
       .limit(1);
 
-    if (latestBlood.length > 0) {
-      const blood = latestBlood[0];
-      context.latestBloodPanel.date = blood.testDate || null;
+    if (latestSession.length > 0) {
+      const session = latestSession[0];
+      context.latestBloodPanel.date = session.testDate.toISOString().split('T')[0];
       
-      const biomarkers = blood.biomarkers as Record<string, any> || {};
-      context.latestBloodPanel.apob = formatBiomarkerValue(biomarkers['ApoB']?.value, 'mg/dL');
-      context.latestBloodPanel.glucose = formatBiomarkerValue(biomarkers['Glucose']?.value || biomarkers['Fasting Glucose']?.value, 'mg/dL');
-      context.latestBloodPanel.hba1c = formatBiomarkerValue(biomarkers['HbA1c']?.value, '%');
-      context.latestBloodPanel.hscrp = formatBiomarkerValue(biomarkers['hs-CRP']?.value || biomarkers['CRP']?.value, 'mg/L');
-      context.latestBloodPanel.testosterone = formatBiomarkerValue(biomarkers['Testosterone']?.value, 'ng/dL');
+      const measurements = await db
+        .select({
+          biomarkerName: biomarkers.name,
+          value: biomarkerMeasurements.valueDisplay,
+        })
+        .from(biomarkerMeasurements)
+        .innerJoin(biomarkers, eq(biomarkerMeasurements.biomarkerId, biomarkers.id))
+        .where(eq(biomarkerMeasurements.sessionId, session.id));
+
+      const biomarkerMap: Record<string, string> = {};
+      measurements.forEach((m) => {
+        biomarkerMap[m.biomarkerName] = m.value;
+      });
+      
+      context.latestBloodPanel.apob = biomarkerMap['ApoB'] || 'not recorded';
+      context.latestBloodPanel.glucose = biomarkerMap['Glucose'] || biomarkerMap['Fasting Glucose'] || 'not recorded';
+      context.latestBloodPanel.hba1c = biomarkerMap['HbA1c'] || 'not recorded';
+      context.latestBloodPanel.hscrp = biomarkerMap['hs-CRP'] || biomarkerMap['CRP'] || 'not recorded';
+      context.latestBloodPanel.testosterone = biomarkerMap['Testosterone'] || 'not recorded';
     }
 
     const latestCAC = await db
       .select()
-      .from(diagnosticStudies)
+      .from(diagnosticsStudies)
       .where(
         and(
-          eq(diagnosticStudies.userId, userId),
-          eq(diagnosticStudies.studyType, 'CAC')
+          eq(diagnosticsStudies.userId, userId),
+          eq(diagnosticsStudies.type, 'coronary_calcium_score')
         )
       )
-      .orderBy(desc(diagnosticStudies.studyDate))
+      .orderBy(desc(diagnosticsStudies.studyDate))
       .limit(1);
 
     if (latestCAC.length > 0) {
       const cac = latestCAC[0];
-      const findings = cac.findingsJson as Record<string, any> || {};
-      context.latestCAC.score = findings.cacScore ?? null;
-      context.latestCAC.percentile = findings.percentile ?? null;
-      context.latestCAC.date = cac.studyDate || null;
+      const payload = cac.aiPayload as Record<string, any> || {};
+      context.latestCAC.score = cac.totalScoreNumeric ?? payload.cacScore ?? null;
+      context.latestCAC.percentile = cac.agePercentile?.toString() ?? payload.percentile ?? null;
+      context.latestCAC.date = cac.studyDate.toISOString().split('T')[0];
     }
 
     const latestDEXA = await db
       .select()
-      .from(diagnosticStudies)
+      .from(diagnosticsStudies)
       .where(
         and(
-          eq(diagnosticStudies.userId, userId),
-          eq(diagnosticStudies.studyType, 'DEXA')
+          eq(diagnosticsStudies.userId, userId),
+          eq(diagnosticsStudies.type, 'dexa_scan')
         )
       )
-      .orderBy(desc(diagnosticStudies.studyDate))
+      .orderBy(desc(diagnosticsStudies.studyDate))
       .limit(1);
 
     if (latestDEXA.length > 0) {
       const dexa = latestDEXA[0];
-      const findings = dexa.findingsJson as Record<string, any> || {};
-      context.latestDEXA.visceralFat = findings.visceralFatMass ?? null;
-      context.latestDEXA.leanMass = findings.totalLeanMass ?? null;
-      context.latestDEXA.bodyFat = findings.totalBodyFat ?? null;
-      context.latestDEXA.date = dexa.studyDate || null;
+      const payload = dexa.aiPayload as Record<string, any> || {};
+      context.latestDEXA.visceralFat = payload.visceralFatMass ?? null;
+      context.latestDEXA.leanMass = payload.totalLeanMass ?? null;
+      context.latestDEXA.bodyFat = payload.totalBodyFat ?? null;
+      context.latestDEXA.date = dexa.studyDate.toISOString().split('T')[0];
     }
 
     const sevenDaysAgo = new Date();

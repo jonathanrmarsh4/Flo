@@ -1,4 +1,4 @@
-import logger from '../logger';
+import { logger } from '../logger';
 
 interface GuardrailViolation {
   violated: boolean;
@@ -35,14 +35,13 @@ const DIAGNOSIS_PATTERNS = [
 ];
 
 const BODY_SHAMING_PHRASES = [
-  /\bfat\b/i,
-  /\bobese\b/i,
+  /\bfat pig\b/i,
   /\blazy\b/i,
   /\bdisgusting\b/i,
   /should be ashamed/i,
-  /look like/i,
+  /look like garbage/i,
   /\bugly\b/i,
-  /\boverweight\b/i, // Allow this if used clinically
+  /you're gross/i,
 ];
 
 const OTHER_USER_PATTERNS = [
@@ -62,7 +61,7 @@ export function checkEmergencyTrigger(userInput: string): GuardrailViolation {
       return {
         violated: true,
         type: 'emergency',
-        replacement: `⚠️ Please stop and call emergency services right now — this could be serious.\n\n🆘 Call 911 (US) or your local emergency number\n\nI'll be here when you're safe.`,
+        replacement: `[!] Please stop and call emergency services right now — this could be serious.\n\nCall 911 (US) or your local emergency number immediately.\n\nI'll be here when you're safe.`,
       };
     }
   }

@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import logger from '../logger';
+import { logger } from '../logger';
 
 export interface GrokChatMessage {
   role: 'system' | 'user' | 'assistant';
