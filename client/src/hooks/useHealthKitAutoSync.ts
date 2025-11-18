@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { App } from '@capacitor/app';
 import Readiness from '@/plugins/readiness';
 import { logger } from '@/lib/logger';
 import { sendNotification } from '@/lib/notifications';
@@ -204,7 +203,11 @@ export function useHealthKitAutoSync() {
     // Track when app was last synced to avoid duplicate syncs
     let lastSyncTime = Date.now();
     
-    const listener = App.addListener('appStateChange', async ({ isActive }: { isActive: boolean }) => {
+    // Dynamically import App to avoid bundling issues during build
+    const setupListener = async () => {
+      const { App } = await import('@capacitor/app');
+      
+      const listener = App.addListener('appStateChange', async ({ isActive }: { isActive: boolean }) => {
       if (!isActive) {
         logger.debug('[AppState] App went to background');
         return;
