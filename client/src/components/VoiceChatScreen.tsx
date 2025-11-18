@@ -126,7 +126,15 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         audioContextRef.current = new AudioContext();
       }
 
-      const audioBuffer = await audioContextRef.current.decodeAudioData(audioData.buffer.slice(0));
+      const pcmData = new Int16Array(audioData.buffer);
+      const floatData = new Float32Array(pcmData.length);
+      for (let i = 0; i < pcmData.length; i++) {
+        floatData[i] = pcmData[i] / (pcmData[i] < 0 ? 0x8000 : 0x7FFF);
+      }
+
+      const audioBuffer = audioContextRef.current.createBuffer(1, floatData.length, 16000);
+      audioBuffer.getChannelData(0).set(floatData);
+
       const source = audioContextRef.current.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioContextRef.current.destination);
