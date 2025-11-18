@@ -4773,9 +4773,16 @@ Based on this data, provide personalized, actionable health insights. Be convers
 
       // Apply guardrails
       const { applyGuardrails } = await import('./middleware/floOracleGuardrails');
-      const safeResponse = applyGuardrails(grokResponse);
+      const guardrailResult = applyGuardrails(message, grokResponse);
 
-      res.json({ response: safeResponse });
+      // Check if guardrails blocked the response
+      if (!guardrailResult.safe && guardrailResult.violation?.replacement) {
+        return res.json({ response: guardrailResult.violation.replacement });
+      }
+
+      // Return sanitized output or original response
+      const finalResponse = guardrailResult.sanitizedOutput || grokResponse;
+      res.json({ response: finalResponse });
 
     } catch (error: any) {
       logger.error('[FloOracle] Chat error:', error);
