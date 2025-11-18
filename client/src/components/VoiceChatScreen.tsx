@@ -321,7 +321,12 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
           }
 
-          const base64Audio = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(pcmData.buffer))));
+          const bytes = new Uint8Array(pcmData.buffer);
+          let binary = '';
+          for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          const base64Audio = btoa(binary);
           
           sendWebSocketMessage({
             user_audio_chunk: base64Audio,
