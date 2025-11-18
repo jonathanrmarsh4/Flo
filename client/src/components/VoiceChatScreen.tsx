@@ -176,7 +176,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                   <img 
                     src={xaiLogo} 
                     alt="xAI" 
-                    className={`h-3 ${isDark ? 'brightness-75' : 'brightness-50'}`}
+                    className={`h-3 ${isDark ? 'brightness-[3] invert' : 'brightness-50'}`}
                   />
                 </div>
               </div>
