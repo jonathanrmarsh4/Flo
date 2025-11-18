@@ -72,12 +72,22 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         throw new Error('Failed to get response from Flō Oracle');
       }
 
-      const data = await response.json() as { response: string };
+      const data = await response.json() as { response: string | { sanitizedOutput?: string } };
+
+      // Handle both string response and object response (from guardrails)
+      let responseText: string;
+      if (typeof data.response === 'string') {
+        responseText = data.response;
+      } else if (data.response && typeof data.response === 'object') {
+        responseText = (data.response as any).sanitizedOutput || 'No response received';
+      } else {
+        responseText = 'No response received';
+      }
 
       const floMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'flo',
-        content: data.response,
+        content: responseText,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, floMessage]);
