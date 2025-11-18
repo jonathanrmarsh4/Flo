@@ -4713,6 +4713,79 @@ You are talking to one user only. Personalise everything. Never use generic advi
     }
   });
 
+  // Flō Oracle - Text-only chat with Grok (personalized health coaching)
+  app.post("/api/flo-oracle/chat", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+
+    try {
+      const { message } = req.body;
+
+      if (!message || typeof message !== 'string' || !message.trim()) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      logger.info('[FloOracle] Chat request', { userId, messageLength: message.length });
+
+      // Load user's health context
+      const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
+      const healthContext = await buildUserHealthContext(userId);
+
+      logger.info('[FloOracle] Health context loaded', { 
+        userId,
+        hasBiomarkers: healthContext.includes('biomarkers'),
+        hasDEXA: healthContext.includes('DEXA'),
+        hasHealthKit: healthContext.includes('HealthKit')
+      });
+
+      // Build conversation with health context
+      const { grokClient } = await import('./services/grokClient');
+      
+      const systemPrompt = `You are Flō Oracle, a personal AI health coach with the personality of Peter Attia (evidence-based, data-driven health optimization) + Deadpool (witty, irreverent, never preachy) + Grok (helpful, curious, conversational).
+
+Your role:
+- Analyze the user's personal health data and provide actionable insights
+- Be direct, witty, and engaging - but always evidence-based
+- Never lecture or be preachy - make health optimization feel empowering, not intimidating
+- Use the user's actual biomarkers, DEXA scans, and HealthKit data to personalize advice
+- When you don't have data, be honest about it and suggest what data would be useful
+
+Here is the user's complete health profile:
+
+${healthContext}
+
+Based on this data, provide personalized, actionable health insights. Be conversational and helpful.`;
+
+      const messages: GrokChatMessage[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message.trim() }
+      ];
+
+      // Call Grok
+      const grokResponse = await grokClient.chat(messages, {
+        temperature: 0.7,
+        maxTokens: 1000,
+      });
+
+      logger.info('[FloOracle] Grok response received', { 
+        userId,
+        responseLength: grokResponse.length 
+      });
+
+      // Apply guardrails
+      const { applyGuardrails } = await import('./middleware/floOracleGuardrails');
+      const safeResponse = applyGuardrails(grokResponse);
+
+      res.json({ response: safeResponse });
+
+    } catch (error: any) {
+      logger.error('[FloOracle] Chat error:', error);
+      res.status(500).json({ 
+        error: "Failed to process chat request",
+        message: error.message 
+      });
+    }
+  });
+
   // ElevenLabs WebSocket signed URL endpoint (authenticated)
   app.post("/api/elevenlabs/get-signed-url", isAuthenticated, async (req: any, res) => {
     try {
