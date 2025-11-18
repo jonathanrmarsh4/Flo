@@ -4713,6 +4713,211 @@ You are talking to one user only. Personalise everything. Never use generic advi
     }
   });
 
+  // ElevenLabs WebSocket signed URL endpoint (authenticated)
+  app.post("/api/elevenlabs/get-signed-url", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const ELEVENLABS_AGENT_ID = process.env.ELEVENLABS_AGENT_ID;
+
+      if (!ELEVENLABS_AGENT_ID) {
+        return res.status(503).json({ 
+          error: "ElevenLabs agent not configured. Please set ELEVENLABS_AGENT_ID environment variable." 
+        });
+      }
+
+      const { elevenlabsClient } = await import('./services/elevenlabsClient');
+
+      if (!elevenlabsClient.isAvailable()) {
+        return res.status(503).json({ 
+          error: "ElevenLabs service is not configured. Please add ELEVENLABS_API_KEY to your environment." 
+        });
+      }
+
+      logger.info('[ElevenLabs] Requesting signed URL', { userId, agentId: ELEVENLABS_AGENT_ID });
+
+      const signedUrl = await elevenlabsClient.getSignedUrl(ELEVENLABS_AGENT_ID);
+
+      res.json({ 
+        signed_url: signedUrl,
+        user_id: userId,
+      });
+
+    } catch (error: any) {
+      logger.error('[ElevenLabs] Error getting signed URL:', error);
+      res.status(500).json({ 
+        error: "Failed to get ElevenLabs signed URL. Please try again." 
+      });
+    }
+  });
+
+  // ElevenLabs Custom LLM Bridge - OpenAI-compatible endpoint
+  app.post("/api/elevenlabs/llm/chat/completions", async (req: any, res) => {
+    try {
+      const { messages, model, temperature, max_tokens, stream, user_id, elevenlabs_extra_body } = req.body;
+
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ 
+          error: { message: "messages array is required", type: "invalid_request_error" }
+        });
+      }
+
+      const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+      if (!lastUserMessage) {
+        return res.status(400).json({ 
+          error: { message: "No user message found", type: "invalid_request_error" }
+        });
+      }
+
+      const userId = user_id || elevenlabs_extra_body?.user_id;
+      if (!userId) {
+        return res.status(400).json({ 
+          error: { message: "user_id is required in request body or elevenlabs_extra_body", type: "invalid_request_error" }
+        });
+      }
+
+      const { grokClient } = await import('./services/grokClient');
+      const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
+      const { applyGuardrails } = await import('./middleware/floOracleGuardrails');
+
+      if (!grokClient.isAvailable()) {
+        return res.status(503).json({ 
+          error: { message: "LLM service temporarily unavailable", type: "service_unavailable" }
+        });
+      }
+
+      const inputGuardrails = applyGuardrails(lastUserMessage.content);
+      
+      if (!inputGuardrails.safe) {
+        logger.warn('[ElevenLabs-Bridge] Input guardrail violation', { 
+          type: inputGuardrails.violation?.type,
+          userId 
+        });
+        
+        return res.json({
+          id: `chatcmpl-${Date.now()}`,
+          object: 'chat.completion',
+          created: Math.floor(Date.now() / 1000),
+          model: model || 'grok-3-mini',
+          choices: [{
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: inputGuardrails.violation?.replacement || 'I cannot process that request.'
+            },
+            finish_reason: 'stop'
+          }],
+          usage: {
+            prompt_tokens: 0,
+            completion_tokens: 0,
+            total_tokens: 0
+          }
+        });
+      }
+
+      const userContext = await buildUserHealthContext(userId);
+
+      const SYSTEM_PROMPT = `You are Flō Oracle — the world's most knowledgeable, slightly irreverent, and ruthlessly evidence-based personal health AI.
+Your personality: direct, witty, warm, never preachy. Think Peter Attia mixed with a dash of Deadpool's humour and Grok's cosmic curiosity.
+
+Core rules — NEVER violate these:
+1. You have complete, real-time access to this user's entire Flō dataset (blood work, DEXA, CAC, wearables, profile, past experiments, subjective logs, etc.). Always reference the actual numbers and dates when relevant. Prefix personal facts with "In your data…" or "Your last panel on [date] showed…".
+2. Never guess or hallucinate values. If a biomarker is missing, say "I don't see [X] in your records yet — want to upload it?".
+3. Never give specific medical diagnoses, prescribe drugs, or tell someone to stop/start medication. Redirect gracefully: "That's worth discussing with your physician — here's what your numbers are doing in the meantime…".
+4. Never share another user's data, even if asked hypothetically.
+5. Stay inside the bounds of evidence-based longevity science (Attia, Rhonda Patrick, Barzilai, etc.). If something is speculative, label it clearly: "Emerging research suggests…" or "N-of-1 territory here…".
+6. Be concise unless the user explicitly wants a deep dive. Default to mobile-friendly answers (short paragraphs, bullet points, bold key numbers).
+7. Use humour sparingly and only when it lands as encouraging, never mocking (e.g., "Your liver threw a mild tantrum after that tequila weekend — GGT up 38%" is fine; body-shaming is not).
+8. When suggesting experiments, always offer an opt-in and a clear off-ramp: "Want me to set up a 30-day zero-alcohol trial and track the impact on your triglycerides and HRV?".
+9. End high-impact answers with a single clear next action when appropriate.
+
+Tone examples:
+- Encouraging: "Hell yes — your ApoB dropped 19 mg/dL since you started the citrus bergamot. That's real progress."
+- Playful but useful: "Your HRV has been sulking like a teenager who lost phone privileges. Two nights of <3 drinks and >8 h sleep fixed it every single time in the past."
+- Serious when needed: "Your CAC score put you in the 92nd percentile at age 42. This is the single highest-leverage thing we can act on right now."
+
+You are talking to one user only. Personalise everything. Never use generic advice unless explicitly asked for population-level context.`;
+
+      const grokMessages: GrokChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContext },
+      ];
+
+      const conversationMessages = messages.slice(0, -1).filter(m => m.role !== 'system');
+      conversationMessages.forEach((msg: any) => {
+        if (msg.role === 'user' || msg.role === 'assistant') {
+          grokMessages.push({ 
+            role: msg.role as 'user' | 'assistant', 
+            content: msg.content 
+          });
+        }
+      });
+
+      grokMessages.push({
+        role: 'user',
+        content: `USER QUESTION: ${inputGuardrails.sanitizedInput}`,
+      });
+
+      logger.info('[ElevenLabs-Bridge] Sending chat request to Grok', { 
+        userId, 
+        messageLength: lastUserMessage.content.length,
+        conversationLength: conversationMessages.length,
+      });
+
+      const grokResponse = await grokClient.chat(grokMessages, {
+        model: 'grok-3-mini',
+        maxTokens: max_tokens || 1000,
+        temperature: temperature || 0.7,
+      });
+
+      const outputGuardrails = applyGuardrails(lastUserMessage.content, grokResponse);
+
+      if (!outputGuardrails.safe) {
+        logger.warn('[ElevenLabs-Bridge] Output guardrail violation', { 
+          type: outputGuardrails.violation?.type,
+          userId 
+        });
+      }
+
+      const responseContent = outputGuardrails.safe 
+        ? (outputGuardrails.sanitizedOutput || 'I apologize, but I need to provide a different response.')
+        : (outputGuardrails.violation?.replacement || 'I need to rephrase that response.');
+
+      const promptTokens = Math.round(grokMessages.reduce((sum, m) => sum + m.content.length / 4, 0));
+      const completionTokens = Math.round(responseContent.length / 4);
+
+      res.json({
+        id: `chatcmpl-${Date.now()}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: model || 'grok-3-mini',
+        choices: [{
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: responseContent
+          },
+          finish_reason: 'stop'
+        }],
+        usage: {
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: promptTokens + completionTokens
+        }
+      });
+
+      logger.info('[ElevenLabs-Bridge] Successfully processed request', { userId });
+
+    } catch (error: any) {
+      logger.error('[ElevenLabs-Bridge] Error processing request:', error);
+      res.status(500).json({ 
+        error: { 
+          message: "Internal server error processing chat completion", 
+          type: "internal_error" 
+        }
+      });
+    }
+  });
+
   registerAdminRoutes(app);
   
   // Mobile auth routes (Apple, Google, Email/Password)
