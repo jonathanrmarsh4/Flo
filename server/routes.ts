@@ -4779,21 +4779,26 @@ You are talking to one user only. Personalise everything. Never use generic advi
       }
 
       // Try to get userId from multiple possible locations
-      const userId = user_id || elevenlabs_extra_body?.user_id || req.body?.custom_llm_extra_body?.user_id;
+      const userId = user_id || 
+                     elevenlabs_extra_body?.user_id || 
+                     req.body?.custom_llm_extra_body?.user_id ||
+                     req.headers['x-user-id'] as string;
       
       if (!userId) {
         logger.error('[ElevenLabs-Bridge] No user_id found in request', {
           user_id,
           elevenlabs_extra_body,
           custom_llm_extra_body: req.body?.custom_llm_extra_body,
-          allKeys: Object.keys(req.body || {})
+          header_user_id: req.headers['x-user-id'],
+          allKeys: Object.keys(req.body || {}),
+          allHeaders: Object.keys(req.headers || {})
         });
         return res.status(400).json({ 
-          error: { message: "user_id is required. Please ensure it's passed in the request.", type: "invalid_request_error" }
+          error: { message: "user_id is required. Please ensure it's passed in the request header or body.", type: "invalid_request_error" }
         });
       }
       
-      logger.info('[ElevenLabs-Bridge] Processing request for user', { userId });
+      logger.info('[ElevenLabs-Bridge] Processing request for user', { userId, source: req.headers['x-user-id'] ? 'header' : 'body' });
 
       const { grokClient } = await import('./services/grokClient');
       const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
