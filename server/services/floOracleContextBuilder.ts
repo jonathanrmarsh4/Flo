@@ -145,6 +145,12 @@ export async function buildUserHealthContext(userId: string): Promise<string> {
         biomarkerMap[m.biomarkerName] = m.value;
       });
       
+      // Store ALL biomarkers, not just specific ones
+      Object.keys(biomarkerMap).forEach((key) => {
+        context.latestBloodPanel[key] = biomarkerMap[key];
+      });
+      
+      // Keep backward compatibility for specific ones
       context.latestBloodPanel.apob = biomarkerMap['ApoB'] || 'not recorded';
       context.latestBloodPanel.glucose = biomarkerMap['Glucose'] || biomarkerMap['Fasting Glucose'] || 'not recorded';
       context.latestBloodPanel.hba1c = biomarkerMap['HbA1c'] || 'not recorded';
@@ -268,11 +274,19 @@ function buildContextString(context: UserHealthContext): string {
   
   if (context.latestBloodPanel.date) {
     lines.push(`Latest blood panel: ${context.latestBloodPanel.date}`);
-    lines.push(`  • ApoB: ${context.latestBloodPanel.apob}`);
-    lines.push(`  • Fasting glucose: ${context.latestBloodPanel.glucose}`);
-    lines.push(`  • HbA1c: ${context.latestBloodPanel.hba1c}`);
-    lines.push(`  • hs-CRP: ${context.latestBloodPanel.hscrp}`);
-    lines.push(`  • Testosterone: ${context.latestBloodPanel.testosterone}`);
+    
+    // Output ALL biomarkers alphabetically
+    const biomarkerKeys = Object.keys(context.latestBloodPanel)
+      .filter(key => key !== 'date' && context.latestBloodPanel[key] !== 'not recorded')
+      .sort();
+    
+    if (biomarkerKeys.length > 0) {
+      biomarkerKeys.forEach(key => {
+        lines.push(`  • ${key}: ${context.latestBloodPanel[key]}`);
+      });
+    } else {
+      lines.push('  • No biomarker measurements available');
+    }
   } else {
     lines.push('Latest blood panel: No blood work uploaded yet');
   }
