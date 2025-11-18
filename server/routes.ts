@@ -3046,11 +3046,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (userSettings && userSettings.flomentumEnabled) {
           const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
           
+          // Query sleep data from sleep_nights table (more reliable than sleepHours from iOS)
+          // sleepHours only captures "in bed" samples, but sleep_nights processes all sleep stages
+          const [sleepNight] = await db
+            .select()
+            .from(sleepNights)
+            .where(
+              and(
+                eq(sleepNights.userId, userId),
+                eq(sleepNights.sleepDate, metrics.localDate)
+              )
+            )
+            .limit(1);
+          
           // Map userDailyMetrics fields to Flōmentum metrics
           // Note: userDailyMetrics has limited fields, so some will be null
           // IMPORTANT: Use stepsRawSum for actual step count, not stepsNormalized (which is 0-1 score)
           const flomentumMetrics: any = {
-            sleepTotalMinutes: metrics.sleepHours ? metrics.sleepHours * 60 : null,
+            sleepTotalMinutes: sleepNight?.totalSleepMin ?? null, // Query from sleep_nights instead of metrics.sleepHours
             hrvSdnnMs: metrics.hrvMs ?? null,
             restingHr: metrics.restingHrBpm ?? null,
             respiratoryRate: null, // Not available in userDailyMetrics
@@ -3435,7 +3448,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
 
         logger.info(`[Sleep] Updated sleep night from raw samples: ${userId}, ${sleepDate}`);
-        return res.json({ status: "updated", sleepDate });
       } else {
         // Insert new record
         await db.insert(sleepNights).values({
@@ -3471,8 +3483,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         logger.info(`[Sleep] Created sleep night from raw samples: ${userId}, ${sleepDate}`);
-        return res.json({ status: "created", sleepDate });
       }
+
+      // Recalculate Flōmentum score now that sleep data is available
+      // This ensures the score includes sleep metrics even though they arrive after daily metrics
+      try {
+        const [userSettings] = await db.select().from(userSettingsTable).where(eq(userSettingsTable.userId, userId)).limit(1);
+        
+        if (userSettings && userSettings.flomentumEnabled) {
+          const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
+          const { calculateFlomentumBaselines } = await import("./services/flomentumBaselineCalculator");
+          
+          // Get daily metrics for this date
+          const [dailyMetrics] = await db
+            .select()
+            .from(userDailyMetrics)
+            .where(
+              and(
+                eq(userDailyMetrics.userId, userId),
+                eq(userDailyMetrics.localDate, sleepDate)
+              )
+            )
+            .limit(1);
+          
+          if (dailyMetrics) {
+            const baselines = await calculateFlomentumBaselines(userId, sleepDate);
+            
+            const flomentumMetrics: any = {
+              sleepTotalMinutes: sleepNight.totalSleepMin, // Now we have sleep data!
+              hrvSdnnMs: dailyMetrics.hrvMs ?? null,
+              restingHr: dailyMetrics.restingHrBpm ?? null,
+              respiratoryRate: null,
+              bodyTempDeviationC: null,
+              oxygenSaturationAvg: null,
+              steps: dailyMetrics.stepsRawSum ?? dailyMetrics.stepsNormalized ?? null,
+              activeKcal: dailyMetrics.activeEnergyKcal ?? null,
+              exerciseMinutes: dailyMetrics.exerciseMinutes ?? null,
+              standHours: null,
+            };
+
+            const context: any = {
+              stepsTarget: userSettings.stepsTarget,
+              sleepTargetMinutes: userSettings.sleepTargetMinutes,
+              restingHrBaseline: baselines.restingHrBaseline,
+              hrvBaseline: baselines.hrvBaseline,
+              respRateBaseline: baselines.respRateBaseline,
+            };
+
+            const scoreResult = calculateFlomentumScore(flomentumMetrics, context);
+
+            // Update the daily Flōmentum score with sleep data included
+            await db.insert(flomentumDaily).values({
+              date: sleepDate,
+              userId,
+              score: scoreResult.score,
+              zone: scoreResult.zone,
+              factors: scoreResult.factors,
+              dailyFocus: scoreResult.dailyFocus,
+            }).onConflictDoUpdate({
+              target: [flomentumDaily.userId, flomentumDaily.date],
+              set: {
+                score: scoreResult.score,
+                zone: scoreResult.zone,
+                factors: scoreResult.factors,
+                dailyFocus: scoreResult.dailyFocus,
+              },
+            });
+
+            logger.info(`[Flōmentum] Score recalculated with sleep data for ${userId}, ${sleepDate}: ${scoreResult.score} (${scoreResult.zone})`);
+          }
+        }
+      } catch (flomentumError: any) {
+        logger.error(`[Flōmentum] Error recalculating score after sleep upload for ${userId}, ${sleepDate}:`, flomentumError);
+        // Don't fail the sleep upload if Flōmentum fails
+      }
+
+      return res.json({ status: existing.length > 0 ? "updated" : "created", sleepDate });
     } catch (error: any) {
       logger.error("[Sleep] Error processing raw sleep samples:", error);
       return res.status(500).json({ error: error.message });
