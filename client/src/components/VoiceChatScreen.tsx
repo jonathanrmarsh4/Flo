@@ -271,10 +271,24 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         setConnectionStatus('disconnected');
       };
 
-      ws.onclose = () => {
-        console.log('[ElevenLabs] WebSocket closed');
+      ws.onclose = (event) => {
+        console.log('[ElevenLabs] WebSocket closed', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean
+        });
         setConnectionStatus('disconnected');
         setIsRecording(false);
+        
+        // Stop the audio processor
+        if (processorRef.current) {
+          processorRef.current.disconnect();
+          processorRef.current = null;
+        }
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(track => track.stop());
+          mediaStreamRef.current = null;
+        }
       };
 
     } catch (error: any) {
