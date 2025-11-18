@@ -4735,7 +4735,7 @@ You are talking to one user only. Personalise everything. Never use generic advi
 
       logger.info('[ElevenLabs] Requesting signed URL', { userId, agentId: ELEVENLABS_AGENT_ID });
 
-      const signedUrl = await elevenlabsClient.getSignedUrl(ELEVENLABS_AGENT_ID);
+      const signedUrl = await elevenlabsClient.getSignedUrl(ELEVENLABS_AGENT_ID, userId);
 
       res.json({ 
         signed_url: signedUrl,
@@ -4758,7 +4758,8 @@ You are talking to one user only. Personalise everything. Never use generic advi
         messageCount: req.body?.messages?.length,
         hasUserId: !!req.body?.user_id,
         hasExtraBody: !!req.body?.elevenlabs_extra_body,
-        headers: req.headers
+        extraBodyContent: req.body?.elevenlabs_extra_body,
+        bodyKeys: Object.keys(req.body || {})
       });
 
       const { messages, model, temperature, max_tokens, stream, user_id, elevenlabs_extra_body } = req.body;
@@ -4777,12 +4778,22 @@ You are talking to one user only. Personalise everything. Never use generic advi
         });
       }
 
-      const userId = user_id || elevenlabs_extra_body?.user_id;
+      // Try to get userId from multiple possible locations
+      const userId = user_id || elevenlabs_extra_body?.user_id || req.body?.custom_llm_extra_body?.user_id;
+      
       if (!userId) {
+        logger.error('[ElevenLabs-Bridge] No user_id found in request', {
+          user_id,
+          elevenlabs_extra_body,
+          custom_llm_extra_body: req.body?.custom_llm_extra_body,
+          allKeys: Object.keys(req.body || {})
+        });
         return res.status(400).json({ 
-          error: { message: "user_id is required in request body or elevenlabs_extra_body", type: "invalid_request_error" }
+          error: { message: "user_id is required. Please ensure it's passed in the request.", type: "invalid_request_error" }
         });
       }
+      
+      logger.info('[ElevenLabs-Bridge] Processing request for user', { userId });
 
       const { grokClient } = await import('./services/grokClient');
       const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');

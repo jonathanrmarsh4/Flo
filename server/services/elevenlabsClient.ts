@@ -25,15 +25,20 @@ class ElevenLabsClient {
     return !!this.apiKey;
   }
 
-  async getSignedUrl(agentId: string): Promise<string> {
+  async getSignedUrl(agentId: string, userId?: string): Promise<string> {
     if (!this.apiKey) {
       throw new Error('ElevenLabs API key not configured');
     }
 
     try {
-      const url = `${this.baseUrl}/convai/conversation/get_signed_url?agent_id=${agentId}`;
+      let url = `${this.baseUrl}/convai/conversation/get_signed_url?agent_id=${agentId}`;
       
-      logger.info('[ElevenLabs] Requesting signed URL', { agentId });
+      // Pass user_id as custom metadata so ElevenLabs forwards it to our LLM endpoint
+      if (userId) {
+        url += `&custom_llm_extra_body=${encodeURIComponent(JSON.stringify({ user_id: userId }))}`;
+      }
+      
+      logger.info('[ElevenLabs] Requesting signed URL', { agentId, userId });
 
       const response = await fetch(url, {
         method: 'GET',
