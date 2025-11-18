@@ -170,12 +170,14 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('[ElevenLabs] WebSocket connected');
+        console.log('[ElevenLabs] WebSocket connected, readyState:', ws.readyState);
         setConnectionStatus('connected');
         
-        sendWebSocketMessage({
+        const initMessage = {
           type: 'conversation_initiation_client_data',
-        });
+        };
+        console.log('[ElevenLabs] Sending init message:', initMessage);
+        sendWebSocketMessage(initMessage);
         
         toast({
           title: "Connected to Flō Oracle",
@@ -311,6 +313,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       const processor = audioContextRef.current.createScriptProcessor(2048, 1, 1);
       processorRef.current = processor;
 
+      let chunkCount = 0;
       processor.onaudioprocess = (event) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
           const inputData = event.inputBuffer.getChannelData(0);
@@ -328,9 +331,16 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           }
           const base64Audio = btoa(binary);
           
+          chunkCount++;
+          if (chunkCount % 10 === 0) {
+            console.log(`[ElevenLabs] Sent ${chunkCount} audio chunks, size: ${base64Audio.length} bytes`);
+          }
+          
           sendWebSocketMessage({
             user_audio_chunk: base64Audio,
           });
+        } else {
+          console.warn('[ElevenLabs] WebSocket not open, state:', wsRef.current?.readyState);
         }
       };
 
