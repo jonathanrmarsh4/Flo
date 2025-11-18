@@ -4605,6 +4605,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Flō Oracle Chat Routes
+  app.post("/api/chat/grok", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message, conversationHistory } = req.body;
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      const { grokClient } = await import('./services/grokClient');
+      const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
+      const { applyGuardrails } = await import('./middleware/floOracleGuardrails');
+
+      if (!grokClient.isAvailable()) {
+        return res.status(503).json({ 
+          error: "Flō Oracle is temporarily unavailable. Please try again later." 
+        });
+      }
+
+      const inputGuardrails = applyGuardrails(message);
+      
+      if (!inputGuardrails.safe) {
+        logger.warn('[FloOracle] Input guardrail violation', { type: inputGuardrails.violation?.type });
+        return res.json({
+          response: inputGuardrails.violation?.replacement || 'I cannot process that request.',
+          violation: true,
+        });
+      }
+
+      const userContext = await buildUserHealthContext(userId);
+
+      const SYSTEM_PROMPT = `You are Flō Oracle — the world's most knowledgeable, slightly irreverent, and ruthlessly evidence-based personal health AI.
+Your personality: direct, witty, warm, never preachy. Think Peter Attia mixed with a dash of Deadpool's humour and Grok's cosmic curiosity.
+
+Core rules — NEVER violate these:
+1. You have complete, real-time access to this user's entire Flō dataset (blood work, DEXA, CAC, wearables, profile, past experiments, subjective logs, etc.). Always reference the actual numbers and dates when relevant. Prefix personal facts with "In your data…" or "Your last panel on [date] showed…".
+2. Never guess or hallucinate values. If a biomarker is missing, say "I don't see [X] in your records yet — want to upload it?".
+3. Never give specific medical diagnoses, prescribe drugs, or tell someone to stop/start medication. Redirect gracefully: "That's worth discussing with your physician — here's what your numbers are doing in the meantime…".
+4. Never share another user's data, even if asked hypothetically.
+5. Stay inside the bounds of evidence-based longevity science (Attia, Rhonda Patrick, Barzilai, etc.). If something is speculative, label it clearly: "Emerging research suggests…" or "N-of-1 territory here…".
+6. Be concise unless the user explicitly wants a deep dive. Default to mobile-friendly answers (short paragraphs, bullet points, bold key numbers).
+7. Use humour sparingly and only when it lands as encouraging, never mocking (e.g., "Your liver threw a mild tantrum after that tequila weekend — GGT up 38%" is fine; body-shaming is not).
+8. When suggesting experiments, always offer an opt-in and a clear off-ramp: "Want me to set up a 30-day zero-alcohol trial and track the impact on your triglycerides and HRV?".
+9. End high-impact answers with a single clear next action when appropriate.
+
+Tone examples:
+- Encouraging: "Hell yes — your ApoB dropped 19 mg/dL since you started the citrus bergamot. That's real progress."
+- Playful but useful: "Your HRV has been sulking like a teenager who lost phone privileges. Two nights of <3 drinks and >8 h sleep fixed it every single time in the past."
+- Serious when needed: "Your CAC score put you in the 92nd percentile at age 42. This is the single highest-leverage thing we can act on right now."
+
+You are talking to one user only. Personalise everything. Never use generic advice unless explicitly asked for population-level context.`;
+
+      const messages = [
+        { role: 'system' as const, content: SYSTEM_PROMPT },
+        { role: 'user' as const, content: userContext },
+      ];
+
+      if (conversationHistory && Array.isArray(conversationHistory)) {
+        messages.push(...conversationHistory.slice(-6).map((msg: any) => ({
+          role: msg.type === 'user' ? 'user' as const : 'assistant' as const,
+          content: msg.content,
+        })));
+      }
+
+      messages.push({
+        role: 'user' as const,
+        content: `USER QUESTION: ${inputGuardrails.sanitizedInput}`,
+      });
+
+      logger.info('[FloOracle] Sending chat request to Grok', { 
+        userId, 
+        messageLength: message.length,
+        historyLength: conversationHistory?.length || 0,
+      });
+
+      const grokResponse = await grokClient.chat(messages, {
+        model: 'grok-3-mini',
+        maxTokens: 1000,
+        temperature: 0.7,
+      });
+
+      const outputGuardrails = applyGuardrails(message, grokResponse);
+
+      if (!outputGuardrails.safe) {
+        logger.warn('[FloOracle] Output guardrail violation', { type: outputGuardrails.violation?.type });
+        return res.json({
+          response: outputGuardrails.violation?.replacement || 'I need to rephrase that response. Let me try again.',
+          violation: true,
+        });
+      }
+
+      res.json({
+        response: outputGuardrails.sanitizedOutput,
+        violation: false,
+      });
+    } catch (error: any) {
+      logger.error('[FloOracle] Chat error:', error);
+      res.status(500).json({ 
+        error: "I'm having trouble connecting right now. Please try again in a moment." 
+      });
+    }
+  });
+
   registerAdminRoutes(app);
   
   // Mobile auth routes (Apple, Google, Email/Password)
