@@ -44,11 +44,32 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
+  const [voicesLoaded, setVoicesLoaded] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       synthRef.current = window.speechSynthesis;
+      
+      const loadVoices = () => {
+        const voices = synthRef.current?.getVoices() || [];
+        if (voices.length > 0) {
+          setVoicesLoaded(true);
+          console.log('[VoiceChat] Voices loaded:', voices.length);
+        }
+      };
+
+      loadVoices();
+
+      if (synthRef.current) {
+        synthRef.current.addEventListener('voiceschanged', loadVoices);
+      }
+
+      return () => {
+        if (synthRef.current) {
+          synthRef.current.removeEventListener('voiceschanged', loadVoices);
+        }
+      };
     }
 
     return () => {
@@ -56,7 +77,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         synthRef.current.cancel();
       }
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.log('[VoiceChat] Recognition already stopped');
+        }
       }
     };
   }, []);
@@ -124,14 +149,25 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         content: m.content,
       }));
 
-      const response = await apiRequest({
-        method: 'POST',
-        url: '/api/chat/grok',
-        body: {
+      console.log('[VoiceChat] Sending message to Grok...', { 
+        messageLength: userMessage.length, 
+        historyLength: conversationHistory.length 
+      });
+
+      const res = await apiRequest(
+        'POST',
+        '/api/chat/grok',
+        {
           message: userMessage,
           conversationHistory,
-        },
-      }) as { response: string; violation: boolean };
+        }
+      );
+
+      const response = await res.json() as { response: string; violation: boolean };
+
+      console.log('[VoiceChat] Received response from Grok:', { 
+        responseLength: response.response.length 
+      });
 
       const floMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -147,15 +183,24 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     } catch (error: any) {
       console.error('[VoiceChat] Error sending message:', error);
       
+      let errorText = "I'm having trouble connecting right now.";
+      
+      if (error.status === 401) {
+        errorText = "Please log in to use Flo Oracle.";
+      } else if (error.message) {
+        console.error('[VoiceChat] Error details:', error.message);
+      }
+      
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'flo',
-        content: "I'm having trouble connecting right now. Please try again in a moment.",
+        content: errorText,
         timestamp: new Date(),
         isVoice: false,
       };
       
       setMessages((prev) => [...prev, errorMessage]);
+      speakText(errorText);
     } finally {
       setIsProcessing(false);
     }
@@ -177,7 +222,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   };
 
   const speakText = (text: string) => {
-    if (!synthRef.current) return;
+    if (!synthRef.current) {
+      console.error('[VoiceChat] Speech synthesis not available');
+      return;
+    }
 
     synthRef.current.cancel();
 
@@ -187,19 +235,37 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     utterance.volume = 1.0;
     
     const voices = synthRef.current.getVoices();
+    console.log('[VoiceChat] Available voices:', voices.length);
+    
     const preferredVoice = voices.find(voice => 
       voice.name.includes('Samantha') || 
       voice.name.includes('Karen') ||
-      voice.name.includes('Female')
+      voice.name.includes('Female') ||
+      voice.name.includes('Google')
     );
+    
     if (preferredVoice) {
+      console.log('[VoiceChat] Using voice:', preferredVoice.name);
       utterance.voice = preferredVoice;
+    } else if (voices.length > 0) {
+      console.log('[VoiceChat] Using default voice:', voices[0].name);
+      utterance.voice = voices[0];
     }
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.onstart = () => {
+      console.log('[VoiceChat] TTS started');
+      setIsSpeaking(true);
+    };
+    utterance.onend = () => {
+      console.log('[VoiceChat] TTS ended');
+      setIsSpeaking(false);
+    };
+    utterance.onerror = (event) => {
+      console.error('[VoiceChat] TTS error:', event.error);
+      setIsSpeaking(false);
+    };
 
+    console.log('[VoiceChat] Speaking text:', text.substring(0, 50) + '...');
     synthRef.current.speak(utterance);
   };
 
@@ -211,11 +277,13 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       recognitionRef.current = recognition;
 
       recognition.onstart = () => {
+        console.log('[VoiceChat] Speech recognition started');
         setIsRecording(true);
       };
 
       recognition.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
+        console.log('[VoiceChat] Recognized text:', transcript);
         handleVoiceMessage(transcript);
       };
 
@@ -229,7 +297,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             description: "Please allow microphone access in your browser settings.",
             variant: "destructive",
           });
-        } else if (event.error !== 'aborted' && event.error !== 'no-speech') {
+        } else if (event.error === 'no-speech') {
+          console.log('[VoiceChat] No speech detected');
+        } else if (event.error !== 'aborted') {
           toast({
             title: "Voice recognition error",
             description: "There was a problem with voice recognition. Please try again.",
@@ -239,17 +309,25 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       };
 
       recognition.onend = () => {
+        console.log('[VoiceChat] Speech recognition ended');
         setIsRecording(false);
       };
 
       try {
+        console.log('[VoiceChat] Starting speech recognition...');
         recognition.start();
       } catch (error) {
         console.error('[VoiceChat] Failed to start recognition:', error);
         setIsRecording(false);
+        toast({
+          title: "Microphone error",
+          description: "Could not start voice recording. Please try again.",
+          variant: "destructive",
+        });
       }
     } else {
       if (recognitionRef.current) {
+        console.log('[VoiceChat] Stopping speech recognition...');
         recognitionRef.current.stop();
       }
       setIsRecording(false);
