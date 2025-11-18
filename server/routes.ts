@@ -4737,6 +4737,22 @@ You are talking to one user only. Personalise everything. Never use generic advi
 
       const signedUrl = await elevenlabsClient.getSignedUrl(ELEVENLABS_AGENT_ID, userId);
 
+      // Extract conversation_id from signed URL and create session mapping
+      const { conversationSessionStore } = await import('./services/conversationSessionStore');
+      try {
+        const urlObj = new URL(signedUrl);
+        const conversationId = urlObj.searchParams.get('conversation_id');
+        
+        if (conversationId) {
+          conversationSessionStore.create(conversationId, userId, ELEVENLABS_AGENT_ID);
+          logger.info('[ElevenLabs] Created conversation session', { conversationId, userId });
+        } else {
+          logger.warn('[ElevenLabs] No conversation_id found in signed URL');
+        }
+      } catch (error) {
+        logger.error('[ElevenLabs] Failed to parse signed URL', error);
+      }
+
       res.json({ 
         signed_url: signedUrl,
         user_id: userId,
@@ -4759,10 +4775,11 @@ You are talking to one user only. Personalise everything. Never use generic advi
         hasUserId: !!req.body?.user_id,
         hasExtraBody: !!req.body?.elevenlabs_extra_body,
         extraBodyContent: req.body?.elevenlabs_extra_body,
-        bodyKeys: Object.keys(req.body || {})
+        bodyKeys: Object.keys(req.body || {}),
+        fullBody: JSON.stringify(req.body).substring(0, 500) // Log first 500 chars to see structure
       });
 
-      const { messages, model, temperature, max_tokens, stream, user_id, elevenlabs_extra_body } = req.body;
+      const { messages, model, temperature, max_tokens, stream, user_id, elevenlabs_extra_body, conversation_id } = req.body;
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         logger.warn('[ElevenLabs-Bridge] No messages in request');
@@ -4778,27 +4795,43 @@ You are talking to one user only. Personalise everything. Never use generic advi
         });
       }
 
-      // Try to get userId from multiple possible locations
-      const userId = user_id || 
-                     elevenlabs_extra_body?.user_id || 
-                     req.body?.custom_llm_extra_body?.user_id ||
-                     req.headers['x-user-id'] as string;
+      // Look up user_id from conversation session store
+      const { conversationSessionStore } = await import('./services/conversationSessionStore');
+      
+      // Try to get conversation_id from multiple possible locations
+      const convId = conversation_id || req.body?.conversation_id || req.headers['x-conversation-id'] as string;
+      
+      let userId: string | null = null;
+      
+      if (convId) {
+        userId = conversationSessionStore.getUserId(convId);
+        if (userId) {
+          logger.info('[ElevenLabs-Bridge] Found user via conversation session', { conversationId: convId, userId });
+        } else {
+          logger.warn('[ElevenLabs-Bridge] Conversation ID not found in session store', { conversationId: convId });
+        }
+      }
+      
+      // Fallback to legacy methods if session lookup fails
+      if (!userId) {
+        userId = user_id || 
+                 elevenlabs_extra_body?.user_id || 
+                 req.body?.custom_llm_extra_body?.user_id ||
+                 req.headers['x-user-id'] as string;
+      }
       
       if (!userId) {
-        logger.error('[ElevenLabs-Bridge] No user_id found in request', {
-          user_id,
-          elevenlabs_extra_body,
-          custom_llm_extra_body: req.body?.custom_llm_extra_body,
-          header_user_id: req.headers['x-user-id'],
-          allKeys: Object.keys(req.body || {}),
-          allHeaders: Object.keys(req.headers || {})
+        logger.error('[ElevenLabs-Bridge] No user_id found', {
+          conversationId: convId,
+          bodyKeys: Object.keys(req.body || {}),
+          headerKeys: Object.keys(req.headers || {})
         });
         return res.status(400).json({ 
-          error: { message: "user_id is required. Please ensure it's passed in the request header or body.", type: "invalid_request_error" }
+          error: { message: "Unable to identify user for this conversation. Please restart the voice chat.", type: "invalid_request_error" }
         });
       }
       
-      logger.info('[ElevenLabs-Bridge] Processing request for user', { userId, source: req.headers['x-user-id'] ? 'header' : 'body' });
+      logger.info('[ElevenLabs-Bridge] Processing request for user', { userId, conversationId: convId });
 
       const { grokClient } = await import('./services/grokClient');
       const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
