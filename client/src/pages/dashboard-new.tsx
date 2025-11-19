@@ -57,14 +57,13 @@ export default function Dashboard() {
         onAddClick={() => setIsVoiceChatOpen(true)}
       />
 
-      <AnimatePresence>
-        {isVoiceChatOpen && (
-          <VoiceChatScreen 
-            isDark={isDark}
-            onClose={() => setIsVoiceChatOpen(false)}
-          />
-        )}
-      </AnimatePresence>
+      {/* Render VoiceChatScreen always (hidden when closed) to avoid first-render lag on iOS */}
+      <div style={{ display: isVoiceChatOpen ? 'block' : 'none' }}>
+        <VoiceChatScreen 
+          isDark={isDark}
+          onClose={() => setIsVoiceChatOpen(false)}
+        />
+      </div>
     </div>
   );
 }

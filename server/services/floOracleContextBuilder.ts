@@ -14,6 +14,15 @@ import {
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
 
+// In-memory cache for user health context (5 minute TTL)
+interface CachedContext {
+  context: string;
+  timestamp: number;
+}
+
+const contextCache = new Map<string, CachedContext>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 interface UserHealthContext {
   age: number | null;
   sex: string;
@@ -74,9 +83,18 @@ interface BloodPanelHistory {
   biomarkers: Record<string, string>;
 }
 
-export async function buildUserHealthContext(userId: string): Promise<string> {
+export async function buildUserHealthContext(userId: string, skipCache: boolean = false): Promise<string> {
   try {
-    logger.info(`[FloOracle] Building health context for user ${userId}`);
+    // Check cache first (unless explicitly skipped)
+    if (!skipCache) {
+      const cached = contextCache.get(userId);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        logger.info(`[FloOracle] Using cached health context for user ${userId}`);
+        return cached.context;
+      }
+    }
+
+    logger.info(`[FloOracle] Building fresh health context for user ${userId}`);
 
     const context: UserHealthContext = {
       age: null,
@@ -289,6 +307,12 @@ export async function buildUserHealthContext(userId: string): Promise<string> {
 
     const contextString = buildContextString(context, bloodPanelHistory);
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars)`);
+    
+    // Cache the result
+    contextCache.set(userId, {
+      context: contextString,
+      timestamp: Date.now(),
+    });
     
     return contextString;
   } catch (error) {
