@@ -39,7 +39,10 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
     setLocation('/billing');
   };
 
-  const currentPaywallModal = paywallModalsData?.modals?.find(m => m.id === paywallModalId);
+  // paywallModalsData.modals is a Record<string, PaywallModal>, not an array
+  const currentPaywallModal = paywallModalId && paywallModalsData?.modals 
+    ? paywallModalsData.modals[paywallModalId as keyof typeof paywallModalsData.modals]
+    : undefined;
 
   const { data: bioAgeData } = useQuery<any>({
     queryKey: ['/api/biological-age'],
@@ -196,11 +199,11 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
       )}
 
       {/* Paywall Modal */}
-      {currentPaywallModal && (
+      {currentPaywallModal && typeof currentPaywallModal === 'object' && 'id' in currentPaywallModal && (
         <PaywallModal
           open={!!paywallModalId}
           onOpenChange={(open) => !open && setPaywallModalId(null)}
-          modal={currentPaywallModal}
+          modal={currentPaywallModal as any}
           onUpgrade={handleUpgrade}
         />
       )}
