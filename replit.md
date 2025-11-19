@@ -22,7 +22,9 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Conversational Life Event Logging System:** Automatically tracks health-relevant events mentioned in Flō Oracle conversations (e.g., "ice bath", "late meal"). Grok-powered extraction parses events into structured JSONB, which are logged to the `life_events` table and acknowledged by Flō Oracle. Recent events are integrated into Flō Oracle's context, and the correlation engine analyzes them against HealthKit metrics to generate insights.
 
-**Admin User Management:** Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, providing user management, system overview metrics, AI API usage tracking, and audit logs.
+**Admin User Management:** Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, providing user management, system overview metrics, and audit logs.
+
+**AI Usage Analytics System:** Comprehensive tracking service (`aiUsageTracker.ts`) logs all OpenAI and Grok API calls with token counts, costs, and latency to the `openaiUsageEvents` table. Provider-based filtering distinguishes between OpenAI (GPT-4o, text-embedding-3-small) and Grok (grok-3-mini) usage. The admin dashboard displays provider-separated metrics with summary cards showing total queries, total costs, and active providers. All major AI integration points are instrumented: `grokClient.ts`, `embeddingService.ts`, and `simpleExtractor.ts`.
 
 **Billing & Subscription System:** 
 - **Plan Tiers**: FREE (3 labs, 35 biomarkers, no Oracle) and PREMIUM (unlimited labs/biomarkers, 200 Oracle msgs/day, full features)
