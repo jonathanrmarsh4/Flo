@@ -69,6 +69,11 @@ function formatBiomarkerValue(value: number | null, unit: string = ''): string {
   return `${value}${unit ? ' ' + unit : ''}`;
 }
 
+interface BloodPanelHistory {
+  date: string;
+  biomarkers: Record<string, string>;
+}
+
 export async function buildUserHealthContext(userId: string): Promise<string> {
   try {
     logger.info(`[FloOracle] Building health context for user ${userId}`);
@@ -122,42 +127,65 @@ export async function buildUserHealthContext(userId: string): Promise<string> {
       context.primaryGoals = Array.isArray(userProfile.goals) ? userProfile.goals : [];
     }
 
-    const latestSession = await db
+    // Fetch ALL blood panels from the last 12 months (for historical context)
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+    
+    const allSessions = await db
       .select()
       .from(biomarkerTestSessions)
-      .where(eq(biomarkerTestSessions.userId, userId))
-      .orderBy(desc(biomarkerTestSessions.testDate))
-      .limit(1);
+      .where(
+        and(
+          eq(biomarkerTestSessions.userId, userId),
+          gte(biomarkerTestSessions.testDate, twelveMonthsAgo)
+        )
+      )
+      .orderBy(desc(biomarkerTestSessions.testDate));
 
-    if (latestSession.length > 0) {
-      const session = latestSession[0];
-      context.latestBloodPanel.date = session.testDate.toISOString().split('T')[0];
-      
-      const measurements = await db
-        .select({
-          biomarkerName: biomarkers.name,
-          value: biomarkerMeasurements.valueDisplay,
-        })
-        .from(biomarkerMeasurements)
-        .innerJoin(biomarkers, eq(biomarkerMeasurements.biomarkerId, biomarkers.id))
-        .where(eq(biomarkerMeasurements.sessionId, session.id));
+    const bloodPanelHistory: BloodPanelHistory[] = [];
 
-      const biomarkerMap: Record<string, string> = {};
-      measurements.forEach((m) => {
-        biomarkerMap[m.biomarkerName] = m.value;
-      });
+    if (allSessions.length > 0) {
+      // Process latest panel for backward compatibility
+      const latestSession = allSessions[0];
+      context.latestBloodPanel.date = latestSession.testDate.toISOString().split('T')[0];
       
-      // Store ALL biomarkers, not just specific ones
-      Object.keys(biomarkerMap).forEach((key) => {
-        context.latestBloodPanel[key] = biomarkerMap[key];
-      });
-      
-      // Keep backward compatibility for specific ones
-      context.latestBloodPanel.apob = biomarkerMap['ApoB'] || 'not recorded';
-      context.latestBloodPanel.glucose = biomarkerMap['Glucose'] || biomarkerMap['Fasting Glucose'] || 'not recorded';
-      context.latestBloodPanel.hba1c = biomarkerMap['HbA1c'] || 'not recorded';
-      context.latestBloodPanel.hscrp = biomarkerMap['hs-CRP'] || biomarkerMap['CRP'] || 'not recorded';
-      context.latestBloodPanel.testosterone = biomarkerMap['Testosterone'] || 'not recorded';
+      // Fetch biomarkers for ALL sessions
+      for (const session of allSessions) {
+        const measurements = await db
+          .select({
+            biomarkerName: biomarkers.name,
+            value: biomarkerMeasurements.valueDisplay,
+          })
+          .from(biomarkerMeasurements)
+          .innerJoin(biomarkers, eq(biomarkerMeasurements.biomarkerId, biomarkers.id))
+          .where(eq(biomarkerMeasurements.sessionId, session.id));
+
+        const biomarkerMap: Record<string, string> = {};
+        measurements.forEach((m) => {
+          biomarkerMap[m.biomarkerName] = m.value;
+        });
+        
+        // Store this panel in history
+        if (Object.keys(biomarkerMap).length > 0) {
+          bloodPanelHistory.push({
+            date: session.testDate.toISOString().split('T')[0],
+            biomarkers: biomarkerMap,
+          });
+        }
+        
+        // For the LATEST panel, also store in context object for backward compatibility
+        if (session.id === latestSession.id) {
+          Object.keys(biomarkerMap).forEach((key) => {
+            context.latestBloodPanel[key] = biomarkerMap[key];
+          });
+          
+          context.latestBloodPanel.apob = biomarkerMap['ApoB'] || 'not recorded';
+          context.latestBloodPanel.glucose = biomarkerMap['Glucose'] || biomarkerMap['Fasting Glucose'] || 'not recorded';
+          context.latestBloodPanel.hba1c = biomarkerMap['HbA1c'] || 'not recorded';
+          context.latestBloodPanel.hscrp = biomarkerMap['hs-CRP'] || biomarkerMap['CRP'] || 'not recorded';
+          context.latestBloodPanel.testosterone = biomarkerMap['Testosterone'] || biomarkerMap['Total Testosterone'] || 'not recorded';
+        }
+      }
     }
 
     const latestCAC = await db
@@ -259,7 +287,7 @@ export async function buildUserHealthContext(userId: string): Promise<string> {
       context.flomentumCurrent.dailyFocus = factors.focus || null;
     }
 
-    const contextString = buildContextString(context);
+    const contextString = buildContextString(context, bloodPanelHistory);
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars)`);
     
     return contextString;
@@ -269,15 +297,39 @@ export async function buildUserHealthContext(userId: string): Promise<string> {
   }
 }
 
-function buildContextString(context: UserHealthContext): string {
+function buildContextString(context: UserHealthContext, bloodPanelHistory: BloodPanelHistory[] = []): string {
   const lines: string[] = ['USER CONTEXT (never shared with user):'];
   
   lines.push(`Age: ${context.age ?? 'unknown'} | Sex: ${context.sex} | Primary goal: ${context.primaryGoals.join(', ') || 'general health'}`);
   
-  if (context.latestBloodPanel.date) {
+  // Format blood panels with historical context
+  if (bloodPanelHistory.length > 0) {
+    lines.push('');
+    lines.push('BLOOD WORK HISTORY (most recent first):');
+    
+    bloodPanelHistory.forEach((panel, index) => {
+      const isLatest = index === 0;
+      const label = isLatest ? '📊 LATEST PANEL' : `📊 Panel`;
+      lines.push(`${label} (${panel.date}):`);
+      
+      // Get all unique biomarkers across all panels
+      const biomarkerKeys = Object.keys(panel.biomarkers).sort();
+      
+      if (biomarkerKeys.length > 0) {
+        biomarkerKeys.forEach(key => {
+          lines.push(`  • ${key}: ${panel.biomarkers[key]}`);
+        });
+      }
+      
+      // Add spacing between panels (except after last one)
+      if (index < bloodPanelHistory.length - 1) {
+        lines.push('');
+      }
+    });
+  } else if (context.latestBloodPanel.date) {
+    // Fallback to old format if bloodPanelHistory wasn't populated
     lines.push(`Latest blood panel: ${context.latestBloodPanel.date}`);
     
-    // Output ALL biomarkers alphabetically
     const biomarkerKeys = Object.keys(context.latestBloodPanel)
       .filter(key => key !== 'date' && context.latestBloodPanel[key] !== 'not recorded')
       .sort();
