@@ -51,7 +51,7 @@ export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
       {/* Mini Insight Cards */}
       {topInsights.length > 0 ? (
         <div className="space-y-3">
-          {topInsights.map((insight) => (
+          {topInsights.map((insight: InsightCard) => (
             <MiniInsightCard
               key={insight.id}
               icon={CATEGORY_ICONS[insight.category] || '💡'}
