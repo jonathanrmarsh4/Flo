@@ -169,40 +169,6 @@ export default function Dashboard() {
               >
                 <RotateCcw className={`w-4 h-4 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
               </Link>
-              {user?.role === 'admin' && (
-                <Link 
-                  href="/admin"
-                  className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
-                    isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                  }`}
-                  data-testid="link-admin"
-                  aria-label="Admin Dashboard"
-                >
-                  <Shield className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-                </Link>
-              )}
-              <button 
-                onClick={() => setIsDark(!isDark)}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                }`}
-                data-testid="button-theme-toggle"
-              >
-                {isDark ? (
-                  <Sun className="w-4 h-4 text-white/70" />
-                ) : (
-                  <Moon className="w-4 h-4 text-gray-600" />
-                )}
-              </button>
-              <button 
-                onClick={handleLogout}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
-                }`}
-                data-testid="button-logout"
-              >
-                <LogOut className={`w-4 h-4 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-              </button>
             </div>
           </div>
         </div>

@@ -50,6 +50,8 @@ export default function Dashboard() {
       <DashboardScreen 
         isDark={isDark}
         onSettingsClick={handleSettingsClick}
+        onThemeToggle={toggleTheme}
+        onLogout={handleLogout}
       />
       
       <BottomNav 

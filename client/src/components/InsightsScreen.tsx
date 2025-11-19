@@ -83,7 +83,7 @@ export function InsightsScreen({
               className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
               data-testid="button-back"
             >
-              ← Back
+              ←
             </button>
             <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>AI Insights</h1>
             <div style={{ width: '44px' }} />

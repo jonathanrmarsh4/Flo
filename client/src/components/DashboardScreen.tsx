@@ -6,7 +6,7 @@ import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumTile } from './dashboard/FlomentumTile';
 import { InsightsTile } from './InsightsTile';
 import { FloLogo } from './FloLogo';
-import { Bell, Settings, Brain, TrendingUp } from 'lucide-react';
+import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useState } from 'react';
@@ -14,16 +14,23 @@ import { RAGInsightsScreen } from './RAGInsightsScreen';
 import { LockedTile } from './LockedTile';
 import { PaywallModal } from './PaywallModal';
 import { usePlan, usePaywallModals } from '@/hooks/usePlan';
+import { useAuth } from '@/hooks/useAuth';
+import { Capacitor } from '@capacitor/core';
+import { queryClient } from '@/lib/queryClient';
+import { logger } from '@/lib/logger';
 
 interface DashboardScreenProps {
   isDark: boolean;
   onSettingsClick?: () => void;
+  onThemeToggle?: () => void;
+  onLogout?: () => void;
 }
 
-export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProps) {
+export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogout }: DashboardScreenProps) {
   const [, setLocation] = useLocation();
   const [showInsights, setShowInsights] = useState(false);
   const [paywallModalId, setPaywallModalId] = useState<string | null>(null);
+  const { user } = useAuth();
   
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
@@ -37,6 +44,23 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
 
   const handleUpgrade = () => {
     setLocation('/billing');
+  };
+
+  const handleLogout = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+        await SecureStoragePlugin.remove({ key: 'auth_token' });
+        logger.debug('JWT token cleared from secure storage on logout');
+      } catch (error) {
+        logger.error('Failed to clear auth token on logout', error);
+      }
+      
+      queryClient.clear();
+      setLocation('/mobile-auth');
+    } else {
+      window.location.href = '/api/logout';
+    }
   };
 
   // Find the current paywall modal by ID
@@ -76,13 +100,29 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {user?.role === 'admin' && (
+                <button 
+                  onClick={() => setLocation('/admin')}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                  }`}
+                  data-testid="button-admin"
+                >
+                  <Shield className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                </button>
+              )}
               <button 
+                onClick={onThemeToggle}
                 className={`p-2 rounded-lg transition-colors ${
                   isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
                 }`}
-                data-testid="button-notifications"
+                data-testid="button-theme-toggle"
               >
-                <Bell className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+                {isDark ? (
+                  <Sun className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+                ) : (
+                  <Moon className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+                )}
               </button>
               <button 
                 onClick={onSettingsClick}
@@ -92,6 +132,15 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
                 data-testid="button-settings"
               >
                 <Settings className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </button>
+              <button 
+                onClick={onLogout || handleLogout}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                data-testid="button-logout"
+              >
+                <LogOut className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
               </button>
             </div>
           </div>

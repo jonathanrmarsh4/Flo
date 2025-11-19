@@ -44,7 +44,7 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
               className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
               data-testid="button-back"
             >
-              ← Back
+              ←
             </button>
             <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Diagnostics</h1>
             <div className="w-12"></div> {/* Spacer for centering */}
