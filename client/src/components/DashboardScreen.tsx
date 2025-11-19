@@ -4,10 +4,13 @@ import { BodyCompositionTile } from './dashboard/BodyCompositionTile';
 import { ReadinessTile } from './dashboard/ReadinessTile';
 import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumTile } from './dashboard/FlomentumTile';
+import { InsightsTile } from './InsightsTile';
 import { FloLogo } from './FloLogo';
 import { Bell, Settings } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { useState } from 'react';
+import { RAGInsightsScreen } from './RAGInsightsScreen';
 
 interface DashboardScreenProps {
   isDark: boolean;
@@ -16,6 +19,7 @@ interface DashboardScreenProps {
 
 export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProps) {
   const [, setLocation] = useLocation();
+  const [showInsights, setShowInsights] = useState(false);
   
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
@@ -130,6 +134,9 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
             {/* Full Width - Sleep Index */}
             <SleepTile isDark={isDark} data={sleepData} />
 
+            {/* Full Width - Insights */}
+            <InsightsTile isDark={isDark} onTap={() => setShowInsights(true)} />
+
             {/* Quick Stats Row */}
             <div className="grid grid-cols-2 gap-4">
               <QuickStatCard
@@ -148,6 +155,11 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
           </>
         )}
       </main>
+
+      {/* RAG Insights Modal */}
+      {showInsights && (
+        <RAGInsightsScreen isDark={isDark} onClose={() => setShowInsights(false)} />
+      )}
     </div>
   );
 }

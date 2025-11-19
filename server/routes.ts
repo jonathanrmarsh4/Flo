@@ -5292,6 +5292,85 @@ You are talking to one user only. Personalise everything. Never use generic advi
     }
   });
 
+  // ===============================
+  // RAG INSIGHTS ENDPOINTS
+  // ===============================
+
+  // GET /api/insights - Fetch insight cards for current user
+  app.get("/api/insights", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const insights = await db
+        .select()
+        .from(insightCards)
+        .where(
+          and(
+            eq(insightCards.userId, userId),
+            eq(insightCards.isActive, true)
+          )
+        )
+        .orderBy(desc(insightCards.confidence), desc(insightCards.createdAt));
+
+      res.json(insights);
+    } catch (error: any) {
+      logger.error('[Insights] Fetch error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/insights/generate - Manually trigger insight generation
+  app.post("/api/insights/generate", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { generateInsightCards } = await import('./services/correlationEngine');
+      const newInsights = await generateInsightCards(userId);
+
+      res.json({
+        success: true,
+        generated: newInsights.length,
+        insights: newInsights
+      });
+    } catch (error: any) {
+      logger.error('[Insights] Generation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // DELETE /api/insights/:id - Soft delete an insight card
+  app.delete("/api/insights/:id", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      await db
+        .update(insightCards)
+        .set({ isActive: false })
+        .where(
+          and(
+            eq(insightCards.id, id),
+            eq(insightCards.userId, userId)
+          )
+        );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[Insights] Delete error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   registerAdminRoutes(app);
   
   // Mobile auth routes (Apple, Google, Email/Password)
