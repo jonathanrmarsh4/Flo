@@ -38,16 +38,8 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
         <div className="px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={onClose}
-              className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
-              data-testid="button-back"
-            >
-              ←
-            </button>
+          <div className="flex items-center justify-center">
             <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Diagnostics</h1>
-            <div className="w-12"></div> {/* Spacer for centering */}
           </div>
         </div>
       </div>
