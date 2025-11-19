@@ -86,9 +86,14 @@ export function BodyCompositionTile({
   const weightKg = snapshot?.weightKg;
   
   // Calculate lean percentage from lean mass and weight (with null protection)
-  const leanPercent = (weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined) 
-    ? (leanMassKg / weightKg) * 100 
-    : null;
+  // Or if we have body fat %, calculate lean % as 100 - body fat %
+  let leanPercent: number | null = null;
+  if (weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined) {
+    leanPercent = (leanMassKg / weightKg) * 100;
+  } else if (bodyFatPct !== null && bodyFatPct !== undefined) {
+    // If we have body fat % but not lean mass kg, calculate lean % as complement
+    leanPercent = 100 - bodyFatPct;
+  }
   
   // Show donut chart only if we have fat percentage (lean percent is optional)
   const hasBodyComp = bodyFatPct !== null && bodyFatPct !== undefined;
