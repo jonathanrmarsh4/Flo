@@ -21,8 +21,11 @@ export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
     queryKey: ['/api/insights'],
   });
 
-  const insightsArray = insights || [];
-  const newCount = insightsArray.filter(i => i.isNew).length;
+  // Handle both array response and legacy object response {insights: [], newCount: 0}
+  const insightsArray = Array.isArray(insights) 
+    ? insights 
+    : (insights as any)?.insights || [];
+  const newCount = insightsArray.filter((i: any) => i.isNew).length;
   const topInsights = insightsArray.slice(0, 2);
 
   return (
