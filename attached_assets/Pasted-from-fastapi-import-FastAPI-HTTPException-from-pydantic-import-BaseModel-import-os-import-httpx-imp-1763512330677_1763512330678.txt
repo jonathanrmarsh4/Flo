@@ -1,0 +1,120 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import os
+import httpx
+import json
+
+# ───────────────────────────────
+# Secrets (add in Replit left sidebar)
+# ───────────────────────────────
+GROK_API_KEY = os.getenv("GROK_API_KEY") or "your-key-here-for-testing"
+
+app = FastAPI()
+
+# ───────────────────────────────
+# Models
+# ───────────────────────────────
+class ChatRequest(BaseModel):
+    user_id: str
+    message: str
+
+class ChatResponse(BaseModel):
+    reply: str
+
+# ───────────────────────────────
+# In-memory user data — this mirrors exactly what you have today
+# (Replace this whole dict with real DB calls later)
+# ───────────────────────────────
+USER_DATA = {
+    "jon_123": {
+        "profile": "Jon, 52M, Stockholm. Goals: top-5% longevity + feel strong every day.",
+        "user_brief": """Current reality (Nov 19 2025):
+• Latest blood panel (Nov 15): Fasting glucose 5.1 mmol/L, ApoB 87 mg/dL (↓19), hs-CRP 0.4 mg/L, Testosterone 11.6 nmol/L
+• CAC score 12 (73rd percentile)
+• Flomentum 7-day averages:
+    – Steps: 11,200
+    – Workouts: 4.2 sessions/week
+    – Sleep: 7 h 42 m
+    – Resting HR: 64 bpm (↓ from 70)
+    – HRV: 58 ms (improving)
+• No meal logging or experiments active yet""",
+
+        # These are the magic “personal patterns” the AI will use right now
+        "insight_cards": [
+            "Your resting heart rate drops ~6 bpm every time you hit 4+ workouts in a week",
+            "HRV climbs above 65 ms whenever sleep stays over 7 h 30 m for 5+ nights",
+            "Steps consistently above 10k correlate with lower fasting glucose on next panel",
+            "When Flomentum score is green 6+ days → you report higher energy (from past notes)"
+        ]
+    }
+}
+
+# ───────────────────────────────
+# System prompt — perfect for current feature set
+# ───────────────────────────────
+SYSTEM_PROMPT = """You are Flō Oracle — warm, witty, evidence-based longevity friend.
+Respond like a real human who knows Jon deeply.
+
+Core rules:
+- Talk about life, energy, mood first — data second.
+- Only mention numbers when they naturally explain what the user is feeling.
+- Max 2 stats per reply.
+- Never dump the whole panel.
+- End every reply with a short, natural question.
+- No diagnosing or prescribing.
+
+Active personal patterns (use these constantly):
+{insight_cards}
+
+Current user brief:
+{user_brief}
+"""
+
+# ───────────────────────────────
+# Chat endpoint
+# ───────────────────────────────
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    user_id = request.user_id
+    message = request.message.strip().lower()
+
+    if user_id not in USER_DATA:
+        raise HTTPException(404, "User not found – add them to USER_DATA")
+
+    data = USER_DATA[user_id]
+
+    cards_str = "\n".join(f"• {c}" for c in data["insight_cards"])
+
+    full_system = SYSTEM_PROMPT.format(
+        insight_cards=cards_str,
+        user_brief=data["user_brief"]
+    )
+
+    messages = [
+        {"role": "system", "content": full_system},
+        {"role": "user", "content": request.message}
+    ]
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://api.x.ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROK_API_KEY}"},
+            json={
+                "model": "grok-4",           # change to grok-3-mini to save 80% cost
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 450
+            },
+            timeout=30.0
+        )
+
+    if resp.status_code != 200:
+        raise HTTPException(500, f"Grok error: {resp.text}")
+
+    reply = resp.json()["choices"][0]["message"]["content"]
+    return ChatResponse(reply=reply)
+
+# ───────────────────────────────
+@app.get("/")
+async def root():
+    return {"status": "Flō Oracle ready – using only Flomentum + blood data (Nov 19 2025)"}
