@@ -185,11 +185,6 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
               <BodyCompositionTile 
                 isDark={isDark}
                 score={dashboardData?.componentScores?.bodyComposition}
-                fatPercent={dashboardData?.details?.bodyCompositionDetails?.fatPercent}
-                leanPercent={dashboardData?.details?.bodyCompositionDetails?.leanPercent}
-                visceralFatArea={dashboardData?.details?.bodyCompositionDetails?.visceralFatArea}
-                visceralFatScore={dashboardData?.details?.bodyCompositionDetails?.visceralFatScore}
-                boneHealth={dashboardData?.details?.bodyCompositionDetails?.boneHealth}
               />
             </div>
 
