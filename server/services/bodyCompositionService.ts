@@ -90,24 +90,47 @@ export class BodyCompositionService {
 
     const study = dexaScan[0];
 
-    // Fetch associated metrics
+    // First, try to get metrics from diagnostic_metrics table
     const metrics = await db
       .select()
       .from(diagnosticMetrics)
       .where(eq(diagnosticMetrics.studyId, study.id));
 
-    // Extract body composition metrics
     const bodyFatMetric = metrics.find(m => m.code === 'body_fat_pct');
     const leanMassMetric = metrics.find(m => m.code === 'lean_body_mass_kg');
     const vatMetric = metrics.find(m => m.code === 'vat_area_cm2');
     const weightMetric = metrics.find(m => m.code === 'weight_kg');
 
+    // If no metrics found in diagnostic_metrics, try extracting from ai_payload
+    let bodyFatPct = bodyFatMetric?.valueNumeric ?? null;
+    let leanMassKg = leanMassMetric?.valueNumeric ?? null;
+    let vatAreaCm2 = vatMetric?.valueNumeric ?? null;
+    let weightKg = weightMetric?.valueNumeric ?? null;
+
+    // Check ai_payload for body composition data if not found in metrics
+    if (study.aiPayload && typeof study.aiPayload === 'object') {
+      const payload = study.aiPayload as any;
+      const bodyComp = payload.body_composition;
+      
+      if (bodyComp) {
+        // Use ai_payload data as fallback
+        bodyFatPct = bodyFatPct ?? bodyComp.fat_percent_total ?? null;
+        leanMassKg = leanMassKg ?? bodyComp.lean_mass_kg ?? null;
+        vatAreaCm2 = vatAreaCm2 ?? bodyComp.vat_area_cm2 ?? null;
+        
+        // Calculate weight from fat_mass_kg + lean_mass_kg if available
+        if (!weightKg && bodyComp.fat_mass_kg !== null && bodyComp.lean_mass_kg !== null) {
+          weightKg = bodyComp.fat_mass_kg + bodyComp.lean_mass_kg;
+        }
+      }
+    }
+
     return {
       scanDate: study.studyDate.toISOString(),
-      weightKg: weightMetric?.valueNumeric ?? null,
-      bodyFatPct: bodyFatMetric?.valueNumeric ?? null,
-      leanMassKg: leanMassMetric?.valueNumeric ?? null,
-      vatAreaCm2: vatMetric?.valueNumeric ?? null,
+      weightKg,
+      bodyFatPct,
+      leanMassKg,
+      vatAreaCm2,
     };
   }
 
