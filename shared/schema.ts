@@ -434,6 +434,50 @@ export const apnsConfiguration = pgTable("apns_configuration", {
   activeIdx: index("apns_config_active_idx").on(table.isActive),
 }));
 
+// Insights system enums and tables
+export const insightCategoryEnum = pgEnum("insight_category", [
+  "activity_sleep",
+  "recovery_hrv",
+  "sleep_quality",
+  "biomarkers",
+  "nutrition",
+  "stress",
+  "general"
+]);
+
+// Discovered health insight cards
+export const insightCards = pgTable("insight_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  category: insightCategoryEnum("category").notNull(),
+  pattern: text("pattern").notNull(), // Human-readable pattern description
+  confidence: real("confidence").notNull(), // 0.0-1.0
+  supportingData: text("supporting_data"), // Brief summary (e.g., "Based on 18 days")
+  details: jsonb("details"), // Extended data: { daysAnalyzed, avgBefore, avgAfter, dateRange, etc. }
+  isNew: boolean("is_new").default(true).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("insight_cards_user_idx").on(table.userId),
+  categoryIdx: index("insight_cards_category_idx").on(table.category),
+  confidenceIdx: index("insight_cards_confidence_idx").on(table.confidence),
+  activeIdx: index("insight_cards_active_idx").on(table.isActive),
+}));
+
+// Health data embeddings for RAG (vector stored via Supabase pgvector)
+export const healthEmbeddings = pgTable("health_embeddings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  contentType: text("content_type").notNull(), // "blood_work", "healthkit_daily", "insight_card", "sleep_night"
+  content: text("content").notNull(), // Text representation for embedding
+  metadata: jsonb("metadata").notNull(), // { bloodWorkId, date, biomarkers, etc. }
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("health_embeddings_user_idx").on(table.userId),
+  typeIdx: index("health_embeddings_type_idx").on(table.contentType),
+}));
+
 // Biomarker dictionary tables
 export const biomarkers = pgTable("biomarkers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1877,3 +1921,33 @@ export const insertApnsConfigurationSchema = createInsertSchema(apnsConfiguratio
 
 export type InsertApnsConfiguration = z.infer<typeof insertApnsConfigurationSchema>;
 export type ApnsConfiguration = typeof apnsConfiguration.$inferSelect;
+
+// Insight category enum for validation
+export const InsightCategoryEnum = z.enum([
+  "activity_sleep",
+  "recovery_hrv",
+  "sleep_quality",
+  "biomarkers",
+  "nutrition",
+  "stress",
+  "general"
+]);
+
+// Insight card schemas
+export const insertInsightCardSchema = createInsertSchema(insightCards).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertInsightCard = z.infer<typeof insertInsightCardSchema>;
+export type InsightCard = typeof insightCards.$inferSelect;
+
+// Health embedding schemas
+export const insertHealthEmbeddingSchema = createInsertSchema(healthEmbeddings).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertHealthEmbedding = z.infer<typeof insertHealthEmbeddingSchema>;
+export type HealthEmbedding = typeof healthEmbeddings.$inferSelect;
