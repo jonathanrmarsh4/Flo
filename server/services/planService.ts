@@ -20,8 +20,8 @@ export async function getUserPlan(userId: string): Promise<Plan> {
       return PLANS.FREE;
     }
 
-    // Map user role to plan
-    const planId: PlanId = user.role === 'premium' ? 'PREMIUM' : 'FREE';
+    // Map user role to plan (admins are automatically premium)
+    const planId: PlanId = (user.role === 'premium' || user.role === 'admin') ? 'PREMIUM' : 'FREE';
     return PLANS[planId];
   } catch (error) {
     logger.error('[PlanService] Error getting user plan:', error);
@@ -169,7 +169,7 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
 
     if (!customer) {
       return { 
-        isPremium: user.role === 'premium',
+        isPremium: user.role === 'premium' || user.role === 'admin',
         hasActiveSubscription: false,
       };
     }
@@ -182,7 +182,7 @@ export async function getUserSubscriptionStatus(userId: string): Promise<{
       .limit(1);
 
     return {
-      isPremium: user.role === 'premium',
+      isPremium: user.role === 'premium' || user.role === 'admin',
       hasActiveSubscription: subscription?.status === 'active',
       subscription,
     };
