@@ -294,7 +294,7 @@ export function useHealthKitAutoSync() {
             const fiveMinutes = 5 * 60 * 1000;
             
             if (timeSinceBackground > fiveMinutes) {
-              logger.info(`🌅 [Visibility] App woke after ${Math.round(timeSinceBackground / 60000)}min - forcing full sync`);
+              logger.info(`🌅 [Visibility] App woke after ${Math.round(timeSinceBackground / 60000)}min - forcing webview reload`);
               shouldForceSync = true;
             }
           }
@@ -303,57 +303,28 @@ export function useHealthKitAutoSync() {
         }
       }
       
-      // Only sync if forced or if on web (web always syncs on foreground)
-      if (!shouldForceSync && isNative) {
-        logger.debug('[Visibility] Skipping sync - background period was short (<5 min)');
-        return;
+      // Reload webview if app was backgrounded for >5 minutes (iOS only)
+      if (shouldForceSync && isNative) {
+        logger.info('[Visibility] 🔄 Reloading webview to clear frozen cache state...');
+        window.location.reload();
+        return; // Reload will trigger initial sync via first useEffect
       }
       
-      logger.info('🚀 [Visibility] Triggering HealthKit sync after foreground...');
-      lastResumeSync.current = Date.now(); // Update shared debouncing timestamp
-      
-      try {
-        // Sync last 7 days to catch any data user added while app was closed
-        const syncResult = await Readiness.syncReadinessData({ days: 7 });
+      // Web fallback: sync on foreground
+      if (!isNative) {
+        logger.info('🚀 [Visibility] Web platform - syncing on foreground...');
+        lastResumeSync.current = Date.now();
         
-        if (syncResult.success) {
-          logger.info('[Visibility] Foreground sync completed successfully');
-          
-          // Persist sync time and reset background timestamp (native only)
-          if (isNative) {
-            const now = Date.now().toString();
-            await Promise.all([
-              Preferences.set({ key: PREF_LAST_SYNC_AT, value: now }),
-              Preferences.set({ key: PREF_LAST_BACKGROUND_AT, value: now })
-            ]);
-            logger.info('[Visibility] Sync timestamps updated');
+        try {
+          const syncResult = await Readiness.syncReadinessData({ days: 7 });
+          if (syncResult.success) {
+            logger.info('[Visibility] Web sync completed');
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            queryClient.invalidateQueries({ predicate: isHealthQuery });
           }
-          
-          // Wait for backend upload
-          await new Promise(resolve => setTimeout(resolve, 4000));
-          
-          // Refetch dashboard queries (silent, no notification)
-          try {
-            queryClient.invalidateQueries({ 
-              predicate: isHealthQuery,
-              refetchType: 'active'
-            });
-            
-            await Promise.allSettled([
-              queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
-            ]);
-            
-            logger.info('✅ [Visibility] Dashboard refreshed after foreground sync');
-          } catch (err) {
-            logger.error('[Visibility] Failed to refresh dashboard', err);
-          }
+        } catch (error) {
+          logger.debug('[Visibility] Web sync failed');
         }
-      } catch (error) {
-        logger.debug('[Visibility] Foreground sync failed - likely no permissions or network issue');
       }
     };
     
@@ -401,51 +372,17 @@ export function useHealthKitAutoSync() {
               const fiveMinutes = 5 * 60 * 1000;
               
               if (timeSinceBackground > fiveMinutes) {
-                logger.info(`🌅 [App] App was backgrounded for ${Math.round(timeSinceBackground / 60000)}min - forcing sync`);
+                logger.info(`🌅 [App] App was backgrounded for ${Math.round(timeSinceBackground / 60000)}min - forcing webview reload + sync`);
                 
-                lastResumeSync.current = Date.now(); // Update shared debouncing timestamp
+                // CRITICAL FIX: Reload webview to clear frozen React Query cache
+                // iOS suspends WKWebView overnight, freezing React Query observers
+                // Reload ensures hooks remount and refetch actually executes
+                logger.info('[App] 🔄 Reloading webview to clear frozen cache state...');
+                window.location.reload();
                 
-                // Force full sync after long background period
-                try {
-                  const syncResult = await Readiness.syncReadinessData({ days: 7 });
-                  
-                  if (syncResult.success) {
-                    logger.info('[App] Resume sync completed successfully');
-                    
-                    // Persist sync time AND reset background timestamp to prevent repeat syncs
-                    const now = Date.now().toString();
-                    await Promise.all([
-                      Preferences.set({ key: PREF_LAST_SYNC_AT, value: now }),
-                      Preferences.set({ key: PREF_LAST_BACKGROUND_AT, value: now })
-                    ]);
-                    logger.info('[App] Sync timestamps updated - next resume won\'t force sync');
-                    
-                    // Wait for backend upload
-                    await new Promise(resolve => setTimeout(resolve, 4000));
-                    
-                    // Refetch dashboard queries
-                    try {
-                      queryClient.invalidateQueries({ 
-                        predicate: isHealthQuery,
-                        refetchType: 'active'
-                      });
-                      
-                      await Promise.allSettled([
-                        queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
-                        queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'] }),
-                        queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'] }),
-                        queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
-                        queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
-                      ]);
-                      
-                      logger.info('✅ [App] Dashboard refreshed after resume sync');
-                    } catch (err) {
-                      logger.error('[App] Failed to refresh dashboard', err);
-                    }
-                  }
-                } catch (error) {
-                  logger.error('[App] Resume sync failed', error);
-                }
+                // Note: Code below won't execute due to reload, but keeping for reference
+                // After reload, the initial sync in first useEffect will trigger
+                lastResumeSync.current = Date.now();
               } else {
                 logger.debug(`[App] App was backgrounded for ${Math.round(timeSinceBackground / 1000)}s - no sync needed`);
               }
