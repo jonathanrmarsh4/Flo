@@ -5165,13 +5165,7 @@ You are talking to one user only. Personalise everything. Never use generic advi
         .where(and(...conditions))
         .orderBy(desc(insightCards.confidence), desc(insightCards.createdAt));
 
-      // Count new insights
-      const newCount = insights.filter(i => i.isNew).length;
-
-      res.json({ 
-        insights,
-        newCount
-      });
+      res.json(insights);
     } catch (error: any) {
       logger.error('[Insights] Get insights error:', error);
       res.status(500).json({ error: error.message });
