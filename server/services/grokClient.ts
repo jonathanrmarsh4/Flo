@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { logger } from '../logger';
+import { trackGrokChat } from './aiUsageTracker';
 
 export interface GrokChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -43,7 +44,7 @@ class GrokClient {
 
   async chat(
     messages: GrokChatMessage[],
-    options: GrokChatOptions = {}
+    options: GrokChatOptions & { userId?: string } = {}
   ): Promise<string> {
     if (!this.client) {
       throw new Error('Grok client not initialized - check XAI_API_KEY');
@@ -53,8 +54,11 @@ class GrokClient {
       model = 'grok-3-mini',
       maxTokens = 1000,
       temperature = 0.7,
+      userId,
     } = options;
 
+    const startTime = Date.now();
+    
     try {
       logger.info(`[Grok] Sending chat request with ${messages.length} messages using ${model}`);
 
@@ -67,11 +71,45 @@ class GrokClient {
       }) as OpenAI.Chat.Completions.ChatCompletion;
 
       const response = completion.choices[0]?.message?.content || '';
+      const latencyMs = Date.now() - startTime;
+      
+      // Track usage
+      if (completion.usage) {
+        await trackGrokChat(
+          'grok-chat',
+          model as any,
+          {
+            promptTokens: completion.usage.prompt_tokens,
+            completionTokens: completion.usage.completion_tokens,
+            totalTokens: completion.usage.total_tokens,
+          },
+          {
+            userId,
+            latencyMs,
+            status: 'success',
+          }
+        );
+      }
       
       logger.info(`[Grok] Received response (${response.length} chars)`);
       
       return response;
     } catch (error: any) {
+      const latencyMs = Date.now() - startTime;
+      
+      // Track error
+      await trackGrokChat(
+        'grok-chat',
+        model as any,
+        { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        {
+          userId,
+          latencyMs,
+          status: 'error',
+          errorMessage: error.message,
+        }
+      ).catch(() => {}); // Don't let tracking errors break the flow
+      
       logger.error('[Grok] Chat request failed:', {
         error: error.message,
         status: error.status,

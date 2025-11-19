@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { getSupabaseClient } from './supabaseClient';
 import { logger } from '../logger';
+import { trackOpenAICompletion } from './aiUsageTracker';
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -17,15 +18,52 @@ export interface EmbeddingInput {
 /**
  * Generate embedding vector for text content using OpenAI
  */
-export async function generateEmbedding(text: string): Promise<number[]> {
+export async function generateEmbedding(text: string, userId?: string): Promise<number[]> {
+  const startTime = Date.now();
+  
   try {
     const response = await openai.embeddings.create({
       model: EMBEDDING_MODEL,
       input: text,
     });
 
+    const latencyMs = Date.now() - startTime;
+
+    // Track usage
+    if (response.usage) {
+      await trackOpenAICompletion(
+        'embedding',
+        EMBEDDING_MODEL as any,
+        {
+          promptTokens: response.usage.prompt_tokens,
+          completionTokens: 0,
+          totalTokens: response.usage.total_tokens,
+        },
+        {
+          userId,
+          latencyMs,
+          status: 'success',
+        }
+      );
+    }
+
     return response.data[0].embedding;
   } catch (error: any) {
+    const latencyMs = Date.now() - startTime;
+    
+    // Track error
+    await trackOpenAICompletion(
+      'embedding',
+      EMBEDDING_MODEL as any,
+      { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      {
+        userId,
+        latencyMs,
+        status: 'error',
+        errorMessage: error.message,
+      }
+    ).catch(() => {});
+    
     logger.error('[EmbeddingService] Failed to generate embedding:', error);
     throw new Error(`Failed to generate embedding: ${error.message}`);
   }
@@ -38,8 +76,8 @@ export async function storeEmbedding(input: EmbeddingInput): Promise<string> {
   try {
     const supabase = getSupabaseClient();
     
-    // Generate embedding vector
-    const embedding = await generateEmbedding(input.content);
+    // Generate embedding vector (pass userId for tracking)
+    const embedding = await generateEmbedding(input.content, input.userId);
 
     // Insert into Supabase with vector
     const { data, error } = await supabase
@@ -85,8 +123,8 @@ export async function searchSimilarContent(
   try {
     const supabase = getSupabaseClient();
     
-    // Generate embedding for the search query
-    const queryEmbedding = await generateEmbedding(query);
+    // Generate embedding for the search query (pass userId for tracking)
+    const queryEmbedding = await generateEmbedding(query, userId);
 
     // Build the RPC call for vector similarity search
     let rpcQuery = supabase.rpc('match_health_embeddings', {

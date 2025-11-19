@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { z } from "zod";
 import { PDFParse } from "pdf-parse";
+import { trackOpenAICompletion } from './aiUsageTracker';
 
 function getOpenAIClient(): OpenAI {
   if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {
@@ -50,7 +51,8 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   }
 }
 
-async function extractRawBiomarkersWithGPT(pdfText: string): Promise<ExtractionResponse> {
+async function extractRawBiomarkersWithGPT(pdfText: string, userId?: string): Promise<ExtractionResponse> {
+  const startTime = Date.now();
   const systemPrompt = `You are a precise medical lab report data extractor. Your ONLY job is to extract biomarker measurements EXACTLY as they appear in the report.
 
 CRITICAL RULES:
@@ -131,11 +133,31 @@ Output pure extracted data only.`;
     throw new Error("GPT-4o failed to return a response");
   }
 
+  const latencyMs = Date.now() - startTime;
+
+  // Track usage
+  if (completion.usage) {
+    await trackOpenAICompletion(
+      'biomarker-extraction',
+      'gpt-4o',
+      {
+        promptTokens: completion.usage.prompt_tokens,
+        completionTokens: completion.usage.completion_tokens,
+        totalTokens: completion.usage.total_tokens,
+      },
+      {
+        userId,
+        latencyMs,
+        status: 'success',
+      }
+    );
+  }
+
   const parsed = JSON.parse(content);
   return extractionResponseSchema.parse(parsed);
 }
 
-export async function extractRawBiomarkers(pdfBuffer: Buffer): Promise<SimpleExtractionResult> {
+export async function extractRawBiomarkers(pdfBuffer: Buffer, userId?: string): Promise<SimpleExtractionResult> {
   const MAX_PDF_SIZE = 10 * 1024 * 1024;
   
   if (pdfBuffer.length > MAX_PDF_SIZE) {
@@ -155,7 +177,7 @@ export async function extractRawBiomarkers(pdfBuffer: Buffer): Promise<SimpleExt
       };
     }
 
-    const extractionData = await extractRawBiomarkersWithGPT(pdfText);
+    const extractionData = await extractRawBiomarkersWithGPT(pdfText, userId);
     
     if (!extractionData.biomarkers || extractionData.biomarkers.length === 0) {
       return {

@@ -766,6 +766,7 @@ export class DatabaseStorage implements IStorage {
     queries: number;
     cost: number;
     model: string;
+    provider: string;
     avgLatency: number | null;
   }>> {
     const daysAgo = new Date();
@@ -784,13 +785,20 @@ export class DatabaseStorage implements IStorage {
       .groupBy(sql`DATE(created_at)`, openaiUsageEvents.model)
       .orderBy(sql`DATE(created_at) DESC`);
 
-    return results.map(r => ({
-      date: r.date,
-      queries: r.queries,
-      cost: Number(r.cost),
-      model: r.model,
-      avgLatency: r.avgLatency ? Number(r.avgLatency) : null,
-    }));
+    return results.map(r => {
+      // Determine provider from model name
+      const model = r.model.toLowerCase();
+      const provider = model.includes('grok') ? 'grok' : 'openai';
+      
+      return {
+        date: r.date,
+        queries: r.queries,
+        cost: Number(r.cost),
+        model: r.model,
+        provider,
+        avgLatency: r.avgLatency ? Number(r.avgLatency) : null,
+      };
+    });
   }
 
   async getRevenueTrends(months: number = 7): Promise<Array<{

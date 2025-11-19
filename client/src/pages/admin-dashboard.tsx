@@ -534,6 +534,33 @@ export default function AdminDashboard() {
 
         {activeTab === 'api' && (
           <div className="space-y-6">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                <div className="text-xs text-white/50">Total Queries (7d)</div>
+                <div className="text-2xl text-white mt-1">
+                  {apiUsageData ? (apiUsageData as any).reduce((sum: number, item: any) => sum + item.queries, 0).toLocaleString() : '0'}
+                </div>
+              </div>
+              <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                <div className="text-xs text-white/50">Total Cost (7d)</div>
+                <div className="text-2xl text-white mt-1">
+                  ${apiUsageData ? (apiUsageData as any).reduce((sum: number, item: any) => sum + item.cost, 0).toFixed(2) : '0.00'}
+                </div>
+              </div>
+              <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                <div className="text-xs text-white/50">Providers Used</div>
+                <div className="flex gap-2 mt-2">
+                  {apiUsageData && (apiUsageData as any).some((item: any) => item.provider === 'openai') && (
+                    <span className="px-2 py-1 rounded-md bg-green-500/20 text-green-300 text-xs">OpenAI</span>
+                  )}
+                  {apiUsageData && (apiUsageData as any).some((item: any) => item.provider === 'grok') && (
+                    <span className="px-2 py-1 rounded-md bg-blue-500/20 text-blue-300 text-xs">Grok (xAI)</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
                 <Zap className="w-5 h-5" />
@@ -545,6 +572,7 @@ export default function AdminDashboard() {
                     <thead className="border-b border-white/10">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs text-white/70">Date</th>
+                        <th className="px-4 py-3 text-left text-xs text-white/70">Provider</th>
                         <th className="px-4 py-3 text-left text-xs text-white/70">Model</th>
                         <th className="px-4 py-3 text-right text-xs text-white/70">Queries</th>
                         <th className="px-4 py-3 text-right text-xs text-white/70">Cost</th>
@@ -555,9 +583,18 @@ export default function AdminDashboard() {
                       {(apiUsageData as any).map((item: any, idx: number) => (
                         <tr key={idx} className="hover:bg-white/5">
                           <td className="px-4 py-3 text-sm text-white">{item.date}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`px-2 py-0.5 rounded-md text-xs ${
+                              item.provider === 'openai' 
+                                ? 'bg-green-500/20 text-green-300' 
+                                : 'bg-blue-500/20 text-blue-300'
+                            }`}>
+                              {item.provider === 'openai' ? 'OpenAI' : 'Grok'}
+                            </span>
+                          </td>
                           <td className="px-4 py-3 text-sm text-purple-400">{item.model}</td>
                           <td className="px-4 py-3 text-sm text-white text-right">{item.queries.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-sm text-green-400 text-right">${item.cost.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-green-400 text-right">${item.cost.toFixed(4)}</td>
                           <td className="px-4 py-3 text-sm text-white/70 text-right">
                             {item.avgLatency ? `${item.avgLatency.toFixed(0)}ms` : 'N/A'}
                           </td>

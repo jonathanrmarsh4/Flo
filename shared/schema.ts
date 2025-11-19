@@ -662,7 +662,7 @@ export const healthInsights = pgTable("health_insights", {
   index("idx_health_insights_generated_at").on(table.generatedAt),
 ]);
 
-// OpenAI usage tracking for admin analytics
+// AI usage tracking for admin analytics (OpenAI + Grok)
 export const openaiUsageEvents = pgTable("openai_usage_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }),
