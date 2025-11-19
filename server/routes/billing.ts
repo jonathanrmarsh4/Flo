@@ -454,7 +454,17 @@ router.get('/plan', async (req: any, res) => {
  */
 router.get('/paywall-modals', async (req: any, res) => {
   try {
-    res.json({ modals: PAYWALL_MODALS });
+    // Transform modals to match frontend expectations
+    const modalsArray = Object.values(PAYWALL_MODALS).map(modal => ({
+      id: modal.id,
+      title: modal.title,
+      description: modal.body, // Map 'body' to 'description'
+      benefits: modal.highlightedBenefits, // Map 'highlightedBenefits' to 'benefits'
+      ctaText: modal.primaryCtaLabel, // Map 'primaryCtaLabel' to 'ctaText'
+      ctaAction: 'upgrade_to_premium' as const,
+    }));
+
+    res.json({ modals: modalsArray });
   } catch (error: any) {
     logger.error('[Billing] Get paywall modals error:', error);
     res.status(500).json({ error: error.message });
