@@ -8,7 +8,8 @@ import {
   userDailyMetrics,
   flomentumDaily,
   sleepNights,
-  insightCards
+  insightCards,
+  lifeEvents
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
@@ -366,6 +367,65 @@ export async function getRelevantInsights(userId: string, limit: number = 5): Pr
     return lines.join('\n');
   } catch (error) {
     logger.error('[FloOracle] Error retrieving insights:', error);
+    return '';
+  }
+}
+
+/**
+ * Get recent life events to enhance conversational context
+ * Returns user's logged behaviors from the past 14 days
+ */
+export async function getRecentLifeEvents(userId: string, days: number = 14): Promise<string> {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const events = await db
+      .select({
+        eventType: lifeEvents.eventType,
+        details: lifeEvents.details,
+        notes: lifeEvents.notes,
+        happenedAt: lifeEvents.happenedAt,
+      })
+      .from(lifeEvents)
+      .where(
+        and(
+          eq(lifeEvents.userId, userId),
+          gte(lifeEvents.happenedAt, cutoffDate)
+        )
+      )
+      .orderBy(desc(lifeEvents.happenedAt))
+      .limit(10);
+
+    if (events.length === 0) {
+      return '';
+    }
+
+    const lines = [
+      '',
+      'RECENT LOGGED BEHAVIORS (reference these naturally when relevant):',
+    ];
+
+    events.forEach((event) => {
+      const date = new Date(event.happenedAt);
+      const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
+      const timeRef = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
+      
+      let eventDesc = event.eventType.replace(/_/g, ' ');
+      if (event.details && typeof event.details === 'object') {
+        const details = event.details as Record<string, any>;
+        if (details.duration_min) eventDesc += ` (${details.duration_min} min)`;
+        if (details.drinks) eventDesc += ` (${details.drinks} drinks)`;
+        if (details.names) eventDesc += ` (${details.names.join(', ')})`;
+      }
+      
+      lines.push(`• ${timeRef}: ${eventDesc}`);
+    });
+
+    logger.info(`[FloOracle] Retrieved ${events.length} life events for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving life events:', error);
     return '';
   }
 }

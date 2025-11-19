@@ -4,6 +4,7 @@ import {
   userDailyMetrics, 
   sleepNights, 
   insightCards,
+  lifeEvents,
   type InsightCard 
 } from '@shared/schema';
 import { logger } from '../logger';
@@ -252,6 +253,291 @@ async function detectSleepHRVCorrelation(userId: string): Promise<CorrelationRes
 }
 
 /**
+ * Detect correlation between life events and health metrics
+ * Examples: ice baths → RHR drop, late meals → glucose spike, supplements → HRV boost
+ */
+async function detectLifeEventCorrelations(userId: string): Promise<CorrelationResult[]> {
+  try {
+    const correlations: CorrelationResult[] = [];
+    
+    // Get life events from last 90 days
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const events = await db
+      .select()
+      .from(lifeEvents)
+      .where(
+        and(
+          eq(lifeEvents.userId, userId),
+          gte(lifeEvents.happenedAt, ninetyDaysAgo)
+        )
+      )
+      .orderBy(desc(lifeEvents.happenedAt));
+
+    if (events.length < 3) {
+      logger.debug('[CorrelationEngine] Insufficient life events for correlation');
+      return correlations;
+    }
+
+    // Group events by type
+    const eventsByType = events.reduce((acc, event) => {
+      if (!acc[event.eventType]) acc[event.eventType] = [];
+      acc[event.eventType].push(event);
+      return acc;
+    }, {} as Record<string, typeof events>);
+
+    // Analyze ice bath → RHR correlation
+    const iceBaths = eventsByType['ice_bath'] || [];
+    if (iceBaths.length >= 3) {
+      const iceBathCorr = await analyzeIceBathRHRCorrelation(userId, iceBaths);
+      if (iceBathCorr) correlations.push(iceBathCorr);
+    }
+
+    // Analyze alcohol → HRV correlation
+    const alcoholEvents = eventsByType['alcohol'] || [];
+    if (alcoholEvents.length >= 3) {
+      const alcoholCorr = await analyzeAlcoholHRVCorrelation(userId, alcoholEvents);
+      if (alcoholCorr) correlations.push(alcoholCorr);
+    }
+
+    // Analyze supplements → HRV correlation
+    const supplementEvents = eventsByType['supplements'] || [];
+    if (supplementEvents.length >= 5) {
+      const suppCorr = await analyzeSupplementHRVCorrelation(userId, supplementEvents);
+      if (suppCorr) correlations.push(suppCorr);
+    }
+
+    return correlations;
+  } catch (error) {
+    logger.error('[CorrelationEngine] Life event correlation error:', error);
+    return [];
+  }
+}
+
+/**
+ * Analyze ice bath → Resting Heart Rate correlation
+ */
+async function analyzeIceBathRHRCorrelation(
+  userId: string,
+  iceBaths: any[]
+): Promise<CorrelationResult | null> {
+  try {
+    let rhrDrops = 0;
+    let totalRhrChange = 0;
+
+    for (const bath of iceBaths) {
+      const bathDate = new Date(bath.happenedAt);
+      const preBathDate = new Date(bathDate);
+      preBathDate.setDate(preBathDate.getDate() - 1);
+      const postBathDate = new Date(bathDate);
+      postBathDate.setDate(postBathDate.getDate() + 2);
+
+      // Get RHR before and after
+      const [preBath] = await db
+        .select({ rhr: userDailyMetrics.restingHrBpm })
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, preBathDate.toISOString().split('T')[0])
+          )
+        )
+        .limit(1);
+
+      const [postBath] = await db
+        .select({ rhr: userDailyMetrics.restingHrBpm })
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, postBathDate.toISOString().split('T')[0])
+          )
+        )
+        .limit(1);
+
+      if (preBath?.rhr && postBath?.rhr) {
+        const change = preBath.rhr - postBath.rhr;
+        totalRhrChange += change;
+        if (change > 2) rhrDrops++;
+      }
+    }
+
+    const avgRhrDrop = totalRhrChange / iceBaths.length;
+    const successRate = rhrDrops / iceBaths.length;
+
+    if (successRate >= 0.6 && avgRhrDrop > 2) {
+      const duration = (iceBaths[0].details as any)?.duration_min || 'your';
+      return {
+        category: 'recovery_hrv',
+        pattern: `Ice baths drop your resting heart rate ${Math.round(avgRhrDrop)} bpm over the next 48 hours (${rhrDrops}/${iceBaths.length} times)`,
+        confidence: Math.min(successRate, 0.95),
+        supportingData: `Based on ${iceBaths.length} ice bath sessions`,
+        details: {
+          eventType: 'ice_bath',
+          avgRhrDrop: Math.round(avgRhrDrop * 10) / 10,
+          successRate,
+          sampleSize: iceBaths.length,
+        },
+      };
+    }
+
+    return null;
+  } catch (error) {
+    logger.error('[CorrelationEngine] Ice bath RHR correlation error:', error);
+    return null;
+  }
+}
+
+/**
+ * Analyze alcohol → HRV correlation
+ */
+async function analyzeAlcoholHRVCorrelation(
+  userId: string,
+  alcoholEvents: any[]
+): Promise<CorrelationResult | null> {
+  try {
+    let hrvDrops = 0;
+    let totalHrvChange = 0;
+
+    for (const event of alcoholEvents) {
+      const eventDate = new Date(event.happenedAt);
+      const nextDay = new Date(eventDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const priorDay = new Date(eventDate);
+      priorDay.setDate(priorDay.getDate() - 1);
+
+      const [prior] = await db
+        .select({ hrv: userDailyMetrics.hrvMs })
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, priorDay.toISOString().split('T')[0])
+          )
+        )
+        .limit(1);
+
+      const [next] = await db
+        .select({ hrv: userDailyMetrics.hrvMs })
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, nextDay.toISOString().split('T')[0])
+          )
+        )
+        .limit(1);
+
+      if (prior?.hrv && next?.hrv) {
+        const change = prior.hrv - next.hrv;
+        totalHrvChange += change;
+        if (change > 5) hrvDrops++;
+      }
+    }
+
+    const avgHrvDrop = totalHrvChange / alcoholEvents.length;
+    const dropRate = hrvDrops / alcoholEvents.length;
+
+    if (dropRate >= 0.6 && avgHrvDrop > 5) {
+      return {
+        category: 'recovery_hrv',
+        pattern: `Alcohol consistently drops your HRV by ${Math.round(avgHrvDrop)} ms for 24-72 hours (${hrvDrops}/${alcoholEvents.length} times)`,
+        confidence: Math.min(dropRate, 0.95),
+        supportingData: `Based on ${alcoholEvents.length} drinking occasions`,
+        details: {
+          eventType: 'alcohol',
+          avgHrvDrop: Math.round(avgHrvDrop * 10) / 10,
+          dropRate,
+          sampleSize: alcoholEvents.length,
+        },
+      };
+    }
+
+    return null;
+  } catch (error) {
+    logger.error('[CorrelationEngine] Alcohol HRV correlation error:', error);
+    return null;
+  }
+}
+
+/**
+ * Analyze supplement → HRV correlation
+ */
+async function analyzeSupplementHRVCorrelation(
+  userId: string,
+  supplementEvents: any[]
+): Promise<CorrelationResult | null> {
+  try {
+    let hrvBoosts = 0;
+    let totalHrvChange = 0;
+
+    for (const event of supplementEvents) {
+      const eventDate = new Date(event.happenedAt);
+      const nextDay = new Date(eventDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const priorDay = new Date(eventDate);
+      priorDay.setDate(priorDay.getDate() - 1);
+
+      const [prior] = await db
+        .select({ hrv: userDailyMetrics.hrvMs })
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, priorDay.toISOString().split('T')[0])
+          )
+        )
+        .limit(1);
+
+      const [next] = await db
+        .select({ hrv: userDailyMetrics.hrvMs })
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, nextDay.toISOString().split('T')[0])
+          )
+        )
+        .limit(1);
+
+      if (prior?.hrv && next?.hrv) {
+        const change = next.hrv - prior.hrv;
+        totalHrvChange += change;
+        if (change > 5) hrvBoosts++;
+      }
+    }
+
+    const avgHrvBoost = totalHrvChange / supplementEvents.length;
+    const boostRate = hrvBoosts / supplementEvents.length;
+
+    if (boostRate >= 0.6 && avgHrvBoost > 5) {
+      const suppNames = (supplementEvents[0].details as any)?.names;
+      const suppText = suppNames ? ` (${suppNames.join(', ')})` : '';
+      
+      return {
+        category: 'recovery_hrv',
+        pattern: `Your supplement stack${suppText} boosts HRV by ${Math.round(avgHrvBoost)} ms the next day (${hrvBoosts}/${supplementEvents.length} times)`,
+        confidence: Math.min(boostRate, 0.95),
+        supportingData: `Based on ${supplementEvents.length} supplement days`,
+        details: {
+          eventType: 'supplements',
+          avgHrvBoost: Math.round(avgHrvBoost * 10) / 10,
+          boostRate,
+          sampleSize: supplementEvents.length,
+          supplements: suppNames || [],
+        },
+      };
+    }
+
+    return null;
+  } catch (error) {
+    logger.error('[CorrelationEngine] Supplement HRV correlation error:', error);
+    return null;
+  }
+}
+
+/**
  * Run all correlation detection algorithms for a user
  */
 export async function detectCorrelations(userId: string): Promise<CorrelationResult[]> {
@@ -260,13 +546,15 @@ export async function detectCorrelations(userId: string): Promise<CorrelationRes
   const correlations: CorrelationResult[] = [];
 
   // Run all detection algorithms in parallel
-  const [activitySleep, sleepHRV] = await Promise.all([
+  const [activitySleep, sleepHRV, lifeEventCorrs] = await Promise.all([
     detectActivitySleepCorrelation(userId),
     detectSleepHRVCorrelation(userId),
+    detectLifeEventCorrelations(userId),
   ]);
 
   if (activitySleep) correlations.push(activitySleep);
   if (sleepHRV) correlations.push(sleepHRV);
+  correlations.push(...lifeEventCorrs);
 
   logger.info(`[CorrelationEngine] Found ${correlations.length} correlations for user ${userId}`);
   return correlations;

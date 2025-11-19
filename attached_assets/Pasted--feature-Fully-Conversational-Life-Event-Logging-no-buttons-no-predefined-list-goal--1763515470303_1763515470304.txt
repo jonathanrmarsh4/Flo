@@ -1,0 +1,55 @@
+{
+  "feature": "Fully Conversational Life-Event Logging (no buttons, no predefined list)",
+  "goal": "User can type or say anything like 'just did a 6-min ice bath', 'had pizza at 10pm', 'took NMN', 'felt stressed' → Flō Oracle instantly logs it as a structured life_event, acknowledges it naturally, and uses it forever for personalized insights.",
+  "why_it_wins": "Zero friction, works for every possible behavior now and in the future, turns casual chat into compounding personal biology data.",
+
+  "supabase_table": {
+    "sql": [
+      "create table if not exists life_events (",
+      "  id uuid primary key default uuid_generate_v4(),",
+      "  user_id text not null,",
+      "  event_type text not null,        -- e.g. 'ice_bath', 'alcohol', 'late_meal', 'supplements', 'breathwork', etc.",
+      "  details jsonb default '{}',      -- e.g. {duration_min: 6, temp_c: 6} or {drinks: 2}",
+      "  notes text,                      -- original user message",
+      "  happened_at timestamp default now()",
+      ");",
+      "create index if not exists idx_life_events_user on life_events(user_id, happened_at desc);"
+    ]
+  },
+
+  "backend_parser_function_python": {
+    "description": "Replace any regex/keyword parser with this Grok-powered one — never miss a new behavior again.",
+    "code": "import json\nimport httpx\n\nasync def extract_and_log_life_event(user_id: str, message: str):\n    # Cheap pre-filter so we don't call Grok on every single message\n    trigger_words = ['just', 'did', 'finished', 'had', 'took', 'ate', 'drank', 'felt', 'slept', 'ice bath', 'sauna', 'cold', 'alcohol', 'workout', 'stress', 'supplements', 'breathwork']\n    if not any(word in message.lower() for word in trigger_words):\n        return None\n\n    async with httpx.AsyncClient() as client:\n        response = await client.post(\n            \"https://api.x.ai/v1/chat/completions\",\n            headers={\"Authorization\": f\"Bearer {os.getenv('GROK_API_KEY')}\"},\n            json={\n                \"model\": \"grok-3-mini\",   # cheap & fast\n                \"temperature\": 0,\n                \"max_tokens\": 150,\n                \"messages\": [\n                    {\"role\": \"system\", \"content\": \"You are a life-event extractor. If the user is reporting something they just did or felt (sauna, ice bath, alcohol, late meal, supplements, workout, stress, fasting, breathwork, etc.), output strict JSON exactly like this (no extra text):\\n{\\n  \\\"log\\\": true,\\n  \\\"event_type\\\": \\\"ice_bath\\\",\\n  \\\"details\\\": {\\\"duration_min\\\": 6, \\\"temp_c\\\": 6},\\n  \\\"ack\\\": \\\"6-min ice bath logged — beast mode!\\\"\\n}\\nIf nothing to log, output {\\\"log\\\": false}\"},\n                    {\"role\": \"user\", \"content\": message}\n                ]\n            },\n            timeout=15.0\n        )\n\n    if response.status_code != 200:\n        return None\n\n    try:\n        data = json.loads(response.json()[\"choices\"][0][\"message\"][\"content\"])\n        if data.get(\"log\"):\n            supabase.table(\"life_events\").insert({\n                \"user_id\": user_id,\n                \"event_type\": data[\"event_type\"],\n                \"details\": data.get(\"details\", {}),\n                \"notes\": message\n            }).execute()\n            return data.get(\"ack\", \"Logged.\")  # natural acknowledgment to prepend\n    except:\n        pass\n    return None"
+  },
+
+  "integration_into_chat_endpoint": {
+    "code_snippet": "acknowledgment = await extract_and_log_life_event(request.user_id, request.message)\n\n# Call Grok for normal reply...\nreply = grok_response...\n\nif acknowledgment:\n    final_reply = acknowledgment + \" \\n\\n\" + reply\nelse:\n    final_reply = reply"
+  },
+
+  "nightly_insight_worker_additions": [
+    "Query life_events last 90–180 days for the user",
+    "Correlate with Flomentum (HRV, RHR, sleep, steps) and blood markers",
+    "Auto-create insight_cards such as:",
+    "- 'Every ice bath you log drops your resting heart rate ~4 bpm over the next 48 h (8/9 times)'",
+    "- 'When you take NMN your HRV is consistently +15 ms the next day'",
+    "- 'Pizza after 9 pm = fasting glucose +18 mg/dL on next panel (5/5 episodes)'",
+    "Upsert into user_insights.insight_cards"
+  ],
+
+  "example_real_conversations_after_launch": [
+    {
+      "user": "Just survived a 5-minute ice bath at 7 °C",
+      "oracle": "5 minutes at 7 °C — savage. Logged. That exact protocol dropped your RHR 5 bpm last time you did it three days in a row. Want to go for a streak?"
+    },
+    {
+      "user": "Had two glasses of wine and pizza at 10 pm 😅",
+      "oracle": "Classic Friday move. Logged. In your body that combo tanks HRV for ~72 h every single time. Want me to remind you how good tomorrow feels without it?"
+    },
+    {
+      "user": "Took my usual NMN and taurine stack this morning",
+      "oracle": "Stack logged. You’re now 9/9 on higher morning energy when you take it before 10 am. Keep that ritual alive."
+    }
+  ],
+
+  "dev_notes": "This single parser upgrade removes every limitation forever. No more updating keyword lists. Cost: ~$0.00002 per potential log message (only triggers when relevant). Users will think the AI is reading their mind."
+}

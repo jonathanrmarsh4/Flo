@@ -478,6 +478,21 @@ export const healthEmbeddings = pgTable("health_embeddings", {
   typeIdx: index("health_embeddings_type_idx").on(table.contentType),
 }));
 
+// Life events - conversational logging of user behaviors
+// Captured from natural language: "just did a 6-min ice bath", "had pizza at 10pm", "took NMN"
+export const lifeEvents = pgTable("life_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(), // e.g., 'ice_bath', 'alcohol', 'late_meal', 'supplements', 'breathwork', etc.
+  details: jsonb("details").default(sql`'{}'`), // e.g., {duration_min: 6, temp_c: 6} or {drinks: 2}
+  notes: text("notes"), // Original user message
+  happenedAt: timestamp("happened_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userTimeIdx: index("life_events_user_time_idx").on(table.userId, table.happenedAt),
+  eventTypeIdx: index("life_events_type_idx").on(table.eventType),
+}));
+
 // Biomarker dictionary tables
 export const biomarkers = pgTable("biomarkers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1951,3 +1966,14 @@ export const insertHealthEmbeddingSchema = createInsertSchema(healthEmbeddings).
 
 export type InsertHealthEmbedding = z.infer<typeof insertHealthEmbeddingSchema>;
 export type HealthEmbedding = typeof healthEmbeddings.$inferSelect;
+
+// Life event schemas
+export const insertLifeEventSchema = createInsertSchema(lifeEvents).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  happenedAt: z.coerce.date().optional(), // Allow override, default to now
+});
+
+export type InsertLifeEvent = z.infer<typeof insertLifeEventSchema>;
+export type LifeEvent = typeof lifeEvents.$inferSelect;

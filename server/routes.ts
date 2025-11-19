@@ -4741,12 +4741,44 @@ You are talking to one user only. Personalise everything. Never use generic advi
 
       logger.info('[FloOracle] Chat request', { userId, messageLength: message.length });
 
-      // Load user's health context + RAG-retrieved insights
-      const { buildUserHealthContext, getRelevantInsights } = await import('./services/floOracleContextBuilder');
-      const healthContext = await buildUserHealthContext(userId);
-      const insightsContext = await getRelevantInsights(userId, 5);
+      // Step 1: Check for life event logging (conversational behavior tracking)
+      let eventAcknowledgment: string | null = null;
+      const { couldContainLifeEvent, extractLifeEvent } = await import('./services/lifeEventParser');
       
-      const fullContext = insightsContext ? `${healthContext}\n${insightsContext}` : healthContext;
+      if (couldContainLifeEvent(message)) {
+        logger.info('[FloOracle] Potential life event detected, extracting...');
+        const extraction = await extractLifeEvent(message);
+        
+        if (extraction) {
+          // Log event to database
+          const { lifeEvents } = await import('@shared/schema');
+          await db.insert(lifeEvents).values({
+            userId,
+            eventType: extraction.eventType,
+            details: extraction.details,
+            notes: message.trim(),
+          });
+          
+          eventAcknowledgment = extraction.acknowledgment;
+          logger.info('[FloOracle] Life event logged', {
+            userId,
+            eventType: extraction.eventType,
+            acknowledgment: eventAcknowledgment,
+          });
+        }
+      }
+
+      // Step 2: Load user's health context + RAG-retrieved insights + recent life events
+      const { buildUserHealthContext, getRelevantInsights, getRecentLifeEvents } = await import('./services/floOracleContextBuilder');
+      const [healthContext, insightsContext, lifeEventsContext] = await Promise.all([
+        buildUserHealthContext(userId),
+        getRelevantInsights(userId, 5),
+        getRecentLifeEvents(userId, 14),
+      ]);
+      
+      let fullContext = healthContext;
+      if (insightsContext) fullContext += `\n${insightsContext}`;
+      if (lifeEventsContext) fullContext += `\n${lifeEventsContext}`;
 
       logger.info('[FloOracle] Health context loaded', { 
         userId,
@@ -4811,8 +4843,12 @@ ${fullContext}`;
         return res.json({ response: guardrailResult.violation.replacement });
       }
 
-      // Return sanitized output or original response
-      const finalResponse = guardrailResult.sanitizedOutput || grokResponse;
+      // Step 4: Combine life event acknowledgment with response
+      const grokReply = guardrailResult.sanitizedOutput || grokResponse;
+      const finalResponse = eventAcknowledgment 
+        ? `${eventAcknowledgment} ${grokReply}`
+        : grokReply;
+      
       res.json({ response: finalResponse });
 
     } catch (error: any) {
