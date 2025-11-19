@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { Sparkles, Activity, Heart, Moon, Droplets, Search } from 'lucide-react';
 import { MiniInsightCard } from './InsightCard';
 import { useQuery } from '@tanstack/react-query';
 import type { InsightCard } from '@shared/schema';
@@ -8,12 +9,12 @@ interface InsightsTileProps {
   onTap: () => void;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  activity_sleep: '🏃',
-  recovery_hrv: '💓',
-  sleep_quality: '💤',
-  biomarkers: '🩸',
-  general: '💡',
+const CATEGORY_ICON_MAP = {
+  activity_sleep: Activity,
+  recovery_hrv: Heart,
+  sleep_quality: Moon,
+  biomarkers: Droplets,
+  general: Sparkles,
 };
 
 export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
@@ -38,7 +39,7 @@ export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <span className="text-lg">💡</span>
+          <Sparkles className="w-4 h-4 text-teal-400" />
           <span className="text-xs tracking-wide text-white/60">INSIGHTS</span>
         </div>
         {newCount > 0 && (
@@ -51,19 +52,22 @@ export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
       {/* Mini Insight Cards */}
       {topInsights.length > 0 ? (
         <div className="space-y-3">
-          {topInsights.map((insight: InsightCard) => (
-            <MiniInsightCard
-              key={insight.id}
-              icon={CATEGORY_ICONS[insight.category] || '💡'}
-              pattern={insight.pattern}
-              supportingData={insight.supportingData || ''}
-              isNew={insight.isNew}
-            />
-          ))}
+          {topInsights.map((insight: InsightCard) => {
+            const IconComponent = CATEGORY_ICON_MAP[insight.category as keyof typeof CATEGORY_ICON_MAP] || Sparkles;
+            return (
+              <MiniInsightCard
+                key={insight.id}
+                IconComponent={IconComponent}
+                pattern={insight.pattern}
+                supportingData={insight.supportingData || ''}
+                isNew={insight.isNew}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-6">
-          <span className="text-4xl mb-2 block">🔍</span>
+          <Search className="w-10 h-10 text-white/40 mx-auto mb-2" />
           <p className="text-xs text-white/60">
             Building your insights...
           </p>

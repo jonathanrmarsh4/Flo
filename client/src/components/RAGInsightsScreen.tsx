@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Settings, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Settings, RefreshCw, Activity, Heart, Moon, Droplets, Sparkles, Search } from 'lucide-react';
 import { InsightCard } from './InsightCard';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -19,12 +19,12 @@ const FILTER_TABS = [
   { label: 'Recovery', value: 'recovery_hrv' },
 ];
 
-const CATEGORY_ICONS: Record<string, string> = {
-  activity_sleep: '🏃',
-  recovery_hrv: '💓',
-  sleep_quality: '💤',
-  biomarkers: '🩸',
-  general: '💡',
+const CATEGORY_ICON_MAP = {
+  activity_sleep: Activity,
+  recovery_hrv: Heart,
+  sleep_quality: Moon,
+  biomarkers: Droplets,
+  general: Sparkles,
 };
 
 export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
@@ -56,7 +56,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 z-50">
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-10 bg-black/95 backdrop-blur-xl border-b border-white/10">
+      <div className="fixed top-0 left-0 right-0 z-10 backdrop-blur-xl border-b border-white/10 bg-gradient-to-br from-slate-900/80 via-blue-950/80 to-slate-900/80">
         <div className="h-16 px-5 flex items-center justify-between">
           <button
             onClick={onClose}
@@ -75,7 +75,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
       </div>
 
       {/* Filter Tabs */}
-      <div className="fixed top-16 left-0 right-0 z-10 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 border-b border-white/10">
+      <div className="fixed top-16 left-0 right-0 z-10 backdrop-blur-xl border-b border-white/10 bg-gradient-to-br from-slate-900/80 via-blue-950/80 to-slate-900/80">
         <div className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-hide">
           {FILTER_TABS.map((tab) => (
             <button
@@ -95,7 +95,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
       </div>
 
       {/* Content Area */}
-      <div className="pt-32 pb-24 px-5 overflow-y-auto h-full">
+      <div className="pt-32 pb-32 px-5 overflow-y-auto h-full">
         {isLoading ? (
           <InsightsLoadingSkeleton />
         ) : (
@@ -108,26 +108,29 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
               transition={{ duration: 0.2 }}
             >
               {filteredInsights.length > 0 ? (
-                filteredInsights.map((insight, index) => (
-                  <InsightCard
-                    key={insight.id}
-                    icon={CATEGORY_ICONS[insight.category] || '💡'}
-                    category={insight.category.replace(/_/g, ' ').toUpperCase()}
-                    pattern={insight.pattern}
-                    confidence={insight.confidence}
-                    supportingData={insight.supportingData || ''}
-                    details={insight.details as any}
-                    isNew={insight.isNew}
-                    delay={index * 0.1}
-                  />
-                ))
+                filteredInsights.map((insight, index) => {
+                  const IconComponent = CATEGORY_ICON_MAP[insight.category as keyof typeof CATEGORY_ICON_MAP] || Sparkles;
+                  return (
+                    <InsightCard
+                      key={insight.id}
+                      IconComponent={IconComponent}
+                      category={insight.category.replace(/_/g, ' ').toUpperCase()}
+                      pattern={insight.pattern}
+                      confidence={insight.confidence}
+                      supportingData={insight.supportingData || ''}
+                      details={insight.details as any}
+                      isNew={insight.isNew}
+                      delay={index * 0.1}
+                    />
+                  );
+                })
               ) : (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="flex flex-col items-center justify-center py-16"
                 >
-                  <span className="text-6xl mb-4">🔍</span>
+                  <Search className="w-16 h-16 text-white/40 mb-4" />
                   <h3 className="text-lg font-medium text-white/90 mb-2">
                     No insights yet
                   </h3>
@@ -144,11 +147,11 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
       </div>
 
       {/* Footer - Refresh Button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent pt-8 pb-8 px-5">
+      <div className="fixed bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent pt-8 pb-8 px-5 pointer-events-none">
         <button
           onClick={handleRefresh}
           disabled={refreshMutation.isPending}
-          className="bg-teal-500/20 text-teal-400 px-6 py-3 rounded-full mx-auto block flex items-center gap-2 hover:bg-teal-500/30 transition-colors disabled:opacity-50"
+          className="bg-teal-500/20 text-teal-400 px-6 py-3 rounded-full mx-auto block flex items-center gap-2 hover:bg-teal-500/30 transition-colors disabled:opacity-50 pointer-events-auto"
           data-testid="button-refresh-insights"
         >
           <RefreshCw 

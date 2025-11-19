@@ -1,0 +1,273 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { ArrowLeft, Settings, RefreshCw } from 'lucide-react';
+import { InsightCard } from './InsightCard';
+
+interface InsightData {
+  id: string;
+  icon: string;
+  category: string;
+  pattern: string;
+  confidence: number;
+  supportingData: string;
+  categoryValue: string;
+  details?: {
+    daysAnalyzed?: number;
+    additionalInfo?: string[];
+    dateRange?: string;
+  };
+  isNew?: boolean;
+}
+
+interface InsightsScreenProps {
+  isDark: boolean;
+  onClose: () => void;
+}
+
+const FILTER_TABS = [
+  { label: 'All', value: 'all' },
+  { label: 'Sleep', value: 'sleep' },
+  { label: 'Activity', value: 'activity' },
+  { label: 'Biomarkers', value: 'biomarkers' },
+  { label: 'Recovery', value: 'recovery' },
+];
+
+// Example insights data
+const EXAMPLE_INSIGHTS: InsightData[] = [
+  {
+    id: 'insight_001',
+    icon: '🏃',
+    category: 'Activity → Sleep',
+    categoryValue: 'activity',
+    pattern: 'Your sleep improves 42 min on days you hit 10k+ steps',
+    confidence: 0.87,
+    supportingData: 'Based on 18 days',
+    details: {
+      daysAnalyzed: 18,
+      additionalInfo: [
+        'Avg sleep: 6h 45m → 7h 27m',
+      ],
+      dateRange: 'Oct 15 - Nov 15',
+    },
+    isNew: true,
+  },
+  {
+    id: 'insight_002',
+    icon: '💓',
+    category: 'Recovery',
+    categoryValue: 'recovery',
+    pattern: 'HRV climbs 15% when you sleep >7.5h for 5+ consecutive nights',
+    confidence: 0.89,
+    supportingData: '89% confidence',
+    details: {
+      daysAnalyzed: 42,
+      additionalInfo: [
+        'Baseline HRV: 52ms',
+        'Improved HRV: 65ms',
+      ],
+      dateRange: 'Sep 15 - Nov 15',
+    },
+    isNew: true,
+  },
+  {
+    id: 'insight_003',
+    icon: '🩸',
+    category: 'Biomarkers',
+    categoryValue: 'biomarkers',
+    pattern: 'Your glucose levels are 12% more stable on workout days',
+    confidence: 0.82,
+    supportingData: 'Based on 24 days',
+    details: {
+      daysAnalyzed: 24,
+      additionalInfo: [
+        'Avg glucose variance: 18mg/dL → 15.8mg/dL',
+      ],
+      dateRange: 'Oct 1 - Nov 15',
+    },
+    isNew: false,
+  },
+  {
+    id: 'insight_004',
+    icon: '💤',
+    category: 'Sleep Quality',
+    categoryValue: 'sleep',
+    pattern: 'Deep sleep increases 23% when you avoid caffeine after 2 PM',
+    confidence: 0.91,
+    supportingData: 'Based on 31 days',
+    details: {
+      daysAnalyzed: 31,
+      additionalInfo: [
+        'Deep sleep: 1h 12m → 1h 29m',
+        'Sleep efficiency: +8%',
+      ],
+      dateRange: 'Oct 15 - Nov 15',
+    },
+    isNew: false,
+  },
+  {
+    id: 'insight_005',
+    icon: '🧘',
+    category: 'Stress',
+    categoryValue: 'recovery',
+    pattern: 'Resting heart rate drops 4 BPM on days with 10+ min meditation',
+    confidence: 0.78,
+    supportingData: 'Based on 14 days',
+    details: {
+      daysAnalyzed: 14,
+      additionalInfo: [
+        'Avg RHR: 62 BPM → 58 BPM',
+      ],
+      dateRange: 'Nov 1 - Nov 15',
+    },
+    isNew: false,
+  },
+];
+
+export function InsightsScreen({ isDark, onClose }: InsightsScreenProps) {
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const filteredInsights = selectedFilter === 'all' 
+    ? EXAMPLE_INSIGHTS 
+    : EXAMPLE_INSIGHTS.filter(insight => insight.categoryValue === selectedFilter);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1500);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 z-50">
+      {/* Header */}
+      <div className="fixed top-0 left-0 right-0 z-10 bg-black/95 backdrop-blur-xl border-b border-white/10">
+        <div className="h-16 px-5 flex items-center justify-between">
+          <button
+            onClick={onClose}
+            className="p-2 -ml-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-white/90" />
+          </button>
+          <h1 className="text-sm tracking-wide text-white/90 font-medium">
+            INSIGHTS
+          </h1>
+          <button className="p-2 -mr-2 hover:bg-white/10 rounded-lg transition-colors">
+            <Settings className="w-5 h-5 text-white/60" />
+          </button>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="fixed top-16 left-0 right-0 z-10 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 border-b border-white/10">
+        <div className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-hide">
+          {FILTER_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setSelectedFilter(tab.value)}
+              className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-all ${
+                selectedFilter === tab.value
+                  ? 'bg-teal-500/30 text-teal-400'
+                  : 'bg-white/5 text-white/60 hover:bg-white/10'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content Area */}
+      <div className="pt-32 pb-24 px-5 overflow-y-auto h-full">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={selectedFilter}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            {filteredInsights.length > 0 ? (
+              filteredInsights.map((insight, index) => (
+                <InsightCard
+                  key={insight.id}
+                  icon={insight.icon}
+                  category={insight.category}
+                  pattern={insight.pattern}
+                  confidence={insight.confidence}
+                  supportingData={insight.supportingData}
+                  details={insight.details}
+                  isNew={insight.isNew}
+                  delay={index * 0.1}
+                  onViewDetails={() => {
+                    console.log('View details for:', insight.id);
+                  }}
+                />
+              ))
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center py-16"
+              >
+                <span className="text-6xl mb-4">🔍</span>
+                <h3 className="text-lg font-medium text-white/90 mb-2">
+                  No insights yet
+                </h3>
+                <p className="text-sm text-white/60 text-center max-w-xs">
+                  We haven't found patterns in this category yet. Keep tracking your health data!
+                </p>
+              </motion.div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {/* Footer - Refresh Button */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent pt-8 pb-8 px-5">
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="bg-teal-500/20 text-teal-400 px-6 py-3 rounded-full mx-auto block flex items-center gap-2 hover:bg-teal-500/30 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw 
+            className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} 
+          />
+          {isRefreshing ? 'Refreshing...' : 'Refresh insights'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Empty State Component
+export function InsightsEmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <span className="text-6xl mb-4">🔍</span>
+      <h3 className="text-lg font-medium text-white/90 mb-2">
+        Building your insights...
+      </h3>
+      <p className="text-sm text-white/60 text-center max-w-xs mx-auto mb-6">
+        We're analyzing your health data to find patterns. Check back in 24 hours!
+      </p>
+      <button className="bg-teal-500/20 text-teal-400 px-6 py-3 rounded-full hover:bg-teal-500/30 transition-colors">
+        Sync more data
+      </button>
+    </div>
+  );
+}
+
+// Loading Skeleton
+export function InsightsLoadingSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <div
+          key={i}
+          className="animate-pulse bg-white/5 h-32 rounded-2xl"
+        />
+      ))}
+    </div>
+  );
+}
