@@ -28,9 +28,11 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Plan Tiers**: FREE (3 labs, 35 biomarkers, no Oracle) and PREMIUM (unlimited labs/biomarkers, 200 Oracle msgs/day, full features)
 - **Stripe Integration**: Complete checkout session management, webhook handling (signature verified), subscription lifecycle events
 - **Feature Gating**: Middleware enforces plan limits on lab uploads, Oracle access, Insights, and Flōmentum
-- **Frontend Components**: Locked tile UI, paywall modals with upgrade prompts, billing/subscription management page
+- **Frontend Components**: Locked tile UI (dark theme with glass morphism), paywall modals (dark blue gradient design), billing/subscription management page
 - **Security**: Webhook signature verification, authenticated endpoints, proper role updates on subscription changes
 - **Payment Methods**: Stripe Checkout supports credit/debit cards and Apple Pay with monthly/annual billing options
+- **Configuration Required**: Set environment variables `STRIPE_PREMIUM_MONTHLY_PRICE_ID` and `STRIPE_PREMIUM_YEARLY_PRICE_ID` with actual Stripe Price IDs from your Stripe Dashboard
+- **Webhook Setup**: Configure Stripe webhook endpoint at `/api/billing/webhook` with `STRIPE_WEBHOOK_SECRET`
 
 ## External Dependencies
 
