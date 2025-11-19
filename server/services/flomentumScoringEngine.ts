@@ -218,15 +218,12 @@ function scoreStepsAndActivity(metrics: FlomentumMetrics, stepsTarget: number): 
     }
   }
 
-  // Exercise intensity scoring
-  let exerciseMinutes = metrics.exerciseMinutes;
-  
-  // Use active calories as proxy if exercise minutes not available
-  if (exerciseMinutes === null && metrics.activeKcal !== null) {
-    exerciseMinutes = Math.round(metrics.activeKcal / 5);
-  }
+  // Exercise intensity scoring - ONLY use real HealthKit workout data
+  // DO NOT use activeKcal as a proxy - it represents all-day active energy
+  // and will incorrectly show hundreds of "exercise" minutes
+  const exerciseMinutes = metrics.exerciseMinutes;
 
-  if (exerciseMinutes !== null) {
+  if (exerciseMinutes !== null && exerciseMinutes !== undefined) {
     if (exerciseMinutes >= 30) {
       points += 6;
       factors.push({
@@ -255,6 +252,15 @@ function scoreStepsAndActivity(metrics: FlomentumMetrics, stepsTarget: number): 
         pointsContribution: -4,
       });
     }
+  } else {
+    // No exercise data available - provide neutral feedback
+    factors.push({
+      status: 'neutral',
+      title: 'No workout data today',
+      detail: 'Sync HealthKit workouts to track exercise',
+      componentKey: 'intensity',
+      pointsContribution: 0,
+    });
   }
 
   // Sedentary time scoring
