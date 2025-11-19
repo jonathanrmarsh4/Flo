@@ -153,6 +153,7 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
                 description="Track your daily health momentum with AI-powered scoring"
                 icon={TrendingUp}
                 onUpgrade={() => setPaywallModalId('upgrade_on_locked_flomentum_tile')}
+                isDark={isDark}
               />
             )}
 
@@ -171,6 +172,7 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
                 description="Get intelligent pattern detection and health insights"
                 icon={Brain}
                 onUpgrade={() => setPaywallModalId('upgrade_on_locked_insights_tile')}
+                isDark={isDark}
               />
             )}
 
