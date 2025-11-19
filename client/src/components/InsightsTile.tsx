@@ -17,12 +17,13 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
-  const { data: insights = [] } = useQuery<InsightCard[]>({
+  const { data: insights } = useQuery<InsightCard[]>({
     queryKey: ['/api/insights'],
   });
 
-  const newCount = insights.filter(i => i.isNew).length;
-  const topInsights = insights.slice(0, 2);
+  const insightsArray = insights || [];
+  const newCount = insightsArray.filter(i => i.isNew).length;
+  const topInsights = insightsArray.slice(0, 2);
 
   return (
     <motion.button
