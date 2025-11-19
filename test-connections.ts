@@ -53,7 +53,7 @@ async function testGrokConnection() {
     
     if (response.toLowerCase().includes('ok')) {
       console.log('✅ Grok connection successful');
-      console.log(`   - Model: grok-beta`);
+      console.log(`   - Model: grok-3-mini`);
       console.log(`   - Response: ${response.trim()}`);
       return true;
     } else {

@@ -31,7 +31,7 @@ export function couldContainLifeEvent(message: string): boolean {
 }
 
 /**
- * Extract life event using Grok (grok-beta model)
+ * Extract life event using Grok (grok-3-mini model)
  * Returns null if no event detected
  */
 export async function extractLifeEvent(
