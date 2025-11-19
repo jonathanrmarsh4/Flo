@@ -10,6 +10,7 @@ import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
 import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
+import billingRouter from "./routes/billing";
 import { logger } from "./logger";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { 
@@ -5371,6 +5372,9 @@ ${userContext}`;
   
   // Mobile auth routes (Apple, Google, Email/Password)
   app.use(mobileAuthRouter);
+  
+  // Billing routes (Stripe subscription management)
+  app.use('/api/billing', isAuthenticated, billingRouter);
 
   const httpServer = createServer(app);
   return httpServer;

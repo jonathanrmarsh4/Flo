@@ -1,0 +1,146 @@
+{
+  "plans": {
+    "FREE": {
+      "id": "FREE",
+      "label": "Flo Free",
+      "description": "Great starting point to track key labs and readiness.",
+      "limits": {
+        "maxLabReportsStored": 3,
+        "maxVisibleBiomarkersPerUser": 35,
+        "maxDiagnosticReportsStored": 2,
+        "maxDailyOracleMessages": 0,
+        "maxDailyBiomarkerAiInsightClicks": 50,
+        "healthKitHistoryDaysShown": 14
+      },
+      "features": {
+        "billing": {
+          "isPaidPlan": false,
+          "showsUpgradeNudges": true
+        },
+        "bloodwork": {
+          "canUploadLabs": true,
+          "canViewLabHistory": true,
+          "parseAllBiomarkersIngested": true,
+          "displayBiomarkersCappedByPlan": true,
+          "maxVisibleBiomarkersPerUser": 35,
+          "showBiomarkerAiInsights": "per_biomarker_only",
+          "showMultiBiomarkerInsights": false,
+          "showInsightsTile": false,
+          "showInsightsPage": false
+        },
+        "diagnostics": {
+          "featureStatus": "beta",
+          "canUploadDiagnostics": true,
+          "maxDiagnosticReportsStored": 2,
+          "showDiagnosticsTile": true,
+          "showDiagnosticsSummary": true,
+          "showAdvancedDiagnosticsInsights": false,
+          "allowOracleDiagnosticsContext": false
+        },
+        "healthKit": {
+          "canConnectHealthKit": true,
+          "ingestAllSupportedMetrics": true,
+          "useSubsetForReadinessAndSleep": true,
+          "showReadinessTile": true,
+          "showFloSleepIndexTile": true,
+          "showAdditionalHealthTiles": false,
+          "maxHistoryDaysShown": 14
+        },
+        "insights": {
+          "showInsightsTile": false,
+          "showInsightsPage": false,
+          "allowAiGeneratedInsightCards": false,
+          "allowPeriodicInsightRefresh": false
+        },
+        "flomentum": {
+          "showFlomentumTile": false,
+          "allowFlomentumScoring": false,
+          "allowDailyCoachingPrompts": false
+        },
+        "oracle": {
+          "showOracleTileLocked": true,
+          "allowOracleChat": false,
+          "allowTileDeepLinksToOracle": false
+        },
+        "ui": {
+          "showLockedTiles": true,
+          "lockedTiles": [
+            "INSIGHTS",
+            "FLOMENTUM",
+            "ORACLE"
+          ],
+          "showPremiumBadges": true
+        }
+      }
+    },
+    "PREMIUM": {
+      "id": "PREMIUM",
+      "label": "Flo Premium",
+      "description": "Unlimited labs, deeper insights, Flomentum, and Flo Oracle.",
+      "limits": {
+        "maxLabReportsStored": -1,
+        "maxVisibleBiomarkersPerUser": -1,
+        "maxDiagnosticReportsStored": -1,
+        "maxDailyOracleMessages": 200,
+        "maxDailyBiomarkerAiInsightClicks": -1,
+        "healthKitHistoryDaysShown": -1
+      },
+      "features": {
+        "billing": {
+          "isPaidPlan": true,
+          "showsUpgradeNudges": false
+        },
+        "bloodwork": {
+          "canUploadLabs": true,
+          "canViewLabHistory": true,
+          "parseAllBiomarkersIngested": true,
+          "displayBiomarkersCappedByPlan": false,
+          "maxVisibleBiomarkersPerUser": -1,
+          "showBiomarkerAiInsights": "per_biomarker_and_multi_marker",
+          "showMultiBiomarkerInsights": true,
+          "showInsightsTile": true,
+          "showInsightsPage": true
+        },
+        "diagnostics": {
+          "featureStatus": "beta",
+          "canUploadDiagnostics": true,
+          "maxDiagnosticReportsStored": -1,
+          "showDiagnosticsTile": true,
+          "showDiagnosticsSummary": true,
+          "showAdvancedDiagnosticsInsights": true,
+          "allowOracleDiagnosticsContext": true
+        },
+        "healthKit": {
+          "canConnectHealthKit": true,
+          "ingestAllSupportedMetrics": true,
+          "useSubsetForReadinessAndSleep": false,
+          "showReadinessTile": true,
+          "showFloSleepIndexTile": true,
+          "showAdditionalHealthTiles": true,
+          "maxHistoryDaysShown": -1
+        },
+        "insights": {
+          "showInsightsTile": true,
+          "showInsightsPage": true,
+          "allowAiGeneratedInsightCards": true,
+          "allowPeriodicInsightRefresh": true
+        },
+        "flomentum": {
+          "showFlomentumTile": true,
+          "allowFlomentumScoring": true,
+          "allowDailyCoachingPrompts": true
+        },
+        "oracle": {
+          "showOracleTileLocked": false,
+          "allowOracleChat": true,
+          "allowTileDeepLinksToOracle": true
+        },
+        "ui": {
+          "showLockedTiles": false,
+          "lockedTiles": [],
+          "showPremiumBadges": true
+        }
+      }
+    }
+  }
+}
