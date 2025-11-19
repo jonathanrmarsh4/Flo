@@ -42,6 +42,8 @@ import {
   apnsConfiguration,
   biomarkers,
   insertNotificationTriggerSchema,
+  insightCards,
+  bloodWorkRecords,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -4739,9 +4741,12 @@ You are talking to one user only. Personalise everything. Never use generic advi
 
       logger.info('[FloOracle] Chat request', { userId, messageLength: message.length });
 
-      // Load user's health context
-      const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
+      // Load user's health context + RAG-retrieved insights
+      const { buildUserHealthContext, getRelevantInsights } = await import('./services/floOracleContextBuilder');
       const healthContext = await buildUserHealthContext(userId);
+      const insightsContext = await getRelevantInsights(userId, 5);
+      
+      const fullContext = insightsContext ? `${healthContext}\n${insightsContext}` : healthContext;
 
       logger.info('[FloOracle] Health context loaded', { 
         userId,
@@ -4779,7 +4784,7 @@ Now go have a real conversation.
 
 Here is the user's complete health profile:
 
-${healthContext}`;
+${fullContext}`;
 
       const messages: GrokChatMessage[] = [
         { role: 'system', content: systemPrompt },
@@ -5079,6 +5084,175 @@ You are talking to one user only. Personalise everything. Never use generic advi
           type: "internal_error" 
         }
       });
+    }
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // INSIGHTS ENDPOINTS - AI-powered health pattern detection
+  // ────────────────────────────────────────────────────────────────
+
+  // Generate insights for a user (run correlation detection)
+  app.post("/api/insights/generate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      logger.info(`[Insights] Generating insights for user ${userId}`);
+
+      const { generateInsightCards } = await import('./services/correlationEngine');
+      const insights = await generateInsightCards(userId);
+
+      res.json({ 
+        insights,
+        count: insights.length,
+        message: `Generated ${insights.length} new insight${insights.length === 1 ? '' : 's'}`
+      });
+    } catch (error: any) {
+      logger.error('[Insights] Generate error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all insights for a user
+  app.get("/api/insights", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { category } = req.query;
+
+      const conditions = [eq(insightCards.userId, userId), eq(insightCards.isActive, true)];
+      
+      if (category && typeof category === 'string') {
+        conditions.push(eq(insightCards.category, category as any));
+      }
+
+      const insights = await db
+        .select()
+        .from(insightCards)
+        .where(and(...conditions))
+        .orderBy(desc(insightCards.confidence), desc(insightCards.createdAt));
+
+      // Count new insights
+      const newCount = insights.filter(i => i.isNew).length;
+
+      res.json({ 
+        insights,
+        newCount
+      });
+    } catch (error: any) {
+      logger.error('[Insights] Get insights error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark insights as seen (remove "new" badge)
+  app.post("/api/insights/mark-seen", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { insightIds } = req.body;
+
+      if (!Array.isArray(insightIds) || insightIds.length === 0) {
+        return res.status(400).json({ error: 'insightIds array is required' });
+      }
+
+      await db
+        .update(insightCards)
+        .set({ isNew: false })
+        .where(
+          and(
+            eq(insightCards.userId, userId),
+            sql`${insightCards.id} = ANY(${insightIds})`
+          )
+        );
+
+      res.json({ success: true, markedCount: insightIds.length });
+    } catch (error: any) {
+      logger.error('[Insights] Mark seen error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete an insight
+  app.delete("/api/insights/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+
+      const result = await db
+        .delete(insightCards)
+        .where(
+          and(
+            eq(insightCards.id, id),
+            eq(insightCards.userId, userId)
+          )
+        )
+        .returning();
+
+      if (result.length === 0) {
+        return res.status(404).json({ error: 'Insight not found' });
+      }
+
+      res.json({ success: true, deleted: result[0] });
+    } catch (error: any) {
+      logger.error('[Insights] Delete insight error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sync health data to embeddings (for RAG)
+  app.post("/api/embeddings/sync", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { syncType } = req.body; // 'blood_work' | 'healthkit' | 'all'
+
+      logger.info(`[Embeddings] Starting sync for user ${userId}, type: ${syncType || 'all'}`);
+
+      const { syncBloodWorkEmbeddings, syncHealthKitEmbeddings } = await import('./services/embeddingService');
+      
+      let bloodWorkCount = 0;
+      let healthKitCount = 0;
+
+      if (!syncType || syncType === 'all' || syncType === 'blood_work') {
+        // Get user's blood work records with analysis
+        const bloodWorkData = await db
+          .select({
+            id: bloodWorkRecords.id,
+            uploadedAt: bloodWorkRecords.uploadedAt,
+            analysis: sql`${sql.raw('analysis_results')}.*`,
+          })
+          .from(bloodWorkRecords)
+          .leftJoin(sql.raw('analysis_results'), sql`${bloodWorkRecords.id} = analysis_results.record_id`)
+          .where(eq(bloodWorkRecords.userId, userId))
+          .orderBy(desc(bloodWorkRecords.uploadedAt))
+          .limit(20); // Last 20 blood work entries
+
+        if (bloodWorkData.length > 0) {
+          bloodWorkCount = await syncBloodWorkEmbeddings(userId, bloodWorkData as any);
+        }
+      }
+
+      if (!syncType || syncType === 'all' || syncType === 'healthkit') {
+        // Get user's HealthKit daily metrics
+        const healthKitData = await db
+          .select()
+          .from(userDailyMetrics)
+          .where(eq(userDailyMetrics.userId, userId))
+          .orderBy(desc(userDailyMetrics.localDate))
+          .limit(60); // Last 60 days
+
+        if (healthKitData.length > 0) {
+          healthKitCount = await syncHealthKitEmbeddings(userId, healthKitData);
+        }
+      }
+
+      res.json({
+        success: true,
+        synced: {
+          bloodWork: bloodWorkCount,
+          healthKit: healthKitCount,
+          total: bloodWorkCount + healthKitCount
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Embeddings] Sync error:', error);
+      res.status(500).json({ error: error.message });
     }
   });
 

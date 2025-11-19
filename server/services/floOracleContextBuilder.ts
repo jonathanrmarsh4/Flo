@@ -7,7 +7,8 @@ import {
   diagnosticsStudies, 
   userDailyMetrics,
   flomentumDaily,
-  sleepNights
+  sleepNights,
+  insightCards
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
@@ -322,4 +323,49 @@ function buildFallbackContext(): string {
   return `USER CONTEXT (never shared with user):
 No health data available yet. User has not uploaded blood work, diagnostic studies, or synced wearable data.
 Encourage them to upload their first blood panel or sync their HealthKit data to get started.`;
+}
+
+/**
+ * Retrieve relevant insight cards for RAG-enhanced context
+ * Returns the top discovered patterns to inject into Flō Oracle's context
+ */
+export async function getRelevantInsights(userId: string, limit: number = 5): Promise<string> {
+  try {
+    const insights = await db
+      .select({
+        category: insightCards.category,
+        pattern: insightCards.pattern,
+        confidence: insightCards.confidence,
+        supportingData: insightCards.supportingData,
+      })
+      .from(insightCards)
+      .where(
+        and(
+          eq(insightCards.userId, userId),
+          eq(insightCards.isActive, true)
+        )
+      )
+      .orderBy(desc(insightCards.confidence), desc(insightCards.createdAt))
+      .limit(limit);
+
+    if (insights.length === 0) {
+      return '';
+    }
+
+    const lines = [
+      '',
+      'DISCOVERED PATTERNS (use these insights naturally in conversation):',
+    ];
+
+    insights.forEach((insight, index) => {
+      const confidencePercent = Math.round(insight.confidence * 100);
+      lines.push(`${index + 1}. ${insight.pattern} (${confidencePercent}% confidence, ${insight.supportingData})`);
+    });
+
+    logger.info(`[FloOracle] Retrieved ${insights.length} insight cards for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving insights:', error);
+    return '';
+  }
 }
