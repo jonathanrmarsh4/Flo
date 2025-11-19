@@ -26,7 +26,10 @@ export default function BillingPage() {
         credentials: 'include',
         body: JSON.stringify({ priceId }),
       });
-      if (!res.ok) throw new Error('Failed to create checkout session');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
       return res.json();
     },
     onSuccess: (data: any) => {
@@ -35,9 +38,14 @@ export default function BillingPage() {
       }
     },
     onError: (error: any) => {
+      const errorMessage = error.message || 'Failed to create checkout session';
+      const isConfigError = errorMessage.includes('No such price');
+      
       toast({
         title: 'Checkout Failed',
-        description: error.message || 'Failed to create checkout session',
+        description: isConfigError 
+          ? 'Billing system is not configured yet. Please contact support at support@get-flo.com'
+          : errorMessage,
         variant: 'destructive',
       });
     },
@@ -107,15 +115,15 @@ export default function BillingPage() {
 
       <main className="px-4 py-6 space-y-6">
         {/* Current Plan */}
-        <Card data-testid="card-current-plan">
+        <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-current-plan">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Current Plan</CardTitle>
+              <CardTitle className="text-white">Current Plan</CardTitle>
               <Badge variant={isPremium ? "default" : "secondary"} data-testid="badge-plan-type">
                 {currentPlan?.displayName || 'Free'}
               </Badge>
             </div>
-            <CardDescription>
+            <CardDescription className="text-white/70">
               {isPremium
                 ? 'You have full access to all features'
                 : 'Limited features - upgrade to unlock more'}
@@ -123,7 +131,7 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm font-medium mb-2">Features:</p>
+              <p className="text-sm font-medium text-white mb-2">Features:</p>
               <div className="space-y-2">
                 <FeatureItem
                   label="Lab Reports"
@@ -168,13 +176,13 @@ export default function BillingPage() {
             </div>
 
             {isPremium && (
-              <div className="pt-4 border-t">
+              <div className="pt-4 border-t border-white/10">
                 <Button
                   variant="outline"
                   onClick={() => cancelSubscriptionMutation.mutate()}
                   disabled={cancelSubscriptionMutation.isPending}
                   data-testid="button-cancel-subscription"
-                  className="w-full"
+                  className="w-full border-white/10 text-white/70 hover:text-white hover:bg-white/5"
                 >
                   {cancelSubscriptionMutation.isPending ? (
                     <>
@@ -185,7 +193,7 @@ export default function BillingPage() {
                     'Cancel Subscription'
                   )}
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
+                <p className="text-xs text-white/50 mt-2 text-center">
                   Access continues until end of billing period
                 </p>
               </div>
@@ -207,12 +215,12 @@ export default function BillingPage() {
             </div>
 
             {/* Billing Period Toggle */}
-            <div className="flex items-center justify-center gap-2 p-1 bg-white/5 rounded-lg" data-testid="toggle-billing-period">
+            <div className="flex items-center justify-center gap-2 p-1 backdrop-blur-xl bg-slate-800/50 rounded-xl border border-white/10" data-testid="toggle-billing-period">
               <Button
                 variant={selectedPeriod === 'monthly' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setSelectedPeriod('monthly')}
-                className="flex-1"
+                className={selectedPeriod === 'monthly' ? 'flex-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 text-white/70 hover:text-white hover:bg-white/5'}
                 data-testid="button-monthly"
               >
                 Monthly
@@ -221,27 +229,27 @@ export default function BillingPage() {
                 variant={selectedPeriod === 'annual' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setSelectedPeriod('annual')}
-                className="flex-1 gap-1"
+                className={selectedPeriod === 'annual' ? 'flex-1 gap-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 gap-1 text-white/70 hover:text-white hover:bg-white/5'}
                 data-testid="button-annual"
               >
                 Annual
-                <Badge variant="secondary" className="text-xs">Save {Math.floor((1 - annualMonthly / monthlyPrice) * 100)}%</Badge>
+                <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-300 border-green-500/30">Save {Math.floor((1 - annualMonthly / monthlyPrice) * 100)}%</Badge>
               </Button>
             </div>
 
             {/* Premium Plan Card */}
-            <Card className="border-primary/50" data-testid="card-premium-plan">
+            <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-premium-plan">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
+                  <CardTitle className="flex items-center gap-2 text-white">
+                    <Sparkles className="w-5 h-5 text-blue-400" />
                     Premium
                   </CardTitle>
                   <div className="text-right">
-                    <div className="text-2xl font-bold" data-testid="text-price">
+                    <div className="text-2xl font-bold text-white" data-testid="text-price">
                       ${selectedPeriod === 'monthly' ? (monthlyPrice / 100).toFixed(2) : (annualMonthly / 100).toFixed(2)}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-white/60">
                       per month{selectedPeriod === 'annual' && ', billed annually'}
                     </div>
                   </div>
@@ -260,7 +268,7 @@ export default function BillingPage() {
               </CardContent>
               <CardFooter>
                 <Button
-                  className="w-full gap-2"
+                  className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                   size="lg"
                   onClick={() => {
                     const priceId = selectedPeriod === 'monthly'
@@ -291,18 +299,18 @@ export default function BillingPage() {
         )}
 
         {/* Help */}
-        <Card data-testid="card-help">
+        <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-help">
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex items-center gap-2 text-white">
               <AlertCircle className="w-4 h-4" />
               Need Help?
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground space-y-2">
+          <CardContent className="text-sm text-white/70 space-y-2">
             <p>
               Questions about billing? Contact us at support@get-flo.com
             </p>
-            <p className="text-xs">
+            <p className="text-xs text-white/50">
               Subscriptions auto-renew. Cancel anytime before next billing period.
             </p>
           </CardContent>
@@ -315,8 +323,8 @@ export default function BillingPage() {
 function FeatureItem({ label, value, unlimited }: { label: string; value: string; unlimited?: boolean }) {
   return (
     <div className="flex items-center justify-between text-sm" data-testid={`feature-${label.toLowerCase().replace(/\s+/g, '-')}`}>
-      <span className="text-muted-foreground">{label}</span>
-      <span className={unlimited ? 'text-primary font-medium' : 'text-foreground'}>{value}</span>
+      <span className="text-white/60">{label}</span>
+      <span className={unlimited ? 'text-blue-400 font-medium' : 'text-white'}>{value}</span>
     </div>
   );
 }
@@ -324,8 +332,8 @@ function FeatureItem({ label, value, unlimited }: { label: string; value: string
 function PremiumFeature({ text }: { text: string }) {
   return (
     <div className="flex items-start gap-2" data-testid={`premium-feature-${text.toLowerCase().replace(/\s+/g, '-').substring(0, 20)}`}>
-      <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-      <span className="text-sm">{text}</span>
+      <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+      <span className="text-sm text-white/80">{text}</span>
     </div>
   );
 }
