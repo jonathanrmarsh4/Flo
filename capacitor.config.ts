@@ -5,7 +5,9 @@ const config: CapacitorConfig = {
   appName: 'Flō',
   webDir: 'dist/public',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    url: 'https://get-flo.com',
+    cleartext: false
   },
   ios: {
     contentInset: 'automatic',
