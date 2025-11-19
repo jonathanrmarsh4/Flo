@@ -16,6 +16,7 @@ export function useHealthKitAutoSync() {
   const hasRun = useRef(false);
   const periodicIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isMountedRef = useRef(true);
+  const lastActiveTime = useRef(Date.now()); // Track when app was last active
   const isNative = Capacitor.isNativePlatform();
 
   useEffect(() => {
@@ -24,7 +25,20 @@ export function useHealthKitAutoSync() {
       return;
     }
     
-    // Initial sync logic - run once per mount
+    // iOS STATE RESURRECTION FIX: If app was backgrounded for >5 minutes, reset hasRun
+    // This handles overnight sleep where iOS preserves app state
+    const timeSinceLastActive = Date.now() - lastActiveTime.current;
+    const fiveMinutes = 5 * 60 * 1000;
+    
+    if (timeSinceLastActive > fiveMinutes && hasRun.current) {
+      logger.info(`🔄 [AutoSync] App was backgrounded for ${Math.round(timeSinceLastActive / 60000)}min - resetting sync state`);
+      hasRun.current = false; // Reset so initial sync runs again
+    }
+    
+    // Update last active time
+    lastActiveTime.current = Date.now();
+    
+    // Initial sync logic - run once per mount OR after long background
     const shouldRunInitialSync = !hasRun.current;
     
     if (!shouldRunInitialSync) {
@@ -206,11 +220,24 @@ export function useHealthKitAutoSync() {
     
     // Use Page Visibility API which works on both web and native
     const handleVisibilityChange = async () => {
-      // Only sync when page becomes visible (app comes to foreground)
+      // Track background time for state resurrection detection
       if (document.hidden) {
         logger.debug('[Visibility] App went to background');
+        lastActiveTime.current = Date.now(); // Update when going to background
         return;
       }
+      
+      // App came to foreground - check if we need to reset state after long sleep
+      const timeSinceLastActive = Date.now() - lastActiveTime.current;
+      const fiveMinutes = 5 * 60 * 1000;
+      
+      if (timeSinceLastActive > fiveMinutes) {
+        logger.info(`🌅 [Visibility] App woke after ${Math.round(timeSinceLastActive / 60000)}min - forcing full sync`);
+        // Don't use lastSyncTime cooldown for wake-from-sleep scenarios
+        lastSyncTime = 0; // Force sync regardless of cooldown
+      }
+      
+      lastActiveTime.current = Date.now(); // Update active time
       
       // App came to foreground
       const timeSinceLastSync = Date.now() - lastSyncTime;
