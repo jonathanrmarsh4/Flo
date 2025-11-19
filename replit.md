@@ -1,7 +1,7 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It offers a dashboard with four intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics, integrates OpenAI's GPT models and Apple HealthKit, and features **Flō Oracle** – a Grok-powered voice chat coach for real-time health insights. Its core purpose is to deliver trusted, clear, and actionable health information.
+Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It offers a dashboard with four intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics, integrates OpenAI's GPT models and Apple HealthKit, and features **Flō Oracle** – a Grok-powered voice chat coach for real-time health insights. The platform includes a **Stripe-powered subscription system** with FREE and PREMIUM tiers, providing feature gating and upgrade prompts. Its core purpose is to deliver trusted, clear, and actionable health information.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -14,9 +14,9 @@ The platform features a mobile-first, content-focused minimalist design inspired
 ### Technical Implementations
 **Frontend:** Built with React, TypeScript, and Vite. It uses TanStack Query for server state management and Wouter for routing. Key features include biomarker insights, AI-powered health reports, PDF upload for blood work parsing, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, and **Flō Oracle voice chat** (using ElevenLabs Conversational AI platform via WebSockets for natural voice interactions). The dashboard includes a **Flōmentum tile** for daily health momentum scores and a dedicated screen for detailed daily/weekly insights. HealthKit sync includes robust React Query cache invalidation and periodic 15-minute syncs.
 
-**Backend:** Developed with Express.js and TypeScript, providing a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT), file storage via pre-signed GCS URLs, and implements the PhenoAge biological age calculation. The backend includes a blood work extraction pipeline using GPT-4o, AI integration for insights, admin endpoints, and **Flō Oracle integration** (Grok-powered chat using xAI's grok-3-mini model with comprehensive health context injection and multi-layer safety guardrails). An **ElevenLabs integration** provides natural voice conversations. Biomarker scoring uses a comprehensive alias mapping system. It also features a HealthKit Readiness System, a Comprehensive Sleep Tracking System, and the new **Flōmentum Momentum Scoring System** (0-100 daily score based on sleep, activity, recovery, and red flags). All production code utilizes structured error logging, and **Apple Push Notifications (APNs)** provide real-time delivery of biomarker alerts.
+**Backend:** Developed with Express.js and TypeScript, providing a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT), file storage via pre-signed GCS URLs, and implements the PhenoAge biological age calculation. The backend includes a blood work extraction pipeline using GPT-4o, AI integration for insights, admin endpoints, and **Flō Oracle integration** (Grok-powered chat using xAI's grok-3-mini model with comprehensive health context injection and multi-layer safety guardrails). An **ElevenLabs integration** provides natural voice conversations. Biomarker scoring uses a comprehensive alias mapping system. It also features a HealthKit Readiness System, a Comprehensive Sleep Tracking System, and the new **Flōmentum Momentum Scoring System** (0-100 daily score based on sleep, activity, recovery, and red flags). All production code utilizes structured error logging, and **Apple Push Notifications (APNs)** provide real-time delivery of biomarker alerts. **Stripe Billing Integration** handles subscription management with secure webhook processing, plan enforcement middleware, and automated feature gating based on user subscription tier.
 
-**Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, normalized HealthKit daily metrics, **Flōmentum tables**, **RAG Insights tables** (for discovered patterns and embeddings), **life_events table** (for conversational behavior logging), push notification management, billing, and audit logs.
+**Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, normalized HealthKit daily metrics, **Flōmentum tables**, **RAG Insights tables** (for discovered patterns and embeddings), **life_events table** (for conversational behavior logging), push notification management, **billing tables** (billing_customers, subscriptions, payments for Stripe integration), and audit logs.
 
 **RAG Insights System:** Production-ready intelligent pattern detection using Retrieval-Augmented Generation. It vectorizes blood work and HealthKit data to Supabase as OpenAI embeddings. A SQL-based Pearson correlation engine runs nightly to discover patterns and generate "Insight Cards" categorized by health area. The top 5 most confident insights are automatically injected into Flō Oracle's conversation context.
 
@@ -24,7 +24,13 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Admin User Management:** Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, providing user management, system overview metrics, AI API usage tracking, and audit logs.
 
-**Billing & Payments:** Integrates Stripe for credit/debit card processing and Apple Pay.
+**Billing & Subscription System:** 
+- **Plan Tiers**: FREE (3 labs, 35 biomarkers, no Oracle) and PREMIUM (unlimited labs/biomarkers, 200 Oracle msgs/day, full features)
+- **Stripe Integration**: Complete checkout session management, webhook handling (signature verified), subscription lifecycle events
+- **Feature Gating**: Middleware enforces plan limits on lab uploads, Oracle access, Insights, and Flōmentum
+- **Frontend Components**: Locked tile UI, paywall modals with upgrade prompts, billing/subscription management page
+- **Security**: Webhook signature verification, authenticated endpoints, proper role updates on subscription changes
+- **Payment Methods**: Stripe Checkout supports credit/debit cards and Apple Pay with monthly/annual billing options
 
 ## External Dependencies
 

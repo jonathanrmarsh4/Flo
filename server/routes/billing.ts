@@ -32,7 +32,19 @@ router.post('/create-checkout-session', async (req: any, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { interval = 'month' } = req.body; // 'month' or 'year'
+    const { priceId } = req.body;
+    if (!priceId || typeof priceId !== 'string') {
+      return res.status(400).json({ error: 'Invalid priceId' });
+    }
+
+    // Validate priceId is one we recognize
+    const validPriceIds = [
+      PRICING.PREMIUM_MONTHLY.priceId,
+      PRICING.PREMIUM_YEARLY.priceId,
+    ];
+    if (!validPriceIds.includes(priceId)) {
+      return res.status(400).json({ error: 'Invalid priceId' });
+    }
     
     const [user] = await db
       .select()
@@ -43,10 +55,6 @@ router.post('/create-checkout-session', async (req: any, res) => {
     if (!user || !user.email) {
       return res.status(400).json({ error: 'User email required' });
     }
-
-    const priceId = interval === 'year' 
-      ? PRICING.PREMIUM_YEARLY.priceId 
-      : PRICING.PREMIUM_MONTHLY.priceId;
 
     // Create or get Stripe customer
     let stripeCustomerId: string;
@@ -418,12 +426,19 @@ router.get('/plan', async (req: any, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const plan = await getUserPlan(userId);
+    const userPlan = await getUserPlan(userId);
     const features = await getUserFeatures(userId);
     const limits = await getUserLimits(userId);
 
+    // Return structure matching frontend expectations
     res.json({
-      plan,
+      plan: {
+        id: userPlan.id.toLowerCase(), // 'free' or 'premium'
+        displayName: userPlan.label,
+        tier: userPlan.id === 'PREMIUM' ? 2 : 1,
+        limits,
+        features,
+      },
       features,
       limits,
     });
@@ -452,9 +467,43 @@ router.get('/paywall-modals', async (req: any, res) => {
  */
 router.get('/plans', async (req: any, res) => {
   try {
+    // Transform plans to match frontend expectations
+    const transformedPlans = {
+      free: {
+        id: 'free',
+        displayName: PLANS.FREE.label,
+        tier: 1,
+        limits: PLANS.FREE.limits,
+        features: PLANS.FREE.features,
+      },
+      premium: {
+        id: 'premium',
+        displayName: PLANS.PREMIUM.label,
+        tier: 2,
+        limits: PLANS.PREMIUM.limits,
+        features: PLANS.PREMIUM.features,
+      },
+    };
+
+    // Transform pricing to match frontend expectations
+    const transformedPricing = {
+      premium: {
+        monthly: {
+          amount: PRICING.PREMIUM_MONTHLY.amount,
+          currency: PRICING.PREMIUM_MONTHLY.currency,
+          stripePriceId: PRICING.PREMIUM_MONTHLY.priceId,
+        },
+        annual: {
+          amount: PRICING.PREMIUM_YEARLY.amount,
+          currency: PRICING.PREMIUM_YEARLY.currency,
+          stripePriceId: PRICING.PREMIUM_YEARLY.priceId,
+        },
+      },
+    };
+
     res.json({ 
-      plans: PLANS,
-      pricing: PRICING,
+      plans: transformedPlans,
+      pricing: transformedPricing,
     });
   } catch (error: any) {
     logger.error('[Billing] Get plans error:', error);
