@@ -4556,8 +4556,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Flōmentum not enabled" });
       }
 
-      // Get today's date in user's timezone
-      const today = new Date().toISOString().split('T')[0];
+      // TIMEZONE FIX: Get today's date in user's timezone, not UTC
+      // Query the user's most recent daily metric to get their timezone
+      const [recentMetric] = await db
+        .select({ timezone: userDailyMetrics.timezone })
+        .from(userDailyMetrics)
+        .where(eq(userDailyMetrics.userId, userId))
+        .orderBy(desc(userDailyMetrics.localDate))
+        .limit(1);
+      
+      const userTimezone = recentMetric?.timezone || 'UTC';
+      
+      // Calculate today's date in the user's timezone
+      const today = new Date().toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0]; // Format: YYYY-MM-DD
 
       // Get today's Flōmentum score
       const [dailyScore] = await db
