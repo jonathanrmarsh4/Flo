@@ -11,6 +11,13 @@ import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
 import billingRouter from "./routes/billing";
+import { 
+  canUploadLab,
+  canAccessOracle,
+  canSendOracleMsg,
+  canAccessInsights,
+  canAccessFlomentum,
+} from "./middleware/planEnforcement";
 import { logger } from "./logger";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { 
@@ -141,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Blood work analysis endpoint
-  app.post("/api/blood-work/analyze", isAuthenticated, async (req: any, res) => {
+  app.post("/api/blood-work/analyze", isAuthenticated, canUploadLab, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { fileUrl, fileName } = req.body;
@@ -4503,7 +4510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/flomentum/weekly", isAuthenticated, async (req: any, res) => {
+  app.get("/api/flomentum/weekly", isAuthenticated, canAccessFlomentum, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -4548,7 +4555,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/flomentum/today", isAuthenticated, async (req: any, res) => {
+  app.get("/api/flomentum/today", isAuthenticated, canAccessFlomentum, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -4731,7 +4738,7 @@ ${userContext}`;
   });
 
   // Flō Oracle - Text-only chat with Grok (personalized health coaching)
-  app.post("/api/flo-oracle/chat", isAuthenticated, async (req: any, res) => {
+  app.post("/api/flo-oracle/chat", isAuthenticated, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
 
     try {
@@ -5294,7 +5301,7 @@ ${userContext}`;
   // ===============================
 
   // GET /api/insights - Fetch insight cards for current user
-  app.get("/api/insights", isAuthenticated, async (req: any, res) => {
+  app.get("/api/insights", isAuthenticated, canAccessInsights, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -5320,7 +5327,7 @@ ${userContext}`;
   });
 
   // POST /api/insights/generate - Manually trigger insight generation
-  app.post("/api/insights/generate", isAuthenticated, async (req: any, res) => {
+  app.post("/api/insights/generate", isAuthenticated, canAccessInsights, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
