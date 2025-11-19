@@ -4672,11 +4672,12 @@ Tone examples:
 - Playful but useful: "Your HRV has been sulking like a teenager who lost phone privileges. Two nights of <3 drinks and >8 h sleep fixed it every single time in the past."
 - Serious when needed: "Your CAC score put you in the 92nd percentile at age 42. This is the single highest-leverage thing we can act on right now."
 
-You are talking to one user only. Personalise everything. Never use generic advice unless explicitly asked for population-level context.`;
+You are talking to one user only. Personalise everything. Never use generic advice unless explicitly asked for population-level context.
+
+${userContext}`;
 
       const messages: GrokChatMessage[] = [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userContext },
       ];
 
       if (conversationHistory && Array.isArray(conversationHistory)) {
@@ -5040,11 +5041,12 @@ Tone examples:
 - Playful but useful: "Your HRV has been sulking like a teenager who lost phone privileges. Two nights of <3 drinks and >8 h sleep fixed it every single time in the past."
 - Serious when needed: "Your CAC score put you in the 92nd percentile at age 42. This is the single highest-leverage thing we can act on right now."
 
-You are talking to one user only. Personalise everything. Never use generic advice unless explicitly asked for population-level context.`;
+You are talking to one user only. Personalise everything. Never use generic advice unless explicitly asked for population-level context.
+
+${userContext}`;
 
       const grokMessages: GrokChatMessage[] = [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userContext },
       ];
 
       const conversationMessages = messages.slice(0, -1).filter(m => m.role !== 'system');

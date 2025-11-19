@@ -1,5 +1,21 @@
 # Flō - AI-Powered Health Insights Platform
 
+## Recent Changes
+
+### November 19, 2025 - Fixed Flō Oracle Context Injection Bug
+**Critical Bug Fix**: The health context (biomarkers, wearables, DEXA, CAC) was being sent to Grok as a `user` role message instead of being embedded in the `system` prompt. This caused Grok to treat the context as conversational input rather than authoritative data, leading to responses like "I don't have that from your latest blood panel" even when the data existed in the database.
+
+**Fixed Endpoints:**
+- `/api/chat/grok` (text chat) - Now embeds `userContext` into `SYSTEM_PROMPT` string
+- `/api/elevenlabs/llm/chat/completions` (voice chat bridge) - Now embeds `userContext` into `SYSTEM_PROMPT` string
+- `/api/flo-oracle/chat` (RAG-enhanced chat) - Already correct, embeds `fullContext` into `systemPrompt`
+
+**How It Works Now:**
+1. `buildUserHealthContext(userId)` queries production DB for all health data
+2. Context string (with biomarkers, HealthKit avg, CAC, DEXA, RAG insights, life events) is appended to system prompt
+3. Messages array sent to Grok: `[{ role: 'system', content: SYSTEM_PROMPT + userContext }]`
+4. Grok now sees health data as authoritative system knowledge, not user input
+
 ## Overview
 Flō is a mobile-first health analytics platform that leverages AI to analyze blood work, calculate biological age, and deliver personalized health recommendations. It provides a dashboard with four intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics over time, integrates OpenAI's GPT models for insights, and Apple HealthKit for real-time wellness data across 26 types. Key features include user authentication, comprehensive profiles, admin tools, billing via Stripe and Apple Pay, and **Flō Oracle** - a Grok-powered voice chat coach providing real-time health insights. The core purpose is to provide trusted, clear, and actionable health information.
 
