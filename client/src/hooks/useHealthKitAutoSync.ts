@@ -110,7 +110,8 @@ export function useHealthKitAutoSync() {
             queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
             queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
             queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
-            queryClient.refetchQueries({ queryKey: ['/api/flomentum/daily'] }),
+            queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'] }),
+            queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'] }),
           ]);
           console.log('✅ [AutoSync] Dashboard refresh completed!');
           logger.info('✅ Dashboard queries refetched - UI updated');
@@ -340,7 +341,8 @@ export function useHealthKitAutoSync() {
             
             await Promise.allSettled([
               queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
-              queryClient.refetchQueries({ queryKey: ['/api/flomentum/daily'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'] }),
+              queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'] }),
               queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
               queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
             ]);
@@ -430,7 +432,8 @@ export function useHealthKitAutoSync() {
                       
                       await Promise.allSettled([
                         queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
-                        queryClient.refetchQueries({ queryKey: ['/api/flomentum/daily'] }),
+                        queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'] }),
+                        queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'] }),
                         queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
                         queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
                       ]);
