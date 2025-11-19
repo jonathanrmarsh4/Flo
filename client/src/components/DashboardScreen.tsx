@@ -6,11 +6,14 @@ import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumTile } from './dashboard/FlomentumTile';
 import { InsightsTile } from './InsightsTile';
 import { FloLogo } from './FloLogo';
-import { Bell, Settings } from 'lucide-react';
+import { Bell, Settings, Brain, TrendingUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useState } from 'react';
 import { RAGInsightsScreen } from './RAGInsightsScreen';
+import { LockedTile } from './LockedTile';
+import { PaywallModal } from './PaywallModal';
+import { usePlan, usePaywallModals } from '@/hooks/usePlan';
 
 interface DashboardScreenProps {
   isDark: boolean;
@@ -20,10 +23,23 @@ interface DashboardScreenProps {
 export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProps) {
   const [, setLocation] = useLocation();
   const [showInsights, setShowInsights] = useState(false);
+  const [paywallModalId, setPaywallModalId] = useState<string | null>(null);
   
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
   });
+
+  const { data: planData } = usePlan();
+  const { data: paywallModalsData } = usePaywallModals();
+  
+  const canAccessInsights = planData?.features?.insights?.allowAiGeneratedInsightCards ?? true;
+  const canAccessFlomentum = planData?.features?.flomentum?.allowFlomentumScoring ?? true;
+
+  const handleUpgrade = () => {
+    setLocation('/billing');
+  };
+
+  const currentPaywallModal = paywallModalsData?.modals?.find(m => m.id === paywallModalId);
 
   const { data: bioAgeData } = useQuery<any>({
     queryKey: ['/api/biological-age'],
@@ -126,7 +142,16 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
             </div>
 
             {/* Full Width - Flōmentum */}
-            <FlomentumTile isDark={isDark} onClick={() => setLocation('/flomentum')} />
+            {canAccessFlomentum ? (
+              <FlomentumTile isDark={isDark} onClick={() => setLocation('/flomentum')} />
+            ) : (
+              <LockedTile
+                title="Flōmentum"
+                description="Track your daily health momentum with AI-powered scoring"
+                icon={TrendingUp}
+                onUpgrade={() => setPaywallModalId('upgrade_on_locked_flomentum_tile')}
+              />
+            )}
 
             {/* Full Width - Daily Readiness */}
             <ReadinessTile isDark={isDark} />
@@ -135,7 +160,16 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
             <SleepTile isDark={isDark} data={sleepData} />
 
             {/* Full Width - Insights */}
-            <InsightsTile isDark={isDark} onTap={() => setShowInsights(true)} />
+            {canAccessInsights ? (
+              <InsightsTile isDark={isDark} onTap={() => setShowInsights(true)} />
+            ) : (
+              <LockedTile
+                title="AI Insights"
+                description="Get intelligent pattern detection and health insights"
+                icon={Brain}
+                onUpgrade={() => setPaywallModalId('upgrade_on_locked_insights_tile')}
+              />
+            )}
 
             {/* Quick Stats Row */}
             <div className="grid grid-cols-2 gap-4">
@@ -157,8 +191,18 @@ export function DashboardScreen({ isDark, onSettingsClick }: DashboardScreenProp
       </main>
 
       {/* RAG Insights Modal */}
-      {showInsights && (
+      {showInsights && canAccessInsights && (
         <RAGInsightsScreen isDark={isDark} onClose={() => setShowInsights(false)} />
+      )}
+
+      {/* Paywall Modal */}
+      {currentPaywallModal && (
+        <PaywallModal
+          open={!!paywallModalId}
+          onOpenChange={(open) => !open && setPaywallModalId(null)}
+          modal={currentPaywallModal}
+          onUpgrade={handleUpgrade}
+        />
       )}
     </div>
   );
