@@ -4337,6 +4337,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Body composition endpoint - unified DEXA + HealthKit data
+  app.get("/api/body-composition", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { BodyCompositionService } = await import("./services/bodyCompositionService");
+      
+      const data = await BodyCompositionService.getBodyComposition(userId);
+      res.json(data);
+    } catch (error) {
+      logger.error('Error fetching body composition:', error);
+      res.status(500).json({ error: "Failed to fetch body composition data" });
+    }
+  });
+
   // Dashboard API endpoints
   app.get("/api/dashboard/overview", isAuthenticated, async (req: any, res) => {
     try {

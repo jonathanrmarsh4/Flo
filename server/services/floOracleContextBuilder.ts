@@ -59,6 +59,7 @@ interface UserHealthContext {
     zone: string | null;
     dailyFocus: string | null;
   };
+  bodyCompositionExplanation: string | null;
 }
 
 function calculateAge(dateOfBirth: Date | string | null): number | null {
@@ -131,6 +132,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         zone: null,
         dailyFocus: null,
       },
+      bodyCompositionExplanation: null,
     };
 
     const [userProfile] = await db
@@ -305,6 +307,16 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.flomentumCurrent.dailyFocus = factors.focus || null;
     }
 
+    // Fetch unified body composition data (DEXA + HealthKit with priority logic)
+    try {
+      const { BodyCompositionService } = await import('./bodyCompositionService');
+      const bodyCompData = await BodyCompositionService.getBodyComposition(userId);
+      context.bodyCompositionExplanation = bodyCompData.explanation;
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch body composition data');
+      context.bodyCompositionExplanation = null;
+    }
+
     const contextString = buildContextString(context, bloodPanelHistory);
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars)`);
     
@@ -391,6 +403,13 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
   
   if (context.flomentumCurrent.score !== null) {
     lines.push(`Flōmentum score: ${context.flomentumCurrent.score}/100 (${context.flomentumCurrent.zone || 'calculating'}) | Daily focus: ${context.flomentumCurrent.dailyFocus || 'building baseline'}`);
+  }
+  
+  // Add body composition explanation (DEXA vs HealthKit nuances)
+  if (context.bodyCompositionExplanation) {
+    lines.push('');
+    lines.push('BODY COMPOSITION DATA SOURCES:');
+    lines.push(context.bodyCompositionExplanation);
   }
   
   return lines.join('\n');
