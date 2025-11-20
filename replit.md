@@ -15,6 +15,8 @@ Preferred communication style: Simple, everyday language.
 
 3. **iOS Build Process**: After any frontend changes: `npm run build` → `npx cap sync ios` → rebuild in Xcode. Frontend config changes MUST be bundled into the iOS build.
 
+4. **Workout Authorization Quirk** (`ios/App/App/HealthKitNormalisationService.swift` line 1355): iOS privacy policy prevents accurate authorization status for workout data. `authorizationStatus(for: HKWorkoutType)` returns `.sharingDenied` even when permission is granted. Solution: Skip authorization check and query directly - iOS returns empty array if permission denied. This is documented Apple behavior for privacy protection.
+
 ## System Architecture
 
 ### UI/UX Decisions
