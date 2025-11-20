@@ -10,7 +10,8 @@ import {
   sleepNights,
   insightCards,
   lifeEvents,
-  healthkitSamples
+  healthkitSamples,
+  healthkitWorkouts
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
@@ -475,7 +476,6 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     // Fetch recent workout sessions from healthkitWorkouts table
     const workoutHistory: any[] = [];
     try {
-      const { healthkitWorkouts } = await import("@shared/schema");
       const recentWorkouts = await db
         .select({
           workoutType: healthkitWorkouts.workoutType,
@@ -507,8 +507,12 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
           maxHR: w.maxHR ? Math.round(w.maxHR) : null
         });
       });
+      
+      if (workoutHistory.length > 0) {
+        logger.info(`[FloOracle] Fetched ${workoutHistory.length} recent workouts for context`);
+      }
     } catch (error) {
-      logger.warn('[FloOracle] Failed to fetch workout history');
+      logger.warn('[FloOracle] Failed to fetch workout history:', error);
     }
 
     // Fetch unified body composition data (DEXA + HealthKit with priority logic)
