@@ -42,6 +42,15 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      console.log('[Insights] Successfully generated insights');
+    },
+    onError: (error: any) => {
+      console.error('[Insights] Failed to generate insights:', error);
+      console.error('[Insights] Error details:', {
+        status: error?.status,
+        message: error?.message,
+        response: error?.response,
+      });
     },
   });
 
