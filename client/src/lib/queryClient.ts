@@ -66,11 +66,14 @@ export async function apiRequest(
   const fullUrl = baseUrl + url;
   
   logger.debug('API request', { method, url: fullUrl });
+  console.log('[API] Making request:', method, fullUrl); // ALWAYS log in prod
   
   try {
     const headers = await getAuthHeaders(
       data ? { "Content-Type": "application/json" } : {}
     );
+    
+    console.log('[API] Headers prepared:', Object.keys(headers)); // ALWAYS log in prod
     
     const res = await fetch(fullUrl, {
       method,
@@ -79,10 +82,12 @@ export async function apiRequest(
       credentials: "include",
     });
 
+    console.log('[API] Response received:', res.status, res.statusText); // ALWAYS log in prod
     logger.debug('API response', { status: res.status, statusText: res.statusText });
     await throwIfResNotOk(res);
     return res;
   } catch (error) {
+    console.error('[API] Request failed:', error); // ALWAYS log in prod
     logger.error('API request failed', error);
     throw error;
   }

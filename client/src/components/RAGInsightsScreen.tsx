@@ -59,6 +59,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
     : insights.filter(insight => insight.category === selectedFilter);
 
   const handleRefresh = () => {
+    console.log('[Insights] Refresh button clicked - starting mutation');
     refreshMutation.mutate();
   };
 
