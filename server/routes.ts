@@ -3073,7 +3073,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[HealthKit] Ingesting daily metrics for user ${userId}, date ${metrics.localDate}`);
       logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
-      // Also populate health_daily_metrics for Flōmentum consistency
+      // Also populate health_daily_metrics for Flōmentum consistency and body composition tracking
+      // Note: Body composition fields come from raw dailyMetrics since they're not in userDailyMetrics schema
       await db.insert(healthDailyMetrics).values({
         userId,
         date: metrics.localDate,
@@ -3083,6 +3084,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         steps: metrics.stepsNormalized ?? null,
         activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
         exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
+        weightKg: dailyMetrics.weightKg ?? null,
+        bodyFatPct: dailyMetrics.bodyFatPercent ?? null,
+        leanMassKg: dailyMetrics.leanBodyMassKg ?? null,
+        bmi: dailyMetrics.bmi ?? null,
+        waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
       }).onConflictDoUpdate({
         target: [healthDailyMetrics.userId, healthDailyMetrics.date],
         set: {
@@ -3092,6 +3098,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           steps: metrics.stepsNormalized ?? null,
           activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
           exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
+          weightKg: dailyMetrics.weightKg ?? null,
+          bodyFatPct: dailyMetrics.bodyFatPercent ?? null,
+          leanMassKg: dailyMetrics.leanBodyMassKg ?? null,
+          bmi: dailyMetrics.bmi ?? null,
+          waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
         },
       });
 
