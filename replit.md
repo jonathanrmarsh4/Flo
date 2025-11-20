@@ -6,6 +6,7 @@ Flō is a mobile-first health analytics platform that uses AI to analyze blood w
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
 - **AI Health Commentary Policy:** Flō Oracle is configured to provide evidence-based health analysis with educational disclaimers rather than blocking health insights. The AI can discuss what biomarkers might indicate, potential health patterns, and treatment options to discuss with physicians. All health-related responses include: "⚕️ This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions." Only truly dangerous patterns (specific medication prescriptions with dosages) are blocked.
+- **Flō Oracle Personality (Updated Nov 20, 2025):** Changed from conversational/therapeutic style to analytical data scientist personality. The AI now proactively searches for patterns and correlations in user data, leads with data analysis rather than general conversation, and minimizes chitchat to focus on evidence-based insights. Primary mission: Connect the dots between metrics, spot trends, and surface actionable insights from data relationships.
 
 ## Critical iOS Configuration
 **IMPORTANT - DO NOT REVERT THESE SETTINGS:**
