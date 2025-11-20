@@ -83,21 +83,25 @@ export function BodyCompositionTile({
     snapshot.vatAreaCm2 !== null
   ));
   
-  const bodyFatPct = snapshot?.bodyFatPct;
-  const leanMassKg = snapshot?.leanMassKg;
   const weightKg = snapshot?.weightKg;
+  const leanMassKg = snapshot?.leanMassKg;
+  let bodyFatPct = snapshot?.bodyFatPct;
   
-  // Calculate lean percentage from lean mass and weight (with null protection)
-  // Or if we have body fat %, calculate lean % as 100 - body fat %
+  // Calculate body fat % from weight and lean mass if not directly available
+  // Formula: Body fat percentage = [(Total weight − Lean body mass) ÷ Total weight] × 100
+  if (bodyFatPct === null || bodyFatPct === undefined) {
+    if (weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined && weightKg > 0) {
+      bodyFatPct = ((weightKg - leanMassKg) / weightKg) * 100;
+    }
+  }
+  
+  // Calculate lean percentage
   let leanPercent: number | null = null;
-  if (weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined) {
-    leanPercent = (leanMassKg / weightKg) * 100;
-  } else if (bodyFatPct !== null && bodyFatPct !== undefined) {
-    // If we have body fat % but not lean mass kg, calculate lean % as complement
+  if (bodyFatPct !== null && bodyFatPct !== undefined) {
     leanPercent = 100 - bodyFatPct;
   }
   
-  // Show donut chart only if we have fat percentage (lean percent is optional)
+  // Show body composition visualization if we have the data
   const hasBodyComp = bodyFatPct !== null && bodyFatPct !== undefined;
 
   // Calculate donut chart segments only when we have data
@@ -131,85 +135,89 @@ export function BodyCompositionTile({
         </div>
       ) : hasData ? (
         <div className="space-y-6">
-          {/* Weight */}
+          {/* Total Weight */}
           {weightKg !== null && weightKg !== undefined && (
             <div className="space-y-2" data-testid="metric-weight">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    Weight
+                  <span className={`text-sm font-medium ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
+                    Total Weight
                   </span>
                   {renderSourceBadge(snapshot?.weightSource || null)}
                 </div>
-                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {weightKg.toFixed(1)} kg
+                <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {weightKg.toFixed(1)} <span className="text-base font-normal">kg</span>
                 </span>
               </div>
             </div>
           )}
 
-          {/* BMI */}
-          {snapshot?.bmi !== null && snapshot?.bmi !== undefined && (
-            <div className="space-y-2" data-testid="metric-bmi">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    BMI
-                  </span>
+          {/* Body Composition Breakdown - only show if we can calculate it */}
+          {hasBodyComp && weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined && (
+            <>
+              {/* Visual breakdown bar */}
+              <div className="space-y-3" data-testid="body-comp-visualization">
+                <div className={`text-xs font-medium ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                  Body Composition
                 </div>
-                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {snapshot.bmi.toFixed(1)}
-                </span>
+                <div className="relative h-8 rounded-full overflow-hidden flex">
+                  {/* Lean Mass (left side) */}
+                  <div 
+                    className="bg-blue-500 transition-all duration-500 ease-out flex items-center justify-center"
+                    style={{ width: `${leanPercent}%` }}
+                  >
+                    {leanPercent! > 20 && (
+                      <span className="text-xs font-medium text-white">
+                        {leanPercent!.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  {/* Body Fat (right side) */}
+                  <div 
+                    className="bg-orange-500 transition-all duration-500 ease-out flex items-center justify-center"
+                    style={{ width: `${bodyFatPct}%` }}
+                  >
+                    {bodyFatPct! > 20 && (
+                      <span className="text-xs font-medium text-white">
+                        {bodyFatPct!.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Body Fat Percentage */}
-          {hasBodyComp && (
-            <div className="space-y-2" data-testid="metric-body-fat">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    Body Fat Percentage
+              {/* Lean Body Mass */}
+              <div className="space-y-2" data-testid="metric-lean-mass">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-blue-500" />
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                      Lean Body Mass
+                    </span>
+                    {renderSourceBadge(snapshot?.leanMassSource || null)}
+                  </div>
+                  <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {leanMassKg.toFixed(1)} kg
                   </span>
-                  {renderSourceBadge(snapshot?.bodyFatSource || null)}
                 </div>
-                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {bodyFatPct!.toFixed(1)}%
-                </span>
               </div>
-              <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                <div 
-                  className="h-full bg-orange-500 transition-all duration-500 ease-out"
-                  style={{ width: `${bodyFatPct}%` }}
-                  data-testid="progress-body-fat"
-                />
-              </div>
-            </div>
-          )}
 
-          {/* Lean Mass Percentage */}
-          {leanPercent !== null && (
-            <div className="space-y-2" data-testid="metric-lean-mass">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    Lean Mass Percentage
+              {/* Body Fat Mass */}
+              <div className="space-y-2" data-testid="metric-body-fat">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-orange-500" />
+                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                      Body Fat Mass
+                    </span>
+                    {renderSourceBadge(snapshot?.bodyFatSource || null)}
+                  </div>
+                  <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {(weightKg - leanMassKg).toFixed(1)} kg
                   </span>
-                  {renderSourceBadge(snapshot?.leanMassSource || null)}
                 </div>
-                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {leanPercent.toFixed(1)}%
-                </span>
               </div>
-              <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                <div 
-                  className="h-full bg-blue-500 transition-all duration-500 ease-out"
-                  style={{ width: `${leanPercent}%` }}
-                  data-testid="progress-lean-mass"
-                />
-              </div>
-            </div>
+            </>
           )}
         </div>
       ) : (
