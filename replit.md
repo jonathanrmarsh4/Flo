@@ -4,7 +4,8 @@
 Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It offers a dashboard with four intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics, integrates OpenAI's GPT models and Apple HealthKit, and features **Flō Oracle** – a Grok-powered voice chat coach for real-time health insights. The platform includes a **Stripe-powered subscription system** with FREE and PREMIUM tiers, providing feature gating and upgrade prompts. Its core purpose is to deliver trusted, clear, and actionable health information.
 
 ## User Preferences
-Preferred communication style: Simple, everyday language.
+- Preferred communication style: Simple, everyday language.
+- **AI Health Commentary Policy:** Flō Oracle is configured to provide evidence-based health analysis with educational disclaimers rather than blocking health insights. The AI can discuss what biomarkers might indicate, potential health patterns, and treatment options to discuss with physicians. All health-related responses include: "⚕️ This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions." Only truly dangerous patterns (specific medication prescriptions with dosages) are blocked.
 
 ## Critical iOS Configuration
 **IMPORTANT - DO NOT REVERT THESE SETTINGS:**

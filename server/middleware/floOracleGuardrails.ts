@@ -70,13 +70,23 @@ export function checkEmergencyTrigger(userInput: string): GuardrailViolation {
 }
 
 export function checkDiagnosisPatterns(assistantOutput: string): GuardrailViolation {
-  for (const pattern of DIAGNOSIS_PATTERNS) {
+  // Diagnosis patterns are now allowed - we append disclaimers via system prompt instead of blocking
+  // Only block truly dangerous patterns like specific medication prescriptions with dosages
+  const dangerousPatterns = [
+    /\bprescribe\b/i,
+    /\bprescription\b/i,
+    /start taking \d+\s*mg/i,
+    /stop taking \d+\s*mg/i,
+    /take \d+\s*mg of/i,
+  ];
+  
+  for (const pattern of dangerousPatterns) {
     if (pattern.test(assistantOutput)) {
-      logger.warn(`[Guardrails] Diagnosis pattern detected: ${pattern}`);
+      logger.warn(`[Guardrails] Dangerous prescription pattern detected: ${pattern}`);
       return {
         violated: true,
-        type: 'diagnosis',
-        replacement: `I'm not a doctor and can't diagnose or prescribe — please discuss this with your physician. Here's what I can tell you from your data…`,
+        type: 'prescription',
+        replacement: `I can't prescribe specific medications or dosages — that's something you'll need to discuss with your doctor. However, I can analyze what your data shows and discuss potential options to bring up with them.`,
       };
     }
   }
