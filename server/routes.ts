@@ -4459,6 +4459,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Body composition endpoint - unified DEXA + HealthKit data
   app.get("/api/body-composition", isAuthenticated, async (req: any, res) => {
     try {
+      // Disable caching to ensure fresh HealthKit data is always fetched
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       const userId = req.user.claims.sub;
       const { BodyCompositionService } = await import("./services/bodyCompositionService");
       
