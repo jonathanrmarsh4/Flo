@@ -1283,7 +1283,7 @@ public class HealthKitNormalisationService {
         let deviceName: String?
         let deviceManufacturer: String?
         let deviceModel: String?
-        let metadata: [String: Any]?
+        let metadata: [String: String]?  // Changed from [String: Any]? to [String: String]?
         let uuid: String?
         
         // Custom encode for metadata field
@@ -1384,20 +1384,22 @@ public class HealthKitNormalisationService {
         // Convert workout type to string
         let workoutTypeString = getWorkoutTypeString(workout.workoutActivityType)
         
-        // Calculate heart rate stats if available
+        // Calculate heart rate stats if available (iOS 16.0+ only)
         var avgHR: Double? = nil
         var maxHR: Double? = nil
         var minHR: Double? = nil
         
-        if let heartRateStats = workout.statistics(for: HKQuantityType.quantityType(forIdentifier: .heartRate)!) {
-            if let avgQuantity = heartRateStats.averageQuantity() {
-                avgHR = avgQuantity.doubleValue(for: HKUnit(from: "count/min"))
-            }
-            if let maxQuantity = heartRateStats.maximumQuantity() {
-                maxHR = maxQuantity.doubleValue(for: HKUnit(from: "count/min"))
-            }
-            if let minQuantity = heartRateStats.minimumQuantity() {
-                minHR = minQuantity.doubleValue(for: HKUnit(from: "count/min"))
+        if #available(iOS 16.0, *) {
+            if let heartRateStats = workout.statistics(for: HKQuantityType.quantityType(forIdentifier: .heartRate)!) {
+                if let avgQuantity = heartRateStats.averageQuantity() {
+                    avgHR = avgQuantity.doubleValue(for: HKUnit(from: "count/min"))
+                }
+                if let maxQuantity = heartRateStats.maximumQuantity() {
+                    maxHR = maxQuantity.doubleValue(for: HKUnit(from: "count/min"))
+                }
+                if let minQuantity = heartRateStats.minimumQuantity() {
+                    minHR = minQuantity.doubleValue(for: HKUnit(from: "count/min"))
+                }
             }
         }
         
@@ -1415,17 +1417,20 @@ public class HealthKitNormalisationService {
             energyBurned = totalEnergy.doubleValue(for: HKUnit.kilocalorie())
         }
         
-        // Build metadata
-        var metadata: [String: Any] = [:]
+        // Build metadata - convert all values to strings for JSON serialization
+        var metadata: [String: String] = [:]
         if let workoutMetadata = workout.metadata {
-            // Convert metadata dictionary to serializable format
+            // Convert metadata dictionary to string format
             for (key, value) in workoutMetadata {
                 if let stringValue = value as? String {
                     metadata[key] = stringValue
                 } else if let numberValue = value as? NSNumber {
-                    metadata[key] = numberValue.doubleValue
+                    metadata[key] = String(numberValue.doubleValue)
                 } else if let dateValue = value as? Date {
                     metadata[key] = iso8601.string(from: dateValue)
+                } else {
+                    // Convert any other type to string
+                    metadata[key] = String(describing: value)
                 }
             }
         }
@@ -1480,10 +1485,11 @@ public class HealthKitNormalisationService {
         case .hockey: return "hockey"
         case .volleyball: return "volleyball"
         case .climbing: return "climbing"
-        case .skiing: return "skiing"
+        case .downhillSkiing: return "skiing"
+        case .crossCountrySkiing: return "cross_country_skiing"
         case .snowboarding: return "snowboarding"
-        case .surfing: return "surfing"
-        case .paddling: return "paddling"
+        case .surfingSports: return "surfing"
+        case .paddleSports: return "paddling"
         case .sailing: return "sailing"
         case .badminton: return "badminton"
         case .tableTennis: return "table_tennis"
