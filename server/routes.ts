@@ -3054,6 +3054,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const dailyMetrics = req.body;
 
+      // PRODUCTION DEBUG: Log raw request body first
+      console.log('📥 [BODY COMP DEBUG] Raw req.body:', JSON.stringify({
+        weightKg: req.body.weightKg,
+        bodyFatPercent: req.body.bodyFatPercent,
+        leanBodyMassKg: req.body.leanBodyMassKg,
+        bmi: req.body.bmi,
+        waistCircumferenceCm: req.body.waistCircumferenceCm,
+        localDate: req.body.localDate,
+      }, null, 2));
+
       // CRITICAL: Extract body composition fields BEFORE validation
       // They're not in userDailyMetrics schema, so validation would strip them
       const bodyCompFields = {
@@ -3064,11 +3074,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
       };
 
-      // PRODUCTION DEBUG: Log what iOS is sending
-      console.log('🔍 [BODY COMP DEBUG] Raw iOS payload:', JSON.stringify({
-        ...bodyCompFields,
-        localDate: dailyMetrics.localDate,
-      }, null, 2));
+      // PRODUCTION DEBUG: Log what was extracted
+      console.log('🔍 [BODY COMP DEBUG] Extracted bodyCompFields:', JSON.stringify(bodyCompFields, null, 2));
 
       // Validate input (this will strip body comp fields, which is why we extracted them above)
       const validationResult = insertUserDailyMetricsSchema.safeParse({
