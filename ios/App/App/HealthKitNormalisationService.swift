@@ -337,6 +337,176 @@ public class HealthKitNormalisationService {
             dispatchGroup.leave()
         }
         
+        // Body Weight
+        dispatchGroup.enter()
+        aggregateWeight(dayStart: dayStart, dayEnd: dayEnd) { weight in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: weight,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Body Fat Percentage
+        dispatchGroup.enter()
+        aggregateBodyFat(dayStart: dayStart, dayEnd: dayEnd) { bodyFat in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: bodyFat,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Lean Body Mass
+        dispatchGroup.enter()
+        aggregateLeanBodyMass(dayStart: dayStart, dayEnd: dayEnd) { leanMass in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: leanMass,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // BMI
+        dispatchGroup.enter()
+        aggregateBMI(dayStart: dayStart, dayEnd: dayEnd) { bmi in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Waist Circumference
+        dispatchGroup.enter()
+        aggregateWaistCircumference(dayStart: dayStart, dayEnd: dayEnd) { waist in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: waist,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
         dispatchGroup.notify(queue: .main) {
             completion(metrics)
         }
@@ -598,6 +768,123 @@ public class HealthKitNormalisationService {
             )
             
             completion(finalSteps, metadata)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    // MARK: - Body Composition Aggregation
+    
+    /// Get most recent weight measurement for the day
+    private func aggregateWeight(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let weightType = HKObjectType.quantityType(forIdentifier: .bodyMass) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: weightType, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            let weightKg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
+            completion(weightKg)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Get most recent body fat percentage for the day
+    private func aggregateBodyFat(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let bodyFatType = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: bodyFatType, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            let bodyFatPct = sample.quantity.doubleValue(for: .percent()) * 100.0
+            completion(bodyFatPct)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Get most recent lean body mass for the day
+    private func aggregateLeanBodyMass(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let leanMassType = HKObjectType.quantityType(forIdentifier: .leanBodyMass) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: leanMassType, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            let leanMassKg = sample.quantity.doubleValue(for: .gramUnit(with: .kilo))
+            completion(leanMassKg)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Get most recent BMI for the day
+    private func aggregateBMI(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let bmiType = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: bmiType, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            let bmi = sample.quantity.doubleValue(for: .count())
+            completion(bmi)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Get most recent waist circumference for the day
+    private func aggregateWaistCircumference(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let waistType = HKObjectType.quantityType(forIdentifier: .waistCircumference) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: waistType, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            let waistCm = sample.quantity.doubleValue(for: .meterUnit(with: .centi))
+            completion(waistCm)
         }
         
         healthStore.execute(query)

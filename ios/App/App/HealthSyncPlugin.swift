@@ -32,7 +32,13 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             HKObjectType.quantityType(forIdentifier: .heartRate)!,
             HKObjectType.quantityType(forIdentifier: .restingHeartRate)!,
             HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
-            HKObjectType.workoutType()  // Add workout data type
+            HKObjectType.workoutType(),  // Workout data type
+            // Body composition types
+            HKObjectType.quantityType(forIdentifier: .bodyMass)!,
+            HKObjectType.quantityType(forIdentifier: .bodyFatPercentage)!,
+            HKObjectType.quantityType(forIdentifier: .leanBodyMass)!,
+            HKObjectType.quantityType(forIdentifier: .bodyMassIndex)!,
+            HKObjectType.quantityType(forIdentifier: .waistCircumference)!
         ]
         
         healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
