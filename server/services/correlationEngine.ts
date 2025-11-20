@@ -50,7 +50,7 @@ async function detectActivitySleepCorrelation(userId: string): Promise<Correlati
     const metrics = await db
       .select({
         date: userDailyMetrics.localDate,
-        steps: userDailyMetrics.stepsRawSum,
+        steps: userDailyMetrics.stepsNormalized,
       })
       .from(userDailyMetrics)
       .where(
