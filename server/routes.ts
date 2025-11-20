@@ -1176,6 +1176,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/health-insights - Get latest comprehensive health insights
   app.get("/api/health-insights", isAuthenticated, async (req: any, res) => {
     try {
+      // CRITICAL: Prevent iOS overnight caching - force fresh data after HealthKit sync
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const userId = req.user.claims.sub;
       
       const cached = await storage.getLatestHealthInsights(userId);
@@ -3280,6 +3285,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get today's readiness score (compute if needed)
   app.get("/api/readiness/today", isAuthenticated, async (req: any, res) => {
     try {
+      // CRITICAL: Prevent iOS overnight caching - force fresh data after HealthKit sync
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const userId = req.user.claims.sub;
       const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -3375,6 +3385,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get historical readiness scores
   app.get("/api/readiness/history", isAuthenticated, async (req: any, res) => {
     try {
+      // CRITICAL: Prevent iOS overnight caching - force fresh data after HealthKit sync
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const userId = req.user.claims.sub;
       const { days = 30 } = req.query;
       const daysNum = Math.min(parseInt(days as string) || 30, 90);
@@ -4516,6 +4531,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard API endpoints
   app.get("/api/dashboard/overview", isAuthenticated, async (req: any, res) => {
     try {
+      // CRITICAL: Prevent iOS overnight caching - force fresh data after HealthKit sync
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const userId = req.user.claims.sub;
       const { calculateDashboardScores } = await import("./services/scoreCalculator");
 
@@ -4688,6 +4708,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/flomentum/weekly", isAuthenticated, canAccessFlomentum, async (req: any, res) => {
     try {
+      // CRITICAL: Prevent iOS overnight caching - force fresh data after HealthKit sync
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const userId = req.user.claims.sub;
       
       // Get user settings
@@ -4733,6 +4758,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/flomentum/today", isAuthenticated, canAccessFlomentum, async (req: any, res) => {
     try {
+      // CRITICAL: Prevent iOS overnight caching - force fresh data after HealthKit sync
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const userId = req.user.claims.sub;
       
       // Get user settings
