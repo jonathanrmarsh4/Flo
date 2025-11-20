@@ -143,6 +143,8 @@ export class BodyCompositionService {
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
 
+    console.log('🔎 [BODY COMP SERVICE] Querying health_daily_metrics for userId:', userId, 'since:', ninetyDaysAgoStr);
+
     const data = await db
       .select()
       .from(healthDailyMetrics)
@@ -154,7 +156,21 @@ export class BodyCompositionService {
       )
       .orderBy(desc(healthDailyMetrics.date));
 
+    console.log('🔎 [BODY COMP SERVICE] Query returned', data.length, 'rows');
+    
     const mostRecent = data[0] || null;
+    
+    if (mostRecent) {
+      console.log('🔎 [BODY COMP SERVICE] Most recent data:', JSON.stringify({
+        date: mostRecent.date,
+        weightKg: mostRecent.weightKg,
+        bodyFatPct: mostRecent.bodyFatPct,
+        leanMassKg: mostRecent.leanMassKg,
+        bmi: mostRecent.bmi,
+      }, null, 2));
+    } else {
+      console.log('🔎 [BODY COMP SERVICE] No data found in health_daily_metrics');
+    }
 
     const trend: BodyCompositionTrend[] = data.map(d => ({
       date: d.date,
