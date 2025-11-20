@@ -35,6 +35,8 @@ export function BodyCompositionTile({
 }: BodyCompositionTileProps) {
   const { data: bodyCompData, isLoading } = useQuery<BodyCompositionData>({
     queryKey: ['/api/body-composition'],
+    staleTime: 0, // Force fresh data - critical for HealthKit body comp
+    gcTime: 0, // Don't cache between unmounts
   });
 
   const snapshot = bodyCompData?.snapshot;
