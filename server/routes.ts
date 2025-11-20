@@ -4478,9 +4478,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Expires', '0');
 
       const userId = req.user.claims.sub;
+      
+      // PRODUCTION DEBUG: Log what we're about to query
+      console.log('🔍 [BODY COMP API] Fetching body composition for userId:', userId);
+      
       const { BodyCompositionService } = await import("./services/bodyCompositionService");
       
       const data = await BodyCompositionService.getBodyComposition(userId);
+      
+      // PRODUCTION DEBUG: Log what we got back
+      console.log('📊 [BODY COMP API] Response:', JSON.stringify({
+        hasSnapshot: !!data.snapshot,
+        weightKg: data.snapshot?.weightKg,
+        bodyFatPct: data.snapshot?.bodyFatPct,
+        leanMassKg: data.snapshot?.leanMassKg,
+        bmi: data.snapshot?.bmi,
+        weightSource: data.snapshot?.weightSource,
+        bodyFatSource: data.snapshot?.bodyFatSource,
+        trendCount: data.trend?.length || 0,
+      }, null, 2));
+      
       res.json(data);
     } catch (error) {
       logger.error('Error fetching body composition:', error);
