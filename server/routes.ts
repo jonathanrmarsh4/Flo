@@ -3054,6 +3054,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const dailyMetrics = req.body;
 
+      // PRODUCTION DEBUG: Log what iOS is sending
+      console.log('🔍 [BODY COMP DEBUG] Raw iOS payload:', JSON.stringify({
+        weightKg: dailyMetrics.weightKg,
+        bodyFatPercent: dailyMetrics.bodyFatPercent,
+        leanBodyMassKg: dailyMetrics.leanBodyMassKg,
+        bmi: dailyMetrics.bmi,
+        waistCircumferenceCm: dailyMetrics.waistCircumferenceCm,
+        localDate: dailyMetrics.localDate,
+      }, null, 2));
+
       // Validate input
       const validationResult = insertUserDailyMetricsSchema.safeParse({
         ...dailyMetrics,
@@ -3075,7 +3085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Also populate health_daily_metrics for Flōmentum consistency and body composition tracking
       // Note: Body composition fields come from raw dailyMetrics since they're not in userDailyMetrics schema
-      await db.insert(healthDailyMetrics).values({
+      const healthMetricsData = {
         userId,
         date: metrics.localDate,
         sleepTotalMinutes: metrics.sleepHours ? Math.round(metrics.sleepHours * 60) : null,
@@ -3089,20 +3099,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         leanMassKg: dailyMetrics.leanBodyMassKg ?? null,
         bmi: dailyMetrics.bmi ?? null,
         waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
-      }).onConflictDoUpdate({
+      };
+
+      console.log('💾 [BODY COMP DEBUG] Saving to health_daily_metrics:', JSON.stringify({
+        weightKg: healthMetricsData.weightKg,
+        bodyFatPct: healthMetricsData.bodyFatPct,
+        leanMassKg: healthMetricsData.leanMassKg,
+        bmi: healthMetricsData.bmi,
+        waistCircumferenceCm: healthMetricsData.waistCircumferenceCm,
+        date: healthMetricsData.date,
+      }, null, 2));
+
+      await db.insert(healthDailyMetrics).values(healthMetricsData).onConflictDoUpdate({
         target: [healthDailyMetrics.userId, healthDailyMetrics.date],
         set: {
-          sleepTotalMinutes: metrics.sleepHours ? Math.round(metrics.sleepHours * 60) : null,
-          hrvSdnnMs: metrics.hrvMs ? Math.round(metrics.hrvMs) : null,
-          restingHr: metrics.restingHrBpm ? Math.round(metrics.restingHrBpm) : null,
-          steps: metrics.stepsNormalized ?? null,
-          activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
-          exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
-          weightKg: dailyMetrics.weightKg ?? null,
-          bodyFatPct: dailyMetrics.bodyFatPercent ?? null,
-          leanMassKg: dailyMetrics.leanBodyMassKg ?? null,
-          bmi: dailyMetrics.bmi ?? null,
-          waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
+          sleepTotalMinutes: healthMetricsData.sleepTotalMinutes,
+          hrvSdnnMs: healthMetricsData.hrvSdnnMs,
+          restingHr: healthMetricsData.restingHr,
+          steps: healthMetricsData.steps,
+          activeKcal: healthMetricsData.activeKcal,
+          exerciseMinutes: healthMetricsData.exerciseMinutes,
+          weightKg: healthMetricsData.weightKg,
+          bodyFatPct: healthMetricsData.bodyFatPct,
+          leanMassKg: healthMetricsData.leanMassKg,
+          bmi: healthMetricsData.bmi,
+          waistCircumferenceCm: healthMetricsData.waistCircumferenceCm,
         },
       });
 
