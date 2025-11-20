@@ -3123,22 +3123,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date: healthMetricsData.date,
       }, null, 2));
 
-      await db.insert(healthDailyMetrics).values(healthMetricsData).onConflictDoUpdate({
-        target: [healthDailyMetrics.userId, healthDailyMetrics.date],
-        set: {
-          sleepTotalMinutes: healthMetricsData.sleepTotalMinutes,
-          hrvSdnnMs: healthMetricsData.hrvSdnnMs,
-          restingHr: healthMetricsData.restingHr,
-          steps: healthMetricsData.steps,
-          activeKcal: healthMetricsData.activeKcal,
-          exerciseMinutes: healthMetricsData.exerciseMinutes,
-          weightKg: healthMetricsData.weightKg,
-          bodyFatPct: healthMetricsData.bodyFatPct,
-          leanMassKg: healthMetricsData.leanMassKg,
-          bmi: healthMetricsData.bmi,
-          waistCircumferenceCm: healthMetricsData.waistCircumferenceCm,
-        },
-      });
+      try {
+        await db.insert(healthDailyMetrics).values(healthMetricsData).onConflictDoUpdate({
+          target: [healthDailyMetrics.userId, healthDailyMetrics.date],
+          set: {
+            sleepTotalMinutes: healthMetricsData.sleepTotalMinutes,
+            hrvSdnnMs: healthMetricsData.hrvSdnnMs,
+            restingHr: healthMetricsData.restingHr,
+            steps: healthMetricsData.steps,
+            activeKcal: healthMetricsData.activeKcal,
+            exerciseMinutes: healthMetricsData.exerciseMinutes,
+            weightKg: healthMetricsData.weightKg,
+            bodyFatPct: healthMetricsData.bodyFatPct,
+            leanMassKg: healthMetricsData.leanMassKg,
+            bmi: healthMetricsData.bmi,
+            waistCircumferenceCm: healthMetricsData.waistCircumferenceCm,
+          },
+        });
+        console.log('✅ [BODY COMP DEBUG] Successfully saved to health_daily_metrics for date:', healthMetricsData.date);
+      } catch (saveError: any) {
+        console.error('❌ [BODY COMP DEBUG] Failed to save to health_daily_metrics:', saveError.message);
+        console.error('❌ [BODY COMP DEBUG] Data that failed:', JSON.stringify(healthMetricsData, null, 2));
+      }
 
       // Upsert: insert or update if already exists for this user+date
       const { and, sql: drizzleSql } = await import("drizzle-orm");
