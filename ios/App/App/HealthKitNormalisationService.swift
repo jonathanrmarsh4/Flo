@@ -1349,15 +1349,12 @@ public class HealthKitNormalisationService {
     private func queryAndUploadWorkouts(from startDate: Date, to endDate: Date, completion: @escaping (Bool, Error?) -> Void) {
         let workoutType = HKObjectType.workoutType()
         
-        // Check if we have permission
-        let authStatus = healthStore.authorizationStatus(for: workoutType)
-        print("[Workouts] Authorization status: \(authStatus.rawValue) (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)")
-        
-        guard authStatus == .sharingAuthorized else {
-            print("[Workouts] No authorization for workout data - status is not sharingAuthorized")
-            completion(false, NSError(domain: "WorkoutSync", code: 2, userInfo: [NSLocalizedDescriptionKey: "No workout authorization"]))
-            return
-        }
+        // IMPORTANT: Do NOT check authorization status for workouts!
+        // iOS privacy policy prevents accurate status reporting for workout data.
+        // Per Apple documentation, authorizationStatus may return .notDetermined or .sharingDenied
+        // even when permission is granted. Just attempt the query - if we have permission,
+        // we'll get data; if not, we'll get an empty array.
+        print("[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)")
         
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
