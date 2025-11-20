@@ -6,6 +6,15 @@ Flō is a mobile-first health analytics platform that uses AI to analyze blood w
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Critical iOS Configuration
+**IMPORTANT - DO NOT REVERT THESE SETTINGS:**
+
+1. **React Query staleTime** (`client/src/lib/queryClient.ts`): MUST be `staleTime: 0` for health data to refresh properly after HealthKit syncs. Setting to `Infinity` causes iOS app to show stale cached data after overnight sleep.
+
+2. **Capacitor server.url** (`capacitor.config.ts` and `ios/App/App/capacitor.config.json`): MUST include `"url": "https://get-flo.com"` to load production frontend and make live API calls instead of using bundled static files.
+
+3. **iOS Build Process**: After any frontend changes: `npm run build` → `npx cap sync ios` → rebuild in Xcode. Frontend config changes MUST be bundled into the iOS build.
+
 ## System Architecture
 
 ### UI/UX Decisions
