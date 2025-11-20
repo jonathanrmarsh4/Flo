@@ -31,7 +31,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!,
             HKObjectType.quantityType(forIdentifier: .heartRate)!,
             HKObjectType.quantityType(forIdentifier: .restingHeartRate)!,
-            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!
+            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
+            HKObjectType.workoutType()  // Add workout data type
         ]
         
         healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
