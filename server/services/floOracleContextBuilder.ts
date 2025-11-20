@@ -472,6 +472,45 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.flomentumCurrent.dailyFocus = factors.focus || null;
     }
 
+    // Fetch recent workout sessions from healthkitWorkouts table
+    const workoutHistory: any[] = [];
+    try {
+      const { healthkitWorkouts } = await import("@shared/schema");
+      const recentWorkouts = await db
+        .select({
+          workoutType: healthkitWorkouts.workoutType,
+          date: healthkitWorkouts.startDate,
+          duration: healthkitWorkouts.duration,
+          distance: healthkitWorkouts.totalDistance,
+          energyBurned: healthkitWorkouts.totalEnergyBurned,
+          avgHR: healthkitWorkouts.averageHeartRate,
+          maxHR: healthkitWorkouts.maxHeartRate
+        })
+        .from(healthkitWorkouts)
+        .where(
+          and(
+            eq(healthkitWorkouts.userId, userId),
+            gte(healthkitWorkouts.startDate, sevenDaysAgo)
+          )
+        )
+        .orderBy(desc(healthkitWorkouts.startDate))
+        .limit(20);
+      
+      recentWorkouts.forEach(w => {
+        workoutHistory.push({
+          type: w.workoutType,
+          date: w.date.toISOString().split('T')[0],
+          duration: w.duration ? Math.round(w.duration) : null,
+          distance: w.distance ? (w.distance / 1000).toFixed(1) : null, // Convert to km
+          calories: w.energyBurned ? Math.round(w.energyBurned) : null,
+          avgHR: w.avgHR ? Math.round(w.avgHR) : null,
+          maxHR: w.maxHR ? Math.round(w.maxHR) : null
+        });
+      });
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch workout history');
+    }
+
     // Fetch unified body composition data (DEXA + HealthKit with priority logic)
     try {
       const { BodyCompositionService } = await import('./bodyCompositionService');
@@ -482,7 +521,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.bodyCompositionExplanation = null;
     }
 
-    const contextString = buildContextString(context, bloodPanelHistory);
+    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory);
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars)`);
     
     // Cache the result
@@ -498,7 +537,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
   }
 }
 
-function buildContextString(context: UserHealthContext, bloodPanelHistory: BloodPanelHistory[] = []): string {
+function buildContextString(context: UserHealthContext, bloodPanelHistory: BloodPanelHistory[] = [], workoutHistory: any[] = []): string {
   const lines: string[] = ['USER CONTEXT (never shared with user):'];
   
   lines.push(`Age: ${context.age ?? 'unknown'} | Sex: ${context.sex} | Primary goal: ${context.primaryGoals.join(', ') || 'general health'}`);
@@ -622,6 +661,26 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     logger.info(`[FloOracle] Added ${healthkitParts.length} HealthKit metric categories to context`);
   } else {
     logger.warn('[FloOracle] No HealthKit metrics available to add to context');
+  }
+
+  // Add workout history if available (limit to 5 most recent)
+  if (workoutHistory && workoutHistory.length > 0) {
+    lines.push('');
+    lines.push('RECENT WORKOUTS (last 7 days):');
+    const workoutsToShow = workoutHistory.slice(0, 5); // Limit to 5 most recent
+    workoutsToShow.forEach(w => {
+      const parts: string[] = [`${w.type.charAt(0).toUpperCase() + w.type.slice(1)}`];
+      if (w.duration) parts.push(`${w.duration} min`);
+      if (w.distance) parts.push(`${w.distance} km`);
+      if (w.calories) parts.push(`${w.calories} kcal`);
+      if (w.avgHR) parts.push(`Avg HR ${w.avgHR}`);
+      if (w.maxHR) parts.push(`Max ${w.maxHR}`);
+      lines.push(`  • ${w.date}: ${parts.join(', ')}`);
+    });
+    if (workoutHistory.length > 5) {
+      lines.push(`  ... and ${workoutHistory.length - 5} more workouts`);
+    }
+    logger.info(`[FloOracle] Added ${Math.min(5, workoutHistory.length)} recent workouts to context`);
   }
   
   if (context.flomentumCurrent.score !== null) {

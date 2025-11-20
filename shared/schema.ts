@@ -777,6 +777,35 @@ export const healthkitSamples = pgTable("healthkit_samples", {
   index("idx_healthkit_uuid").on(table.uuid),
 ]);
 
+// HealthKit workouts - stores individual workout sessions from iOS HealthKit
+export const healthkitWorkouts = pgTable("healthkit_workouts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  workoutType: text("workout_type").notNull(), // running, cycling, strength, etc.
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  duration: real("duration").notNull(), // Duration in minutes
+  totalDistance: real("total_distance"), // Distance in meters (nullable for strength training)
+  totalDistanceUnit: text("total_distance_unit"), // meters, kilometers, miles
+  totalEnergyBurned: real("total_energy_burned"), // Calories burned
+  totalEnergyBurnedUnit: text("total_energy_burned_unit"), // kcal, joules
+  averageHeartRate: real("average_heart_rate"), // Average BPM during workout
+  maxHeartRate: real("max_heart_rate"), // Max BPM during workout
+  minHeartRate: real("min_heart_rate"), // Min BPM during workout
+  sourceName: text("source_name"), // App that recorded the workout
+  sourceBundleId: text("source_bundle_id"), // Bundle identifier
+  deviceName: text("device_name"), // Device name (e.g., "Apple Watch")
+  deviceManufacturer: text("device_manufacturer"), // Device manufacturer
+  deviceModel: text("device_model"), // Device model
+  metadata: jsonb("metadata"), // Additional metadata (weather, indoor/outdoor, etc.)
+  uuid: text("uuid").unique(), // HealthKit workout UUID (for deduplication)
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_healthkit_workouts_user_date").on(table.userId, table.startDate),
+  index("idx_healthkit_workouts_user_type").on(table.userId, table.workoutType),
+  index("idx_healthkit_workouts_uuid").on(table.uuid),
+]);
+
 // User Daily Metrics - Normalized HealthKit data aggregated per day
 export const userDailyMetrics = pgTable("user_daily_metrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

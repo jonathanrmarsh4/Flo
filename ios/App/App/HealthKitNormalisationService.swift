@@ -1262,4 +1262,304 @@ public class HealthKitNormalisationService {
             oxygenSaturation: nil
         )
     }
+
+    // MARK: - Workout Processing
+    
+    /// Workout data structure matching backend healthkit_workouts table
+    private struct WorkoutData: Codable {
+        let workoutType: String
+        let startDate: String
+        let endDate: String
+        let duration: Double  // in minutes
+        let totalDistance: Double?
+        let totalDistanceUnit: String?
+        let totalEnergyBurned: Double?
+        let totalEnergyBurnedUnit: String?
+        let averageHeartRate: Double?
+        let maxHeartRate: Double?
+        let minHeartRate: Double?
+        let sourceName: String?
+        let sourceBundleId: String?
+        let deviceName: String?
+        let deviceManufacturer: String?
+        let deviceModel: String?
+        let metadata: [String: Any]?
+        let uuid: String?
+        
+        // Custom encode for metadata field
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(workoutType, forKey: .workoutType)
+            try container.encode(startDate, forKey: .startDate)
+            try container.encode(endDate, forKey: .endDate)
+            try container.encode(duration, forKey: .duration)
+            try container.encodeIfPresent(totalDistance, forKey: .totalDistance)
+            try container.encodeIfPresent(totalDistanceUnit, forKey: .totalDistanceUnit)
+            try container.encodeIfPresent(totalEnergyBurned, forKey: .totalEnergyBurned)
+            try container.encodeIfPresent(totalEnergyBurnedUnit, forKey: .totalEnergyBurnedUnit)
+            try container.encodeIfPresent(averageHeartRate, forKey: .averageHeartRate)
+            try container.encodeIfPresent(maxHeartRate, forKey: .maxHeartRate)
+            try container.encodeIfPresent(minHeartRate, forKey: .minHeartRate)
+            try container.encodeIfPresent(sourceName, forKey: .sourceName)
+            try container.encodeIfPresent(sourceBundleId, forKey: .sourceBundleId)
+            try container.encodeIfPresent(deviceName, forKey: .deviceName)
+            try container.encodeIfPresent(deviceManufacturer, forKey: .deviceManufacturer)
+            try container.encodeIfPresent(deviceModel, forKey: .deviceModel)
+            if let metadata = metadata {
+                let jsonData = try JSONSerialization.data(withJSONObject: metadata)
+                try container.encode(jsonData, forKey: .metadata)
+            }
+            try container.encodeIfPresent(uuid, forKey: .uuid)
+        }
+        
+        private enum CodingKeys: String, CodingKey {
+            case workoutType, startDate, endDate, duration
+            case totalDistance, totalDistanceUnit
+            case totalEnergyBurned, totalEnergyBurnedUnit
+            case averageHeartRate, maxHeartRate, minHeartRate
+            case sourceName, sourceBundleId
+            case deviceName, deviceManufacturer, deviceModel
+            case metadata, uuid
+        }
+    }
+    
+    /// Sync workouts for the last N days
+    func syncWorkouts(days: Int = 7, completion: @escaping (Bool, Error?) -> Void) {
+        let endDate = Date()
+        var dateComponents = DateComponents()
+        dateComponents.day = -days
+        guard let startDate = calendar.date(byAdding: dateComponents, to: endDate) else {
+            completion(false, NSError(domain: "WorkoutSync", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid date range"]))
+            return
+        }
+        
+        print("[Workouts] Syncing last \(days) days of workouts")
+        queryAndUploadWorkouts(from: startDate, to: endDate, completion: completion)
+    }
+    
+    /// Query and upload workouts from HealthKit
+    private func queryAndUploadWorkouts(from startDate: Date, to endDate: Date, completion: @escaping (Bool, Error?) -> Void) {
+        let workoutType = HKObjectType.workoutType()
+        
+        // Check if we have permission
+        guard healthStore.authorizationStatus(for: workoutType) == .sharingAuthorized else {
+            print("[Workouts] No authorization for workout data")
+            completion(false, NSError(domain: "WorkoutSync", code: 2, userInfo: [NSLocalizedDescriptionKey: "No workout authorization"]))
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: workoutType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) { [weak self] (_, samples, error) in
+            if let error = error {
+                print("[Workouts] Query error: \(error.localizedDescription)")
+                completion(false, error)
+                return
+            }
+            
+            guard let workouts = samples as? [HKWorkout], !workouts.isEmpty else {
+                print("[Workouts] No workouts found in date range")
+                completion(true, nil)
+                return
+            }
+            
+            print("[Workouts] Found \(workouts.count) workouts")
+            
+            // Convert workouts to our data structure
+            let workoutDataArray = workouts.compactMap { self?.convertWorkoutToData($0) }
+            
+            // Upload to backend
+            self?.uploadWorkoutsToBackend(workouts: workoutDataArray, completion: completion)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Convert HKWorkout to WorkoutData structure
+    private func convertWorkoutToData(_ workout: HKWorkout) -> WorkoutData {
+        let iso8601 = ISO8601DateFormatter()
+        iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
+        // Convert workout type to string
+        let workoutTypeString = getWorkoutTypeString(workout.workoutActivityType)
+        
+        // Calculate heart rate stats if available
+        var avgHR: Double? = nil
+        var maxHR: Double? = nil
+        var minHR: Double? = nil
+        
+        if let heartRateStats = workout.statistics(for: HKQuantityType.quantityType(forIdentifier: .heartRate)!) {
+            if let avgQuantity = heartRateStats.averageQuantity() {
+                avgHR = avgQuantity.doubleValue(for: HKUnit(from: "count/min"))
+            }
+            if let maxQuantity = heartRateStats.maximumQuantity() {
+                maxHR = maxQuantity.doubleValue(for: HKUnit(from: "count/min"))
+            }
+            if let minQuantity = heartRateStats.minimumQuantity() {
+                minHR = minQuantity.doubleValue(for: HKUnit(from: "count/min"))
+            }
+        }
+        
+        // Get distance if available
+        var distance: Double? = nil
+        var distanceUnit = "meters"
+        if let totalDistance = workout.totalDistance {
+            distance = totalDistance.doubleValue(for: HKUnit.meter())
+        }
+        
+        // Get energy burned if available
+        var energyBurned: Double? = nil
+        var energyUnit = "kcal"
+        if let totalEnergy = workout.totalEnergyBurned {
+            energyBurned = totalEnergy.doubleValue(for: HKUnit.kilocalorie())
+        }
+        
+        // Build metadata
+        var metadata: [String: Any] = [:]
+        if let workoutMetadata = workout.metadata {
+            // Convert metadata dictionary to serializable format
+            for (key, value) in workoutMetadata {
+                if let stringValue = value as? String {
+                    metadata[key] = stringValue
+                } else if let numberValue = value as? NSNumber {
+                    metadata[key] = numberValue.doubleValue
+                } else if let dateValue = value as? Date {
+                    metadata[key] = iso8601.string(from: dateValue)
+                }
+            }
+        }
+        
+        return WorkoutData(
+            workoutType: workoutTypeString,
+            startDate: iso8601.string(from: workout.startDate),
+            endDate: iso8601.string(from: workout.endDate),
+            duration: workout.duration / 60.0, // Convert seconds to minutes
+            totalDistance: distance,
+            totalDistanceUnit: distanceUnit,
+            totalEnergyBurned: energyBurned,
+            totalEnergyBurnedUnit: energyUnit,
+            averageHeartRate: avgHR,
+            maxHeartRate: maxHR,
+            minHeartRate: minHR,
+            sourceName: workout.sourceRevision.source.name,
+            sourceBundleId: workout.sourceRevision.source.bundleIdentifier,
+            deviceName: workout.device?.name,
+            deviceManufacturer: workout.device?.manufacturer,
+            deviceModel: workout.device?.model,
+            metadata: metadata.isEmpty ? nil : metadata,
+            uuid: workout.uuid.uuidString
+        )
+    }
+    
+    /// Get string representation of workout type
+    private func getWorkoutTypeString(_ type: HKWorkoutActivityType) -> String {
+        switch type {
+        case .running: return "running"
+        case .cycling: return "cycling"
+        case .walking: return "walking"
+        case .swimming: return "swimming"
+        case .yoga: return "yoga"
+        case .functionalStrengthTraining: return "strength"
+        case .traditionalStrengthTraining: return "strength"
+        case .crossTraining: return "cross_training"
+        case .elliptical: return "elliptical"
+        case .rowing: return "rowing"
+        case .stairClimbing: return "stair_climbing"
+        case .hiking: return "hiking"
+        case .dance: return "dance"
+        case .pilates: return "pilates"
+        case .boxing: return "boxing"
+        case .martialArts: return "martial_arts"
+        case .tennis: return "tennis"
+        case .golf: return "golf"
+        case .soccer: return "soccer"
+        case .basketball: return "basketball"
+        case .baseball: return "baseball"
+        case .americanFootball: return "football"
+        case .hockey: return "hockey"
+        case .volleyball: return "volleyball"
+        case .climbing: return "climbing"
+        case .skiing: return "skiing"
+        case .snowboarding: return "snowboarding"
+        case .surfing: return "surfing"
+        case .paddling: return "paddling"
+        case .sailing: return "sailing"
+        case .badminton: return "badminton"
+        case .tableTennis: return "table_tennis"
+        case .jumpRope: return "jump_rope"
+        case .coreTraining: return "core_training"
+        case .highIntensityIntervalTraining: return "hiit"
+        case .mixedCardio: return "cardio"
+        case .other: return "other"
+        default: return "unknown"
+        }
+    }
+    
+    /// Upload workouts to backend
+    private func uploadWorkoutsToBackend(workouts: [WorkoutData], completion: @escaping (Bool, Error?) -> Void) {
+        guard !workouts.isEmpty else {
+            completion(true, nil)
+            return
+        }
+        
+        print("[Workouts] Uploading \(workouts.count) workouts to backend")
+        
+        // Get JWT token from secure storage
+        guard let token = getJWTToken() else {
+            completion(false, NSError(domain: "WorkoutSync", code: 3, userInfo: [NSLocalizedDescriptionKey: "No authentication token found"]))
+            return
+        }
+        
+        let baseURL = getBackendURL()
+        guard let url = URL(string: "\(baseURL)/api/healthkit/workouts/sync") else {
+            completion(false, NSError(domain: "WorkoutSync", code: 4, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"]))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            let encoder = JSONEncoder()
+            let payload = ["workouts": workouts]
+            let jsonData = try encoder.encode(payload)
+            request.httpBody = jsonData
+            
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("[Workouts] Upload error: \(error.localizedDescription)")
+                    completion(false, error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(false, NSError(domain: "WorkoutSync", code: 5, userInfo: [NSLocalizedDescriptionKey: "Invalid response"]))
+                    return
+                }
+                
+                if httpResponse.statusCode == 200 || httpResponse.statusCode == 201 {
+                    if let data = data, let responseStr = String(data: data, encoding: .utf8) {
+                        print("[Workouts] Upload successful: \(responseStr)")
+                    }
+                    completion(true, nil)
+                } else {
+                    var errorMsg = "Upload failed with status \(httpResponse.statusCode)"
+                    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                        print("[Workouts] Response body: \(responseBody)")
+                        errorMsg += " - \(responseBody)"
+                    }
+                    print("[Workouts] \(errorMsg)")
+                    completion(false, NSError(domain: "WorkoutSync", code: 6, userInfo: [NSLocalizedDescriptionKey: errorMsg]))
+                }
+            }
+            
+            task.resume()
+        } catch {
+            print("[Workouts] JSON encoding error: \(error.localizedDescription)")
+            completion(false, error)
+        }
+    }
 }

@@ -33,6 +33,7 @@ import {
   getBiomarkerUnitsQuerySchema,
   getBiomarkerReferenceRangeQuerySchema,
   healthkitSamples,
+  healthkitWorkouts,
   userDailyMetrics,
   insertUserDailyMetricsSchema,
   userDailyReadiness,
@@ -2951,6 +2952,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch upload HealthKit workouts from iOS app
+  app.post("/api/healthkit/workouts/sync", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { workouts } = req.body;
+
+      if (!workouts || !Array.isArray(workouts)) {
+        return res.status(400).json({ error: "Workouts array required" });
+      }
+
+      if (workouts.length === 0) {
+        return res.json({ inserted: 0, duplicates: 0 });
+      }
+
+      logger.info(`[HealthKit] Workout batch upload: ${workouts.length} workouts from user ${userId}`);
+
+      let inserted = 0;
+      let duplicates = 0;
+
+      for (const workout of workouts) {
+        try {
+          const insertData = {
+            userId,
+            workoutType: workout.workoutType,
+            startDate: new Date(workout.startDate),
+            endDate: new Date(workout.endDate),
+            duration: workout.duration,
+            totalDistance: workout.totalDistance || null,
+            totalDistanceUnit: workout.totalDistanceUnit || null,
+            totalEnergyBurned: workout.totalEnergyBurned || null,
+            totalEnergyBurnedUnit: workout.totalEnergyBurnedUnit || null,
+            averageHeartRate: workout.averageHeartRate || null,
+            maxHeartRate: workout.maxHeartRate || null,
+            minHeartRate: workout.minHeartRate || null,
+            sourceName: workout.sourceName || null,
+            sourceBundleId: workout.sourceBundleId || null,
+            deviceName: workout.deviceName || null,
+            deviceManufacturer: workout.deviceManufacturer || null,
+            deviceModel: workout.deviceModel || null,
+            metadata: workout.metadata || null,
+            uuid: workout.uuid || null,
+          };
+
+          await db.insert(healthkitWorkouts).values(insertData);
+          inserted++;
+        } catch (error: any) {
+          if (error.code === '23505') {
+            duplicates++;
+            logger.debug(`[HealthKit] Duplicate workout UUID: ${workout.uuid}`);
+          } else {
+            logger.error(`[HealthKit] Failed to insert workout:`, error);
+            throw error;
+          }
+        }
+      }
+
+      logger.info(`[HealthKit] Workout batch upload complete: ${inserted} inserted, ${duplicates} duplicates`);
+
+      res.json({ 
+        inserted,
+        duplicates,
+        total: workouts.length
+      });
+    } catch (error: any) {
+      logger.error("[HealthKit] Workout batch upload error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get latest HealthKit samples for a user (optional: filtered by dataType)
   app.get("/api/healthkit/samples", isAuthenticated, async (req: any, res) => {
     try {
@@ -4702,10 +4772,11 @@ Core rules — NEVER violate these:
    - CAC scores (coronary artery calcium with percentiles)
    - HealthKit 7-DAY AVERAGES: HRV, sleep duration, resting heart rate, steps, active calories, exercise minutes, distance, flights climbed, blood pressure, SpO2, respiratory rate, VO2 Max, blood glucose, body temperature, dietary water, stand time
    - HealthKit LATEST VALUES: weight, height, BMI, body fat %, lean body mass, waist circumference
+   - INDIVIDUAL WORKOUT SESSIONS: Type, date, duration, distance, calories burned, average/max heart rate from the last 7 days
    - Flōmentum daily scores (0-100 health momentum with zone and daily focus)
    - RAG-discovered patterns (correlations between metrics and behaviors)
    - Recent life events (ice baths, meals, alcohol, stress, travel, etc.)
-   CRITICAL: You do NOT have individual workout sessions with timestamps — only 7-day averaged activity metrics. If asked about "last 3 workouts" or specific workout dates/times/types, explain you only see averaged activity trends over the past week, not individual workout sessions.
+   NOTE: You NOW have access to individual workout sessions including dates, types, durations, distances, calories, and heart rate data. You can discuss specific workouts, workout patterns, and provide insights based on actual workout data from the last 7 days.
    Always reference actual numbers and dates when relevant. Prefix personal facts with "In your data…" or "Your last panel on [date] showed…".
 2. Never guess or hallucinate values. If a biomarker is missing, say "I don't see [X] in your records yet — want to upload it?".
 3. Never give specific medical diagnoses, prescribe drugs, or tell someone to stop/start medication. Redirect gracefully: "That's worth discussing with your physician — here's what your numbers are doing in the meantime…".
@@ -5081,10 +5152,11 @@ Core rules — NEVER violate these:
    - CAC scores (coronary artery calcium with percentiles)
    - HealthKit 7-DAY AVERAGES: HRV, sleep duration, resting heart rate, steps, active calories, exercise minutes, distance, flights climbed, blood pressure, SpO2, respiratory rate, VO2 Max, blood glucose, body temperature, dietary water, stand time
    - HealthKit LATEST VALUES: weight, height, BMI, body fat %, lean body mass, waist circumference
+   - INDIVIDUAL WORKOUT SESSIONS: Type, date, duration, distance, calories burned, average/max heart rate from the last 7 days
    - Flōmentum daily scores (0-100 health momentum with zone and daily focus)
    - RAG-discovered patterns (correlations between metrics and behaviors)
    - Recent life events (ice baths, meals, alcohol, stress, travel, etc.)
-   CRITICAL: You do NOT have individual workout sessions with timestamps — only 7-day averaged activity metrics. If asked about "last 3 workouts" or specific workout dates/times/types, explain you only see averaged activity trends over the past week, not individual workout sessions.
+   NOTE: You NOW have access to individual workout sessions including dates, types, durations, distances, calories, and heart rate data. You can discuss specific workouts, workout patterns, and provide insights based on actual workout data from the last 7 days.
    Always reference actual numbers and dates when relevant. Prefix personal facts with "In your data…" or "Your last panel on [date] showed…".
 2. Never guess or hallucinate values. If a biomarker is missing, say "I don't see [X] in your records yet — want to upload it?".
 3. Never give specific medical diagnoses, prescribe drugs, or tell someone to stop/start medication. Redirect gracefully: "That's worth discussing with your physician — here's what your numbers are doing in the meantime…".

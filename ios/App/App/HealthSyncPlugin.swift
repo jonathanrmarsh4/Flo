@@ -7,7 +7,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "HealthSyncPlugin"
     public let jsName = "HealthSyncPlugin"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "syncReadinessData", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "syncReadinessData", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "syncWorkouts", returnType: CAPPluginReturnPromise)
     ]
     
     // Track active syncs to prevent premature token cleanup
@@ -82,6 +83,58 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
     
+    @objc func syncWorkouts(_ call: CAPPluginCall) {
+        let days = call.getInt("days") ?? 7
+        let token = call.getString("token")
+        
+        print("💪 [HealthSyncPlugin] Queuing workout sync for last \(days) days...")
+        
+        // Request HealthKit authorization for workouts
+        let healthStore = HKHealthStore()
+        let readTypes: Set<HKObjectType> = [
+            HKObjectType.workoutType()
+        ]
+        
+        healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
+            if let error = error {
+                print("❌ [HealthSyncPlugin] Workout authorization request error: \(error.localizedDescription)")
+            } else {
+                print("🔓 [HealthSyncPlugin] Workout authorization requested, success: \(success)")
+            }
+        }
+        
+        // Store token in UserDefaults temporarily for normalization service to access
+        if let token = token {
+            UserDefaults.standard.set(token, forKey: "jwt_token")
+            print("🔑 [HealthSyncPlugin] Auth token received and stored for workout sync")
+        }
+        
+        // Return immediately to unblock JS
+        call.resolve([
+            "success": true,
+            "days": days,
+            "message": "Workout sync started"
+        ])
+        
+        // Dispatch sync work to background queue
+        DispatchQueue.global(qos: .background).async {
+            let normalizationService = HealthKitNormalisationService()
+            normalizationService.syncWorkouts(days: days) { success, error in
+                if let error = error {
+                    print("❌ [HealthSyncPlugin] Workout sync failed: \(error.localizedDescription)")
+                } else if success {
+                    print("✅ [HealthSyncPlugin] Successfully synced \(days) days of workouts!")
+                } else {
+                    print("⚠️ [HealthSyncPlugin] Workout sync completed but returned false")
+                }
+                
+                // Clean up token
+                UserDefaults.standard.removeObject(forKey: "jwt_token")
+                print("🧹 [HealthSyncPlugin] Workout sync complete, auth token cleared")
+            }
+        }
+    }
+    
     private func performSync(days: Int, syncId: Int) {
         let normalizationService = HealthKitNormalisationService()
         normalizationService.syncLastNDays(days: days) { success, error in
@@ -89,6 +142,15 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 print("❌ [HealthSyncPlugin] Background sync failed: \(error.localizedDescription)")
             } else if success {
                 print("✅ [HealthSyncPlugin] Successfully synced \(days) days in background!")
+                
+                // Also sync workouts after main sync completes
+                normalizationService.syncWorkouts(days: days) { workoutSuccess, workoutError in
+                    if let workoutError = workoutError {
+                        print("⚠️ [HealthSyncPlugin] Workout sync error: \(workoutError.localizedDescription)")
+                    } else if workoutSuccess {
+                        print("💪 [HealthSyncPlugin] Also synced workouts successfully!")
+                    }
+                }
             } else {
                 print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
             }
