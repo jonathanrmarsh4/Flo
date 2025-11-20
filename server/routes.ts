@@ -3124,6 +3124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, null, 2));
 
       try {
+        console.log('⏳ [BODY COMP DEBUG] Starting database insert...');
         await db.insert(healthDailyMetrics).values(healthMetricsData).onConflictDoUpdate({
           target: [healthDailyMetrics.userId, healthDailyMetrics.date],
           set: {
@@ -3142,8 +3143,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         console.log('✅ [BODY COMP DEBUG] Successfully saved to health_daily_metrics for date:', healthMetricsData.date);
       } catch (saveError: any) {
-        console.error('❌ [BODY COMP DEBUG] Failed to save to health_daily_metrics:', saveError.message);
-        console.error('❌ [BODY COMP DEBUG] Data that failed:', JSON.stringify(healthMetricsData, null, 2));
+        console.log('❌ [BODY COMP DEBUG] SAVE FAILED! Error:', saveError.message);
+        console.log('❌ [BODY COMP DEBUG] Error stack:', saveError.stack);
+        console.log('❌ [BODY COMP DEBUG] Data that failed:', JSON.stringify(healthMetricsData, null, 2));
       }
 
       // Upsert: insert or update if already exists for this user+date
