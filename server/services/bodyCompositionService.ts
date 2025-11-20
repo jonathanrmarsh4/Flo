@@ -158,7 +158,11 @@ export class BodyCompositionService {
 
     console.log('🔎 [BODY COMP SERVICE] Query returned', data.length, 'rows');
     
+    // Get most recent weight/BMI (always use latest date)
     const mostRecent = data[0] || null;
+    
+    // Get most recent lean mass measurement (may be from a different date)
+    const mostRecentLeanMass = data.find(d => d.leanMassKg !== null) || null;
     
     if (mostRecent) {
       console.log('🔎 [BODY COMP SERVICE] Most recent data:', JSON.stringify({
@@ -170,6 +174,13 @@ export class BodyCompositionService {
       }, null, 2));
     } else {
       console.log('🔎 [BODY COMP SERVICE] No data found in health_daily_metrics');
+    }
+    
+    if (mostRecentLeanMass && mostRecentLeanMass.date !== mostRecent?.date) {
+      console.log('🔎 [BODY COMP SERVICE] Most recent lean mass from different date:', JSON.stringify({
+        date: mostRecentLeanMass.date,
+        leanMassKg: mostRecentLeanMass.leanMassKg,
+      }, null, 2));
     }
 
     const trend: BodyCompositionTrend[] = data.map(d => ({
@@ -185,7 +196,8 @@ export class BodyCompositionService {
         date: mostRecent.date,
         weightKg: mostRecent.weightKg,
         bodyFatPct: mostRecent.bodyFatPct,
-        leanMassKg: mostRecent.leanMassKg,
+        // Use most recent lean mass even if from different date
+        leanMassKg: mostRecentLeanMass?.leanMassKg || mostRecent.leanMassKg,
         bmi: mostRecent.bmi,
         waistCircumferenceCm: mostRecent.waistCircumferenceCm,
       } : null,
