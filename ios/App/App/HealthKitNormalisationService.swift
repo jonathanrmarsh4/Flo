@@ -54,7 +54,15 @@ public class HealthKitNormalisationService {
                 }
                 
                 // Upload raw sleep samples to backend for processing
-                self.uploadSleepNights(for: dayBoundaries, completion: completion)
+                self.uploadSleepNights(for: dayBoundaries) { sleepSuccess, sleepError in
+                    if !sleepSuccess {
+                        completion(sleepSuccess, sleepError)
+                        return
+                    }
+                    
+                    // Upload workouts to backend
+                    self.syncWorkouts(days: days, completion: completion)
+                }
             }
         }
     }
