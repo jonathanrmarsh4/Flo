@@ -129,29 +129,64 @@ export function BodyCompositionTile({
             <Skeleton className="h-2 w-full" />
           </div>
         </div>
-      ) : hasBodyComp ? (
+      ) : hasData ? (
         <div className="space-y-6">
-          {/* Body Fat Percentage */}
-          <div className="space-y-2" data-testid="metric-body-fat">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                  Body Fat Percentage
+          {/* Weight */}
+          {weightKg !== null && weightKg !== undefined && (
+            <div className="space-y-2" data-testid="metric-weight">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    Weight
+                  </span>
+                  {renderSourceBadge(snapshot?.weightSource || null)}
+                </div>
+                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {weightKg.toFixed(1)} kg
                 </span>
-                {renderSourceBadge(snapshot?.bodyFatSource || null)}
               </div>
-              <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                {bodyFatPct!.toFixed(1)}%
-              </span>
             </div>
-            <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-              <div 
-                className="h-full bg-orange-500 transition-all duration-500 ease-out"
-                style={{ width: `${bodyFatPct}%` }}
-                data-testid="progress-body-fat"
-              />
+          )}
+
+          {/* BMI */}
+          {snapshot?.bmi !== null && snapshot?.bmi !== undefined && (
+            <div className="space-y-2" data-testid="metric-bmi">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    BMI
+                  </span>
+                </div>
+                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {snapshot.bmi.toFixed(1)}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Body Fat Percentage */}
+          {hasBodyComp && (
+            <div className="space-y-2" data-testid="metric-body-fat">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    Body Fat Percentage
+                  </span>
+                  {renderSourceBadge(snapshot?.bodyFatSource || null)}
+                </div>
+                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {bodyFatPct!.toFixed(1)}%
+                </span>
+              </div>
+              <div className={`w-full h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+                <div 
+                  className="h-full bg-orange-500 transition-all duration-500 ease-out"
+                  style={{ width: `${bodyFatPct}%` }}
+                  data-testid="progress-body-fat"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Lean Mass Percentage */}
           {leanPercent !== null && (
