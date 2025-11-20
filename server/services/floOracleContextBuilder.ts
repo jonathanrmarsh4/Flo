@@ -9,7 +9,8 @@ import {
   flomentumDaily,
   sleepNights,
   insightCards,
-  lifeEvents
+  lifeEvents,
+  healthkitSamples
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
@@ -53,6 +54,28 @@ interface UserHealthContext {
     rhr: number | null;
     steps: number | null;
     activeKcal: number | null;
+  };
+  healthkitMetrics: {
+    weight: number | null;
+    height: number | null;
+    bmi: number | null;
+    bodyFatPct: number | null;
+    leanBodyMass: number | null;
+    distance: number | null;
+    basalEnergy: number | null;
+    flightsClimbed: number | null;
+    bloodPressureSystolic: number | null;
+    bloodPressureDiastolic: number | null;
+    oxygenSaturation: number | null;
+    respiratoryRate: number | null;
+    bloodGlucose: number | null;
+    bodyTemp: number | null;
+    vo2Max: number | null;
+    walkingHR: number | null;
+    waistCircumference: number | null;
+    dietaryWater: number | null;
+    exerciseTime: number | null;
+    standTime: number | null;
   };
   flomentumCurrent: {
     score: number | null;
@@ -126,6 +149,28 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         rhr: null,
         steps: null,
         activeKcal: null,
+      },
+      healthkitMetrics: {
+        weight: null,
+        height: null,
+        bmi: null,
+        bodyFatPct: null,
+        leanBodyMass: null,
+        distance: null,
+        basalEnergy: null,
+        flightsClimbed: null,
+        bloodPressureSystolic: null,
+        bloodPressureDiastolic: null,
+        oxygenSaturation: null,
+        respiratoryRate: null,
+        bloodGlucose: null,
+        bodyTemp: null,
+        vo2Max: null,
+        walkingHR: null,
+        waistCircumference: null,
+        dietaryWater: null,
+        exerciseTime: null,
+        standTime: null,
       },
       flomentumCurrent: {
         score: null,
@@ -293,6 +338,109 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
     }
 
+    // Fetch all additional HealthKit metrics from healthkitSamples table (last 7 days)
+    const sevenDaysAgoTimestamp = new Date();
+    sevenDaysAgoTimestamp.setDate(sevenDaysAgoTimestamp.getDate() - 7);
+
+    // Helper function to get average value for a metric type
+    const getMetricAvg = async (dataType: string): Promise<number | null> => {
+      const result = await db
+        .select({ avgValue: sql<number>`AVG(${healthkitSamples.value})` })
+        .from(healthkitSamples)
+        .where(
+          and(
+            eq(healthkitSamples.userId, userId),
+            eq(healthkitSamples.dataType, dataType),
+            gte(healthkitSamples.startDate, sevenDaysAgoTimestamp)
+          )
+        );
+      return result[0]?.avgValue ?? null;
+    };
+
+    // Helper function to get latest value for point-in-time metrics (weight, height, etc.)
+    const getMetricLatest = async (dataType: string): Promise<number | null> => {
+      const result = await db
+        .select({ value: healthkitSamples.value })
+        .from(healthkitSamples)
+        .where(
+          and(
+            eq(healthkitSamples.userId, userId),
+            eq(healthkitSamples.dataType, dataType)
+          )
+        )
+        .orderBy(desc(healthkitSamples.startDate))
+        .limit(1);
+      return result[0]?.value ?? null;
+    };
+
+    // Fetch all additional HealthKit metrics
+    const [
+      weight,
+      height,
+      bmi,
+      bodyFatPct,
+      leanBodyMass,
+      distance,
+      basalEnergy,
+      flightsClimbed,
+      bloodPressureSystolic,
+      bloodPressureDiastolic,
+      oxygenSaturation,
+      respiratoryRate,
+      bloodGlucose,
+      bodyTemp,
+      vo2Max,
+      walkingHR,
+      waistCircumference,
+      dietaryWater,
+      exerciseTime,
+      standTime
+    ] = await Promise.all([
+      getMetricLatest('weight'),
+      getMetricLatest('height'),
+      getMetricLatest('bmi'),
+      getMetricLatest('bodyFatPercentage'),
+      getMetricLatest('leanBodyMass'),
+      getMetricAvg('distance'),
+      getMetricAvg('basalEnergyBurned'),
+      getMetricAvg('flightsClimbed'),
+      getMetricAvg('bloodPressureSystolic'),
+      getMetricAvg('bloodPressureDiastolic'),
+      getMetricAvg('oxygenSaturation'),
+      getMetricAvg('respiratoryRate'),
+      getMetricAvg('bloodGlucose'),
+      getMetricAvg('bodyTemperature'),
+      getMetricLatest('vo2Max'),
+      getMetricAvg('walkingHeartRateAverage'),
+      getMetricLatest('waistCircumference'),
+      getMetricAvg('dietaryWater'),
+      getMetricAvg('appleExerciseTime'),
+      getMetricAvg('appleStandTime')
+    ]);
+
+    context.healthkitMetrics = {
+      weight: weight ? Math.round(weight * 10) / 10 : null,
+      height: height ? Math.round(height) : null,
+      bmi: bmi ? Math.round(bmi * 10) / 10 : null,
+      bodyFatPct: bodyFatPct ? Math.round(bodyFatPct * 10) / 10 : null,
+      leanBodyMass: leanBodyMass ? Math.round(leanBodyMass * 10) / 10 : null,
+      distance: distance ? Math.round(distance) : null,
+      basalEnergy: basalEnergy ? Math.round(basalEnergy) : null,
+      flightsClimbed: flightsClimbed ? Math.round(flightsClimbed) : null,
+      bloodPressureSystolic: bloodPressureSystolic ? Math.round(bloodPressureSystolic) : null,
+      bloodPressureDiastolic: bloodPressureDiastolic ? Math.round(bloodPressureDiastolic) : null,
+      oxygenSaturation: oxygenSaturation ? Math.round(oxygenSaturation) : null,
+      respiratoryRate: respiratoryRate ? Math.round(respiratoryRate * 10) / 10 : null,
+      bloodGlucose: bloodGlucose ? Math.round(bloodGlucose) : null,
+      bodyTemp: bodyTemp ? Math.round(bodyTemp * 10) / 10 : null,
+      vo2Max: vo2Max ? Math.round(vo2Max * 10) / 10 : null,
+      walkingHR: walkingHR ? Math.round(walkingHR) : null,
+      waistCircumference: waistCircumference ? Math.round(waistCircumference * 10) / 10 : null,
+      dietaryWater: dietaryWater ? Math.round(dietaryWater) : null,
+      exerciseTime: exerciseTime ? Math.round(exerciseTime) : null,
+      standTime: standTime ? Math.round(standTime) : null,
+    };
+
     const [latestFlomentum] = await db
       .select()
       .from(flomentumDaily)
@@ -399,6 +547,61 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     if (wearable.steps) parts.push(`Steps ${wearable.steps}`);
     if (wearable.activeKcal) parts.push(`Active kcal ${wearable.activeKcal}`);
     lines.push(`7-day wearable avg: ${parts.join(', ')}`);
+  }
+
+  // Add all additional HealthKit metrics
+  const hk = context.healthkitMetrics;
+  const healthkitParts: string[] = [];
+  
+  // Body metrics (latest values)
+  const bodyMetrics: string[] = [];
+  if (hk.weight) bodyMetrics.push(`Weight ${hk.weight} kg`);
+  if (hk.height) bodyMetrics.push(`Height ${hk.height} cm`);
+  if (hk.bmi) bodyMetrics.push(`BMI ${hk.bmi}`);
+  if (hk.bodyFatPct) bodyMetrics.push(`Body fat ${hk.bodyFatPct}%`);
+  if (hk.leanBodyMass) bodyMetrics.push(`Lean mass ${hk.leanBodyMass} kg`);
+  if (hk.waistCircumference) bodyMetrics.push(`Waist ${hk.waistCircumference} cm`);
+  if (bodyMetrics.length > 0) {
+    healthkitParts.push(`Body: ${bodyMetrics.join(', ')}`);
+  }
+
+  // Cardiovascular metrics (7-day averages)
+  const cardioMetrics: string[] = [];
+  if (hk.bloodPressureSystolic && hk.bloodPressureDiastolic) {
+    cardioMetrics.push(`BP ${hk.bloodPressureSystolic}/${hk.bloodPressureDiastolic} mmHg`);
+  }
+  if (hk.oxygenSaturation) cardioMetrics.push(`SpO2 ${hk.oxygenSaturation}%`);
+  if (hk.respiratoryRate) cardioMetrics.push(`RR ${hk.respiratoryRate} br/min`);
+  if (hk.walkingHR) cardioMetrics.push(`Walking HR ${hk.walkingHR} bpm`);
+  if (hk.vo2Max) cardioMetrics.push(`VO2 Max ${hk.vo2Max} mL/kg/min`);
+  if (cardioMetrics.length > 0) {
+    healthkitParts.push(`Cardiovascular (7-day avg): ${cardioMetrics.join(', ')}`);
+  }
+
+  // Metabolic metrics (7-day averages)
+  const metaMetrics: string[] = [];
+  if (hk.bloodGlucose) metaMetrics.push(`Glucose ${hk.bloodGlucose} mg/dL`);
+  if (hk.bodyTemp) metaMetrics.push(`Temp ${hk.bodyTemp}°C`);
+  if (hk.basalEnergy) metaMetrics.push(`Basal kcal ${hk.basalEnergy}`);
+  if (metaMetrics.length > 0) {
+    healthkitParts.push(`Metabolic (7-day avg): ${metaMetrics.join(', ')}`);
+  }
+
+  // Activity metrics (7-day averages)
+  const activityMetrics: string[] = [];
+  if (hk.distance) activityMetrics.push(`Distance ${hk.distance} km`);
+  if (hk.flightsClimbed) activityMetrics.push(`Flights ${hk.flightsClimbed}`);
+  if (hk.exerciseTime) activityMetrics.push(`Exercise ${hk.exerciseTime} min`);
+  if (hk.standTime) activityMetrics.push(`Stand ${hk.standTime} hr`);
+  if (hk.dietaryWater) activityMetrics.push(`Water ${hk.dietaryWater} mL`);
+  if (activityMetrics.length > 0) {
+    healthkitParts.push(`Activity (7-day avg): ${activityMetrics.join(', ')}`);
+  }
+
+  if (healthkitParts.length > 0) {
+    lines.push('');
+    lines.push('HEALTHKIT METRICS:');
+    healthkitParts.forEach(part => lines.push(`  ${part}`));
   }
   
   if (context.flomentumCurrent.score !== null) {
