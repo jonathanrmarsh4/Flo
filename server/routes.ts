@@ -2807,6 +2807,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clear Flō Oracle context cache (admin only, for debugging)
+  app.post("/api/admin/clear-oracle-cache", requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+      const { clearContextCache } = await import('./services/floOracleContextBuilder');
+      clearContextCache(userId);
+      
+      res.json({ 
+        success: true, 
+        message: userId ? `Cleared Oracle context cache for user ${userId}` : "Cleared all Oracle context cache"
+      });
+    } catch (error: any) {
+      logger.error("[Admin] Clear Oracle cache failed:", error);
+      res.status(500).json({ error: "Failed to clear cache", message: error.message });
+    }
+  });
+
   // Stripe billing routes (referenced from javascript_stripe blueprint)
   // Initialize Stripe only if API key is available
   const stripe = process.env.STRIPE_SECRET_KEY 

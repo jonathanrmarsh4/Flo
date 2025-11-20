@@ -24,6 +24,17 @@ interface CachedContext {
 const contextCache = new Map<string, CachedContext>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+// Export cache clearing function for debugging
+export function clearContextCache(userId?: string) {
+  if (userId) {
+    contextCache.delete(userId);
+    logger.info(`[FloOracle] Cleared context cache for user ${userId}`);
+  } else {
+    contextCache.clear();
+    logger.info('[FloOracle] Cleared all context cache');
+  }
+}
+
 interface UserHealthContext {
   age: number | null;
   sex: string;
@@ -440,6 +451,12 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       exerciseTime: exerciseTime ? Math.round(exerciseTime) : null,
       standTime: standTime ? Math.round(standTime) : null,
     };
+    
+    // Log what metrics we actually found
+    const nonNullMetrics = Object.entries(context.healthkitMetrics)
+      .filter(([_, value]) => value !== null)
+      .map(([key]) => key);
+    logger.info(`[FloOracle] Fetched ${nonNullMetrics.length}/20 HealthKit metrics: ${nonNullMetrics.join(', ')}`);
 
     const [latestFlomentum] = await db
       .select()
@@ -602,6 +619,9 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     lines.push('');
     lines.push('HEALTHKIT METRICS:');
     healthkitParts.forEach(part => lines.push(`  ${part}`));
+    logger.info(`[FloOracle] Added ${healthkitParts.length} HealthKit metric categories to context`);
+  } else {
+    logger.warn('[FloOracle] No HealthKit metrics available to add to context');
   }
   
   if (context.flomentumCurrent.score !== null) {
