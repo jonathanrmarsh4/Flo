@@ -3054,17 +3054,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const dailyMetrics = req.body;
 
+      // CRITICAL: Extract body composition fields BEFORE validation
+      // They're not in userDailyMetrics schema, so validation would strip them
+      const bodyCompFields = {
+        weightKg: dailyMetrics.weightKg ?? null,
+        bodyFatPercent: dailyMetrics.bodyFatPercent ?? null,
+        leanBodyMassKg: dailyMetrics.leanBodyMassKg ?? null,
+        bmi: dailyMetrics.bmi ?? null,
+        waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
+      };
+
       // PRODUCTION DEBUG: Log what iOS is sending
       console.log('🔍 [BODY COMP DEBUG] Raw iOS payload:', JSON.stringify({
-        weightKg: dailyMetrics.weightKg,
-        bodyFatPercent: dailyMetrics.bodyFatPercent,
-        leanBodyMassKg: dailyMetrics.leanBodyMassKg,
-        bmi: dailyMetrics.bmi,
-        waistCircumferenceCm: dailyMetrics.waistCircumferenceCm,
+        ...bodyCompFields,
         localDate: dailyMetrics.localDate,
       }, null, 2));
 
-      // Validate input
+      // Validate input (this will strip body comp fields, which is why we extracted them above)
       const validationResult = insertUserDailyMetricsSchema.safeParse({
         ...dailyMetrics,
         userId,
@@ -3084,7 +3090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
       // Also populate health_daily_metrics for Flōmentum consistency and body composition tracking
-      // Note: Body composition fields come from raw dailyMetrics since they're not in userDailyMetrics schema
+      // Note: Body composition fields come from bodyCompFields (extracted before validation)
       const healthMetricsData = {
         userId,
         date: metrics.localDate,
@@ -3094,11 +3100,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         steps: metrics.stepsNormalized ?? null,
         activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
         exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
-        weightKg: dailyMetrics.weightKg ?? null,
-        bodyFatPct: dailyMetrics.bodyFatPercent ?? null,
-        leanMassKg: dailyMetrics.leanBodyMassKg ?? null,
-        bmi: dailyMetrics.bmi ?? null,
-        waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
+        weightKg: bodyCompFields.weightKg,
+        bodyFatPct: bodyCompFields.bodyFatPercent,
+        leanMassKg: bodyCompFields.leanBodyMassKg,
+        bmi: bodyCompFields.bmi,
+        waistCircumferenceCm: bodyCompFields.waistCircumferenceCm,
       };
 
       console.log('💾 [BODY COMP DEBUG] Saving to health_daily_metrics:', JSON.stringify({
