@@ -68,8 +68,13 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
           <h1 className="text-sm tracking-wide text-white/90 font-medium">
             INSIGHTS
           </h1>
-          <button className="p-2 -mr-2 hover:bg-white/10 rounded-lg transition-colors">
-            <Settings className="w-5 h-5 text-white/60" />
+          <button 
+            onClick={handleRefresh}
+            disabled={refreshMutation.isPending}
+            className="p-2 -mr-2 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+            data-testid="button-refresh-insights-header"
+          >
+            <RefreshCw className={`w-5 h-5 text-white/60 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
