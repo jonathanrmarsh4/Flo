@@ -141,7 +141,7 @@ export function BodyCompositionTile({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className={`text-sm font-medium ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
-                    Total Weight
+                    Weight
                   </span>
                   {renderSourceBadge(snapshot?.weightSource || null)}
                 </div>
@@ -152,8 +152,24 @@ export function BodyCompositionTile({
             </div>
           )}
 
-          {/* Body Composition Breakdown - only show if we can calculate it */}
-          {hasBodyComp && weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined && (
+          {/* BMI - only show if available */}
+          {snapshot?.bmi !== null && snapshot?.bmi !== undefined && (
+            <div className="space-y-2" data-testid="metric-bmi">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    BMI
+                  </span>
+                </div>
+                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {snapshot.bmi.toFixed(1)}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Body Composition Breakdown - only show if we have lean mass */}
+          {hasBodyComp && weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined ? (
             <>
               {/* Visual breakdown bar */}
               <div className="space-y-3" data-testid="body-comp-visualization">
@@ -192,7 +208,7 @@ export function BodyCompositionTile({
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-blue-500" />
                     <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                      Lean Body Mass
+                      Lean Mass
                     </span>
                     {renderSourceBadge(snapshot?.leanMassSource || null)}
                   </div>
@@ -208,7 +224,7 @@ export function BodyCompositionTile({
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-orange-500" />
                     <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                      Body Fat Mass
+                      Body Fat
                     </span>
                     {renderSourceBadge(snapshot?.bodyFatSource || null)}
                   </div>
@@ -218,6 +234,13 @@ export function BodyCompositionTile({
                 </div>
               </div>
             </>
+          ) : (
+            // Show helpful message when we have weight but not body composition
+            <div className={`p-4 rounded-2xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+              <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                Add <span className="font-medium">Lean Body Mass</span> to Apple Health to see your full body composition breakdown
+              </p>
+            </div>
           )}
         </div>
       ) : (
