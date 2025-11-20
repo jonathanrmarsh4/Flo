@@ -1350,8 +1350,11 @@ public class HealthKitNormalisationService {
         let workoutType = HKObjectType.workoutType()
         
         // Check if we have permission
-        guard healthStore.authorizationStatus(for: workoutType) == .sharingAuthorized else {
-            print("[Workouts] No authorization for workout data")
+        let authStatus = healthStore.authorizationStatus(for: workoutType)
+        print("[Workouts] Authorization status: \(authStatus.rawValue) (0=notDetermined, 1=sharingDenied, 2=sharingAuthorized)")
+        
+        guard authStatus == .sharingAuthorized else {
+            print("[Workouts] No authorization for workout data - status is not sharingAuthorized")
             completion(false, NSError(domain: "WorkoutSync", code: 2, userInfo: [NSLocalizedDescriptionKey: "No workout authorization"]))
             return
         }
