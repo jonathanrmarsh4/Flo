@@ -185,6 +185,12 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").default("free").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
+  
+  // Daily reminder preferences
+  reminderEnabled: boolean("reminder_enabled").default(true).notNull(),
+  reminderTime: varchar("reminder_time").default("08:15").notNull(), // HH:MM format (24hr)
+  reminderTimezone: varchar("reminder_timezone").default("UTC").notNull(), // IANA timezone
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
