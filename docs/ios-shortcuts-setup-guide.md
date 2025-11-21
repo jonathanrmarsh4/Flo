@@ -74,10 +74,20 @@ Each template shows a JSON configuration. Pick the one you want to create first.
    - Value: `application/json`
 
 ### Add Request Body
-1. Tap **Request Body** → Select **JSON**
-2. Tap in the JSON text area
-3. **Delete any existing text**
-4. Paste the template configuration you copied in Step 3
+**IMPORTANT**: iOS Shortcuts doesn't let you paste JSON directly. You need to build it field-by-field.
+
+1. Under **Request Body**, tap **Add new field**
+2. Select **Dictionary** (this creates a JSON object `{ }`)
+3. Add the first field in the dictionary:
+   - Tap **Add new field**
+   - **Key**: Type `eventType`
+   - **Type**: Select **Text**
+   - **Value**: Type the event type (e.g., `alcohol`, `ice_bath`, `sauna`, etc.)
+4. Add the second field:
+   - Tap **Add new field** (in the main dictionary)
+   - **Key**: Type `details`
+   - **Type**: Select **Dictionary**
+5. Now add fields inside the `details` dictionary (varies by template - see examples below)
 
 ---
 
@@ -108,30 +118,77 @@ Each template shows a JSON configuration. Pick the one you want to create first.
 
 ---
 
-## Example: Setting Up "Log Alcohol" Shortcut
+## Detailed Examples: Request Body Configuration
 
-Here's the exact configuration for logging a drink:
+Each template requires different fields in the `details` dictionary. Here's exactly what to enter for each:
 
-**URL**: `https://get-flo.com/api/life-events`
+### Template 1: Log Alcohol
 
-**Method**: POST
+**Request Body Structure:**
+1. Tap **Add new field** → **Dictionary**
+2. Inside the main dictionary:
+   - Field 1: Key=`eventType`, Type=**Text**, Value=`alcohol`
+   - Field 2: Key=`details`, Type=**Dictionary**
+3. Inside the `details` dictionary:
+   - Field 1: Key=`drinks`, Type=**Number**, Value=`1`
+   - Field 2: Key=`type`, Type=**Text**, Value=`beer`
 
-**Headers**:
-```
-Authorization: Bearer flo_abc123def456...
-Content-Type: application/json
-```
+### Template 2: Log Ice Bath
 
-**Request Body**:
-```json
-{
-  "eventType": "alcohol",
-  "details": {
-    "drinks": 1,
-    "type": "beer"
-  }
-}
-```
+**Request Body Structure:**
+1. Tap **Add new field** → **Dictionary**
+2. Inside the main dictionary:
+   - Field 1: Key=`eventType`, Type=**Text**, Value=`ice_bath`
+   - Field 2: Key=`details`, Type=**Dictionary**
+3. Inside the `details` dictionary:
+   - Field 1: Key=`duration_min`, Type=**Number**, Value=`3`
+   - Field 2: Key=`temp_c`, Type=**Number**, Value=`7`
+
+### Template 3: Log Sauna
+
+**Request Body Structure:**
+1. Tap **Add new field** → **Dictionary**
+2. Inside the main dictionary:
+   - Field 1: Key=`eventType`, Type=**Text**, Value=`sauna`
+   - Field 2: Key=`details`, Type=**Dictionary**
+3. Inside the `details` dictionary:
+   - Field 1: Key=`duration_min`, Type=**Number**, Value=`15`
+
+### Template 4: Log TRT 0.10ml (with dosage tracking)
+
+**Request Body Structure:**
+1. Tap **Add new field** → **Dictionary**
+2. Inside the main dictionary:
+   - Field 1: Key=`eventType`, Type=**Text**, Value=`supplements`
+   - Field 2: Key=`details`, Type=**Dictionary**
+3. Inside the `details` dictionary:
+   - Field 1: Key=`names`, Type=**Array**
+     - Inside the array, tap **Add new item** → **Text**, Value=`Testosterone`
+   - Field 2: Key=`dosage`, Type=**Dictionary**
+     - Inside the `dosage` dictionary:
+       - Field 1: Key=`amount`, Type=**Number**, Value=`0.10`
+       - Field 2: Key=`unit`, Type=**Text**, Value=`ml`
+
+### Template 5: Log Morning Coffee
+
+**Request Body Structure:**
+1. Tap **Add new field** → **Dictionary**
+2. Inside the main dictionary:
+   - Field 1: Key=`eventType`, Type=**Text**, Value=`caffeine`
+   - Field 2: Key=`details`, Type=**Dictionary**
+3. Inside the `details` dictionary:
+   - Field 1: Key=`source`, Type=**Text**, Value=`coffee`
+   - Field 2: Key=`cups`, Type=**Number**, Value=`1`
+
+### Template 6: Ate Late
+
+**Request Body Structure:**
+1. Tap **Add new field** → **Dictionary**
+2. Inside the main dictionary:
+   - Field 1: Key=`eventType`, Type=**Text**, Value=`late_meal`
+   - Field 2: Key=`details`, Type=**Dictionary**
+3. Inside the `details` dictionary:
+   - Field 1: Key=`hour`, Type=**Number**, Value=`22`
 
 ---
 
