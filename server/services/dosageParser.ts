@@ -20,17 +20,23 @@ export interface DosageInfo {
  * - "1000 IU" → {amount: 1000, unit: "IU"}
  */
 export function parseDosage(message: string): DosageInfo | null {
-  const lowerMessage = message.toLowerCase();
+  // Don't lowercase the whole message - preserve IU casing
   
   // Regex patterns for common dosage formats
   const patterns = [
-    // 0.2ml, 500mg, 1000IU (no space)
-    /(\d+(?:\.\d+)?)\s*(ml|mg|mcg|iu|g|grams?|drops?)/gi,
+    // Leading decimal: .2ml, .5mg
+    /(\.\d+)\s*(ml|mg|mcg|iu|IU|g|grams?|drops?)/gi,
+    
+    // Standard: 0.2ml, 500mg, 1000IU (no space)
+    /(\d+(?:\.\d+)?)\s*(ml|mg|mcg|iu|IU|g|grams?|drops?)/gi,
+    
+    // Fractions: 1/2 tab, 1/4 pill
+    /(\d+\/\d+)\s+(pills?|tablets?|capsules?|caps?|tab)/gi,
     
     // 2 pills, 3 capsules, 1 tablet (with space)
-    /(\d+(?:\.\d+)?)\s+(pills?|tablets?|capsules?|caps)/gi,
+    /(\d+(?:\.\d+)?)\s+(pills?|tablets?|capsules?|caps?|tab)/gi,
     
-    // "500 mg", "0.2 ml" (with space)
+    // "500 mg", "0.2 ml", "20 units" (with space)
     /(\d+(?:\.\d+)?)\s+(milligrams?|micrograms?|milliliters?|grams?|units?)/gi,
   ];
 
@@ -40,11 +46,18 @@ export function parseDosage(message: string): DosageInfo | null {
     if (matches.length > 0) {
       // Take the first match
       const match = matches[0];
-      const amount = parseFloat(match[1]);
-      let unit = match[2].toLowerCase();
+      let amount: number;
       
-      // Normalize units
-      unit = normalizeUnit(unit);
+      // Handle fractions (e.g., "1/2")
+      if (match[1].includes('/')) {
+        const [numerator, denominator] = match[1].split('/').map(Number);
+        amount = numerator / denominator;
+      } else {
+        amount = parseFloat(match[1]);
+      }
+      
+      // Normalize units but preserve IU casing
+      let unit = normalizeUnit(match[2]);
       
       return {
         amount,
@@ -61,6 +74,8 @@ export function parseDosage(message: string): DosageInfo | null {
  * Normalize dosage units to standard abbreviations
  */
 function normalizeUnit(unit: string): string {
+  const lowerUnit = unit.toLowerCase();
+  
   const unitMap: Record<string, string> = {
     'milligram': 'mg',
     'milligrams': 'mg',
@@ -72,15 +87,19 @@ function normalizeUnit(unit: string): string {
     'grams': 'g',
     'unit': 'IU',
     'units': 'IU',
+    'iu': 'IU', // Handle lowercase iu
     'pill': 'pills',
     'tablet': 'tablets',
     'tablets': 'tablets',
+    'tab': 'tablets',
     'capsule': 'capsules',
     'capsules': 'capsules',
     'cap': 'capsules',
     'caps': 'capsules',
     'drop': 'drops',
+    'drops': 'drops',
   };
   
-  return unitMap[unit] || unit;
+  // Return normalized unit or original if already standard
+  return unitMap[lowerUnit] || unit;
 }

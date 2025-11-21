@@ -34,6 +34,7 @@ export async function checkDosageCorrelations(
     logger.info(`[DosageCorrelation] Checking dosage correlations for ${behaviorType}`);
 
     // Query past events with dosage information
+    // Note: life_events uses 'details' JSONB field, not 'event_data'
     const pastEvents = await db.execute(sql`
       SELECT 
         happened_at::date as event_date,
@@ -41,12 +42,10 @@ export async function checkDosageCorrelations(
         details->'dosage'->>'unit' as dosage_unit
       FROM life_events
       WHERE user_id = ${userId}
-        AND event_type = 'behavior'
-        AND event_data->>'behavior' = ${behaviorType}
+        AND event_type = ${behaviorType}
         AND details->'dosage' IS NOT NULL
         AND happened_at >= NOW() - INTERVAL '90 days'
       ORDER BY happened_at DESC
-      LIMIT 20
     `);
 
     if (!pastEvents.rows || pastEvents.rows.length === 0) {
@@ -93,40 +92,72 @@ export async function checkDosageCorrelations(
       };
     }
 
-    // Calculate correlations for each dosage group
+    // Batch-fetch all day-after metrics for all dosage groups in one query
+    const allDayAfterDates: string[] = [];
+    for (const group of dosageGroups.values()) {
+      if (group.events.length < 2) continue; // Skip groups with insufficient data
+      
+      const dayAfterDates = group.events.map((d: Date) => {
+        const dayAfter = new Date(d);
+        dayAfter.setDate(dayAfter.getDate() + 1);
+        return dayAfter.toISOString().split('T')[0];
+      });
+      allDayAfterDates.push(...dayAfterDates);
+    }
+    
+    if (allDayAfterDates.length === 0) {
+      logger.info('[DosageCorrelation] No dosage groups with sufficient events');
+      return {
+        hasDosageData: true,
+        dosageInsights: [],
+        overallInsight: null,
+      };
+    }
+    
+    // Single batched query for all metrics
+    const allMetrics = await db.execute(sql`
+      SELECT 
+        date,
+        hrv_ms,
+        resting_hr_bpm,
+        sleep_hours
+      FROM user_daily_metrics
+      WHERE user_id = ${userId}
+        AND date = ANY(${allDayAfterDates}::date[])
+    `);
+    
+    // Build date → metrics map for fast lookup
+    const metricsMap = new Map<string, any>();
+    for (const row of allMetrics.rows || []) {
+      metricsMap.set((row as any).date, row);
+    }
+    
+    // Calculate correlations for each dosage group using batched metrics
     const dosageInsights: string[] = [];
+    let totalEventsAnalyzed = 0;
     
     for (const [dosageKey, group] of Array.from(dosageGroups.entries())) {
       // Need at least 2 events per dosage to be meaningful
       if (group.events.length < 2) continue;
       
-      // Get day-after metrics for this dosage group
+      totalEventsAnalyzed += group.events.length;
+      
+      // Get day-after metrics for this dosage group from cache
       const dayAfterDates = group.events.map((d: Date) => {
         const dayAfter = new Date(d);
         dayAfter.setDate(dayAfter.getDate() + 1);
         return dayAfter.toISOString().split('T')[0];
       });
       
-      const metrics = await db.execute(sql`
-        SELECT 
-          date,
-          hrv_ms,
-          resting_hr_bpm,
-          sleep_hours
-        FROM user_daily_metrics
-        WHERE user_id = ${userId}
-          AND date = ANY(${dayAfterDates}::date[])
-      `);
-      
-      if (!metrics.rows || metrics.rows.length === 0) continue;
-      
-      // Calculate average metrics for this dosage
+      // Calculate average metrics for this dosage using cached data
       let hrvSum = 0, hrvCount = 0;
       let rhrSum = 0, rhrCount = 0;
       let sleepSum = 0, sleepCount = 0;
       
-      for (const metricRow of metrics.rows) {
-        const m: any = metricRow;
+      for (const dateStr of dayAfterDates) {
+        const m = metricsMap.get(dateStr);
+        if (!m) continue;
+        
         if (m.hrv_ms !== null) {
           hrvSum += parseFloat(String(m.hrv_ms));
           hrvCount++;
@@ -186,9 +217,10 @@ export async function checkDosageCorrelations(
     }
 
     if (dosageInsights.length > 0) {
-      const overallInsight = `Dose-response pattern detected for ${behaviorType}: ${dosageInsights.join(', ')}. Based on ${pastEvents.rows.length} logged events.`;
+      // Report actual analyzed event count, not truncated query limit
+      const overallInsight = `Dose-response pattern detected for ${behaviorType}: ${dosageInsights.join(', ')}. Based on ${totalEventsAnalyzed} logged events.`;
       
-      logger.info(`[DosageCorrelation] Found ${dosageInsights.length} dosage insights`);
+      logger.info(`[DosageCorrelation] Found ${dosageInsights.length} dosage insights from ${totalEventsAnalyzed} events`);
       
       return {
         hasDosageData: true,
