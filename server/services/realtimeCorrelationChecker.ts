@@ -33,7 +33,7 @@ const BEHAVIOR_TRIGGERS = {
   stress: ['stress', 'stressed', 'anxiety', 'anxious', 'overwhelmed', 'panic', 'nervous', 'worried', 'tense'],
   lateMeal: ['late meal', 'ate late', 'dinner late', 'late eating', 'midnight snack', 'ate before bed'],
   caffeine: ['coffee', 'caffeine', 'espresso', 'latte', 'cappuccino', 'energy drink', 'pre-workout', 'red bull', 'tea'],
-  supplement: ['supplement', 'vitamin', 'magnesium', 'omega', 'fish oil', 'creatine', 'protein powder', 'probiotic', 'zinc', 'vitamin d', 'nmn', 'nad+', 'nad', 'resveratrol', 'berberine', 'ashwagandha', 'rhodiola', 'curcumin', 'turmeric', 'coq10', 'glutathione', 'collagen', 'b12', 'iron', 'multivitamin'],
+  supplement: ['supplement', 'vitamin', 'magnesium', 'omega', 'fish oil', 'creatine', 'protein powder', 'probiotic', 'zinc', 'vitamin d', 'nmn', 'nad+', 'nad', 'resveratrol', 'berberine', 'ashwagandha', 'rhodiola', 'curcumin', 'turmeric', 'coq10', 'glutathione', 'collagen', 'b12', 'iron', 'multivitamin', 'testosterone', 'trt', 'hrt', 'estrogen', 'progesterone', 'dhea', 'thyroid', 'levothyroxine', 'peptide', 'bpc-157', 'tb-500'],
   exercise: ['workout', 'exercise', 'gym', 'training', 'ran', 'running', 'jogging', 'lifting', 'weights', 'cardio', 'hiit', 'crossfit', 'yoga', 'pilates', 'bike', 'cycling', 'swim', 'swimming'],
   sleep: ['slept', 'sleep', 'sleeping', 'nap', 'napped', 'insomnia', 'woke up', 'tired', 'exhausted', 'fatigue', 'restless'],
   fasting: ['fasting', 'fasted', 'skipped breakfast', 'intermittent fasting', 'time restricted eating', 'omad'],
