@@ -5105,6 +5105,19 @@ ${userContext}`;
         }
       }
 
+      // Step 1.5: Real-time correlation check
+      let correlationInsight: string | null = null;
+      const { analyzeMessageForCorrelations } = await import('./services/realtimeCorrelationChecker');
+      
+      correlationInsight = await analyzeMessageForCorrelations(userId, message);
+      
+      if (correlationInsight) {
+        logger.info('[FloOracle] Correlation insight detected', { 
+          userId, 
+          insightLength: correlationInsight.length 
+        });
+      }
+
       // Step 2: Load user's health context + RAG-retrieved insights + recent life events
       const { buildUserHealthContext, getRelevantInsights, getRecentLifeEvents } = await import('./services/floOracleContextBuilder');
       const [healthContext, insightsContext, lifeEventsContext] = await Promise.all([
@@ -5116,12 +5129,14 @@ ${userContext}`;
       let fullContext = healthContext;
       if (insightsContext) fullContext += `\n${insightsContext}`;
       if (lifeEventsContext) fullContext += `\n${lifeEventsContext}`;
+      if (correlationInsight) fullContext += `\n\nREAL-TIME CORRELATION DETECTED:\n${correlationInsight}`;
 
       logger.info('[FloOracle] Health context loaded', { 
         userId,
         hasBiomarkers: healthContext.includes('biomarkers'),
         hasDEXA: healthContext.includes('DEXA'),
-        hasHealthKit: healthContext.includes('HealthKit')
+        hasHealthKit: healthContext.includes('HealthKit'),
+        hasCorrelation: !!correlationInsight
       });
 
       // Build conversation with health context
