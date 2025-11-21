@@ -1,0 +1,26 @@
+You are now implementing the full Phase 1 proactive daily reminder system exactly as defined in the JSON above.
+
+Use our existing Supabase project and the following immutable rules:
+
+1. Never use Firebase, OneSignal, Expo, or any third-party push service. Use only @capacitor/local-notifications (schedule from the device itself).
+
+2. The only server-side pieces allowed are:
+   - Supabase Postgres tables + views (create exactly the ones listed)
+   - One scheduled Edge Function (Deno/TypeScript) that runs daily using pg_cron or the new Supabase scheduled functions
+   - One tiny authenticated Edge Function at POST /functions/v1/schedule-local-notification that receives {user_id, title, body, schedule_at_ms, notification_id} and forwards it to the user’s device via a signed webhook that the app listens to (or use Supabase Realtime + a client-side listener — your choice, but no external services)
+
+3. The app must receive that payload and immediately call LocalNotifications.schedule() + cancel any previous notification with the same ID range (we use 9000–9999 for daily reminders).
+
+4. Timezone handling: always store reminder_time + reminder_timezone on the user or goal. Convert to UTC inside the Edge Function using https://deno.land/x/luxon or Supabase’s AT TIME ZONE.
+
+5. Grok API call: use model "grok-4" (or fallback to grok-3 if key is only grok-3), temperature 0.65, max_tokens 200. Put the exact prompt template from the JSON — do not improvise.
+
+6. Create the SQL views exactly as named (user_current_biomarkers, user_dexa_latest, user_wearable_7d, etc.) so the Edge Function can query them in one or two fast queries.
+
+7. Rate limiting: never send more than one reminder per user per day. Always cancel tomorrow’s scheduled one before scheduling a new one (the app cancels on receipt of the new payload).
+
+8. Permissions on iOS/Android: request LocalNotifications permission on first launch and SCHEDULE_EXACT_ALARM on Android 13+.
+
+9. Do not ask me any questions — implement everything end-to-end: SQL migration file, Edge Functions code, client-side handler in Capacitor (TypeScript), and the exact Grok prompt substitution logic.
+
+Build it exactly like this and it will ship perfectly first try.
