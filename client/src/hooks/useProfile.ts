@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import type { Profile, UpdateDemographics, UpdateHealthBaseline, UpdateGoals, UpdateAIPersonalization } from '@shared/schema';
+import type { Profile, UpdateDemographics, UpdateHealthBaseline, UpdateGoals, UpdateAIPersonalization, UpdateReminderPreferences, User } from '@shared/schema';
 
 export function useProfile() {
   return useQuery<Profile | null>({
@@ -56,6 +56,18 @@ export function useUpdateAIPersonalization() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/profile'] });
       queryClient.invalidateQueries({ queryKey: ['/api/biomarkers'] }); // Invalidate biomarker insights (medical context affects insights)
+    },
+  });
+}
+
+export function useUpdateReminderPreferences() {
+  return useMutation({
+    mutationFn: async (data: UpdateReminderPreferences) => {
+      const response = await apiRequest('PATCH', '/api/profile/reminder-preferences', data);
+      return response.json() as Promise<User>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
     },
   });
 }

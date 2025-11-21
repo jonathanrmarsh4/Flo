@@ -2,6 +2,7 @@ import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shi
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
+import { ReminderSettings } from '@/components/ReminderSettings';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -710,6 +711,13 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               </Button>
             </div>
           )}
+        </div>
+
+        {/* Daily Reminders */}
+        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+        }`} data-testid="card-daily-reminders">
+          <ReminderSettings user={user} isEditing={isEditing} />
         </div>
 
         {/* AI Personalization */}

@@ -25,6 +25,7 @@ import {
   updateHealthBaselineSchema, 
   updateGoalsSchema, 
   updateAIPersonalizationSchema,
+  updateReminderPreferencesSchema,
   listUsersQuerySchema,
   updateUserSchema,
   normalizationInputSchema,
@@ -452,6 +453,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error updating AI personalization:', error);
       res.status(500).json({ error: "Failed to update AI personalization" });
+    }
+  });
+
+  // Update reminder preferences
+  app.patch("/api/profile/reminder-preferences", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Validate with Zod schema
+      const validationResult = updateReminderPreferencesSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const user = await storage.updateReminderPreferences(userId, validationResult.data);
+
+      res.json(user);
+    } catch (error) {
+      logger.error('Error updating reminder preferences:', error);
+      res.status(500).json({ error: "Failed to update reminder preferences" });
     }
   });
 

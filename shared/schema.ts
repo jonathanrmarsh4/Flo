@@ -1207,12 +1207,19 @@ export const updateAIPersonalizationSchema = z.object({
   aiPersonalization: aiPersonalizationSchema,
 });
 
+export const updateReminderPreferencesSchema = z.object({
+  reminderEnabled: z.boolean().optional(),
+  reminderTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).optional(), // HH:MM format (24hr)
+  reminderTimezone: z.string().optional(), // IANA timezone
+});
+
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
 export type UpdateDemographics = z.infer<typeof updateDemographicsSchema>;
 export type UpdateHealthBaseline = z.infer<typeof updateHealthBaselineSchema>;
 export type UpdateGoals = z.infer<typeof updateGoalsSchema>;
 export type UpdateAIPersonalization = z.infer<typeof updateAIPersonalizationSchema>;
+export type UpdateReminderPreferences = z.infer<typeof updateReminderPreferencesSchema>;
 
 export const insertBloodWorkRecordSchema = createInsertSchema(bloodWorkRecords).omit({
   id: true,

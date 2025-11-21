@@ -31,6 +31,7 @@ import {
   type UpdateHealthBaseline,
   type UpdateGoals,
   type UpdateAIPersonalization,
+  type UpdateReminderPreferences,
   type BloodWorkRecord,
   type InsertBloodWorkRecord,
   type AnalysisResult,
@@ -79,6 +80,7 @@ export interface IStorage {
   updateHealthBaseline(userId: string, data: UpdateHealthBaseline): Promise<Profile>;
   updateGoals(userId: string, data: UpdateGoals): Promise<Profile>;
   updateAIPersonalization(userId: string, data: UpdateAIPersonalization): Promise<Profile>;
+  updateReminderPreferences(userId: string, data: UpdateReminderPreferences): Promise<User>;
   
   // User settings operations (Flōmentum)
   initializeUserSettings(userId: string, timezone?: string): Promise<UserSettings>;
@@ -331,6 +333,23 @@ export class DatabaseStorage implements IStorage {
 
   async updateAIPersonalization(userId: string, data: UpdateAIPersonalization): Promise<Profile> {
     return await this.upsertProfile(userId, data);
+  }
+
+  async updateReminderPreferences(userId: string, data: UpdateReminderPreferences): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    return user;
   }
 
   // User settings operations (Flōmentum)
