@@ -33,7 +33,12 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **RAG Insights System:** Production-ready intelligent pattern detection using Retrieval-Augmented Generation. It vectorizes blood work and HealthKit data to Supabase as OpenAI embeddings. A SQL-based Pearson correlation engine runs nightly to discover patterns and generate "Insight Cards" categorized by health area. The top 5 most confident insights are automatically injected into Flō Oracle's conversation context.
 
-**Conversational Life Event Logging System:** Automatically tracks health-relevant events mentioned in Flō Oracle conversations (e.g., "ice bath", "late meal"). Grok-powered extraction parses events into structured JSONB, which are logged to the `life_events` table and acknowledged by Flō Oracle. Recent events are integrated into Flō Oracle's context, and the correlation engine analyzes them against HealthKit metrics to generate insights.
+**Conversational Life Event Logging System (Enhanced Nov 20, 2025):** Automatically tracks comprehensive health narrative from Flō Oracle conversations. Grok-powered extraction parses events into structured JSONB, logged to the `life_events` table. System now captures:
+- **Behaviors**: ice baths, sauna, alcohol, supplements, workouts, late meals, caffeine, stress, breathwork
+- **Symptoms**: illness tracking with severity, duration, specific symptoms (headaches, fever, pain, fatigue, etc.)
+- **Health Goals**: weight loss, sleep improvement, fitness targets with timeframes and motivation
+- **Observations**: subjective feelings about energy, mood, focus, sleep quality, mental clarity
+Uses multi-word phrase triggers to maintain cost optimization while capturing holistic health context. Recent events (past 14 days) automatically integrate into Flō Oracle's context, and the correlation engine analyzes them against HealthKit metrics to generate personalized insights.
 
 **Admin User Management:** Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, providing user management, system overview metrics, and audit logs.
 
