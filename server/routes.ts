@@ -149,6 +149,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // iOS Shortcuts API - Quick Life Event Logging
+  // ============================================================================
+  
+  // Middleware: Validate API key authentication
+  const validateApiKey = async (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'API key required. Use Authorization: Bearer YOUR_API_KEY' });
+    }
+    
+    const apiKey = authHeader.substring(7); // Remove 'Bearer ' prefix
+    
+    const { validateApiKey: validateKey } = await import('./services/apiKeyService');
+    const userId = await validateKey(apiKey);
+    
+    if (!userId) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+    
+    // Attach userId to request for use in endpoint
+    req.userId = userId;
+    next();
+  };
+  
+  // GET /api/user/api-key - Get API key info (without revealing the key)
+  app.get("/api/user/api-key", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { getApiKeyInfo } = await import('./services/apiKeyService');
+      
+      const keyInfo = await getApiKeyInfo(userId);
+      
+      if (!keyInfo) {
+        return res.json({ hasKey: false });
+      }
+      
+      res.json({
+        hasKey: true,
+        ...keyInfo,
+      });
+    } catch (error) {
+      logger.error('[ApiKey] Error fetching API key info:', error);
+      res.status(500).json({ error: 'Failed to fetch API key info' });
+    }
+  });
+  
+  // POST /api/user/api-key/generate - Generate or regenerate API key
+  app.post("/api/user/api-key/generate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { generateApiKey } = await import('./services/apiKeyService');
+      
+      const plainKey = await generateApiKey(userId);
+      
+      res.json({
+        success: true,
+        apiKey: plainKey, // Show ONCE - never stored in plaintext
+        message: 'Save this key securely. You won\'t be able to see it again.',
+      });
+    } catch (error) {
+      logger.error('[ApiKey] Error generating API key:', error);
+      res.status(500).json({ error: 'Failed to generate API key' });
+    }
+  });
+  
+  // DELETE /api/user/api-key - Revoke API key
+  app.delete("/api/user/api-key", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { revokeApiKey } = await import('./services/apiKeyService');
+      
+      await revokeApiKey(userId);
+      
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('[ApiKey] Error revoking API key:', error);
+      res.status(500).json({ error: 'Failed to revoke API key' });
+    }
+  });
+  
+  // POST /api/life-events - Quick log life events (for iOS Shortcuts)
+  app.post("/api/life-events", validateApiKey, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const { eventType, details } = req.body;
+      
+      if (!eventType) {
+        return res.status(400).json({ error: 'eventType is required' });
+      }
+      
+      // Validate eventType (matches lifeEventParser types)
+      const validEventTypes = [
+        'ice_bath', 'sauna', 'alcohol', 'late_meal', 'supplements', 
+        'workout', 'stress', 'breathwork', 'caffeine', 'symptoms',
+        'health_goal', 'observation', 'other'
+      ];
+      
+      if (!validEventTypes.includes(eventType)) {
+        return res.status(400).json({ 
+          error: `Invalid eventType. Must be one of: ${validEventTypes.join(', ')}` 
+        });
+      }
+      
+      const eventDetails = details || {};
+      
+      // Log event to database
+      const { lifeEvents } = await import('@shared/schema');
+      const [inserted] = await db.insert(lifeEvents).values({
+        userId,
+        eventType,
+        details: eventDetails,
+        notes: `Quick-logged via iOS Shortcut`, // Track source
+      }).returning();
+      
+      logger.info(`[LifeEvents] Quick-logged ${eventType} for user ${userId} via API key`);
+      
+      res.status(201).json({
+        success: true,
+        event: {
+          id: inserted.id,
+          eventType: inserted.eventType,
+          happenedAt: inserted.happenedAt,
+        }
+      });
+    } catch (error) {
+      logger.error('[LifeEvents] Error quick-logging event:', error);
+      res.status(500).json({ error: 'Failed to log event' });
+    }
+  });
+
   // Blood work analysis endpoint
   app.post("/api/blood-work/analyze", isAuthenticated, canUploadLab, async (req: any, res) => {
     try {
