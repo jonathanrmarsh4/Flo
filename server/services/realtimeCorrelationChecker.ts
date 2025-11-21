@@ -307,11 +307,24 @@ export async function analyzeMessageForCorrelations(
 
   logger.info(`[RealtimeCorrelation] Detected ${behaviorType} in message: "${userMessage.substring(0, 50)}..."`);
 
-  const result = await checkBehaviorCorrelation(userId, behaviorType, userMessage);
+  // Check both regular correlations AND dosage-specific correlations
+  const [regularResult, dosageResult] = await Promise.all([
+    checkBehaviorCorrelation(userId, behaviorType, userMessage),
+    (async () => {
+      const { checkDosageCorrelations } = await import('./dosageCorrelationChecker');
+      return checkDosageCorrelations(userId, behaviorType);
+    })()
+  ]);
 
-  if (result.hasCorrelation && result.insight) {
-    return result.insight;
-  } else if (result.sampleSize > 0) {
+  // Prioritize dosage insights if available
+  if (dosageResult.hasDosageData && dosageResult.overallInsight) {
+    return dosageResult.overallInsight;
+  }
+
+  // Otherwise return regular correlation insight
+  if (regularResult.hasCorrelation && regularResult.insight) {
+    return regularResult.insight;
+  } else if (regularResult.sampleSize > 0) {
     return `Logged. I'm tracking ${behaviorType} patterns - need a few more data points to spot correlations.`;
   } else {
     return `Logged your ${behaviorType}. I'll watch for patterns with your health metrics.`;

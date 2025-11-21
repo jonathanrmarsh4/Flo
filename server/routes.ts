@@ -5084,15 +5084,25 @@ ${userContext}`;
       
       if (couldContainLifeEvent(message)) {
         logger.info('[FloOracle] Potential life event detected, extracting...');
+        
+        // Extract dosage information if present
+        const { parseDosage } = await import('./services/dosageParser');
+        const dosageInfo = parseDosage(message);
+        
         const extraction = await extractLifeEvent(message);
         
         if (extraction) {
+          // Add dosage to details if found
+          const eventDetails = dosageInfo 
+            ? { ...extraction.details, dosage: dosageInfo }
+            : extraction.details;
+          
           // Log event to database
           const { lifeEvents } = await import('@shared/schema');
           await db.insert(lifeEvents).values({
             userId,
             eventType: extraction.eventType,
-            details: extraction.details,
+            details: eventDetails,
             notes: message.trim(),
           });
           
@@ -5101,6 +5111,7 @@ ${userContext}`;
             userId,
             eventType: extraction.eventType,
             acknowledgment: eventAcknowledgment,
+            dosage: dosageInfo || 'none',
           });
         }
       }
