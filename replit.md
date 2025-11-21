@@ -54,6 +54,13 @@ Uses multi-word phrase triggers to maintain cost optimization while capturing ho
 - **Configuration Required**: Set environment variables `STRIPE_PREMIUM_MONTHLY_PRICE_ID` and `STRIPE_PREMIUM_YEARLY_PRICE_ID` with actual Stripe Price IDs from your Stripe Dashboard
 - **Webhook Setup**: Configure Stripe webhook endpoint at `/api/billing/webhook` with `STRIPE_WEBHOOK_SECRET`
 
+**Daily Reminder Notifications (Phase 1 - Nov 21, 2025):**
+- **iOS**: Complete programmatic notification permission flow with `NSUserNotificationsUsageDescription` in Info.plist
+- **Android**: POST_NOTIFICATIONS requested programmatically; SCHEDULE_EXACT_ALARM requires manual user setup due to Capacitor API limitations
+- **Implementation**: Permission request and listener initialization in Dashboard component on authenticated mount
+- **Documentation**: Comprehensive Android setup guide at `docs/android-notification-permissions.md`
+- **Phase 2 Enhancement**: Consider custom Capacitor plugin for full Android automation of exact alarm permissions
+
 ## External Dependencies
 
 ### Third-Party Services

@@ -2816,6 +2816,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test push notification endpoint (admin only)
+  app.post("/api/admin/test-reminder", requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      // Import daily reminder service
+      const { generateDailyReminder } = await import("./services/dailyReminderService");
+      
+      // Get user's reminder preferences
+      const user = await db.query.users.findFirst({
+        where: (users, { eq }) => eq(users.id, userId),
+        columns: {
+          reminderTime: true,
+          reminderTimezone: true,
+          reminderEnabled: true,
+        },
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (!user.reminderEnabled) {
+        return res.status(400).json({ error: "User has reminders disabled" });
+      }
+
+      // Generate reminder
+      const result = await generateDailyReminder(
+        userId,
+        user.reminderTime || '08:15',
+        user.reminderTimezone || 'UTC'
+      );
+
+      if (result.success) {
+        return res.json({
+          success: true,
+          message: "Daily reminder generated and queued successfully",
+          reminder: result.reminder,
+        });
+      } else {
+        return res.status(500).json({
+          success: false,
+          error: result.error || "Failed to generate reminder",
+        });
+      }
+    } catch (error: any) {
+      logger.error('[Test] Failed to generate test reminder:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message || "Failed to generate reminder",
+      });
+    }
+  });
+
   app.post("/api/admin/test-push", requireAdmin, async (req: any, res) => {
     try {
       const { userId, title, body } = req.body;

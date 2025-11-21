@@ -52,10 +52,9 @@ export interface BehaviorMetrics {
   totalDrinks14d: number;
   zeroDrinkStreakDays: number;
   saunaSessions14d: number;
-  stressEvents14d: number;
+  avgStressLevel14d?: number;
   supplementEvents14d: number;
   iceBathSessions14d: number;
-  lateMealEvents14d: number;
 }
 
 export interface TrainingMetrics {
@@ -118,13 +117,12 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
         SELECT 
           hrv_7d_avg,
           rhr_7d_avg,
-          sleep_7d_avg,
+          sleep_7d_avg_hours,
           active_kcal_7d_avg,
           steps_7d_avg,
-          exercise_7d_avg,
           hrv_30d_avg,
           rhr_30d_avg,
-          sleep_30d_avg,
+          sleep_30d_avg_hours,
           hrv_trend_percent
         FROM user_wearable_7d
         WHERE user_id = ${userId}
@@ -138,10 +136,9 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
           total_drinks_14d,
           zero_drink_streak_days,
           sauna_sessions_14d,
-          stress_events_14d,
+          avg_stress_level_14d,
           supplement_events_14d,
-          ice_bath_sessions_14d,
-          late_meal_events_14d
+          ice_bath_sessions_14d
         FROM user_behavior_14d
         WHERE user_id = ${userId}
         LIMIT 1
@@ -199,13 +196,13 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
     const wearables: WearableMetrics | null = wearableRow ? {
       hrv7dAvg: wearableRow.hrv_7d_avg ? parseFloat(String(wearableRow.hrv_7d_avg)) : undefined,
       rhr7dAvg: wearableRow.rhr_7d_avg ? parseFloat(String(wearableRow.rhr_7d_avg)) : undefined,
-      sleep7dAvgHours: wearableRow.sleep_7d_avg ? parseFloat(String(wearableRow.sleep_7d_avg)) : undefined,
+      sleep7dAvgHours: wearableRow.sleep_7d_avg_hours ? parseFloat(String(wearableRow.sleep_7d_avg_hours)) : undefined,
       activeKcal7dAvg: wearableRow.active_kcal_7d_avg ? parseFloat(String(wearableRow.active_kcal_7d_avg)) : undefined,
       steps7dAvg: wearableRow.steps_7d_avg ? parseFloat(String(wearableRow.steps_7d_avg)) : undefined,
-      exercise7dAvgMin: wearableRow.exercise_7d_avg ? parseFloat(String(wearableRow.exercise_7d_avg)) : undefined,
+      exercise7dAvgMin: undefined, // Column doesn't exist in view
       hrv30dAvg: wearableRow.hrv_30d_avg ? parseFloat(String(wearableRow.hrv_30d_avg)) : undefined,
       rhr30dAvg: wearableRow.rhr_30d_avg ? parseFloat(String(wearableRow.rhr_30d_avg)) : undefined,
-      sleep30dAvgHours: wearableRow.sleep_30d_avg ? parseFloat(String(wearableRow.sleep_30d_avg)) : undefined,
+      sleep30dAvgHours: wearableRow.sleep_30d_avg_hours ? parseFloat(String(wearableRow.sleep_30d_avg_hours)) : undefined,
       hrvTrendPercent: wearableRow.hrv_trend_percent ? parseFloat(String(wearableRow.hrv_trend_percent)) : undefined,
     } : null;
 
@@ -216,10 +213,9 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
       totalDrinks14d: parseInt(String(behaviorRow.total_drinks_14d || 0)),
       zeroDrinkStreakDays: parseInt(String(behaviorRow.zero_drink_streak_days || 0)),
       saunaSessions14d: parseInt(String(behaviorRow.sauna_sessions_14d || 0)),
-      stressEvents14d: parseInt(String(behaviorRow.stress_events_14d || 0)),
+      avgStressLevel14d: behaviorRow.avg_stress_level_14d ? parseFloat(String(behaviorRow.avg_stress_level_14d)) : undefined,
       supplementEvents14d: parseInt(String(behaviorRow.supplement_events_14d || 0)),
       iceBathSessions14d: parseInt(String(behaviorRow.ice_bath_sessions_14d || 0)),
-      lateMealEvents14d: parseInt(String(behaviorRow.late_meal_events_14d || 0)),
     } : null;
 
     // Parse training metrics
@@ -324,11 +320,8 @@ export function formatContextForGrok(context: ReminderContext): string {
     if (b.iceBathSessions14d > 0) {
       behaviorLines.push(`• Ice bath: ${b.iceBathSessions14d} sessions (14d)`);
     }
-    if (b.stressEvents14d > 0) {
-      behaviorLines.push(`• Stress events: ${b.stressEvents14d} logged (14d)`);
-    }
-    if (b.lateMealEvents14d > 0) {
-      behaviorLines.push(`• Late meals: ${b.lateMealEvents14d} events (14d)`);
+    if (b.avgStressLevel14d !== undefined && b.avgStressLevel14d > 0) {
+      behaviorLines.push(`• Avg stress level: ${b.avgStressLevel14d.toFixed(1)}/10 (14d)`);
     }
     if (b.supplementEvents14d > 0) {
       behaviorLines.push(`• Supplement adherence: ${b.supplementEvents14d} logged (14d)`);
