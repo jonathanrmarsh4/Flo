@@ -62,6 +62,16 @@ Uses multi-word phrase triggers to maintain cost optimization while capturing ho
 - **Documentation**: Comprehensive Android setup guide at `docs/android-notification-permissions.md`
 - **Phase 2 Enhancement**: Consider custom Capacitor plugin for full Android automation of exact alarm permissions
 
+**iOS Shortcuts Integration (Nov 21, 2025):**
+- **API Key System**: Secure API key authentication for iOS Shortcuts (bcrypt-hashed, one key per user, Bearer token auth)
+- **Quick-Log Endpoint**: POST /api/life-events for instant event logging without JWT authentication (avoids token expiration issues)
+- **Pre-built Templates**: 6 shortcut templates (Alcohol, Ice Bath, Sauna, TRT 0.10ml, Morning Coffee, Ate Late) with copy-paste JSON configs
+- **Dosage Support**: TRT template includes preset dosage (0.10ml) integrating with existing dose-response correlation system
+- **Frontend Settings Page**: /shortcuts route with API key management (generate/revoke), template display, iOS setup instructions
+- **Navigation**: Accessible from Profile → Actions → iOS Shortcuts
+- **Security**: API keys stored as bcrypt hashes, shown only once during generation, usage tracked with lastUsedAt timestamps
+- **Database**: api_keys table (userId unique, keyHash, name, lastUsedAt, createdAt)
+
 ## External Dependencies
 
 ### Third-Party Services

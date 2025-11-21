@@ -1,4 +1,4 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
@@ -13,7 +13,7 @@ import { format, setMonth, setYear, getMonth, getYear } from 'date-fns';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 
 interface ProfileScreenProps {
   isDark: boolean;
@@ -1027,6 +1027,20 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
               )}
             </button>
+            
+            <Link href="/shortcuts">
+              <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              }`} data-testid="button-ios-shortcuts">
+                <div className="flex items-center gap-3">
+                  <Smartphone className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                  <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
+                    iOS Shortcuts
+                  </span>
+                </div>
+                <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+              </button>
+            </Link>
           </div>
         </div>
 

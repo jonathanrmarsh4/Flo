@@ -26,6 +26,7 @@ import FlomentumScreen from "@/pages/FlomentumScreen";
 import AdminUsers from "@/pages/admin-users";
 import AdminDashboard from "@/pages/admin-dashboard";
 import BillingPage from "@/pages/billing";
+import ShortcutsPage from "@/pages/shortcuts";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -78,6 +79,7 @@ function Router() {
           <Route path="/results/:id" component={Results} />
           <Route path="/profile" component={Profile} />
           <Route path="/billing" component={BillingPage} />
+          <Route path="/shortcuts" component={ShortcutsPage} />
           <Route path="/diagnostics" component={DiagnosticsPage} />
           <Route path="/healthkit" component={HealthKitPage} />
           <Route path="/flomentum" component={FlomentumScreen} />
