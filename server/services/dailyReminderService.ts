@@ -3,6 +3,7 @@ import { buildReminderPrompt, buildFallbackPrompt, validateReminderQuality } fro
 import { getSupabaseClient } from './supabaseClient';
 import { logger } from '../logger';
 import { trackOpenAICompletion } from './aiUsageTracker';
+import { Temporal } from '@js-temporal/polyfill';
 
 /**
  * Call Grok API to generate elite proactive daily reminder
@@ -93,77 +94,43 @@ async function callGrokForReminder(systemPrompt: string, userPrompt: string, use
 /**
  * Calculate schedule_at timestamp in user's local time
  * Determines the NEXT occurrence of reminderTime in user's timezone
- * Uses Intl.DateTimeFormat for accurate timezone conversion
+ * Uses Temporal.ZonedDateTime for DST-safe timezone arithmetic
  */
 function calculateScheduleAtMs(reminderTime: string, reminderTimezone: string): number {
   try {
     // reminderTime format: "HH:MM" (24-hour)
     const [hours, minutes] = reminderTime.split(':').map(Number);
     
-    // Get current UTC time
-    const nowUtc = new Date();
+    // Get current time as Temporal.ZonedDateTime in user's timezone
+    const now = Temporal.Now.zonedDateTimeISO(reminderTimezone);
     
-    // Convert current UTC to user's timezone to get their local date/time components
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: reminderTimezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
+    // Create a ZonedDateTime for today at the user's reminder time
+    const todayAtReminderTime = now.with({
+      hour: hours,
+      minute: minutes,
+      second: 0,
+      millisecond: 0,
+      microsecond: 0,
+      nanosecond: 0
     });
     
-    const parts = formatter.formatToParts(nowUtc);
-    const userLocalYear = parseInt(parts.find(p => p.type === 'year')!.value);
-    const userLocalMonth = parseInt(parts.find(p => p.type === 'month')!.value) - 1; // 0-indexed
-    const userLocalDay = parseInt(parts.find(p => p.type === 'day')!.value);
-    const userLocalHour = parseInt(parts.find(p => p.type === 'hour')!.value);
-    const userLocalMinute = parseInt(parts.find(p => p.type === 'minute')!.value);
-    
-    // Create a date for today at the user's preferred time (in UTC, representing user's local time)
-    const todayAtReminderTime = new Date(Date.UTC(userLocalYear, userLocalMonth, userLocalDay, hours, minutes, 0, 0));
-    
-    // Adjust back to UTC by calculating the offset
-    const testDate = new Date(Date.UTC(userLocalYear, userLocalMonth, userLocalDay, hours, minutes, 0, 0));
-    const testFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: reminderTimezone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    const testParts = testFormatter.formatToParts(testDate);
-    const testHour = parseInt(testParts.find(p => p.type === 'hour')!.value);
-    const testMinute = parseInt(testParts.find(p => p.type === 'minute')!.value);
-    
-    // Calculate offset in minutes
-    const desiredHour = hours;
-    const desiredMinute = minutes;
-    const offsetMinutes = (desiredHour - testHour) * 60 + (desiredMinute - testMinute);
-    
-    // Apply offset to get correct UTC timestamp
-    const scheduleDate = new Date(todayAtReminderTime.getTime() + offsetMinutes * 60 * 1000);
-    
-    // Check if reminder time has already passed today in user's timezone
-    const currentTimeInUserTz = userLocalHour * 60 + userLocalMinute;
-    const reminderTimeInMinutes = hours * 60 + minutes;
-    
-    if (reminderTimeInMinutes <= currentTimeInUserTz) {
-      // Reminder time has passed, schedule for tomorrow
-      scheduleDate.setDate(scheduleDate.getDate() + 1);
+    // Determine if we should schedule for today or tomorrow
+    let scheduleDateTime: Temporal.ZonedDateTime;
+    if (Temporal.ZonedDateTime.compare(todayAtReminderTime, now) > 0) {
+      // Reminder time hasn't passed yet, schedule for today
+      scheduleDateTime = todayAtReminderTime;
+    } else {
+      // Reminder time has passed, schedule for tomorrow at the same local time
+      // add({ days: 1 }) respects DST transitions in the target zone
+      scheduleDateTime = todayAtReminderTime.add({ days: 1 });
     }
     
-    return scheduleDate.getTime();
+    // Convert to UTC Instant, then to milliseconds timestamp
+    return scheduleDateTime.toInstant().epochMilliseconds;
   } catch (error: any) {
     logger.error(`[DailyReminder] Failed to calculate schedule_at for time ${reminderTime}, timezone ${reminderTimezone}:`, error);
     // Fallback: schedule for 24 hours from now
-    const fallback = new Date();
-    fallback.setHours(fallback.getHours() + 24);
-    return fallback.getTime();
+    return Date.now() + (24 * 60 * 60 * 1000);
   }
 }
 
