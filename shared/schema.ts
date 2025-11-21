@@ -225,6 +225,18 @@ export const userCredentials = pgTable("user_credentials", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// API keys table - for iOS Shortcuts and external integrations
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }), // One key per user
+  keyHash: text("key_hash").notNull(), // bcrypt hash of the API key
+  name: varchar("name").default("Personal API Key").notNull(), // Friendly name
+  lastUsedAt: timestamp("last_used_at"), // Track usage
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("api_keys_user_idx").on(table.userId),
+]);
+
 // User health profiles table (1:1 with users)
 export const profiles = pgTable("profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
