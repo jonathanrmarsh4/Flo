@@ -352,7 +352,7 @@ export default function ShortcutsPage() {
           
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-4">
             <p className="text-sm font-medium text-blue-700 dark:text-blue-400">
-              💡 Tip: Give each shortcut an emoji icon and descriptive name like "🍺 Log Beer"
+              Tip: Give each shortcut an icon and descriptive name for your home screen
             </p>
           </div>
         </CardContent>
