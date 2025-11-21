@@ -94,7 +94,7 @@ export async function checkDosageCorrelations(
 
     // Batch-fetch all day-after metrics for all dosage groups in one query
     const allDayAfterDates: string[] = [];
-    for (const group of dosageGroups.values()) {
+    for (const group of Array.from(dosageGroups.values())) {
       if (group.events.length < 2) continue; // Skip groups with insufficient data
       
       const dayAfterDates = group.events.map((d: Date) => {
