@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -16,6 +16,10 @@ import {
 import { BIOMARKER_CONFIGS, CATEGORIES } from '@/lib/biomarker-config';
 import { queryClient } from '@/lib/queryClient';
 import { logger } from '@/lib/logger';
+import { 
+  requestDailyReminderPermissions, 
+  initializeDailyReminderListener 
+} from '@/services/dailyReminderListener';
 
 const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
   'All': 'All',
@@ -31,6 +35,41 @@ const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Initialize daily reminder listener on app startup (native only)
+  useEffect(() => {
+    if (!user?.id || !Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    const setupDailyReminders = async () => {
+      try {
+        // Request notification permissions
+        const permResult = await requestDailyReminderPermissions();
+        
+        if (permResult.granted) {
+          logger.info('[Dashboard] ✓ Notification permissions granted');
+          
+          // Check if manual Android setup is required
+          if (permResult.requiresManualSetup) {
+            logger.warn('[Dashboard] ⚠ Android: User must manually enable "Alarms & reminders" in Settings');
+            logger.warn('[Dashboard] ⚠ Path: Settings → Apps → Flō → Alarms & reminders');
+            logger.warn('[Dashboard] ⚠ Without this, daily reminders may not fire at the exact scheduled time');
+          }
+          
+          // Initialize Supabase realtime listener for daily reminders
+          await initializeDailyReminderListener(user.id);
+          logger.info('[Dashboard] ✓ Daily reminder listener initialized');
+        } else {
+          logger.warn('[Dashboard] ✗ Notification permissions denied - daily reminders disabled');
+        }
+      } catch (error) {
+        logger.error('[Dashboard] ✗ Failed to setup daily reminders:', error);
+      }
+    };
+
+    setupDailyReminders();
+  }, [user?.id]);
   
   const handleLogout = async () => {
     // Mobile: Clear JWT token from secure storage

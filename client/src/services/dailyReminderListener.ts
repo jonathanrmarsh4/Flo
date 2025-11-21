@@ -45,6 +45,9 @@ function getSupabaseRealtimeClient() {
 /**
  * Schedule local notification from Supabase reminder payload
  * Cancels previous daily reminder before scheduling new one
+ * 
+ * Note: On Android 13+, requires SCHEDULE_EXACT_ALARM permission
+ * If permission is denied, the notification may not fire at the exact time
  */
 async function scheduleReminderNotification(reminder: {
   id: string;
@@ -58,6 +61,14 @@ async function scheduleReminderNotification(reminder: {
   }
 
   try {
+    // Step 0: Verify permissions are granted
+    const permStatus = await LocalNotifications.checkPermissions();
+    if (permStatus.display !== 'granted') {
+      console.error('[DailyReminder] Cannot schedule notification - permissions not granted');
+      console.error('[DailyReminder] Call requestDailyReminderPermissions() first');
+      return;
+    }
+
     // Step 1: Cancel any existing daily reminders (ID range 9000-9999)
     const existingNotifications = await LocalNotifications.getPending();
     const dailyReminderIds = existingNotifications.notifications
@@ -86,13 +97,24 @@ async function scheduleReminderNotification(reminder: {
       }]
     });
 
-    console.log(`[DailyReminder] Scheduled notification for ${scheduleDate.toLocaleString()}: "${reminder.body}"`);
+    console.log(`[DailyReminder] ✓ Scheduled notification for ${scheduleDate.toLocaleString()}`);
+    console.log(`[DailyReminder]   Title: "${reminder.title}"`);
+    console.log(`[DailyReminder]   Body: "${reminder.body}"`);
 
     // Note: We don't update the 'delivered' field because RLS requires service_role
     // The field is for internal tracking only and doesn't affect functionality
 
   } catch (error: any) {
-    console.error('[DailyReminder] Failed to schedule notification:', error);
+    console.error('[DailyReminder] ✗ Failed to schedule notification:', error);
+    
+    // Check if it's an Android permission error
+    const platform = Capacitor.getPlatform();
+    if (platform === 'android') {
+      console.error('[DailyReminder] On Android 13+, ensure:');
+      console.error('[DailyReminder] 1. Notification permission is granted');
+      console.error('[DailyReminder] 2. "Alarms & reminders" is enabled in system settings');
+      console.error('[DailyReminder] 3. SCHEDULE_EXACT_ALARM is declared in AndroidManifest.xml');
+    }
   }
 }
 
@@ -163,35 +185,131 @@ export async function stopDailyReminderListener() {
 }
 
 /**
+ * IMPORTANT LIMITATION: SCHEDULE_EXACT_ALARM Permission on Android 13+
+ * 
+ * On Android 13+ (API 33+), apps need SCHEDULE_EXACT_ALARM permission to schedule exact alarms.
+ * This permission MUST be declared in AndroidManifest.xml and enabled by the user in system settings.
+ * 
+ * Unfortunately, Capacitor's LocalNotifications plugin does not provide an API to:
+ * 1. Check if SCHEDULE_EXACT_ALARM permission is granted
+ * 2. Request SCHEDULE_EXACT_ALARM permission programmatically
+ * 
+ * Therefore, this function CANNOT accurately detect the permission status.
+ * It will return 'unknown' for Android platforms to indicate the limitation.
+ * 
+ * Developers must:
+ * 1. Add SCHEDULE_EXACT_ALARM to AndroidManifest.xml (see docs/android-notification-permissions.md)
+ * 2. Instruct users to enable "Alarms & reminders" in system settings
+ * 3. Handle scheduling errors gracefully when permission is missing
+ * 
+ * @returns 'granted' for iOS, 'unknown' for Android, 'not_applicable' for web
+ */
+async function checkExactAlarmCapability(): Promise<'granted' | 'unknown' | 'not_applicable'> {
+  if (!Capacitor.isNativePlatform()) {
+    return 'not_applicable';
+  }
+
+  const platform = Capacitor.getPlatform();
+  
+  if (platform === 'ios') {
+    // iOS doesn't need SCHEDULE_EXACT_ALARM
+    return 'granted';
+  }
+  
+  if (platform === 'android') {
+    // Cannot programmatically check SCHEDULE_EXACT_ALARM status with Capacitor
+    // Return 'unknown' to indicate we cannot verify
+    console.log('[DailyReminder] Android detected - SCHEDULE_EXACT_ALARM status cannot be verified programmatically');
+    console.log('[DailyReminder] Ensure AndroidManifest.xml includes SCHEDULE_EXACT_ALARM permission');
+    console.log('[DailyReminder] User must enable "Alarms & reminders" in Settings → Apps → Flō');
+    return 'unknown';
+  }
+  
+  return 'not_applicable';
+}
+
+/**
  * Request notification permissions on app startup
  * Required for scheduling local notifications
+ * 
+ * For iOS: Requests standard notification permissions
+ * For Android 13+: Also requires SCHEDULE_EXACT_ALARM permission (see notes below)
+ * 
+ * ANDROID 13+ LIMITATION:
+ * This function can only request POST_NOTIFICATIONS permission.
+ * SCHEDULE_EXACT_ALARM must be:
+ * 1. Declared in AndroidManifest.xml
+ * 2. Manually enabled by user in Settings → Apps → Flō → Alarms & reminders
+ * 
+ * We cannot programmatically check or request SCHEDULE_EXACT_ALARM with Capacitor.
+ * 
+ * @returns Object with granted status and exact alarm capability info
  */
-export async function requestDailyReminderPermissions() {
+export async function requestDailyReminderPermissions(): Promise<{ 
+  granted: boolean; 
+  exactAlarmCapability?: 'granted' | 'unknown' | 'not_applicable';
+  requiresManualSetup?: boolean;
+}> {
   if (!Capacitor.isNativePlatform()) {
     return { granted: false };
   }
 
+  const platform = Capacitor.getPlatform();
+
   try {
-    // Check current permission status
+    // Step 1: Check current notification permission status
     const permStatus = await LocalNotifications.checkPermissions();
     
     if (permStatus.display === 'granted') {
-      console.log('[DailyReminder] Notification permissions already granted');
-      return { granted: true };
+      console.log('[DailyReminder] ✓ Notification permissions already granted');
+      
+      // Check exact alarm capability (returns 'unknown' for Android)
+      const exactAlarmCapability = await checkExactAlarmCapability();
+      
+      return { 
+        granted: true, 
+        exactAlarmCapability,
+        requiresManualSetup: platform === 'android' && exactAlarmCapability === 'unknown'
+      };
     }
 
-    // Request permissions
+    // Step 2: Request notification permissions
+    console.log('[DailyReminder] Requesting notification permissions...');
     const result = await LocalNotifications.requestPermissions();
     
     if (result.display === 'granted') {
-      console.log('[DailyReminder] Notification permissions granted');
-      return { granted: true };
+      console.log('[DailyReminder] ✓ Notification permissions granted');
+      
+      // Check exact alarm capability (returns 'unknown' for Android)
+      const exactAlarmCapability = await checkExactAlarmCapability();
+      
+      if (platform === 'android' && exactAlarmCapability === 'unknown') {
+        console.warn('[DailyReminder] ⚠ Android detected - SCHEDULE_EXACT_ALARM cannot be verified');
+        console.warn('[DailyReminder] ⚠ User must manually enable:');
+        console.warn('[DailyReminder]   Settings → Apps → Flō → Alarms & reminders');
+      }
+      
+      return { 
+        granted: true, 
+        exactAlarmCapability,
+        requiresManualSetup: platform === 'android' && exactAlarmCapability === 'unknown'
+      };
     } else {
-      console.warn('[DailyReminder] Notification permissions denied');
+      console.warn('[DailyReminder] ✗ Notification permissions denied');
       return { granted: false };
     }
   } catch (error: any) {
-    console.error('[DailyReminder] Failed to request notification permissions:', error);
+    console.error('[DailyReminder] ✗ Failed to request notification permissions:', error);
+    
+    // Log helpful Android 13+ guidance
+    if (platform === 'android') {
+      console.error('[DailyReminder] On Android 13+, ensure the following:');
+      console.error('[DailyReminder] 1. POST_NOTIFICATIONS permission is granted (requested above)');
+      console.error('[DailyReminder] 2. SCHEDULE_EXACT_ALARM declared in AndroidManifest.xml');
+      console.error('[DailyReminder] 3. User enabled "Alarms & reminders" in Settings');
+      console.error('[DailyReminder] See: docs/android-notification-permissions.md');
+    }
+    
     return { granted: false };
   }
 }

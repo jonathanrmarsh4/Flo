@@ -55,5 +55,7 @@
         <string>Flō needs access to your health data to provide personalized insights and track your wellness metrics alongside your blood work results.</string>
         <key>NSHealthUpdateUsageDescription</key>
         <string>Flō would like to save health metrics and wellness data to your Apple Health app.</string>
+        <key>NSUserNotificationsUsageDescription</key>
+        <string>Flō sends you personalized daily health insights and reminders based on your biomarker data and health metrics.</string>
 </dict>
 </plist>
