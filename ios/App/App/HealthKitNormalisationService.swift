@@ -636,53 +636,104 @@ public class HealthKitNormalisationService {
     
     // MARK: - Exercise Minutes Aggregation
     
-    /// Aggregate exercise minutes for a full day using source deduplication
-    /// Prevents double-counting when multiple apps track the same workout
+    /// Aggregate exercise minutes for a full day from actual workouts
+    /// Uses HKWorkout queries with proper deduplication to avoid Activity Ring cumulative counters
     private func aggregateExerciseMinutes(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
-        let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!
-        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let workoutType = HKObjectType.workoutType()
         
         // Debug logging
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.timeZone = TimeZone.current
-        print("[ExerciseMinutes] Querying range: \(formatter.string(from: dayStart)) to \(formatter.string(from: dayEnd))")
+        print("[ExerciseMinutes] Querying workouts for day: \(formatter.string(from: dayStart)) to \(formatter.string(from: dayEnd))")
         
-        // Use HKStatisticsQuery with .separateBySource to avoid double-counting
-        let query = HKStatisticsQuery(
-            quantityType: exerciseType,
-            quantitySamplePredicate: predicate,
-            options: [.cumulativeSum, .separateBySource]
-        ) { (query, statistics, error) in
-            guard let statistics = statistics, error == nil else {
-                print("[ExerciseMinutes] No statistics or error: \(error?.localizedDescription ?? "unknown")")
+        // Check authorization first
+        let authStatus = healthStore.authorizationStatus(for: workoutType)
+        if authStatus == .sharingDenied {
+            print("[ExerciseMinutes] ⚠️ Workout authorization denied")
+            completion(nil)
+            return
+        }
+        
+        // Use generous window (12h before dayStart) to catch cross-midnight workouts
+        let windowStart = calendar.date(byAdding: .hour, value: -12, to: dayStart)!
+        let predicate = HKQuery.predicateForSamples(withStart: windowStart, end: dayEnd, options: [])
+        
+        // Query actual HKWorkout objects instead of appleExerciseTime quantity
+        // This avoids the Activity Ring cumulative counter issue
+        let query = HKSampleQuery(
+            sampleType: workoutType,
+            predicate: predicate,
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: nil
+        ) { (query, samples, error) in
+            guard error == nil else {
+                print("[ExerciseMinutes] Query error: \(error!.localizedDescription)")
                 completion(nil)
                 return
             }
             
-            // Get per-source sums
-            guard let sources = statistics.sources else {
-                print("[ExerciseMinutes] No sources available")
+            guard let workouts = samples as? [HKWorkout], !workouts.isEmpty else {
+                print("[ExerciseMinutes] No workouts found")
                 completion(nil)
                 return
             }
             
-            // Select primary source (highest exercise minutes) to avoid duplicates
-            var maxMinutes: Double = 0
-            var sourceDetails: [String] = []
+            print("[ExerciseMinutes] Processing \(workouts.count) workouts with deduplication...")
             
-            for source in sources {
-                if let sum = statistics.sumQuantity(for: source) {
-                    let minutes = sum.doubleValue(for: .minute())
-                    sourceDetails.append("\(source.name): \(minutes) min")
-                    maxMinutes = max(maxMinutes, minutes)
+            // Deduplicate workouts using sync metadata + tight fallback heuristic
+            var dedup: [String: (minutes: Double, source: String)] = [:]
+            
+            for workout in workouts {
+                // Calculate overlap with target day
+                let overlapStart = max(workout.startDate, dayStart)
+                let overlapEnd = min(workout.endDate, dayEnd)
+                
+                // Skip if no overlap with this day
+                guard overlapEnd > overlapStart else {
+                    print("[ExerciseMinutes]  ⏭️  No overlap (outside day window)")
+                    continue
+                }
+                
+                let minutes = overlapEnd.timeIntervalSince(overlapStart) / 60.0
+                let sourceName = workout.sourceRevision.source.name
+                let bundleId = workout.sourceRevision.source.bundleIdentifier ?? "unknown"
+                
+                // Build deduplication key: prefer sync metadata, fallback to tight heuristic
+                let key: String
+                if let syncId = workout.metadata?[HKMetadataKeySyncIdentifier] as? String,
+                   let version = workout.metadata?[HKMetadataKeySyncVersion] {
+                    // Primary: use HealthKit sync identifier
+                    key = "sync:\(syncId)#\(version)|\(bundleId)"
+                } else {
+                    // Fallback: tight tolerance heuristic (5-second rounding)
+                    let startRounded = Int(overlapStart.timeIntervalSince1970 / 5) * 5
+                    let endRounded = Int(overlapEnd.timeIntervalSince1970 / 5) * 5
+                    let durationRounded = Int(workout.duration)
+                    key = "heuristic:\(startRounded)|\(endRounded)|\(durationRounded)|\(workout.workoutActivityType.rawValue)|\(bundleId)"
+                }
+                
+                // Keep longest duration per key (handles duplicates)
+                if let existing = dedup[key] {
+                    if minutes > existing.minutes {
+                        print("[ExerciseMinutes]  🔄  Replacing duplicate: \(sourceName) (\(String(format: "%.1f", minutes)) min > \(String(format: "%.1f", existing.minutes)) min)")
+                        dedup[key] = (minutes, sourceName)
+                    } else {
+                        print("[ExerciseMinutes]  ⏭️  Skipping duplicate: \(sourceName) (\(String(format: "%.1f", minutes)) min)")
+                    }
+                } else {
+                    print("[ExerciseMinutes]  ✓  \(sourceName): \(String(format: "%.1f", minutes)) min")
+                    dedup[key] = (minutes, sourceName)
                 }
             }
             
-            print("[ExerciseMinutes] Sources found: \(sourceDetails.joined(separator: ", "))")
-            print("[ExerciseMinutes] Final result: \(maxMinutes) min")
+            // Sum all unique workout durations
+            let totalMinutes = dedup.values.reduce(0.0) { $0 + $1.minutes }
             
-            completion(maxMinutes > 0 ? maxMinutes : nil)
+            print("[ExerciseMinutes] ═══════════════════")
+            print("[ExerciseMinutes] Total: \(String(format: "%.1f", totalMinutes)) min from \(dedup.count) unique workouts")
+            
+            completion(totalMinutes > 0 ? totalMinutes : nil)
         }
         
         healthStore.execute(query)
