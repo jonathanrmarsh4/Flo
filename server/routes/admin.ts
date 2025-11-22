@@ -4,6 +4,12 @@ import { isAuthenticated } from "../replitAuth";
 import { requireAdmin } from "../middleware/rbac";
 import { logger } from "../logger";
 import Stripe from "stripe";
+import { generateInsightCards } from "../services/correlationEngine";
+import { syncBloodWorkEmbeddings, syncHealthKitEmbeddings } from "../services/embeddingService";
+import { db } from "../db";
+import { userDailyMetrics, bloodWorkRecords } from "@shared/schema";
+import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { generateDailyReminder } from "../services/dailyReminderService";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -246,6 +252,141 @@ export function registerAdminRoutes(app: Express) {
     } catch (error) {
       logger.error('Error checking HealthKit status', error);
       res.status(500).json({ error: "Failed to check HealthKit status", status: "error" });
+    }
+  });
+
+  /**
+   * Admin endpoint to trigger insights generation for testing
+   * POST /api/admin/trigger-insights-generation
+   * 
+   * This endpoint runs the full insights generation pipeline:
+   * 1. Syncs embeddings for recent health data
+   * 2. Detects correlations using the Pearson engine
+   * 3. Generates and saves insight cards to the database
+   * 4. Optionally generates and delivers a daily reminder notification
+   * 
+   * Query params:
+   * - userId (optional): Specific user ID to generate insights for. Defaults to authenticated user.
+   * - withNotification (optional): If true, also generates a daily reminder notification. Defaults to false.
+   */
+  app.post('/api/admin/trigger-insights-generation', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const startTime = Date.now();
+      const targetUserId = req.query.userId || req.user.claims.sub;
+      const withNotification = req.query.withNotification === 'true';
+
+      logger.info(`[Admin] Triggering insights generation for user ${targetUserId} (withNotification: ${withNotification})`);
+
+      // Step 1: Sync embeddings
+      logger.info(`[Admin] Step 1/3: Syncing embeddings for user ${targetUserId}...`);
+      
+      // Get recent blood work data with analysis (using same pattern as scheduler)
+      const { analysisResults } = await import("@shared/schema");
+      
+      const bloodWorkRaw = await db
+        .select()
+        .from(bloodWorkRecords)
+        .leftJoin(analysisResults, eq(bloodWorkRecords.id, analysisResults.recordId))
+        .where(eq(bloodWorkRecords.userId, targetUserId))
+        .orderBy(desc(bloodWorkRecords.uploadedAt))
+        .limit(10);
+
+      // Transform joined data to flat structure expected by embedding service
+      const bloodWorkData = bloodWorkRaw.map(row => ({
+        ...row.bloodWorkRecords,
+        analysis: row.analysisResults,
+      }));
+
+      // Get recent HealthKit metrics (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const healthKitData = await db
+        .select()
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, targetUserId),
+            gte(userDailyMetrics.utcDayStart, thirtyDaysAgo)
+          )
+        )
+        .orderBy(desc(userDailyMetrics.localDate));
+
+      let embeddingCount = 0;
+      if (bloodWorkData.length > 0) {
+        embeddingCount += await syncBloodWorkEmbeddings(targetUserId, bloodWorkData as any);
+      }
+      if (healthKitData.length > 0) {
+        embeddingCount += await syncHealthKitEmbeddings(targetUserId, healthKitData);
+      }
+
+      logger.info(`[Admin] ✓ Synced ${embeddingCount} embeddings`);
+
+      // Step 2: Generate insights
+      logger.info(`[Admin] Step 2/3: Generating insight cards for user ${targetUserId}...`);
+      const insights = await generateInsightCards(targetUserId);
+      logger.info(`[Admin] ✓ Generated ${insights.length} insight cards`);
+
+      // Step 3: Optionally generate daily reminder notification
+      let reminderResult = null;
+      if (withNotification) {
+        logger.info(`[Admin] Step 3/3: Generating daily reminder notification...`);
+        
+        // Get user reminder preferences
+        const userResult = await db.execute(sql`
+          SELECT reminder_time, reminder_timezone 
+          FROM users 
+          WHERE id = ${targetUserId}
+          LIMIT 1
+        `);
+
+        const user = userResult.rows?.[0] as any;
+        
+        if (!user) {
+          logger.warn(`[Admin] ✗ User ${targetUserId} not found, skipping notification`);
+          reminderResult = { success: false, error: 'User not found' };
+        } else {
+          const reminderTime = user.reminder_time || '08:15';
+          const reminderTimezone = user.reminder_timezone || 'UTC';
+
+          reminderResult = await generateDailyReminder(targetUserId, reminderTime, reminderTimezone);
+          
+          if (reminderResult.success) {
+            logger.info(`[Admin] ✓ Generated daily reminder notification`);
+          } else {
+            logger.warn(`[Admin] ✗ Failed to generate reminder: ${reminderResult.error}`);
+          }
+        }
+      }
+
+      const duration = Date.now() - startTime;
+
+      res.json({
+        success: true,
+        userId: targetUserId,
+        embeddingsSynced: embeddingCount,
+        insightsGenerated: insights.length,
+        insights: insights.map(i => ({
+          category: i.category,
+          pattern: i.pattern,
+          confidence: Math.round(i.confidence * 100),
+          isNew: i.isNew,
+        })),
+        notification: withNotification ? {
+          triggered: reminderResult?.success || false,
+          error: reminderResult?.error,
+          reminder: reminderResult?.reminder,
+        } : null,
+        durationMs: duration,
+      });
+
+    } catch (error: any) {
+      logger.error('[Admin] Error triggering insights generation:', error);
+      res.status(500).json({ 
+        success: false,
+        error: "Failed to generate insights",
+        message: error.message 
+      });
     }
   });
 }

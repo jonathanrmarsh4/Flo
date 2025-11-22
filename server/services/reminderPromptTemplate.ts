@@ -24,18 +24,21 @@ export function buildReminderPrompt(clinicalContext: string): PromptTemplate {
 Your mission: Write ONE hyper-personal daily reminder (1-2 sentences max) that ONLY someone with full blood panels, DEXA scans, CAC scores, and daily wearables could write.
 
 Rules:
-1. Lead with SPECIFIC DATA, not generic motivation
-2. Connect the dots between different health metrics (bloodwork, DEXA, wearables, behaviors)
-3. Use clinical precision (actual numbers, percentages, timeframes)
-4. Sound like a $10k/year concierge medicine team
-5. No fluff, no chitchat, just evidence-based insights
-6. Maximum 200 tokens
-7. VARY your focus - don't repeat the same metric type daily
+1. **PRIORITIZE NEW INSIGHTS**: If the context includes proactive insights marked [NEW], lead with those - they're AI-discovered patterns the user hasn't seen yet
+2. Lead with SPECIFIC DATA, not generic motivation
+3. Connect the dots between different health metrics (bloodwork, DEXA, wearables, behaviors)
+4. Use clinical precision (actual numbers, percentages, timeframes)
+5. Sound like a $10k/year concierge medicine team
+6. No fluff, no chitchat, just evidence-based insights
+7. Maximum 200 tokens
+8. VARY your focus - don't repeat the same metric type daily
 
 Tone: Analytical, direct, intelligent. Think Peter Attia meets a data scientist.
 
 Examples of GOOD reminders:
 • "Ferritin climbed from 42 → 180 in 11 weeks. That's why your energy finally feels normal again."
+• "Your sleep improves 35 min on days you hit 10k+ steps - noticed this trend over the last 60 days." [using new insight]
+• "HRV climbs 18% when you sleep >7.5h consistently - the data is clear on this one." [using new insight]
 • "Visceral fat down 120 g on DEXA. The daily Zone 2 is literally melting it off."
 • "LDL dropped 22% since switching to 3 sauna sessions/week. Interesting correlation."
 • "Sleep efficiency at 94% - your highest in 6 months. The magnesium timing change is working."

@@ -1,6 +1,7 @@
 import { db } from '../db';
-import { sql } from 'drizzle-orm';
+import { sql, eq, desc } from 'drizzle-orm';
 import { logger } from '../logger';
+import { insightCards } from '@shared/schema';
 
 export interface ReminderContext {
   userId: string;
@@ -10,6 +11,14 @@ export interface ReminderContext {
   behaviors: BehaviorMetrics | null;
   training: TrainingMetrics | null;
   goals: string[];
+  insights: InsightSummary[];
+}
+
+export interface InsightSummary {
+  category: string;
+  pattern: string;
+  confidence: number;
+  isNew: boolean;
 }
 
 export interface BiomarkerTrend {
@@ -73,8 +82,8 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
   try {
     logger.info(`[ReminderContext] Building context for user ${userId}`);
 
-    // Query all 5 views in parallel for efficiency
-    const [biomarkersRaw, dexaRaw, wearablesRaw, behaviorsRaw, trainingRaw, goalsRaw] = await Promise.all([
+    // Query all 5 views + insight cards in parallel for efficiency
+    const [biomarkersRaw, dexaRaw, wearablesRaw, behaviorsRaw, trainingRaw, goalsRaw, insightsRaw] = await Promise.all([
       // View 1: Top 6 most interesting biomarker trends (filtered by significance)
       db.execute(sql`
         SELECT 
@@ -163,7 +172,20 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
         FROM profiles 
         WHERE user_id = ${userId}
         LIMIT 1
-      `)
+      `),
+
+      // User's active insight cards (top 3 by confidence, showing new ones first)
+      db
+        .select({
+          category: insightCards.category,
+          pattern: insightCards.pattern,
+          confidence: insightCards.confidence,
+          isNew: insightCards.isNew,
+        })
+        .from(insightCards)
+        .where(eq(insightCards.userId, userId))
+        .orderBy(desc(insightCards.isNew), desc(insightCards.confidence))
+        .limit(3)
     ]);
 
     // Parse biomarker trends
@@ -232,7 +254,15 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
     const goalsRow: any = goalsRaw.rows?.[0];
     const goals: string[] = Array.isArray(goalsRow?.goals) ? goalsRow.goals : [];
 
-    logger.info(`[ReminderContext] Context built successfully for user ${userId}: ${biomarkers.length} biomarker trends, DEXA: ${dexa ? 'yes' : 'no'}, wearables: ${wearables ? 'yes' : 'no'}`);
+    // Parse insights
+    const insights: InsightSummary[] = (insightsRaw || []).map((row: any) => ({
+      category: String(row.category || ''),
+      pattern: String(row.pattern || ''),
+      confidence: parseFloat(String(row.confidence || 0)),
+      isNew: Boolean(row.isNew),
+    }));
+
+    logger.info(`[ReminderContext] Context built successfully for user ${userId}: ${biomarkers.length} biomarker trends, DEXA: ${dexa ? 'yes' : 'no'}, wearables: ${wearables ? 'yes' : 'no'}, insights: ${insights.length} (${insights.filter(i => i.isNew).length} new)`);
 
     return {
       userId,
@@ -242,6 +272,7 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
       behaviors,
       training,
       goals,
+      insights,
     };
   } catch (error: any) {
     logger.error(`[ReminderContext] Failed to build context for user ${userId}:`, error);
@@ -256,12 +287,22 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
 export function formatContextForGrok(context: ReminderContext): string {
   const sections: string[] = [];
 
-  // Section 1: Active Goals
+  // Section 1: Proactive Insights (NEW discoveries - priority placement)
+  if (context.insights.length > 0) {
+    const insightLines = context.insights.map(i => {
+      const badge = i.isNew ? ' [NEW]' : '';
+      const confidencePercent = Math.round(i.confidence * 100);
+      return `• ${i.pattern}${badge} (${confidencePercent}% confidence)`;
+    });
+    sections.push(`🔍 Proactive Insights (AI-discovered patterns):\n${insightLines.join('\n')}`);
+  }
+
+  // Section 2: Active Goals
   if (context.goals.length > 0) {
     sections.push(`Active goals:\n${context.goals.map(g => `• ${g}`).join('\n')}`);
   }
 
-  // Section 2: Biomarker Trends (only significant changes)
+  // Section 3: Biomarker Trends (only significant changes)
   if (context.biomarkers.length > 0) {
     const biomarkerLines = context.biomarkers.map(b => {
       const trend = b.percentChange! >= 0 ? '↑' : '↓';
@@ -271,7 +312,7 @@ export function formatContextForGrok(context: ReminderContext): string {
     sections.push(`Clinically relevant changes last 90 days:\n${biomarkerLines.join('\n')}`);
   }
 
-  // Section 3: DEXA Changes
+  // Section 4: DEXA Changes
   if (context.dexa) {
     const dexaLines: string[] = [];
     if (context.dexa.visceralFatChangeCm2 !== undefined) {
@@ -288,7 +329,7 @@ export function formatContextForGrok(context: ReminderContext): string {
     }
   }
 
-  // Section 4: HRV & Wearables (7d vs 30d baseline)
+  // Section 5: HRV & Wearables (7d vs 30d baseline)
   if (context.wearables) {
     const w = context.wearables;
     const wearableLines: string[] = [];
@@ -307,7 +348,7 @@ export function formatContextForGrok(context: ReminderContext): string {
     }
   }
 
-  // Section 5: Behavior Tracking
+  // Section 6: Behavior Tracking
   if (context.behaviors) {
     const b = context.behaviors;
     const behaviorLines: string[] = [];
@@ -331,7 +372,7 @@ export function formatContextForGrok(context: ReminderContext): string {
     }
   }
 
-  // Section 6: Training Load
+  // Section 7: Training Load
   if (context.training) {
     const t = context.training;
     const trainingLines: string[] = [];

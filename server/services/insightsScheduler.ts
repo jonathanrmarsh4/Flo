@@ -3,7 +3,7 @@ import { users, userSettings } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { logger } from "../logger";
 import { syncBloodWorkEmbeddings, syncHealthKitEmbeddings } from "./embeddingService";
-import { detectCorrelations } from "./correlationEngine";
+import { generateInsightCards } from "./correlationEngine";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 
@@ -91,14 +91,14 @@ async function runInsightsGeneration() {
         const embeddingCount = await syncUserEmbeddings(userId);
         totalEmbeddings += embeddingCount;
 
-        // Step 2: Detect correlations and generate insights
-        const insights = await detectCorrelations(userId);
+        // Step 2: Generate and save insight cards (detects correlations + saves to DB)
+        const insights = await generateInsightCards(userId);
         totalInsights += insights.length;
 
-        logger.info(`[InsightsScheduler] User ${userId}: ${embeddingCount} embeddings, ${insights.length} insights`);
+        logger.info(`[InsightsScheduler] ✓ User ${userId}: ${embeddingCount} embeddings synced, ${insights.length} insights saved to DB`);
         successCount++;
       } catch (error) {
-        logger.error(`[InsightsScheduler] Error processing user ${userId}:`, error);
+        logger.error(`[InsightsScheduler] ✗ Error processing user ${userId}:`, error);
         errorCount++;
       }
     }
@@ -122,20 +122,22 @@ async function syncUserEmbeddings(userId: string): Promise<number> {
     // Get recent blood work and HealthKit data
     // The embedding service is idempotent - it only processes new data
     const { bloodWorkRecords, analysisResults } = await import("@shared/schema");
-    const { desc, eq, sql } = await import("drizzle-orm");
+    const { desc, eq } = await import("drizzle-orm");
 
-    // Get blood work with analysis
-    const bloodWorkData = await db
-      .select({
-        id: bloodWorkRecords.id,
-        uploadedAt: bloodWorkRecords.uploadedAt,
-        analysis: sql`${sql.raw('analysis_results')}.*`,
-      })
+    // Get blood work with analysis using proper Drizzle join
+    const bloodWorkRaw = await db
+      .select()
       .from(bloodWorkRecords)
-      .leftJoin(sql.raw('analysis_results'), sql`${bloodWorkRecords.id} = analysis_results.record_id`)
+      .leftJoin(analysisResults, eq(bloodWorkRecords.id, analysisResults.recordId))
       .where(eq(bloodWorkRecords.userId, userId))
       .orderBy(desc(bloodWorkRecords.uploadedAt))
       .limit(10);
+
+    // Transform joined data to flat structure expected by embedding service
+    const bloodWorkData = bloodWorkRaw.map(row => ({
+      ...row.bloodWorkRecords,
+      analysis: row.analysisResults,
+    }));
 
     // Get recent HealthKit metrics
     const { userDailyMetrics } = await import("@shared/schema");
@@ -158,7 +160,7 @@ async function syncUserEmbeddings(userId: string): Promise<number> {
     let count = 0;
 
     if (bloodWorkData.length > 0) {
-      count += await syncBloodWorkEmbeddings(userId, bloodWorkData as any);
+      count += await syncBloodWorkEmbeddings(userId, bloodWorkData);
     }
 
     if (healthKitData.length > 0) {
