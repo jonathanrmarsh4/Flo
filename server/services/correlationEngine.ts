@@ -88,6 +88,8 @@ async function detectActivitySleepCorrelation(userId: string): Promise<Correlati
       (d) => d.steps !== null && d.sleepMin !== null && d.steps > 0 && d.sleepMin > 0
     );
 
+    logger.debug(`[CorrelationEngine] Activity-Sleep: ${validDays.length} valid days found (${metrics.length} total metrics)`);
+
     if (validDays.length < 7) {
       logger.debug(`[CorrelationEngine] Insufficient data for activity-sleep correlation (${validDays.length} days, need 7+)`);
       return null;
@@ -97,7 +99,10 @@ async function detectActivitySleepCorrelation(userId: string): Promise<Correlati
     const highStepDays = validDays.filter((d) => d.steps! >= 10000);
     const lowStepDays = validDays.filter((d) => d.steps! < 10000);
 
+    logger.debug(`[CorrelationEngine] Activity-Sleep variation: ${highStepDays.length} high-step days, ${lowStepDays.length} low-step days`);
+
     if (highStepDays.length < 3 || lowStepDays.length < 3) {
+      logger.debug(`[CorrelationEngine] Insufficient step variation (need 3+ each)`);
       return null; // Not enough variation
     }
 
@@ -110,6 +115,7 @@ async function detectActivitySleepCorrelation(userId: string): Promise<Correlati
 
     // Only create insight if difference is meaningful (>30 min)
     if (Math.abs(sleepDifference) < 30) {
+      logger.debug(`[CorrelationEngine] Sleep difference too small (${Math.round(sleepDifference)} min, need 30+)`);
       return null;
     }
 
@@ -218,6 +224,7 @@ async function detectSleepHRVCorrelation(userId: string): Promise<CorrelationRes
 
     // Only create insight if difference is meaningful (>10% change)
     if (Math.abs(percentChange) < 10) {
+      logger.debug(`[CorrelationEngine] HRV change too small (${Math.round(percentChange)}%, need 10%+)`);
       return null;
     }
 
@@ -554,9 +561,28 @@ export async function detectCorrelations(userId: string): Promise<CorrelationRes
     detectLifeEventCorrelations(userId),
   ]);
 
-  if (activitySleep) correlations.push(activitySleep);
-  if (sleepHRV) correlations.push(sleepHRV);
-  correlations.push(...lifeEventCorrs);
+  logger.debug(`[CorrelationEngine] Results: activitySleep=${!!activitySleep}, sleepHRV=${!!sleepHRV}, lifeEvents=${lifeEventCorrs.length}`);
+
+  if (activitySleep) {
+    correlations.push(activitySleep);
+    logger.debug(`[CorrelationEngine] ✓ Activity-Sleep: ${activitySleep.pattern}`);
+  } else {
+    logger.debug(`[CorrelationEngine] ✗ Activity-Sleep: No correlation found`);
+  }
+  
+  if (sleepHRV) {
+    correlations.push(sleepHRV);
+    logger.debug(`[CorrelationEngine] ✓ Sleep-HRV: ${sleepHRV.pattern}`);
+  } else {
+    logger.debug(`[CorrelationEngine] ✗ Sleep-HRV: No correlation found`);
+  }
+  
+  if (lifeEventCorrs.length > 0) {
+    correlations.push(...lifeEventCorrs);
+    logger.debug(`[CorrelationEngine] ✓ Life Events: ${lifeEventCorrs.length} patterns found`);
+  } else {
+    logger.debug(`[CorrelationEngine] ✗ Life Events: No patterns found`);
+  }
 
   logger.info(`[CorrelationEngine] Found ${correlations.length} correlations for user ${userId}`);
   return correlations;
