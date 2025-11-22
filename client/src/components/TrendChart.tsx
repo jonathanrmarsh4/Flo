@@ -11,10 +11,11 @@ interface TrendChartProps {
   min: number;
   max: number;
   biomarker: string;
+  unit: string;
   isDark: boolean;
 }
 
-export function TrendChart({ history, min, max, biomarker, isDark }: TrendChartProps) {
+export function TrendChart({ history, min, max, biomarker, unit, isDark }: TrendChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<number | null>(null);
   const [isPressed, setIsPressed] = useState(false);
 
@@ -113,8 +114,8 @@ export function TrendChart({ history, min, max, biomarker, isDark }: TrendChartP
         
         {/* Data points */}
         {points.map((point, index) => {
-          const tooltipWidth = 50;
-          const tooltipHeight = 22;
+          const tooltipWidth = 100;
+          const tooltipHeight = 30;
           const tooltipPadding = 5;
           
           // Calculate tooltip position and clamp to SVG boundaries
@@ -152,7 +153,7 @@ export function TrendChart({ history, min, max, biomarker, isDark }: TrendChartP
                 onBlur={() => setHoveredPoint(null)}
                 tabIndex={0}
                 role="button"
-                aria-label={`Data point for ${format(new Date(point.date), 'MM/yy')}: ${point.value}`}
+                aria-label={`Data point for ${format(new Date(point.date), 'MM/dd')}: ${point.value.toFixed(1)}${unit}`}
                 data-testid={`point-${biomarker.toLowerCase().replace(/\s+/g, '-')}-${index}`}
               />
               {(hoveredPoint === index || isPressed) && (
@@ -169,12 +170,21 @@ export function TrendChart({ history, min, max, biomarker, isDark }: TrendChartP
                   />
                   <text
                     x={tooltipX + tooltipWidth / 2}
-                    y={tooltipY + tooltipHeight / 2 + 4}
+                    y={tooltipY + tooltipHeight / 2 - 3}
                     textAnchor="middle"
-                    className={`text-[11px] font-medium ${isDark ? 'fill-white' : 'fill-gray-900'}`}
+                    className={`text-[9px] font-medium ${isDark ? 'fill-white' : 'fill-gray-900'}`}
+                    data-testid={`tooltip-date-${biomarker.toLowerCase().replace(/\s+/g, '-')}-${index}`}
+                  >
+                    {format(new Date(point.date), 'MM/dd')}
+                  </text>
+                  <text
+                    x={tooltipX + tooltipWidth / 2}
+                    y={tooltipY + tooltipHeight / 2 + 10}
+                    textAnchor="middle"
+                    className={`text-[9px] font-medium ${isDark ? 'fill-white' : 'fill-gray-900'}`}
                     data-testid={`tooltip-${biomarker.toLowerCase().replace(/\s+/g, '-')}-${index}`}
                   >
-                    {format(new Date(point.date), 'MM/yy')}
+                    {point.value.toFixed(1)}{unit}
                   </text>
                 </g>
               )}

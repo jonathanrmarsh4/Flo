@@ -392,6 +392,7 @@ export default function Dashboard() {
                       min={config.min}
                       max={config.max}
                       biomarker={biomarkerName}
+                      unit={config.unit}
                       isDark={isDark}
                     />
                   )}
