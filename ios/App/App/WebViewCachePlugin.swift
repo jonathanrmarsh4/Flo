@@ -3,7 +3,13 @@ import Capacitor
 import WebKit
 
 @objc(WebViewCachePlugin)
-public class WebViewCachePlugin: CAPPlugin {
+public class WebViewCachePlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "WebViewCachePlugin"
+    public let jsName = "WebViewCache"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "clearCache", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "reloadFromOrigin", returnType: CAPPluginReturnPromise)
+    ]
     
     @objc func clearCache(_ call: CAPPluginCall) {
         // Clear all WKWebView website data (cookies, cache, local storage, etc.)
