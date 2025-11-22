@@ -17,16 +17,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 if let nav = window.rootViewController as? UINavigationController,
                    let bridgeVC = nav.viewControllers.first as? CAPBridgeViewController {
                     self.configureWebView(bridgeVC)
-                    // Register custom HealthSyncPlugin
+                    // Register custom plugins
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
+                    bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     print("✅ HealthSyncPlugin registered manually")
+                    print("✅ WebViewCachePlugin registered manually")
                 }
                 // Fallback: direct CAPBridgeViewController
                 else if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
                     self.configureWebView(bridgeVC)
-                    // Register custom HealthSyncPlugin
+                    // Register custom plugins
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
+                    bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     print("✅ HealthSyncPlugin registered manually")
+                    print("✅ WebViewCachePlugin registered manually")
                 }
             }
         }
