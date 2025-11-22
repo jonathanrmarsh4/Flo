@@ -1,0 +1,76 @@
+2025-11-23 07:46:16.91
+5fcaab04
+User
+[2025-11-22T23:46:16.917Z] [INFO] [CorrelationEngine] Running correlation detection for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 07:46:17.88
+5fcaab04
+User
+[2025-11-22T23:46:17.888Z] [INFO] [Admin] ✓ Generated 0 insight cards
+2025-11-23 07:46:17.88
+5fcaab04
+User
+[2025-11-22T23:46:17.888Z] [INFO] [CorrelationEngine] Found 0 correlations for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 07:46:17.88
+5fcaab04
+User
+[2025-11-22T23:46:17.888Z] [INFO] [CorrelationEngine] No correlations found for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 07:46:17.89
+5fcaab04
+User
+11:46:17 PM [express] POST /api/admin/trigger-insights-generation 200 in 19102ms :: {"success":true,"…
+2025-11-23 07:46:22.85
+5fcaab04
+User
+11:46:22 PM [express] GET /api/admin/audit-logs 304 in 39ms :: [{"id":"e1c91b5c-82c4-4821-999b-41ac5b…
+2025-11-23 07:46:22.93
+5fcaab04
+User
+11:46:22 PM [express] GET /api/admin/overview 304 in 38ms :: {"totalUsers":77,"activeUsers":77,"total…
+2025-11-23 07:46:22.98
+5fcaab04
+User
+11:46:22 PM [express] GET /api/admin/healthkit/stats 304 in 39ms :: {"totalSamples":0,"totalUsers":0,…
+2025-11-23 07:46:23.81
+5fcaab04
+User
+11:46:23 PM [express] GET /api/admin/healthkit/status 304 in 109ms :: {"status":"down","lastSync":nul…
+2025-11-23 07:46:34.36
+5fcaab04
+User
+11:46:34 PM [express] GET /api/admin/healthkit/status 304 in 250ms :: {"status":"down","lastSync":nul…
+2025-11-23 07:47:20.18
+5fcaab04
+User
+🔍 [BODY COMP API] Fetching body composition for userId: a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 07:47:20.18
+5fcaab04
+User
+[2025-11-22T23:47:20.183Z] [INFO] Fetching body composition data {"userId":"a25c1536-d451-4711-abf1-7717a6c3bc1f"}
+2025-11-23 07:47:20.20
+5fcaab04
+User
+11:47:20 PM [express] GET /api/insights 304 in 214ms :: []
+2025-11-23 07:47:20.22
+5fcaab04
+User
+[2025-11-22T23:47:20.229Z] [INFO] [Readiness] Returning cached readiness for user a25c1536-d451-4711-abf1-7717a6c3bc1f, 2025-11-22
+2025-11-23 07:47:20.23
+5fcaab04
+User
+[2025-11-22T23:47:20.231Z] [INFO] [Sleep] Returning cached sleep score for user a25c1536-d451-4711-abf1-7717a6c3bc1f, 2025-11-22
+2025-11-23 07:47:20.25
+5fcaab04
+User
+🔎 [BODY COMP SERVICE] Querying health_daily_metrics for userId: a25c1536-d451-4711-abf1-7717a6c3bc1f since: 2025-08-24
+2025-11-23 07:47:20.28
+5fcaab04
+User
+11:47:20 PM [express] GET /api/readiness/today 200 in 283ms :: {"readinessScore":64,"readinessBucket"…
+2025-11-23 07:47:20.28
+5fcaab04
+User
+11:47:20 PM [express] GET /api/sleep/today 304 in 294ms :: {"nightflo_score":61,"score_label":"Fair",…
+2025-11-23 07:47:20.34
+5fcaab04
+User
+}
