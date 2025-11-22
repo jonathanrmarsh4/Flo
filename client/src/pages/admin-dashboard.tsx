@@ -120,7 +120,8 @@ export default function AdminDashboard() {
       if (userId) params.append('userId', userId);
       params.append('withNotification', String(withNotification));
       // Use apiRequest helper which handles JWT tokens for mobile apps
-      return await apiRequest('POST', `/api/admin/trigger-insights-generation?${params}`);
+      const response = await apiRequest('POST', `/api/admin/trigger-insights-generation?${params}`);
+      return await response.json();
     },
     onSuccess: (data: any) => {
       toast({
