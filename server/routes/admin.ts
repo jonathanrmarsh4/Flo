@@ -293,8 +293,8 @@ export function registerAdminRoutes(app: Express) {
 
       // Transform joined data to flat structure expected by embedding service
       const bloodWorkData = bloodWorkRaw.map(row => ({
-        ...row.bloodWorkRecords,
-        analysis: row.analysisResults,
+        ...row.blood_work_records,
+        analysis: row.analysis_results,
       }));
 
       // Get recent HealthKit metrics (last 30 days)

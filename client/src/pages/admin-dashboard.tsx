@@ -41,15 +41,13 @@ export default function AdminDashboard() {
     refetchInterval: 30000,
   });
 
-  const { data: usersData, isLoading: usersLoading } = useQuery({
+  const { data: usersData, isLoading: usersLoading } = useQuery<{ users: AdminUserSummary[]; total: number }>({
     queryKey: ['/api/admin/users', searchQuery, selectedFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append('query', searchQuery);
       if (selectedFilter !== 'all') params.append('status', selectedFilter);
-      const response = await fetch(`/api/admin/users?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch users');
-      return response.json();
+      return await apiRequest('GET', `/api/admin/users?${params}`) as any;
     },
   });
 
@@ -75,13 +73,7 @@ export default function AdminDashboard() {
 
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, role, status }: { userId: string; role?: string; status?: string }) => {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ role, status }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) throw new Error('Failed to update user');
-      return response.json();
+      return await apiRequest('PATCH', `/api/admin/users/${userId}`, { role, status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -103,11 +95,7 @@ export default function AdminDashboard() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete user');
-      return response.json();
+      return await apiRequest('DELETE', `/api/admin/users/${userId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
