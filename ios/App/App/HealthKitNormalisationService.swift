@@ -642,6 +642,12 @@ public class HealthKitNormalisationService {
         let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!
         let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
         
+        // Debug logging
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.timeZone = TimeZone.current
+        print("[ExerciseMinutes] Querying range: \(formatter.string(from: dayStart)) to \(formatter.string(from: dayEnd))")
+        
         // Use HKStatisticsQuery with .separateBySource to avoid double-counting
         let query = HKStatisticsQuery(
             quantityType: exerciseType,
@@ -649,25 +655,32 @@ public class HealthKitNormalisationService {
             options: [.cumulativeSum, .separateBySource]
         ) { (query, statistics, error) in
             guard let statistics = statistics, error == nil else {
+                print("[ExerciseMinutes] No statistics or error: \(error?.localizedDescription ?? "unknown")")
                 completion(nil)
                 return
             }
             
             // Get per-source sums
             guard let sources = statistics.sources else {
+                print("[ExerciseMinutes] No sources available")
                 completion(nil)
                 return
             }
             
             // Select primary source (highest exercise minutes) to avoid duplicates
             var maxMinutes: Double = 0
+            var sourceDetails: [String] = []
             
             for source in sources {
                 if let sum = statistics.sumQuantity(for: source) {
                     let minutes = sum.doubleValue(for: .minute())
+                    sourceDetails.append("\(source.name): \(minutes) min")
                     maxMinutes = max(maxMinutes, minutes)
                 }
             }
+            
+            print("[ExerciseMinutes] Sources found: \(sourceDetails.joined(separator: ", "))")
+            print("[ExerciseMinutes] Final result: \(maxMinutes) min")
             
             completion(maxMinutes > 0 ? maxMinutes : nil)
         }
