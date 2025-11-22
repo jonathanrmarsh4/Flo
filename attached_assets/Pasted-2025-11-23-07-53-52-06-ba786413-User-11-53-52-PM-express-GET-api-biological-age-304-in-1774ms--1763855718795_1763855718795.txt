@@ -1,0 +1,113 @@
+2025-11-23 07:53:52.06
+ba786413
+User
+11:53:52 PM [express] GET /api/biological-age 304 in 1774ms :: {"biologicalAge":39.8,"chronologicalAg…
+2025-11-23 07:53:57.74
+ba786413
+User
+11:53:57 PM [express] GET /api/admin/users 401 in 2ms :: {"error":"Unauthorized"}
+2025-11-23 07:53:57.84
+ba786413
+User
+11:53:57 PM [express] GET /api/admin/api-usage 200 in 94ms :: [{"date":"2025-11-22","queries":3,"cost…
+2025-11-23 07:53:57.84
+ba786413
+User
+11:53:57 PM [express] GET /api/admin/audit-logs 304 in 86ms :: [{"id":"e1c91b5c-82c4-4821-999b-41ac5b…
+2025-11-23 07:53:57.87
+ba786413
+User
+11:53:57 PM [express] GET /api/admin/healthkit/status 304 in 118ms :: {"status":"down","lastSync":nul…
+2025-11-23 07:53:57.91
+ba786413
+User
+11:53:57 PM [express] GET /api/admin/overview 200 in 168ms :: {"totalUsers":77,"activeUsers":77,"tota…
+2025-11-23 07:53:57.95
+ba786413
+User
+11:53:57 PM [express] GET /api/admin/healthkit/stats 304 in 205ms :: {"totalSamples":0,"totalUsers":0…
+2025-11-23 07:54:00.60
+ba786413
+User
+[2025-11-22T23:54:00.603Z] [INFO] [Admin] Triggering insights generation for user a25c1536-d451-4711-abf1-7717a6c3bc1f (withNotification: false)
+2025-11-23 07:54:00.60
+ba786413
+User
+[2025-11-22T23:54:00.603Z] [INFO] [Admin] Step 1/3: Syncing embeddings for user a25c1536-d451-4711-abf1-7717a6c3bc1f...
+2025-11-23 07:54:00.92
+ba786413
+User
+[2025-11-22T23:54:00.923Z] [INFO] [AIUsageTracker] Logging openai usage: text-embedding-3-small - 8 tokens ($0.0000)
+2025-11-23 07:54:01.48
+ba786413
+User
+[2025-11-22T23:54:01.481Z] [ERROR] [EmbeddingService] Failed to store embedding: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'content' column of 'health_embeddings' in the schema cache"}}
+2025-11-23 07:54:01.48
+ba786413
+User
+[2025-11-22T23:54:01.485Z] [ERROR] [EmbeddingService] Failed to sync blood work e84f3639-8eaa-44e1-8bf2-822360dfd8ee: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:01.48
+ba786413
+User
+[2025-11-22T23:54:01.484Z] [ERROR] [EmbeddingService] Store embedding error: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:01.65
+ba786413
+User
+[2025-11-22T23:54:01.651Z] [INFO] [AIUsageTracker] Logging openai usage: text-embedding-3-small - 8 tokens ($0.0000)
+2025-11-23 07:54:01.99
+ba786413
+User
+[2025-11-22T23:54:01.999Z] [ERROR] [EmbeddingService] Failed to store embedding: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'content' column of 'health_embeddings' in the schema cache"}}
+2025-11-23 07:54:02.00
+ba786413
+User
+[2025-11-22T23:54:02.000Z] [ERROR] [EmbeddingService] Failed to sync blood work a36725fc-3726-452a-a970-e07bb5c9f7a1: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:02.00
+ba786413
+User
+[2025-11-22T23:54:01.999Z] [ERROR] [EmbeddingService] Store embedding error: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:02.14
+ba786413
+User
+[2025-11-22T23:54:02.143Z] [INFO] [AIUsageTracker] Logging openai usage: text-embedding-3-small - 8 tokens ($0.0000)
+2025-11-23 07:54:02.50
+ba786413
+User
+[2025-11-22T23:54:02.502Z] [ERROR] [EmbeddingService] Store embedding error: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:02.50
+ba786413
+User
+[2025-11-22T23:54:02.501Z] [ERROR] [EmbeddingService] Failed to store embedding: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'content' column of 'health_embeddings' in the schema cache"}}
+2025-11-23 07:54:02.50
+ba786413
+User
+[2025-11-22T23:54:02.502Z] [ERROR] [EmbeddingService] Failed to sync blood work 6887cce2-ab39-4ae2-8612-3d32c0d14d33: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:02.73
+ba786413
+User
+[2025-11-22T23:54:02.735Z] [INFO] [AIUsageTracker] Logging openai usage: text-embedding-3-small - 8 tokens ($0.0000)
+2025-11-23 07:54:03.11
+ba786413
+User
+[2025-11-22T23:54:03.114Z] [ERROR] [EmbeddingService] Failed to store embedding: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'content' column of 'health_embeddings' in the schema cache"}}
+2025-11-23 07:54:03.11
+ba786413
+User
+[2025-11-22T23:54:03.114Z] [ERROR] [EmbeddingService] Failed to sync blood work 0fcb87fc-b44d-4f56-9192-52d1ca7fe0ac: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:03.11
+ba786413
+User
+[2025-11-22T23:54:03.114Z] [ERROR] [EmbeddingService] Store embedding error: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:03.30
+ba786413
+User
+[2025-11-22T23:54:03.307Z] [INFO] [AIUsageTracker] Logging openai usage: text-embedding-3-small - 8 tokens ($0.0000)
+2025-11-23 07:54:03.71
+ba786413
+User
+[2025-11-22T23:54:03.711Z] [ERROR] [EmbeddingService] Store embedding error: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+2025-11-23 07:54:03.71
+ba786413
+User
+[2025-11-22T23:54:03.711Z] [ERROR] [EmbeddingService] Failed to sync blood work bd56df74-2677-4fa7-84e7-af4534ef0544: {"error":{"message":"Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache","stack":"Error: Failed to store embedding: Could not find the 'content' column of 'health_embeddings' in the schema cache\n at storeEmbedding (file:///home/runner/workspace/dist/index.js:3688:13)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async syncBloodWorkEmbeddings (file:///home/runner/workspace/dist/index.js:3730:7)\n at async file:///home/runner/workspace/dist/index.js:9745:27"}}
+
