@@ -45,19 +45,3 @@ public struct SleepNightData: Codable {
     let wristTemperature: Double?
     let oxygenSaturation: Double?
 }
-
-/// Internal structure for sleep segment processing
-struct SleepSegment {
-    let start: Date
-    let end: Date
-    let value: Int  // HKCategoryValueSleepAnalysis raw value
-    let source: String?
-    
-    var duration: TimeInterval {
-        return end.timeIntervalSince(start)
-    }
-    
-    var durationMinutes: Double {
-        return duration / 60.0
-    }
-}
