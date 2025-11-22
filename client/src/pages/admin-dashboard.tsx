@@ -765,7 +765,7 @@ export default function AdminDashboard() {
                 <div className="p-4 rounded-xl border bg-white/5 border-white/10">
                   <div className="text-sm text-white mb-2">Proactive Insights Pipeline</div>
                   <div className="text-xs text-white/50 mb-4">
-                    Manually trigger the insights generation process to analyze health data correlations and generate personalized insights for users.
+                    Manually trigger the insights generation process to analyze health data correlations and generate personalized insights for users. Requires at least 7 days of HealthKit data to generate initial insights. Insights improve over time with more data.
                   </div>
                   
                   <div className="flex flex-col sm:flex-row gap-3">
@@ -810,7 +810,7 @@ export default function AdminDashboard() {
 
                   <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                     <div className="text-xs text-blue-400">
-                      <strong>Note:</strong> The first button generates insights only. The second button also sends a daily reminder notification with the new insights included.
+                      <strong>Note:</strong> The first button generates insights only. The second button also sends a daily reminder notification with the new insights included. Minimum 7 days of HealthKit data required.
                     </div>
                   </div>
                 </div>

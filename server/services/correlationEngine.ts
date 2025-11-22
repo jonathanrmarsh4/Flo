@@ -88,8 +88,8 @@ async function detectActivitySleepCorrelation(userId: string): Promise<Correlati
       (d) => d.steps !== null && d.sleepMin !== null && d.steps > 0 && d.sleepMin > 0
     );
 
-    if (validDays.length < 14) {
-      logger.debug(`[CorrelationEngine] Insufficient data for activity-sleep correlation (${validDays.length} days)`);
+    if (validDays.length < 7) {
+      logger.debug(`[CorrelationEngine] Insufficient data for activity-sleep correlation (${validDays.length} days, need 7+)`);
       return null;
     }
 
@@ -97,7 +97,7 @@ async function detectActivitySleepCorrelation(userId: string): Promise<Correlati
     const highStepDays = validDays.filter((d) => d.steps! >= 10000);
     const lowStepDays = validDays.filter((d) => d.steps! < 10000);
 
-    if (highStepDays.length < 5 || lowStepDays.length < 5) {
+    if (highStepDays.length < 3 || lowStepDays.length < 3) {
       return null; // Not enough variation
     }
 
@@ -196,7 +196,8 @@ async function detectSleepHRVCorrelation(userId: string): Promise<CorrelationRes
       (d) => d.hrv !== null && d.sleepMin !== null && d.hrv > 0 && d.sleepMin > 0
     );
 
-    if (validDays.length < 14) {
+    if (validDays.length < 7) {
+      logger.debug(`[CorrelationEngine] Insufficient data for sleep-HRV correlation (${validDays.length} days, need 7+)`);
       return null;
     }
 
@@ -204,7 +205,8 @@ async function detectSleepHRVCorrelation(userId: string): Promise<CorrelationRes
     const goodSleepDays = validDays.filter((d) => d.sleepMin! >= 450);
     const poorSleepDays = validDays.filter((d) => d.sleepMin! < 450);
 
-    if (goodSleepDays.length < 5 || poorSleepDays.length < 5) {
+    if (goodSleepDays.length < 3 || poorSleepDays.length < 3) {
+      logger.debug(`[CorrelationEngine] Insufficient sleep variation (good: ${goodSleepDays.length}, poor: ${poorSleepDays.length}, need 3+ each)`);
       return null;
     }
 
