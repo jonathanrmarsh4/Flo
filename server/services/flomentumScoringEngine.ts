@@ -109,8 +109,9 @@ function scoreSleep(sleepMinutes: number | null, targetMinutes: number): { point
 
   // Within ideal range: +12 points
   if (sleepMinutes >= idealMin && sleepMinutes <= idealMax) {
-    const hours = Math.floor(sleepMinutes / 60);
-    const mins = sleepMinutes % 60;
+    const roundedSleepMinutes = Math.round(sleepMinutes);
+    const hours = Math.floor(roundedSleepMinutes / 60);
+    const mins = roundedSleepMinutes % 60;
     return {
       points: 12,
       factor: {
@@ -125,8 +126,9 @@ function scoreSleep(sleepMinutes: number | null, targetMinutes: number): { point
 
   // Slightly short sleep
   if (sleepMinutes >= targetMinutes - 120 && sleepMinutes < idealMin) {
-    const hours = Math.floor(sleepMinutes / 60);
-    const mins = sleepMinutes % 60;
+    const roundedSleepMinutes = Math.round(sleepMinutes);
+    const hours = Math.floor(roundedSleepMinutes / 60);
+    const mins = roundedSleepMinutes % 60;
     return {
       points: -4,
       factor: {
@@ -141,8 +143,9 @@ function scoreSleep(sleepMinutes: number | null, targetMinutes: number): { point
 
   // Very short sleep
   if (sleepMinutes < targetMinutes - 120) {
-    const hours = Math.floor(sleepMinutes / 60);
-    const mins = sleepMinutes % 60;
+    const roundedSleepMinutes = Math.round(sleepMinutes);
+    const hours = Math.floor(roundedSleepMinutes / 60);
+    const mins = roundedSleepMinutes % 60;
     return {
       points: -10,
       factor: {
@@ -157,8 +160,9 @@ function scoreSleep(sleepMinutes: number | null, targetMinutes: number): { point
 
   // Long sleep (possible fatigue)
   if (sleepMinutes > targetMinutes + 120) {
-    const hours = Math.floor(sleepMinutes / 60);
-    const mins = sleepMinutes % 60;
+    const roundedSleepMinutes = Math.round(sleepMinutes);
+    const hours = Math.floor(roundedSleepMinutes / 60);
+    const mins = roundedSleepMinutes % 60;
     return {
       points: -4,
       factor: {
@@ -224,12 +228,15 @@ function scoreStepsAndActivity(metrics: FlomentumMetrics, stepsTarget: number): 
   const exerciseMinutes = metrics.exerciseMinutes;
 
   if (exerciseMinutes !== null && exerciseMinutes !== undefined) {
+    // Use Math.floor to avoid showing a threshold that wasn't actually crossed
+    // (e.g., 29.6 minutes rounds to 30, but didn't meet the >=30 threshold)
+    const displayExercise = Math.floor(exerciseMinutes);
     if (exerciseMinutes >= 30) {
       points += 6;
       factors.push({
         status: 'positive',
         title: 'Good workout / activity today',
-        detail: `${exerciseMinutes} min of exercise`,
+        detail: `${displayExercise} min of exercise`,
         componentKey: 'intensity',
         pointsContribution: 6,
       });
@@ -238,7 +245,7 @@ function scoreStepsAndActivity(metrics: FlomentumMetrics, stepsTarget: number): 
       factors.push({
         status: 'neutral',
         title: 'Light activity today',
-        detail: `${exerciseMinutes} min of exercise`,
+        detail: `${displayExercise} min of exercise`,
         componentKey: 'intensity',
         pointsContribution: 3,
       });
@@ -247,7 +254,7 @@ function scoreStepsAndActivity(metrics: FlomentumMetrics, stepsTarget: number): 
       factors.push({
         status: 'negative',
         title: 'Low exercise intensity',
-        detail: `${exerciseMinutes} min of exercise (Target: 30+ min)`,
+        detail: `${displayExercise} min of exercise (Target: 30+ min)`,
         componentKey: 'intensity',
         pointsContribution: -4,
       });
@@ -265,12 +272,14 @@ function scoreStepsAndActivity(metrics: FlomentumMetrics, stepsTarget: number): 
 
   // Sedentary time scoring
   if (metrics.standHours !== null) {
+    // Use Math.floor to align display with threshold logic
+    const displayStandHours = Math.floor(metrics.standHours);
     if (metrics.standHours >= 10) {
       points += 2;
       factors.push({
         status: 'positive',
         title: 'Low sedentary time',
-        detail: `${metrics.standHours} stand hours`,
+        detail: `${displayStandHours} stand hours`,
         componentKey: 'sedentary',
         pointsContribution: 2,
       });
@@ -279,7 +288,7 @@ function scoreStepsAndActivity(metrics: FlomentumMetrics, stepsTarget: number): 
       factors.push({
         status: 'negative',
         title: 'High sedentary time',
-        detail: `${metrics.standHours} stand hours (Target: 10+ hours)`,
+        detail: `${displayStandHours} stand hours (Target: 10+ hours)`,
         componentKey: 'sedentary',
         pointsContribution: -2,
       });
@@ -295,6 +304,8 @@ function scoreRecovery(metrics: FlomentumMetrics, context: FlomentumContext): { 
 
   // Resting HR scoring
   if (metrics.restingHr !== null && context.restingHrBaseline !== null) {
+    const roundedRestingHr = Math.round(metrics.restingHr);
+    const roundedBaseline = Math.round(context.restingHrBaseline);
     const delta = metrics.restingHr - context.restingHrBaseline;
     
     if (delta <= -3) {
@@ -302,7 +313,7 @@ function scoreRecovery(metrics: FlomentumMetrics, context: FlomentumContext): { 
       factors.push({
         status: 'positive',
         title: 'Resting HR improving vs baseline',
-        detail: `${metrics.restingHr} bpm (Baseline: ${context.restingHrBaseline} bpm)`,
+        detail: `${roundedRestingHr} bpm (Baseline: ${roundedBaseline} bpm)`,
         componentKey: 'resting_hr',
         pointsContribution: 6,
       });
@@ -311,7 +322,7 @@ function scoreRecovery(metrics: FlomentumMetrics, context: FlomentumContext): { 
       factors.push({
         status: 'neutral',
         title: 'Resting HR stable',
-        detail: `${metrics.restingHr} bpm (Baseline: ${context.restingHrBaseline} bpm)`,
+        detail: `${roundedRestingHr} bpm (Baseline: ${roundedBaseline} bpm)`,
         componentKey: 'resting_hr',
         pointsContribution: 2,
       });
@@ -320,7 +331,7 @@ function scoreRecovery(metrics: FlomentumMetrics, context: FlomentumContext): { 
       factors.push({
         status: 'negative',
         title: 'Resting heart rate elevated vs baseline',
-        detail: `${metrics.restingHr} bpm (Baseline: ${context.restingHrBaseline} bpm)`,
+        detail: `${roundedRestingHr} bpm (Baseline: ${roundedBaseline} bpm)`,
         componentKey: 'resting_hr',
         pointsContribution: -6,
       });
@@ -329,6 +340,8 @@ function scoreRecovery(metrics: FlomentumMetrics, context: FlomentumContext): { 
 
   // HRV scoring
   if (metrics.hrvSdnnMs !== null && context.hrvBaseline !== null) {
+    const roundedHrv = Math.round(metrics.hrvSdnnMs);
+    const roundedHrvBaseline = Math.round(context.hrvBaseline);
     const delta = metrics.hrvSdnnMs - context.hrvBaseline;
     
     if (delta >= 5) {
@@ -336,7 +349,7 @@ function scoreRecovery(metrics: FlomentumMetrics, context: FlomentumContext): { 
       factors.push({
         status: 'positive',
         title: 'Heart rate variability stable or improving',
-        detail: `${metrics.hrvSdnnMs} ms (Baseline: ${context.hrvBaseline} ms)`,
+        detail: `${roundedHrv} ms (Baseline: ${roundedHrvBaseline} ms)`,
         componentKey: 'hrv',
         pointsContribution: 4,
       });
@@ -345,7 +358,7 @@ function scoreRecovery(metrics: FlomentumMetrics, context: FlomentumContext): { 
       factors.push({
         status: 'negative',
         title: 'HRV suppressed vs baseline',
-        detail: `${metrics.hrvSdnnMs} ms (Baseline: ${context.hrvBaseline} ms)`,
+        detail: `${roundedHrv} ms (Baseline: ${roundedHrvBaseline} ms)`,
         componentKey: 'hrv',
         pointsContribution: -4,
       });
@@ -361,12 +374,14 @@ function scoreRedFlags(metrics: FlomentumMetrics, context: FlomentumContext): { 
 
   // Respiratory rate
   if (metrics.respiratoryRate !== null && context.respRateBaseline !== null) {
+    const roundedRespRate = Math.round(metrics.respiratoryRate);
+    const roundedRespBaseline = Math.round(context.respRateBaseline);
     if (metrics.respiratoryRate >= context.respRateBaseline + 3) {
       points -= 4;
       factors.push({
         status: 'negative',
         title: 'Respiratory rate elevated (possible illness or overreaching)',
-        detail: `${metrics.respiratoryRate} breaths/min (Baseline: ${context.respRateBaseline})`,
+        detail: `${roundedRespRate} breaths/min (Baseline: ${roundedRespBaseline})`,
         componentKey: 'resp_rate',
         pointsContribution: -4,
       });
