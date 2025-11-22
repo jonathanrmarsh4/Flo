@@ -131,20 +131,17 @@ export default function AdminDashboard() {
       const params = new URLSearchParams();
       if (userId) params.append('userId', userId);
       params.append('withNotification', String(withNotification));
-      const response = await fetch(`/api/admin/trigger-insights-generation?${params}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to trigger insights generation');
-      return response.json();
+      // Use apiRequest helper which handles JWT tokens for mobile apps
+      return await apiRequest('POST', `/api/admin/trigger-insights-generation?${params}`);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: 'Insights Generated',
         description: `Generated ${data.insightsCount} insights in ${data.duration}ms`,
       });
     },
     onError: (error: any) => {
+      console.error('Insights generation error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to trigger insights generation',
