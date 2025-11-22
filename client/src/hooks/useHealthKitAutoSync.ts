@@ -313,17 +313,38 @@ export function useHealthKitAutoSync() {
       // Reload webview if app was backgrounded for >5 minutes (iOS only)
       if (shouldForceSync && isNative) {
         logger.info('[Visibility] 🔄 Clearing WKWebView cache and reloading...');
+        
+        let cacheCleared = false;
         try {
           // CRITICAL FIX: Clear iOS WKWebView HTTP cache before reload
           // This prevents stale cached API responses from being served after overnight sleep
           await WebViewCache.clearCache();
           logger.info('[Visibility] ✅ WKWebView cache cleared successfully');
+          cacheCleared = true;
         } catch (err) {
-          logger.error('[Visibility] ⚠️ Failed to clear cache, proceeding with reload anyway', err);
+          logger.error('[Visibility] ❌ Failed to clear cache via clearCache()', err);
+          
+          // FALLBACK: Try reloadFromOrigin() which bypasses cache at native level
+          try {
+            logger.info('[Visibility] 🔄 Attempting fallback: reloadFromOrigin()...');
+            await WebViewCache.reloadFromOrigin();
+            logger.info('[Visibility] ✅ Successfully triggered reloadFromOrigin()');
+            return; // reloadFromOrigin() already reloads, no need for window.location.reload()
+          } catch (fallbackErr) {
+            logger.error('[Visibility] ❌ CRITICAL: Both clearCache() and reloadFromOrigin() failed', fallbackErr);
+            // Still attempt regular reload as last resort, but log critical error
+            logger.error('[Visibility] ⚠️ Proceeding with standard reload despite cache clearing failure - stale data may persist');
+          }
         }
         
-        // Now reload - with fresh cache, this will fetch new data from backend
-        window.location.reload();
+        // Standard reload (only if we successfully cleared cache OR fallback failed)
+        if (cacheCleared) {
+          logger.info('[Visibility] 🔄 Reloading with fresh cache...');
+          window.location.reload();
+        } else {
+          // Already tried reloadFromOrigin which failed, try standard reload as absolute last resort
+          window.location.reload();
+        }
         return; // Reload will trigger initial sync via first useEffect
       }
       
@@ -398,17 +419,38 @@ export function useHealthKitAutoSync() {
                 // CRITICAL FIX: Clear iOS WKWebView HTTP cache before reload
                 // This prevents stale cached API responses from being served after overnight sleep
                 logger.info('[App] 🔄 Clearing WKWebView cache and reloading...');
+                
+                let cacheCleared = false;
                 try {
                   await WebViewCache.clearCache();
                   logger.info('[App] ✅ WKWebView cache cleared successfully');
+                  cacheCleared = true;
                 } catch (err) {
-                  logger.error('[App] ⚠️ Failed to clear cache, proceeding with reload anyway', err);
+                  logger.error('[App] ❌ Failed to clear cache via clearCache()', err);
+                  
+                  // FALLBACK: Try reloadFromOrigin() which bypasses cache at native level
+                  try {
+                    logger.info('[App] 🔄 Attempting fallback: reloadFromOrigin()...');
+                    await WebViewCache.reloadFromOrigin();
+                    logger.info('[App] ✅ Successfully triggered reloadFromOrigin()');
+                    return; // reloadFromOrigin() already reloads, no need for window.location.reload()
+                  } catch (fallbackErr) {
+                    logger.error('[App] ❌ CRITICAL: Both clearCache() and reloadFromOrigin() failed', fallbackErr);
+                    // Still attempt regular reload as last resort, but log critical error
+                    logger.error('[App] ⚠️ Proceeding with standard reload despite cache clearing failure - stale data may persist');
+                  }
                 }
                 
-                // Now reload - with fresh cache, this will fetch new data from backend
+                // Standard reload (only if we successfully cleared cache OR fallback failed)
                 // iOS suspends WKWebView overnight, freezing React Query observers
                 // Reload ensures hooks remount and refetch actually executes
-                window.location.reload();
+                if (cacheCleared) {
+                  logger.info('[App] 🔄 Reloading with fresh cache...');
+                  window.location.reload();
+                } else {
+                  // Already tried reloadFromOrigin which failed, try standard reload as absolute last resort
+                  window.location.reload();
+                }
                 
                 // Note: Code below won't execute due to reload, but keeping for reference
                 // After reload, the initial sync in first useEffect will trigger

@@ -11,13 +11,15 @@ Flō is a mobile-first health analytics platform that uses AI to analyze blood w
 ## Critical iOS Configuration
 **IMPORTANT - DO NOT REVERT THESE SETTINGS:**
 
-1. **React Query staleTime** (`client/src/lib/queryClient.ts`): MUST be `staleTime: 0` for health data to refresh properly after HealthKit syncs. Setting to `Infinity` causes iOS app to show stale cached data after overnight sleep.
+1. **WKWebView Cache Clearing** (`ios/App/App/WebViewCachePlugin.swift` + `client/src/hooks/useHealthKitAutoSync.ts`): Morning sync issue fix - MUST clear WKWebView HTTP cache before `window.location.reload()`. Without this, iOS serves stale cached API responses after overnight sleep, causing dashboard to show yesterday's data even though backend has new data. The `WebViewCachePlugin` Swift plugin exposes `clearCache()` method that clears all WKWebsiteDataStore cache/cookies/storage. The auto-sync hook calls this before every reload when app wakes from >5min background. DO NOT remove this cache clearing logic.
 
-2. **Capacitor server.url** (`capacitor.config.ts` and `ios/App/App/capacitor.config.json`): MUST include `"url": "https://get-flo.com"` to load production frontend and make live API calls instead of using bundled static files.
+2. **React Query staleTime** (`client/src/lib/queryClient.ts`): MUST be `staleTime: 0` for health data to refresh properly after HealthKit syncs. Setting to `Infinity` causes iOS app to show stale cached data after overnight sleep.
 
-3. **iOS Build Process**: After any frontend changes: `npm run build` → `npx cap sync ios` → rebuild in Xcode. Frontend config changes MUST be bundled into the iOS build.
+3. **Capacitor server.url** (`capacitor.config.ts` and `ios/App/App/capacitor.config.json`): MUST include `"url": "https://get-flo.com"` to load production frontend and make live API calls instead of using bundled static files.
 
-4. **Workout Authorization Quirk** (`ios/App/App/HealthKitNormalisationService.swift` line 1355): iOS privacy policy prevents accurate authorization status for workout data. `authorizationStatus(for: HKWorkoutType)` returns `.sharingDenied` even when permission is granted. Solution: Skip authorization check and query directly - iOS returns empty array if permission denied. This is documented Apple behavior for privacy protection.
+4. **iOS Build Process**: After any frontend changes: `npm run build` → `npx cap sync ios` → rebuild in Xcode. Frontend config changes MUST be bundled into the iOS build.
+
+5. **Workout Authorization Quirk** (`ios/App/App/HealthKitNormalisationService.swift` line 1355): iOS privacy policy prevents accurate authorization status for workout data. `authorizationStatus(for: HKWorkoutType)` returns `.sharingDenied` even when permission is granted. Solution: Skip authorization check and query directly - iOS returns empty array if permission denied. This is documented Apple behavior for privacy protection.
 
 ## System Architecture
 
