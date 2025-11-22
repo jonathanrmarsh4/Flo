@@ -99,19 +99,22 @@ export function useHealthKitAutoSync() {
         console.log('🔄 [AutoSync] Refetching dashboard queries...');
         try {
           // Fire-and-forget invalidation
+          // CRITICAL: Use refetchType: 'all' to refetch even inactive queries
+          // iOS webview suspension causes query observers to become inactive overnight
           queryClient.invalidateQueries({ 
             predicate: isHealthQuery,
-            refetchType: 'active'
+            refetchType: 'all'
           });
           
           // Explicitly refetch the most important queries
           // NOTE: Query keys must match EXACTLY what's used in components
+          // CRITICAL: Use type: 'all' to force refetch even when queries are inactive
           await Promise.allSettled([
-            queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
-            queryClient.refetchQueries({ queryKey: ['/api/biological-age'] }),
-            queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
-            queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'] }),
-            queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'] }),
+            queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'], type: 'all' }),
+            queryClient.refetchQueries({ queryKey: ['/api/biological-age'], type: 'all' }),
+            queryClient.refetchQueries({ queryKey: ['/api/sleep/today'], type: 'all' }),
+            queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'], type: 'all' }),
+            queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'], type: 'all' }),
           ]);
           console.log('✅ [AutoSync] Dashboard refresh completed!');
           logger.info('✅ Dashboard queries refetched - UI updated');
@@ -153,15 +156,18 @@ export function useHealthKitAutoSync() {
           if (isMountedRef.current) {
             try {
               // Fire-and-forget invalidation
+              // CRITICAL: Use refetchType: 'all' to refetch even inactive queries
+              // iOS webview suspension causes query observers to become inactive overnight
               queryClient.invalidateQueries({ 
                 predicate: isHealthQuery,
-                refetchType: 'active'
+                refetchType: 'all'
               });
               
               // Explicitly refetch sleep-related queries
+              // CRITICAL: Use type: 'all' to force refetch even when queries are inactive
               await Promise.allSettled([
-                queryClient.refetchQueries({ queryKey: ['/api/sleep/today'] }),
-                queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'] }),
+                queryClient.refetchQueries({ queryKey: ['/api/sleep/today'], type: 'all' }),
+                queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'], type: 'all' }),
               ]);
               logger.info('✅ Sleep data refetched - UI updated');
             } catch (err) {
