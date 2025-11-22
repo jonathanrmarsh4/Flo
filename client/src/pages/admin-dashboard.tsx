@@ -5,7 +5,7 @@ import {
   Users, DollarSign, Activity, TrendingUp, Search,
   Settings, BarChart3, Zap, Database, AlertCircle, CheckCircle, XCircle,
   CreditCard, Ban, Shield, FileText, Bell, Server, Link, Wifi, Edit2, Trash2,
-  ChevronDown, Heart
+  ChevronDown, Heart, Sparkles
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -121,6 +121,33 @@ export default function AdminDashboard() {
       toast({
         title: 'Error',
         description: error.message || 'Failed to delete user',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const triggerInsightsMutation = useMutation({
+    mutationFn: async ({ userId, withNotification }: { userId?: string; withNotification: boolean }) => {
+      const params = new URLSearchParams();
+      if (userId) params.append('userId', userId);
+      params.append('withNotification', String(withNotification));
+      const response = await fetch(`/api/admin/trigger-insights-generation?${params}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to trigger insights generation');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Insights Generated',
+        description: `Generated ${data.insightsCount} insights in ${data.duration}ms`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to trigger insights generation',
         variant: 'destructive',
       });
     },
@@ -739,6 +766,68 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+                AI Insights Generation
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl border bg-white/5 border-white/10">
+                  <div className="text-sm text-white mb-2">Proactive Insights Pipeline</div>
+                  <div className="text-xs text-white/50 mb-4">
+                    Manually trigger the insights generation process to analyze health data correlations and generate personalized insights for users.
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => triggerInsightsMutation.mutate({ withNotification: false })}
+                      disabled={triggerInsightsMutation.isPending}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      data-testid="button-trigger-insights"
+                    >
+                      {triggerInsightsMutation.isPending ? (
+                        <>
+                          <Activity className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span className="text-sm">Generate Insights</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => triggerInsightsMutation.mutate({ withNotification: true })}
+                      disabled={triggerInsightsMutation.isPending}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      data-testid="button-trigger-insights-with-notification"
+                    >
+                      {triggerInsightsMutation.isPending ? (
+                        <>
+                          <Activity className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="w-4 h-4" />
+                          <span className="text-sm">Generate + Send Reminder</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <div className="text-xs text-blue-400">
+                      <strong>Note:</strong> The first button generates insights only. The second button also sends a daily reminder notification with the new insights included.
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
