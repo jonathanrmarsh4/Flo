@@ -326,7 +326,11 @@ export function useHealthKitAutoSync() {
           if (syncResult.success) {
             logger.info('[Visibility] Web sync completed');
             await new Promise(resolve => setTimeout(resolve, 2000));
-            queryClient.invalidateQueries({ predicate: isHealthQuery });
+            // Use refetchType: 'all' for consistency with native platform behavior
+            queryClient.invalidateQueries({ 
+              predicate: isHealthQuery,
+              refetchType: 'all'
+            });
           }
         } catch (error) {
           logger.debug('[Visibility] Web sync failed');
