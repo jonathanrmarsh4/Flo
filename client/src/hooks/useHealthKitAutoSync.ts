@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
 import Readiness from '@/plugins/readiness';
+import WebViewCache from '@/plugins/webviewCache';
 import { logger } from '@/lib/logger';
 import { sendNotification } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
@@ -311,7 +312,17 @@ export function useHealthKitAutoSync() {
       
       // Reload webview if app was backgrounded for >5 minutes (iOS only)
       if (shouldForceSync && isNative) {
-        logger.info('[Visibility] 🔄 Reloading webview to clear frozen cache state...');
+        logger.info('[Visibility] 🔄 Clearing WKWebView cache and reloading...');
+        try {
+          // CRITICAL FIX: Clear iOS WKWebView HTTP cache before reload
+          // This prevents stale cached API responses from being served after overnight sleep
+          await WebViewCache.clearCache();
+          logger.info('[Visibility] ✅ WKWebView cache cleared successfully');
+        } catch (err) {
+          logger.error('[Visibility] ⚠️ Failed to clear cache, proceeding with reload anyway', err);
+        }
+        
+        // Now reload - with fresh cache, this will fetch new data from backend
         window.location.reload();
         return; // Reload will trigger initial sync via first useEffect
       }
@@ -384,10 +395,19 @@ export function useHealthKitAutoSync() {
               if (timeSinceBackground > fiveMinutes) {
                 logger.info(`🌅 [App] App was backgrounded for ${Math.round(timeSinceBackground / 60000)}min - forcing webview reload + sync`);
                 
-                // CRITICAL FIX: Reload webview to clear frozen React Query cache
+                // CRITICAL FIX: Clear iOS WKWebView HTTP cache before reload
+                // This prevents stale cached API responses from being served after overnight sleep
+                logger.info('[App] 🔄 Clearing WKWebView cache and reloading...');
+                try {
+                  await WebViewCache.clearCache();
+                  logger.info('[App] ✅ WKWebView cache cleared successfully');
+                } catch (err) {
+                  logger.error('[App] ⚠️ Failed to clear cache, proceeding with reload anyway', err);
+                }
+                
+                // Now reload - with fresh cache, this will fetch new data from backend
                 // iOS suspends WKWebView overnight, freezing React Query observers
                 // Reload ensures hooks remount and refetch actually executes
-                logger.info('[App] 🔄 Reloading webview to clear frozen cache state...');
                 window.location.reload();
                 
                 // Note: Code below won't execute due to reload, but keeping for reference
