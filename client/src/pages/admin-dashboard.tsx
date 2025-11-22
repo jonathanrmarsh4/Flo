@@ -137,7 +137,7 @@ export default function AdminDashboard() {
     onSuccess: (data: any) => {
       toast({
         title: 'Insights Generated',
-        description: `Generated ${data.insightsCount} insights in ${data.duration}ms`,
+        description: `Generated ${data.insightsGenerated} insights in ${data.durationMs}ms`,
       });
     },
     onError: (error: any) => {

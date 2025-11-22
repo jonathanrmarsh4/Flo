@@ -1,0 +1,20 @@
+⚡️  To Native ->  SecureStoragePlugin get 62694242
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - [API] Response received: 200 
+⚡️  To Native ->  SecureStoragePlugin get 62694243
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 62694244
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/admin/trigger-insights-generation?withNotification=false
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  To Native ->  SecureStoragePlugin get 62694245
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 62694246
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 62694247
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 62694248
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 62694249
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - [API] Response received: 200 
