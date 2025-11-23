@@ -60,13 +60,13 @@ export interface HealthDataSnapshot {
   // Daily aggregated HealthKit metrics
   dailyMetrics: Array<{
     date: string;
-    hrv: number | null;
-    sleepDuration: number | null;
-    deepSleep: number | null;
-    remSleep: number | null;
+    hrvSdnnMs: number | null;
+    sleepTotalMinutes: number | null;
+    sleepDeepMinutes: number | null;
+    sleepRemMinutes: number | null;
     steps: number | null;
-    restingHeartRate: number | null;
-    activeEnergy: number | null;
+    restingHr: number | null;
+    activeKcal: number | null;
   }>;
   
   // Blood work biomarkers
@@ -161,13 +161,13 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
     })),
     dailyMetrics: rawDailyMetrics.map(m => ({
       date: m.date,
-      hrv: m.hrvSdnnMs || null,
-      sleepDuration: m.sleepTotalMinutes || null,
-      deepSleep: null, // Not in schema
-      remSleep: null, // Not in schema
+      hrvSdnnMs: m.hrvSdnnMs || null,
+      sleepTotalMinutes: m.sleepTotalMinutes || null,
+      sleepDeepMinutes: null, // Not in schema
+      sleepRemMinutes: null, // Not in schema
       steps: m.steps || null,
-      restingHeartRate: m.restingHr || null,
-      activeEnergy: m.activeKcal || null,
+      restingHr: m.restingHr || null,
+      activeKcal: m.activeKcal || null,
     })),
     biomarkers: rawBiomarkers.map(b => ({
       ...b,
@@ -211,11 +211,11 @@ function calculateUserMetrics(
   const getMetricValue = (varName: string): UserMetricValue | null => {
     // Try HealthKit daily metrics first
     const metricFieldMap: Record<string, keyof typeof healthData.dailyMetrics[0]> = {
-      'hrv_sdnn_ms': 'hrv',
-      'sleep_total_minutes': 'sleepDuration',
-      'resting_hr': 'restingHeartRate',
+      'hrv_sdnn_ms': 'hrvSdnnMs',
+      'sleep_total_minutes': 'sleepTotalMinutes',
+      'resting_hr': 'restingHr',
       'steps': 'steps',
-      'active_kcal': 'activeEnergy',
+      'active_kcal': 'activeKcal',
     };
     
     const fieldName = metricFieldMap[varName];
@@ -304,11 +304,11 @@ export function generateLayerAInsights(
   // Check dailyMetrics for available variables
   if (healthData.dailyMetrics.length > 0) {
     const latestMetric = healthData.dailyMetrics[0];
-    if (latestMetric.hrv !== null) availableVariables.add('hrv_sdnn_ms');
-    if (latestMetric.sleepDuration !== null) availableVariables.add('sleep_total_minutes');
-    if (latestMetric.restingHeartRate !== null) availableVariables.add('resting_hr');
+    if (latestMetric.hrvSdnnMs !== null) availableVariables.add('hrv_sdnn_ms');
+    if (latestMetric.sleepTotalMinutes !== null) availableVariables.add('sleep_total_minutes');
+    if (latestMetric.restingHr !== null) availableVariables.add('resting_hr');
     if (latestMetric.steps !== null) availableVariables.add('steps');
-    if (latestMetric.activeEnergy !== null) availableVariables.add('active_kcal');
+    if (latestMetric.activeKcal !== null) availableVariables.add('active_kcal');
   }
   
   // Check biomarkers for available variables
