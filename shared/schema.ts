@@ -191,6 +191,9 @@ export const users = pgTable("users", {
   reminderTime: varchar("reminder_time").default("08:15").notNull(), // HH:MM format (24hr)
   reminderTimezone: varchar("reminder_timezone").default("UTC").notNull(), // IANA timezone
   
+  // Insights v2.0 - User timezone for local-time cron jobs
+  timezone: varchar("timezone").default("America/Los_Angeles").notNull(), // IANA timezone for 06:00 local insights
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -2031,3 +2034,149 @@ export const insertLifeEventSchema = createInsertSchema(lifeEvents).omit({
 
 export type InsertLifeEvent = z.infer<typeof insertLifeEventSchema>;
 export type LifeEvent = typeof lifeEvents.$inferSelect;
+
+// ============================================================================
+// Daily Insights Engine v2.0 - Science-First Proactive Health Intelligence
+// ============================================================================
+
+// Evidence hierarchy for insights (Tier 1 = strongest evidence)
+export const evidenceTierEnum = pgEnum("evidence_tier", ["1", "2", "3", "4", "5"]);
+
+// Freshness categories for slow-moving biomarkers
+export const freshnessCategoryEnum = pgEnum("freshness_category", ["green", "yellow", "red"]);
+
+// Insight replication history - tracks personal Tier 5 evidence
+// When a pattern is replicated ≥2 times with ≥medium effect, it becomes Tier 5 evidence
+export const insightReplicationHistory = pgTable("insight_replication_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  patternSignature: text("pattern_signature").notNull(), // e.g., "alcohol_intake → sleep_deep_minutes_decrease"
+  generatingLayer: text("generating_layer").notNull(), // "A_physiological", "B_open_discovery", "C_dose_response", "D_anomaly"
+  independentVariable: text("independent_variable").notNull(), // e.g., "alcohol_intake", "ferritin_low"
+  dependentVariable: text("dependent_variable").notNull(), // e.g., "sleep_deep_minutes", "hrv_sdnn_ms"
+  effectSize: real("effect_size").notNull(), // Spearman ρ or Cliff's delta
+  windowType: text("window_type").notNull(), // "short_term", "medium_term", "long_term"
+  dateRange: jsonb("date_range").notNull(), // { start: "YYYY-MM-DD", end: "YYYY-MM-DD" }
+  metadata: jsonb("metadata"), // { avgBefore, avgAfter, nSamples, bayesianProb, etc. }
+  detectedAt: timestamp("detected_at").defaultNow().notNull(),
+}, (table) => ({
+  userPatternIdx: index("insight_replication_user_pattern_idx").on(table.userId, table.patternSignature),
+  userLayerIdx: index("insight_replication_user_layer_idx").on(table.userId, table.generatingLayer),
+  userIdx: index("insight_replication_user_idx").on(table.userId),
+  detectedIdx: index("insight_replication_detected_idx").on(table.detectedAt),
+}));
+
+// Biomarker freshness metadata - tracks staleness of slow-moving data
+// Used for "stale lab early warning" system
+export const biomarkerFreshnessMetadata = pgTable("biomarker_freshness_metadata", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  biomarkerId: varchar("biomarker_id").notNull().references(() => biomarkers.id, { onDelete: "cascade" }),
+  sessionId: varchar("session_id").notNull().references(() => biomarkerTestSessions.id, { onDelete: "cascade" }),
+  testDate: timestamp("test_date").notNull(),
+  ageMonths: real("age_months").notNull(), // Calculated age in months since test
+  freshnessCategory: freshnessCategoryEnum("freshness_category").notNull(), // green ≤3mo, yellow 3-9mo, red ≥9mo
+  decayWeight: real("decay_weight").notNull(), // Exponential decay λ=0.15/month → 41% at 6mo, 17% at 12mo
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow().notNull(),
+}, (table) => ({
+  userBiomarkerIdx: uniqueIndex("biomarker_freshness_user_biomarker_idx").on(table.userId, table.biomarkerId),
+  freshnessIdx: index("biomarker_freshness_category_idx").on(table.freshnessCategory),
+  userIdx: index("biomarker_freshness_user_idx").on(table.userId),
+}));
+
+// Insight feedback - user ratings for adjusting pathway weights
+// Powers the "Helpful/Accurate" feedback loop
+export const insightFeedback = pgTable("insight_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  insightId: varchar("insight_id"), // Reference to generated insight (if stored separately)
+  patternSignature: text("pattern_signature").notNull(), // Same format as replication history
+  isHelpful: boolean("is_helpful"), // True/False/null
+  isAccurate: boolean("is_accurate"), // True/False/null
+  feedbackNotes: text("feedback_notes"), // Optional user comment
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userPatternIdx: index("insight_feedback_user_pattern_idx").on(table.userId, table.patternSignature),
+  userIdx: index("insight_feedback_user_idx").on(table.userId),
+}));
+
+// Daily generated insights v2.0
+// Replaces correlation engine with evidence-based multi-layer approach
+export const dailyInsights = pgTable("daily_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  generatedDate: text("generated_date").notNull(), // YYYY-MM-DD
+  
+  // Insight content
+  title: text("title").notNull(), // Short punchy headline
+  body: text("body").notNull(), // Magnitude + evidence + context + freshness note
+  action: text("action"), // Exact recommendation or experiment
+  
+  // Scoring and classification
+  confidenceScore: real("confidence_score").notNull(), // 0-100
+  impactScore: real("impact_score").notNull(), // 0-100
+  actionabilityScore: real("actionability_score").notNull(), // 0-100
+  freshnessScore: real("freshness_score").notNull(), // 0-100
+  overallScore: real("overall_score").notNull(), // Confidence × Impact × Actionability × Freshness
+  
+  // Evidence and sources
+  evidenceTier: evidenceTierEnum("evidence_tier").notNull(),
+  primarySources: text("primary_sources").array().notNull(), // ["Sleep", "Life Events", "Labs (yellow)"]
+  category: insightCategoryEnum("category").notNull(),
+  
+  // Layer that generated this insight
+  generatingLayer: text("generating_layer").notNull(), // "A_physiological", "B_open_discovery", "C_dose_response", "D_anomaly"
+  
+  // Supporting data
+  details: jsonb("details").notNull(), // Extended data: { daysAnalyzed, avgBefore, avgAfter, dateRange, correlationStrength, etc. }
+  
+  // User interaction
+  isNew: boolean("is_new").default(true).notNull(),
+  isDismissed: boolean("is_dismissed").default(false).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  userDateIdx: uniqueIndex("daily_insights_user_date_idx").on(table.userId, table.generatedDate),
+  userIdx: index("daily_insights_user_idx").on(table.userId),
+  scoreIdx: index("daily_insights_score_idx").on(table.overallScore),
+  categoryIdx: index("daily_insights_category_idx").on(table.category),
+  tierIdx: index("daily_insights_tier_idx").on(table.evidenceTier),
+}));
+
+// Zod enums for validation
+export const EvidenceTierEnum = z.enum(["1", "2", "3", "4", "5"]);
+export const FreshnessCategoryEnum = z.enum(["green", "yellow", "red"]);
+
+// Insert schemas
+export const insertInsightReplicationHistorySchema = createInsertSchema(insightReplicationHistory).omit({
+  id: true,
+  detectedAt: true,
+});
+
+export const insertBiomarkerFreshnessMetadataSchema = createInsertSchema(biomarkerFreshnessMetadata).omit({
+  id: true,
+  lastCalculatedAt: true,
+});
+
+export const insertInsightFeedbackSchema = createInsertSchema(insightFeedback).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertDailyInsightSchema = createInsertSchema(dailyInsights).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type InsertInsightReplicationHistory = z.infer<typeof insertInsightReplicationHistorySchema>;
+export type InsightReplicationHistory = typeof insightReplicationHistory.$inferSelect;
+
+export type InsertBiomarkerFreshnessMetadata = z.infer<typeof insertBiomarkerFreshnessMetadataSchema>;
+export type BiomarkerFreshnessMetadata = typeof biomarkerFreshnessMetadata.$inferSelect;
+
+export type InsertInsightFeedback = z.infer<typeof insertInsightFeedbackSchema>;
+export type InsightFeedback = typeof insightFeedback.$inferSelect;
+
+export type InsertDailyInsight = z.infer<typeof insertDailyInsightSchema>;
+export type DailyInsight = typeof dailyInsights.$inferSelect;
