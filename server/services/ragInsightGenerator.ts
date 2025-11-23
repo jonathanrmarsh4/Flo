@@ -77,9 +77,10 @@ export function detectDataChanges(
   }
   
   // Analyze HealthKit metric changes (last 7 days vs previous 7 days)
-  if (dailyMetrics.length >= 14) {
+  // Relaxed requirement: allow 10+ days with up to 3 nulls per metric
+  if (dailyMetrics.length >= 10) {
     const recentWeek = dailyMetrics.slice(0, 7);
-    const previousWeek = dailyMetrics.slice(7, 14);
+    const previousWeek = dailyMetrics.slice(7, Math.min(14, dailyMetrics.length));
     
     // Map to actual database field names (from healthDailyMetrics table via fetchHealthData())
     const metricMappings = [
@@ -94,22 +95,28 @@ export function detectDataChanges(
     ];
     
     for (const mapping of metricMappings) {
-      const recentAvg = average(recentWeek.map((m: any) => m[mapping.fieldName]).filter((v: any) => v !== null && v !== undefined && !isNaN(v)));
-      const previousAvg = average(previousWeek.map((m: any) => m[mapping.fieldName]).filter((v: any) => v !== null && v !== undefined && !isNaN(v)));
+      const recentValues = recentWeek.map((m: any) => m[mapping.fieldName]).filter((v: any) => v !== null && v !== undefined && !isNaN(v));
+      const previousValues = previousWeek.map((m: any) => m[mapping.fieldName]).filter((v: any) => v !== null && v !== undefined && !isNaN(v));
       
-      if (recentAvg !== null && previousAvg !== null && previousAvg !== 0) {
-        const percentChange = ((recentAvg - previousAvg) / previousAvg) * 100;
+      // Allow metrics with at least 4 valid data points per week (tolerates 3 nulls)
+      if (recentValues.length >= 4 && previousValues.length >= 4) {
+        const recentAvg = average(recentValues);
+        const previousAvg = average(previousValues);
         
-        // Only include significant changes (>10% for HealthKit metrics)
-        if (Math.abs(percentChange) > 10) {
-          changes.push({
-            metric: mapping.displayName,
-            previous: previousAvg,
-            current: recentAvg,
-            percentChange,
-            direction: percentChange > 0 ? 'increase' : 'decrease',
-            unit: mapping.unit,
-          });
+        if (recentAvg !== null && previousAvg !== null && previousAvg !== 0) {
+          const percentChange = ((recentAvg - previousAvg) / previousAvg) * 100;
+          
+          // Only include significant changes (>10% for HealthKit metrics)
+          if (Math.abs(percentChange) > 10) {
+            changes.push({
+              metric: mapping.displayName,
+              previous: previousAvg,
+              current: recentAvg,
+              percentChange,
+              direction: percentChange > 0 ? 'increase' : 'decrease',
+              unit: mapping.unit,
+            });
+          }
         }
       }
     }
@@ -179,11 +186,19 @@ ${historicalContext}
 ${biomarkers.slice(0, 10).map(b => `- ${b.name}: ${b.value} ${b.unit}${b.isAbnormal ? ' ⚠️ OUT OF RANGE' : ''}`).join('\n')}
 
 ## Your Task
-Generate 3-5 holistic health insights that:
-1. **Identify cross-domain patterns** (e.g., "inflammation + body composition + recovery")
-2. **Explain WHY correlations matter** with physiological mechanisms
-3. **Interpret whether patterns are good/bad** for THIS user's profile
-4. **Provide safe, practical recommendations** tailored to their current state
+Generate 5-8 holistic health insights that provide comprehensive coverage across ALL categories:
+1. **BIOMARKERS**: Analyze blood work patterns and lab correlations (iron, ferritin, hormones, metabolic markers, etc.)
+2. **SLEEP**: Identify sleep quality patterns (duration, deep sleep, REM, latency, awakenings)
+3. **RECOVERY**: Analyze HRV, resting heart rate, and recovery trends
+4. **ACTIVITY**: Examine steps, exercise, active energy, and physical performance
+
+For each insight:
+- **Identify cross-domain patterns** (e.g., "low ferritin + poor sleep recovery + declining HRV")
+- **Explain WHY correlations matter** with physiological mechanisms
+- **Interpret whether patterns are good/bad** for THIS user's profile
+- **Provide safe, practical recommendations** tailored to their current state
+
+IMPORTANT: Try to generate at least 1-2 insights for EACH category above. Use all available data to find meaningful patterns.
 
 ## CRITICAL SAFETY RULES
 1. NO supplement dosages (e.g., "take 5000 IU vitamin D")

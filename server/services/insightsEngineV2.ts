@@ -643,6 +643,61 @@ export function biomarkerNameToCanonicalKey(name: string): string {
     .replace(/^_|_$/g, '');       // Trim leading/trailing underscores
 }
 
+/**
+ * Classify RAG insights based on their relatedMetrics into appropriate categories
+ * 
+ * @param relatedMetrics - Array of metric names from RAG insight
+ * @returns Insight category (biomarkers, sleep_quality, recovery_hrv, activity_sleep, or general)
+ */
+function classifyRAGInsight(relatedMetrics: string[]): string {
+  if (!relatedMetrics || relatedMetrics.length === 0) {
+    return 'general';
+  }
+  
+  // Normalize metrics to canonical keys and determine primary domain
+  const { determineHealthDomain } = require('./insightRanking');
+  
+  // HealthKit metric mapping (case-insensitive lookup)
+  // These must match canonical keys in determineHealthDomain()
+  const healthKitMap: Record<string, string> = {
+    'hrv': 'hrv_sdnn_ms',           // → recovery domain
+    'sleep': 'sleep_total_minutes',  // → sleep domain
+    'resting heart rate': 'resting_hr', // → recovery domain
+    'steps': 'steps',                // → performance domain
+    'active energy': 'active_kcal',  // → performance domain
+    'exercise': 'exercise_minutes',  // → performance domain
+    'body fat': 'body_fat_pct',      // → metabolic domain
+    'weight': 'weight',              // → metabolic domain (fixed from weight_kg)
+  };
+  
+  // Convert metric names to canonical keys for proper classification
+  const canonicalMetrics = relatedMetrics.map(metric => {
+    // First check HealthKit map (case-insensitive)
+    const lowerMetric = metric.toLowerCase();
+    if (healthKitMap[lowerMetric]) {
+      return healthKitMap[lowerMetric];
+    }
+    
+    // If not a known HealthKit metric, treat as biomarker and normalize
+    return biomarkerNameToCanonicalKey(metric);
+  });
+  
+  const domain = determineHealthDomain(canonicalMetrics);
+  
+  // Map health domain to insight category
+  const domainToCategoryMap: Record<string, string> = {
+    'sleep': 'sleep_quality',
+    'recovery': 'recovery_hrv',
+    'metabolic': 'biomarkers',
+    'hormonal': 'biomarkers',
+    'inflammatory': 'biomarkers',
+    'performance': 'activity_sleep',
+    'lifestyle': 'general',
+  };
+  
+  return domainToCategoryMap[domain] || 'general';
+}
+
 export function filterRedFreshnessInsights(
   candidates: InsightCandidate[],
   healthData: HealthDataSnapshot
@@ -900,26 +955,31 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
       try {
         logger.info(`[InsightsEngineV2] Storing ${ragInsights.length} RAG insights in database`);
         
-        const ragInsightsToInsert = ragInsights.map(insight => ({
-          userId: userId.toString(),
-          generatedDate: today,
-          title: insight.title,
-          body: insight.body,
-          action: insight.action || null,
-          confidenceScore: insight.confidence,
-          impactScore: 0.7, // Default impact score for RAG insights
-          actionabilityScore: 0.8, // RAG insights are designed to be actionable
-          freshnessScore: 0.9, // RAG insights use recent data changes
-          overallScore: insight.confidence * 0.85, // Weight by confidence
-          evidenceTier: '1' as const, // RAG uses vector search + GPT-4o = highest tier
-          primarySources: insight.relatedMetrics,
-          category: 'general' as any, // Default category, could be improved with classification
-          generatingLayer: 'RAG_holistic' as any, // New layer type for RAG
-          details: {
-            method: 'RAG_vector_search',
-            relatedMetrics: insight.relatedMetrics,
-          },
-        }));
+        const ragInsightsToInsert = ragInsights.map(insight => {
+          // Classify RAG insight based on relatedMetrics
+          const category = classifyRAGInsight(insight.relatedMetrics);
+          
+          return {
+            userId: userId.toString(),
+            generatedDate: today,
+            title: insight.title,
+            body: insight.body,
+            action: insight.action || null,
+            confidenceScore: insight.confidence,
+            impactScore: 0.7, // Default impact score for RAG insights
+            actionabilityScore: 0.8, // RAG insights are designed to be actionable
+            freshnessScore: 0.9, // RAG insights use recent data changes
+            overallScore: insight.confidence * 0.85, // Weight by confidence
+            evidenceTier: '1' as const, // RAG uses vector search + GPT-4o = highest tier
+            primarySources: insight.relatedMetrics,
+            category: category as any,
+            generatingLayer: 'RAG_holistic' as any, // New layer type for RAG
+            details: {
+              method: 'RAG_vector_search',
+              relatedMetrics: insight.relatedMetrics,
+            },
+          };
+        });
         
         await db.insert(dailyInsights).values(ragInsightsToInsert);
         logger.info(`[InsightsEngineV2] Successfully stored ${ragInsightsToInsert.length} RAG insights`);

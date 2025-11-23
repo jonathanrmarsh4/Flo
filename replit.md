@@ -9,6 +9,39 @@ Flō is a mobile-first AI-powered health analytics platform designed to analyze 
 - AI Health Commentary Policy: Flō Oracle is configured to provide evidence-based health analysis with educational disclaimers rather than blocking health insights. The AI can discuss what biomarkers might indicate, potential health patterns, and treatment options to discuss with physicians. All health-related responses include: "⚕️ This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions." Only truly dangerous patterns (specific medication prescriptions with dosages) are blocked.
 - Flō Oracle Personality: Changed from conversational/therapeutic style to analytical data scientist personality. The AI now proactively searches for patterns and correlations in user data, leads with data analysis rather than general conversation, and minimizes chitchat to focus on evidence-based insights. Primary mission: Connect the dots between metrics, spot trends, and surface actionable insights from data relationships.
 
+## Recent Changes
+
+### RAG Insights Bug Fixes - Category Classification & Coverage (Nov 23, 2025)
+**Problem**: RAG insights had 4 critical bugs:
+1. Only showing 1 insight (should be multiple)
+2. No HealthKit correlations appearing
+3. Insights classified as "general" instead of "biomarkers"
+4. Missing coverage across all categories (Sleep, Activity, Biomarkers, Recovery)
+
+**Solution**: Fixed insight generation, classification, and category coverage.
+
+**Fixes Applied**:
+1. ✅ **Increased insight count**: Updated RAG prompt from "3-5 insights" to "5-8 insights"
+2. ✅ **Relaxed HealthKit requirements** (`ragInsightGenerator.ts`):
+   - Changed minimum days from 14 → 10 days
+   - Allow up to 3 null values per metric (4+ valid values required per week)
+   - More forgiving change detection for sparse data
+3. ✅ **Fixed category classification** (`insightsEngineV2.ts`):
+   - Created `classifyRAGInsight()` function to properly classify insights
+   - HealthKit metric mapping (case-insensitive): HRV, Sleep, Steps, Exercise, etc.
+   - Biomarker canonicalization for proper domain detection
+   - Domain → Category mapping: sleep → sleep_quality, recovery → recovery_hrv, metabolic/hormonal/inflammatory → biomarkers, performance → activity_sleep
+4. ✅ **Enhanced prompt for category breadth**:
+   - Explicitly requests insights across all 4 categories: BIOMARKERS, SLEEP, RECOVERY, ACTIVITY
+   - Asks for 1-2 insights per category minimum
+   - Cross-domain pattern emphasis (e.g., "low ferritin + poor sleep recovery + declining HRV")
+
+**Expected Results**:
+- 5-8 holistic insights generated daily (up from 3-5)
+- HealthKit metrics included even with 10 days of data and some nulls
+- Biomarker insights properly categorized as "biomarkers" (not "general")
+- Comprehensive coverage across Sleep, Activity, Biomarkers, and Recovery categories
+
 ## System Architecture
 
 ### UI/UX Decisions
