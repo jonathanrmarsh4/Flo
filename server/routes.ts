@@ -54,6 +54,9 @@ import {
   insertNotificationTriggerSchema,
   insightCards,
   bloodWorkRecords,
+  dailyInsights,
+  insightFeedback,
+  insertInsightFeedbackSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -81,6 +84,9 @@ import {
   validatePhenoAgeInputs,
   type PhenoAgeInputs
 } from "@shared/utils/phenoage";
+import { generateDailyInsights } from "./services/insightsEngineV2";
+import { triggerInsightsGenerationCheck } from "./services/insightsSchedulerV2";
+import { format } from "date-fns";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -5907,6 +5913,210 @@ ${userContext}`;
       res.json({ success: true });
     } catch (error: any) {
       logger.error('[Insights] Delete error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===============================
+  // DAILY INSIGHTS ENGINE V2.0
+  // ===============================
+
+  // GET /api/daily-insights - Fetch today's generated insights
+  app.get("/api/daily-insights", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
+      const insights = await db
+        .select()
+        .from(dailyInsights)
+        .where(
+          and(
+            eq(dailyInsights.userId, userId),
+            eq(dailyInsights.generatedDate, today),
+            eq(dailyInsights.isDismissed, false)
+          )
+        )
+        .orderBy(desc(dailyInsights.overallScore));
+
+      res.json({
+        date: today,
+        count: insights.length,
+        insights,
+      });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Fetch error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/daily-insights/generate - Manually trigger insight generation (for testing)
+  app.post("/api/daily-insights/generate", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const schema = z.object({
+        forceRegenerate: z.boolean().optional().default(false),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { forceRegenerate } = validationResult.data;
+      
+      logger.info(`[DailyInsightsV2] Manual generation triggered for user ${userId}, forceRegenerate=${forceRegenerate}`);
+      
+      const userIdNum = parseInt(userId, 10);
+      const insights = await generateDailyInsights(userIdNum, forceRegenerate);
+
+      res.json({
+        success: true,
+        generated: insights.length,
+        insights,
+        forceRegenerate,
+      });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Generation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/daily-insights/feedback - Submit feedback for an insight
+  app.post("/api/daily-insights/feedback", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const schema = insertInsightFeedbackSchema.extend({
+        insightId: z.string(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { insightId, patternSignature, isHelpful, isAccurate, feedbackNotes } = validationResult.data;
+      
+      // Verify insight belongs to user
+      const insight = await db
+        .select()
+        .from(dailyInsights)
+        .where(
+          and(
+            eq(dailyInsights.id, insightId),
+            eq(dailyInsights.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (insight.length === 0) {
+        return res.status(404).json({ error: "Insight not found" });
+      }
+
+      // Insert feedback
+      await db.insert(insightFeedback).values({
+        userId,
+        insightId,
+        patternSignature,
+        isHelpful,
+        isAccurate,
+        feedbackNotes,
+      });
+
+      logger.info(`[DailyInsightsV2] Feedback submitted for insight ${insightId} by user ${userId}`);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Feedback error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/daily-insights/:id/dismiss - Dismiss an insight
+  app.post("/api/daily-insights/:id/dismiss", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      await db
+        .update(dailyInsights)
+        .set({ isDismissed: true, isNew: false })
+        .where(
+          and(
+            eq(dailyInsights.id, id),
+            eq(dailyInsights.userId, userId)
+          )
+        );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Dismiss error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/daily-insights/mark-seen - Mark insights as seen (remove "new" badge)
+  app.post("/api/daily-insights/mark-seen", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
+      await db
+        .update(dailyInsights)
+        .set({ isNew: false })
+        .where(
+          and(
+            eq(dailyInsights.userId, userId),
+            eq(dailyInsights.generatedDate, today),
+            eq(dailyInsights.isNew, true)
+          )
+        );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Mark seen error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/daily-insights/trigger-check - Manually trigger scheduler check (admin only)
+  app.post("/api/daily-insights/trigger-check", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      logger.info('[DailyInsightsV2] Manual scheduler check triggered');
+      
+      // Trigger the scheduler check (non-blocking)
+      triggerInsightsGenerationCheck().catch(error => {
+        logger.error('[DailyInsightsV2] Scheduler check error:', error);
+      });
+
+      res.json({ 
+        success: true,
+        message: "Scheduler check triggered. Check logs for results."
+      });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Trigger check error:', error);
       res.status(500).json({ error: error.message });
     }
   });

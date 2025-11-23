@@ -11,8 +11,8 @@
  */
 
 import { db } from '../db';
-import { users, dailyInsights, healthkitSamples, biomarkerResults, lifeEvents, healthkitDailyMetrics } from '../../shared/schema';
-import { eq, desc, and, gte } from 'drizzle-orm';
+import { users, dailyInsights, healthkitSamples, biomarkerMeasurements, biomarkerTestSessions, biomarkers, lifeEvents, healthDailyMetrics } from '../../shared/schema';
+import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { PHYSIOLOGICAL_PATHWAYS } from './physiologicalPathways';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
@@ -113,27 +113,30 @@ export async function fetchHealthData(userId: number): Promise<HealthDataSnapsho
   // Fetch daily aggregated metrics
   const rawDailyMetrics = await db
     .select()
-    .from(healthkitDailyMetrics)
+    .from(healthDailyMetrics)
     .where(
       and(
-        eq(healthkitDailyMetrics.userId, userId.toString()),
-        gte(healthkitDailyMetrics.date, format(ninetyDaysAgo, 'yyyy-MM-dd'))
+        eq(healthDailyMetrics.userId, userId.toString()),
+        gte(healthDailyMetrics.date, format(ninetyDaysAgo, 'yyyy-MM-dd'))
       )
     )
-    .orderBy(desc(healthkitDailyMetrics.date));
+    .orderBy(desc(healthDailyMetrics.date));
   
   // Fetch biomarker results (all time - we need historical data)
+  // Join measurements with sessions and biomarkers
   const rawBiomarkers = await db
     .select({
-      name: biomarkerResults.biomarkerName,
-      value: biomarkerResults.numericValue,
-      unit: biomarkerResults.unit,
-      testDate: biomarkerResults.testDate,
-      isAbnormal: biomarkerResults.isAbnormal,
+      name: biomarkers.name,
+      value: biomarkerMeasurements.valueCanonical,
+      unit: biomarkerMeasurements.unitCanonical,
+      testDate: biomarkerTestSessions.testDate,
+      isAbnormal: sql<boolean>`COALESCE(array_length(${biomarkerMeasurements.flags}, 1) > 0, false)`,
     })
-    .from(biomarkerResults)
-    .where(eq(biomarkerResults.userId, userId.toString()))
-    .orderBy(desc(biomarkerResults.testDate));
+    .from(biomarkerMeasurements)
+    .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
+    .innerJoin(biomarkers, eq(biomarkerMeasurements.biomarkerId, biomarkers.id))
+    .where(eq(biomarkerTestSessions.userId, userId.toString()))
+    .orderBy(desc(biomarkerTestSessions.testDate));
   
   // Fetch life events (past 90 days)
   const rawLifeEvents = await db
