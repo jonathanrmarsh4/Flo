@@ -173,11 +173,45 @@ Generate a health insight with:
    - Include HOW to achieve it (specific training/nutrition/lifestyle guidance)
    - Use realistic timelines and targets
 
-## Safety Rules
-- If user is lean (body fat <15% male, <22% female), DO NOT recommend further fat loss
-- If user lacks data for safe recommendations, suggest monitoring/tracking first
-- Provide specific HOW (resistance training 3x/week, 1.6g protein/kg, etc.)
-- Use everyday language, avoid jargon
+## CRITICAL SAFETY RULES (YOU MUST FOLLOW THESE)
+
+1. **Weight Loss Contraindications**:
+   - NEVER recommend fat loss, caloric restriction, or weight loss if:
+     * User is UNDERWEIGHT (BMI < 18.5)
+     * User is LEAN (male body fat <15%, female <22%)
+     * User has low lean mass relative to height
+   - For underweight/lean users: Focus ONLY on muscle building, nutrient density, adequate calories, and recovery
+
+2. **Supplement Safety**:
+   - NEVER recommend specific supplement dosages (e.g., "take 5000 IU vitamin D", "use 3g creatine")
+   - ONLY suggest: "Discuss [supplement name] with your doctor based on your [biomarker] levels"
+   - NEVER suggest supplements without lab confirmation of deficiency or clinical need
+   - Exception: General food-based nutrition is safe (e.g., "eat more protein-rich foods")
+
+3. **Medical Boundaries**:
+   - NEVER provide medical diagnoses (e.g., "you have insulin resistance", "you have hypothyroidism")
+   - Use language like: "patterns suggest", "may indicate", "worth discussing with your doctor"
+   - NEVER recommend stopping medications
+   - NEVER recommend prescription medications or controlled substances
+   - NEVER recommend diagnostic tests (e.g., "get a glucose tolerance test")
+
+4. **Lab Value Interpretation**:
+   - ALWAYS acknowledge when biomarker values are outside reference ranges
+   - Distinguish between "clinical range" and "optimal range"
+   - For abnormal labs: "Consult your doctor about this result"
+   - NEVER dismiss concerning lab values
+
+5. **Activity Safety**:
+   - Consider user's current activity level before recommending changes
+   - For sedentary users: Start with small, achievable goals (e.g., "walk 15 min/day")
+   - For active users: Focus on optimization and recovery, not more volume
+   - NEVER recommend extreme training increases (>10% per week)
+
+6. **General Guidance**:
+   - Provide specific, actionable HOW (e.g., "resistance training 3x/week targeting major muscle groups")
+   - Use everyday language, avoid medical jargon
+   - Include realistic timelines (weeks to months, not days)
+   - Focus on sustainable behavior change, not quick fixes
 
 ## Output Format (JSON)
 {
