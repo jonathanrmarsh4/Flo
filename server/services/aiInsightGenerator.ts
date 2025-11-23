@@ -244,11 +244,20 @@ Generate a health insight with:
 
     const parsed = JSON.parse(content);
 
-    return {
+    const insight = {
       title: parsed.title || 'Health Insight',
       body: parsed.body || 'Correlation detected in your data.',
       action: parsed.action || 'Monitor this relationship over time.',
     };
+    
+    // POST-GENERATION SAFETY VALIDATION
+    const safetyViolation = validateInsightSafety(insight, userContext);
+    if (safetyViolation) {
+      logger.warn('AI insight blocked due to safety violation', { safetyViolation, insight });
+      throw new Error(`Safety violation: ${safetyViolation}`);
+    }
+    
+    return insight;
   } catch (error) {
     logger.error('AI insight generation failed', { error, candidate });
     
@@ -259,6 +268,112 @@ Generate a health insight with:
       action: `Monitor the relationship between ${candidate.independent} and ${candidate.dependent} to understand how changes affect your health.`,
     };
   }
+}
+
+// ============================================================================
+// Safety Validation
+// ============================================================================
+
+/**
+ * Validate AI-generated insight for safety violations
+ * Returns error message if unsafe, null if safe
+ */
+function validateInsightSafety(
+  insight: AIGeneratedInsight,
+  userContext: UserContext
+): string | null {
+  const fullText = `${insight.title} ${insight.body} ${insight.action}`.toLowerCase();
+  
+  // 1. Check for ANY supplement recommendations (not just dosages)
+  // Use flexible patterns with optional words to catch variants like "start ashwagandha" or "increase your zinc"
+  const supplementPatterns = [
+    // Dosages (explicit amounts)
+    /\d+\s*(iu|mcg|mg|g|ml|units?)\s+(of\s+)?(\w+\s+)?(vitamin|creatine|omega|d3|b12|zinc|magnesium|calcium|protein|collagen|supplement)/i,
+    /take\s+\d+/i,
+    /\d+\s*(gram|milligram|microgram)/i,
+    
+    // Direct supplement recommendations with flexible matching - comprehensive list
+    /\b(take|start|use|try|add|supplement|consider|increase|boost)\s+(\w+\s+)?(your\s+)?(creatine|omega|vitamin|d3|b12|b6|zinc|magnesium|calcium|iron|protein\s+powder|collagen|probiotics?|prebiotics?|fish\s+oil|curcumin|turmeric|ashwagandha|rhodiola|ginseng|multivitamin|supplement|chromium|lion'?s?\s+mane|berberine|nad\+?|nmn|resveratrol|quercetin|coq10?|melatonin|5-?htp)/i,
+    /\b(creatine|omega|vitamin|d3|b12|zinc|magnesium|calcium|iron|ashwagandha|curcumin|probiotics?|chromium|berberine|nad|nmn|quercetin)\s+(\w+\s+)?(supplement|supplementation|daily|intake)/i,
+  ];
+  
+  for (const pattern of supplementPatterns) {
+    if (pattern.test(fullText)) {
+      return 'Contains supplement recommendation (must suggest "discuss with doctor" instead)';
+    }
+  }
+  
+  // 2. Check for weight loss recommendations for lean users
+  const bmi = userContext.bodyComposition.bmi || 25;
+  const bodyFatPct = userContext.bodyComposition.bodyFatPct || 20;
+  const isUnderweight = bmi < 18.5;
+  const sexLower = (userContext.sex || '').toLowerCase();
+  const isLeanMale = sexLower === 'male' && bodyFatPct < 15;
+  const isLeanFemale = sexLower === 'female' && bodyFatPct < 22;
+  const isLean = isUnderweight || isLeanMale || isLeanFemale;
+  
+  if (isLean) {
+    const weightLossPatterns = [
+      /\blose\s+weight\b/i,
+      /\bfat\s+loss\b/i,
+      /\bcaloric\s+restriction\b/i,
+      /\bcalorie\s+deficit\b/i,
+      /\breduce\s+(body\s+)?fat\b/i,
+      /\bcut\s+calories\b/i,
+      /\bweight\s+reduction\b/i,
+    ];
+    
+    for (const pattern of weightLossPatterns) {
+      if (pattern.test(fullText)) {
+        return 'Recommends weight loss for underweight/lean user';
+      }
+    }
+  }
+  
+  // 3. Check for medical diagnoses (broader patterns)
+  const diagnosisPatterns = [
+    /\byou\s+(have|are|might have|likely have|probably have)\s+(insulin\s+resistance|hypothyroidism|diabetes|hypertension|metabolic syndrome|pcos|thyroid|prediabetes)/i,
+    /\bdiagnosed\s+with\b/i,
+    /\byou\s+(are|might be|could be)\s+(diabetic|hypertensive|insulin\s+resistant|hypothyroid|prediabetic)/i,
+    /\b(this\s+suggests?|this\s+indicates?|this\s+means?)\s+(insulin\s+resistance|diabetes|hypothyroidism)/i,
+  ];
+  
+  for (const pattern of diagnosisPatterns) {
+    if (pattern.test(fullText)) {
+      return 'Contains medical diagnosis (use "patterns suggest" instead)';
+    }
+  }
+  
+  // 4. Check for prescription medication recommendations (flexible patterns)
+  // Use optional words to catch variants like "increase your statin dosage" or "ask your doctor about ozempic"
+  const medicationPatterns = [
+    // Direct medication recommendations with flexible matching - comprehensive drug list
+    /\b(take|start|use|try|add|consider|ask\s+your\s+doctor\s+(for|about|to\s+prescribe)|increase|decrease|boost|reduce)\s+(\w+\s+)?(your\s+)?(dose|dosage|dosing\s+of\s+)?(metformin|levothyroxine|statins?|beta\s+blockers?|thyroid\s+medication|blood\s+pressure\s+medication|diabetes\s+medication|statin|ozempic|wegovy|mounjaro|victoza|trulicity|jardiance|farxiga|rybelsus|insulin|lantus|humalog|novolog|glp-?1)/i,
+    /\b(start|stop|discontinue|change|adjust|modify|up|increase|decrease)\s+(\w+\s+)?(your\s+)?(taking\s+)?(medication|prescription|thyroid\s+meds?|bp\s+meds?|statins?|metformin|ozempic|insulin)/i,
+    /\byour\s+doctor\s+(should\s+)?(prescribe|give\s+you|put\s+you\s+on|up|increase)/i,
+    /\b(increase|decrease|adjust|change)\s+(\w+\s+)?(your\s+)?(\w+\s+)?(statin|metformin|levothyroxine|medication|dose|dosage|dosing|ozempic|insulin)/i,
+  ];
+  
+  for (const pattern of medicationPatterns) {
+    if (pattern.test(fullText)) {
+      return 'Contains medication prescription or change advice (only doctors can prescribe)';
+    }
+  }
+  
+  // 5. Check for diagnostic test recommendations (broader patterns)
+  const diagnosticTestPatterns = [
+    /\b(get|schedule|order|ask for|request)\s+(a\s+)?(glucose\s+tolerance|thyroid|hormone|insulin|a1c|fasting\s+glucose|lipid\s+panel|metabolic\s+panel)\s+test/i,
+    /\b(you\s+should|you\s+need|consider)\s+(getting\s+)?(tested|screening|labs|blood work)/i,
+  ];
+  
+  for (const pattern of diagnosticTestPatterns) {
+    if (pattern.test(fullText)) {
+      return 'Recommends specific diagnostic tests (suggest "discuss with doctor" instead)';
+    }
+  }
+  
+  // All safety checks passed
+  return null;
 }
 
 // ============================================================================
