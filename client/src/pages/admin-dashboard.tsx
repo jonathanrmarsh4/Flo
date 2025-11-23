@@ -121,8 +121,8 @@ export default function AdminDashboard() {
     },
     onSuccess: (data: any) => {
       toast({
-        title: 'Insights Generated',
-        description: `Generated ${data.insightsGenerated} insights in ${data.durationMs}ms`,
+        title: 'Insights Generation Triggered',
+        description: data.message || 'Scheduler check triggered. Check logs for results.',
       });
     },
     onError: (error: any) => {
