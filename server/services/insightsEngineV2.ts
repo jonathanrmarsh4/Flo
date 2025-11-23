@@ -999,78 +999,26 @@ export function generateInsightNarrative(
  * @returns Filtered candidates with red-lab protection applied
  */
 /**
- * Shared canonical normalization for biomarker names
- * CRITICAL: This MUST be used consistently across:
- * - Data ingestion (lab processor, HealthKit)
- * - Storage (biomarkers table)
- * - Filtering (this file)
- * - Pathway matching (physiologicalPathways.ts)
+ * Normalize biomarker names from database to pathway variable names.
+ * SIMPLIFIED VERSION (Nov 23, 2025): Database duplicates have been cleaned up,
+ * so we now use simple normalization with NO complex alias mapping.
  * 
- * FIX: Added alias mapping for common lab result naming patterns
- * E.g., "CRP, hs" → "hs_crp", "Glucose, Fasting" → "glucose_fasting"
+ * Database → Normalized Examples:
+ * - "hs-CRP" → "hs_crp"
+ * - "Glucose" → "glucose"  
+ * - "Free Testosterone" → "free_testosterone"
+ * - "LDL Cholesterol" → "ldl_cholesterol"
+ * - "Cortisol (AM)" → "cortisol_am"
+ * 
+ * Rule: Lowercase + replace special chars with underscores. That's it!
+ * No mapping, no aliases, no complexity.
  */
 export function biomarkerNameToCanonicalKey(name: string): string {
-  // First normalize the name: lowercase, replace spaces/hyphens with underscores
-  const normalized = name.toLowerCase().replace(/[\s\-,]+/g, '_').replace(/_+/g, '_');
-  
-  // Alias mapping for common lab result naming patterns
-  // Maps lab result names → pathway variable names
-  const aliasMap: Record<string, string> = {
-    // Inflammatory markers
-    'crp_hs': 'hs_crp',
-    'hs_c_reactive_protein': 'hs_crp',
-    'c_reactive_protein_hs': 'hs_crp',
-    'high_sensitivity_crp': 'hs_crp',
-    
-    // Glucose markers
-    'glucose_fasting': 'glucose_fasting',
-    'fasting_glucose': 'glucose_fasting',
-    'a1c': 'glucose_a1c',
-    'hemoglobin_a1c': 'glucose_a1c',
-    'hba1c': 'glucose_a1c',
-    
-    // Lipids
-    'cholesterol_total': 'cholesterol_total',
-    'total_cholesterol': 'cholesterol_total',
-    'ldl_cholesterol': 'cholesterol_ldl',
-    'cholesterol_ldl': 'cholesterol_ldl',
-    'hdl_cholesterol': 'cholesterol_hdl',
-    'cholesterol_hdl': 'cholesterol_hdl',
-    
-    // Hormones
-    'testosterone_total': 'testosterone_total',
-    'total_testosterone': 'testosterone_total',
-    'free_testosterone': 'testosterone_free',
-    'testosterone_free': 'testosterone_free',
-    'estradiol': 'estradiol_e2',
-    'e2': 'estradiol_e2',
-    
-    // Thyroid
-    'tsh': 'tsh',
-    'thyroid_stimulating_hormone': 'tsh',
-    'free_t4': 't4_free',
-    't4_free': 't4_free',
-    'free_t3': 't3_free',
-    't3_free': 't3_free',
-    
-    // Vitamins
-    'vitamin_d': 'vitamin_d_25_oh',
-    '25_oh_vitamin_d': 'vitamin_d_25_oh',
-    'vitamin_d_25_oh': 'vitamin_d_25_oh',
-    
-    // Liver
-    'alt': 'alt',
-    'alanine_aminotransferase': 'alt',
-    'ast': 'ast',
-    'aspartate_aminotransferase': 'ast',
-  };
-  
-  // Check if normalized name has an alias
-  if (aliasMap[normalized]) {
-    return aliasMap[normalized];
-  }
-  
-  return normalized;
+  return name
+    .toLowerCase()
+    .replace(/[\s\-,()]+/g, '_')  // Replace spaces, hyphens, commas, parens with underscore
+    .replace(/_+/g, '_')          // Remove duplicate underscores
+    .replace(/^_|_$/g, '');       // Trim leading/trailing underscores
 }
 
 export function filterRedFreshnessInsights(

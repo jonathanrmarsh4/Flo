@@ -117,7 +117,7 @@ const hpaAxisPathways: EvidenceBackedRelationship[] = [
 const insulinGlucosePathways: EvidenceBackedRelationship[] = [
   {
     independent: "late_meal_events",
-    dependent: "glucose_fasting",
+    dependent: "glucose",
     direction: "positive",
     tier: "2",
     mechanism: "Late meals → circadian misalignment → impaired glucose tolerance → elevated fasting glucose",
@@ -146,7 +146,7 @@ const insulinGlucosePathways: EvidenceBackedRelationship[] = [
     timingDependent: true, // Critical window: 3h before sleep
   },
   {
-    independent: "glucose_fasting",
+    independent: "glucose",
     dependent: "sleep_deep_minutes",
     direction: "negative",
     tier: "2",
