@@ -5965,6 +5965,7 @@ ${userContext}`;
         pattern: insight.title, // Map title -> pattern
         confidence: insight.confidenceScore, // Already 0-1 range from scoring functions
         supportingData: insight.body, // Map body -> supportingData
+        action: insight.action, // CRITICAL FIX: Include actionable recommendations
         details: insight.details,
         isNew: insight.isNew,
         isActive: !insight.isDismissed,

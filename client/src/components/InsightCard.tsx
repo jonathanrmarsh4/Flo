@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ChevronRight, BarChart3, LucideIcon } from 'lucide-react';
+import { ChevronRight, BarChart3, LucideIcon, Lightbulb } from 'lucide-react';
 
 interface InsightCardProps {
   IconComponent: LucideIcon;
@@ -7,6 +7,7 @@ interface InsightCardProps {
   pattern: string;
   confidence: number;
   supportingData: string;
+  action?: string | null; // CRITICAL FIX: Add actionable recommendations
   details?: {
     daysAnalyzed?: number;
     additionalInfo?: string[];
@@ -23,6 +24,7 @@ export function InsightCard({
   pattern,
   confidence,
   supportingData,
+  action,
   details,
   isNew = false,
   onViewDetails,
@@ -111,6 +113,17 @@ export function InsightCard({
             <p className="text-xs text-white/50">Supporting data:</p>
           </div>
           <p className="text-xs text-white/70 whitespace-pre-wrap">{supportingData}</p>
+        </div>
+      )}
+
+      {/* Actionable Recommendation - CRITICAL FIX */}
+      {action && (
+        <div className="mt-3 p-3 rounded-xl bg-teal-500/10 border border-teal-500/30">
+          <div className="flex items-center gap-1 mb-1">
+            <Lightbulb className="w-3 h-3 text-teal-400" />
+            <p className="text-xs font-medium text-teal-400">Recommended Action</p>
+          </div>
+          <p className="text-xs text-white/80 leading-relaxed">{action}</p>
         </div>
       )}
 

@@ -6,6 +6,11 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { InsightCard as InsightCardType } from '@shared/schema';
 
+// Extended type that includes action field from dailyInsights table
+type InsightWithAction = InsightCardType & {
+  action?: string | null;
+};
+
 interface RAGInsightsScreenProps {
   isDark: boolean;
   onClose: () => void;
@@ -31,7 +36,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
   const [selectedFilter, setSelectedFilter] = useState('all');
 
   // Fetch daily insights (v2.0 engine)
-  const { data: insightsResponse, isLoading } = useQuery<{ date: string; count: number; insights: InsightCardType[] }>({
+  const { data: insightsResponse, isLoading } = useQuery<{ date: string; count: number; insights: InsightWithAction[] }>({
     queryKey: ['/api/daily-insights'],
   });
   
@@ -135,6 +140,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
                       pattern={insight.pattern}
                       confidence={insight.confidence}
                       supportingData={insight.supportingData || ''}
+                      action={insight.action} // CRITICAL FIX: Pass actionable recommendations
                       details={insight.details as any}
                       isNew={insight.isNew}
                       delay={index * 0.1}
