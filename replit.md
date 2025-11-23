@@ -11,6 +11,38 @@ Flō is a mobile-first AI-powered health analytics platform designed to analyze 
 
 ## Recent Changes
 
+### Dashboard Tile Drag-and-Drop Reordering (Nov 23, 2025)
+**Feature**: Implemented intuitive drag-and-drop tile reordering for the Flō dashboard, allowing users to personalize their dashboard layout.
+
+**Implementation**:
+1. ✅ **@dnd-kit integration**: Using `@dnd-kit/core` and `@dnd-kit/sortable` for smooth, accessible drag-and-drop
+2. ✅ **Persistent tile order**: `useTileOrder` hook manages order state with localStorage persistence across sessions
+3. ✅ **Visual indicators**: GripVertical icon handles in top-right corner of each tile, with hover states and opacity changes during drag
+4. ✅ **Locked hero tile**: Flō Overview tile permanently locked at position 0, all other tiles are reorderable
+5. ✅ **iOS mobile-optimized**: Critical tap-propagation fixes for Capacitor/iOS WebView compatibility:
+   - `isPressingHandle` state tracks handle press/release with 150ms delay
+   - Content wrapper intercepts bubbled pointer/click events during drag/handle press
+   - Handle events use both `stopPropagation()` AND `preventDefault()` to prevent tap-through
+   - Tile onClick handlers gated with `isDragging` check as double protection
+6. ✅ **Architect-approved**: Production-ready for iOS/Capacitor deployment
+
+**Reorderable Tiles**:
+- Flōmentum (momentum scoring)
+- AI Insights
+- Quick Stats (steps, active energy, stand hours)
+- Sleep Analysis
+- Readiness Score
+- Biological Age
+- Workouts
+- Heart & Metabolic Health
+- Body Composition
+
+**Technical Details**:
+- Touch-friendly sensors with 5px activation threshold
+- Smooth CSS transforms for drag animations
+- Vertical list sorting strategy
+- All tile interactions remain functional during reordering
+
 ### RAG Insights Category Diversity Fix - Weighted Domain Scoring (Nov 23, 2025)
 **Problem**: User reported 8 insights generated but ZERO sleep or recovery insights despite poor sleep trends and HRV data available. Previous first-match classification strategy caused category starvation.
 
