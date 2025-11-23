@@ -19,8 +19,8 @@ import { generateInsight, type GeneratedInsight } from './insightLanguageGenerat
 import { type EvidenceTier } from './evidenceHierarchy';
 import { differenceInDays, subDays, format } from 'date-fns';
 import { detectReplicatedCorrelations, type ReplicatedCorrelation, filterNovelCorrelations } from './bayesianCorrelationEngine';
-import { analyzeDoseResponse, type DoseResponseResult, type DosageEvent, type OutcomeDataPoint } from './doseResponseAnalyzer';
-import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation } from './anomalyDetectionEngine';
+import { analyzeDoseResponse, type DoseResponseResult, type DosageEvent, type OutcomeDataPoint, type TemporalWindow } from './doseResponseAnalyzer';
+import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation, buildStaleBiomarker } from './anomalyDetectionEngine';
 import { logger } from '../logger';
 
 // ============================================================================
@@ -167,7 +167,7 @@ export async function fetchHealthData(userId: number): Promise<HealthDataSnapsho
       remSleep: null, // Not in schema
       steps: m.steps || null,
       restingHeartRate: m.restingHr || null,
-      activeEnergy: m.activeEnergy || null,
+      activeEnergy: m.activeEnergyKcal || null,
     })),
     biomarkers: rawBiomarkers.map(b => ({
       ...b,
@@ -327,7 +327,7 @@ export function generateLayerCInsights(
     // For each event type with sufficient data, analyze against HRV, sleep, etc.
     const outcomeMetrics = ['hrv', 'sleepDuration', 'restingHeartRate'];
     
-    for (const [eventType, dosageEvents] of dosageEventsByType) {
+    for (const [eventType, dosageEvents] of Array.from(dosageEventsByType.entries())) {
       if (dosageEvents.length < 5) {
         continue; // Need at least 5 events for dose-response
       }
@@ -434,19 +434,25 @@ export function generateLayerDInsights(
       return [];
     }
     
-    // Step 3: Prepare biomarker data with freshness
-    const biomarkerData = healthData.biomarkers.map(b => ({
-      name: b.name,
-      value: b.value,
-      unit: b.unit,
-      testDate: format(b.testDate, 'yyyy-MM-dd'),
-      isAbnormal: b.isAbnormal,
-    }));
+    // Step 3: Prepare biomarker data with freshness using buildStaleBiomarker helper
+    const staleBiomarkers = healthData.biomarkers
+      .filter(b => {
+        const daysSinceTest = differenceInDays(new Date(), b.testDate);
+        return daysSinceTest > 180; // Consider biomarkers older than 6 months as stale
+      })
+      .map(b => buildStaleBiomarker(b.name, b.value, b.testDate));
     
-    // Step 4: Detect stale-lab warnings
-    const staleLabWarnings = detectStaleLabWarning(deviations, biomarkerData);
+    // Step 4: Detect stale-lab warnings for each stale biomarker
+    const staleLabWarnings: StaleLabWarning[] = [];
     
-    if (!staleLabWarnings || staleLabWarnings.length === 0) {
+    for (const staleBiomarker of staleBiomarkers) {
+      const warning = detectStaleLabWarning(staleBiomarker, deviations);
+      if (warning) {
+        staleLabWarnings.push(warning);
+      }
+    }
+    
+    if (staleLabWarnings.length === 0) {
       logger.info('[Layer D] No stale-lab warnings detected');
       return [];
     }
@@ -455,7 +461,7 @@ export function generateLayerDInsights(
     for (const warning of staleLabWarnings) {
       // Find most recent date from deviating metrics
       let mostRecentDate = new Date(0);
-      for (const deviation of warning.supportingDeviations) {
+      for (const deviation of warning.matchingDeviations) {
         const metricData = metricSnapshots.get(deviation.metric);
         if (metricData && metricData.length > 0) {
           const latestDataPoint = metricData[metricData.length - 1];
@@ -469,18 +475,18 @@ export function generateLayerDInsights(
       insights.push({
         layer: 'D',
         evidenceTier: '3', // Mechanistic + observational
-        independent: warning.biomarker.name,
-        dependent: warning.supportingDeviations.map(d => d.metric).join(', '),
+        independent: warning.staleBiomarker.biomarker,
+        dependent: warning.matchingDeviations.map(d => d.metric).join(', '),
         direction: 'negative', // Stale labs are always concerning
-        deviationPercent: Math.abs(warning.supportingDeviations[0]?.percentChange * 100),
+        deviationPercent: Math.abs(warning.matchingDeviations[0]?.percentChange * 100),
         mostRecentDataDate: mostRecentDate,
-        variables: [warning.biomarker.name, ...warning.supportingDeviations.map(d => d.metric)],
+        variables: [warning.staleBiomarker.biomarker, ...warning.matchingDeviations.map(d => d.metric)],
         rawMetadata: {
-          biomarkerValue: warning.biomarker.value,
-          biomarkerUnit: warning.biomarker.unit,
-          daysSinceTest: warning.daysSinceTest,
-          freshnessCategory: warning.biomarker.freshnessCategory,
-          supportingDeviations: warning.supportingDeviations,
+          biomarkerValue: warning.staleBiomarker.lastValue,
+          biomarkerUnit: 'N/A', // Unit not stored in StaleBiomarker type
+          daysSinceTest: warning.staleBiomarker.daysSinceLastMeasurement,
+          freshnessCategory: warning.staleBiomarker.freshnessCategory,
+          matchingDeviations: warning.matchingDeviations,
         },
       });
     }
