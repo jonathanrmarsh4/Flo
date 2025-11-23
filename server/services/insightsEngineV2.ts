@@ -956,7 +956,8 @@ export function filterRedFreshnessInsights(
     let redBiomarkerName = '';
     let redBiomarkerAge = 0;
     
-    for (const biomarkerRef of allBiomarkerRefs) {
+    const biomarkerRefsArray = Array.from(allBiomarkerRefs);
+    for (const biomarkerRef of biomarkerRefsArray) {
       // Find matching biomarker in health data
       const biomarkerData = healthData.biomarkers.find(b => 
         biomarkerNameToCanonicalKey(b.name) === biomarkerRef

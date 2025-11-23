@@ -311,14 +311,16 @@ export function calculateRankScore(insight: RankedInsight): number {
 /**
  * Select top N insights with domain diversity constraints
  * 
- * Algorithm:
- * 1. Sort all insights by rank score (descending)
- * 2. Iterate through sorted list
- * 3. Add insight if domain count < MAX_INSIGHTS_PER_DOMAIN
- * 4. Stop when total count reaches MAX_TOTAL_INSIGHTS
+ * IMPROVED TWO-PASS ALGORITHM (addresses HRV-dominance issue):
+ * 1. PASS 1 (Diversity-first): Take #1 insight from each domain
+ * 2. PASS 2 (Quality-first): Fill remaining slots with highest-scoring insights
  * 
- * This ensures we don't get 5 sleep insights or 5 metabolic insights.
- * Instead, we get a diverse set covering multiple health domains.
+ * This prevents HRV/recovery insights from monopolizing all slots
+ * and ensures breadth across sleep, metabolic, performance, etc.
+ * 
+ * Example: If top 10 insights are all "recovery" domain, old algorithm
+ * would return 2 recovery insights. New algorithm ensures we get
+ * sleep, metabolic, performance, etc. represented.
  * 
  * @param insights - All candidate insights
  * @param maxTotal - Maximum total insights to return (default: 5)
@@ -330,14 +332,55 @@ export function selectTopInsights(
   maxTotal: number = MAX_TOTAL_INSIGHTS,
   maxPerDomain: number = MAX_INSIGHTS_PER_DOMAIN
 ): RankedInsight[] {
-  // Sort by rank score (descending)
-  const sortedInsights = [...insights].sort((a, b) => b.rankScore - a.rankScore);
+  if (insights.length === 0) {
+    return [];
+  }
+  
+  // Group insights by domain
+  const byDomain = new Map<HealthDomain, RankedInsight[]>();
+  for (const insight of insights) {
+    if (!byDomain.has(insight.healthDomain)) {
+      byDomain.set(insight.healthDomain, []);
+    }
+    byDomain.get(insight.healthDomain)!.push(insight);
+  }
+  
+  // Sort insights within each domain by rank score
+  byDomain.forEach((domainInsights) => {
+    domainInsights.sort((a: RankedInsight, b: RankedInsight) => b.rankScore - a.rankScore);
+  });
+  
+  // Get all domains sorted by their top insight's score
+  const domainsByTopScore = Array.from(byDomain.entries())
+    .map(([domain, domainInsights]) => ({
+      domain,
+      topScore: domainInsights[0].rankScore,
+      insights: domainInsights
+    }))
+    .sort((a, b) => b.topScore - a.topScore);
   
   const selected: RankedInsight[] = [];
   const domainCounts: Map<HealthDomain, number> = new Map();
   
-  for (const insight of sortedInsights) {
-    // Check if we've reached max total
+  // PASS 1: Take top insight from each domain (diversity-first)
+  // This ensures we get breadth across health areas
+  for (const { domain, insights: domainInsights } of domainsByTopScore) {
+    if (selected.length >= maxTotal) {
+      break;
+    }
+    
+    // Take #1 insight from this domain
+    const topInsight = domainInsights[0];
+    selected.push(topInsight);
+    domainCounts.set(domain, 1);
+  }
+  
+  // PASS 2: Fill remaining slots with highest-scoring insights (respect maxPerDomain)
+  const allInsights = insights
+    .filter(i => !selected.includes(i)) // Exclude already selected
+    .sort((a, b) => b.rankScore - a.rankScore);
+  
+  for (const insight of allInsights) {
     if (selected.length >= maxTotal) {
       break;
     }
