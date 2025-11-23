@@ -644,7 +644,71 @@ export function biomarkerNameToCanonicalKey(name: string): string {
 }
 
 /**
- * Classify RAG insights based on their relatedMetrics into appropriate categories
+ * Metric domain mapping with weighted priorities
+ * Primary domain = 2 points, Secondary domain = 1 point
+ */
+interface MetricDomainWeights {
+  primary: string;
+  secondary?: string;
+}
+
+const METRIC_DOMAIN_MAP: Record<string, MetricDomainWeights> = {
+  // Sleep metrics (always primary: sleep)
+  'sleep': { primary: 'sleep' },
+  'sleep total minutes': { primary: 'sleep' },
+  'sleep duration': { primary: 'sleep' },
+  'deep sleep': { primary: 'sleep' },
+  'rem sleep': { primary: 'sleep' },
+  'sleep efficiency': { primary: 'sleep' },
+  'sleep latency': { primary: 'sleep' },
+  'awakenings': { primary: 'sleep' },
+  'time in bed': { primary: 'sleep' },
+  
+  // Recovery metrics (always primary: recovery)
+  'hrv': { primary: 'recovery', secondary: 'sleep' },
+  'heart rate variability': { primary: 'recovery', secondary: 'sleep' },
+  'resting heart rate': { primary: 'recovery' },
+  'resting hr': { primary: 'recovery' },
+  'respiratory rate': { primary: 'recovery' },
+  
+  // Activity/Performance metrics
+  'steps': { primary: 'performance', secondary: 'recovery' },
+  'active energy': { primary: 'performance' },
+  'exercise': { primary: 'performance' },
+  'exercise minutes': { primary: 'performance' },
+  'vo2 max': { primary: 'performance', secondary: 'recovery' },
+  'workout': { primary: 'performance' },
+  'stand hours': { primary: 'performance' },
+  'standing hours': { primary: 'performance' },
+  
+  // Body composition (metabolic with activity secondary)
+  'body fat': { primary: 'metabolic', secondary: 'performance' },
+  'weight': { primary: 'metabolic', secondary: 'performance' },
+  'bmi': { primary: 'metabolic' },
+  
+  // Biomarkers - organized by domain
+  'ferritin': { primary: 'inflammatory', secondary: 'metabolic' },
+  'iron': { primary: 'inflammatory', secondary: 'metabolic' },
+  'crp': { primary: 'inflammatory' },
+  'c-reactive protein': { primary: 'inflammatory' },
+  
+  'testosterone': { primary: 'hormonal' },
+  'estrogen': { primary: 'hormonal' },
+  'cortisol': { primary: 'hormonal', secondary: 'recovery' },
+  'thyroid': { primary: 'hormonal', secondary: 'metabolic' },
+  'tsh': { primary: 'hormonal', secondary: 'metabolic' },
+  
+  'glucose': { primary: 'metabolic' },
+  'a1c': { primary: 'metabolic' },
+  'cholesterol': { primary: 'metabolic' },
+  'ldl': { primary: 'metabolic' },
+  'hdl': { primary: 'metabolic' },
+  'triglycerides': { primary: 'metabolic' },
+  'vitamin d': { primary: 'metabolic', secondary: 'inflammatory' },
+};
+
+/**
+ * Classify RAG insights using weighted domain scoring to prevent category starvation
  * 
  * @param relatedMetrics - Array of metric names from RAG insight
  * @returns Insight category (biomarkers, sleep_quality, recovery_hrv, activity_sleep, or general)
@@ -654,35 +718,54 @@ function classifyRAGInsight(relatedMetrics: string[]): string {
     return 'general';
   }
   
-  // Normalize metrics to canonical keys and determine primary domain
-  const { determineHealthDomain } = require('./insightRanking');
-  
-  // HealthKit metric mapping (case-insensitive lookup)
-  // These must match canonical keys in determineHealthDomain()
-  const healthKitMap: Record<string, string> = {
-    'hrv': 'hrv_sdnn_ms',           // → recovery domain
-    'sleep': 'sleep_total_minutes',  // → sleep domain
-    'resting heart rate': 'resting_hr', // → recovery domain
-    'steps': 'steps',                // → performance domain
-    'active energy': 'active_kcal',  // → performance domain
-    'exercise': 'exercise_minutes',  // → performance domain
-    'body fat': 'body_fat_pct',      // → metabolic domain
-    'weight': 'weight',              // → metabolic domain (fixed from weight_kg)
+  // Initialize domain scores
+  const domainScores: Record<string, number> = {
+    'sleep': 0,
+    'recovery': 0,
+    'performance': 0,
+    'metabolic': 0,
+    'hormonal': 0,
+    'inflammatory': 0,
   };
   
-  // Convert metric names to canonical keys for proper classification
-  const canonicalMetrics = relatedMetrics.map(metric => {
-    // First check HealthKit map (case-insensitive)
+  // Score each metric's contribution to different domains
+  for (const metric of relatedMetrics) {
     const lowerMetric = metric.toLowerCase();
-    if (healthKitMap[lowerMetric]) {
-      return healthKitMap[lowerMetric];
-    }
+    const weights = METRIC_DOMAIN_MAP[lowerMetric];
     
-    // If not a known HealthKit metric, treat as biomarker and normalize
-    return biomarkerNameToCanonicalKey(metric);
-  });
+    if (weights) {
+      // Known metric - use weighted scoring
+      domainScores[weights.primary] += 2;
+      if (weights.secondary) {
+        domainScores[weights.secondary] += 1;
+      }
+    } else {
+      // Unknown metric - treat as biomarker and try to infer domain
+      const canonical = biomarkerNameToCanonicalKey(metric);
+      const { determineHealthDomain } = require('./insightRanking');
+      const inferredDomain = determineHealthDomain([canonical]);
+      
+      if (inferredDomain && domainScores.hasOwnProperty(inferredDomain)) {
+        domainScores[inferredDomain] += 1;
+      } else {
+        // Default to metabolic for unknown biomarkers
+        domainScores['metabolic'] += 1;
+      }
+    }
+  }
   
-  const domain = determineHealthDomain(canonicalMetrics);
+  // Find the domain with highest score
+  // In case of ties, prefer sleep/recovery over biomarkers for better category diversity
+  const priorityOrder = ['sleep', 'recovery', 'performance', 'inflammatory', 'hormonal', 'metabolic'];
+  let maxScore = 0;
+  let selectedDomain = 'metabolic';
+  
+  for (const domain of priorityOrder) {
+    if (domainScores[domain] > maxScore) {
+      maxScore = domainScores[domain];
+      selectedDomain = domain;
+    }
+  }
   
   // Map health domain to insight category
   const domainToCategoryMap: Record<string, string> = {
@@ -692,10 +775,9 @@ function classifyRAGInsight(relatedMetrics: string[]): string {
     'hormonal': 'biomarkers',
     'inflammatory': 'biomarkers',
     'performance': 'activity_sleep',
-    'lifestyle': 'general',
   };
   
-  return domainToCategoryMap[domain] || 'general';
+  return domainToCategoryMap[selectedDomain] || 'general';
 }
 
 export function filterRedFreshnessInsights(
