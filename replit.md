@@ -32,34 +32,47 @@ Flō is a mobile-first health analytics platform that uses AI to analyze blood w
 
 **Next Steps**: Deploy to production and validate with real user data, then implement Layer E cross-domain fusion for enhanced disease detection (overlaying infrequent biomarker trends with HealthKit divergence patterns).
 
-### Biomarker Insights & Actionable Recommendations Fix (Nov 23, 2025)
-**Problem**: User reported two critical production issues:
-1. Zero biomarker insights despite having lab data
-2. Missing specific actionable recommendations (no "reduce from X to Y" text)
+### Biomarker Naming Simplification (Nov 23, 2025)
+**Problem**: Complex 70-line alias mapping system was hard to maintain and violated "database as source of truth" principle. Duplicate biomarker names ("Glucose, Fasting" vs "Glucose" vs "Glucose - Fasting") caused matching failures.
 
-**Root Causes**:
-1. **Biomarker name mismatch**: Lab results use names like "CRP, hs" which normalized to "crp_hs", but physiological pathways expected "hs_crp"
-2. **API missing action field**: `/api/daily-insights` didn't include the `action` field in response
-3. **Frontend not displaying**: InsightCard component didn't render actionable recommendations
+**Solution**: Architectural simplification following user's "Keep this simple please!" directive:
 
-**Fixes Applied**:
-1. ✅ **Comprehensive biomarker alias mapping** (`server/services/insightsEngineV2.ts` lines 1015-1077): Added 30+ aliases converting common lab names to pathway variable names:
-   - `"crp_hs" → "hs_crp"` (C-Reactive Protein)
-   - `"glucose_fasting" → "glucose_fasting"` (Fasting Glucose)
-   - `"testosterone_total" → "testosterone_total"` (Testosterone)
-   - `"ldl_cholesterol" → "ldl_cholesterol"` (LDL)
-   - Plus 26 more common biomarker variations
-2. ✅ **API includes action field** (`server/routes.ts` line 5971): Response now includes `action: insight.action`
-3. ✅ **Frontend displays recommendations** (`client/src/components/InsightCard.tsx` lines 122-128): New UI section with Lightbulb icon shows actionable recommendations in teal-highlighted box
-4. ✅ **Type safety** (`client/src/components/RAGInsightsScreen.tsx`): Extended `InsightWithAction` type to include optional `action` field
+**Database Cleanup**:
+1. ✅ Merged duplicate biomarkers into canonical names:
+   - "Glucose, Fasting" + "Glucose - Fasting" → "Glucose" (13 measurements)
+   - "CRP" + "CRP, hs" + "C-Reactive Protein" → "hs-CRP" (10 measurements)
+   - "Testosterone, Total" → "Testosterone" (17 measurements)
+   - "Testosterone, Free" → "Free Testosterone" (16 measurements)
+2. ✅ Database now single source of truth for biomarker names
 
-**Expected Results**:
-- Biomarker insights now generate correctly (e.g., CRP → HRV pathways)
-- Specific recommendations visible: "Reduce body fat from 7.5% to 6.4% (15% reduction) to improve HRV"
-- Backward compatible (action field optional)
-- All 30+ biomarker name variations properly mapped to pathway variables
+**Code Simplification**:
+1. ✅ **Removed 70-line alias mapping** - replaced with simple 5-line normalization function:
+   ```typescript
+   function biomarkerNameToCanonicalKey(name: string): string {
+     return name
+       .toLowerCase()
+       .replace(/[\s\-,()]+/g, '_')  // spaces, hyphens, commas, parens → underscore
+       .replace(/_+/g, '_')          // remove duplicate underscores
+       .replace(/^_|_$/g, '');       // trim leading/trailing underscores
+   }
+   ```
+2. ✅ Updated pathway variables to match simple normalization:
+   - "glucose_fasting" → "glucose" (matches database "Glucose")
+   - Pathways already used "hs_crp" and "estradiol_e2" (correct!)
 
-**Production Ready**: All fixes architect-reviewed and deployed. Ready for production validation.
+**Verification**:
+All current biomarker pathways work correctly:
+- ✅ `"Glucose" → "glucose"` (matches pathway variable)
+- ✅ `"hs-CRP" → "hs_crp"` (matches pathway variable)  
+- ✅ `"Estradiol (E2)" → "estradiol_e2"` (matches pathway variable - parens removed!)
+
+**Benefits**:
+- 70 lines of complexity removed
+- Database is single source of truth
+- No future naming conflicts
+- Easy to maintain and extend
+
+**Production Ready**: Simplification complete and verified. App running without errors.
 
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
