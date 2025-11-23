@@ -1463,8 +1463,143 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info('Biological age calculation failed, continuing without it');
       }
 
+      // Get RAG insights (last 10 days)
+      const { ragInsights, lifeEvents, flomentumScores, healthKitSamples } = await import("@shared/schema");
+      const { db } = await import("./db");
+      const { eq, desc, gte, and } = await import("drizzle-orm");
+      
+      const tenDaysAgo = new Date();
+      tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+      
+      let ragInsightsData: any[] = [];
+      try {
+        ragInsightsData = await db
+          .select()
+          .from(ragInsights)
+          .where(
+            and(
+              eq(ragInsights.userId, userId),
+              gte(ragInsights.createdAt, tenDaysAgo)
+            )
+          )
+          .orderBy(desc(ragInsights.createdAt))
+          .limit(10);
+      } catch (error) {
+        logger.info('RAG insights fetch failed, continuing without them');
+      }
+
+      // Get life events (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      let lifeEventsData: any[] = [];
+      try {
+        lifeEventsData = await db
+          .select()
+          .from(lifeEvents)
+          .where(
+            and(
+              eq(lifeEvents.userId, userId),
+              gte(lifeEvents.timestamp, thirtyDaysAgo)
+            )
+          )
+          .orderBy(desc(lifeEvents.timestamp))
+          .limit(20);
+      } catch (error) {
+        logger.info('Life events fetch failed, continuing without them');
+      }
+
+      // Get Flōmentum data (last 7 days for average)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      let flomentumData: any = null;
+      try {
+        const recentScores = await db
+          .select()
+          .from(flomentumScores)
+          .where(
+            and(
+              eq(flomentumScores.userId, userId),
+              gte(flomentumScores.calculatedAt, sevenDaysAgo)
+            )
+          )
+          .orderBy(desc(flomentumScores.calculatedAt))
+          .limit(7);
+        
+        if (recentScores.length > 0) {
+          const avgScore = recentScores.reduce((sum, s) => sum + (s.totalScore || 0), 0) / recentScores.length;
+          const latestScore = recentScores[0];
+          flomentumData = {
+            current_score: latestScore.totalScore,
+            trend_7d: avgScore,
+            domain_scores: latestScore.domainScores,
+          };
+        }
+      } catch (error) {
+        logger.info('Flōmentum data fetch failed, continuing without it');
+      }
+
+      // Get HealthKit summary (7-day averages)
+      let healthkitSummary: any = null;
+      try {
+        const recentSamples = await db
+          .select()
+          .from(healthKitSamples)
+          .where(
+            and(
+              eq(healthKitSamples.userId, userId),
+              gte(healthKitSamples.startDate, sevenDaysAgo)
+            )
+          )
+          .limit(1000);
+        
+        if (recentSamples.length > 0) {
+          const metricAverages: any = {};
+          const metricTypes = ['steps', 'activeEnergyBurned', 'restingHeartRate', 'heartRateVariabilitySDNN', 'sleepDuration', 'appleStandHours'];
+          
+          for (const metricType of metricTypes) {
+            const samples = recentSamples.filter(s => s.metricType === metricType);
+            if (samples.length > 0) {
+              const avg = samples.reduce((sum, s) => sum + (s.value || 0), 0) / samples.length;
+              metricAverages[metricType] = avg;
+            }
+          }
+          
+          healthkitSummary = {
+            recent_7d_avg: {
+              steps: metricAverages.steps,
+              active_energy: metricAverages.activeEnergyBurned,
+              resting_hr: metricAverages.restingHeartRate,
+              hrv: metricAverages.heartRateVariabilitySDNN,
+              sleep_hours: metricAverages.sleepDuration ? metricAverages.sleepDuration / 3600 : undefined,
+              stand_hours: metricAverages.appleStandHours,
+            },
+          };
+        }
+      } catch (error) {
+        logger.info('HealthKit summary fetch failed, continuing without it');
+      }
+
+      // Check which AI model to use for report generation
+      const { systemSettings } = await import("@shared/schema");
+      
+      let reportModel = 'gpt'; // default
+      try {
+        const [setting] = await db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.settingKey, 'report_ai_model'))
+          .limit(1);
+        
+        if (setting && (setting.settingValue === 'gpt' || setting.settingValue === 'grok')) {
+          reportModel = setting.settingValue;
+        }
+      } catch (error) {
+        logger.info('No report model setting found, using default (GPT)');
+      }
+
       // Build report input
-      const { generateFullHealthReport } = await import("./openai");
       const reportInput = {
         user_profile: {
           age_years: ageYears,
@@ -1474,10 +1609,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         biomarker_panels: panels.slice(0, 3), // Limit to last 3 panels for token budget
         biological_age_data: bioageData,
+        rag_insights: ragInsightsData.map((insight: any) => ({
+          category: insight.category,
+          insightText: insight.insightText,
+          confidence: insight.confidence,
+          evidenceSummary: insight.evidenceSummary,
+          createdAt: insight.createdAt.toISOString(),
+        })),
+        healthkit_summary: healthkitSummary,
+        life_events: lifeEventsData.map((event: any) => ({
+          eventType: event.eventType,
+          eventDetails: event.eventDetails,
+          timestamp: event.timestamp.toISOString(),
+        })),
+        flomentum_data: flomentumData,
       };
 
-      // Generate report
-      const report = await generateFullHealthReport(reportInput);
+      // Generate report with selected model
+      let report;
+      if (reportModel === 'grok') {
+        logger.info('[Report] Generating with Grok-3-mini');
+        const { generateFullHealthReportGrok } = await import("./openai");
+        report = await generateFullHealthReportGrok(reportInput);
+      } else {
+        logger.info('[Report] Generating with GPT-4o');
+        const { generateFullHealthReport } = await import("./openai");
+        report = await generateFullHealthReport(reportInput);
+      }
 
       res.json(report);
 

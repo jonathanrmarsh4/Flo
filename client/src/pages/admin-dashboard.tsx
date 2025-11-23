@@ -10,6 +10,7 @@ import {
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { AdminNotificationConfig } from '@/components/admin/AdminNotificationConfig';
+import { AdminReportModelSettings } from '@/components/admin/AdminReportModelSettings';
 
 interface AdminUserSummary {
   id: string;
@@ -870,11 +871,21 @@ export default function AdminDashboard() {
           <AdminNotificationConfig />
         )}
 
-        {(activeTab === 'billing' || activeTab === 'analytics' || activeTab === 'settings') && (
+        {(activeTab === 'billing' || activeTab === 'analytics') && (
           <div className="rounded-2xl border bg-white/5 border-white/10 p-12 text-center">
             <div className="text-white/50">
               {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} features coming soon
             </div>
+          </div>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <h3 className="text-lg text-white mb-4">
+              System Settings
+            </h3>
+
+            <AdminReportModelSettings />
           </div>
         )}
       </div>

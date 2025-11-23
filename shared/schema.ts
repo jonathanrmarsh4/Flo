@@ -359,6 +359,18 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// System settings table for admin-configurable app settings
+export const systemSettings = pgTable("system_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settingKey: text("setting_key").notNull().unique(),
+  settingValue: text("setting_value").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  keyIdx: uniqueIndex("system_settings_key_idx").on(table.settingKey),
+}));
+
 // Notification system enums and tables
 export const notificationTriggerTypeEnum = pgEnum("notification_trigger_type", [
   "biomarker_out_of_range",
@@ -1283,6 +1295,12 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   createdAt: true,
 });
 
+export const insertSystemSettingsSchema = createInsertSchema(systemSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertOpenaiUsageEventSchema = createInsertSchema(openaiUsageEvents).omit({
   id: true,
   createdAt: true,
@@ -1292,11 +1310,13 @@ export type InsertBillingCustomer = z.infer<typeof insertBillingCustomerSchema>;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type InsertSystemSettings = z.infer<typeof insertSystemSettingsSchema>;
 export type InsertOpenaiUsageEvent = z.infer<typeof insertOpenaiUsageEventSchema>;
 export type BillingCustomer = typeof billingCustomers.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type SystemSettings = typeof systemSettings.$inferSelect;
 export type OpenaiUsageEvent = typeof openaiUsageEvents.$inferSelect;
 
 // Query params validation schemas

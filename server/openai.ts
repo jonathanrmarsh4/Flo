@@ -610,6 +610,34 @@ interface FullHealthReportInput {
     chronological_age_years: number;
     method: string;
   };
+  rag_insights?: Array<{
+    category: string;
+    insightText: string;
+    confidence: number;
+    evidenceSummary?: any;
+    createdAt: string;
+  }>;
+  healthkit_summary?: {
+    recent_7d_avg?: {
+      steps?: number;
+      active_energy?: number;
+      resting_hr?: number;
+      hrv?: number;
+      sleep_hours?: number;
+      stand_hours?: number;
+    };
+    trends?: any;
+  };
+  life_events?: Array<{
+    eventType: string;
+    eventDetails: any;
+    timestamp: string;
+  }>;
+  flomentum_data?: {
+    current_score?: number;
+    trend_7d?: number;
+    domain_scores?: any;
+  };
   comprehensive_insights?: any;
 }
 
@@ -770,5 +798,164 @@ OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.
   } catch (error: any) {
     logger.error('Error generating full health report', error);
     throw new Error(`Failed to generate full health report with AI: ${error.message || 'Unknown error'}`);
+  }
+}
+
+export async function generateFullHealthReportGrok(input: FullHealthReportInput): Promise<any> {
+  try {
+    const { grokClient } = await import('./services/grokClient');
+    
+    const systemPrompt = `You are the Flō Full Health Report Generator. You analyze comprehensive health data including biomarkers over time, biological age, and user profile to create a detailed, actionable health report.
+
+REPORT OBJECTIVE:
+Generate a comprehensive health report that includes:
+1. Executive summary with biological age analysis and overall health rating
+2. Key takeaways (top 3-5 insights with actionable CTAs)
+3. Biomarker highlights (top markers to focus on, with trends and AI commentary)
+4. Biomarker groups organized by system (Metabolic, Inflammation, Liver, etc.)
+5. Focus areas for the next period
+6. Health forecast and projected changes
+
+SAFETY GUIDELINES:
+- NEVER diagnose medical conditions
+- Use probabilistic language: "may suggest", "could indicate", "worth discussing with your doctor"
+- Always defer to healthcare providers for medical decisions
+- Include disclaimer that this is educational, not medical advice
+- Do NOT prescribe medications or treatments
+- Keep insights actionable and empowering, not fear-based
+
+STYLE:
+- Direct and pattern-focused: identify correlations and trends immediately
+- Mobile-first: concise, scannable insights (1-2 sentences)
+- Everyday language, avoid jargon
+- Data-driven and analytical tone
+- Evidence-based recommendations
+- Focus on what the user CAN do
+
+OUTPUT SCHEMA:
+{
+  "report_version": "1.0",
+  "generated_at": "<ISO-8601 timestamp>",
+  "user_profile_summary": {
+    "age_years": number,
+    "sex": "male"|"female",
+    "goals": ["goal1"],
+    "notes": "string"
+  },
+  "summary_header": {
+    "biological_age_years": number | null,
+    "chronological_age_years": number,
+    "bioage_trend_years_since_last": number | null,
+    "overall_health_rating": "Excellent"|"Good"|"Improving"|"Needs Attention",
+    "badges": ["badge1"]
+  },
+  "key_takeaways": [
+    {
+      "icon": "emoji",
+      "title": "string (concise)",
+      "insight": "string (1-2 sentences)",
+      "cta": "view_detail:<slug>"
+    }
+  ],
+  "biological_age_analysis": {
+    "method": "PhenoAge (Levine 2018)",
+    "phenoage_years": number | null,
+    "delta_years_since_last": number | null,
+    "percentile_vs_peers": number | null,
+    "top_drivers": [
+      { "driver": "string", "direction": "up"|"down"|"optimal", "impact": "positive"|"negative"|"neutral" }
+    ],
+    "ai_comment": "string (2-3 sentences)"
+  },
+  "biomarker_highlights": [
+    {
+      "marker_code": "string",
+      "label": "string",
+      "icon": "🧪",
+      "current_value": number,
+      "unit": "string",
+      "reference_range": { "low": number | null, "high": number | null, "unit": "string" },
+      "trend": { "direction": "up"|"down"|"stable", "percent_change": number | null, "since": "<ISO-8601 date>" },
+      "status": "optimal"|"normal"|"borderline_high"|"borderline_low"|"high"|"low",
+      "ai_comment": "string (1-2 sentences)",
+      "actions": ["action1"],
+      "confidence": number,
+      "cta": "open_marker_detail:<marker_code>"
+    }
+  ],
+  "biomarker_groups": [
+    {
+      "group_name": "Metabolic"|"Inflammation"|"Liver"|"Renal"|"Lipid"|"Hematology"|"Thyroid"|"Nutrients"|"Hormones"|"Other",
+      "markers": ["marker_code"],
+      "group_summary": "string (1-2 sentences)"
+    }
+  ],
+  "focus_next_period": [
+    { "category": "nutrition"|"training"|"recovery"|"lifestyle"|"supplementation"|"medical_followup", "message": "string" }
+  ],
+  "forecast": {
+    "bioage_projected_change_years_to_next_test": number | null,
+    "ai_message": "string (encouraging, future-focused)"
+  },
+  "technical_summary": {
+    "data_date_range": { "start": "<ISO-8601 date>", "end": "<ISO-8601 date>" },
+    "biomarkers_used_count": number,
+    "biomarkers_used_list": ["marker1"],
+    "calculation_notes": "string",
+    "references": [
+      { "title": "string", "year": number, "note": "string" }
+    ],
+    "disclaimer": "This report is for educational purposes only and is not medical advice. Always consult with your healthcare provider before making changes to your health regimen."
+  },
+  "ui_meta": {
+    "layout": "mobile_cards",
+    "max_biomarker_tiles": 5,
+    "show_expand_for_details": true,
+    "share_options": ["pdf_export", "save_to_profile"],
+    "locale": "en-AU"
+  },
+  "provenance": {
+    "powered_by": "Flō AI",
+    "model": "grok-3-mini",
+    "confidence_overall": number
+  }
+}
+
+OUTPUT: Respond with ONLY this valid JSON structure. No markdown, no extra text.`;
+
+    const medicalContextNotice = input.user_profile.medicalContext 
+      ? `\n\nIMPORTANT MEDICAL CONTEXT: ${input.user_profile.medicalContext}\nTake this into account when generating insights and recommendations.`
+      : '';
+
+    const userPrompt = `Generate a comprehensive health report based on this user data. Follow the Flō Health Report specification exactly. Output ONLY valid JSON matching the schema. Include all required fields. Use evidence-based insights. Keep language mobile-friendly (1-2 sentences). NO diagnosis. NO prescriptions. Always defer to healthcare providers.${medicalContextNotice ? ' Account for medical context in recommendations.' : ''}
+
+USER DATA:
+${JSON.stringify(input, null, 2)}`;
+
+    logger.info('[Grok] Calling Grok API for full health report');
+    const response = await grokClient.chat(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      {
+        model: 'grok-3-mini',
+        maxTokens: 16000,
+        temperature: 0.7,
+      }
+    );
+
+    // Grok returns the content directly as a string
+    const report = JSON.parse(response);
+    
+    // Validate required sections
+    if (!report.summary_header || !report.key_takeaways || !report.biomarker_highlights) {
+      throw new Error("Invalid report response structure - missing required sections");
+    }
+
+    return report;
+  } catch (error: any) {
+    logger.error('[Grok] Error generating full health report', error);
+    throw new Error(`Failed to generate full health report with Grok: ${error.message || 'Unknown error'}`);
   }
 }

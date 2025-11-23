@@ -7,9 +7,10 @@ import Stripe from "stripe";
 import { generateInsightCards } from "../services/correlationEngine";
 import { syncBloodWorkEmbeddings, syncHealthKitEmbeddings } from "../services/embeddingService";
 import { db } from "../db";
-import { userDailyMetrics, bloodWorkRecords } from "@shared/schema";
+import { userDailyMetrics, bloodWorkRecords, systemSettings, insertSystemSettingsSchema } from "@shared/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { generateDailyReminder } from "../services/dailyReminderService";
+import { fromError } from "zod-validation-error";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -387,6 +388,78 @@ export function registerAdminRoutes(app: Express) {
         error: "Failed to generate insights",
         message: error.message 
       });
+    }
+  });
+
+  // System settings management
+  app.get('/api/admin/settings', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const settingKey = req.query.key as string | undefined;
+
+      if (settingKey) {
+        // Get specific setting
+        const [setting] = await db
+          .select()
+          .from(systemSettings)
+          .where(eq(systemSettings.settingKey, settingKey))
+          .limit(1);
+
+        if (!setting) {
+          return res.status(404).json({ error: "Setting not found" });
+        }
+
+        res.json(setting);
+      } else {
+        // Get all settings
+        const settings = await db
+          .select()
+          .from(systemSettings)
+          .orderBy(systemSettings.settingKey);
+
+        res.json(settings);
+      }
+    } catch (error) {
+      logger.error('[Admin] Error fetching system settings:', error);
+      res.status(500).json({ error: "Failed to fetch system settings" });
+    }
+  });
+
+  app.post('/api/admin/settings', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+
+      // Validate request body
+      const validationResult = insertSystemSettingsSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { settingKey, settingValue, description } = validationResult.data;
+
+      // Upsert setting (insert or update if exists)
+      const [setting] = await db
+        .insert(systemSettings)
+        .values({
+          settingKey,
+          settingValue,
+          description,
+        })
+        .onConflictDoUpdate({
+          target: systemSettings.settingKey,
+          set: {
+            settingValue,
+            description,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      logger.info(`[Admin] System setting updated: ${settingKey} by ${adminId}`);
+      res.json(setting);
+    } catch (error) {
+      logger.error('[Admin] Error updating system setting:', error);
+      res.status(500).json({ error: "Failed to update system setting" });
     }
   });
 }
