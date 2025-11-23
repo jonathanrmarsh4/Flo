@@ -1473,9 +1473,7 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     
     logger.info(`[InsightsEngineV2] Selected ${topInsights.length} top insights`);
     
-    // Step 6.5: Fetch user context for AI generation
-    logger.info('[InsightsEngineV2] Fetching user context for AI insights');
-    const userContext = await getUserContext(userId.toString());
+    // Step 6.5: User context already fetched earlier for RAG (line 1405)
     logger.info(`[InsightsEngineV2] User context: Age ${userContext.age}, Sex ${userContext.sex}, Body fat ${userContext.bodyComposition.bodyFatPct}%`);
     
     // Step 7: Generate natural language using AI

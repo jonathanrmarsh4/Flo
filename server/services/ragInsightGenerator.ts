@@ -81,11 +81,21 @@ export function detectDataChanges(
     const recentWeek = dailyMetrics.slice(0, 7);
     const previousWeek = dailyMetrics.slice(7, 14);
     
-    const metricNames = ['hrv', 'sleepDuration', 'restingHeartRate', 'steps', 'activeEnergy'];
+    // Map to actual database field names (from healthDailyMetrics table via fetchHealthData())
+    const metricMappings = [
+      { displayName: 'HRV', fieldName: 'hrvSdnnMs', unit: 'ms' },
+      { displayName: 'Sleep', fieldName: 'sleepTotalMinutes', unit: 'minutes' },
+      { displayName: 'Resting Heart Rate', fieldName: 'restingHr', unit: 'bpm' },
+      { displayName: 'Steps', fieldName: 'steps', unit: 'steps' },
+      { displayName: 'Active Energy', fieldName: 'activeKcal', unit: 'kcal' },
+      { displayName: 'Exercise', fieldName: 'exerciseMinutes', unit: 'minutes' },
+      { displayName: 'Body Fat', fieldName: 'bodyFatPct', unit: '%' },
+      { displayName: 'Weight', fieldName: 'weightKg', unit: 'kg' },
+    ];
     
-    for (const metricName of metricNames) {
-      const recentAvg = average(recentWeek.map((m: any) => m[metricName as keyof typeof m] as number).filter((v: number) => v !== null && !isNaN(v)));
-      const previousAvg = average(previousWeek.map((m: any) => m[metricName as keyof typeof m] as number).filter((v: number) => v !== null && !isNaN(v)));
+    for (const mapping of metricMappings) {
+      const recentAvg = average(recentWeek.map((m: any) => m[mapping.fieldName]).filter((v: any) => v !== null && v !== undefined && !isNaN(v)));
+      const previousAvg = average(previousWeek.map((m: any) => m[mapping.fieldName]).filter((v: any) => v !== null && v !== undefined && !isNaN(v)));
       
       if (recentAvg !== null && previousAvg !== null && previousAvg !== 0) {
         const percentChange = ((recentAvg - previousAvg) / previousAvg) * 100;
@@ -93,11 +103,12 @@ export function detectDataChanges(
         // Only include significant changes (>10% for HealthKit metrics)
         if (Math.abs(percentChange) > 10) {
           changes.push({
-            metric: metricName,
+            metric: mapping.displayName,
             previous: previousAvg,
             current: recentAvg,
             percentChange,
             direction: percentChange > 0 ? 'increase' : 'decrease',
+            unit: mapping.unit,
           });
         }
       }
