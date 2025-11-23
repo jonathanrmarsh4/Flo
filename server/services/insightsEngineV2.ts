@@ -90,7 +90,7 @@ export interface HealthDataSnapshot {
  * Fetch comprehensive health data for a user
  * Includes past 90 days of HealthKit, blood work, and life events
  */
-export async function fetchHealthData(userId: number): Promise<HealthDataSnapshot> {
+export async function fetchHealthData(userId: string): Promise<HealthDataSnapshot> {
   const ninetyDaysAgo = subDays(new Date(), 90);
   
   // Fetch HealthKit samples (past 90 days)
@@ -167,7 +167,7 @@ export async function fetchHealthData(userId: number): Promise<HealthDataSnapsho
       remSleep: null, // Not in schema
       steps: m.steps || null,
       restingHeartRate: m.restingHr || null,
-      activeEnergy: m.activeEnergyKcal || null,
+      activeEnergy: m.activeKcal || null,
     })),
     biomarkers: rawBiomarkers.map(b => ({
       ...b,
@@ -192,7 +192,7 @@ export async function fetchHealthData(userId: number): Promise<HealthDataSnapsho
  * Returns all hard-coded science pathways with real data timestamps
  */
 export function generateLayerAInsights(
-  userId: number,
+  userId: string,
   healthData: HealthDataSnapshot
 ): InsightCandidate[] {
   const insights: InsightCandidate[] = [];
@@ -244,7 +244,7 @@ export function generateLayerAInsights(
  * add the correlation computation step.
  */
 export function generateLayerBInsights(
-  userId: number,
+  userId: string,
   healthData: HealthDataSnapshot
 ): InsightCandidate[] {
   const insights: InsightCandidate[] = [];
@@ -298,7 +298,7 @@ export function generateLayerBInsights(
  * Analyzes life events with dosage tracking to find dose-response relationships
  */
 export function generateLayerCInsights(
-  userId: number,
+  userId: string,
   healthData: HealthDataSnapshot
 ): InsightCandidate[] {
   const insights: InsightCandidate[] = [];
@@ -397,7 +397,7 @@ export function generateLayerCInsights(
  * in a pattern explained by stale biomarkers (yellow/red freshness)
  */
 export function generateLayerDInsights(
-  userId: number,
+  userId: string,
   healthData: HealthDataSnapshot
 ): InsightCandidate[] {
   const insights: InsightCandidate[] = [];
@@ -604,7 +604,7 @@ export function generateInsightNarrative(
  * @param forceRegenerate - Force regeneration even if insights exist for today
  * @returns Array of generated insights
  */
-export async function generateDailyInsights(userId: number, forceRegenerate: boolean = false): Promise<GeneratedInsight[]> {
+export async function generateDailyInsights(userId: string, forceRegenerate: boolean = false): Promise<GeneratedInsight[]> {
   logger.info(`[InsightsEngineV2] Generating insights for user ${userId}`);
   
   try {

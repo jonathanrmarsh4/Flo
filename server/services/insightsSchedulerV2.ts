@@ -19,7 +19,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { generateDailyInsights } from './insightsEngineV2';
 
 let cronTask: ReturnType<typeof cron.schedule> | null = null;
-const runningGenerations = new Set<number>(); // Track running insight generations for idempotency
+const runningGenerations = new Set<string>(); // Track running insight generations for idempotency
 
 /**
  * Determine if it's 06:00 in the user's timezone
@@ -81,12 +81,7 @@ async function processInsightsGeneration() {
     
     // Generate insights for eligible users
     for (const user of eligibleUsers) {
-      // Validate userId parsing
-      const userId = parseInt(user.id, 10);
-      if (isNaN(userId)) {
-        logger.error(`[InsightsV2Scheduler] Invalid user ID: ${user.id}, skipping`);
-        continue;
-      }
+      const userId = user.id; // User IDs are UUIDs (strings)
       
       // Check if already running for this user (idempotency lock)
       if (runningGenerations.has(userId)) {

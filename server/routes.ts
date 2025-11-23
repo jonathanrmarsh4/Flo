@@ -6119,10 +6119,7 @@ ${userContext}`;
       logger.info(`[DailyInsightsV2] Force generating insights for user ${userId} (type: ${typeof userId})`);
       const startTime = Date.now();
       
-      const userIdNum = parseInt(userId, 10);
-      logger.info(`[DailyInsightsV2] Parsed user ID: ${userIdNum} (isNaN: ${isNaN(userIdNum)})`);
-      
-      const insights = await generateDailyInsights(userIdNum);
+      const insights = await generateDailyInsights(userId);
       const duration = Date.now() - startTime;
 
       res.json({ 
