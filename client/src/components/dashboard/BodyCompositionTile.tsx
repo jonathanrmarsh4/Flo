@@ -174,38 +174,26 @@ export function BodyCompositionTile({
             <>
               {/* Visual breakdown bar */}
               <div data-testid="body-comp-visualization">
-                <div className={`text-xs mb-2 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                <div className={`text-xs mb-1 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                   Body Composition
                 </div>
-                <div className="relative h-8 rounded-full overflow-hidden flex">
+                <div className={`h-1.5 rounded-full ${isDark ? 'bg-white/10' : 'bg-gray-200'} flex overflow-hidden`}>
                   {/* Lean Mass (left side) */}
                   <div 
-                    className="bg-blue-500 transition-all duration-500 ease-out flex items-center justify-center"
+                    className="bg-blue-500 transition-all duration-500 ease-out"
                     style={{ width: `${leanPercent}%` }}
-                  >
-                    {leanPercent! > 20 && (
-                      <span className="text-xs font-medium text-white">
-                        {leanPercent!.toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
+                  />
                   {/* Body Fat (right side) */}
                   <div 
-                    className="bg-orange-500 transition-all duration-500 ease-out flex items-center justify-center"
+                    className="bg-orange-500 transition-all duration-500 ease-out"
                     style={{ width: `${bodyFatPct}%` }}
-                  >
-                    {bodyFatPct! > 20 && (
-                      <span className="text-xs font-medium text-white">
-                        {bodyFatPct!.toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
+                  />
                 </div>
               </div>
 
               {/* Lean Body Mass */}
-              <div className="mt-4" data-testid="metric-lean-mass">
-                <div className="flex items-center justify-between">
+              <div data-testid="metric-lean-mass">
+                <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-blue-500" />
                     <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
@@ -213,15 +201,15 @@ export function BodyCompositionTile({
                     </span>
                     {renderSourceBadge(snapshot?.leanMassSource || null)}
                   </div>
-                  <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-xs font-medium ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
                     {leanPercent!.toFixed(1)}%
                   </span>
                 </div>
               </div>
 
               {/* Body Fat Mass */}
-              <div className="mt-4" data-testid="metric-body-fat">
-                <div className="flex items-center justify-between">
+              <div data-testid="metric-body-fat">
+                <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-orange-500" />
                     <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
@@ -229,7 +217,7 @@ export function BodyCompositionTile({
                     </span>
                     {renderSourceBadge(snapshot?.bodyFatSource || null)}
                   </div>
-                  <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-xs font-medium ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
                     {bodyFatPct!.toFixed(1)}%
                   </span>
                 </div>
