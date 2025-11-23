@@ -303,7 +303,14 @@ function calculateUserMetrics(
       let baselineValues: number[] = [];
       let baselineWindow = '';
       
-      // Try 10-day baseline first (for testing with 11 days of data)
+      // Try 30-day baseline first (preferred for users with long history)
+      if (baselineValues.length === 0 && healthData.dailyMetrics.length >= 37) {
+        const candidateData = healthData.dailyMetrics.slice(30, 37);
+        baselineValues = candidateData.map(m => m[fieldName]).filter((v): v is number => v !== null);
+        if (baselineValues.length > 0) baselineWindow = '30-37 days ago';
+      }
+      
+      // Fall back to 10-day baseline (for testing with 11 days of data)
       if (baselineValues.length === 0 && healthData.dailyMetrics.length >= 10) {
         const candidateData = healthData.dailyMetrics.slice(7, 10);
         baselineValues = candidateData.map(m => m[fieldName]).filter((v): v is number => v !== null);
@@ -324,13 +331,22 @@ function calculateUserMetrics(
         const baselineAvg = baselineValues.length > 0
           ? baselineValues.reduce((a, b) => a + b, 0) / baselineValues.length
           : null;
-        const percentChange = baselineAvg
-          ? ((currentAvg - baselineAvg) / baselineAvg) * 100
-          : null;
+        
+        // CRITICAL FIX: Guard against division by zero for percent change
+        let percentChange: number | null = null;
+        if (baselineAvg !== null) {
+          if (baselineAvg === 0) {
+            // Handle zero baseline: 0→0 is 0% change, 0→X can't be calculated as percent
+            percentChange = (currentAvg === 0) ? 0 : null;
+          } else {
+            // Normal percent change calculation
+            percentChange = ((currentAvg - baselineAvg) / baselineAvg) * 100;
+          }
+        }
         
         // DEBUG LOGGING: Track metric calculation for insights quality
         if (baselineAvg !== null) {
-          logger.debug(`[UserMetrics] ${varName}: current=${currentAvg.toFixed(1)} (last 3d), baseline=${baselineAvg.toFixed(1)} (${baselineWindow}), change=${percentChange?.toFixed(1)}%`);
+          logger.debug(`[UserMetrics] ${varName}: current=${currentAvg.toFixed(1)} (last 3d), baseline=${baselineAvg.toFixed(1)} (${baselineWindow}), change=${percentChange !== null ? percentChange.toFixed(1) : 'null'}%`);
         } else {
           logger.debug(`[UserMetrics] ${varName}: current=${currentAvg.toFixed(1)}, baseline=null (no valid historical data in any window)`);
         }
@@ -341,8 +357,8 @@ function calculateUserMetrics(
         return {
           variable: varName,
           currentAvg: Math.round(currentAvg * 10) / 10,
-          baselineAvg: baselineAvg ? Math.round(baselineAvg * 10) / 10 : null,
-          percentChange: percentChange ? Math.round(percentChange) : null,
+          baselineAvg: baselineAvg !== null ? Math.round(baselineAvg * 10) / 10 : null,
+          percentChange: percentChange !== null ? Math.round(percentChange) : null,
           unit: unitMap[varName] || '',
           daysSinceData,
           dataSource: 'HealthKit',
@@ -350,18 +366,56 @@ function calculateUserMetrics(
       }
     }
     
-    // Try biomarkers
-    const biomarker = healthData.biomarkers.find(b => 
-      b.name.toLowerCase().replace(/\s+/g, '_') === varName
+    // Try biomarkers with historical baseline calculation
+    const biomarkerHistory = healthData.biomarkers.filter(b => 
+      biomarkerNameToCanonicalKey(b.name) === varName
     );
-    if (biomarker) {
-      const daysSinceData = differenceInDays(now, biomarker.testDate);
+    
+    if (biomarkerHistory.length > 0) {
+      // Sort by testDate descending (newest first)
+      biomarkerHistory.sort((a, b) => b.testDate.getTime() - a.testDate.getTime());
+      
+      const mostRecent = biomarkerHistory[0];
+      const daysSinceData = differenceInDays(now, mostRecent.testDate);
+      
+      // Calculate baseline from older tests (skip most recent)
+      let baselineAvg: number | null = null;
+      let percentChange: number | null = null;
+      
+      if (biomarkerHistory.length > 1) {
+        // Use tests from 30+ days ago as baseline, or older tests if not enough
+        const baselineTests = biomarkerHistory.slice(1).filter(b => 
+          differenceInDays(mostRecent.testDate, b.testDate) >= 30
+        );
+        
+        // Fall back to just using the previous test if no 30+ day baseline
+        const testsToAverage = baselineTests.length > 0 ? baselineTests : biomarkerHistory.slice(1, 3);
+        
+        if (testsToAverage.length > 0) {
+          baselineAvg = testsToAverage.reduce((sum, b) => sum + b.value, 0) / testsToAverage.length;
+          
+          // CRITICAL FIX: Guard against division by zero for percent change
+          if (baselineAvg === 0) {
+            // Handle zero baseline: 0→0 is 0% change, 0→X can't be calculated as percent
+            percentChange = (mostRecent.value === 0) ? 0 : null;
+            const changeText = percentChange !== null ? `${percentChange.toFixed(1)}% (stable at zero)` : 'null (can\'t calculate % from zero baseline)';
+            logger.debug(`[UserMetrics] Biomarker ${varName}: current=${mostRecent.value.toFixed(1)} (${mostRecent.testDate.toISOString().split('T')[0]}), baseline=0 (${testsToAverage.length} older tests), change=${changeText}`);
+          } else {
+            // Normal percent change calculation
+            percentChange = ((mostRecent.value - baselineAvg) / baselineAvg) * 100;
+            logger.debug(`[UserMetrics] Biomarker ${varName}: current=${mostRecent.value.toFixed(1)} (${mostRecent.testDate.toISOString().split('T')[0]}), baseline=${baselineAvg.toFixed(1)} (${testsToAverage.length} older tests), change=${percentChange.toFixed(1)}%`);
+          }
+        }
+      } else {
+        logger.debug(`[UserMetrics] Biomarker ${varName}: current=${mostRecent.value.toFixed(1)} (${mostRecent.testDate.toISOString().split('T')[0]}), baseline=null (only 1 test in history)`);
+      }
+      
       return {
         variable: varName,
-        currentAvg: biomarker.value,
-        baselineAvg: null, // No historical biomarker data
-        percentChange: null,
-        unit: biomarker.unit,
+        currentAvg: Math.round(mostRecent.value * 10) / 10,
+        baselineAvg: baselineAvg !== null ? Math.round(baselineAvg * 10) / 10 : null,
+        percentChange: percentChange !== null ? Math.round(percentChange) : null,
+        unit: mostRecent.unit,
         daysSinceData,
         dataSource: 'Labs',
       };
