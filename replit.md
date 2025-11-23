@@ -3,6 +3,35 @@
 ## Overview
 Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It offers a dashboard with four intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics, integrates OpenAI's GPT models and Apple HealthKit, and features **Flō Oracle** – a Grok-powered voice chat coach for real-time health insights. The platform includes a **Stripe-powered subscription system** with FREE and PREMIUM tiers, providing feature gating and upgrade prompts. Its core purpose is to deliver trusted, clear, and actionable health information, delivering deep health insights and market potential in personalized wellness.
 
+## Recent Changes
+
+### Daily Insights Engine v2.0 - Baseline Calculation Fix (Nov 23, 2025)
+**Problem**: After ~10 fixes, insights became generic with no trends, baselines, percent changes, or biomarker data.
+
+**Root Causes Identified**:
+1. Overly strict 30-day baseline requirement (user had only 11 days of data)
+2. Truthy checks treating zero/near-zero values as null
+3. Biomarker baselines hardcoded to null instead of using historical lab tests
+4. Division by zero creating Infinity values
+5. Stable-at-zero metrics (0→0) reported as null instead of 0%
+
+**Fixes Applied** (`server/services/insightsEngineV2.ts`):
+1. ✅ Flexible HealthKit baseline windows with 30d → 10d → 7d cascade (lines 309-328)
+2. ✅ Biomarker historical baseline calculation from all previous lab tests (lines 376-410)
+3. ✅ Biomarker name normalization using `biomarkerNameToCanonicalKey()` (line 458)
+4. ✅ Explicit `!== null` checks instead of truthy checks (both HealthKit and biomarkers)
+5. ✅ Division by zero guards: 0→0 = 0% change, 0→X = null (lines 340-348, 401-410)
+6. ✅ Comprehensive debug logging for all metrics calculations
+
+**Expected Results**:
+- Rich insights with 7-30 day trends and baselines
+- Biomarker insights showing historical trends from quarterly lab tests (1-4x/year)
+- Percent changes preserved for stable/zero-value metrics
+- Specific targets and recommendations in NLG output
+- Cross-domain insights overlaying infrequent biomarker trends with HealthKit data for disease detection
+
+**Next Steps**: Deploy to production and validate with real user data, then implement Layer E cross-domain fusion for enhanced disease detection (overlaying infrequent biomarker trends with HealthKit divergence patterns).
+
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
 - Development Environment: User is working and testing exclusively in PRODUCTION. All bug reports and observations are from the live production app. The iOS app loads frontend from `https://get-flo.com`, so any frontend changes must be deployed to production to be visible in the mobile app.
