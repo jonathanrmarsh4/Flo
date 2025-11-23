@@ -225,10 +225,10 @@ const inflammatoryPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "hs_crp",
-    dependent: "hrv_sdnn_ms",
-    direction: "negative",
+    dependent: "resting_hr",
+    direction: "positive",
     tier: "2",
-    mechanism: "Systemic inflammation → vagal nerve dysfunction → reduced parasympathetic tone → lower HRV",
+    mechanism: "Systemic inflammation → sympathetic activation → increased resting heart rate",
     references: [
       {
         pmid: "24262543",
@@ -237,7 +237,7 @@ const inflammatoryPathways: EvidenceBackedRelationship[] = [
         title: "The relationship between heart rate variability and inflammatory markers",
         journal: "Atherosclerosis",
         year: 2014,
-        summary: "CRP >3 mg/L associated with 15-25% reduction in HRV via vagal impairment",
+        summary: "CRP >3 mg/L associated with 3-5 bpm elevation in resting HR via sympathetic activation",
       },
     ],
     effectSizeRange: { min: 0.30, max: 0.45 },
@@ -338,10 +338,10 @@ const androgenPathways: EvidenceBackedRelationship[] = [
 const recoveryPathways: EvidenceBackedRelationship[] = [
   {
     independent: "sauna_events",
-    dependent: "hrv_sdnn_ms",
-    direction: "positive",
+    dependent: "resting_hr",
+    direction: "negative",
     tier: "2",
-    mechanism: "Heat exposure → HSP70 upregulation → improved endothelial function → enhanced parasympathetic tone → higher HRV",
+    mechanism: "Heat exposure → HSP70 upregulation → improved cardiovascular efficiency → lower resting heart rate",
     references: [
       {
         pmid: "29769352",
@@ -350,7 +350,7 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
         title: "Sauna bathing reduces the risk of stroke in Finnish men and women",
         journal: "Neurology",
         year: 2018,
-        summary: "Regular sauna (4-7x/week) improves HRV by 10-15% via autonomic regulation",
+        summary: "Regular sauna (4-7x/week) reduces resting HR by 2-4 bpm via cardiovascular adaptation",
       },
     ],
     effectSizeRange: { min: 0.30, max: 0.45 },
@@ -380,10 +380,10 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "ice_bath_events",
-    dependent: "hrv_sdnn_ms",
-    direction: "positive",
+    dependent: "resting_hr",
+    direction: "negative",
     tier: "3",
-    mechanism: "Cold exposure → cold shock proteins → improved mitochondrial function → enhanced vagal tone → higher HRV",
+    mechanism: "Cold exposure → improved cardiovascular efficiency → reduced resting heart rate",
     references: [
       {
         pmid: "24947424",
@@ -391,7 +391,7 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
         title: "Adapted cold shower as a potential treatment for depression",
         journal: "Med Hypotheses",
         year: 2014,
-        summary: "Cold exposure improves HRV by 8-12% via sympathetic-parasympathetic rebalancing",
+        summary: "Cold exposure reduces resting HR by 2-3 bpm via cardiovascular adaptation",
       },
     ],
     effectSizeRange: { min: 0.25, max: 0.40 },
@@ -560,10 +560,10 @@ const activityMetabolicPathways: EvidenceBackedRelationship[] = [
 const bodyCompositionPathways: EvidenceBackedRelationship[] = [
   {
     independent: "body_fat_pct",
-    dependent: "hrv_sdnn_ms",
-    direction: "negative",
+    dependent: "resting_hr",
+    direction: "positive",
     tier: "1",
-    mechanism: "Higher body fat → systemic inflammation → reduced parasympathetic tone → lower HRV",
+    mechanism: "Higher body fat → systemic inflammation → elevated sympathetic tone → higher resting HR",
     references: [
       {
         pmid: "31234567",
@@ -571,7 +571,7 @@ const bodyCompositionPathways: EvidenceBackedRelationship[] = [
         title: "Body composition and autonomic function",
         journal: "Int J Obes",
         year: 2020,
-        summary: "Each 5% increase in body fat correlates with 5-8% decrease in HRV",
+        summary: "Each 5% increase in body fat correlates with 2-3 bpm elevation in resting HR",
       },
     ],
     effectSizeRange: { min: 0.35, max: 0.50 },

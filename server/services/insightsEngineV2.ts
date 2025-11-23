@@ -825,7 +825,9 @@ export function generateLayerDInsights(
     
     if (deviations.length === 0) {
       logger.info('[Layer D] No significant metric deviations detected');
-      return [];
+      logger.info('[Layer D] No stale-lab warnings detected');
+      // Return out-of-range biomarker insights (don't lose them!)
+      return insights;
     }
     
     // Step 3: Prepare biomarker data with freshness using buildStaleBiomarker helper
@@ -848,7 +850,8 @@ export function generateLayerDInsights(
     
     if (staleLabWarnings.length === 0) {
       logger.info('[Layer D] No stale-lab warnings detected');
-      return [];
+      // Return out-of-range biomarker insights (don't lose them!)
+      return insights;
     }
     
     // Step 5: Convert to InsightCandidate format
