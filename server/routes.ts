@@ -5963,13 +5963,12 @@ ${userContext}`;
         userId: insight.userId,
         category: insight.category,
         pattern: insight.title, // Map title -> pattern
-        confidence: insight.confidenceScore / 100, // Convert 0-100 to 0-1
+        confidence: insight.confidenceScore, // Already 0-1 range from scoring functions
         supportingData: insight.body, // Map body -> supportingData
         details: insight.details,
         isNew: insight.isNew,
         isActive: !insight.isDismissed,
         createdAt: insight.createdAt,
-        updatedAt: insight.updatedAt,
       }));
 
       res.json({
