@@ -32,6 +32,35 @@ Flō is a mobile-first health analytics platform that uses AI to analyze blood w
 
 **Next Steps**: Deploy to production and validate with real user data, then implement Layer E cross-domain fusion for enhanced disease detection (overlaying infrequent biomarker trends with HealthKit divergence patterns).
 
+### Biomarker Insights & Actionable Recommendations Fix (Nov 23, 2025)
+**Problem**: User reported two critical production issues:
+1. Zero biomarker insights despite having lab data
+2. Missing specific actionable recommendations (no "reduce from X to Y" text)
+
+**Root Causes**:
+1. **Biomarker name mismatch**: Lab results use names like "CRP, hs" which normalized to "crp_hs", but physiological pathways expected "hs_crp"
+2. **API missing action field**: `/api/daily-insights` didn't include the `action` field in response
+3. **Frontend not displaying**: InsightCard component didn't render actionable recommendations
+
+**Fixes Applied**:
+1. ✅ **Comprehensive biomarker alias mapping** (`server/services/insightsEngineV2.ts` lines 1015-1077): Added 30+ aliases converting common lab names to pathway variable names:
+   - `"crp_hs" → "hs_crp"` (C-Reactive Protein)
+   - `"glucose_fasting" → "glucose_fasting"` (Fasting Glucose)
+   - `"testosterone_total" → "testosterone_total"` (Testosterone)
+   - `"ldl_cholesterol" → "ldl_cholesterol"` (LDL)
+   - Plus 26 more common biomarker variations
+2. ✅ **API includes action field** (`server/routes.ts` line 5971): Response now includes `action: insight.action`
+3. ✅ **Frontend displays recommendations** (`client/src/components/InsightCard.tsx` lines 122-128): New UI section with Lightbulb icon shows actionable recommendations in teal-highlighted box
+4. ✅ **Type safety** (`client/src/components/RAGInsightsScreen.tsx`): Extended `InsightWithAction` type to include optional `action` field
+
+**Expected Results**:
+- Biomarker insights now generate correctly (e.g., CRP → HRV pathways)
+- Specific recommendations visible: "Reduce body fat from 7.5% to 6.4% (15% reduction) to improve HRV"
+- Backward compatible (action field optional)
+- All 30+ biomarker name variations properly mapped to pathway variables
+
+**Production Ready**: All fixes architect-reviewed and deployed. Ready for production validation.
+
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
 - Development Environment: User is working and testing exclusively in PRODUCTION. All bug reports and observations are from the live production app. The iOS app loads frontend from `https://get-flo.com`, so any frontend changes must be deployed to production to be visible in the mobile app.
