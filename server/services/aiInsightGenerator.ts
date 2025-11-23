@@ -245,12 +245,21 @@ function buildUserContextSummary(context: UserContext): string {
   if (context.bodyComposition.weightKg !== null) {
     parts.push(`Weight: ${context.bodyComposition.weightKg.toFixed(1)}kg`);
   }
+  
+  // BMI and weight category
+  if (context.bodyComposition.bmi !== null) {
+    const bmi = context.bodyComposition.bmi;
+    const bmiCategory = bmi < 18.5 ? 'UNDERWEIGHT (⚠️ DO NOT recommend weight loss)' :
+                       bmi < 25 ? 'Healthy Weight' :
+                       bmi < 30 ? 'Overweight' : 'Obese';
+    parts.push(`BMI: ${bmi.toFixed(1)} (${bmiCategory})`);
+  }
 
   if (context.bodyComposition.bodyFatPct !== null) {
     const fatPct = context.bodyComposition.bodyFatPct;
     const category = context.sex === 'Male' 
-      ? (fatPct < 10 ? 'very lean' : fatPct < 15 ? 'lean' : fatPct < 20 ? 'fit' : fatPct < 25 ? 'average' : 'high')
-      : (fatPct < 18 ? 'very lean' : fatPct < 22 ? 'lean' : fatPct < 28 ? 'fit' : fatPct < 32 ? 'average' : 'high');
+      ? (fatPct < 10 ? 'very lean (⚠️ DO NOT recommend fat loss)' : fatPct < 15 ? 'lean (⚠️ DO NOT recommend fat loss)' : fatPct < 20 ? 'fit' : fatPct < 25 ? 'average' : 'high')
+      : (fatPct < 18 ? 'very lean (⚠️ DO NOT recommend fat loss)' : fatPct < 22 ? 'lean (⚠️ DO NOT recommend fat loss)' : fatPct < 28 ? 'fit' : fatPct < 32 ? 'average' : 'high');
     
     parts.push(`Body Fat: ${fatPct.toFixed(1)}% (${category})`);
   }
@@ -291,10 +300,34 @@ function buildBaselineSummary(baselines: BaselineData[]): string {
 }
 
 function buildCorrelationSummary(candidate: InsightCandidate): string {
+  const parts: string[] = [];
+  
+  // Variables and direction
   const direction = candidate.direction === 'positive' ? 'increases' : 'decreases';
-  const strength = candidate.effectSize 
-    ? (Math.abs(candidate.effectSize) > 0.6 ? 'strong' : Math.abs(candidate.effectSize) > 0.4 ? 'moderate' : 'weak')
-    : 'notable';
-
-  return `When ${candidate.independent} ${direction}, ${candidate.dependent} also changes (${strength} ${candidate.direction} relationship).`;
+  parts.push(`When ${candidate.independent} ${direction}, ${candidate.dependent} also changes`);
+  
+  // Effect size (quantitative)
+  if (candidate.effectSize !== null) {
+    const strength = Math.abs(candidate.effectSize) > 0.6 ? 'strong' : 
+                    Math.abs(candidate.effectSize) > 0.4 ? 'moderate' : 'weak';
+    parts.push(`Effect Size: ${candidate.effectSize.toFixed(3)} (${strength} ${candidate.direction} relationship)`);
+  }
+  
+  // Deviation percent (for anomaly detection)
+  if (candidate.deviationPercent !== null) {
+    parts.push(`Deviation: ${candidate.deviationPercent.toFixed(1)}% from baseline`);
+  }
+  
+  // Confidence score
+  if (candidate.confidenceScore) {
+    parts.push(`Statistical Confidence: ${(candidate.confidenceScore * 100).toFixed(1)}%`);
+  }
+  
+  // Layer type
+  const layerDesc = candidate.layer === 'A' ? 'Physiological Pathway' :
+                   candidate.layer === 'B' ? 'Bayesian Correlation (Personal Data)' :
+                   candidate.layer === 'C' ? 'Dose-Response Analysis' : 'Anomaly Detection';
+  parts.push(`Analysis Type: ${layerDesc}`);
+  
+  return parts.join('\n');
 }

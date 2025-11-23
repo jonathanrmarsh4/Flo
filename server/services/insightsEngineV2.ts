@@ -958,13 +958,14 @@ export function convertToRankedInsight(candidate: InsightCandidate): RankedInsig
 
 /**
  * Extract baseline data for variables from health data
+ * Handles both HealthKit metrics AND biomarkers
  */
 function extractBaselines(variables: string[], healthData: HealthDataSnapshot): BaselineData[] {
   const baselines: BaselineData[] = [];
   
   for (const varName of variables) {
-    // Find relevant data points for this variable
-    const varData = healthData.dailyMetrics
+    // Try HealthKit daily metrics first
+    const healthkitData = healthData.dailyMetrics
       .map(d => {
         // Map variable names to daily metrics fields
         const fieldMap: Record<string, keyof typeof d> = {
@@ -993,41 +994,78 @@ function extractBaselines(variables: string[], healthData: HealthDataSnapshot): 
       .filter((d): d is { date: string; value: number } => d !== null)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
+    // If no HealthKit data, try biomarkers
+    const biomarkerData = healthkitData.length === 0 
+      ? healthData.biomarkers
+          .filter(b => biomarkerNameToCanonicalKey(b.biomarkerName) === varName)
+          .map(b => ({
+            date: b.testDate,
+            value: parseFloat(b.value),
+          }))
+          .filter(d => !isNaN(d.value))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      : [];
+    
+    const varData = healthkitData.length > 0 ? healthkitData : biomarkerData;
+    
     if (varData.length === 0) {
       continue;
     }
     
     const current = varData[0]?.value ?? null;
     
-    // Calculate 7-day baseline
-    const last7Days = varData.slice(0, 7);
-    const baseline7d = last7Days.length > 0
-      ? last7Days.reduce((sum, d) => sum + d.value, 0) / last7Days.length
-      : null;
+    // For biomarkers (infrequent data), use ALL historical data as baseline
+    // For HealthKit (daily data), use 7-day and 30-day windows
+    const isBiomarker = biomarkerData.length > 0;
     
-    // Calculate 30-day baseline
-    const last30Days = varData.slice(0, 30);
-    const baseline30d = last30Days.length > 0
-      ? last30Days.reduce((sum, d) => sum + d.value, 0) / last30Days.length
-      : null;
-    
-    // Calculate percent changes
-    const percentChange7d = (current !== null && baseline7d !== null && baseline7d !== 0)
-      ? ((current - baseline7d) / baseline7d) * 100
-      : null;
-    
-    const percentChange30d = (current !== null && baseline30d !== null && baseline30d !== 0)
-      ? ((current - baseline30d) / baseline30d) * 100
-      : null;
-    
-    baselines.push({
-      variable: varName,
-      current,
-      baseline7d,
-      baseline30d,
-      percentChange7d,
-      percentChange30d,
-    });
+    if (isBiomarker) {
+      // Biomarker: Calculate baseline from all previous tests (excluding most recent)
+      const historicalData = varData.slice(1); // Skip current value
+      const baseline = historicalData.length > 0
+        ? historicalData.reduce((sum, d) => sum + d.value, 0) / historicalData.length
+        : null;
+      
+      const percentChange = (current !== null && baseline !== null && baseline !== 0)
+        ? ((current - baseline) / baseline) * 100
+        : null;
+      
+      baselines.push({
+        variable: varName,
+        current,
+        baseline7d: baseline, // Use historical baseline for both
+        baseline30d: baseline,
+        percentChange7d: percentChange,
+        percentChange30d: percentChange,
+      });
+    } else {
+      // HealthKit: Use 7-day and 30-day windows
+      const last7Days = varData.slice(0, 7);
+      const baseline7d = last7Days.length > 0
+        ? last7Days.reduce((sum, d) => sum + d.value, 0) / last7Days.length
+        : null;
+      
+      const last30Days = varData.slice(0, 30);
+      const baseline30d = last30Days.length > 0
+        ? last30Days.reduce((sum, d) => sum + d.value, 0) / last30Days.length
+        : null;
+      
+      const percentChange7d = (current !== null && baseline7d !== null && baseline7d !== 0)
+        ? ((current - baseline7d) / baseline7d) * 100
+        : null;
+      
+      const percentChange30d = (current !== null && baseline30d !== null && baseline30d !== 0)
+        ? ((current - baseline30d) / baseline30d) * 100
+        : null;
+      
+      baselines.push({
+        variable: varName,
+        current,
+        baseline7d,
+        baseline30d,
+        percentChange7d,
+        percentChange30d,
+      });
+    }
   }
   
   return baselines;
@@ -1385,8 +1423,8 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     // Step 5: Convert to ranked insights
     const rankedInsights = filteredCandidates.map(convertToRankedInsight);
     
-    // Step 6: Select top 5 with domain diversity
-    const topInsights = selectTopInsights(rankedInsights, 5, 2);
+    // Step 6: Select all insights (no daily limit - user wants to see full potential)
+    const topInsights = selectTopInsights(rankedInsights, 999, 999);
     
     logger.info(`[InsightsEngineV2] Selected ${topInsights.length} top insights`);
     
