@@ -1,25 +1,20 @@
 /**
- * Daily Insights Engine v2.0 - Unified Orchestrator
+ * Daily Insights Engine v2.0 - RAG-Based Holistic Discovery
  * 
- * Integrates all 4 analytical layers into a cohesive pipeline:
- * Layer A: Physiological Pathways
- * Layer B: Bayesian Correlations
- * Layer C: Dose-Response Analysis
- * Layer D: Anomaly Detection
+ * Simplified architecture using AI-powered pattern discovery:
+ * - RAG Layer: Holistic cross-domain insights via semantic search + GPT-4o
+ * - Layer D: Out-of-range biomarker safety net
  * 
- * Then ranks insights and generates natural language.
+ * Replaces hard-coded pathways with intelligent pattern discovery.
  */
 
 import { db } from '../db';
 import { users, dailyInsights, healthkitSamples, biomarkerMeasurements, biomarkerTestSessions, biomarkers, lifeEvents, healthDailyMetrics } from '../../shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
-import { PHYSIOLOGICAL_PATHWAYS } from './physiologicalPathways';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
 import { type EvidenceTier, EVIDENCE_TIERS } from './evidenceHierarchy';
 import { differenceInDays, subDays, format } from 'date-fns';
-import { detectReplicatedCorrelations, type ReplicatedCorrelation, filterNovelCorrelations } from './bayesianCorrelationEngine';
-import { analyzeDoseResponse, type DoseResponseResult, type DosageEvent, type OutcomeDataPoint, type TemporalWindow } from './doseResponseAnalyzer';
 import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation, buildStaleBiomarker } from './anomalyDetectionEngine';
 import { getFreshnessCategory, SLOW_MOVING_BIOMARKERS } from './dataClassification';
 import { logger } from '../logger';
@@ -31,11 +26,11 @@ import { detectDataChanges, generateRAGInsights, type RAGInsight } from './ragIn
 // ============================================================================
 
 /**
- * Unified interface for insights from all layers
- * This is the common data contract that all layers must produce
+ * Unified interface for insights from remaining layers
+ * Layer D only (safety net for out-of-range biomarkers)
  */
 export interface InsightCandidate {
-  layer: 'A' | 'B' | 'C' | 'D';
+  layer: 'D';
   evidenceTier: EvidenceTier;
   independent: string;
   dependent: string;
@@ -221,528 +216,12 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
 }
 
 // ============================================================================
-// Helper: Calculate Actual User Metrics
+// Helper: calculateUserMetrics removed (was only used by Layer A)
 // ============================================================================
 
-interface UserMetricValue {
-  variable: string;
-  currentAvg: number | null;
-  baselineAvg: number | null;
-  percentChange: number | null;
-  unit: string;
-  daysSinceData: number;
-  dataSource: 'HealthKit' | 'Labs' | 'LifeEvents';
-}
-
-/**
- * Calculate actual user metrics for a given variable pair
- * 
- * Returns current values, baselines, percent changes, and freshness
- */
-function calculateUserMetrics(
-  independentVar: string,
-  dependentVar: string,
-  healthData: HealthDataSnapshot
-): { independent: UserMetricValue; dependent: UserMetricValue } | null {
-  const now = new Date();
-  
-  const getMetricValue = (varName: string): UserMetricValue | null => {
-    // Try HealthKit daily metrics first - ALL 18 fields (deep/REM sleep not in schema yet)
-    const metricFieldMap: Record<string, keyof typeof healthData.dailyMetrics[0]> = {
-      // Sleep metrics (1 total)
-      'sleep_total_minutes': 'sleepTotalMinutes',
-      
-      // Cardiovascular metrics (4 total)
-      'hrv_sdnn_ms': 'hrvSdnnMs',
-      'resting_hr': 'restingHr',
-      'respiratory_rate': 'respiratoryRate',
-      'oxygen_saturation_avg': 'oxygenSaturationAvg',
-      
-      // Activity metrics (5 total)
-      'steps': 'steps',
-      'distance_meters': 'distanceMeters',
-      'active_kcal': 'activeKcal',
-      'exercise_minutes': 'exerciseMinutes',
-      'stand_hours': 'standHours',
-      
-      // Body composition metrics (5 total)
-      'weight_kg': 'weightKg',
-      'body_fat_pct': 'bodyFatPct',
-      'lean_mass_kg': 'leanMassKg',
-      'bmi': 'bmi',
-      'waist_circumference_cm': 'waistCircumferenceCm',
-      
-      // Vitals (1 total)
-      'body_temp_deviation_c': 'bodyTempDeviationC',
-    };
-    
-    // Unit mapping for proper display
-    const unitMap: Record<string, string> = {
-      'sleep_total_minutes': 'min',
-      'hrv_sdnn_ms': 'ms',
-      'resting_hr': 'bpm',
-      'respiratory_rate': 'breaths/min',
-      'oxygen_saturation_avg': '%',
-      'steps': 'steps',
-      'distance_meters': 'm',
-      'active_kcal': 'kcal',
-      'exercise_minutes': 'min',
-      'stand_hours': 'hrs',
-      'weight_kg': 'kg',
-      'body_fat_pct': '%',
-      'lean_mass_kg': 'kg',
-      'bmi': 'kg/m²',
-      'waist_circumference_cm': 'cm',
-      'body_temp_deviation_c': '°C',
-    };
-    
-    const fieldName = metricFieldMap[varName];
-    if (fieldName) {
-      const recentData = healthData.dailyMetrics.slice(0, 3); // Last 3 days for current value
-      
-      // CRITICAL FIX: Cascade through baseline windows until we find non-null values
-      // Try multiple windows and use the first one with actual data
-      let baselineValues: number[] = [];
-      let baselineWindow = '';
-      
-      // Try 30-day baseline first (preferred for users with long history)
-      if (baselineValues.length === 0 && healthData.dailyMetrics.length >= 37) {
-        const candidateData = healthData.dailyMetrics.slice(30, 37);
-        baselineValues = candidateData.map(m => m[fieldName]).filter((v): v is number => v !== null);
-        if (baselineValues.length > 0) baselineWindow = '30-37 days ago';
-      }
-      
-      // Fall back to 10-day baseline (for testing with 11 days of data)
-      if (baselineValues.length === 0 && healthData.dailyMetrics.length >= 10) {
-        const candidateData = healthData.dailyMetrics.slice(7, 10);
-        baselineValues = candidateData.map(m => m[fieldName]).filter((v): v is number => v !== null);
-        if (baselineValues.length > 0) baselineWindow = '7-10 days ago';
-      }
-      
-      // Fall back to 7-day baseline (minimum)
-      if (baselineValues.length === 0 && healthData.dailyMetrics.length >= 7) {
-        const candidateData = healthData.dailyMetrics.slice(4, 7);
-        baselineValues = candidateData.map(m => m[fieldName]).filter((v): v is number => v !== null);
-        if (baselineValues.length > 0) baselineWindow = '4-7 days ago';
-      }
-      
-      const currentValues = recentData.map(m => m[fieldName]).filter((v): v is number => v !== null);
-      
-      if (currentValues.length > 0) {
-        const currentAvg = currentValues.reduce((a, b) => a + b, 0) / currentValues.length;
-        const baselineAvg = baselineValues.length > 0
-          ? baselineValues.reduce((a, b) => a + b, 0) / baselineValues.length
-          : null;
-        
-        // CRITICAL FIX: Guard against division by zero for percent change
-        let percentChange: number | null = null;
-        if (baselineAvg !== null) {
-          if (baselineAvg === 0) {
-            // Handle zero baseline: 0→0 is 0% change, 0→X can't be calculated as percent
-            percentChange = (currentAvg === 0) ? 0 : null;
-          } else {
-            // Normal percent change calculation
-            percentChange = ((currentAvg - baselineAvg) / baselineAvg) * 100;
-          }
-        }
-        
-        // DEBUG LOGGING: Track metric calculation for insights quality
-        if (baselineAvg !== null) {
-          logger.debug(`[UserMetrics] ${varName}: current=${currentAvg.toFixed(1)} (last 3d), baseline=${baselineAvg.toFixed(1)} (${baselineWindow}), change=${percentChange !== null ? percentChange.toFixed(1) : 'null'}%`);
-        } else {
-          logger.debug(`[UserMetrics] ${varName}: current=${currentAvg.toFixed(1)}, baseline=null (no valid historical data in any window)`);
-        }
-        
-        const mostRecentDate = recentData[0] ? new Date(recentData[0].date) : now;
-        const daysSinceData = differenceInDays(now, mostRecentDate);
-        
-        return {
-          variable: varName,
-          currentAvg: Math.round(currentAvg * 10) / 10,
-          baselineAvg: baselineAvg !== null ? Math.round(baselineAvg * 10) / 10 : null,
-          percentChange: percentChange !== null ? Math.round(percentChange) : null,
-          unit: unitMap[varName] || '',
-          daysSinceData,
-          dataSource: 'HealthKit',
-        };
-      }
-    }
-    
-    // Try biomarkers with historical baseline calculation
-    const biomarkerHistory = healthData.biomarkers.filter(b => 
-      biomarkerNameToCanonicalKey(b.name) === varName
-    );
-    
-    if (biomarkerHistory.length > 0) {
-      // Sort by testDate descending (newest first)
-      biomarkerHistory.sort((a, b) => b.testDate.getTime() - a.testDate.getTime());
-      
-      const mostRecent = biomarkerHistory[0];
-      const daysSinceData = differenceInDays(now, mostRecent.testDate);
-      
-      // Calculate baseline from older tests (skip most recent)
-      let baselineAvg: number | null = null;
-      let percentChange: number | null = null;
-      
-      if (biomarkerHistory.length > 1) {
-        // Use tests from 30+ days ago as baseline, or older tests if not enough
-        const baselineTests = biomarkerHistory.slice(1).filter(b => 
-          differenceInDays(mostRecent.testDate, b.testDate) >= 30
-        );
-        
-        // Fall back to just using the previous test if no 30+ day baseline
-        const testsToAverage = baselineTests.length > 0 ? baselineTests : biomarkerHistory.slice(1, 3);
-        
-        if (testsToAverage.length > 0) {
-          baselineAvg = testsToAverage.reduce((sum, b) => sum + b.value, 0) / testsToAverage.length;
-          
-          // CRITICAL FIX: Guard against division by zero for percent change
-          if (baselineAvg === 0) {
-            // Handle zero baseline: 0→0 is 0% change, 0→X can't be calculated as percent
-            percentChange = (mostRecent.value === 0) ? 0 : null;
-            const changeText = percentChange !== null ? `${percentChange.toFixed(1)}% (stable at zero)` : 'null (can\'t calculate % from zero baseline)';
-            logger.debug(`[UserMetrics] Biomarker ${varName}: current=${mostRecent.value.toFixed(1)} (${mostRecent.testDate.toISOString().split('T')[0]}), baseline=0 (${testsToAverage.length} older tests), change=${changeText}`);
-          } else {
-            // Normal percent change calculation
-            percentChange = ((mostRecent.value - baselineAvg) / baselineAvg) * 100;
-            logger.debug(`[UserMetrics] Biomarker ${varName}: current=${mostRecent.value.toFixed(1)} (${mostRecent.testDate.toISOString().split('T')[0]}), baseline=${baselineAvg.toFixed(1)} (${testsToAverage.length} older tests), change=${percentChange.toFixed(1)}%`);
-          }
-        }
-      } else {
-        logger.debug(`[UserMetrics] Biomarker ${varName}: current=${mostRecent.value.toFixed(1)} (${mostRecent.testDate.toISOString().split('T')[0]}), baseline=null (only 1 test in history)`);
-      }
-      
-      return {
-        variable: varName,
-        currentAvg: Math.round(mostRecent.value * 10) / 10,
-        baselineAvg: baselineAvg !== null ? Math.round(baselineAvg * 10) / 10 : null,
-        percentChange: percentChange !== null ? Math.round(percentChange) : null,
-        unit: mostRecent.unit,
-        daysSinceData,
-        dataSource: 'Labs',
-      };
-    }
-    
-    return null;
-  };
-  
-  const independentMetric = getMetricValue(independentVar);
-  const dependentMetric = getMetricValue(dependentVar);
-  
-  if (!independentMetric || !dependentMetric) {
-    return null;
-  }
-  
-  return {
-    independent: independentMetric,
-    dependent: dependentMetric,
-  };
-}
-
 // ============================================================================
-// Layer A: Physiological Pathways Adapter
+// Layers A, B, C removed - replaced by RAG-based holistic discovery
 // ============================================================================
-
-/**
- * Convert physiological pathways into insight candidates
- * 
- * Returns all hard-coded science pathways with real data timestamps
- */
-export function generateLayerAInsights(
-  userId: string,
-  healthData: HealthDataSnapshot
-): InsightCandidate[] {
-  const insights: InsightCandidate[] = [];
-  
-  // Build a map of available variables from user's actual data
-  const availableVariables = new Set<string>();
-  
-  // Check dailyMetrics for available variables (ALL 20 HealthKit metrics)
-  // CRITICAL FIX: Check if we have SUFFICIENT data (≥3 days), not just latest value
-  if (healthData.dailyMetrics.length > 0) {
-    const metricChecks: Record<string, keyof typeof healthData.dailyMetrics[0]> = {
-      // Sleep metrics (1 total - deep/REM not in schema yet)
-      'sleep_total_minutes': 'sleepTotalMinutes',
-      
-      // Cardiovascular metrics (4 total)
-      'hrv_sdnn_ms': 'hrvSdnnMs',
-      'resting_hr': 'restingHr',
-      'respiratory_rate': 'respiratoryRate',
-      'oxygen_saturation_avg': 'oxygenSaturationAvg',
-      
-      // Activity metrics (5 total)
-      'steps': 'steps',
-      'distance_meters': 'distanceMeters',
-      'active_kcal': 'activeKcal',
-      'exercise_minutes': 'exerciseMinutes',
-      'stand_hours': 'standHours',
-      
-      // Body composition metrics (5 total)
-      'weight_kg': 'weightKg',
-      'body_fat_pct': 'bodyFatPct',
-      'lean_mass_kg': 'leanMassKg',
-      'bmi': 'bmi',
-      'waist_circumference_cm': 'waistCircumferenceCm',
-      
-      // Vitals (1 total)
-      'body_temp_deviation_c': 'bodyTempDeviationC',
-    };
-    
-    // For each metric, check if we have ≥3 non-null values in recent data
-    // FALLBACK: If <3 samples but latest day has data, still mark as available (preserves prior behavior)
-    for (const [varName, fieldName] of Object.entries(metricChecks)) {
-      const recentValues = healthData.dailyMetrics
-        .slice(0, 14) // Check last 14 days
-        .map(m => m[fieldName])
-        .filter((v): v is number => v !== null);
-      
-      if (recentValues.length >= 3) {
-        // Preferred: ≥3 recent samples = high-quality data
-        availableVariables.add(varName);
-      } else if (healthData.dailyMetrics[0] && healthData.dailyMetrics[0][fieldName] !== null) {
-        // Fallback: Latest day has data (sparse metrics like weight, O2 sat)
-        availableVariables.add(varName);
-      }
-    }
-  }
-  
-  // Check biomarkers for available variables
-  for (const biomarker of healthData.biomarkers) {
-    const biomarkerKey = biomarkerNameToCanonicalKey(biomarker.name);
-    availableVariables.add(biomarkerKey);
-    logger.debug(`[Layer A] Added biomarker: ${biomarker.name} → ${biomarkerKey} (value: ${biomarker.value}${biomarker.unit})`);
-  }
-  
-  // Check life events for stress/behavior variables
-  if (healthData.lifeEvents.length > 0) {
-    availableVariables.add('stress_events');
-    availableVariables.add('alcohol_intake');
-    availableVariables.add('caffeine_intake');
-  }
-  
-  logger.info(`[Layer A] Found ${availableVariables.size} available metrics from ${healthData.dailyMetrics.length} days of data`);
-  
-  // Find most recent data date across all sources
-  const mostRecentDate = new Date(Math.max(
-    healthData.healthkitSamples[0]?.startDate?.getTime() || 0,
-    healthData.biomarkers[0]?.testDate?.getTime() || 0,
-    healthData.dailyMetrics[0] ? new Date(healthData.dailyMetrics[0].date).getTime() : 0
-  ));
-  
-  for (const pathway of PHYSIOLOGICAL_PATHWAYS) {
-    // Skip bidirectional pathways for now (need special handling)
-    if (pathway.direction === 'bidirectional') {
-      continue;
-    }
-    
-    // CRITICAL: Only generate insight if user has data for BOTH variables
-    const hasIndependent = availableVariables.has(pathway.independent);
-    const hasDependent = availableVariables.has(pathway.dependent);
-    
-    if (!hasIndependent || !hasDependent) {
-      continue;
-    }
-    
-    // Calculate actual user metrics for this pathway
-    const userMetrics = calculateUserMetrics(pathway.independent, pathway.dependent, healthData);
-    
-    if (!userMetrics) {
-      // Silently skip - metrics calculation failed despite data availability
-      continue;
-    }
-    
-    insights.push({
-      layer: 'A',
-      evidenceTier: pathway.tier,
-      independent: pathway.independent,
-      dependent: pathway.dependent,
-      direction: pathway.direction,
-      effectSize: (pathway.effectSizeRange.min + pathway.effectSizeRange.max) / 2,
-      mostRecentDataDate: mostRecentDate,
-      variables: [pathway.independent, pathway.dependent],
-      rawMetadata: {
-        mechanism: pathway.mechanism,
-        references: pathway.references,
-        doseDependent: pathway.doseDependent,
-        timingDependent: pathway.timingDependent,
-        userMetrics, // Add actual user data
-      },
-    });
-  }
-  
-  logger.info(`[Layer A] Generated ${insights.length} physiological pathway insights (filtered by available data)`);
-  return insights;
-}
-
-// ============================================================================
-// Layer B: Bayesian Correlations Adapter
-// ============================================================================
-
-/**
- * Run Bayesian correlation analysis and convert to insight candidates
- * 
- * IMPLEMENTATION STATUS: Phase 2 (Not Yet Implemented)
- * 
- * This layer is designed to discover novel correlations not covered by
- * hard-coded physiological pathways (Layer A). However, it requires:
- * 
- * 1. Correlation computation across all metric pairs
- * 2. Rolling window analysis (short/medium/long term)
- * 3. Replication tracking database (insight_replication_history table)
- * 4. Partial correlation controls for confounders (age, sex, activity)
- * 
- * Until implemented, this layer returns empty to prevent invalid insights.
- * The Bayesian correlation engine code exists and is tested, but needs
- * the infrastructure above to run safely.
- * 
- * ANTI-JUNK SAFEGUARD: Returning empty prevents spurious correlations from
- * being presented as insights without proper replication and confounder controls.
- */
-export function generateLayerBInsights(
-  userId: string,
-  healthData: HealthDataSnapshot
-): InsightCandidate[] {
-  // Return empty until Phase 2 correlation computation is implemented
-  // This is INTENTIONAL - prevents junk insights from unvalidated correlations
-  logger.info('[Layer B] Skipping Bayesian correlations (Phase 2 not implemented - requires correlation computation infrastructure)');
-  return [];
-  
-  /* PHASE 2 IMPLEMENTATION:
-  const insights: InsightCandidate[] = [];
-  
-  try {
-    // 1. Compute correlations for all metric pairs in short/medium/long windows
-    // 2. Store results in insight_replication_history table
-    // 3. Query for replicated patterns
-    const correlationResults: any[] = computeAllCorrelations(healthData);
-    const replicatedCorrelations = detectReplicatedCorrelations(correlationResults);
-    
-    // Convert to InsightCandidate format
-    for (const corr of replicatedCorrelations) {
-      insights.push({
-        layer: 'B',
-        evidenceTier: corr.evidenceTier,
-        independent: corr.independent,
-        dependent: corr.dependent,
-        direction: corr.direction,
-        effectSize: corr.avgEffectSize,
-        mostRecentDataDate: new Date(), // Would come from correlation data
-        variables: [corr.independent, corr.dependent],
-        rawMetadata: {
-          replications: corr.replications,
-          avgProbabilityDirection: corr.avgProbabilityDirection,
-          isNovel: corr.isNovel,
-        },
-      });
-    }
-    
-    logger.info(`[Layer B] Generated ${insights.length} Bayesian correlation insights`);
-    return insights;
-    
-  } catch (error: any) {
-    logger.error('[Layer B] Error generating Bayesian correlation insights:', error);
-    return [];
-  }
-  */
-}
-
-// ============================================================================
-// Layer C: Dose-Response Adapter
-// ============================================================================
-
-/**
- * Run dose-response analysis and convert to insight candidates
- * 
- * Analyzes life events with dosage tracking to find dose-response relationships
- */
-export function generateLayerCInsights(
-  userId: string,
-  healthData: HealthDataSnapshot
-): InsightCandidate[] {
-  const insights: InsightCandidate[] = [];
-  
-  try {
-    // Extract life events with dosage amounts
-    const dosageEventsByType = new Map<string, DosageEvent[]>();
-    
-    for (const event of healthData.lifeEvents) {
-      const details = event.details as any;
-      const amount = details?.dosage_amount || details?.amount || details?.duration_min;
-      
-      if (typeof amount === 'number' && amount > 0) {
-        if (!dosageEventsByType.has(event.eventType)) {
-          dosageEventsByType.set(event.eventType, []);
-        }
-        
-        dosageEventsByType.get(event.eventType)!.push({
-          date: format(event.happenedAt, 'yyyy-MM-dd'),
-          amount,
-          timing: details?.timing,
-        });
-      }
-    }
-    
-    // For each event type with sufficient data, analyze against HRV, sleep, etc.
-    const outcomeMetrics = ['hrv', 'sleepDuration', 'restingHeartRate'];
-    
-    for (const [eventType, dosageEvents] of Array.from(dosageEventsByType.entries())) {
-      if (dosageEvents.length < 5) {
-        continue; // Need at least 5 events for dose-response
-      }
-      
-      for (const metricName of outcomeMetrics) {
-        // Prepare outcome data
-        const outcomeData: OutcomeDataPoint[] = healthData.dailyMetrics
-          .map(m => ({
-            date: m.date,
-            value: m[metricName as keyof typeof m] as number,
-          }))
-          .filter(o => o.value !== null && !isNaN(o.value));
-        
-        if (outcomeData.length < 5) {
-          continue;
-        }
-        
-        // Analyze each temporal window
-        for (const window of ['ACUTE', 'SUB_ACUTE', 'CUMULATIVE'] as TemporalWindow[]) {
-          const result = analyzeDoseResponse(
-            dosageEvents,
-            outcomeData,
-            eventType,
-            metricName,
-            window
-          );
-          
-          if (result) {
-            insights.push({
-              layer: 'C',
-              evidenceTier: result.evidenceTier,
-              independent: eventType,
-              dependent: metricName,
-              direction: result.direction,
-              effectSize: result.effectSize,
-              mostRecentDataDate: new Date(dosageEvents[dosageEvents.length - 1].date),
-              variables: [eventType, metricName],
-              rawMetadata: {
-                window: result.window,
-                effectType: result.effectType,
-                tertiles: result.tertiles,
-                optimalDose: result.optimalDose,
-              },
-            });
-          }
-        }
-      }
-    }
-    
-    logger.info(`[Layer C] Generated ${insights.length} dose-response insights`);
-    return insights;
-    
-  } catch (error: any) {
-    logger.error('[Layer C] Error generating dose-response insights:', error);
-    return [];
-  }
-}
 
 // ============================================================================
 // Layer D: Anomaly Detection Adapter
@@ -768,6 +247,8 @@ export function generateLayerDInsights(
     
     for (const abnormalBiomarker of outOfRangeBiomarkers) {
       const daysSinceTest = abnormalBiomarker.daysSinceTest;
+      // Convert biomarker name to canonical key for domain classification
+      const canonicalKey = biomarkerNameToCanonicalKey(abnormalBiomarker.biomarker);
       
       insights.push({
         layer: 'D',
@@ -776,7 +257,7 @@ export function generateLayerDInsights(
         dependent: 'health_optimization', // General health impact
         direction: abnormalBiomarker.interpretation === 'high' ? 'negative' : 'negative',
         mostRecentDataDate: abnormalBiomarker.testDate,
-        variables: [abnormalBiomarker.biomarker],
+        variables: [canonicalKey],
         rawMetadata: {
           biomarkerValue: abnormalBiomarker.currentValue,
           biomarkerUnit: abnormalBiomarker.unit,
@@ -1430,7 +911,7 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
           actionabilityScore: 0.8, // RAG insights are designed to be actionable
           freshnessScore: 0.9, // RAG insights use recent data changes
           overallScore: insight.confidence * 0.85, // Weight by confidence
-          evidenceTier: 'Tier 1', // RAG uses vector search + GPT-4o = highest tier
+          evidenceTier: '1' as const, // RAG uses vector search + GPT-4o = highest tier
           primarySources: insight.relatedMetrics,
           category: 'general' as any, // Default category, could be improved with classification
           generatingLayer: 'RAG_holistic' as any, // New layer type for RAG

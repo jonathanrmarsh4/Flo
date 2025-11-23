@@ -1,11 +1,13 @@
 /**
- * Insight Ranking & Selection Algorithm - Daily Insights Engine v2.0
+ * Insight Ranking & Selection Algorithm - Daily Insights Engine v2.0 (RAG-Based)
  * 
- * Scores and ranks insights from all 4 analytical layers using:
+ * Scores and ranks insights from Layer D (out-of-range biomarker safety net) using:
  * Rank Score = Confidence × Impact × Actionability × Freshness
  * 
- * Then selects top 5 insights with domain diversity constraints:
- * - Max 2 insights per health domain (sleep, recovery, metabolic, hormonal, inflammatory)
+ * Note: RAG-generated insights bypass this ranking system and are stored directly.
+ * 
+ * Then selects top insights with domain diversity constraints:
+ * - Max insights per health domain (sleep, recovery, metabolic, hormonal, inflammatory)
  * - Ensures breadth across different health areas
  * - Highest-ranked insights within each domain are prioritized
  * 
@@ -51,7 +53,7 @@ export interface RankedInsight {
   description: string;
   evidenceTier: EvidenceTier;
   healthDomain: HealthDomain;
-  layer: 'A' | 'B' | 'C' | 'D'; // Which analytical layer generated this
+  layer: 'D'; // Layer D only (RAG insights bypass ranking)
   
   // Scoring components
   confidenceScore: number; // 0.0-1.0
@@ -77,29 +79,23 @@ export interface RankedInsight {
  * Confidence = Base Tier Multiplier × Statistical Adjustment
  * 
  * Statistical adjustments:
- * - Layer A (Pathways): No adjustment (1.0) - pure science
- * - Layer B (Correlations): Based on effect size and PD
- * - Layer C (Dose-response): Based on effect size
  * - Layer D (Anomalies): Based on match count/confidence
  * 
+ * Note: RAG insights have their own confidence scoring in ragInsightGenerator.ts
+ * 
  * @param evidenceTier - Tier 1-5
- * @param layer - Which analytical layer (A/B/C/D)
+ * @param layer - Which analytical layer (D only)
  * @param statisticalStrength - Layer-specific strength metric (0.0-1.0)
  * @returns Confidence score (0.0-1.0)
  */
 export function calculateConfidenceScore(
   evidenceTier: EvidenceTier,
-  layer: 'A' | 'B' | 'C' | 'D',
+  layer: 'D',
   statisticalStrength: number = 1.0
 ): number {
   const baseMultiplier = getEvidenceConfidenceMultiplier(evidenceTier);
   
-  // Layer A (physiological pathways) uses base multiplier only
-  if (layer === 'A') {
-    return baseMultiplier;
-  }
-  
-  // Other layers combine base multiplier with statistical strength
+  // Layer D combines base multiplier with statistical strength
   const confidence = baseMultiplier * statisticalStrength;
   
   // Clamp to [0, 1]
@@ -129,53 +125,25 @@ export const IMPACT_THRESHOLDS = {
  * Calculate impact score based on clinical/health significance
  * 
  * Impact is determined by:
- * - Effect size magnitude (correlations, dose-response)
  * - Deviation magnitude (anomalies)
  * - Clinical importance of variables involved
  * 
- * @param layer - Which analytical layer (A/B/C/D)
- * @param effectSize - Effect size (correlations, Cliff's δ) or null
+ * @param layer - Which analytical layer (D only)
+ * @param effectSize - Unused (legacy parameter for compatibility)
  * @param deviationPercent - Deviation from baseline (%) or null
  * @param variables - Variables involved in this insight
  * @returns Impact score (0.0-1.0)
  */
 export function calculateImpactScore(
-  layer: 'A' | 'B' | 'C' | 'D',
+  layer: 'D',
   effectSize: number | null = null,
   deviationPercent: number | null = null,
   variables: string[] = []
 ): number {
   let baseImpact = 0.5; // Default medium impact
   
-  // Layer A (pathways): Use clinical importance of variables
-  if (layer === 'A') {
-    // High-impact variables (critical health markers)
-    const highImpactVars = [
-      'testosterone_total', 'cortisol_am', 'glucose_fasting', 'hs_crp',
-      'hrv_sdnn_ms', 'sleep_total_minutes', 'sleep_deep_minutes'
-    ];
-    
-    const hasHighImpactVar = variables.some(v => highImpactVars.includes(v));
-    baseImpact = hasHighImpactVar ? 0.8 : 0.6;
-  }
-  
-  // Layer B/C (correlations, dose-response): Use effect size
-  if ((layer === 'B' || layer === 'C') && effectSize !== null) {
-    const absEffect = Math.abs(effectSize);
-    
-    if (absEffect >= IMPACT_THRESHOLDS.LARGE_EFFECT) {
-      baseImpact = 0.9; // High impact
-    } else if (absEffect >= IMPACT_THRESHOLDS.MEDIUM_EFFECT) {
-      baseImpact = 0.7; // Medium impact
-    } else if (absEffect >= IMPACT_THRESHOLDS.SMALL_EFFECT) {
-      baseImpact = 0.5; // Low impact
-    } else {
-      baseImpact = 0.3; // Very small
-    }
-  }
-  
   // Layer D (anomalies): Use deviation magnitude
-  if (layer === 'D' && deviationPercent !== null) {
+  if (deviationPercent !== null) {
     const absDeviation = Math.abs(deviationPercent);
     
     if (absDeviation >= IMPACT_THRESHOLDS.LARGE_DEVIATION) {
@@ -200,56 +168,33 @@ export function calculateImpactScore(
  * Calculate actionability score based on how easily the user can act
  * 
  * Actionability is determined by:
- * - Is it a behavior/lifestyle factor? (high)
- * - Is it a dosage/timing adjustment? (high)
- * - Is it a slow-moving biomarker recheck? (medium)
- * - Is it a correlation insight? (low - harder to act on)
+ * - Is it a slow-moving biomarker recheck? (medium actionable)
+ * - Default medium actionability for Layer D alerts
  * 
- * @param layer - Which analytical layer (A/B/C/D)
+ * @param layer - Which analytical layer (D only)
  * @param variables - Variables involved in this insight
  * @returns Actionability score (0.0-1.0)
  */
 export function calculateActionabilityScore(
-  layer: 'A' | 'B' | 'C' | 'D',
+  layer: 'D',
   variables: string[]
 ): number {
-  // Lifestyle/behavioral variables (highly actionable)
-  const lifestyleVars = [
-    'alcohol', 'ice_bath', 'sauna', 'caffeine', 'stress', 'exercise',
-    'late_meal', 'supplement', 'workout_duration', 'workout_intensity'
-  ];
-  
   // Slow-moving biomarkers (medium actionable - requires recheck)
   const slowMovingBiomarkers = [
-    'testosterone_total', 'ferritin', 'vitamin_d_25_oh', 'hs_crp',
-    'glucose_fasting', 'hba1c', 'triglycerides', 'ldl'
+    'testosterone', 'ferritin', 'vitamin_d', 'hs_crp',
+    'glucose', 'hba1c', 'triglycerides', 'ldl', 'hdl',
+    'estradiol', 'free_testosterone', 'dhea_s', 'tsh'
   ];
   
-  const hasLifestyleVar = variables.some(v => lifestyleVars.includes(v));
   const hasBiomarkerVar = variables.some(v => slowMovingBiomarkers.includes(v));
   
-  // Layer C (dose-response & timing): Highly actionable (adjust dose/timing)
-  if (layer === 'C') {
-    return 0.9;
-  }
-  
-  // Layer D (stale-lab warnings): Medium actionable (recheck biomarker)
-  if (layer === 'D' && hasBiomarkerVar) {
+  // Layer D (biomarker alerts): Medium actionable (recheck biomarker)
+  if (hasBiomarkerVar) {
     return 0.7;
   }
   
-  // Layer A/B with lifestyle variables: Highly actionable
-  if (hasLifestyleVar) {
-    return 0.85;
-  }
-  
-  // Layer A/B with only HealthKit metrics: Medium actionable
-  if (!hasBiomarkerVar) {
-    return 0.6;
-  }
-  
-  // Default: Moderate actionability
-  return 0.5;
+  // Default: Moderate actionability for other alerts
+  return 0.6;
 }
 
 // ============================================================================
@@ -400,7 +345,7 @@ export function selectTopInsights(
 }
 
 /**
- * Determine health domain from variables
+ * Determine health domain from variables (updated for canonical biomarker names)
  * 
  * Uses heuristics to classify insights into health domains
  * based on the variables involved.
@@ -424,33 +369,34 @@ export function determineHealthDomain(variables: string[]): HealthDomain {
     return 'recovery';
   }
   
-  // Metabolic domain
-  const metabolicVars = ['glucose_fasting', 'hba1c', 'triglycerides', 'ldl', 
-                         'hdl', 'insulin_fasting', 'weight', 'body_fat_pct'];
+  // Metabolic domain (updated to canonical biomarker names)
+  const metabolicVars = ['glucose', 'hba1c', 'triglycerides', 'ldl', 
+                         'hdl', 'insulin', 'weight', 'body_fat_pct'];
   if (variables.some(v => metabolicVars.includes(v))) {
     return 'metabolic';
   }
   
-  // Hormonal domain
-  const hormonalVars = ['testosterone_total', 'cortisol_am', 'cortisol_pm', 
-                        'vitamin_d_25_oh', 'estradiol'];
+  // Hormonal domain (updated to canonical biomarker names)
+  const hormonalVars = ['testosterone', 'free_testosterone', 'cortisol', 'dhea_s',
+                        'vitamin_d', 'estradiol', 'tsh', 'ft4', 'ft3'];
   if (variables.some(v => hormonalVars.includes(v))) {
     return 'hormonal';
   }
   
-  // Inflammatory domain
-  const inflammatoryVars = ['hs_crp', 'ferritin', 'white_blood_cells'];
+  // Inflammatory domain (updated to canonical biomarker names)
+  const inflammatoryVars = ['hs_crp', 'crp', 'ferritin', 'wbc'];
   if (variables.some(v => inflammatoryVars.includes(v))) {
     return 'inflammatory';
   }
   
-  // Performance domain
-  const performanceVars = ['active_energy', 'steps', 'workout_duration', 
-                          'workout_intensity', 'vo2_max'];
+  // Performance domain (activity metrics)
+  const performanceVars = ['active_kcal', 'steps', 'exercise_minutes', 
+                          'distance_meters', 'stand_hours'];
   if (variables.some(v => performanceVars.includes(v))) {
     return 'performance';
   }
   
-  // Lifestyle domain (default)
-  return 'lifestyle';
+  // Default to metabolic for unknown biomarkers (Layer D safety-net)
+  // This prevents all biomarker alerts from being misclassified as 'lifestyle'
+  return 'metabolic';
 }
