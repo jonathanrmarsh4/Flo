@@ -32,6 +32,14 @@ const CATEGORY_ICON_MAP = {
   general: Sparkles,
 };
 
+const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
+  activity_sleep: 'ACTIVITY',
+  recovery_hrv: 'RECOVERY',
+  sleep_quality: 'SLEEP',
+  biomarkers: 'BIOMARKERS',
+  general: 'GENERAL',
+};
+
 export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
   const [selectedFilter, setSelectedFilter] = useState('all');
 
@@ -136,7 +144,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
                     <InsightCard
                       key={insight.id}
                       IconComponent={IconComponent}
-                      category={insight.category.replace(/_/g, ' ').toUpperCase()}
+                      category={CATEGORY_DISPLAY_NAMES[insight.category] || insight.category.replace(/_/g, ' ').toUpperCase()}
                       pattern={insight.pattern}
                       confidence={insight.confidence}
                       supportingData={insight.supportingData || ''}
