@@ -83,7 +83,7 @@ export function InsightCard({
       </div>
 
       {/* Supporting Data */}
-      {details && (
+      {details && (details.daysAnalyzed || details.additionalInfo || details.dateRange) && (
         <div className="mb-3">
           <div className="flex items-center gap-1 mb-2">
             <BarChart3 className="w-3 h-3 text-white/50" />
@@ -103,9 +103,15 @@ export function InsightCard({
         </div>
       )}
 
-      {/* Simple supporting text for compact cards */}
-      {!details && supportingData && (
-        <p className="text-xs text-white/50">{supportingData}</p>
+      {/* Simple supporting text - show if no structured details OR if supportingData exists */}
+      {supportingData && !details?.daysAnalyzed && !details?.additionalInfo && !details?.dateRange && (
+        <div className="mb-3">
+          <div className="flex items-center gap-1 mb-2">
+            <BarChart3 className="w-3 h-3 text-white/50" />
+            <p className="text-xs text-white/50">Supporting data:</p>
+          </div>
+          <p className="text-xs text-white/70 whitespace-pre-wrap">{supportingData}</p>
+        </div>
       )}
 
       {/* View Details Button */}
