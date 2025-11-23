@@ -6135,6 +6135,36 @@ ${userContext}`;
     }
   });
 
+  // POST /api/daily-insights/generate - Force generate insights for current user (admin only, for testing)
+  app.post("/api/daily-insights/generate", isAuthenticated, requireAdmin, async (req: any, res) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      logger.info(`[DailyInsightsV2] Force generating insights for user ${userId}`);
+      const startTime = Date.now();
+      
+      const insights = await generateDailyInsights(userId);
+      const duration = Date.now() - startTime;
+
+      res.json({ 
+        success: true,
+        insightsGenerated: insights.length,
+        durationMs: duration,
+        insights: insights.map((i: any) => ({
+          title: i.title,
+          category: i.category,
+          confidenceScore: i.confidenceScore
+        }))
+      });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Force generate error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   registerAdminRoutes(app);
   
   // Mobile auth routes (Apple, Google, Email/Password)

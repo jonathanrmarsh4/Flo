@@ -1,0 +1,108 @@
+2025-11-23 11:26:41.22
+ba5863b7
+User
+[2025-11-23T03:26:41.223Z] [INFO] [InsightsV2Scheduler] Starting hourly check for users needing insights
+2025-11-23 11:26:41.22
+ba5863b7
+User
+[2025-11-23T03:26:41.223Z] [INFO] [DailyInsightsV2] Manual scheduler check triggered
+2025-11-23 11:26:41.22
+ba5863b7
+User
+3:26:41 AM [express] POST /api/daily-insights/trigger-check 200 in 158ms :: {"success":true,"message…
+2025-11-23 11:26:41.30
+ba5863b7
+User
+[2025-11-23T03:26:41.301Z] [INFO] [InsightsV2Scheduler] Checking 77 users for 06:00 local time
+2025-11-23 11:26:41.30
+ba5863b7
+User
+[2025-11-23T03:26:41.304Z] [INFO] [InsightsV2Scheduler] No users eligible, check complete (81ms)
+2025-11-23 11:26:41.30
+ba5863b7
+User
+[2025-11-23T03:26:41.304Z] [INFO] [InsightsV2Scheduler] Found 0 users at 06:00 local time
+2025-11-23 11:26:41.74
+ba5863b7
+User
+3:26:41 AM [express] GET /api/admin/overview 304 in 39ms :: {"totalUsers":77,"activeUsers":77,"total…
+2025-11-23 11:26:41.77
+ba5863b7
+User
+3:26:41 AM [express] GET /api/admin/audit-logs 304 in 41ms :: [{"id":"e1c91b5c-82c4-4821-999b-41ac5b…
+2025-11-23 11:26:41.90
+ba5863b7
+User
+3:26:41 AM [express] GET /api/admin/healthkit/status 304 in 115ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:26:42.15
+ba5863b7
+User
+3:26:42 AM [express] GET /api/admin/healthkit/stats 304 in 39ms :: {"totalSamples":0,"totalUsers":0,…
+2025-11-23 11:26:52.62
+ba5863b7
+User
+3:26:52 AM [express] GET /api/admin/healthkit/status 304 in 233ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:26:52.62
+ba5863b7
+User
+3:26:52 AM [express] GET /api/admin/healthkit/status 304 in 233ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:03.46
+ba5863b7
+User
+3:27:03 AM [express] GET /api/admin/healthkit/status 304 in 274ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:03.46
+ba5863b7
+User
+3:27:03 AM [express] GET /api/admin/healthkit/status 304 in 274ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:12.09
+ba5863b7
+User
+3:27:12 AM [express] GET /api/admin/overview 304 in 37ms :: {"totalUsers":77,"activeUsers":77,"total…
+2025-11-23 11:27:12.22
+ba5863b7
+User
+3:27:12 AM [express] GET /api/admin/audit-logs 304 in 154ms :: [{"id":"e1c91b5c-82c4-4821-999b-41ac5…
+2025-11-23 11:27:12.50
+ba5863b7
+User
+3:27:12 AM [express] GET /api/admin/healthkit/stats 304 in 37ms :: {"totalSamples":0,"totalUsers":0,…
+2025-11-23 11:27:13.90
+ba5863b7
+User
+3:27:13 AM [express] GET /api/admin/healthkit/status 304 in 113ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:13.90
+ba5863b7
+User
+3:27:13 AM [express] GET /api/admin/healthkit/status 304 in 113ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:25.35
+ba5863b7
+User
+3:27:25 AM [express] GET /api/admin/healthkit/status 304 in 226ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:36.05
+ba5863b7
+User
+3:27:36 AM [express] GET /api/admin/healthkit/status 304 in 267ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:42.39
+ba5863b7
+User
+3:27:42 AM [express] GET /api/admin/api-usage 304 in 39ms :: [{"date":"2025-11-23","queries":72,"cos…
+2025-11-23 11:27:43.73
+ba5863b7
+User
+3:27:43 AM [express] GET /api/admin/healthkit/stats 304 in 40ms :: {"totalSamples":0,"totalUsers":0,…
+2025-11-23 11:27:43.86
+ba5863b7
+User
+3:27:43 AM [express] GET /api/admin/overview 304 in 160ms :: {"totalUsers":77,"activeUsers":77,"tota…
+2025-11-23 11:27:43.87
+ba5863b7
+User
+3:27:43 AM [express] GET /api/admin/audit-logs 304 in 164ms :: [{"id":"e1c91b5c-82c4-4821-999b-41ac5…
+2025-11-23 11:27:46.47
+ba5863b7
+User
+3:27:46 AM [express] GET /api/admin/healthkit/status 304 in 115ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:27:46.47
+ba5863b7
+User
+3:27:46 AM [express] GET /api/admin/healthkit/status 304 in 115ms :: {"status":"down","lastSync":nul…
