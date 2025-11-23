@@ -23,6 +23,7 @@ import { analyzeDoseResponse, type DoseResponseResult, type DosageEvent, type Ou
 import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation, buildStaleBiomarker } from './anomalyDetectionEngine';
 import { getFreshnessCategory, SLOW_MOVING_BIOMARKERS } from './dataClassification';
 import { logger } from '../logger';
+import { getUserContext, generateContextualInsight, type UserContext, type BaselineData } from './aiInsightGenerator';
 
 // ============================================================================
 // Shared Interface for Insight Candidates
@@ -956,27 +957,125 @@ export function convertToRankedInsight(candidate: InsightCandidate): RankedInsig
 // ============================================================================
 
 /**
- * Generate natural language for a ranked insight
+ * Extract baseline data for variables from health data
  */
-export function generateInsightNarrative(
-  rankedInsight: RankedInsight,
-  candidate: InsightCandidate
-): GeneratedInsight {
-  const daysSinceData = differenceInDays(new Date(), candidate.mostRecentDataDate);
+function extractBaselines(variables: string[], healthData: HealthDataSnapshot): BaselineData[] {
+  const baselines: BaselineData[] = [];
   
-  return generateInsight({
-    layer: candidate.layer,
-    evidenceTier: candidate.evidenceTier,
-    independent: candidate.independent,
-    dependent: candidate.dependent,
-    direction: candidate.direction,
-    effectSize: candidate.effectSize,
-    deviationPercent: candidate.deviationPercent,
-    daysSinceData,
-    includeExperiment: candidate.layer !== 'D', // No experiments for anomaly warnings
-    userMetrics: candidate.rawMetadata?.userMetrics, // Pass actual user data
-    mechanism: candidate.rawMetadata?.mechanism, // Pass mechanism for Layer A
-  });
+  for (const varName of variables) {
+    // Find relevant data points for this variable
+    const varData = healthData.dailyMetrics
+      .map(d => {
+        // Map variable names to daily metrics fields
+        const fieldMap: Record<string, keyof typeof d> = {
+          'sleep_total_minutes': 'sleepTotalMinutes',
+          'sleep_deep_minutes': 'sleepDeepMinutes',
+          'sleep_rem_minutes': 'sleepRemMinutes',
+          'hrv_sdnn_ms': 'hrvSdnnMs',
+          'resting_hr': 'restingHr',
+          'steps': 'steps',
+          'active_kcal': 'activeKcal',
+          'exercise_minutes': 'exerciseMinutes',
+          'weight_kg': 'weightKg',
+          'body_fat_pct': 'bodyFatPct',
+          'lean_mass_kg': 'leanMassKg',
+        };
+        
+        const field = fieldMap[varName];
+        if (field && d[field] !== null) {
+          return {
+            date: d.date,
+            value: d[field] as number,
+          };
+        }
+        return null;
+      })
+      .filter((d): d is { date: string; value: number } => d !== null)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    if (varData.length === 0) {
+      continue;
+    }
+    
+    const current = varData[0]?.value ?? null;
+    
+    // Calculate 7-day baseline
+    const last7Days = varData.slice(0, 7);
+    const baseline7d = last7Days.length > 0
+      ? last7Days.reduce((sum, d) => sum + d.value, 0) / last7Days.length
+      : null;
+    
+    // Calculate 30-day baseline
+    const last30Days = varData.slice(0, 30);
+    const baseline30d = last30Days.length > 0
+      ? last30Days.reduce((sum, d) => sum + d.value, 0) / last30Days.length
+      : null;
+    
+    // Calculate percent changes
+    const percentChange7d = (current !== null && baseline7d !== null && baseline7d !== 0)
+      ? ((current - baseline7d) / baseline7d) * 100
+      : null;
+    
+    const percentChange30d = (current !== null && baseline30d !== null && baseline30d !== 0)
+      ? ((current - baseline30d) / baseline30d) * 100
+      : null;
+    
+    baselines.push({
+      variable: varName,
+      current,
+      baseline7d,
+      baseline30d,
+      percentChange7d,
+      percentChange30d,
+    });
+  }
+  
+  return baselines;
+}
+
+/**
+ * Generate natural language for a ranked insight using AI
+ * 
+ * REPLACES template-based system with GPT-4o contextual generation
+ */
+export async function generateInsightNarrative(
+  rankedInsight: RankedInsight,
+  candidate: InsightCandidate,
+  userContext: UserContext,
+  baselines: BaselineData[]
+): Promise<GeneratedInsight> {
+  try {
+    // Use AI to generate contextual insight
+    const aiInsight = await generateContextualInsight(candidate, userContext, baselines);
+    
+    // Convert AI insight to GeneratedInsight format
+    return {
+      title: aiInsight.title,
+      summary: aiInsight.body,
+      details: '', // AI body already includes all details
+      actionable: aiInsight.action,
+      primarySources: candidate.variables, // Use variables as sources
+    };
+  } catch (error) {
+    logger.error('AI insight generation failed, falling back to template', { error, candidate });
+    
+    // Fallback to template-based generation if AI fails
+    const daysSinceData = differenceInDays(new Date(), candidate.mostRecentDataDate);
+    
+    return generateInsight({
+      layer: candidate.layer,
+      evidenceTier: candidate.evidenceTier,
+      independent: candidate.independent,
+      dependent: candidate.dependent,
+      direction: candidate.direction,
+      effectSize: candidate.effectSize,
+      deviationPercent: candidate.deviationPercent,
+      daysSinceData,
+      includeExperiment: candidate.layer !== 'D', // No experiments for anomaly warnings
+      userMetrics: candidate.rawMetadata?.userMetrics, // Pass actual user data
+      mechanism: candidate.rawMetadata?.mechanism, // Pass mechanism for Layer A
+    });
+  }
 }
 
 // ============================================================================
@@ -1291,7 +1390,12 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     
     logger.info(`[InsightsEngineV2] Selected ${topInsights.length} top insights`);
     
-    // Step 7: Generate natural language
+    // Step 6.5: Fetch user context for AI generation
+    logger.info('[InsightsEngineV2] Fetching user context for AI insights');
+    const userContext = await getUserContext(userId.toString());
+    logger.info(`[InsightsEngineV2] User context: Age ${userContext.age}, Sex ${userContext.sex}, Body fat ${userContext.bodyComposition.bodyFatPct}%`);
+    
+    // Step 7: Generate natural language using AI
     const insightPairs: Array<{
       narrative: GeneratedInsight;
       ranked: RankedInsight;
@@ -1319,7 +1423,11 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
         continue;
       }
       
-      const narrative = generateInsightNarrative(rankedInsight, candidate);
+      // Extract baseline data for involved variables (from healthData)
+      const baselines: BaselineData[] = extractBaselines(candidate.variables, healthData);
+      
+      // Generate AI-powered insight
+      const narrative = await generateInsightNarrative(rankedInsight, candidate, userContext, baselines);
       insightPairs.push({ narrative, ranked: rankedInsight, candidate });
       
       logger.info(`[InsightsEngineV2] Insight ${index + 1}: ${narrative.title}`);
