@@ -641,8 +641,7 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
     // Step 2: Fetch user's comprehensive health data (90 days)
     logger.info('[InsightsEngineV2] Fetching health data');
     const healthData = await fetchHealthData(userId);
-    
-    logger.info(`[InsightsEngineV2] Fetched ${healthData.healthkitSamples.length} HealthKit samples, ${healthData.biomarkers.length} biomarkers, ${healthData.lifeEvents.length} life events`);
+    logger.info(`[InsightsEngineV2] Data fetched - HealthKit: ${healthData.healthkitSamples.length}, Daily Metrics: ${healthData.dailyMetrics.length}, Biomarkers: ${healthData.biomarkers.length}, Life Events: ${healthData.lifeEvents.length}`);
     
     // Step 3: Run all 4 analytical layers
     logger.info('[InsightsEngineV2] Running Layer A (Physiological Pathways)');
