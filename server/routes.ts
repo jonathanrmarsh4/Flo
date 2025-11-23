@@ -1463,29 +1463,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info('Biological age calculation failed, continuing without it');
       }
 
-      // Get RAG insights (last 10 days)
-      const { ragInsights, lifeEvents, flomentumScores, healthKitSamples } = await import("@shared/schema");
-      const { db } = await import("./db");
-      const { eq, desc, gte, and } = await import("drizzle-orm");
+      // Get daily insights (last 10 days)
+      const { dailyInsights, lifeEvents, flomentumDaily, healthkitSamples, systemSettings } = await import("@shared/schema");
       
       const tenDaysAgo = new Date();
       tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
       
-      let ragInsightsData: any[] = [];
+      let dailyInsightsData: any[] = [];
       try {
-        ragInsightsData = await db
+        dailyInsightsData = await db
           .select()
-          .from(ragInsights)
+          .from(dailyInsights)
           .where(
             and(
-              eq(ragInsights.userId, userId),
-              gte(ragInsights.createdAt, tenDaysAgo)
+              eq(dailyInsights.userId, userId),
+              gte(dailyInsights.createdAt, tenDaysAgo)
             )
           )
-          .orderBy(desc(ragInsights.createdAt))
+          .orderBy(desc(dailyInsights.createdAt))
           .limit(10);
       } catch (error) {
-        logger.info('RAG insights fetch failed, continuing without them');
+        logger.info('Daily insights fetch failed, continuing without them');
       }
 
       // Get life events (last 30 days)
@@ -1500,10 +1498,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(
             and(
               eq(lifeEvents.userId, userId),
-              gte(lifeEvents.timestamp, thirtyDaysAgo)
+              gte(lifeEvents.happenedAt, thirtyDaysAgo)
             )
           )
-          .orderBy(desc(lifeEvents.timestamp))
+          .orderBy(desc(lifeEvents.happenedAt))
           .limit(20);
       } catch (error) {
         logger.info('Life events fetch failed, continuing without them');
@@ -1517,23 +1515,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const recentScores = await db
           .select()
-          .from(flomentumScores)
+          .from(flomentumDaily)
           .where(
             and(
-              eq(flomentumScores.userId, userId),
-              gte(flomentumScores.calculatedAt, sevenDaysAgo)
+              eq(flomentumDaily.userId, userId),
+              gte(flomentumDaily.createdAt, sevenDaysAgo)
             )
           )
-          .orderBy(desc(flomentumScores.calculatedAt))
+          .orderBy(desc(flomentumDaily.createdAt))
           .limit(7);
         
         if (recentScores.length > 0) {
-          const avgScore = recentScores.reduce((sum, s) => sum + (s.totalScore || 0), 0) / recentScores.length;
+          const avgScore = recentScores.reduce((sum, s) => sum + (s.score || 0), 0) / recentScores.length;
           const latestScore = recentScores[0];
           flomentumData = {
-            current_score: latestScore.totalScore,
+            current_score: latestScore.score,
             trend_7d: avgScore,
-            domain_scores: latestScore.domainScores,
+            domain_scores: latestScore.factors, // factors JSONB contains domain data
           };
         }
       } catch (error) {
@@ -1545,11 +1543,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const recentSamples = await db
           .select()
-          .from(healthKitSamples)
+          .from(healthkitSamples)
           .where(
             and(
-              eq(healthKitSamples.userId, userId),
-              gte(healthKitSamples.startDate, sevenDaysAgo)
+              eq(healthkitSamples.userId, userId),
+              gte(healthkitSamples.startDate, sevenDaysAgo)
             )
           )
           .limit(1000);
@@ -1559,7 +1557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const metricTypes = ['steps', 'activeEnergyBurned', 'restingHeartRate', 'heartRateVariabilitySDNN', 'sleepDuration', 'appleStandHours'];
           
           for (const metricType of metricTypes) {
-            const samples = recentSamples.filter(s => s.metricType === metricType);
+            const samples = recentSamples.filter(s => s.dataType === metricType);
             if (samples.length > 0) {
               const avg = samples.reduce((sum, s) => sum + (s.value || 0), 0) / samples.length;
               metricAverages[metricType] = avg;
@@ -1582,8 +1580,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check which AI model to use for report generation
-      const { systemSettings } = await import("@shared/schema");
-      
       let reportModel = 'gpt'; // default
       try {
         const [setting] = await db
@@ -1609,18 +1605,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         biomarker_panels: panels.slice(0, 3), // Limit to last 3 panels for token budget
         biological_age_data: bioageData,
-        rag_insights: ragInsightsData.map((insight: any) => ({
+        rag_insights: dailyInsightsData.map((insight: any) => ({
           category: insight.category,
-          insightText: insight.insightText,
-          confidence: insight.confidence,
-          evidenceSummary: insight.evidenceSummary,
+          insightText: insight.body,
+          confidence: insight.confidenceScore,
+          evidenceSummary: {
+            title: insight.title,
+            action: insight.action,
+            impactScore: insight.impactScore,
+            actionabilityScore: insight.actionabilityScore,
+          },
           createdAt: insight.createdAt.toISOString(),
         })),
         healthkit_summary: healthkitSummary,
         life_events: lifeEventsData.map((event: any) => ({
           eventType: event.eventType,
-          eventDetails: event.eventDetails,
-          timestamp: event.timestamp.toISOString(),
+          eventDetails: event.details,
+          timestamp: event.happenedAt.toISOString(),
         })),
         flomentum_data: flomentumData,
       };
