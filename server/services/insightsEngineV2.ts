@@ -16,11 +16,12 @@ import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { PHYSIOLOGICAL_PATHWAYS } from './physiologicalPathways';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
-import { type EvidenceTier } from './evidenceHierarchy';
+import { type EvidenceTier, EVIDENCE_TIERS } from './evidenceHierarchy';
 import { differenceInDays, subDays, format } from 'date-fns';
 import { detectReplicatedCorrelations, type ReplicatedCorrelation, filterNovelCorrelations } from './bayesianCorrelationEngine';
 import { analyzeDoseResponse, type DoseResponseResult, type DosageEvent, type OutcomeDataPoint, type TemporalWindow } from './doseResponseAnalyzer';
 import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation, buildStaleBiomarker } from './anomalyDetectionEngine';
+import { getFreshnessCategory, SLOW_MOVING_BIOMARKERS } from './dataClassification';
 import { logger } from '../logger';
 
 // ============================================================================
@@ -469,25 +470,40 @@ export function generateLayerAInsights(
 /**
  * Run Bayesian correlation analysis and convert to insight candidates
  * 
- * For MVP: Calls the real engine but will return empty since we need
- * pre-computed correlations across multiple time windows. Phase 2 will
- * add the correlation computation step.
+ * IMPLEMENTATION STATUS: Phase 2 (Not Yet Implemented)
+ * 
+ * This layer is designed to discover novel correlations not covered by
+ * hard-coded physiological pathways (Layer A). However, it requires:
+ * 
+ * 1. Correlation computation across all metric pairs
+ * 2. Rolling window analysis (short/medium/long term)
+ * 3. Replication tracking database (insight_replication_history table)
+ * 4. Partial correlation controls for confounders (age, sex, activity)
+ * 
+ * Until implemented, this layer returns empty to prevent invalid insights.
+ * The Bayesian correlation engine code exists and is tested, but needs
+ * the infrastructure above to run safely.
+ * 
+ * ANTI-JUNK SAFEGUARD: Returning empty prevents spurious correlations from
+ * being presented as insights without proper replication and confounder controls.
  */
 export function generateLayerBInsights(
   userId: string,
   healthData: HealthDataSnapshot
 ): InsightCandidate[] {
+  // Return empty until Phase 2 correlation computation is implemented
+  // This is INTENTIONAL - prevents junk insights from unvalidated correlations
+  logger.info('[Layer B] Skipping Bayesian correlations (Phase 2 not implemented - requires correlation computation infrastructure)');
+  return [];
+  
+  /* PHASE 2 IMPLEMENTATION:
   const insights: InsightCandidate[] = [];
   
   try {
-    // In production, we would:
     // 1. Compute correlations for all metric pairs in short/medium/long windows
     // 2. Store results in insight_replication_history table
     // 3. Query for replicated patterns
-    //
-    // For MVP, we call detectReplicatedCorrelations with empty array
-    // This validates the integration without needing the full correlation pipeline
-    const correlationResults: any[] = []; // TODO: Compute correlations in Phase 2
+    const correlationResults: any[] = computeAllCorrelations(healthData);
     const replicatedCorrelations = detectReplicatedCorrelations(correlationResults);
     
     // Convert to InsightCandidate format
@@ -516,6 +532,7 @@ export function generateLayerBInsights(
     logger.error('[Layer B] Error generating Bayesian correlation insights:', error);
     return [];
   }
+  */
 }
 
 // ============================================================================
@@ -854,6 +871,206 @@ export function generateInsightNarrative(
 }
 
 // ============================================================================
+// Anti-Junk Safeguards
+// ============================================================================
+
+/**
+ * Filter out insights where red-freshness biomarkers are the sole causal explanation
+ * 
+ * CRITICAL SPEC REQUIREMENT: "Red freshness labs must never be the sole causal 
+ * explanation in an insight"
+ * 
+ * This function enforces algorithmic protection (not just linguistic hedging):
+ * - Insights with red-freshness biomarkers as independent variable are blocked
+ *   UNLESS they have supporting evidence from other variables
+ * - Layer D (stale-lab warnings) is exempt - it's designed to surface stale biomarkers
+ * 
+ * @param candidates - Insight candidates from all layers
+ * @param healthData - User health data with biomarker freshness info
+ * @returns Filtered candidates with red-lab protection applied
+ */
+/**
+ * Shared canonical normalization for biomarker names
+ * CRITICAL: This MUST be used consistently across:
+ * - Data ingestion (lab processor, HealthKit)
+ * - Storage (biomarkers table)
+ * - Filtering (this file)
+ * - Pathway matching (physiologicalPathways.ts)
+ */
+export function biomarkerNameToCanonicalKey(name: string): string {
+  return name.toLowerCase().replace(/[\s\-]+/g, '_').replace(/_+/g, '_');
+}
+
+export function filterRedFreshnessInsights(
+  candidates: InsightCandidate[],
+  healthData: HealthDataSnapshot
+): InsightCandidate[] {
+  
+  const filtered: InsightCandidate[] = [];
+  let blockedCount = 0;
+  
+  for (const candidate of candidates) {
+    // Layer D (stale-lab warnings) is EXEMPT - these are DESIGNED to surface stale biomarkers
+    if (candidate.layer === 'D') {
+      filtered.push(candidate);
+      continue;
+    }
+    
+    // CRITICAL SPEC REQUIREMENT: ANY insight referencing a red-freshness biomarker
+    // must be suppressed (regardless of variable count or supporting evidence)
+    // 
+    // Collect ALL biomarker references from:
+    // 1. candidate.variables array
+    // 2. rawMetadata.staleBiomarkers (if present)
+    // 3. Any other metadata fields that might contain biomarker references
+    const allBiomarkerRefs = new Set<string>();
+    
+    // Add variables
+    candidate.variables.forEach(v => allBiomarkerRefs.add(biomarkerNameToCanonicalKey(v)));
+    
+    // Check rawMetadata for additional biomarker references
+    if (candidate.rawMetadata) {
+      // Layer D warnings have staleBiomarkers array
+      if (Array.isArray(candidate.rawMetadata.staleBiomarkers)) {
+        candidate.rawMetadata.staleBiomarkers.forEach((b: any) => {
+          if (b.biomarker) {
+            allBiomarkerRefs.add(biomarkerNameToCanonicalKey(b.biomarker));
+          }
+        });
+      }
+      
+      // Check for biomarker references in mechanism metadata
+      if (candidate.rawMetadata.mechanismInputs && Array.isArray(candidate.rawMetadata.mechanismInputs)) {
+        candidate.rawMetadata.mechanismInputs.forEach((input: any) => {
+          if (typeof input === 'string') {
+            allBiomarkerRefs.add(biomarkerNameToCanonicalKey(input));
+          } else if (input?.name) {
+            allBiomarkerRefs.add(biomarkerNameToCanonicalKey(input.name));
+          }
+        });
+      }
+    }
+    
+    // Check ALL biomarker references for red freshness
+    let hasRedBiomarker = false;
+    let redBiomarkerName = '';
+    let redBiomarkerAge = 0;
+    
+    for (const biomarkerRef of allBiomarkerRefs) {
+      // Find matching biomarker in health data
+      const biomarkerData = healthData.biomarkers.find(b => 
+        biomarkerNameToCanonicalKey(b.name) === biomarkerRef
+      );
+      
+      if (biomarkerData) {
+        const freshness = getFreshnessCategory(biomarkerData.testDate);
+        
+        if (freshness === 'red') {
+          hasRedBiomarker = true;
+          redBiomarkerName = biomarkerData.name;
+          redBiomarkerAge = Math.round(differenceInDays(new Date(), biomarkerData.testDate) / 30);
+          break; // Found a red biomarker - block this insight
+        }
+      }
+    }
+    
+    if (hasRedBiomarker) {
+      // BLOCK: Any insight with a red-freshness biomarker (except Layer D warnings)
+      logger.warn(
+        `[Anti-Junk] BLOCKED: Red-freshness biomarker detected - ${redBiomarkerName} in insight ${candidate.independent} → ${candidate.dependent} ` +
+        `(biomarker is ${redBiomarkerAge} months old, ${candidate.variables.length} variables: [${candidate.variables.join(', ')}])`
+      );
+      blockedCount++;
+      continue; // Skip this insight
+    }
+    
+    // Passed red-freshness filter
+    filtered.push(candidate);
+  }
+  
+  if (blockedCount > 0) {
+    logger.info(`[Anti-Junk] Total blocked: ${blockedCount} insights with red-freshness biomarkers`);
+  }
+  
+  return filtered;
+}
+
+/**
+ * Enforce first-occurrence evidence tier requirements
+ * 
+ * CRITICAL SPEC REQUIREMENT: "Tier 1–4 required for first-occurrence insights"
+ * "Tier 5 (personal replication) only after ≥2 prior instances"
+ * 
+ * Since personal replication tracking is not yet implemented (Phase 2),
+ * this function blocks Tier 5 insights entirely and ensures only Tier 1-4
+ * insights are presented.
+ * 
+ * @param candidates - Insight candidates from all layers
+ * @returns Filtered candidates with tier enforcement applied
+ */
+export function enforceEvidenceTierRequirements(
+  candidates: InsightCandidate[]
+): InsightCandidate[] {
+  
+  const filtered: InsightCandidate[] = [];
+  let blockedCount = 0;
+  
+  for (const candidate of candidates) {
+    // EXCEPTION: Layer D (stale-lab warnings) may have undefined/null tiers by design
+    // These are critical safety warnings and must ALWAYS be allowed through
+    if (candidate.layer === 'D') {
+      filtered.push(candidate);
+      continue;
+    }
+    
+    // CRITICAL: Block Tier 5 and any undefined/unknown tiers (except Layer D above)
+    // Tier 5 requires personal replication which isn't implemented yet
+    if (!candidate.evidenceTier || candidate.evidenceTier === '5') {
+      logger.warn(
+        `[Anti-Junk] BLOCKED: Invalid or Tier 5 insight (Layer ${candidate.layer}) - ${candidate.independent} → ${candidate.dependent} ` +
+        `(tier: ${candidate.evidenceTier || 'undefined'})`
+      );
+      blockedCount++;
+      continue;
+    }
+    
+    // Get tier configuration (safe with type check)
+    const tierConfig = EVIDENCE_TIERS[candidate.evidenceTier];
+    
+    // If tier config doesn't exist, block it (safety default)
+    if (!tierConfig) {
+      logger.warn(
+        `[Anti-Junk] BLOCKED: Unknown evidence tier (Layer ${candidate.layer}) - ${candidate.independent} → ${candidate.dependent} ` +
+        `(tier: ${candidate.evidenceTier})`
+      );
+      blockedCount++;
+      continue;
+    }
+    
+    // Ensure insight can trigger first occurrence
+    // Default to false if canTriggerFirstOccurrence is undefined (safety default)
+    const canTrigger = tierConfig.canTriggerFirstOccurrence ?? false;
+    if (!canTrigger) {
+      logger.warn(
+        `[Anti-Junk] BLOCKED: Tier cannot trigger first occurrence (Layer ${candidate.layer}) - ${candidate.independent} → ${candidate.dependent} ` +
+        `(tier: ${candidate.evidenceTier})`
+      );
+      blockedCount++;
+      continue;
+    }
+    
+    // Passed tier enforcement
+    filtered.push(candidate);
+  }
+  
+  if (blockedCount > 0) {
+    logger.info(`[Anti-Junk] Total tier enforcement blocks: ${blockedCount} insights`);
+  }
+  
+  return filtered;
+}
+
+// ============================================================================
 // Full Pipeline Orchestration
 // ============================================================================
 
@@ -864,10 +1081,11 @@ export function generateInsightNarrative(
  * 1. Check if insights already generated today (idempotency)
  * 2. Fetch user's health data
  * 3. Run all 4 analytical layers
- * 4. Rank insights
- * 5. Select top 5
- * 6. Generate natural language
- * 7. Store in database
+ * 4. Apply anti-junk safeguards (red-lab protection, tier enforcement)
+ * 5. Rank insights
+ * 6. Select top 5
+ * 7. Generate natural language
+ * 8. Store in database
  * 
  * @param userId - User ID
  * @param forceRegenerate - Force regeneration even if insights exist for today
@@ -938,15 +1156,21 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     
     logger.info(`[InsightsEngineV2] Generated ${allCandidates.length} insight candidates (A:${layerAInsights.length}, B:${layerBInsights.length}, C:${layerCInsights.length}, D:${layerDInsights.length})`);
     
-    // Step 4: Convert to ranked insights
-    const rankedInsights = allCandidates.map(convertToRankedInsight);
+    // Step 4: Apply anti-junk safeguards
+    logger.info('[InsightsEngineV2] Applying anti-junk safeguards');
+    let filteredCandidates = filterRedFreshnessInsights(allCandidates, healthData);
+    filteredCandidates = enforceEvidenceTierRequirements(filteredCandidates);
+    logger.info(`[InsightsEngineV2] After filters: ${filteredCandidates.length} candidates remain (blocked ${allCandidates.length - filteredCandidates.length})`);
     
-    // Step 5: Select top 5 with domain diversity
+    // Step 5: Convert to ranked insights
+    const rankedInsights = filteredCandidates.map(convertToRankedInsight);
+    
+    // Step 6: Select top 5 with domain diversity
     const topInsights = selectTopInsights(rankedInsights, 5, 2);
     
     logger.info(`[InsightsEngineV2] Selected ${topInsights.length} top insights`);
     
-    // Step 6: Generate natural language
+    // Step 7: Generate natural language
     const insightPairs: Array<{
       narrative: GeneratedInsight;
       ranked: RankedInsight;
@@ -957,7 +1181,7 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
       const rankedInsight = topInsights[index];
       
       // More robust candidate matching (handles Layer D's comma-joined dependent variables)
-      const candidate = allCandidates.find(c => {
+      const candidate = filteredCandidates.find(c => {
         if (c.layer !== rankedInsight.layer) return false;
         if (c.independent !== rankedInsight.variables[0]) return false;
         
@@ -982,7 +1206,7 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     
     const generatedInsights = insightPairs.map(p => p.narrative);
     
-    // Step 7: Store in database
+    // Step 8: Store in database
     if (insightPairs.length > 0) {
       try {
         logger.info(`[InsightsEngineV2] Storing ${insightPairs.length} insights in database`);

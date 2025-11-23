@@ -247,15 +247,22 @@ export const BIOMARKER_UPDATE_FREQUENCIES: Record<string, number> = {
 const DECAY_LAMBDA = 0.15; // per month
 
 /**
- * Freshness thresholds
- * Green: Data is current and reliable
- * Yellow: Data is aging, consider rechecking
- * Red: Data is stale, insights may be outdated
+ * Freshness thresholds (aligned with v2.0 spec)
+ * 
+ * Spec requirement: "green: ≤3 months, yellow: 3–9 months, red: ≥9 months"
+ * 
+ * Using exponential decay formula Score = e^(-0.15t) where t = months:
+ * - 3 months: e^(-0.15 * 3) = 0.6376
+ * - 9 months: e^(-0.15 * 9) = 0.2592
+ * 
+ * Green: Data is current and reliable (≤3 months old)
+ * Yellow: Data is aging, consider rechecking (3-9 months old)
+ * Red: Data is stale, insights may be outdated (≥9 months old)
  */
 export const FRESHNESS_THRESHOLDS = {
-  GREEN: 0.8,   // ≥80% fresh (≤1.5 months old for typical biomarker)
-  YELLOW: 0.5,  // 50-80% fresh (1.5-4.5 months old)
-  // <50% is RED (>4.5 months old)
+  GREEN: 0.64,  // ≥64% fresh = ≤3 months old (spec-compliant)
+  YELLOW: 0.26, // 26-64% fresh = 3-9 months old (spec-compliant)
+  // <26% is RED = ≥9 months old (spec-compliant)
 } as const;
 
 export type FreshnessCategory = 'green' | 'yellow' | 'red';
@@ -267,13 +274,14 @@ export type FreshnessCategory = 'green' | 'yellow' | 'red';
  * - λ = 0.15/month (decay rate)
  * - t = age in months
  * 
- * Example scores:
- * - 0 months: 1.00 (100% fresh)
+ * Example scores (updated to match v2.0 spec):
+ * - 0 months: 1.00 (100% fresh) - GREEN
  * - 1 month:  0.86 (86% fresh) - GREEN
- * - 2 months: 0.74 (74% fresh) - YELLOW
- * - 3 months: 0.64 (64% fresh) - YELLOW
- * - 4 months: 0.55 (55% fresh) - YELLOW
- * - 5 months: 0.47 (47% fresh) - RED
+ * - 2 months: 0.74 (74% fresh) - GREEN
+ * - 3 months: 0.64 (64% fresh) - GREEN (threshold)
+ * - 6 months: 0.41 (41% fresh) - YELLOW
+ * - 9 months: 0.26 (26% fresh) - YELLOW (threshold)
+ * - 12 months: 0.17 (17% fresh) - RED
  * 
  * @param lastMeasuredDate - Date of most recent measurement
  * @param currentDate - Current date (defaults to now)
