@@ -141,15 +141,15 @@ export function BodyCompositionTile({
           {/* Total Weight */}
           {weightKg !== null && weightKg !== undefined && (
             <div data-testid="metric-weight">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                     Weight
                   </span>
                   {renderSourceBadge(snapshot?.weightSource || null)}
                 </div>
-                <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {weightKg.toFixed(1)} <span className="text-sm font-normal">kg</span>
+                <span className={`text-xs font-medium ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
+                  {weightKg.toFixed(1)} kg
                 </span>
               </div>
             </div>
@@ -158,11 +158,11 @@ export function BodyCompositionTile({
           {/* BMI - only show if available */}
           {snapshot?.bmi !== null && snapshot?.bmi !== undefined && (
             <div data-testid="metric-bmi">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-1">
                 <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                   BMI
                 </span>
-                <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <span className={`text-xs font-medium ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
                   {snapshot.bmi.toFixed(1)}
                 </span>
               </div>
