@@ -1,0 +1,440 @@
+import { Sparkles, X, AlertCircle } from 'lucide-react';
+import { FloLogo } from './FloLogo';
+
+interface Reading {
+  id: string;
+  biomarker: string;
+  value: number;
+  date: string;
+}
+
+interface BiomarkerConfig {
+  unit: string;
+  min: number;
+  max: number;
+  category: string;
+}
+
+// Longevity-focused retest intervals (in months) based on clinical guidelines
+const RETEST_INTERVALS: Record<string, number | null> = {
+  // Core Longevity Panel (6-month)
+  'WBC': 6, 'RBC': 6, 'Hemoglobin': 6, 'Hematocrit': 6, 'MCV': 6, 'MCH': 6, 'MCHC': 6, 
+  'Platelets': 6, 'Neutrophils': 6, 'Lymphocytes': 6, 'Monocytes': 6, 'Eosinophils': 6, 'Basophils': 6,
+  'Sodium': 6, 'Potassium': 6, 'Chloride': 6, 'CO2': 6, 'BUN': 6, 'Creatinine': 6, 'eGFR': 6,
+  'Glucose': 6, 'Calcium': 6, 'Total Protein': 6, 'Albumin': 6, 'Globulin': 6, 'A/G Ratio': 6,
+  'ALT': 6, 'AST': 6, 'ALP': 6, 'Total Bilirubin': 6, 'Direct Bilirubin': 6, 'GGT': 6,
+  'Total Cholesterol': 6, 'LDL': 6, 'HDL': 6, 'Triglycerides': 6, 'VLDL': 6, 'Non-HDL Cholesterol': 6,
+  'ApoB': 6, 'Apolipoprotein B': 6,
+  'Fasting Glucose': 6, 'HbA1c': 6, 'Fasting Insulin': 6, 'HOMA-IR': 6,
+  'hs-CRP': 6, 'High-Sensitivity CRP': 6,
+  'Uric Acid': 6,
+  'Testosterone': 6, 'Total Testosterone': 6, 'Free Testosterone': 6, 'SHBG': 6,
+  'Estradiol': 6, 'E2': 6,
+  'PSA': 12, 'Prostate-Specific Antigen': 12,
+  
+  // Extended Longevity Panel (12-month)
+  'Iron': 12, 'Ferritin': 12, 'TIBC': 12, 'Transferrin Saturation': 12, 'Serum Iron': 12,
+  'Vitamin B12': 12, 'B12': 12,
+  'Folate': 12, 'Folic Acid': 12,
+  'Vitamin D': 12, '25-OH Vitamin D': 12, 'Vitamin D 25-Hydroxy': 12,
+  'Magnesium': 12, 'RBC Magnesium': 12,
+  'Urine Albumin': 12, 'Urine Creatinine': 12, 'ACR': 12, 'Albumin/Creatinine Ratio': 12,
+  'TSH': 12, 'Free T4': 12, 'Free T3': 12, 'T4': 12, 'T3': 12,
+  'Homocysteine': 12,
+  'IGF-1': 12, 'Insulin-like Growth Factor 1': 12,
+  
+  // One-off / Genetic markers (rarely retested)
+  'Lp(a)': null, 'Lipoprotein(a)': null,
+};
+
+// Default interval for any biomarker not explicitly listed
+const DEFAULT_INTERVAL_MONTHS = 6;
+
+// Helper function to determine if a retest is recommended
+function isRetestRecommended(dateString: string, biomarkerName: string): { isRecommended: boolean; daysOld: number } {
+  const testDate = new Date(dateString);
+  const today = new Date();
+  const daysOld = Math.floor((today.getTime() - testDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Look up the recommended interval for this specific biomarker
+  const intervalMonths = RETEST_INTERVALS[biomarkerName] ?? DEFAULT_INTERVAL_MONTHS;
+  
+  // If interval is null, it's a one-off test (like Lp(a)) - never recommend retest
+  if (intervalMonths === null) {
+    return {
+      isRecommended: false,
+      daysOld
+    };
+  }
+  
+  // Convert months to days (using 30.44 days per month average)
+  const intervalDays = Math.floor(intervalMonths * 30.44);
+  
+  return {
+    isRecommended: daysOld >= intervalDays,
+    daysOld
+  };
+}
+
+// Helper to format how long ago a test was
+function formatTestAge(daysOld: number): string {
+  if (daysOld < 30) {
+    return `${daysOld}d ago`;
+  } else if (daysOld < 365) {
+    const months = Math.floor(daysOld / 30);
+    return `${months}mo ago`;
+  } else {
+    const years = Math.floor(daysOld / 365);
+    return `${years}y ago`;
+  }
+}
+
+interface BloodPanelScreenProps {
+  isDark: boolean;
+  onClose: () => void;
+  readings: Reading[];
+  biomarkers: Record<string, BiomarkerConfig>;
+  categories: string[];
+  selectedCategory: string;
+  onCategoryChange: (category: string) => void;
+  onBiomarkerClick: (biomarker: string) => void;
+  getLatestReading: (biomarker: string) => Reading | undefined;
+  isInRange: (biomarker: string, value: number) => boolean;
+  getBiomarkerHistory: (biomarker: string) => Reading[];
+}
+
+export function BloodPanelScreen({
+  isDark,
+  onClose,
+  readings,
+  biomarkers,
+  categories,
+  selectedCategory,
+  onCategoryChange,
+  onBiomarkerClick,
+  getLatestReading,
+  isInRange,
+  getBiomarkerHistory
+}: BloodPanelScreenProps) {
+  const trackedBiomarkers = [...new Set(readings.map(r => r.biomarker))];
+  
+  const filteredBiomarkers = trackedBiomarkers.filter(biomarker => {
+    if (selectedCategory === 'All') return true;
+    const config = biomarkers[biomarker];
+    return config && config.category === selectedCategory;
+  });
+  
+  // Count how many tests need retesting in the filtered view
+  const retestsNeeded = filteredBiomarkers.filter(biomarker => {
+    const latest = getLatestReading(biomarker);
+    if (!latest) return false;
+    const retestInfo = isRetestRecommended(latest.date, biomarker);
+    return retestInfo.isRecommended;
+  }).length;
+
+  return (
+    <div className={`min-h-screen ${
+      isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+    }`}>
+      {/* Header */}
+      <header className={`sticky top-0 z-40 backdrop-blur-xl border-b transition-colors ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`}>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FloLogo size={32} />
+              <div>
+                <h1 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Blood Panel
+                </h1>
+                <div className="flex items-center gap-2">
+                  <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    {filteredBiomarkers.length} biomarkers tracked
+                  </p>
+                  {retestsNeeded > 0 && (
+                    <>
+                      <span className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>•</span>
+                      <p className="text-xs text-amber-500 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {retestsNeeded} due
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={onClose}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+              }`}
+            >
+              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Category Pills */}
+      <div className={`sticky top-[65px] z-30 backdrop-blur-xl border-b transition-colors ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`}>
+        <div className="px-3 py-2.5">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory">
+            {categories.map(category => {
+              const displayName = 
+                category === 'Lipid & Cardiovascular Health' ? 'Lipids & Cardio' :
+                category === 'Hormonal & Endocrine' ? 'Hormones' :
+                category === 'Metabolic & Diabetes' ? 'Metabolic' :
+                category === 'Liver & Kidney Function' ? 'Liver & Kidney' :
+                category === 'Nutritional & Vitamin Status' ? 'Nutrition' :
+                category === 'Inflammation & Immune Markers' ? 'Inflammation' :
+                category === 'Cardiometabolic & Advanced Panels' ? 'Advanced' :
+                category === 'Infectious Disease & General Health' ? 'Infectious' :
+                category === 'Longevity & Specialized Panels' ? 'Longevity' :
+                category;
+              
+              return (
+                <button
+                  key={category}
+                  onClick={() => onCategoryChange(category)}
+                  className={`
+                    px-3 py-1.5 rounded-full whitespace-nowrap transition-all flex-shrink-0 text-xs snap-start
+                    ${selectedCategory === category
+                      ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25'
+                      : isDark 
+                        ? 'bg-white/10 text-white/70 hover:bg-white/20'
+                        : 'bg-white/60 text-gray-700 hover:bg-white/80'
+                    }
+                  `}
+                >
+                  {displayName}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Biomarkers List */}
+      <main className="px-3 py-3 pb-24">
+        <div className="space-y-3 max-w-2xl mx-auto">
+          {filteredBiomarkers.map(biomarker => {
+            const latest = getLatestReading(biomarker);
+            if (!latest) return null;
+            
+            const config = biomarkers[biomarker];
+            const inRange = isInRange(biomarker, latest.value);
+            
+            const retestInfo = isRetestRecommended(latest.date, biomarker);
+            const testAge = formatTestAge(retestInfo.daysOld);
+            
+            return (
+              <div 
+                key={biomarker}
+                onClick={() => onBiomarkerClick(biomarker)}
+                className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] ${
+                  isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{biomarker}</h3>
+                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                        {new Date(latest.date).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {inRange ? (
+                      <div className="px-2 py-0.5 rounded-full bg-green-500/20 text-[10px] text-green-600">
+                        Optimal
+                      </div>
+                    ) : (
+                      <div className="px-2 py-0.5 rounded-full bg-red-500/20 text-[10px] text-red-600">
+                        Out of Range
+                      </div>
+                    )}
+                    <Sparkles className={`w-3.5 h-3.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                  </div>
+                </div>
+                
+                <div className="flex items-end gap-2 mb-3">
+                  <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{latest.value}</span>
+                  <span className={`mb-1.5 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{config.unit}</span>
+                </div>
+                
+                <div className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
+                  Optimal: {config.min} - {config.max} {config.unit}
+                </div>
+                
+                {/* Trend Chart */}
+                {getBiomarkerHistory(biomarker).length >= 2 && (
+                  <TrendChart 
+                    history={getBiomarkerHistory(biomarker)}
+                    min={config.min}
+                    max={config.max}
+                    biomarker={biomarker}
+                    isDark={isDark}
+                  />
+                )}
+                
+                {/* Retest Recommendation */}
+                {retestInfo.isRecommended && (
+                  <div className={`mt-3 pt-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-500" />
+                        <div>
+                          <p className={`text-xs font-medium ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                            Retest Recommended
+                          </p>
+                          <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                            Last tested {testAge}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/30">
+                        <span className="text-[10px] text-amber-500 font-medium">Due</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+interface TrendChartProps {
+  history: Reading[];
+  min: number;
+  max: number;
+  biomarker: string;
+  isDark: boolean;
+}
+
+function TrendChart({ history, min, max, biomarker, isDark }: TrendChartProps) {
+  const chartWidth = 300;
+  const chartHeight = 80;
+  const padding = { top: 10, bottom: 10, left: 0, right: 0 };
+  const innerHeight = chartHeight - padding.top - padding.bottom;
+  
+  const allValues = history.map(r => r.value);
+  const minValue = Math.min(...allValues, min);
+  const maxValue = Math.max(...allValues, max);
+  const valueRange = maxValue - minValue || 1;
+  
+  const points = history.map((reading, index) => {
+    const x = (index / Math.max(history.length - 1, 1)) * chartWidth;
+    const y = padding.top + (1 - (reading.value - minValue) / valueRange) * innerHeight;
+    const inRange = reading.value >= min && reading.value <= max;
+    return { x, y, value: reading.value, inRange };
+  });
+  
+  const optimalMinY = padding.top + (1 - (min - minValue) / valueRange) * innerHeight;
+  const optimalMaxY = padding.top + (1 - (max - minValue) / valueRange) * innerHeight;
+  const bandHeight = Math.max(1, optimalMinY - optimalMaxY);
+  
+  return (
+    <div className={`mt-4 pt-4 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+      <div className={`text-xs mb-2 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Trend Over Time</div>
+      <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
+        <defs>
+          <linearGradient id={`gradient-${biomarker}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+        
+        <rect
+          x={0}
+          y={optimalMaxY}
+          width={chartWidth}
+          height={bandHeight}
+          fill={`url(#gradient-${biomarker})`}
+          rx={3}
+        />
+        
+        <line
+          x1={0}
+          y1={optimalMaxY}
+          x2={chartWidth}
+          y2={optimalMaxY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          opacity={0.3}
+        />
+        <line
+          x1={0}
+          y1={optimalMinY}
+          x2={chartWidth}
+          y2={optimalMinY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          opacity={0.3}
+        />
+        
+        {points.map((point, index) => {
+          if (index === 0) return null;
+          const prevPoint = points[index - 1];
+          const isSegmentInRange = point.inRange && prevPoint.inRange;
+          
+          return (
+            <line
+              key={`line-${index}`}
+              x1={prevPoint.x}
+              y1={prevPoint.y}
+              x2={point.x}
+              y2={point.y}
+              stroke={isSegmentInRange ? '#10b981' : '#ef4444'}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              opacity={0.9}
+            />
+          );
+        })}
+        
+        {points.map((point, index) => (
+          <g key={`point-${index}`}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={5}
+              fill={point.inRange ? '#10b981' : '#ef4444'}
+              opacity={0.2}
+            />
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={3}
+              fill={point.inRange ? '#10b981' : '#ef4444'}
+              stroke={point.inRange ? '#10b981' : '#ef4444'}
+              strokeWidth={1.5}
+            />
+          </g>
+        ))}
+      </svg>
+      
+      <div className="flex items-center gap-4 mt-3 text-xs">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <span className={isDark ? 'text-white/50' : 'text-gray-500'}>In Range</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span className={isDark ? 'text-white/50' : 'text-gray-500'}>Out of Range</span>
+        </div>
+      </div>
+    </div>
+  );
+}
