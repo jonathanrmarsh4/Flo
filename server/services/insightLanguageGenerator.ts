@@ -352,6 +352,16 @@ export interface GeneratedInsight {
  * @param params - Insight parameters
  * @returns Generated insight text
  */
+interface UserMetricValue {
+  variable: string;
+  currentAvg: number | null;
+  baselineAvg: number | null;
+  percentChange: number | null;
+  unit: string;
+  daysSinceData: number;
+  dataSource: 'HealthKit' | 'Labs' | 'LifeEvents';
+}
+
 export function generateInsight(params: {
   layer: 'A' | 'B' | 'C' | 'D';
   evidenceTier: EvidenceTier;
@@ -362,6 +372,8 @@ export function generateInsight(params: {
   deviationPercent?: number;
   daysSinceData: number;
   includeExperiment?: boolean;
+  userMetrics?: { independent: UserMetricValue; dependent: UserMetricValue } | null;
+  mechanism?: string;
 }): GeneratedInsight {
   const {
     layer,
@@ -373,6 +385,8 @@ export function generateInsight(params: {
     deviationPercent,
     daysSinceData,
     includeExperiment = false,
+    userMetrics,
+    mechanism,
   } = params;
   
   const indepReadable = formatVariableName(independent);
@@ -401,7 +415,7 @@ export function generateInsight(params: {
     }
   }
   
-  // Generate summary
+  // Generate summary with actual user data
   let summary: string;
   if (layer === 'D') {
     // Layer D: Out-of-range biomarker vs stale-lab warning
@@ -418,20 +432,41 @@ export function generateInsight(params: {
         `which may be explained by a stale ${indepReadable} measurement.`;
     }
   } else {
-    // Correlation/pathway/dose-response
-    const relationVerb = layer === 'A' ? 'influences' : 'is associated with';
-    
-    // For positive correlations: higher X → better Y
-    // For negative correlations: higher X → worse Y (so we want LOWER X)
-    let description: string;
-    if (direction === 'positive') {
-      description = `higher ${indepReadable} ${relationVerb} better ${depReadable}`;
+    // SHOW ACTUAL USER DATA if available
+    if (userMetrics && userMetrics.independent.currentAvg !== null && userMetrics.dependent.currentAvg !== null) {
+      const indepChange = userMetrics.independent.percentChange;
+      const depChange = userMetrics.dependent.percentChange;
+      
+      // Build description with actual values
+      let actualDataDesc = `Your ${indepReadable} `;
+      if (indepChange !== null && userMetrics.independent.baselineAvg !== null) {
+        actualDataDesc += `${indepChange > 0 ? 'increased' : 'decreased'} from ${userMetrics.independent.baselineAvg}${userMetrics.independent.unit} to ${userMetrics.independent.currentAvg}${userMetrics.independent.unit} (${Math.abs(indepChange)}% change)`;
+      } else {
+        actualDataDesc += `is currently ${userMetrics.independent.currentAvg}${userMetrics.independent.unit}`;
+      }
+      
+      actualDataDesc += `, while your ${depReadable} `;
+      if (depChange !== null && userMetrics.dependent.baselineAvg !== null) {
+        actualDataDesc += `${depChange > 0 ? 'increased' : 'decreased'} from ${userMetrics.dependent.baselineAvg}${userMetrics.dependent.unit} to ${userMetrics.dependent.currentAvg}${userMetrics.dependent.unit} (${Math.abs(depChange)}% change)`;
+      } else {
+        actualDataDesc += `is ${userMetrics.dependent.currentAvg}${userMetrics.dependent.unit}`;
+      }
+      
+      summary = actualDataDesc + '.';
     } else {
-      description = `higher ${indepReadable} ${relationVerb} worse ${depReadable}`;
+      // Fallback to generic pattern
+      const relationVerb = layer === 'A' ? 'influences' : 'is associated with';
+      
+      let description: string;
+      if (direction === 'positive') {
+        description = `higher ${indepReadable} ${relationVerb} better ${depReadable}`;
+      } else {
+        description = `higher ${indepReadable} ${relationVerb} worse ${depReadable}`;
+      }
+      
+      summary = 
+        `${confidenceQual.charAt(0).toUpperCase() + confidenceQual.slice(1)} pattern: ${description}.`;
     }
-    
-    summary = 
-      `${confidenceQual.charAt(0).toUpperCase() + confidenceQual.slice(1)} pattern: ${description}.`;
   }
   
   // Generate details
@@ -459,18 +494,35 @@ export function generateInsight(params: {
   // Apply freshness hedging
   details = hedgeByFreshness(details, daysSinceData);
   
-  // Generate actionable recommendation
+  // Generate actionable recommendation with specific targets
   let actionable: string;
   if (layer === 'D') {
     actionable = 
       `Recheck ${indepReadable} to see if it's still suboptimal. ` +
       `If confirmed, address the root cause rather than just symptoms.`;
-  } else if (direction === 'positive') {
-    // Positive correlation: higher X → better Y, so INCREASE X
-    actionable = `Consider increasing ${indepReadable} to improve ${depReadable}.`;
   } else {
-    // Negative correlation: higher X → worse Y, so DECREASE X
-    actionable = `Consider reducing ${indepReadable} to improve ${depReadable}.`;
+    // Use actual user metrics to set specific targets
+    if (userMetrics && userMetrics.independent.currentAvg !== null) {
+      const currentValue = userMetrics.independent.currentAvg;
+      const unit = userMetrics.independent.unit;
+      
+      if (direction === 'positive') {
+        // Positive correlation: higher X → better Y, so INCREASE X
+        const targetIncrease = Math.round(currentValue * 1.15 * 10) / 10; // 15% increase
+        actionable = `Increase ${indepReadable} from current ${currentValue}${unit} to ${targetIncrease}${unit} (15% increase) to improve ${depReadable}.`;
+      } else {
+        // Negative correlation: higher X → worse Y, so DECREASE X
+        const targetDecrease = Math.round(currentValue * 0.85 * 10) / 10; // 15% decrease
+        actionable = `Reduce ${indepReadable} from current ${currentValue}${unit} to ${targetDecrease}${unit} (15% reduction) to improve ${depReadable}.`;
+      }
+    } else {
+      // Fallback to generic recommendation
+      if (direction === 'positive') {
+        actionable = `Consider increasing ${indepReadable} to improve ${depReadable}.`;
+      } else {
+        actionable = `Consider reducing ${indepReadable} to improve ${depReadable}.`;
+      }
+    }
   }
   
   // Generate experiment suggestion (if requested and applicable)

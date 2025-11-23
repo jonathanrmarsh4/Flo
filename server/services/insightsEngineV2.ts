@@ -183,6 +183,107 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
 }
 
 // ============================================================================
+// Helper: Calculate Actual User Metrics
+// ============================================================================
+
+interface UserMetricValue {
+  variable: string;
+  currentAvg: number | null;
+  baselineAvg: number | null;
+  percentChange: number | null;
+  unit: string;
+  daysSinceData: number;
+  dataSource: 'HealthKit' | 'Labs' | 'LifeEvents';
+}
+
+/**
+ * Calculate actual user metrics for a given variable pair
+ * 
+ * Returns current values, baselines, percent changes, and freshness
+ */
+function calculateUserMetrics(
+  independentVar: string,
+  dependentVar: string,
+  healthData: HealthDataSnapshot
+): { independent: UserMetricValue; dependent: UserMetricValue } | null {
+  const now = new Date();
+  
+  const getMetricValue = (varName: string): UserMetricValue | null => {
+    // Try HealthKit daily metrics first
+    const metricFieldMap: Record<string, keyof typeof healthData.dailyMetrics[0]> = {
+      'hrv_sdnn_ms': 'hrv',
+      'sleep_total_minutes': 'sleepDuration',
+      'resting_hr': 'restingHeartRate',
+      'steps': 'steps',
+      'active_kcal': 'activeEnergy',
+    };
+    
+    const fieldName = metricFieldMap[varName];
+    if (fieldName) {
+      const recentData = healthData.dailyMetrics.slice(0, 7); // Last 7 days
+      const baselineData = healthData.dailyMetrics.slice(30, 37); // Days 30-37 ago
+      
+      const currentValues = recentData.map(m => m[fieldName]).filter((v): v is number => v !== null);
+      const baselineValues = baselineData.map(m => m[fieldName]).filter((v): v is number => v !== null);
+      
+      if (currentValues.length > 0) {
+        const currentAvg = currentValues.reduce((a, b) => a + b, 0) / currentValues.length;
+        const baselineAvg = baselineValues.length > 0
+          ? baselineValues.reduce((a, b) => a + b, 0) / baselineValues.length
+          : null;
+        const percentChange = baselineAvg
+          ? ((currentAvg - baselineAvg) / baselineAvg) * 100
+          : null;
+        
+        const mostRecentDate = recentData[0] ? new Date(recentData[0].date) : now;
+        const daysSinceData = differenceInDays(now, mostRecentDate);
+        
+        return {
+          variable: varName,
+          currentAvg: Math.round(currentAvg * 10) / 10,
+          baselineAvg: baselineAvg ? Math.round(baselineAvg * 10) / 10 : null,
+          percentChange: percentChange ? Math.round(percentChange) : null,
+          unit: varName.includes('minutes') ? 'min' : varName.includes('ms') ? 'ms' : varName.includes('hr') ? 'bpm' : varName.includes('kcal') ? 'kcal' : 'steps',
+          daysSinceData,
+          dataSource: 'HealthKit',
+        };
+      }
+    }
+    
+    // Try biomarkers
+    const biomarker = healthData.biomarkers.find(b => 
+      b.name.toLowerCase().replace(/\s+/g, '_') === varName
+    );
+    if (biomarker) {
+      const daysSinceData = differenceInDays(now, biomarker.testDate);
+      return {
+        variable: varName,
+        currentAvg: biomarker.value,
+        baselineAvg: null, // No historical biomarker data
+        percentChange: null,
+        unit: biomarker.unit,
+        daysSinceData,
+        dataSource: 'Labs',
+      };
+    }
+    
+    return null;
+  };
+  
+  const independentMetric = getMetricValue(independentVar);
+  const dependentMetric = getMetricValue(dependentVar);
+  
+  if (!independentMetric || !dependentMetric) {
+    return null;
+  }
+  
+  return {
+    independent: independentMetric,
+    dependent: dependentMetric,
+  };
+}
+
+// ============================================================================
 // Layer A: Physiological Pathways Adapter
 // ============================================================================
 
@@ -197,6 +298,34 @@ export function generateLayerAInsights(
 ): InsightCandidate[] {
   const insights: InsightCandidate[] = [];
   
+  // Build a map of available variables from user's actual data
+  const availableVariables = new Set<string>();
+  
+  // Check dailyMetrics for available variables
+  if (healthData.dailyMetrics.length > 0) {
+    const latestMetric = healthData.dailyMetrics[0];
+    if (latestMetric.hrv !== null) availableVariables.add('hrv_sdnn_ms');
+    if (latestMetric.sleepDuration !== null) availableVariables.add('sleep_total_minutes');
+    if (latestMetric.restingHeartRate !== null) availableVariables.add('resting_hr');
+    if (latestMetric.steps !== null) availableVariables.add('steps');
+    if (latestMetric.activeEnergy !== null) availableVariables.add('active_kcal');
+  }
+  
+  // Check biomarkers for available variables
+  for (const biomarker of healthData.biomarkers) {
+    const biomarkerKey = biomarker.name.toLowerCase().replace(/\s+/g, '_');
+    availableVariables.add(biomarkerKey);
+  }
+  
+  // Check life events for stress/behavior variables
+  if (healthData.lifeEvents.length > 0) {
+    availableVariables.add('stress_events');
+    availableVariables.add('alcohol_intake');
+    availableVariables.add('caffeine_intake');
+  }
+  
+  logger.info(`[Layer A] Available variables for user ${userId}: ${Array.from(availableVariables).join(', ')}`);
+  
   // Find most recent data date across all sources
   const mostRecentDate = new Date(Math.max(
     healthData.healthkitSamples[0]?.startDate?.getTime() || 0,
@@ -209,6 +338,18 @@ export function generateLayerAInsights(
     if (pathway.direction === 'bidirectional') {
       continue;
     }
+    
+    // CRITICAL: Only generate insight if user has data for BOTH variables
+    const hasIndependent = availableVariables.has(pathway.independent);
+    const hasDependent = availableVariables.has(pathway.dependent);
+    
+    if (!hasIndependent || !hasDependent) {
+      logger.debug(`[Layer A] Skipping pathway ${pathway.independent} → ${pathway.dependent} (missing data)`);
+      continue;
+    }
+    
+    // Calculate actual user metrics for this pathway
+    const userMetrics = calculateUserMetrics(pathway.independent, pathway.dependent, healthData);
     
     insights.push({
       layer: 'A',
@@ -224,11 +365,12 @@ export function generateLayerAInsights(
         references: pathway.references,
         doseDependent: pathway.doseDependent,
         timingDependent: pathway.timingDependent,
+        userMetrics, // Add actual user data
       },
     });
   }
   
-  logger.info(`[Layer A] Generated ${insights.length} physiological pathway insights`);
+  logger.info(`[Layer A] Generated ${insights.length} physiological pathway insights (filtered by available data)`);
   return insights;
 }
 
@@ -618,6 +760,8 @@ export function generateInsightNarrative(
     deviationPercent: candidate.deviationPercent,
     daysSinceData,
     includeExperiment: candidate.layer !== 'D', // No experiments for anomaly warnings
+    userMetrics: candidate.rawMetadata?.userMetrics, // Pass actual user data
+    mechanism: candidate.rawMetadata?.mechanism, // Pass mechanism for Layer A
   });
 }
 
