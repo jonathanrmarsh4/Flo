@@ -452,8 +452,9 @@ export function generateLayerAInsights(
   
   // Check biomarkers for available variables
   for (const biomarker of healthData.biomarkers) {
-    const biomarkerKey = biomarker.name.toLowerCase().replace(/\s+/g, '_');
+    const biomarkerKey = biomarkerNameToCanonicalKey(biomarker.name);
     availableVariables.add(biomarkerKey);
+    logger.debug(`[Layer A] Added biomarker: ${biomarker.name} → ${biomarkerKey} (value: ${biomarker.value}${biomarker.unit})`);
   }
   
   // Check life events for stress/behavior variables
