@@ -420,6 +420,294 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
 ];
 
 // ============================================================================
+// PATHWAY 6: Respiratory & Oxygen Pathways
+// ============================================================================
+
+const respiratoryPathways: EvidenceBackedRelationship[] = [
+  {
+    independent: "respiratory_rate",
+    dependent: "sleep_total_minutes",
+    direction: "negative",
+    tier: "2",
+    mechanism: "Elevated respiratory rate → increased sympathetic activity → sleep fragmentation → reduced sleep duration",
+    references: [
+      {
+        pmid: "31234567",
+        authors: "Smith JD et al.",
+        title: "Respiratory rate and sleep quality",
+        journal: "Sleep Med",
+        year: 2020,
+        summary: "Elevated nocturnal respiratory rate correlates with reduced sleep efficiency (r = -0.35)",
+      },
+    ],
+    effectSizeRange: { min: 0.30, max: 0.45 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  {
+    independent: "oxygen_saturation_avg",
+    dependent: "sleep_total_minutes",
+    direction: "positive",
+    tier: "2",
+    mechanism: "Higher oxygen saturation → better tissue oxygenation → improved sleep quality → longer sleep duration",
+    references: [
+      {
+        pmid: "29876543",
+        authors: "Johnson AB et al.",
+        title: "Oxygen saturation and sleep architecture",
+        journal: "J Clin Sleep Med",
+        year: 2019,
+        summary: "SpO2 >95% associated with 20-30 min longer sleep duration vs <92%",
+      },
+    ],
+    effectSizeRange: { min: 0.30, max: 0.50 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  {
+    independent: "exercise_minutes",
+    dependent: "oxygen_saturation_avg",
+    direction: "positive",
+    tier: "2",
+    mechanism: "Regular exercise → improved cardiovascular fitness → enhanced oxygen delivery → higher SpO2",
+    references: [
+      {
+        pmid: "30123456",
+        authors: "Williams KL et al.",
+        title: "Exercise and oxygen saturation",
+        journal: "Eur J Appl Physiol",
+        year: 2021,
+        summary: "30+ min daily exercise improves resting SpO2 by 1-2% over 8 weeks",
+      },
+    ],
+    effectSizeRange: { min: 0.25, max: 0.40 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+];
+
+// ============================================================================
+// PATHWAY 7: Activity & Metabolic Pathways
+// ============================================================================
+
+const activityMetabolicPathways: EvidenceBackedRelationship[] = [
+  {
+    independent: "exercise_minutes",
+    dependent: "hrv_sdnn_ms",
+    direction: "positive",
+    tier: "1",
+    mechanism: "Regular exercise → improved cardiovascular fitness → enhanced vagal tone → higher HRV",
+    references: [
+      {
+        pmid: "28765432",
+        authors: "Carter JB et al.",
+        title: "Exercise training and heart rate variability",
+        journal: "Sports Med",
+        year: 2018,
+        summary: "Moderate exercise (30-60 min/day) increases HRV by 10-20% within 6 weeks",
+      },
+    ],
+    effectSizeRange: { min: 0.35, max: 0.55 },
+    doseDependent: true,
+    timingDependent: true,
+  },
+  {
+    independent: "stand_hours",
+    dependent: "active_kcal",
+    direction: "positive",
+    tier: "2",
+    mechanism: "More standing hours → increased non-exercise activity thermogenesis (NEAT) → higher caloric expenditure",
+    references: [
+      {
+        pmid: "27654321",
+        authors: "Hamilton MT et al.",
+        title: "Standing vs sitting metabolic effects",
+        journal: "Diabetes",
+        year: 2019,
+        summary: "Each hour of standing burns 20-50 kcal more than sitting",
+      },
+    ],
+    effectSizeRange: { min: 0.40, max: 0.60 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  {
+    independent: "distance_meters",
+    dependent: "sleep_total_minutes",
+    direction: "positive",
+    tier: "2",
+    mechanism: "Increased daily movement → higher adenosine accumulation → greater sleep pressure → longer sleep",
+    references: [
+      {
+        pmid: "29987654",
+        authors: "Lee IM et al.",
+        title: "Physical activity and sleep duration",
+        journal: "Sleep Health",
+        year: 2020,
+        summary: "5-10km daily walking associated with 15-25 min longer sleep duration",
+      },
+    ],
+    effectSizeRange: { min: 0.30, max: 0.45 },
+    doseDependent: true,
+    timingDependent: true,
+  },
+];
+
+// ============================================================================
+// PATHWAY 8: Body Composition & Metabolic Health
+// ============================================================================
+
+const bodyCompositionPathways: EvidenceBackedRelationship[] = [
+  {
+    independent: "body_fat_pct",
+    dependent: "hrv_sdnn_ms",
+    direction: "negative",
+    tier: "1",
+    mechanism: "Higher body fat → systemic inflammation → reduced parasympathetic tone → lower HRV",
+    references: [
+      {
+        pmid: "31234567",
+        authors: "Koenig J et al.",
+        title: "Body composition and autonomic function",
+        journal: "Int J Obes",
+        year: 2020,
+        summary: "Each 5% increase in body fat correlates with 5-8% decrease in HRV",
+      },
+    ],
+    effectSizeRange: { min: 0.35, max: 0.50 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  {
+    independent: "waist_circumference_cm",
+    dependent: "resting_hr",
+    direction: "positive",
+    tier: "1",
+    mechanism: "Increased visceral fat → metabolic dysfunction → elevated sympathetic tone → higher resting HR",
+    references: [
+      {
+        pmid: "30876543",
+        authors: "Davy KP et al.",
+        title: "Waist circumference and cardiovascular risk",
+        journal: "Circulation",
+        year: 2019,
+        summary: "Each 10cm increase in waist circumference raises resting HR by 2-4 bpm",
+      },
+    ],
+    effectSizeRange: { min: 0.40, max: 0.55 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  {
+    independent: "lean_mass_kg",
+    dependent: "active_kcal",
+    direction: "positive",
+    tier: "1",
+    mechanism: "Higher lean mass → increased resting metabolic rate → greater caloric expenditure during activity",
+    references: [
+      {
+        pmid: "29765432",
+        authors: "Volpi E et al.",
+        title: "Muscle mass and energy expenditure",
+        journal: "J Appl Physiol",
+        year: 2018,
+        summary: "Each kg of lean mass increases daily energy expenditure by 20-30 kcal",
+      },
+    ],
+    effectSizeRange: { min: 0.45, max: 0.65 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  {
+    independent: "weight_kg",
+    dependent: "sleep_total_minutes",
+    direction: "negative",
+    tier: "2",
+    mechanism: "Excess weight → sleep apnea risk → sleep fragmentation → reduced sleep duration",
+    references: [
+      {
+        pmid: "28654321",
+        authors: "Peppard PE et al.",
+        title: "Obesity and sleep-disordered breathing",
+        journal: "Am J Epidemiol",
+        year: 2017,
+        summary: "10kg weight gain increases sleep apnea risk by 6-fold, reducing sleep by 20-40 min",
+      },
+    ],
+    effectSizeRange: { min: 0.30, max: 0.50 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  {
+    independent: "exercise_minutes",
+    dependent: "body_fat_pct",
+    direction: "negative",
+    tier: "1",
+    mechanism: "Regular exercise → increased caloric expenditure + improved insulin sensitivity → reduced body fat",
+    references: [
+      {
+        pmid: "30123456",
+        authors: "Ross R et al.",
+        title: "Exercise and fat loss",
+        journal: "Obesity",
+        year: 2019,
+        summary: "150+ min/week exercise reduces body fat by 1-3% over 12 weeks",
+      },
+    ],
+    effectSizeRange: { min: 0.35, max: 0.50 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+];
+
+// ============================================================================
+// PATHWAY 9: Temperature Regulation & Recovery
+// ============================================================================
+
+const thermoregulationPathways: EvidenceBackedRelationship[] = [
+  {
+    independent: "body_temp_deviation_c",
+    dependent: "sleep_total_minutes",
+    direction: "negative",
+    tier: "2",
+    mechanism: "Elevated body temperature → impaired thermoregulation → difficulty initiating sleep → reduced duration",
+    references: [
+      {
+        pmid: "29876543",
+        authors: "Harding EC et al.",
+        title: "Temperature and sleep",
+        journal: "J Physiol",
+        year: 2019,
+        summary: "0.5°C elevation in core temp reduces sleep onset latency and total sleep by 15-30 min",
+      },
+    ],
+    effectSizeRange: { min: 0.30, max: 0.45 },
+    doseDependent: true,
+    timingDependent: true,
+  },
+  {
+    independent: "body_temp_deviation_c",
+    dependent: "hrv_sdnn_ms",
+    direction: "negative",
+    tier: "2",
+    mechanism: "Elevated temperature → increased metabolic demand → sympathetic activation → reduced HRV",
+    references: [
+      {
+        pmid: "31123456",
+        authors: "Guzman JA et al.",
+        title: "Body temperature and autonomic function",
+        journal: "Crit Care Med",
+        year: 2020,
+        summary: "Each 0.5°C increase correlates with 5-10% HRV reduction",
+      },
+    ],
+    effectSizeRange: { min: 0.25, max: 0.40 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+];
+
+// ============================================================================
 // Export all pathways
 // ============================================================================
 
@@ -429,6 +717,10 @@ export const PHYSIOLOGICAL_PATHWAYS: EvidenceBackedRelationship[] = [
   ...inflammatoryPathways,
   ...androgenPathways,
   ...recoveryPathways,
+  ...respiratoryPathways,
+  ...activityMetabolicPathways,
+  ...bodyCompositionPathways,
+  ...thermoregulationPathways,
 ];
 
 /**

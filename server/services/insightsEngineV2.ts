@@ -57,16 +57,32 @@ export interface HealthDataSnapshot {
     startDate: Date;
   }>;
   
-  // Daily aggregated HealthKit metrics
+  // Daily aggregated HealthKit metrics (ALL 20 fields)
   dailyMetrics: Array<{
     date: string;
-    hrvSdnnMs: number | null;
+    // Sleep
     sleepTotalMinutes: number | null;
     sleepDeepMinutes: number | null;
     sleepRemMinutes: number | null;
-    steps: number | null;
+    // Cardiovascular
+    hrvSdnnMs: number | null;
     restingHr: number | null;
+    respiratoryRate: number | null;
+    oxygenSaturationAvg: number | null;
+    // Activity
+    steps: number | null;
+    distanceMeters: number | null;
     activeKcal: number | null;
+    exerciseMinutes: number | null;
+    standHours: number | null;
+    // Body Composition
+    weightKg: number | null;
+    bodyFatPct: number | null;
+    leanMassKg: number | null;
+    bmi: number | null;
+    waistCircumferenceCm: number | null;
+    // Vitals
+    bodyTempDeviationC: number | null;
   }>;
   
   // Blood work biomarkers
@@ -161,13 +177,29 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
     })),
     dailyMetrics: rawDailyMetrics.map(m => ({
       date: m.date,
-      hrvSdnnMs: m.hrvSdnnMs || null,
+      // Sleep
       sleepTotalMinutes: m.sleepTotalMinutes || null,
       sleepDeepMinutes: null, // Not in schema
       sleepRemMinutes: null, // Not in schema
-      steps: m.steps || null,
+      // Cardiovascular
+      hrvSdnnMs: m.hrvSdnnMs || null,
       restingHr: m.restingHr || null,
+      respiratoryRate: m.respiratoryRate || null,
+      oxygenSaturationAvg: m.oxygenSaturationAvg || null,
+      // Activity
+      steps: m.steps || null,
+      distanceMeters: m.distanceMeters || null,
       activeKcal: m.activeKcal || null,
+      exerciseMinutes: m.exerciseMinutes || null,
+      standHours: m.standHours || null,
+      // Body Composition
+      weightKg: m.weightKg || null,
+      bodyFatPct: m.bodyFatPct || null,
+      leanMassKg: m.leanMassKg || null,
+      bmi: m.bmi || null,
+      waistCircumferenceCm: m.waistCircumferenceCm || null,
+      // Vitals
+      bodyTempDeviationC: m.bodyTempDeviationC || null,
     })),
     biomarkers: rawBiomarkers.map(b => ({
       ...b,
@@ -209,13 +241,53 @@ function calculateUserMetrics(
   const now = new Date();
   
   const getMetricValue = (varName: string): UserMetricValue | null => {
-    // Try HealthKit daily metrics first
+    // Try HealthKit daily metrics first - ALL 20 fields
     const metricFieldMap: Record<string, keyof typeof healthData.dailyMetrics[0]> = {
-      'hrv_sdnn_ms': 'hrvSdnnMs',
+      // Sleep metrics
       'sleep_total_minutes': 'sleepTotalMinutes',
+      
+      // Cardiovascular metrics
+      'hrv_sdnn_ms': 'hrvSdnnMs',
       'resting_hr': 'restingHr',
+      'respiratory_rate': 'respiratoryRate',
+      'oxygen_saturation_avg': 'oxygenSaturationAvg',
+      
+      // Activity metrics
       'steps': 'steps',
+      'distance_meters': 'distanceMeters',
       'active_kcal': 'activeKcal',
+      'exercise_minutes': 'exerciseMinutes',
+      'stand_hours': 'standHours',
+      
+      // Body composition metrics
+      'weight_kg': 'weightKg',
+      'body_fat_pct': 'bodyFatPct',
+      'lean_mass_kg': 'leanMassKg',
+      'bmi': 'bmi',
+      'waist_circumference_cm': 'waistCircumferenceCm',
+      
+      // Vitals
+      'body_temp_deviation_c': 'bodyTempDeviationC',
+    };
+    
+    // Unit mapping for proper display
+    const unitMap: Record<string, string> = {
+      'sleep_total_minutes': 'min',
+      'hrv_sdnn_ms': 'ms',
+      'resting_hr': 'bpm',
+      'respiratory_rate': 'breaths/min',
+      'oxygen_saturation_avg': '%',
+      'steps': 'steps',
+      'distance_meters': 'm',
+      'active_kcal': 'kcal',
+      'exercise_minutes': 'min',
+      'stand_hours': 'hrs',
+      'weight_kg': 'kg',
+      'body_fat_pct': '%',
+      'lean_mass_kg': 'kg',
+      'bmi': 'kg/m²',
+      'waist_circumference_cm': 'cm',
+      'body_temp_deviation_c': '°C',
     };
     
     const fieldName = metricFieldMap[varName];
@@ -243,7 +315,7 @@ function calculateUserMetrics(
           currentAvg: Math.round(currentAvg * 10) / 10,
           baselineAvg: baselineAvg ? Math.round(baselineAvg * 10) / 10 : null,
           percentChange: percentChange ? Math.round(percentChange) : null,
-          unit: varName.includes('minutes') ? 'min' : varName.includes('ms') ? 'ms' : varName.includes('hr') ? 'bpm' : varName.includes('kcal') ? 'kcal' : 'steps',
+          unit: unitMap[varName] || '',
           daysSinceData,
           dataSource: 'HealthKit',
         };
@@ -301,14 +373,30 @@ export function generateLayerAInsights(
   // Build a map of available variables from user's actual data
   const availableVariables = new Set<string>();
   
-  // Check dailyMetrics for available variables
+  // Check dailyMetrics for available variables (ALL 16 HealthKit metrics)
   if (healthData.dailyMetrics.length > 0) {
     const latestMetric = healthData.dailyMetrics[0];
-    if (latestMetric.hrvSdnnMs !== null) availableVariables.add('hrv_sdnn_ms');
+    // Sleep
     if (latestMetric.sleepTotalMinutes !== null) availableVariables.add('sleep_total_minutes');
+    // Cardiovascular
+    if (latestMetric.hrvSdnnMs !== null) availableVariables.add('hrv_sdnn_ms');
     if (latestMetric.restingHr !== null) availableVariables.add('resting_hr');
+    if (latestMetric.respiratoryRate !== null) availableVariables.add('respiratory_rate');
+    if (latestMetric.oxygenSaturationAvg !== null) availableVariables.add('oxygen_saturation_avg');
+    // Activity
     if (latestMetric.steps !== null) availableVariables.add('steps');
+    if (latestMetric.distanceMeters !== null) availableVariables.add('distance_meters');
     if (latestMetric.activeKcal !== null) availableVariables.add('active_kcal');
+    if (latestMetric.exerciseMinutes !== null) availableVariables.add('exercise_minutes');
+    if (latestMetric.standHours !== null) availableVariables.add('stand_hours');
+    // Body Composition
+    if (latestMetric.weightKg !== null) availableVariables.add('weight_kg');
+    if (latestMetric.bodyFatPct !== null) availableVariables.add('body_fat_pct');
+    if (latestMetric.leanMassKg !== null) availableVariables.add('lean_mass_kg');
+    if (latestMetric.bmi !== null) availableVariables.add('bmi');
+    if (latestMetric.waistCircumferenceCm !== null) availableVariables.add('waist_circumference_cm');
+    // Vitals
+    if (latestMetric.bodyTempDeviationC !== null) availableVariables.add('body_temp_deviation_c');
   }
   
   // Check biomarkers for available variables
