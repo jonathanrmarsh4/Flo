@@ -6133,7 +6133,7 @@ ${userContext}`;
       logger.info(`[DailyInsightsV2] Force generating insights for user ${userId} (type: ${typeof userId})`);
       const startTime = Date.now();
       
-      const insights = await generateDailyInsights(userId);
+      const insights = await generateDailyInsights(userId, true); // Force regeneration
       const duration = Date.now() - startTime;
 
       res.json({ 
