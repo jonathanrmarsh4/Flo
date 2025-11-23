@@ -583,27 +583,49 @@ export function generateInsightNarrative(
  * Generate daily insights for a user
  * 
  * Full pipeline:
- * 1. Fetch user's health data
- * 2. Run all 4 analytical layers
- * 3. Rank insights
- * 4. Select top 5
- * 5. Generate natural language
- * 6. Store in database (TODO: task 13)
+ * 1. Check if insights already generated today (idempotency)
+ * 2. Fetch user's health data
+ * 3. Run all 4 analytical layers
+ * 4. Rank insights
+ * 5. Select top 5
+ * 6. Generate natural language
+ * 7. Store in database
  * 
  * @param userId - User ID
+ * @param forceRegenerate - Force regeneration even if insights exist for today
  * @returns Array of generated insights
  */
-export async function generateDailyInsights(userId: number): Promise<GeneratedInsight[]> {
+export async function generateDailyInsights(userId: number, forceRegenerate: boolean = false): Promise<GeneratedInsight[]> {
   logger.info(`[InsightsEngineV2] Generating insights for user ${userId}`);
   
   try {
-    // Step 1: Fetch user's comprehensive health data (90 days)
+    const today = format(new Date(), 'yyyy-MM-dd');
+    
+    // Step 1: Check if insights already generated today (idempotency)
+    if (!forceRegenerate) {
+      const existingInsights = await db
+        .select()
+        .from(dailyInsights)
+        .where(
+          and(
+            eq(dailyInsights.userId, userId.toString()),
+            eq(dailyInsights.generatedDate, today)
+          )
+        );
+      
+      if (existingInsights.length > 0) {
+        logger.info(`[InsightsEngineV2] Insights already generated for user ${userId} on ${today}, skipping`);
+        return []; // Return empty array to avoid duplicates
+      }
+    }
+    
+    // Step 2: Fetch user's comprehensive health data (90 days)
     logger.info('[InsightsEngineV2] Fetching health data');
     const healthData = await fetchHealthData(userId);
     
     logger.info(`[InsightsEngineV2] Fetched ${healthData.healthkitSamples.length} HealthKit samples, ${healthData.biomarkers.length} biomarkers, ${healthData.lifeEvents.length} life events`);
     
-    // Step 2: Run all 4 analytical layers
+    // Step 3: Run all 4 analytical layers
     logger.info('[InsightsEngineV2] Running Layer A (Physiological Pathways)');
     const layerAInsights = generateLayerAInsights(userId, healthData);
     
@@ -626,32 +648,105 @@ export async function generateDailyInsights(userId: number): Promise<GeneratedIn
     
     logger.info(`[InsightsEngineV2] Generated ${allCandidates.length} insight candidates (A:${layerAInsights.length}, B:${layerBInsights.length}, C:${layerCInsights.length}, D:${layerDInsights.length})`);
     
-    // Step 3: Convert to ranked insights
+    // Step 4: Convert to ranked insights
     const rankedInsights = allCandidates.map(convertToRankedInsight);
     
-    // Step 4: Select top 5 with domain diversity
+    // Step 5: Select top 5 with domain diversity
     const topInsights = selectTopInsights(rankedInsights, 5, 2);
     
     logger.info(`[InsightsEngineV2] Selected ${topInsights.length} top insights`);
     
-    // Step 5: Generate natural language
-    const generatedInsights: GeneratedInsight[] = [];
+    // Step 6: Generate natural language
+    const insightPairs: Array<{
+      narrative: GeneratedInsight;
+      ranked: RankedInsight;
+      candidate: InsightCandidate;
+    }> = [];
     
     for (let index = 0; index < topInsights.length; index++) {
       const rankedInsight = topInsights[index];
-      const candidate = allCandidates.find(
-        c => c.layer === rankedInsight.layer &&
-             c.independent === rankedInsight.variables[0] &&
-             c.dependent === rankedInsight.variables[1]
-      );
       
-      if (!candidate) continue;
+      // More robust candidate matching (handles Layer D's comma-joined dependent variables)
+      const candidate = allCandidates.find(c => {
+        if (c.layer !== rankedInsight.layer) return false;
+        if (c.independent !== rankedInsight.variables[0]) return false;
+        
+        // For Layer D, dependent may be comma-joined (e.g., "hrv, sleepDuration")
+        // So we check if all variables match
+        const candidateVars = [c.independent, ...c.dependent.split(', ')].sort().join(',');
+        const rankedVars = rankedInsight.variables.sort().join(',');
+        
+        return candidateVars === rankedVars;
+      });
+      
+      if (!candidate) {
+        logger.warn(`[InsightsEngineV2] No candidate found for ranked insight: ${rankedInsight.title}`);
+        continue;
+      }
       
       const narrative = generateInsightNarrative(rankedInsight, candidate);
-      generatedInsights.push(narrative);
+      insightPairs.push({ narrative, ranked: rankedInsight, candidate });
       
-      // TODO: Store in daily_insights table (task 13)
       logger.info(`[InsightsEngineV2] Insight ${index + 1}: ${narrative.title}`);
+    }
+    
+    const generatedInsights = insightPairs.map(p => p.narrative);
+    
+    // Step 7: Store in database
+    if (insightPairs.length > 0) {
+      try {
+        logger.info(`[InsightsEngineV2] Storing ${insightPairs.length} insights in database`);
+        
+        // Map layer to database format
+        const layerMap: Record<string, string> = {
+          'A': 'A_physiological',
+          'B': 'B_open_discovery',
+          'C': 'C_dose_response',
+          'D': 'D_anomaly',
+        };
+        
+        // Map health domain to category
+        const categoryMap: Record<string, string> = {
+          'sleep': 'sleep',
+          'recovery': 'recovery',
+          'activity': 'performance',
+          'metabolic': 'metabolic',
+          'inflammation': 'inflammation',
+          'hormones': 'hormones',
+          'other': 'general',
+        };
+        
+        const insightsToInsert = insightPairs.map(pair => ({
+          userId: userId.toString(),
+          generatedDate: today,
+          title: pair.narrative.title,
+          body: pair.narrative.body,
+          action: pair.narrative.action || null,
+          confidenceScore: pair.ranked.confidenceScore,
+          impactScore: pair.ranked.impactScore,
+          actionabilityScore: pair.ranked.actionabilityScore,
+          freshnessScore: pair.ranked.freshnessScore,
+          overallScore: pair.ranked.rankScore,
+          evidenceTier: pair.ranked.evidenceTier,
+          primarySources: pair.ranked.variables,
+          category: categoryMap[pair.ranked.healthDomain] || 'general',
+          generatingLayer: layerMap[pair.ranked.layer] || 'A_physiological',
+          details: {
+            variables: pair.ranked.variables,
+            layer: pair.ranked.layer,
+            healthDomain: pair.ranked.healthDomain,
+          },
+        }));
+        
+        await db.insert(dailyInsights).values(insightsToInsert);
+        
+        logger.info(`[InsightsEngineV2] Successfully stored ${insightsToInsert.length} insights for user ${userId}`);
+      } catch (dbError: any) {
+        logger.error(`[InsightsEngineV2] Database persistence failed for user ${userId}:`, dbError);
+        throw dbError; // Re-throw to signal failure to scheduler
+      }
+    } else {
+      logger.info(`[InsightsEngineV2] No insights generated for user ${userId}, skipping database storage`);
     }
     
     logger.info(`[InsightsEngineV2] Successfully generated ${generatedInsights.length} insights for user ${userId}`);

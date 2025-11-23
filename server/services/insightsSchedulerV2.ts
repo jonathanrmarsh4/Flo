@@ -16,8 +16,10 @@ import { users } from '../../shared/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { logger } from '../logger';
 import { formatInTimeZone } from 'date-fns-tz';
+import { generateDailyInsights } from './insightsEngineV2';
 
 let cronTask: ReturnType<typeof cron.schedule> | null = null;
+const runningGenerations = new Set<number>(); // Track running insight generations for idempotency
 
 /**
  * Determine if it's 06:00 in the user's timezone
@@ -77,21 +79,36 @@ async function processInsightsGeneration() {
       return;
     }
     
-    // TODO: Implement full insights generation
-    // For now, just log the users who would get insights
+    // Generate insights for eligible users
     for (const user of eligibleUsers) {
-      logger.info(`[InsightsV2Scheduler] Would generate insights for user ${user.id} (${user.firstName || 'Unknown'}) in timezone ${user.timezone}`);
+      const userId = parseInt(user.id, 10);
       
-      // TODO: Call full insights generation pipeline:
-      // 1. Fetch user's health data (HealthKit, biomarkers, life events)
-      // 2. Run Layer A (physiological pathways)
-      // 3. Run Layer B (Bayesian correlations)
-      // 4. Run Layer C (dose-response analysis)
-      // 5. Run Layer D (anomaly detection)
-      // 6. Rank insights and select top 5
-      // 7. Generate natural language
-      // 8. Store in daily_insights table
-      // 9. Track replication history
+      // Check if already running for this user (idempotency lock)
+      if (runningGenerations.has(userId)) {
+        logger.info(`[InsightsV2Scheduler] Insights already generating for user ${userId}, skipping`);
+        continue;
+      }
+      
+      logger.info(`[InsightsV2Scheduler] Generating insights for user ${user.id} (${user.firstName || 'Unknown'}) in timezone ${user.timezone}`);
+      
+      // Add to running set (idempotency lock)
+      runningGenerations.add(userId);
+      
+      try {
+        // Call full insights generation pipeline
+        const insights = await generateDailyInsights(userId, false);
+        
+        if (insights.length > 0) {
+          logger.info(`[InsightsV2Scheduler] Successfully generated ${insights.length} insights for user ${userId}`);
+        } else {
+          logger.info(`[InsightsV2Scheduler] No new insights generated for user ${userId} (may have already run today)`);
+        }
+      } catch (error: any) {
+        logger.error(`[InsightsV2Scheduler] Error generating insights for user ${userId}:`, error);
+      } finally {
+        // Remove from running set
+        runningGenerations.delete(userId);
+      }
     }
     
     const elapsed = Date.now() - startTime;
