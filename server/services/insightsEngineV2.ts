@@ -297,7 +297,15 @@ function calculateUserMetrics(
     const fieldName = metricFieldMap[varName];
     if (fieldName) {
       const recentData = healthData.dailyMetrics.slice(0, 7); // Last 7 days
-      const baselineData = healthData.dailyMetrics.slice(30, 37); // Days 30-37 ago
+      
+      // CRITICAL FIX: Use flexible baseline window - try 30-day, fall back to 14-day, then 7-day
+      let baselineData = healthData.dailyMetrics.slice(30, 37); // Try 30-37 days ago first
+      if (baselineData.length === 0) {
+        baselineData = healthData.dailyMetrics.slice(14, 21); // Fall back to 14-21 days ago
+      }
+      if (baselineData.length === 0) {
+        baselineData = healthData.dailyMetrics.slice(7, 14); // Fall back to 7-14 days ago
+      }
       
       const currentValues = recentData.map(m => m[fieldName]).filter((v): v is number => v !== null);
       const baselineValues = baselineData.map(m => m[fieldName]).filter((v): v is number => v !== null);
@@ -310,6 +318,13 @@ function calculateUserMetrics(
         const percentChange = baselineAvg
           ? ((currentAvg - baselineAvg) / baselineAvg) * 100
           : null;
+        
+        // DEBUG LOGGING: Track metric calculation for insights quality
+        if (baselineAvg !== null) {
+          logger.debug(`[UserMetrics] ${varName}: current=${currentAvg.toFixed(1)}, baseline=${baselineAvg.toFixed(1)}, change=${percentChange?.toFixed(1)}%`);
+        } else {
+          logger.debug(`[UserMetrics] ${varName}: current=${currentAvg.toFixed(1)}, baseline=null (insufficient history)`);
+        }
         
         const mostRecentDate = recentData[0] ? new Date(recentData[0].date) : now;
         const daysSinceData = differenceInDays(now, mostRecentDate);
