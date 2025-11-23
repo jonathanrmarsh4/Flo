@@ -1,0 +1,57 @@
+⚡️  [log] - [API] Making request: GET https://get-flo.com/api/admin/users?
+⚡️  To Native ->  SecureStoragePlugin get 92870655
+⚡️  To Native ->  SecureStoragePlugin get 92870656
+⚡️  To Native ->  SecureStoragePlugin get 92870657
+⚡️  To Native ->  SecureStoragePlugin get 92870658
+⚡️  To Native ->  SecureStoragePlugin get 92870659
+⚡️  To Native ->  SecureStoragePlugin get 92870660
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 401 
+⚡️  [error] - [ERROR] API request failed {"status":401,"response":"{\"error\":\"Unauthorized\"}"}
+⚡️  [error] - [API] Request failed: {}
+⚡️  [error] - [ERROR] API request failed {"error":{"message":"401: {\"error\":\"Unauthorized\"}","stack":"@https://get-flo.com/assets/index-XyEIaj92.js:48:52256"}}
+⚡️  To Native ->  SecureStoragePlugin get 92870661
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/daily-insights/trigger-check
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  To Native ->  SecureStoragePlugin get 92870662
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870663
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870664
+⚡️  To Native ->  SecureStoragePlugin get 92870665
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870666
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870667
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870668
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870669
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870670
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870671
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870672
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870673
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  To Native ->  SecureStoragePlugin get 92870674
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 92870675
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 92870676
+⚡️  TO JS {"value":"1763869170640"}
+⚡️  To Native ->  SecureStoragePlugin get 92870677
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2MzM1MzM5OSwiZXhwIjoxNzYzOTU4MTk5fQ.mYiG5wycWJJNfm

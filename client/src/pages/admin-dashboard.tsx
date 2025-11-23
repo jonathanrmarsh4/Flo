@@ -135,6 +135,27 @@ export default function AdminDashboard() {
     },
   });
 
+  const forceGenerateMutation = useMutation({
+    mutationFn: async () => {
+      // Force generate insights for current admin user (bypasses time check)
+      return await apiRequest('POST', '/api/daily-insights/generate');
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Insights Generated',
+        description: `Generated ${data.insightsGenerated} insights in ${data.durationMs}ms`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('Force generation error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to generate insights',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSaveUser = (userId: string) => {
     updateUserMutation.mutate({ userId, role: editRole, status: editStatus });
   };
@@ -764,7 +785,26 @@ export default function AdminDashboard() {
                     Manually trigger the insights generation process to analyze health data correlations and generate personalized insights for users. Requires at least 7 days of HealthKit data to generate initial insights. Insights improve over time with more data.
                   </div>
                   
-                  <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => forceGenerateMutation.mutate()}
+                      disabled={forceGenerateMutation.isPending}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      data-testid="button-force-generate-insights"
+                    >
+                      {forceGenerateMutation.isPending ? (
+                        <>
+                          <Activity className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4" />
+                          <span className="text-sm">Generate Now (For Me)</span>
+                        </>
+                      )}
+                    </button>
+
                     <button
                       onClick={() => triggerInsightsMutation.mutate()}
                       disabled={triggerInsightsMutation.isPending}
@@ -774,12 +814,12 @@ export default function AdminDashboard() {
                       {triggerInsightsMutation.isPending ? (
                         <>
                           <Activity className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Generating...</span>
+                          <span className="text-sm">Checking...</span>
                         </>
                       ) : (
                         <>
                           <Sparkles className="w-4 h-4" />
-                          <span className="text-sm">Generate Insights</span>
+                          <span className="text-sm">Run Scheduler (All Users @ 6am)</span>
                         </>
                       )}
                     </button>
@@ -787,7 +827,7 @@ export default function AdminDashboard() {
 
                   <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                     <div className="text-xs text-blue-400">
-                      <strong>Daily Insights Engine v2.0:</strong> Analyzes 4 analytical layers (Physiological Pathways, Bayesian Correlations, Dose-Response, Anomaly Detection) to generate 0-5 personalized insights daily. Requires HealthKit data + biomarkers for cross-domain correlations.
+                      <strong>Daily Insights Engine v2.0:</strong> First button generates insights for YOU immediately (bypasses time check). Second button runs the scheduler for all users at exactly 06:00 local time. Analyzes 4 analytical layers to generate 0-5 personalized insights.
                     </div>
                   </div>
                 </div>
