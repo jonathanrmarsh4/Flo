@@ -6,7 +6,7 @@ import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumTile } from './dashboard/FlomentumTile';
 import { InsightsTile } from './InsightsTile';
 import { FloLogo } from './FloLogo';
-import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut } from 'lucide-react';
+import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useState } from 'react';
@@ -18,6 +18,25 @@ import { useAuth } from '@/hooks/useAuth';
 import { Capacitor } from '@capacitor/core';
 import { queryClient } from '@/lib/queryClient';
 import { logger } from '@/lib/logger';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useTileOrder, type TileId } from '@/hooks/useTileOrder';
 
 interface DashboardScreenProps {
   isDark: boolean;
@@ -26,11 +45,101 @@ interface DashboardScreenProps {
   onLogout?: () => void;
 }
 
+// Sortable wrapper component for tiles
+interface SortableItemProps {
+  id: TileId;
+  isDark: boolean;
+  children: React.ReactNode;
+}
+
+function SortableItem({ id, isDark, children }: SortableItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const [isPressingHandle, setIsPressingHandle] = useState(false);
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  // Track handle press to prevent tile clicks during/after handle interaction
+  const handlePointerDown = (e: React.PointerEvent) => {
+    setIsPressingHandle(true);
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    // Delay reset to prevent immediate clicks
+    setTimeout(() => {
+      setIsPressingHandle(false);
+    }, 150);
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  // Prevent clicks on tile content when handle is being pressed or dragging
+  const handleContentClick = (e: React.MouseEvent) => {
+    if (isPressingHandle || isDragging) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  const handleContentPointerUp = (e: React.PointerEvent) => {
+    if (isPressingHandle || isDragging) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onClick={handleClick}
+        className={`absolute top-2 right-2 z-10 p-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-colors ${
+          isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+        }`}
+        data-testid={`drag-handle-${id}`}
+      >
+        <GripVertical className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+      </div>
+      {/* Content wrapper to catch bubbled events */}
+      <div 
+        onClick={handleContentClick}
+        onPointerUp={handleContentPointerUp}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogout }: DashboardScreenProps) {
   const [, setLocation] = useLocation();
   const [showInsights, setShowInsights] = useState(false);
   const [paywallModalId, setPaywallModalId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const { user } = useAuth();
+  const { tileOrder, reorderTiles} = useTileOrder();
   
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
@@ -41,6 +150,51 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   
   const canAccessInsights = planData?.features?.insights?.allowAiGeneratedInsightCards ?? true;
   const canAccessFlomentum = planData?.features?.flomentum?.allowFlomentumScoring ?? true;
+
+  // Configure sensors for drag and drop - optimized for touch
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200, // 200ms hold required for touch drag
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = tileOrder.indexOf(active.id as TileId);
+      const newIndex = tileOrder.indexOf(over.id as TileId);
+      
+      const newOrder = arrayMove(tileOrder, oldIndex, newIndex);
+      reorderTiles(newOrder);
+    }
+
+    // Delay resetting isDragging to prevent click handlers from firing
+    setTimeout(() => {
+      setIsDragging(false);
+    }, 100);
+  };
+
+  const handleDragCancel = () => {
+    setTimeout(() => {
+      setIsDragging(false);
+    }, 100);
+  };
 
   const handleUpgrade = () => {
     setLocation('/billing');
@@ -75,6 +229,129 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   const { data: sleepData } = useQuery<any>({
     queryKey: ['/api/sleep/today'],
   });
+
+  // Render individual tiles based on ID
+  const renderTile = (tileId: TileId) => {
+    const tileContent = (() => {
+      switch (tileId) {
+        case 'health-metrics':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <HeartMetabolicTile 
+                  isDark={isDark}
+                  score={dashboardData?.componentScores?.cardiometabolic}
+                  riskBand={dashboardData?.details?.cardiometabolicDetails?.riskBand}
+                  glycemicScore={dashboardData?.details?.cardiometabolicDetails?.glycemicScore}
+                  lipidsScore={dashboardData?.details?.cardiometabolicDetails?.lipidsScore}
+                  bloodPressureScore={dashboardData?.details?.cardiometabolicDetails?.bloodPressureScore}
+                  cacScore={dashboardData?.details?.cardiometabolicDetails?.cacScore}
+                />
+                <BodyCompositionTile 
+                  isDark={isDark}
+                  score={dashboardData?.componentScores?.bodyComposition}
+                />
+              </div>
+            </SortableItem>
+          );
+
+        case 'flomentum':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              {canAccessFlomentum ? (
+                <FlomentumTile 
+                  isDark={isDark} 
+                  onClick={() => {
+                    if (!isDragging) {
+                      setLocation('/flomentum');
+                    }
+                  }} 
+                />
+              ) : (
+                <LockedTile
+                  title="Flōmentum"
+                  description="Track your daily health momentum with AI-powered scoring"
+                  icon={TrendingUp}
+                  onUpgrade={() => {
+                    if (!isDragging) {
+                      setPaywallModalId('upgrade_on_locked_flomentum_tile');
+                    }
+                  }}
+                  isDark={isDark}
+                />
+              )}
+            </SortableItem>
+          );
+
+        case 'readiness':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              <ReadinessTile isDark={isDark} />
+            </SortableItem>
+          );
+
+        case 'sleep':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              <SleepTile isDark={isDark} data={sleepData} />
+            </SortableItem>
+          );
+
+        case 'insights':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              {canAccessInsights ? (
+                <InsightsTile 
+                  isDark={isDark} 
+                  onTap={() => {
+                    if (!isDragging) {
+                      setShowInsights(true);
+                    }
+                  }} 
+                />
+              ) : (
+                <LockedTile
+                  title="AI Insights"
+                  description="Get intelligent pattern detection and health insights"
+                  icon={Brain}
+                  onUpgrade={() => {
+                    if (!isDragging) {
+                      setPaywallModalId('upgrade_on_locked_insights_tile');
+                    }
+                  }}
+                  isDark={isDark}
+                />
+              )}
+            </SortableItem>
+          );
+
+        case 'quick-stats':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              <div className="grid grid-cols-2 gap-4">
+                <QuickStatCard
+                  label="Data Points"
+                  value="247"
+                  trend="+12 this week"
+                  isDark={isDark}
+                />
+                <QuickStatCard
+                  label="Streak"
+                  value="28d"
+                  trend="Personal best!"
+                  isDark={isDark}
+                />
+              </div>
+            </SortableItem>
+          );
+
+        default:
+          return null;
+      }
+    })();
+
+    return tileContent;
+  };
 
   return (
     <div className={`min-h-screen pb-24 ${
@@ -157,7 +434,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           </div>
         ) : (
           <>
-            {/* Hero Tile - Flō Overview */}
+            {/* Hero Tile - Flō Overview (Locked at top, not draggable) */}
             <FloOverviewTile 
               isDark={isDark}
               bioAge={bioAgeData?.biologicalAge}
@@ -171,70 +448,18 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
               lastCheckin={dashboardData?.lastUpdated}
             />
 
-            {/* Two Column Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <HeartMetabolicTile 
-                isDark={isDark}
-                score={dashboardData?.componentScores?.cardiometabolic}
-                riskBand={dashboardData?.details?.cardiometabolicDetails?.riskBand}
-                glycemicScore={dashboardData?.details?.cardiometabolicDetails?.glycemicScore}
-                lipidsScore={dashboardData?.details?.cardiometabolicDetails?.lipidsScore}
-                bloodPressureScore={dashboardData?.details?.cardiometabolicDetails?.bloodPressureScore}
-                cacScore={dashboardData?.details?.cardiometabolicDetails?.cacScore}
-              />
-              <BodyCompositionTile 
-                isDark={isDark}
-                score={dashboardData?.componentScores?.bodyComposition}
-              />
-            </div>
-
-            {/* Full Width - Flōmentum */}
-            {canAccessFlomentum ? (
-              <FlomentumTile isDark={isDark} onClick={() => setLocation('/flomentum')} />
-            ) : (
-              <LockedTile
-                title="Flōmentum"
-                description="Track your daily health momentum with AI-powered scoring"
-                icon={TrendingUp}
-                onUpgrade={() => setPaywallModalId('upgrade_on_locked_flomentum_tile')}
-                isDark={isDark}
-              />
-            )}
-
-            {/* Full Width - Daily Readiness */}
-            <ReadinessTile isDark={isDark} />
-
-            {/* Full Width - Sleep Index */}
-            <SleepTile isDark={isDark} data={sleepData} />
-
-            {/* Full Width - Insights */}
-            {canAccessInsights ? (
-              <InsightsTile isDark={isDark} onTap={() => setShowInsights(true)} />
-            ) : (
-              <LockedTile
-                title="AI Insights"
-                description="Get intelligent pattern detection and health insights"
-                icon={Brain}
-                onUpgrade={() => setPaywallModalId('upgrade_on_locked_insights_tile')}
-                isDark={isDark}
-              />
-            )}
-
-            {/* Quick Stats Row */}
-            <div className="grid grid-cols-2 gap-4">
-              <QuickStatCard
-                label="Data Points"
-                value="247"
-                trend="+12 this week"
-                isDark={isDark}
-              />
-              <QuickStatCard
-                label="Streak"
-                value="28d"
-                trend="Personal best!"
-                isDark={isDark}
-              />
-            </div>
+            {/* Sortable Tiles */}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+              <SortableContext items={tileOrder} strategy={verticalListSortingStrategy}>
+                {tileOrder.map((tileId) => renderTile(tileId))}
+              </SortableContext>
+            </DndContext>
           </>
         )}
       </main>
