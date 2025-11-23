@@ -6101,16 +6101,27 @@ ${userContext}`;
 
   // POST /api/daily-insights/generate - Force generate insights for current user (admin only, for testing)
   app.post("/api/daily-insights/generate", isAuthenticated, requireAdmin, async (req: any, res) => {
+    // Debug logging
+    logger.info('[DailyInsightsV2] req.user structure:', {
+      hasUser: !!req.user,
+      hasClaims: !!req.user?.claims,
+      sub: req.user?.claims?.sub,
+      id: req.user?.id,
+      fullUser: req.user
+    });
+    
     const userId = req.user?.claims?.sub;
     if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "Unauthorized - no user ID found" });
     }
 
     try {
-      logger.info(`[DailyInsightsV2] Force generating insights for user ${userId}`);
+      logger.info(`[DailyInsightsV2] Force generating insights for user ${userId} (type: ${typeof userId})`);
       const startTime = Date.now();
       
       const userIdNum = parseInt(userId, 10);
+      logger.info(`[DailyInsightsV2] Parsed user ID: ${userIdNum} (isNaN: ${isNaN(userIdNum)})`);
+      
       const insights = await generateDailyInsights(userIdNum);
       const duration = Date.now() - startTime;
 
