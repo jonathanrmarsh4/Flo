@@ -1,90 +1,60 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It offers a dashboard with four intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics, integrates OpenAI's GPT models and Apple HealthKit, and features **Flō Oracle** – a Grok-powered voice chat coach for real-time health insights. The platform includes a **Stripe-powered subscription system** with FREE and PREMIUM tiers, providing feature gating and upgrade prompts. Its core purpose is to deliver trusted, clear, and actionable health information.
+Flō is a mobile-first health analytics platform that uses AI to analyze blood work, calculate biological age, and provide personalized health recommendations. It offers a dashboard with four intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. The platform tracks health metrics, integrates OpenAI's GPT models and Apple HealthKit, and features **Flō Oracle** – a Grok-powered voice chat coach for real-time health insights. The platform includes a **Stripe-powered subscription system** with FREE and PREMIUM tiers, providing feature gating and upgrade prompts. Its core purpose is to deliver trusted, clear, and actionable health information, delivering deep health insights and market potential in personalized wellness.
 
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
-- **AI Health Commentary Policy:** Flō Oracle is configured to provide evidence-based health analysis with educational disclaimers rather than blocking health insights. The AI can discuss what biomarkers might indicate, potential health patterns, and treatment options to discuss with physicians. All health-related responses include: "⚕️ This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions." Only truly dangerous patterns (specific medication prescriptions with dosages) are blocked.
-- **Flō Oracle Personality (Updated Nov 20, 2025):** Changed from conversational/therapeutic style to analytical data scientist personality. The AI now proactively searches for patterns and correlations in user data, leads with data analysis rather than general conversation, and minimizes chitchat to focus on evidence-based insights. Primary mission: Connect the dots between metrics, spot trends, and surface actionable insights from data relationships.
-
-## Critical iOS Configuration
-**IMPORTANT - DO NOT REVERT THESE SETTINGS:**
-
-1. **WKWebView Cache Clearing** (`ios/App/App/WebViewCachePlugin.swift` + `client/src/hooks/useHealthKitAutoSync.ts`): Morning sync issue fix - MUST clear WKWebView HTTP cache before `window.location.reload()`. Without this, iOS serves stale cached API responses after overnight sleep, causing dashboard to show yesterday's data even though backend has new data. The `WebViewCachePlugin` Swift plugin exposes `clearCache()` method that clears all WKWebsiteDataStore cache/cookies/storage. The auto-sync hook calls this before every reload when app wakes from >5min background. DO NOT remove this cache clearing logic.
-
-2. **React Query staleTime** (`client/src/lib/queryClient.ts`): MUST be `staleTime: 0` for health data to refresh properly after HealthKit syncs. Setting to `Infinity` causes iOS app to show stale cached data after overnight sleep.
-
-3. **Capacitor server.url** (`capacitor.config.ts` and `ios/App/App/capacitor.config.json`): MUST include `"url": "https://get-flo.com"` to load production frontend and make live API calls instead of using bundled static files.
-
-4. **iOS Build Process**: After any frontend changes: `npm run build` → `npx cap sync ios` → rebuild in Xcode. Frontend config changes MUST be bundled into the iOS build.
-
-5. **Workout Authorization Quirk** (`ios/App/App/HealthKitNormalisationService.swift` line 1355): iOS privacy policy prevents accurate authorization status for workout data. `authorizationStatus(for: HKWorkoutType)` returns `.sharingDenied` even when permission is granted. Solution: Skip authorization check and query directly - iOS returns empty array if permission denied. This is documented Apple behavior for privacy protection.
+- Development Environment: User is working and testing exclusively in PRODUCTION. All bug reports and observations are from the live production app. The iOS app loads frontend from `https://get-flo.com`, so any frontend changes must be deployed to production to be visible in the mobile app.
+- AI Health Commentary Policy: Flō Oracle is configured to provide evidence-based health analysis with educational disclaimers rather than blocking health insights. The AI can discuss what biomarkers might indicate, potential health patterns, and treatment options to discuss with physicians. All health-related responses include: "⚕️ This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions." Only truly dangerous patterns (specific medication prescriptions with dosages) are blocked.
+- Flō Oracle Personality: Changed from conversational/therapeutic style to analytical data scientist personality. The AI now proactively searches for patterns and correlations in user data, leads with data analysis rather than general conversation, and minimizes chitchat to focus on evidence-based insights. Primary mission: Connect the dots between metrics, spot trends, and surface actionable insights from data relationships.
 
 ## System Architecture
 
 ### UI/UX Decisions
-The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, with 44pt touch targets. It utilizes Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS.
+The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, with 44pt touch targets. It utilizes Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. The UI includes locked tiles and paywall modals for subscription management.
 
 ### Technical Implementations
-**Frontend:** Built with React, TypeScript, and Vite. It uses TanStack Query for server state management and Wouter for routing. Key features include biomarker insights, AI-powered health reports, PDF upload for blood work parsing, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types plus **individual workout sessions**, and **Flō Oracle voice chat** (using ElevenLabs Conversational AI platform via WebSockets for natural voice interactions). The dashboard includes a **Flōmentum tile** for daily health momentum scores and a dedicated screen for detailed daily/weekly insights. HealthKit sync includes robust React Query cache invalidation and periodic 15-minute syncs.
+**Frontend:** Built with React, TypeScript, and Vite, using TanStack Query for server state and Wouter for routing. Key features include biomarker insights, AI-powered health reports, PDF upload for blood work parsing, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types plus individual workout sessions, and **Flō Oracle voice chat** using ElevenLabs via WebSockets. The dashboard includes a **Flōmentum tile** for daily health momentum scores and detailed daily/weekly insights.
 
-**Backend:** Developed with Express.js and TypeScript, providing a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT), file storage via pre-signed GCS URLs, and implements the PhenoAge biological age calculation. The backend includes a blood work extraction pipeline using GPT-4o, AI integration for insights, admin endpoints, and **Flō Oracle integration** (Grok-powered chat using xAI's grok-3-mini model with comprehensive health context injection including individual workout sessions and multi-layer safety guardrails). An **ElevenLabs integration** provides natural voice conversations. Biomarker scoring uses a comprehensive alias mapping system. It also features a HealthKit Readiness System, a Comprehensive Sleep Tracking System, **Workout Session Tracking** (stores individual HKWorkout objects with type, duration, distance, calories, heart rate zones), and the **Flōmentum Momentum Scoring System** (0-100 daily score based on sleep, activity, recovery, and red flags). All production code utilizes structured error logging, and **Apple Push Notifications (APNs)** provide real-time delivery of biomarker alerts. **Stripe Billing Integration** handles subscription management with secure webhook processing, plan enforcement middleware, and automated feature gating based on user subscription tier.
+**Backend:** Developed with Express.js and TypeScript, providing a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT), file storage via pre-signed GCS URLs, and implements the PhenoAge biological age calculation. The backend includes a blood work extraction pipeline using GPT-4o, AI integration for insights, admin endpoints, **Flō Oracle integration** (Grok-powered chat using xAI's grok-3-mini model with comprehensive health context and safety guardrails), and **ElevenLabs integration** for natural voice conversations. Biomarker scoring uses a comprehensive alias mapping system. It also features a HealthKit Readiness System, a Comprehensive Sleep Tracking System, **Workout Session Tracking**, and the **Flōmentum Momentum Scoring System**. Production code utilizes structured error logging, and **Apple Push Notifications (APNs)** provide real-time biomarker alerts. **Stripe Billing Integration** handles subscription management with secure webhook processing, plan enforcement middleware, and automated feature gating.
 
-**Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, **HealthKit workouts** (individual workout sessions with full metadata), normalized HealthKit daily metrics, **Flōmentum tables**, **RAG Insights tables** (for discovered patterns and embeddings), **life_events table** (for conversational behavior logging), push notification management, **billing tables** (billing_customers, subscriptions, payments for Stripe integration), and audit logs.
+**Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, HealthKit workouts, normalized HealthKit daily metrics, Flōmentum tables, RAG Insights tables, life_events table, push notification management, billing tables (billing_customers, subscriptions, payments for Stripe integration), and audit logs.
 
-**Daily Insights Engine v2.0 (Nov 23, 2025):** Complete 4-layer analytical system replacing the old RAG-based insights. Generates 0-5 personalized health insights daily at 06:00 local time (timezone-aware scheduling). Features: (1) Layer A - Physiological Pathways (hard-coded science with PubMed references), (2) Layer B - Bayesian Correlations (wired, requires correlation computation infrastructure - Phase 2), (3) Layer C - Dose-Response & Timing Analysis (tertile segmentation, 0-48h/3-10d/cumulative windows), (4) Layer D - Anomaly Detection & Stale-Lab Early Warning. Uses evidence-based confidence scoring with 5-tier hierarchy, insight ranking (Confidence × Impact × Actionability × Freshness), domain diversity limits (max 2 per domain), and natural language generation with N-of-1 experiment suggestions. Persists to `daily_insights` table with idempotency protection and separate try-catch blocks for error isolation. API endpoints: GET /api/daily-insights, POST /api/daily-insights/generate, POST /api/daily-insights/feedback, POST /api/daily-insights/:id/dismiss, POST /api/daily-insights/mark-seen, POST /api/daily-insights/trigger-check (admin).
+**Daily Insights Engine v2.0:** A 4-layer analytical system generates 0-5 personalized health insights daily at 06:00 local time. It includes layers for Physiological Pathways, Bayesian Correlations, Dose-Response & Timing Analysis, and Anomaly Detection. It uses evidence-based confidence scoring, insight ranking, domain diversity limits, and natural language generation with N-of-1 experiment suggestions.
 
-**Conversational Life Event Logging System (Enhanced Nov 21, 2025):** Automatically tracks comprehensive health narrative from Flō Oracle conversations with **dosage tracking** support. Grok-powered extraction parses events into structured JSONB, logged to the `life_events` table. System now captures:
-- **Behaviors**: ice baths, sauna, alcohol, supplements, workouts, late meals, caffeine, stress, breathwork
-- **Dosage Tracking**: Automatically extracts and stores dosage amounts from natural language (e.g., "0.2ml TRT", "500mg NMN", "1/2 tablet aspirin"). Supports ml, mg, mcg, IU, pills, tablets, capsules, fractions, and leading decimals. Enables dose-response correlation analysis.
-- **Symptoms**: illness tracking with severity, duration, specific symptoms (headaches, fever, pain, fatigue, etc.)
-- **Health Goals**: weight loss, sleep improvement, fitness targets with timeframes and motivation
-- **Observations**: subjective feelings about energy, mood, focus, sleep quality, mental clarity
-Uses multi-word phrase triggers to maintain cost optimization while capturing holistic health context. Recent events (past 14 days) automatically integrate into Flō Oracle's context, and the **dual correlation engine** (regular + dosage-aware) analyzes them against HealthKit metrics to generate personalized insights including dose-response relationships.
+**Conversational Life Event Logging System:** Automatically tracks comprehensive health narratives from Flō Oracle conversations with dosage tracking support. Grok-powered extraction parses events into structured JSONB, logged to the `life_events` table, capturing behaviors, dosage amounts (e.g., ml, mg, mcg), symptoms, health goals, and observations. Recent events integrate into Flō Oracle's context for personalized insights.
 
 **Admin User Management:** Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, providing user management, system overview metrics, and audit logs.
 
-**AI Usage Analytics System:** Comprehensive tracking service (`aiUsageTracker.ts`) logs all OpenAI and Grok API calls with token counts, costs, and latency to the `openaiUsageEvents` table. Provider-based filtering distinguishes between OpenAI (GPT-4o, text-embedding-3-small) and Grok (grok-3-mini) usage. The admin dashboard displays provider-separated metrics with summary cards showing total queries, total costs, and active providers. All major AI integration points are instrumented: `grokClient.ts`, `embeddingService.ts`, and `simpleExtractor.ts`.
+**AI Usage Analytics System:** Tracks all OpenAI and Grok API calls with token counts, costs, and latency to the `openaiUsageEvents` table. The admin dashboard displays provider-separated metrics.
 
-**Billing & Subscription System:** 
-- **Plan Tiers**: FREE (3 labs, 35 biomarkers, no Oracle) and PREMIUM (unlimited labs/biomarkers, 200 Oracle msgs/day, full features)
-- **Stripe Integration**: Complete checkout session management, webhook handling (signature verified), subscription lifecycle events
-- **Feature Gating**: Middleware enforces plan limits on lab uploads, Oracle access, Insights, and Flōmentum
-- **Frontend Components**: Locked tile UI (dark theme with glass morphism), paywall modals (dark blue gradient design), billing/subscription management page
-- **Security**: Webhook signature verification, authenticated endpoints, proper role updates on subscription changes
-- **Payment Methods**: Stripe Checkout supports credit/debit cards and Apple Pay with monthly/annual billing options
-- **Configuration Required**: Set environment variables `STRIPE_PREMIUM_MONTHLY_PRICE_ID` and `STRIPE_PREMIUM_YEARLY_PRICE_ID` with actual Stripe Price IDs from your Stripe Dashboard
-- **Webhook Setup**: Configure Stripe webhook endpoint at `/api/billing/webhook` with `STRIPE_WEBHOOK_SECRET`
+**Billing & Subscription System:** Supports FREE (limited features) and PREMIUM (unlimited features) tiers. Integrates with Stripe for checkout, webhook handling, and subscription lifecycle events. Feature gating middleware enforces plan limits. Frontend components include locked tiles and paywall modals.
 
-**Daily Reminder Notifications (Phase 1 - Nov 21, 2025):**
-- **iOS**: Complete programmatic notification permission flow with `NSUserNotificationsUsageDescription` in Info.plist
-- **Android**: POST_NOTIFICATIONS requested programmatically; SCHEDULE_EXACT_ALARM requires manual user setup due to Capacitor API limitations
-- **Implementation**: Permission request and listener initialization in Dashboard component on authenticated mount
-- **Documentation**: Comprehensive Android setup guide at `docs/android-notification-permissions.md`
-- **Phase 2 Enhancement**: Consider custom Capacitor plugin for full Android automation of exact alarm permissions
+**Daily Reminder Notifications:** Implements programmatic notification permission flows for iOS and Android.
 
-**iOS Shortcuts Integration (Nov 21, 2025):**
-- **API Key System**: Secure API key authentication for iOS Shortcuts (bcrypt-hashed, one key per user, Bearer token auth)
-- **Quick-Log Endpoint**: POST /api/life-events for instant event logging without JWT authentication (avoids token expiration issues)
-- **Pre-built Templates**: 6 shortcut templates (Alcohol, Ice Bath, Sauna, TRT 0.10ml, Morning Coffee, Ate Late) with copy-paste JSON configs
-- **Dosage Support**: TRT template includes preset dosage (0.10ml) integrating with existing dose-response correlation system
-- **Frontend Settings Page**: /shortcuts route with API key management (generate/revoke), template display, iOS setup instructions
-- **Navigation**: Accessible from Profile → Actions → iOS Shortcuts
-- **Security**: API keys stored as bcrypt hashes, shown only once during generation, usage tracked with lastUsedAt timestamps
-- **Database**: api_keys table (userId unique, keyHash, name, lastUsedAt, createdAt)
+**iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events instantly. Includes pre-built shortcut templates with dosage support and a frontend settings page for API key management.
+
+### Feature Specifications
+- **Flō Oracle:** Grok-powered voice chat coach for real-time health insights with natural voice interactions via ElevenLabs.
+- **HealthKit Integration:** Background syncing for 26 data types, including individual workout sessions.
+- **Flōmentum:** Daily health momentum scores based on sleep, activity, recovery, and red flags.
+- **Stripe Billing:** Comprehensive subscription management with feature gating.
+- **Daily Insights Engine:** Personalized, evidence-based health insights generated daily.
+- **Life Event Logging:** Automated tracking of conversational health events, including dosage.
+- **iOS Shortcuts:** Quick logging of events via secure API keys and pre-built templates.
 
 ## External Dependencies
 
 ### Third-Party Services
 - **Replit Platform Services:** Replit Auth, Replit AI Integrations (OpenAI proxy), Replit Object Storage.
 - **Neon:** Serverless PostgreSQL database.
-- **Supabase:** PostgreSQL with pgvector extension for RAG-powered semantic health data search.
+- **Supabase:** PostgreSQL with pgvector extension.
 - **Google Cloud Storage:** For object storage.
 - **Stripe:** Payment processing.
-- **OpenAI:** GPT-4o and GPT-5 models for health insights and biomarker analysis, text-embedding-3-small for RAG vectorization.
-- **xAI (Grok):** grok-3-mini model for Flō Oracle conversational health coaching.
-- **ElevenLabs:** Conversational AI platform for natural voice interactions with Flō Oracle.
+- **OpenAI:** GPT-4o and GPT-5 models for health insights, text-embedding-3-small for RAG.
+- **xAI (Grok):** grok-3-mini model for Flō Oracle.
+- **ElevenLabs:** Conversational AI platform for natural voice interactions.
 
 ### Key Technologies/Libraries
 - **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`, `@capacitor/*`, `capacitor-secure-storage-plugin`, `@healthpilot/healthkit`.
