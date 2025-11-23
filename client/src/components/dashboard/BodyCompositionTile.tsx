@@ -213,7 +213,7 @@ export function BodyCompositionTile({
                     {renderSourceBadge(snapshot?.leanMassSource || null)}
                   </div>
                   <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {leanMassKg.toFixed(1)} kg
+                    {leanPercent!.toFixed(1)}%
                   </span>
                 </div>
               </div>
@@ -229,7 +229,7 @@ export function BodyCompositionTile({
                     {renderSourceBadge(snapshot?.bodyFatSource || null)}
                   </div>
                   <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {(weightKg - leanMassKg).toFixed(1)} kg
+                    {bodyFatPct!.toFixed(1)}%
                   </span>
                 </div>
               </div>
