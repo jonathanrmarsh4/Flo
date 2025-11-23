@@ -455,21 +455,16 @@ function buildCorrelationSummary(candidate: InsightCandidate): string {
   const direction = candidate.direction === 'positive' ? 'increases' : 'decreases';
   parts.push(`When ${candidate.independent} ${direction}, ${candidate.dependent} also changes`);
   
-  // Effect size (quantitative)
-  if (candidate.effectSize !== null) {
+  // Effect size (quantitative) - check for both null and undefined
+  if (candidate.effectSize !== null && candidate.effectSize !== undefined) {
     const strength = Math.abs(candidate.effectSize) > 0.6 ? 'strong' : 
                     Math.abs(candidate.effectSize) > 0.4 ? 'moderate' : 'weak';
     parts.push(`Effect Size: ${candidate.effectSize.toFixed(3)} (${strength} ${candidate.direction} relationship)`);
   }
   
-  // Deviation percent (for anomaly detection)
-  if (candidate.deviationPercent !== null) {
+  // Deviation percent (for anomaly detection) - check for both null and undefined
+  if (candidate.deviationPercent !== null && candidate.deviationPercent !== undefined) {
     parts.push(`Deviation: ${candidate.deviationPercent.toFixed(1)}% from baseline`);
-  }
-  
-  // Confidence score
-  if (candidate.confidenceScore) {
-    parts.push(`Statistical Confidence: ${(candidate.confidenceScore * 100).toFixed(1)}%`);
   }
   
   // Layer type
