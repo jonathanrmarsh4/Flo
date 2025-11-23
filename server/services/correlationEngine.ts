@@ -95,57 +95,77 @@ async function detectActivitySleepCorrelation(userId: string): Promise<Correlati
       return null;
     }
 
-    // Check for high-step days (>10k steps) vs low-step days
-    const highStepDays = validDays.filter((d) => d.steps! >= 10000);
-    const lowStepDays = validDays.filter((d) => d.steps! < 10000);
+    // Calculate overall averages
+    const avgSteps = validDays.reduce((sum, d) => sum + d.steps!, 0) / validDays.length;
+    const avgSleep = validDays.reduce((sum, d) => sum + d.sleepMin!, 0) / validDays.length;
 
-    logger.info(`[CorrelationEngine] Activity-Sleep variation: ${highStepDays.length} high-step days, ${lowStepDays.length} low-step days`);
+    logger.info(`[CorrelationEngine] Activity-Sleep averages: ${Math.round(avgSteps)} steps, ${Math.round(avgSleep)} min sleep`);
 
-    if (highStepDays.length < 3 || lowStepDays.length < 3) {
-      logger.info(`[CorrelationEngine] ✗ Activity-Sleep: Insufficient step variation (need 3+ each)`);
-      return null; // Not enough variation
+    // Strategy 1: Detect low activity baseline pattern (sedentary lifestyle impact)
+    if (avgSteps < 5000) {
+      const sleepHours = Math.round(avgSleep / 60 * 10) / 10;
+      const pattern = avgSleep < 420 // 7 hours
+        ? `You're averaging ${Math.round(avgSteps).toLocaleString()} steps/day. Low activity combined with ${sleepHours}h sleep may be impacting your recovery.`
+        : `You're averaging ${Math.round(avgSteps).toLocaleString()} steps/day. Increasing daily movement could improve sleep quality.`;
+      
+      return {
+        category: 'activity_sleep',
+        pattern,
+        confidence: 0.75,
+        supportingData: `Based on ${validDays.length} days`,
+        details: {
+          daysAnalyzed: validDays.length,
+          avgSteps: Math.round(avgSteps),
+          avgSleepMin: Math.round(avgSleep),
+          insightType: 'low_activity_baseline',
+        },
+      };
     }
 
-    const avgSleepHighSteps =
-      highStepDays.reduce((sum, d) => sum + d.sleepMin!, 0) / highStepDays.length;
-    const avgSleepLowSteps =
-      lowStepDays.reduce((sum, d) => sum + d.sleepMin!, 0) / lowStepDays.length;
+    // Strategy 2: Use flexible threshold (8k steps instead of 10k) for more realistic comparisons
+    const activeThreshold = 8000;
+    const highStepDays = validDays.filter((d) => d.steps! >= activeThreshold);
+    const lowStepDays = validDays.filter((d) => d.steps! < activeThreshold);
 
-    const sleepDifference = avgSleepHighSteps - avgSleepLowSteps;
+    logger.info(`[CorrelationEngine] Activity-Sleep variation: ${highStepDays.length} active days (≥8k), ${lowStepDays.length} sedentary days (<8k)`);
 
-    // Only create insight if difference is meaningful (>30 min)
-    if (Math.abs(sleepDifference) < 30) {
-      logger.info(`[CorrelationEngine] ✗ Activity-Sleep: Difference too small (${Math.round(sleepDifference)} min, need 30+)`);
-      return null;
+    // Strategy 3: If we have variation, compare groups
+    if (highStepDays.length >= 3 && lowStepDays.length >= 3) {
+      const avgSleepActive = highStepDays.reduce((sum, d) => sum + d.sleepMin!, 0) / highStepDays.length;
+      const avgSleepSedentary = lowStepDays.reduce((sum, d) => sum + d.sleepMin!, 0) / lowStepDays.length;
+      const sleepDifference = avgSleepActive - avgSleepSedentary;
+
+      if (Math.abs(sleepDifference) >= 20) {
+        const steps = validDays.map((d) => d.steps!);
+        const sleep = validDays.map((d) => d.sleepMin!);
+        const correlation = calculateCorrelation(steps, sleep);
+        const confidence = Math.min(0.92, Math.abs(correlation) * 0.85 + 0.2);
+
+        const pattern = sleepDifference > 0
+          ? `On days you hit 8k+ steps, you sleep ${Math.round(sleepDifference)} min longer than sedentary days`
+          : `Your sleep decreases ${Math.round(Math.abs(sleepDifference))} min on more active days (may indicate overtraining)`;
+
+        return {
+          category: 'activity_sleep',
+          pattern,
+          confidence,
+          supportingData: `Based on ${validDays.length} days`,
+          details: {
+            daysAnalyzed: validDays.length,
+            activeDays: highStepDays.length,
+            sedentaryDays: lowStepDays.length,
+            avgSleepActive: Math.round(avgSleepActive),
+            avgSleepSedentary: Math.round(avgSleepSedentary),
+            sleepDifferenceMin: Math.round(sleepDifference),
+            correlationCoefficient: correlation.toFixed(3),
+            insightType: 'activity_variation',
+          },
+        };
+      }
     }
 
-    // Calculate correlation coefficient for confidence
-    const steps = validDays.map((d) => d.steps!);
-    const sleep = validDays.map((d) => d.sleepMin!);
-    const correlation = calculateCorrelation(steps, sleep);
-    const confidence = Math.min(0.95, Math.abs(correlation) * 0.9 + 0.1); // Scale to 0.1-0.95
-
-    const pattern =
-      sleepDifference > 0
-        ? `Your sleep improves ${Math.round(sleepDifference)} min on days you hit 10k+ steps`
-        : `Your sleep decreases ${Math.round(Math.abs(sleepDifference))} min on days you hit 10k+ steps`;
-
-    return {
-      category: 'activity_sleep',
-      pattern,
-      confidence,
-      supportingData: `Based on ${validDays.length} days`,
-      details: {
-        daysAnalyzed: validDays.length,
-        highStepDays: highStepDays.length,
-        lowStepDays: lowStepDays.length,
-        avgSleepHighSteps: Math.round(avgSleepHighSteps),
-        avgSleepLowSteps: Math.round(avgSleepLowSteps),
-        sleepDifferenceMin: Math.round(sleepDifference),
-        correlationCoefficient: correlation.toFixed(3),
-        dateRange: `${validDays[validDays.length - 1].date} - ${validDays[0].date}`,
-      },
-    };
+    logger.info(`[CorrelationEngine] ✗ Activity-Sleep: No meaningful pattern detected`);
+    return null;
   } catch (error) {
     logger.error('[CorrelationEngine] Activity-sleep correlation error:', error);
     return null;
