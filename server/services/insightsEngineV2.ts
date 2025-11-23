@@ -11,13 +11,17 @@
  */
 
 import { db } from '../db';
-import { users, dailyInsights } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import { users, dailyInsights, healthkitSamples, biomarkerResults, lifeEvents, healthkitDailyMetrics } from '../../shared/schema';
+import { eq, desc, and, gte } from 'drizzle-orm';
 import { PHYSIOLOGICAL_PATHWAYS } from './physiologicalPathways';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
 import { type EvidenceTier } from './evidenceHierarchy';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, subDays, format } from 'date-fns';
+import { detectReplicatedCorrelations, type ReplicatedCorrelation, filterNovelCorrelations } from './bayesianCorrelationEngine';
+import { analyzeDoseResponse, type DoseResponseResult, type DosageEvent, type OutcomeDataPoint } from './doseResponseAnalyzer';
+import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation } from './anomalyDetectionEngine';
+import { logger } from '../logger';
 
 // ============================================================================
 // Shared Interface for Insight Candidates
@@ -41,20 +45,161 @@ export interface InsightCandidate {
 }
 
 // ============================================================================
+// Health Data Structures
+// ============================================================================
+
+export interface HealthDataSnapshot {
+  // HealthKit metrics (past 90 days)
+  healthkitSamples: Array<{
+    dataType: string;
+    value: number;
+    unit: string;
+    startDate: Date;
+  }>;
+  
+  // Daily aggregated HealthKit metrics
+  dailyMetrics: Array<{
+    date: string;
+    hrv: number | null;
+    sleepDuration: number | null;
+    deepSleep: number | null;
+    remSleep: number | null;
+    steps: number | null;
+    restingHeartRate: number | null;
+    activeEnergy: number | null;
+  }>;
+  
+  // Blood work biomarkers
+  biomarkers: Array<{
+    name: string;
+    value: number;
+    unit: string;
+    testDate: Date;
+    isAbnormal: boolean;
+  }>;
+  
+  // Life events with dosages
+  lifeEvents: Array<{
+    eventType: string;
+    details: any;
+    happenedAt: Date;
+  }>;
+}
+
+/**
+ * Fetch comprehensive health data for a user
+ * Includes past 90 days of HealthKit, blood work, and life events
+ */
+export async function fetchHealthData(userId: number): Promise<HealthDataSnapshot> {
+  const ninetyDaysAgo = subDays(new Date(), 90);
+  
+  // Fetch HealthKit samples (past 90 days)
+  const rawHealthkitSamples = await db
+    .select({
+      dataType: healthkitSamples.dataType,
+      value: healthkitSamples.value,
+      unit: healthkitSamples.unit,
+      startDate: healthkitSamples.startDate,
+    })
+    .from(healthkitSamples)
+    .where(
+      and(
+        eq(healthkitSamples.userId, userId.toString()),
+        gte(healthkitSamples.startDate, ninetyDaysAgo)
+      )
+    )
+    .orderBy(desc(healthkitSamples.startDate));
+  
+  // Fetch daily aggregated metrics
+  const rawDailyMetrics = await db
+    .select()
+    .from(healthkitDailyMetrics)
+    .where(
+      and(
+        eq(healthkitDailyMetrics.userId, userId.toString()),
+        gte(healthkitDailyMetrics.date, format(ninetyDaysAgo, 'yyyy-MM-dd'))
+      )
+    )
+    .orderBy(desc(healthkitDailyMetrics.date));
+  
+  // Fetch biomarker results (all time - we need historical data)
+  const rawBiomarkers = await db
+    .select({
+      name: biomarkerResults.biomarkerName,
+      value: biomarkerResults.numericValue,
+      unit: biomarkerResults.unit,
+      testDate: biomarkerResults.testDate,
+      isAbnormal: biomarkerResults.isAbnormal,
+    })
+    .from(biomarkerResults)
+    .where(eq(biomarkerResults.userId, userId.toString()))
+    .orderBy(desc(biomarkerResults.testDate));
+  
+  // Fetch life events (past 90 days)
+  const rawLifeEvents = await db
+    .select({
+      eventType: lifeEvents.eventType,
+      details: lifeEvents.details,
+      happenedAt: lifeEvents.happenedAt,
+    })
+    .from(lifeEvents)
+    .where(
+      and(
+        eq(lifeEvents.userId, userId.toString()),
+        gte(lifeEvents.happenedAt, ninetyDaysAgo)
+      )
+    )
+    .orderBy(desc(lifeEvents.happenedAt));
+  
+  return {
+    healthkitSamples: rawHealthkitSamples.map(s => ({
+      ...s,
+      startDate: new Date(s.startDate),
+    })),
+    dailyMetrics: rawDailyMetrics.map(m => ({
+      date: m.date,
+      hrv: m.hrv,
+      sleepDuration: m.sleepDuration,
+      deepSleep: m.deepSleep,
+      remSleep: m.remSleep,
+      steps: m.steps,
+      restingHeartRate: m.restingHeartRate,
+      activeEnergy: m.activeEnergy,
+    })),
+    biomarkers: rawBiomarkers.map(b => ({
+      ...b,
+      value: b.value || 0,
+      testDate: new Date(b.testDate),
+      isAbnormal: b.isAbnormal || false,
+    })),
+    lifeEvents: rawLifeEvents.map(e => ({
+      ...e,
+      happenedAt: new Date(e.happenedAt),
+    })),
+  };
+}
+
+// ============================================================================
 // Layer A: Physiological Pathways Adapter
 // ============================================================================
 
 /**
  * Convert physiological pathways into insight candidates
  * 
- * For MVP: Use all pathways as candidates (they're all science-backed)
- * In production: Filter to pathways with recent data supporting them
+ * Returns all hard-coded science pathways with real data timestamps
  */
 export function generateLayerAInsights(
   userId: number,
-  healthData: any // TODO: Type this properly based on available data
+  healthData: HealthDataSnapshot
 ): InsightCandidate[] {
   const insights: InsightCandidate[] = [];
+  
+  // Find most recent data date across all sources
+  const mostRecentDate = new Date(Math.max(
+    healthData.healthkitSamples[0]?.startDate?.getTime() || 0,
+    healthData.biomarkers[0]?.testDate?.getTime() || 0,
+    healthData.dailyMetrics[0] ? new Date(healthData.dailyMetrics[0].date).getTime() : 0
+  ));
   
   for (const pathway of PHYSIOLOGICAL_PATHWAYS) {
     // Skip bidirectional pathways for now (need special handling)
@@ -69,7 +214,7 @@ export function generateLayerAInsights(
       dependent: pathway.dependent,
       direction: pathway.direction,
       effectSize: (pathway.effectSizeRange.min + pathway.effectSizeRange.max) / 2,
-      mostRecentDataDate: new Date(), // TODO: Get actual most recent data date
+      mostRecentDataDate: mostRecentDate,
       variables: [pathway.independent, pathway.dependent],
       rawMetadata: {
         mechanism: pathway.mechanism,
@@ -80,6 +225,7 @@ export function generateLayerAInsights(
     });
   }
   
+  logger.info(`[Layer A] Generated ${insights.length} physiological pathway insights`);
   return insights;
 }
 
@@ -90,20 +236,53 @@ export function generateLayerAInsights(
 /**
  * Run Bayesian correlation analysis and convert to insight candidates
  * 
- * TODO: Implement full Bayesian correlation engine integration
+ * For MVP: Calls the real engine but will return empty since we need
+ * pre-computed correlations across multiple time windows. Phase 2 will
+ * add the correlation computation step.
  */
 export function generateLayerBInsights(
   userId: number,
-  healthData: any
+  healthData: HealthDataSnapshot
 ): InsightCandidate[] {
-  // TODO: Implement Bayesian correlation analysis
-  // 1. Get all metric pairs from healthData
-  // 2. Run Spearman correlation with Bayesian inference
-  // 3. Filter by effect size ≥ 0.35 and PD ≥ 95%
-  // 4. Check for replication (distinct windows/users)
-  // 5. Convert to InsightCandidate[]
+  const insights: InsightCandidate[] = [];
   
-  return [];
+  try {
+    // In production, we would:
+    // 1. Compute correlations for all metric pairs in short/medium/long windows
+    // 2. Store results in insight_replication_history table
+    // 3. Query for replicated patterns
+    //
+    // For MVP, we call detectReplicatedCorrelations with empty array
+    // This validates the integration without needing the full correlation pipeline
+    const correlationResults: any[] = []; // TODO: Compute correlations in Phase 2
+    const replicatedCorrelations = detectReplicatedCorrelations(correlationResults);
+    
+    // Convert to InsightCandidate format
+    for (const corr of replicatedCorrelations) {
+      insights.push({
+        layer: 'B',
+        evidenceTier: corr.evidenceTier,
+        independent: corr.independent,
+        dependent: corr.dependent,
+        direction: corr.direction,
+        effectSize: corr.avgEffectSize,
+        mostRecentDataDate: new Date(), // Would come from correlation data
+        variables: [corr.independent, corr.dependent],
+        rawMetadata: {
+          replications: corr.replications,
+          avgProbabilityDirection: corr.avgProbabilityDirection,
+          isNovel: corr.isNovel,
+        },
+      });
+    }
+    
+    logger.info(`[Layer B] Generated ${insights.length} Bayesian correlation insights`);
+    return insights;
+    
+  } catch (error: any) {
+    logger.error('[Layer B] Error generating Bayesian correlation insights:', error);
+    return [];
+  }
 }
 
 // ============================================================================
@@ -113,21 +292,95 @@ export function generateLayerBInsights(
 /**
  * Run dose-response analysis and convert to insight candidates
  * 
- * TODO: Implement full dose-response engine integration
+ * Analyzes life events with dosage tracking to find dose-response relationships
  */
 export function generateLayerCInsights(
   userId: number,
-  healthData: any
+  healthData: HealthDataSnapshot
 ): InsightCandidate[] {
-  // TODO: Implement dose-response analysis
-  // 1. Get all life events with dosages
-  // 2. Segment into tertiles
-  // 3. Extract temporal windows (0-48h, 3-10d, cumulative)
-  // 4. Analyze dose-response relationships
-  // 5. Detect optimal timing
-  // 6. Convert to InsightCandidate[]
+  const insights: InsightCandidate[] = [];
   
-  return [];
+  try {
+    // Extract life events with dosage amounts
+    const dosageEventsByType = new Map<string, DosageEvent[]>();
+    
+    for (const event of healthData.lifeEvents) {
+      const details = event.details as any;
+      const amount = details?.dosage_amount || details?.amount || details?.duration_min;
+      
+      if (typeof amount === 'number' && amount > 0) {
+        if (!dosageEventsByType.has(event.eventType)) {
+          dosageEventsByType.set(event.eventType, []);
+        }
+        
+        dosageEventsByType.get(event.eventType)!.push({
+          date: format(event.happenedAt, 'yyyy-MM-dd'),
+          amount,
+          timing: details?.timing,
+        });
+      }
+    }
+    
+    // For each event type with sufficient data, analyze against HRV, sleep, etc.
+    const outcomeMetrics = ['hrv', 'sleepDuration', 'restingHeartRate'];
+    
+    for (const [eventType, dosageEvents] of dosageEventsByType) {
+      if (dosageEvents.length < 5) {
+        continue; // Need at least 5 events for dose-response
+      }
+      
+      for (const metricName of outcomeMetrics) {
+        // Prepare outcome data
+        const outcomeData: OutcomeDataPoint[] = healthData.dailyMetrics
+          .map(m => ({
+            date: m.date,
+            value: m[metricName as keyof typeof m] as number,
+          }))
+          .filter(o => o.value !== null && !isNaN(o.value));
+        
+        if (outcomeData.length < 5) {
+          continue;
+        }
+        
+        // Analyze each temporal window
+        for (const window of ['ACUTE', 'SUB_ACUTE', 'CUMULATIVE'] as TemporalWindow[]) {
+          const result = analyzeDoseResponse(
+            dosageEvents,
+            outcomeData,
+            eventType,
+            metricName,
+            window
+          );
+          
+          if (result) {
+            insights.push({
+              layer: 'C',
+              evidenceTier: result.evidenceTier,
+              independent: eventType,
+              dependent: metricName,
+              direction: result.direction,
+              effectSize: result.effectSize,
+              mostRecentDataDate: new Date(dosageEvents[dosageEvents.length - 1].date),
+              variables: [eventType, metricName],
+              rawMetadata: {
+                window: result.window,
+                effectType: result.effectType,
+                tertiles: result.tertiles,
+                optimalDose: result.optimalDose,
+              },
+            });
+          }
+        }
+      }
+    }
+    
+    logger.info(`[Layer C] Generated ${insights.length} dose-response insights`);
+    return insights;
+    
+  } catch (error: any) {
+    logger.error('[Layer C] Error generating dose-response insights:', error);
+    return [];
+  }
 }
 
 // ============================================================================
@@ -137,21 +390,105 @@ export function generateLayerCInsights(
 /**
  * Run anomaly detection and convert to insight candidates
  * 
- * TODO: Implement full anomaly detection engine integration
+ * Detects when fast-moving metrics deviate significantly (≥20%) from baseline
+ * in a pattern explained by stale biomarkers (yellow/red freshness)
  */
 export function generateLayerDInsights(
   userId: number,
-  healthData: any
+  healthData: HealthDataSnapshot
 ): InsightCandidate[] {
-  // TODO: Implement anomaly detection
-  // 1. Get fast-moving metrics (HealthKit, life events)
-  // 2. Detect deviations from baseline (≥20%)
-  // 3. Get stale biomarkers (yellow/red freshness)
-  // 4. Check for ≥3 matching deviations
-  // 5. Generate stale-lab warnings
-  // 6. Convert to InsightCandidate[]
+  const insights: InsightCandidate[] = [];
   
-  return [];
+  try {
+    // Step 1: Prepare metric data in correct format (Map<string, Array<{date, value}>>)
+    const metricSnapshots = new Map<string, Array<{ date: string; value: number }>>();
+    
+    // Convert dailyMetrics to Map format expected by detectMetricDeviations
+    const metrics = ['hrv', 'sleepDuration', 'restingHeartRate', 'steps'] as const;
+    for (const metricName of metrics) {
+      const dataPoints: Array<{ date: string; value: number }> = [];
+      
+      for (const m of healthData.dailyMetrics) {
+        const value = m[metricName];
+        if (value !== null && !isNaN(value)) {
+          dataPoints.push({
+            date: m.date,
+            value,
+          });
+        }
+      }
+      
+      if (dataPoints.length > 0) {
+        metricSnapshots.set(metricName, dataPoints);
+      }
+    }
+    
+    // Step 2: Detect deviations
+    const deviations = detectMetricDeviations(metricSnapshots);
+    
+    if (deviations.length === 0) {
+      logger.info('[Layer D] No significant metric deviations detected');
+      return [];
+    }
+    
+    // Step 3: Prepare biomarker data with freshness
+    const biomarkerData = healthData.biomarkers.map(b => ({
+      name: b.name,
+      value: b.value,
+      unit: b.unit,
+      testDate: format(b.testDate, 'yyyy-MM-dd'),
+      isAbnormal: b.isAbnormal,
+    }));
+    
+    // Step 4: Detect stale-lab warnings
+    const staleLabWarnings = detectStaleLabWarning(deviations, biomarkerData);
+    
+    if (!staleLabWarnings || staleLabWarnings.length === 0) {
+      logger.info('[Layer D] No stale-lab warnings detected');
+      return [];
+    }
+    
+    // Step 5: Convert to InsightCandidate format
+    for (const warning of staleLabWarnings) {
+      // Find most recent date from deviating metrics
+      let mostRecentDate = new Date(0);
+      for (const deviation of warning.supportingDeviations) {
+        const metricData = metricSnapshots.get(deviation.metric);
+        if (metricData && metricData.length > 0) {
+          const latestDataPoint = metricData[metricData.length - 1];
+          const dataDate = new Date(latestDataPoint.date);
+          if (dataDate > mostRecentDate) {
+            mostRecentDate = dataDate;
+          }
+        }
+      }
+      
+      insights.push({
+        layer: 'D',
+        evidenceTier: '3', // Mechanistic + observational
+        independent: warning.biomarker.name,
+        dependent: warning.supportingDeviations.map(d => d.metric).join(', '),
+        direction: 'negative', // Stale labs are always concerning
+        deviationPercent: Math.abs(warning.supportingDeviations[0]?.percentChange * 100),
+        mostRecentDataDate: mostRecentDate,
+        variables: [warning.biomarker.name, ...warning.supportingDeviations.map(d => d.metric)],
+        rawMetadata: {
+          biomarkerValue: warning.biomarker.value,
+          biomarkerUnit: warning.biomarker.unit,
+          daysSinceTest: warning.daysSinceTest,
+          freshnessCategory: warning.biomarker.freshnessCategory,
+          supportingDeviations: warning.supportingDeviations,
+        },
+      });
+    }
+    
+    logger.info(`[Layer D] Generated ${insights.length} stale-lab warning insights`);
+    return insights;
+    
+  } catch (error: any) {
+    logger.error('[Layer D] Error generating anomaly detection insights:', error);
+    return [];
+  }
 }
 
 // ============================================================================
@@ -251,33 +588,32 @@ export function generateInsightNarrative(
  * 3. Rank insights
  * 4. Select top 5
  * 5. Generate natural language
- * 6. Store in database
+ * 6. Store in database (TODO: task 13)
  * 
  * @param userId - User ID
  * @returns Array of generated insights
  */
 export async function generateDailyInsights(userId: number): Promise<GeneratedInsight[]> {
-  console.log(`[InsightsEngineV2] Generating insights for user ${userId}`);
+  logger.info(`[InsightsEngineV2] Generating insights for user ${userId}`);
   
   try {
-    // TODO: Fetch user's health data
-    // This should include:
-    // - HealthKit metrics (HRV, sleep, activity, etc.)
-    // - Blood work (biomarkers)
-    // - Life events (dosages, behaviors)
-    const healthData = {}; // Placeholder
+    // Step 1: Fetch user's comprehensive health data (90 days)
+    logger.info('[InsightsEngineV2] Fetching health data');
+    const healthData = await fetchHealthData(userId);
     
-    // Step 1: Run all 4 analytical layers
-    console.log('[InsightsEngineV2] Running Layer A (Physiological Pathways)');
+    logger.info(`[InsightsEngineV2] Fetched ${healthData.healthkitSamples.length} HealthKit samples, ${healthData.biomarkers.length} biomarkers, ${healthData.lifeEvents.length} life events`);
+    
+    // Step 2: Run all 4 analytical layers
+    logger.info('[InsightsEngineV2] Running Layer A (Physiological Pathways)');
     const layerAInsights = generateLayerAInsights(userId, healthData);
     
-    console.log('[InsightsEngineV2] Running Layer B (Bayesian Correlations)');
+    logger.info('[InsightsEngineV2] Running Layer B (Bayesian Correlations)');
     const layerBInsights = generateLayerBInsights(userId, healthData);
     
-    console.log('[InsightsEngineV2] Running Layer C (Dose-Response)');
+    logger.info('[InsightsEngineV2] Running Layer C (Dose-Response)');
     const layerCInsights = generateLayerCInsights(userId, healthData);
     
-    console.log('[InsightsEngineV2] Running Layer D (Anomaly Detection)');
+    logger.info('[InsightsEngineV2] Running Layer D (Anomaly Detection)');
     const layerDInsights = generateLayerDInsights(userId, healthData);
     
     // Combine all candidates
@@ -288,17 +624,17 @@ export async function generateDailyInsights(userId: number): Promise<GeneratedIn
       ...layerDInsights,
     ];
     
-    console.log(`[InsightsEngineV2] Generated ${allCandidates.length} insight candidates`);
+    logger.info(`[InsightsEngineV2] Generated ${allCandidates.length} insight candidates (A:${layerAInsights.length}, B:${layerBInsights.length}, C:${layerCInsights.length}, D:${layerDInsights.length})`);
     
-    // Step 2: Convert to ranked insights
+    // Step 3: Convert to ranked insights
     const rankedInsights = allCandidates.map(convertToRankedInsight);
     
-    // Step 3: Select top 5 with domain diversity
+    // Step 4: Select top 5 with domain diversity
     const topInsights = selectTopInsights(rankedInsights, 5, 2);
     
-    console.log(`[InsightsEngineV2] Selected ${topInsights.length} top insights`);
+    logger.info(`[InsightsEngineV2] Selected ${topInsights.length} top insights`);
     
-    // Step 4: Generate natural language
+    // Step 5: Generate natural language
     const generatedInsights: GeneratedInsight[] = [];
     
     for (let index = 0; index < topInsights.length; index++) {
@@ -314,14 +650,15 @@ export async function generateDailyInsights(userId: number): Promise<GeneratedIn
       const narrative = generateInsightNarrative(rankedInsight, candidate);
       generatedInsights.push(narrative);
       
-      // TODO: Store in daily_insights table
-      console.log(`[InsightsEngineV2] Insight ${index + 1}: ${narrative.title}`);
+      // TODO: Store in daily_insights table (task 13)
+      logger.info(`[InsightsEngineV2] Insight ${index + 1}: ${narrative.title}`);
     }
     
+    logger.info(`[InsightsEngineV2] Successfully generated ${generatedInsights.length} insights for user ${userId}`);
     return generatedInsights;
     
   } catch (error: any) {
-    console.error(`[InsightsEngineV2] Error generating insights for user ${userId}:`, error);
+    logger.error(`[InsightsEngineV2] Error generating insights for user ${userId}:`, error);
     throw error;
   }
 }
