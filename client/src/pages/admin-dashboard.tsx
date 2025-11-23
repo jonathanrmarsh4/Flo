@@ -115,13 +115,9 @@ export default function AdminDashboard() {
   });
 
   const triggerInsightsMutation = useMutation({
-    mutationFn: async ({ userId, withNotification }: { userId?: string; withNotification: boolean }) => {
-      const params = new URLSearchParams();
-      if (userId) params.append('userId', userId);
-      params.append('withNotification', String(withNotification));
-      // Use apiRequest helper which handles JWT tokens for mobile apps
-      const response = await apiRequest('POST', `/api/admin/trigger-insights-generation?${params}`);
-      return await response.json();
+    mutationFn: async () => {
+      // Daily Insights Engine v2.0 - triggers generation check for all eligible users
+      return await apiRequest('POST', '/api/daily-insights/trigger-check');
     },
     onSuccess: (data: any) => {
       toast({
@@ -770,7 +766,7 @@ export default function AdminDashboard() {
                   
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
-                      onClick={() => triggerInsightsMutation.mutate({ withNotification: false })}
+                      onClick={() => triggerInsightsMutation.mutate()}
                       disabled={triggerInsightsMutation.isPending}
                       className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       data-testid="button-trigger-insights"
@@ -787,30 +783,11 @@ export default function AdminDashboard() {
                         </>
                       )}
                     </button>
-
-                    <button
-                      onClick={() => triggerInsightsMutation.mutate({ withNotification: true })}
-                      disabled={triggerInsightsMutation.isPending}
-                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      data-testid="button-trigger-insights-with-notification"
-                    >
-                      {triggerInsightsMutation.isPending ? (
-                        <>
-                          <Activity className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Generating...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Bell className="w-4 h-4" />
-                          <span className="text-sm">Generate + Send Reminder</span>
-                        </>
-                      )}
-                    </button>
                   </div>
 
                   <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                     <div className="text-xs text-blue-400">
-                      <strong>Note:</strong> The first button generates insights only. The second button also sends a daily reminder notification with the new insights included. Minimum 7 days of HealthKit data required.
+                      <strong>Daily Insights Engine v2.0:</strong> Analyzes 4 analytical layers (Physiological Pathways, Bayesian Correlations, Dose-Response, Anomaly Detection) to generate 0-5 personalized insights daily. Requires HealthKit data + biomarkers for cross-domain correlations.
                     </div>
                   </div>
                 </div>

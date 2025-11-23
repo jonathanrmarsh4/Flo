@@ -1,0 +1,104 @@
+2025-11-23 11:11:44.90
+11b3bf18
+User
+[2025-11-23T03:11:44.905Z] [INFO] [Admin] ✓ Synced 24 embeddings
+2025-11-23 11:11:44.90
+11b3bf18
+User
+[2025-11-23T03:11:44.905Z] [INFO] [EmbeddingService] Stored healthkit_daily embedding for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 11:11:44.90
+11b3bf18
+User
+[2025-11-23T03:11:44.905Z] [INFO] [Admin] Step 2/3: Generating insight cards for user a25c1536-d451-4711-abf1-7717a6c3bc1f...
+2025-11-23 11:11:44.90
+11b3bf18
+User
+[2025-11-23T03:11:44.905Z] [INFO] [CorrelationEngine] Generating insight cards for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 11:11:44.90
+11b3bf18
+User
+[2025-11-23T03:11:44.905Z] [INFO] [CorrelationEngine] Running correlation detection for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 11:11:44.90
+11b3bf18
+User
+[2025-11-23T03:11:44.905Z] [INFO] [EmbeddingService] Synced 14/14 HealthKit embeddings for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 11:11:45.12
+11b3bf18
+User
+[2025-11-23T03:11:45.124Z] [INFO] [CorrelationEngine] Sleep-HRV: 9 valid days (0 good sleep, 9 poor sleep)
+2025-11-23 11:11:45.12
+11b3bf18
+User
+[2025-11-23T03:11:45.124Z] [INFO] [CorrelationEngine] ✗ Sleep-HRV: Insufficient sleep variation (need 3+ each)
+2025-11-23 11:11:45.17
+11b3bf18
+User
+[2025-11-23T03:11:45.173Z] [INFO] [CorrelationEngine] Activity-Sleep variation: 1 active days (≥8k), 12 sedentary days (<8k)
+2025-11-23 11:11:45.17
+11b3bf18
+User
+[2025-11-23T03:11:45.173Z] [INFO] [CorrelationEngine] Activity-Sleep averages: 5676 steps, 364 min sleep
+2025-11-23 11:11:45.17
+11b3bf18
+User
+[2025-11-23T03:11:45.172Z] [INFO] [CorrelationEngine] Activity-Sleep: 13 valid days found (14 total metrics)
+2025-11-23 11:11:45.17
+11b3bf18
+User
+[2025-11-23T03:11:45.173Z] [INFO] [CorrelationEngine] ✗ Activity-Sleep: No meaningful pattern detected
+2025-11-23 11:11:45.86
+11b3bf18
+User
+[2025-11-23T03:11:45.863Z] [INFO] [CorrelationEngine] Detection complete: activitySleep=false, sleepHRV=false, lifeEvents=0
+2025-11-23 11:11:45.86
+11b3bf18
+User
+[2025-11-23T03:11:45.863Z] [INFO] [Admin] ✓ Generated 0 insight cards
+2025-11-23 11:11:45.86
+11b3bf18
+User
+[2025-11-23T03:11:45.863Z] [INFO] [CorrelationEngine] No correlations found for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 11:11:45.86
+11b3bf18
+User
+[2025-11-23T03:11:45.863Z] [INFO] [CorrelationEngine] Found 0 correlations for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 11:11:45.86
+11b3bf18
+User
+3:11:45 AM [express] POST /api/admin/trigger-insights-generation 200 in 16102ms :: {"success":true,"…
+2025-11-23 11:11:50.15
+11b3bf18
+User
+3:11:50 AM [express] GET /api/admin/audit-logs 304 in 77ms :: [{"id":"e1c91b5c-82c4-4821-999b-41ac5b…
+2025-11-23 11:11:50.23
+11b3bf18
+User
+3:11:50 AM [express] GET /api/admin/overview 200 in 165ms :: {"totalUsers":77,"activeUsers":77,"tota…
+2025-11-23 11:11:50.25
+11b3bf18
+User
+3:11:50 AM [express] GET /api/admin/healthkit/stats 304 in 177ms :: {"totalSamples":0,"totalUsers":0…
+2025-11-23 11:11:51.31
+11b3bf18
+User
+3:11:51 AM [express] GET /api/admin/healthkit/status 304 in 102ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:11:51.31
+11b3bf18
+User
+3:11:51 AM [express] GET /api/admin/healthkit/status 304 in 102ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:11:51.31
+11b3bf18
+User
+3:11:51 AM [express] GET /api/admin/healthkit/status 304 in 102ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:12:01.85
+11b3bf18
+User
+3:12:01 AM [express] GET /api/admin/healthkit/status 304 in 238ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:12:01.85
+11b3bf18
+User
+3:12:01 AM [express] GET /api/admin/healthkit/status 304 in 238ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:12:12.37
+11b3bf18
+User
+3:12:12 AM [express] GET /api/admin/healthkit/status 304 in 231ms :: {"status":"dow

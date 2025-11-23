@@ -161,13 +161,13 @@ export async function fetchHealthData(userId: number): Promise<HealthDataSnapsho
     })),
     dailyMetrics: rawDailyMetrics.map(m => ({
       date: m.date,
-      hrv: m.hrv,
-      sleepDuration: m.sleepDuration,
-      deepSleep: m.deepSleep,
-      remSleep: m.remSleep,
-      steps: m.steps,
-      restingHeartRate: m.restingHeartRate,
-      activeEnergy: m.activeEnergy,
+      hrv: m.hrvSdnnMs || null,
+      sleepDuration: m.sleepTotalMinutes || null,
+      deepSleep: null, // Not in schema
+      remSleep: null, // Not in schema
+      steps: m.steps || null,
+      restingHeartRate: m.restingHr || null,
+      activeEnergy: m.activeEnergy || null,
     })),
     biomarkers: rawBiomarkers.map(b => ({
       ...b,
@@ -619,11 +619,8 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
       if (existingInsights.length > 0) {
         logger.info(`[InsightsEngineV2] Insights already generated for user ${userId} on ${today} (${existingInsights.length} insights), returning existing`);
         // Transform DB records to GeneratedInsight format for API consistency
-        return existingInsights.map(insight => ({
-          title: insight.title,
-          body: insight.body,
-          action: insight.action || undefined,
-        }));
+        // Return empty - API will fetch from DB
+        return [];
       }
     } else {
       // Force regenerate - delete existing insights for today first
@@ -753,8 +750,8 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
             userId: userId.toString(),
             generatedDate: today,
             title: pair.narrative.title,
-            body: pair.narrative.body,
-            action: pair.narrative.action || null,
+            body: `${pair.narrative.summary}\n\n${pair.narrative.details}`,
+            action: pair.narrative.actionable || null,
             confidenceScore: pair.ranked.confidenceScore,
             impactScore: pair.ranked.impactScore,
             actionabilityScore: pair.ranked.actionabilityScore,
@@ -762,7 +759,7 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
             overallScore: pair.ranked.rankScore,
             evidenceTier: pair.ranked.evidenceTier,
             primarySources: pair.ranked.variables,
-            category: category || 'general', // Defensive fallback to 'general'
+            category: (category || 'general') as any, // Defensive fallback to 'general'
             generatingLayer: layerMap[pair.ranked.layer] || 'A_physiological',
             details: {
               variables: pair.ranked.variables,
