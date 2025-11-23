@@ -30,18 +30,20 @@ const CATEGORY_ICON_MAP = {
 export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  // Fetch insights
-  const { data: insights = [], isLoading } = useQuery<InsightCardType[]>({
-    queryKey: ['/api/insights'],
+  // Fetch daily insights (v2.0 engine)
+  const { data: insightsResponse, isLoading } = useQuery<{ date: string; count: number; insights: InsightCardType[] }>({
+    queryKey: ['/api/daily-insights'],
   });
+  
+  const insights = insightsResponse?.insights || [];
 
   // Refresh insights mutation
   const refreshMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('POST', '/api/insights/generate', {});
+      return apiRequest('POST', '/api/daily-insights/generate', {});
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/insights'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/daily-insights'] });
       console.log('[Insights] Successfully generated insights');
     },
     onError: (error: any) => {

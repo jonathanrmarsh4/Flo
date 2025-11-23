@@ -18,9 +18,11 @@ const CATEGORY_ICON_MAP = {
 };
 
 export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
-  const { data: insights } = useQuery<InsightCard[]>({
-    queryKey: ['/api/insights'],
+  const { data: insightsResponse } = useQuery<{ date: string; count: number; insights: InsightCard[] }>({
+    queryKey: ['/api/daily-insights'],
   });
+  
+  const insights = insightsResponse?.insights || [];
 
   // Handle both array response and legacy object response {insights: [], newCount: 0}
   const insightsArray = Array.isArray(insights) 
