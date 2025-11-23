@@ -946,7 +946,22 @@ ${JSON.stringify(input, null, 2)}`;
     );
 
     // Grok returns the content directly as a string
-    const report = JSON.parse(response);
+    // Extract JSON from potential markdown code blocks
+    let jsonContent = response.trim();
+    
+    // Remove markdown code blocks if present
+    if (jsonContent.startsWith('```')) {
+      const jsonMatch = jsonContent.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1].trim();
+      } else {
+        // Try removing just the backticks
+        jsonContent = jsonContent.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '').trim();
+      }
+    }
+    
+    logger.info(`[Grok] Parsing JSON response (${jsonContent.length} chars)`);
+    const report = JSON.parse(jsonContent);
     
     // Validate required sections
     if (!report.summary_header || !report.key_takeaways || !report.biomarker_highlights) {
@@ -956,6 +971,9 @@ ${JSON.stringify(input, null, 2)}`;
     return report;
   } catch (error: any) {
     logger.error('[Grok] Error generating full health report', error);
+    if (error instanceof SyntaxError) {
+      logger.error('[Grok] JSON parse error - response may not be valid JSON');
+    }
     throw new Error(`Failed to generate full health report with Grok: ${error.message || 'Unknown error'}`);
   }
 }
