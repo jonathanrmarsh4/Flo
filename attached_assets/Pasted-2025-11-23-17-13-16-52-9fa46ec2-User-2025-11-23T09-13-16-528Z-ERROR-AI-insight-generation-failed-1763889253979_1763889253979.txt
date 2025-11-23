@@ -1,0 +1,24 @@
+2025-11-23 17:13:16.52
+9fa46ec2
+User
+[2025-11-23T09:13:16.528Z] [ERROR] AI insight generation failed, falling back to template {"error":{"error":{},"candidate":{"layer":"A","evidenceTier":"1","independent":"body_fat_pct","dependent":"hrv_sdnn_ms","direction":"negative","effectSize":0.425,"mostRecentDataDate":"2025-11-23T00:00:00.000Z","variables":["body_fat_pct","hrv_sdnn_ms"],"rawMetadata":{"mechanism":"Higher body fat → systemic inflammation → reduced parasympathetic tone → lower HRV","references":[{"pmid":"31234567","authors":"Koenig J et al.","title":"Body composition and autonomic function","journal":"Int J Obes","year":2020,"summary":"Each 5% increase in body fat correlates with 5-8% decrease in HRV"}],"doseDependent":true,"timingDependent":false,"userMetrics":{"independent":{"variable":"body_fat_pct","currentAvg":7,"baselineAvg":7.8,"percentChange":-10,"unit":"%","daysSinceData":0,"dataSource":"HealthKit"},"dependent":{"variable":"hrv_sdnn_ms","currentAvg":15,"baselineAvg":24,"percentChange":-37,"unit":"ms","daysSinceData":0,"dataSource":"HealthKit"}}}}}}
+2025-11-23 17:13:16.53
+9fa46ec2
+User
+[2025-11-23T09:13:16.530Z] [ERROR] AI insight generation failed, falling back to template {"error":{"error":{},"candidate":{"layer":"A","evidenceTier":"1","independent":"lean_mass_kg","dependent":"active_kcal","direction":"positive","effectSize":0.55,"mostRecentDataDate":"2025-11-23T00:00:00.000Z","variables":["active_kcal","lean_mass_kg"],"rawMetadata":{"mechanism":"Higher lean mass → increased resting metabolic rate → greater caloric expenditure during activity","references":[{"pmid":"29765432","authors":"Volpi E et al.","title":"Muscle mass and energy expenditure","journal":"J Appl Physiol","year":2018,"summary":"Each kg of lean mass increases daily energy expenditure by 20-30 kcal"}],"doseDependent":true,"timingDependent":false,"userMetrics":{"independent":{"variable":"lean_mass_kg","currentAvg":66.9,"baselineAvg":66.1,"percentChange":1,"unit":"kg","daysSinceData":0,"dataSource":"HealthKit"},"dependent":{"variable":"active_kcal","currentAvg":4156,"baselineAvg":644.3,"percentChange":545,"unit":"kcal","daysSinceData":0,"dataSource":"HealthKit"}}}}}}
+2025-11-23 17:13:16.53
+9fa46ec2
+User
+[2025-11-23T09:13:16.530Z] [INFO] [InsightsEngineV2] Insight 1: Body fat pct affects HRV (SDNN)
+2025-11-23 17:13:16.53
+9fa46ec2
+User
+[2025-11-23T09:13:16.531Z] [INFO] [InsightsEngineV2] Insight 2: Lean mass kg affects active kcal
+2025-11-23 17:13:16.53
+9fa46ec2
+User
+[2025-11-23T09:13:16.534Z] [ERROR] [InsightsEngineV2] Error generating insights for user a25c1536-d451-4711-abf1-7717a6c3bc1f: {"error":{"message":"Cannot read properties of undefined (reading 'toLowerCase')","stack":"TypeError: Cannot read properties of undefined (reading 'toLowerCase')\n at biomarkerNameToCanonicalKey (file:///home/runner/workspace/dist/index.js:16487:15)\n at file:///home/runner/workspace/dist/index.js:16411:92\n at Array.filter ()\n at extractBaselines (file:///home/runner/workspace/dist/index.js:16411:78)\n at generateDailyInsights (file:///home/runner/workspace/dist/index.js:16653:25)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async file:///home/runner/workspace/dist/index.js:21497:24"}}
+2025-11-23 17:13:16.53
+9fa46ec2
+User
+[2025-11-23T09:13:16.535Z] [ERROR] [DailyInsightsV2] Force generate error: {"error":{"message":"Cannot read properties of undefined (reading 'toLowerCase')","stack":"TypeError: Cannot read properties of undefined (reading 'toLowerCase')\n at biomarkerNameToCanonicalKey (file:///home/runner/workspace/dist/index.js:16487:15)\n at file:///home/runner/workspace/dist/index.js:16411:92\n at Array.filter ()\n at extractBaselines (file:///home/runner/workspace/dist/index.js:16411:78)\n at generateDailyInsights (file:///home/runner/workspace/dist/index.js:16653:25)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async file:///home/runner/workspace/dist/index.js:21497:24"}}
