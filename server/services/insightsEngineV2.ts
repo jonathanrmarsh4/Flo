@@ -997,10 +997,10 @@ function extractBaselines(variables: string[], healthData: HealthDataSnapshot): 
     // If no HealthKit data, try biomarkers
     const biomarkerData = healthkitData.length === 0 
       ? healthData.biomarkers
-          .filter(b => biomarkerNameToCanonicalKey(b.biomarkerName) === varName)
+          .filter(b => b.name && biomarkerNameToCanonicalKey(b.name) === varName)
           .map(b => ({
             date: b.testDate,
-            value: parseFloat(b.value),
+            value: b.value,
           }))
           .filter(d => !isNaN(d.value))
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
