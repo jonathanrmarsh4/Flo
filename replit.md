@@ -11,35 +11,44 @@ Flō is a mobile-first AI-powered health analytics platform designed to analyze 
 
 ## Recent Changes
 
-### RAG Insights Bug Fixes - Category Classification & Coverage (Nov 23, 2025)
-**Problem**: RAG insights had 4 critical bugs:
-1. Only showing 1 insight (should be multiple)
-2. No HealthKit correlations appearing
-3. Insights classified as "general" instead of "biomarkers"
-4. Missing coverage across all categories (Sleep, Activity, Biomarkers, Recovery)
+### RAG Insights Category Diversity Fix - Weighted Domain Scoring (Nov 23, 2025)
+**Problem**: User reported 8 insights generated but ZERO sleep or recovery insights despite poor sleep trends and HRV data available. Previous first-match classification strategy caused category starvation.
 
-**Solution**: Fixed insight generation, classification, and category coverage.
+**Root Cause**: The `classifyRAGInsight()` function used `determineHealthDomain()` which returned the FIRST matching domain. Mixed insights like ["Ferritin", "Sleep", "HRV"] collapsed into "biomarkers" category, starving Sleep and Recovery categories.
+
+**Solution**: Implemented weighted domain scoring classifier to prioritize sleep/recovery metrics.
 
 **Fixes Applied**:
-1. ✅ **Increased insight count**: Updated RAG prompt from "3-5 insights" to "5-8 insights"
-2. ✅ **Relaxed HealthKit requirements** (`ragInsightGenerator.ts`):
+1. ✅ **Increased max insights to 20** (user request): Updated RAG prompt from "5-8 insights" to "up to 20 insights"
+2. ✅ **Enhanced prompt for trend analysis**:
+   - Explicitly requests insights across all 4 categories: BIOMARKERS, SLEEP, RECOVERY, ACTIVITY
+   - Emphasis on TRENDS over time (e.g., "sleep duration declining over past 2 weeks")
+   - Focus on HRV correlations with sleep, stress, and recovery
+   - Prioritize sleep and recovery pattern discovery
+3. ✅ **Relaxed HealthKit requirements** (`ragInsightGenerator.ts`):
    - Changed minimum days from 14 → 10 days
    - Allow up to 3 null values per metric (4+ valid values required per week)
    - More forgiving change detection for sparse data
-3. ✅ **Fixed category classification** (`insightsEngineV2.ts`):
-   - Created `classifyRAGInsight()` function to properly classify insights
-   - HealthKit metric mapping (case-insensitive): HRV, Sleep, Steps, Exercise, etc.
-   - Biomarker canonicalization for proper domain detection
-   - Domain → Category mapping: sleep → sleep_quality, recovery → recovery_hrv, metabolic/hormonal/inflammatory → biomarkers, performance → activity_sleep
-4. ✅ **Enhanced prompt for category breadth**:
-   - Explicitly requests insights across all 4 categories: BIOMARKERS, SLEEP, RECOVERY, ACTIVITY
-   - Asks for 1-2 insights per category minimum
-   - Cross-domain pattern emphasis (e.g., "low ferritin + poor sleep recovery + declining HRV")
+4. ✅ **Implemented weighted domain scoring** (`insightsEngineV2.ts`):
+   - Expanded metric domain map to 45+ metrics with primary/secondary weights
+   - Sleep metrics: sleep, deep sleep, REM, sleep efficiency, latency, awakenings
+   - Recovery metrics: HRV, resting HR, respiratory rate
+   - Performance metrics: steps, active energy, exercise, VO2 max, stand hours
+   - Biomarkers organized by domain: inflammatory, hormonal, metabolic
+   - Scoring system: Primary domain = +2 points, Secondary domain = +1 point
+   - Priority-based tie-breaking: sleep > recovery > performance > biomarkers
+   - This ensures sleep/recovery insights win ties against biomarkers
+
+**Example Classifications**:
+- `["Sleep", "HRV"]` → sleep: 2, recovery: 3 → **recovery_hrv** ✅
+- `["Ferritin", "Sleep"]` → inflammatory: 2, sleep: 2 → **sleep_quality** (priority) ✅
+- `["HRV", "Resting HR"]` → recovery: 4 → **recovery_hrv** ✅
+- `["Ferritin"]` → inflammatory: 2 → **biomarkers** ✅
 
 **Expected Results**:
-- 5-8 holistic insights generated daily (up from 3-5)
-- HealthKit metrics included even with 10 days of data and some nulls
-- Biomarker insights properly categorized as "biomarkers" (not "general")
+- Up to 20 holistic insights generated daily (up from 5-8)
+- Sleep insights properly categorized even when mixed with biomarkers
+- Recovery/HRV insights prioritized for proper category distribution
 - Comprehensive coverage across Sleep, Activity, Biomarkers, and Recovery categories
 
 ## System Architecture
