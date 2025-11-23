@@ -1,0 +1,79 @@
+2025-11-23 17:23:41.41
+5f4a6309
+User
+[2025-11-23T09:23:41.415Z] [INFO] [DailyInsightsV2] req.user structure: {"hasUser":true,"hasClaims":true,"sub":"a25c1536-d451-4711-abf1-7717a6c3bc1f","id":"a25c1536-d451-4711-abf1-7717a6c3bc1f","fullUser":{"id":"a25c1536-d451-4711-abf1-7717a6c3bc1f","email":"nv5qnkd87g@privaterelay.appleid.com","firstName":null,"lastName":null,"role":"admin","status":"active","claims":{"sub":"a25c1536-d451-4711-abf1-7717a6c3bc1f"}}}
+2025-11-23 17:23:41.41
+5f4a6309
+User
+[2025-11-23T09:23:41.415Z] [INFO] [InsightsEngineV2] Generating insights for user a25c1536-d451-4711-abf1-7717a6c3bc1f
+2025-11-23 17:23:41.41
+5f4a6309
+User
+[2025-11-23T09:23:41.415Z] [INFO] [DailyInsightsV2] Force generating insights for user a25c1536-d451-4711-abf1-7717a6c3bc1f (type: string)
+2025-11-23 17:23:41.45
+5f4a6309
+User
+[2025-11-23T09:23:41.451Z] [INFO] [InsightsEngineV2] Fetching health data
+2025-11-23 17:23:41.45
+5f4a6309
+User
+[2025-11-23T09:23:41.451Z] [INFO] [InsightsEngineV2] Deleted existing insights for user a25c1536-d451-4711-abf1-7717a6c3bc1f on 2025-11-23 (force regenerate)
+2025-11-23 17:23:41.68
+5f4a6309
+User
+[2025-11-23T09:23:41.683Z] [INFO] [InsightsEngineV2] Running Layer A (Physiological Pathways)
+2025-11-23 17:23:41.68
+5f4a6309
+User
+[2025-11-23T09:23:41.683Z] [INFO] [InsightsEngineV2] Data fetched - HealthKit: 0, Daily Metrics: 14, Biomarkers: 446, Life Events: 15
+2025-11-23 17:23:41.68
+5f4a6309
+User
+[2025-11-23T09:23:41.688Z] [INFO] [InsightsEngineV2] Running Layer B (Bayesian Correlations)
+2025-11-23 17:23:41.68
+5f4a6309
+User
+[2025-11-23T09:23:41.687Z] [INFO] [Layer A] Generated 3 physiological pathway insights (filtered by available data)
+2025-11-23 17:23:41.68
+5f4a6309
+User
+[2025-11-23T09:23:41.688Z] [INFO] [InsightsEngineV2] Running Layer C (Dose-Response)
+2025-11-23 17:23:41.69
+5f4a6309
+User
+[2025-11-23T09:23:41.689Z] [INFO] [Layer D] Generated 2 out-of-range biomarker insights
+2025-11-23 17:23:41.69
+5f4a6309
+User
+[2025-11-23T09:23:41.694Z] [INFO] [InsightsEngineV2] Applying anti-junk safeguards
+2025-11-23 17:23:41.69
+5f4a6309
+User
+[2025-11-23T09:23:41.694Z] [INFO] [Layer D] No stale-lab warnings detected
+2025-11-23 17:23:41.69
+5f4a6309
+User
+[2025-11-23T09:23:41.694Z] [INFO] [InsightsEngineV2] Generated 3 insight candidates (A:3, B:0, C:0, D:0)
+2025-11-23 17:23:41.69
+5f4a6309
+User
+[2025-11-23T09:23:41.696Z] [INFO] [InsightsEngineV2] After filters: 3 candidates remain (blocked 0)
+2025-11-23 17:23:41.69
+5f4a6309
+User
+[2025-11-23T09:23:41.697Z] [INFO] [InsightsEngineV2] Selected 3 top insights
+2025-11-23 17:23:41.80
+5f4a6309
+User
+🔎 [BODY COMP SERVICE] Querying health_daily_metrics for userId: a25c1536-d451-4711-abf1-7717a6c3bc1f since: 2025-08-25
+2025-11-23 17:23:42.27
+5f4a6309
+User
+9:23:42 AM [express] GET /api/daily-insights 200 in 75ms :: {"date":"2025-11-23","count":3,"insights…
+
+Collapse
+
+Wrap
+
+Colors
+
