@@ -3681,75 +3681,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .limit(1);
 
-      if (existing.length > 0) {
-        // Return cached readiness - transform DB format to API format
-        logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
-        const dbRecord = existing[0];
-        
-        // Fetch today's metrics for additional display data
-        const todayMetricsData = await db
-          .select()
-          .from(userDailyMetrics)
-          .where(
-            and(
-              eq(userDailyMetrics.userId, userId),
-              eq(userDailyMetrics.localDate, today)
-            )
+      // Fetch today's metrics for freshness check and display data
+      const todayMetricsData = await db
+        .select()
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            eq(userDailyMetrics.localDate, today)
           )
-          .limit(1);
+        )
+        .limit(1);
 
-        const displayMetrics = todayMetricsData.length > 0 ? {
-          avgSleepHours: todayMetricsData[0].sleepHours ?? undefined,
-          avgHRV: todayMetricsData[0].hrvMs ?? undefined,
-          stepCount: todayMetricsData[0].stepsNormalized ?? undefined,
-        } : undefined;
+      // CRITICAL GUARD: Can only return cached readiness if both exist AND metrics are fresh
+      if (existing.length > 0 && todayMetricsData.length > 0) {
+        const dbRecord = existing[0];
+        const metricsUpdatedAt = todayMetricsData[0].updatedAt;
+        const readinessCreatedAt = dbRecord.createdAt;
+        
+        // Check if metrics were updated AFTER readiness was calculated
+        const metricsAreStale = metricsUpdatedAt && readinessCreatedAt && 
+                                metricsUpdatedAt > readinessCreatedAt;
+        
+        if (!metricsAreStale) {
+          // SAFE PATH: Cached readiness is fresh, metrics exist
+          logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
+          
+          const displayMetrics = {
+            avgSleepHours: todayMetricsData[0].sleepHours ?? undefined,
+            avgHRV: todayMetricsData[0].hrvMs ?? undefined,
+            stepCount: todayMetricsData[0].stepsNormalized ?? undefined,
+          };
 
-        return res.json({
-          readinessScore: dbRecord.readinessScore,
-          readinessBucket: dbRecord.readinessBucket,
-          sleepScore: dbRecord.sleepScore,
-          recoveryScore: dbRecord.recoveryScore,
-          loadScore: dbRecord.loadScore,
-          trendScore: dbRecord.trendScore,
-          isCalibrating: dbRecord.isCalibrating,
-          explanations: dbRecord.notesJson || {
-            summary: "No data available",
-            sleep: "No sleep data",
-            recovery: "No recovery data",
-            load: "No activity data",
-            trend: "No trend data"
-          },
-          metrics: displayMetrics,
-          keyFactors: [], // TODO: Store and retrieve keyFactors from DB
-          timestamp: dbRecord.createdAt?.toISOString() || new Date().toISOString(),
-        });
+          return res.json({
+            readinessScore: dbRecord.readinessScore,
+            readinessBucket: dbRecord.readinessBucket,
+            sleepScore: dbRecord.sleepScore,
+            recoveryScore: dbRecord.recoveryScore,
+            loadScore: dbRecord.loadScore,
+            trendScore: dbRecord.trendScore,
+            isCalibrating: dbRecord.isCalibrating,
+            explanations: dbRecord.notesJson || {
+              summary: "No data available",
+              sleep: "No sleep data",
+              recovery: "No recovery data",
+              load: "No activity data",
+              trend: "No trend data"
+            },
+            metrics: displayMetrics,
+            keyFactors: [], // TODO: Store and retrieve keyFactors from DB
+            timestamp: dbRecord.createdAt?.toISOString() || new Date().toISOString(),
+          });
+        } else {
+          logger.info(`[Readiness] Cached readiness is stale (metrics updated at ${metricsUpdatedAt}, readiness at ${readinessCreatedAt}). Recomputing...`);
+        }
+      } else if (existing.length > 0) {
+        logger.info(`[Readiness] Cached readiness exists but no metrics row found. Recomputing...`);
       }
+      
+      // Fall through to recompute readiness if:
+      // - No cached readiness exists
+      // - Cached readiness exists but metrics are stale
+      // - Cached readiness exists but no metrics row (being re-synced)
 
       // Compute readiness (baselines are updated daily at 3AM by scheduler)
       const readiness = await computeDailyReadiness(userId, today);
 
       if (!readiness) {
+        // CONSERVATIVE DELETE: Only delete cached readiness if we're certain metrics are permanently missing
+        // Don't delete on transient errors while metrics still exist
+        if (existing.length > 0 && todayMetricsData.length === 0) {
+          // Double-check: metrics truly absent after recompute attempt
+          logger.warn(`[Readiness] Failed to recompute readiness for user ${userId}, ${today} (no metrics available). Deleting stale cached record.`);
+          await db
+            .delete(userDailyReadiness)
+            .where(
+              and(
+                eq(userDailyReadiness.userId, userId),
+                eq(userDailyReadiness.date, today)
+              )
+            );
+        } else if (existing.length > 0) {
+          // Keep cached readiness - either metrics exist or this is a transient failure
+          logger.warn(`[Readiness] Recompute failed for user ${userId}, ${today}. Keeping cached readiness to avoid data loss.`);
+        }
+        
         return res.status(404).json({ 
           error: "No data available to compute readiness",
           message: "Please ensure you have synced HealthKit data for today."
         });
       }
 
-      // Store the computed readiness
-      await db.insert(userDailyReadiness).values({
-        userId: readiness.userId,
-        date: readiness.date,
-        readinessScore: readiness.readinessScore,
-        readinessBucket: readiness.readinessBucket,
-        sleepScore: readiness.sleepScore,
-        recoveryScore: readiness.recoveryScore,
-        loadScore: readiness.loadScore,
-        trendScore: readiness.trendScore,
-        isCalibrating: readiness.isCalibrating,
-        notesJson: readiness.explanations,
-      });
-
-      logger.info(`[Readiness] Computed and stored readiness for user ${userId}, ${today}: ${readiness.readinessScore}`);
+      // Store or update the computed readiness (only if computation succeeded)
+      if (existing.length > 0) {
+        // Update existing stale readiness
+        await db
+          .update(userDailyReadiness)
+          .set({
+            readinessScore: readiness.readinessScore,
+            readinessBucket: readiness.readinessBucket,
+            sleepScore: readiness.sleepScore,
+            recoveryScore: readiness.recoveryScore,
+            loadScore: readiness.loadScore,
+            trendScore: readiness.trendScore,
+            isCalibrating: readiness.isCalibrating,
+            notesJson: readiness.explanations,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(userDailyReadiness.userId, userId),
+              eq(userDailyReadiness.date, today)
+            )
+          );
+        logger.info(`[Readiness] Updated stale readiness for user ${userId}, ${today}: ${readiness.readinessScore}`);
+      } else {
+        // Insert new readiness
+        await db.insert(userDailyReadiness).values({
+          userId: readiness.userId,
+          date: readiness.date,
+          readinessScore: readiness.readinessScore,
+          readinessBucket: readiness.readinessBucket,
+          sleepScore: readiness.sleepScore,
+          recoveryScore: readiness.recoveryScore,
+          loadScore: readiness.loadScore,
+          trendScore: readiness.trendScore,
+          isCalibrating: readiness.isCalibrating,
+          notesJson: readiness.explanations,
+        });
+        logger.info(`[Readiness] Computed and stored new readiness for user ${userId}, ${today}: ${readiness.readinessScore}`);
+      }
 
       res.json(readiness);
     } catch (error: any) {
