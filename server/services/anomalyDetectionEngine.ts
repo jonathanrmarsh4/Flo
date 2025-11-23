@@ -494,3 +494,86 @@ export function detectAnomalyClusters(
   
   return clusters;
 }
+
+// ============================================================================
+// Out-of-Range Biomarker Detection
+// ============================================================================
+
+export interface OutOfRangeBiomarker {
+  biomarker: string;
+  currentValue: number;
+  unit: string;
+  testDate: Date;
+  interpretation: 'low' | 'high';
+  daysSinceTest: number;
+}
+
+/**
+ * Detect biomarkers that are currently flagged as out of range
+ * 
+ * This directly uses the isAbnormal flags from lab results to identify
+ * biomarkers that need attention, independent of stale-lab analysis.
+ * 
+ * @param biomarkers - Array of biomarker measurements with abnormal flags
+ * @param currentDate - Current date for age calculation
+ * @returns Array of out-of-range biomarkers with details
+ */
+export function detectOutOfRangeBiomarkers(
+  biomarkers: Array<{
+    name: string;
+    value: number;
+    unit: string;
+    testDate: Date;
+    isAbnormal: boolean;
+  }>,
+  currentDate: Date = new Date()
+): OutOfRangeBiomarker[] {
+  // Group biomarkers by name, keep most recent measurement
+  const latestBiomarkers = new Map<string, typeof biomarkers[0]>();
+  
+  for (const biomarker of biomarkers) {
+    const existing = latestBiomarkers.get(biomarker.name);
+    if (!existing || biomarker.testDate > existing.testDate) {
+      latestBiomarkers.set(biomarker.name, biomarker);
+    }
+  }
+  
+  // Filter to abnormal ones and determine interpretation
+  const outOfRange: OutOfRangeBiomarker[] = [];
+  
+  for (const [name, data] of latestBiomarkers.entries()) {
+    if (!data.isAbnormal) {
+      continue; // Skip normal biomarkers
+    }
+    
+    const daysSinceTest = differenceInDays(currentDate, data.testDate);
+    
+    // Determine if low or high based on biomarker-specific logic
+    const interpretation = interpretBiomarkerValue(name, data.value);
+    
+    if (interpretation === 'normal') {
+      // Flag says abnormal but interpretBiomarkerValue says normal
+      // This means we need better reference ranges
+      // Default to 'high' for now (most common for health optimization)
+      outOfRange.push({
+        biomarker: name,
+        currentValue: data.value,
+        unit: data.unit,
+        testDate: data.testDate,
+        interpretation: 'high',
+        daysSinceTest,
+      });
+    } else {
+      outOfRange.push({
+        biomarker: name,
+        currentValue: data.value,
+        unit: data.unit,
+        testDate: data.testDate,
+        interpretation,
+        daysSinceTest,
+      });
+    }
+  }
+  
+  return outOfRange;
+}

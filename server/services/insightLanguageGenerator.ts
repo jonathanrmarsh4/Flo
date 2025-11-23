@@ -391,17 +391,32 @@ export function generateInsight(params: {
   } else if (layer === 'C') {
     title = `Dose-response: ${indepReadable} impacts ${depReadable}`;
   } else {
-    title = `⚠️ ${depReadable.charAt(0).toUpperCase() + depReadable.slice(1)} pattern detected`;
+    // Layer D: Check if it's an out-of-range biomarker vs stale-lab warning
+    if (depReadable.includes('health') || depReadable === 'health optimization') {
+      // Out-of-range biomarker
+      title = `⚠️ ${indepReadable.charAt(0).toUpperCase() + indepReadable.slice(1)} is out of range`;
+    } else {
+      // Stale-lab warning  
+      title = `⚠️ ${depReadable.charAt(0).toUpperCase() + depReadable.slice(1)} pattern detected`;
+    }
   }
   
   // Generate summary
   let summary: string;
   if (layer === 'D') {
-    // Anomaly/stale-lab warning
-    const devMag = deviationPercent ? describeDeviation(deviationPercent) : 'notably';
-    summary = 
-      `Your ${depReadable} has ${devMag} ${direction === 'positive' ? 'increased' : 'decreased'}, ` +
-      `which may be explained by a stale ${indepReadable} measurement.`;
+    // Layer D: Out-of-range biomarker vs stale-lab warning
+    if (depReadable.includes('health') || depReadable === 'health optimization') {
+      // Out-of-range biomarker - direct flag from lab
+      summary = 
+        `Your latest ${indepReadable} result is outside the normal reference range. ` +
+        `This biomarker should be reviewed with your healthcare provider.`;
+    } else {
+      // Stale-lab warning - multiple metric deviations
+      const devMag = deviationPercent ? describeDeviation(deviationPercent) : 'notably';
+      summary = 
+        `Your ${depReadable} has ${devMag} ${direction === 'positive' ? 'increased' : 'decreased'}, ` +
+        `which may be explained by a stale ${indepReadable} measurement.`;
+    }
   } else {
     // Correlation/pathway/dose-response
     const relationVerb = layer === 'A' ? 'influences' : 'is associated with';

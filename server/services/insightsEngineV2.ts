@@ -403,20 +403,57 @@ export function generateLayerDInsights(
   const insights: InsightCandidate[] = [];
   
   try {
-    // Step 1: Prepare metric data in correct format (Map<string, Array<{date, value}>>)
+    // CRITICAL PATH 1: Detect out-of-range biomarkers FIRST (flagged labs)
+    // This is independent of stale-lab analysis and should always run
+    const { detectOutOfRangeBiomarkers } = require('./anomalyDetectionEngine');
+    const outOfRangeBiomarkers = detectOutOfRangeBiomarkers(healthData.biomarkers);
+    
+    for (const abnormalBiomarker of outOfRangeBiomarkers) {
+      const daysSinceTest = abnormalBiomarker.daysSinceTest;
+      
+      insights.push({
+        layer: 'D',
+        evidenceTier: '2', // Lab data is tier 2 evidence
+        independent: abnormalBiomarker.biomarker,
+        dependent: 'health_optimization', // General health impact
+        direction: abnormalBiomarker.interpretation === 'high' ? 'negative' : 'negative',
+        mostRecentDataDate: abnormalBiomarker.testDate,
+        variables: [abnormalBiomarker.biomarker],
+        rawMetadata: {
+          biomarkerValue: abnormalBiomarker.currentValue,
+          biomarkerUnit: abnormalBiomarker.unit,
+          daysSinceTest,
+          interpretation: abnormalBiomarker.interpretation,
+          isAbnormal: true,
+        },
+      });
+    }
+    
+    logger.info(`[Layer D] Generated ${outOfRangeBiomarkers.length} out-of-range biomarker insights`);
+    
+    // CRITICAL PATH 2: Stale-lab warnings (old biomarkers explaining current deviations)
+    // Step 1: Prepare metric data with CORRECT naming to match FAST_MOVING_METRICS
     const metricSnapshots = new Map<string, Array<{ date: string; value: number }>>();
     
-    // Convert dailyMetrics to Map format expected by detectMetricDeviations
-    const metrics = ['hrv', 'sleepDuration', 'restingHeartRate', 'steps'] as const;
-    for (const metricName of metrics) {
+    // CRITICAL: Use exact metric names that match FAST_MOVING_METRICS constant
+    // Map dailyMetrics fields to FAST_MOVING_METRICS naming convention
+    const metricMapping = {
+      'hrv': 'hrv_sdnn_ms',
+      'sleepDuration': 'sleep_total_minutes',
+      'restingHeartRate': 'resting_hr',
+      'steps': 'steps',
+      'activeEnergy': 'active_kcal',
+    } as const;
+    
+    for (const [fieldName, metricName] of Object.entries(metricMapping)) {
       const dataPoints: Array<{ date: string; value: number }> = [];
       
       for (const m of healthData.dailyMetrics) {
-        const value = m[metricName];
-        if (value !== null && !isNaN(value)) {
+        const value = m[fieldName as keyof typeof m];
+        if (value !== null && !isNaN(value as number)) {
           dataPoints.push({
             date: m.date,
-            value,
+            value: value as number,
           });
         }
       }
