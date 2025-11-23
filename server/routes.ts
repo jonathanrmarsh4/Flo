@@ -5968,42 +5968,6 @@ ${userContext}`;
     }
   });
 
-  // POST /api/daily-insights/generate - Manually trigger insight generation (for testing)
-  app.post("/api/daily-insights/generate", isAuthenticated, async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
-    if (!userId) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    try {
-      const schema = z.object({
-        forceRegenerate: z.boolean().optional().default(false),
-      });
-
-      const validationResult = schema.safeParse(req.body);
-      if (!validationResult.success) {
-        const validationError = fromError(validationResult.error);
-        return res.status(400).json({ error: validationError.toString() });
-      }
-
-      const { forceRegenerate } = validationResult.data;
-      
-      logger.info(`[DailyInsightsV2] Manual generation triggered for user ${userId}, forceRegenerate=${forceRegenerate}`);
-      
-      const userIdNum = parseInt(userId, 10);
-      const insights = await generateDailyInsights(userIdNum, forceRegenerate);
-
-      res.json({
-        success: true,
-        generated: insights.length,
-        insights,
-        forceRegenerate,
-      });
-    } catch (error: any) {
-      logger.error('[DailyInsightsV2] Generation error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // POST /api/daily-insights/feedback - Submit feedback for an insight
   app.post("/api/daily-insights/feedback", isAuthenticated, async (req: any, res) => {
@@ -6137,7 +6101,7 @@ ${userContext}`;
 
   // POST /api/daily-insights/generate - Force generate insights for current user (admin only, for testing)
   app.post("/api/daily-insights/generate", isAuthenticated, requireAdmin, async (req: any, res) => {
-    const userId = req.user?.id;
+    const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -6146,7 +6110,8 @@ ${userContext}`;
       logger.info(`[DailyInsightsV2] Force generating insights for user ${userId}`);
       const startTime = Date.now();
       
-      const insights = await generateDailyInsights(userId);
+      const userIdNum = parseInt(userId, 10);
+      const insights = await generateDailyInsights(userIdNum);
       const duration = Date.now() - startTime;
 
       res.json({ 
