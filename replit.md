@@ -12,7 +12,7 @@ Flō is a mobile-first health analytics platform that uses AI to analyze blood w
 ## System Architecture
 
 ### UI/UX Decisions
-The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, with 44pt touch targets. It utilizes Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. The UI includes locked tiles and paywall modals for subscription management.
+The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, with 44pt touch targets. It utilizes Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. The UI includes locked tiles and paywall modals for subscription management. The admin panel includes manual insight generation controls with two buttons: "Generate Now (For Me)" for immediate admin-only generation and "Run Scheduler (All Users @ 6am)" for triggering the full scheduler.
 
 ### Technical Implementations
 **Frontend:** Built with React, TypeScript, and Vite, using TanStack Query for server state and Wouter for routing. Key features include biomarker insights, AI-powered health reports, PDF upload for blood work parsing, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types plus individual workout sessions, and **Flō Oracle voice chat** using ElevenLabs via WebSockets. The dashboard includes a **Flōmentum tile** for daily health momentum scores and detailed daily/weekly insights.
@@ -21,7 +21,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, HealthKit workouts, normalized HealthKit daily metrics, Flōmentum tables, RAG Insights tables, life_events table, push notification management, billing tables (billing_customers, subscriptions, payments for Stripe integration), and audit logs.
 
-**Daily Insights Engine v2.0:** A 4-layer analytical system generates 0-5 personalized health insights daily at 06:00 local time. It includes layers for Physiological Pathways, Bayesian Correlations, Dose-Response & Timing Analysis, and Anomaly Detection. It uses evidence-based confidence scoring, insight ranking, domain diversity limits, and natural language generation with N-of-1 experiment suggestions.
+**Daily Insights Engine v2.0:** A 4-layer analytical system generates 0-5 personalized health insights daily at 06:00 local time. It includes layers for Physiological Pathways, Bayesian Correlations, Dose-Response & Timing Analysis, and Anomaly Detection. It uses evidence-based confidence scoring, insight ranking, domain diversity limits, and natural language generation with N-of-1 experiment suggestions. The system includes admin controls for manual testing (force-generate for current user) and scheduler triggering (all users at 6am local time). User IDs are UUID strings throughout the system.
 
 **Conversational Life Event Logging System:** Automatically tracks comprehensive health narratives from Flō Oracle conversations with dosage tracking support. Grok-powered extraction parses events into structured JSONB, logged to the `life_events` table, capturing behaviors, dosage amounts (e.g., ml, mg, mcg), symptoms, health goals, and observations. Recent events integrate into Flō Oracle's context for personalized insights.
 
