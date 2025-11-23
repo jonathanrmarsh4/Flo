@@ -122,7 +122,7 @@ export function FloOverviewTile({
       {/* Flō Score Circle and Components */}
       <div className="grid grid-cols-2 gap-6">
         {/* Flō Score Circle */}
-        <div className="flex flex-col items-center justify-center">
+        <div className="flex flex-col">
           <div className={`text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
             Flō Score
           </div>
