@@ -24,6 +24,7 @@ import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, ty
 import { getFreshnessCategory, SLOW_MOVING_BIOMARKERS } from './dataClassification';
 import { logger } from '../logger';
 import { getUserContext, generateContextualInsight, type UserContext, type BaselineData } from './aiInsightGenerator';
+import { detectDataChanges, generateRAGInsights, type RAGInsight } from './ragInsightGenerator';
 
 // ============================================================================
 // Shared Interface for Insight Candidates
@@ -1394,30 +1395,71 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     const healthData = await fetchHealthData(userId);
     logger.info(`[InsightsEngineV2] Data fetched - HealthKit: ${healthData.healthkitSamples.length}, Daily Metrics: ${healthData.dailyMetrics.length}, Biomarkers: ${healthData.biomarkers.length}, Life Events: ${healthData.lifeEvents.length}`);
     
-    // Step 3: Run all 4 analytical layers
-    logger.info('[InsightsEngineV2] Running Layer A (Physiological Pathways)');
-    const layerAInsights = generateLayerAInsights(userId, healthData);
+    // Step 3: NEW RAG-BASED APPROACH - Detect data changes and use AI to find patterns
+    logger.info('[InsightsEngineV2] Detecting significant data changes');
+    const dataChanges = detectDataChanges(healthData.biomarkers, healthData.dailyMetrics);
+    logger.info(`[InsightsEngineV2] Found ${dataChanges.length} significant changes`);
     
-    logger.info('[InsightsEngineV2] Running Layer B (Bayesian Correlations)');
-    const layerBInsights = generateLayerBInsights(userId, healthData);
+    // Step 4: Fetch user context for AI
+    logger.info('[InsightsEngineV2] Fetching user context');
+    const userContext = await getUserContext(userId.toString());
     
-    logger.info('[InsightsEngineV2] Running Layer C (Dose-Response)');
-    const layerCInsights = generateLayerCInsights(userId, healthData);
+    // Step 5: Generate RAG-based holistic insights
+    logger.info('[InsightsEngineV2] Generating RAG-based insights using vector search + GPT-4o');
+    const ragInsights: RAGInsight[] = await generateRAGInsights(
+      userId,
+      dataChanges,
+      healthData.biomarkers,
+      userContext
+    );
+    logger.info(`[InsightsEngineV2] Generated ${ragInsights.length} RAG insights`);
     
-    logger.info('[InsightsEngineV2] Running Layer D (Anomaly Detection)');
+    // Step 6: Store RAG insights directly (they're already in final form)
+    if (ragInsights.length > 0) {
+      try {
+        logger.info(`[InsightsEngineV2] Storing ${ragInsights.length} RAG insights in database`);
+        
+        const ragInsightsToInsert = ragInsights.map(insight => ({
+          userId: userId.toString(),
+          generatedDate: today,
+          title: insight.title,
+          body: insight.body,
+          action: insight.action || null,
+          confidenceScore: insight.confidence,
+          impactScore: 0.7, // Default impact score for RAG insights
+          actionabilityScore: 0.8, // RAG insights are designed to be actionable
+          freshnessScore: 0.9, // RAG insights use recent data changes
+          overallScore: insight.confidence * 0.85, // Weight by confidence
+          evidenceTier: 'Tier 1', // RAG uses vector search + GPT-4o = highest tier
+          primarySources: insight.relatedMetrics,
+          category: 'general' as any, // Default category, could be improved with classification
+          generatingLayer: 'RAG_holistic' as any, // New layer type for RAG
+          details: {
+            method: 'RAG_vector_search',
+            relatedMetrics: insight.relatedMetrics,
+          },
+        }));
+        
+        await db.insert(dailyInsights).values(ragInsightsToInsert);
+        logger.info(`[InsightsEngineV2] Successfully stored ${ragInsightsToInsert.length} RAG insights`);
+      } catch (dbError: any) {
+        logger.error(`[InsightsEngineV2] Failed to store RAG insights:`, dbError);
+        // Don't throw - continue with Layer D
+      }
+    }
+    
+    // Step 7: Keep Layer D for safety (out-of-range biomarkers)
+    logger.info('[InsightsEngineV2] Running Layer D (Out-of-Range Biomarkers - Safety Net)');
     const layerDInsights = generateLayerDInsights(userId, healthData);
     
-    // Combine all candidates
+    // Combine remaining candidates (just Layer D now)
     const allCandidates = [
-      ...layerAInsights,
-      ...layerBInsights,
-      ...layerCInsights,
       ...layerDInsights,
     ];
     
-    logger.info(`[InsightsEngineV2] Generated ${allCandidates.length} insight candidates (A:${layerAInsights.length}, B:${layerBInsights.length}, C:${layerCInsights.length}, D:${layerDInsights.length})`);
+    logger.info(`[InsightsEngineV2] Generated ${allCandidates.length} safety-net insight candidates (D:${layerDInsights.length})`);
     
-    // Step 4: Apply anti-junk safeguards
+    // Step 8: Apply anti-junk safeguards to Layer D
     logger.info('[InsightsEngineV2] Applying anti-junk safeguards');
     let filteredCandidates = filterRedFreshnessInsights(allCandidates, healthData);
     filteredCandidates = enforceEvidenceTierRequirements(filteredCandidates);
