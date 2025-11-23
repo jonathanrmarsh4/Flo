@@ -4069,7 +4069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         headlineInsight += ` Keep up the great sleep habits!`;
       }
 
-      // Store the computed subscores
+      // Store the computed subscores (upsert to handle re-syncs)
       await db.insert(sleepSubscores).values({
         userId,
         sleepDate: night.sleepDate,
@@ -4083,6 +4083,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         scoreDeltaVsBaseline: scoreResult.scoreDeltaVsBaseline,
         trendDirection: scoreResult.trendDirection,
         headlineInsight,
+      }).onConflictDoUpdate({
+        target: [sleepSubscores.userId, sleepSubscores.sleepDate],
+        set: {
+          durationScore: scoreResult.durationScore,
+          efficiencyScore: scoreResult.efficiencyScore,
+          structureScore: scoreResult.structureScore,
+          consistencyScore: scoreResult.consistencyScore,
+          recoveryScore: scoreResult.recoveryScore,
+          nightfloScore: scoreResult.nightfloScore,
+          scoreLabel: scoreResult.scoreLabel,
+          scoreDeltaVsBaseline: scoreResult.scoreDeltaVsBaseline,
+          trendDirection: scoreResult.trendDirection,
+          headlineInsight,
+        },
       });
 
       logger.info(`[Sleep] Computed and stored sleep score for user ${userId}, ${night.sleepDate}: ${scoreResult.nightfloScore}`);
