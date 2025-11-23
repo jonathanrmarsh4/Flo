@@ -1,7 +1,8 @@
 import { db } from "../db";
-import { biomarkerMeasurements, biomarkerTestSessions, biomarkers, diagnosticsStudies } from "@shared/schema";
+import { biomarkerMeasurements, biomarkerTestSessions, biomarkers, diagnosticsStudies, userDailyReadiness } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { createScoreCalculatorMap } from "@shared/domain/biomarkers";
+import { logger } from "../logger";
 
 export interface DashboardScores {
   floScore: number | null;
@@ -269,7 +270,43 @@ export async function calculateDashboardScores(userId: string): Promise<Dashboar
   const cardiometabolic = calculateCardiometabolicScore(biomarkers, cac, visceral_fat_area, null);
   const bodyComposition = calculateBodyCompositionScore(dexa);
   const inflammation = calculateInflammationScore(biomarkers);
-  const readiness = null;
+  
+  // Fetch today's cached readiness score from database (with fallback to most recent)
+  let readiness: number | null = null;
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const [readinessRecord] = await db
+      .select({ readinessScore: userDailyReadiness.readinessScore, date: userDailyReadiness.date })
+      .from(userDailyReadiness)
+      .where(
+        and(
+          eq(userDailyReadiness.userId, userId),
+          eq(userDailyReadiness.date, today)
+        )
+      )
+      .limit(1);
+    
+    if (readinessRecord) {
+      readiness = readinessRecord.readinessScore;
+    } else {
+      // Fallback to most recent readiness score if today's doesn't exist yet
+      logger.debug(`[Dashboard] No readiness score for ${today}, falling back to most recent`);
+      const [mostRecent] = await db
+        .select({ readinessScore: userDailyReadiness.readinessScore, date: userDailyReadiness.date })
+        .from(userDailyReadiness)
+        .where(eq(userDailyReadiness.userId, userId))
+        .orderBy(desc(userDailyReadiness.date))
+        .limit(1);
+      
+      if (mostRecent) {
+        readiness = mostRecent.readinessScore;
+        logger.debug(`[Dashboard] Using readiness score from ${mostRecent.date}: ${readiness}`);
+      }
+    }
+  } catch (error) {
+    logger.error("[Dashboard] Error fetching readiness score:", error);
+    readiness = null;
+  }
 
   const availableScores = [cardiometabolic, bodyComposition, readiness, inflammation].filter(s => s !== null) as number[];
   const availableWeights: number[] = [];

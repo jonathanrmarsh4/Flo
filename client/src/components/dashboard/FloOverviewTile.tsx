@@ -159,7 +159,7 @@ export function FloOverviewTile({
         </div>
 
         {/* Components Scores */}
-        <div className="space-y-2">
+        <div className="space-y-2 -ml-1">
           <div className={`text-xs mb-3 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
             Components
           </div>
