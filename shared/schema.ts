@@ -2136,7 +2136,9 @@ export const dailyInsights = pgTable("daily_insights", {
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
-  userDateIdx: uniqueIndex("daily_insights_user_date_idx").on(table.userId, table.generatedDate),
+  // v2.0 allows multiple insights per user per day (0-5 insights)
+  // Changed from uniqueIndex to regular index
+  userDateIdx: index("daily_insights_user_date_idx").on(table.userId, table.generatedDate),
   userIdx: index("daily_insights_user_idx").on(table.userId),
   scoreIdx: index("daily_insights_score_idx").on(table.overallScore),
   categoryIdx: index("daily_insights_category_idx").on(table.category),

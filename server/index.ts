@@ -4,7 +4,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startBaselineScheduler } from "./services/baselineScheduler";
 import { startFlomentumWeeklyScheduler } from "./services/flomentumWeeklyScheduler";
-import { startInsightsScheduler } from "./services/insightsScheduler";
+import { startInsightsSchedulerV2 } from "./services/insightsSchedulerV2";
 import { initializeDailyReminderScheduler } from "./services/dailyReminderScheduler";
 
 const app = express();
@@ -110,8 +110,8 @@ app.use((req, res, next) => {
     // Start the weekly Flōmentum aggregation scheduler
     startFlomentumWeeklyScheduler();
     
-    // Start the nightly insights generation scheduler
-    startInsightsScheduler();
+    // Start the nightly insights generation scheduler (v2.0)
+    startInsightsSchedulerV2();
     
     // Start the daily reminder scheduler (10am UTC)
     initializeDailyReminderScheduler();

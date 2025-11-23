@@ -604,7 +604,7 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
   try {
     const today = format(new Date(), 'yyyy-MM-dd');
     
-    // Step 1: Check if insights already generated today (idempotency)
+    // Step 1: Check idempotency - skip if already generated for today (unless force regenerate)
     if (!forceRegenerate) {
       const existingInsights = await db
         .select()
@@ -617,9 +617,25 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
         );
       
       if (existingInsights.length > 0) {
-        logger.info(`[InsightsEngineV2] Insights already generated for user ${userId} on ${today}, skipping`);
-        return []; // Return empty array to avoid duplicates
+        logger.info(`[InsightsEngineV2] Insights already generated for user ${userId} on ${today} (${existingInsights.length} insights), returning existing`);
+        // Transform DB records to GeneratedInsight format for API consistency
+        return existingInsights.map(insight => ({
+          title: insight.title,
+          body: insight.body,
+          action: insight.action || undefined,
+        }));
       }
+    } else {
+      // Force regenerate - delete existing insights for today first
+      await db
+        .delete(dailyInsights)
+        .where(
+          and(
+            eq(dailyInsights.userId, userId.toString()),
+            eq(dailyInsights.generatedDate, today)
+          )
+        );
+      logger.info(`[InsightsEngineV2] Deleted existing insights for user ${userId} on ${today} (force regenerate)`);
     }
     
     // Step 2: Fetch user's comprehensive health data (90 days)
@@ -708,38 +724,54 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
           'D': 'D_anomaly',
         };
         
-        // Map health domain to category
+        // Map health domain to category (must match insightCategoryEnum from schema)
+        // HealthDomain values: sleep, recovery, metabolic, hormonal, inflammatory, performance, lifestyle
+        // insightCategoryEnum values: activity_sleep, recovery_hrv, sleep_quality, biomarkers, nutrition, stress, general
         const categoryMap: Record<string, string> = {
-          'sleep': 'sleep',
-          'recovery': 'recovery',
-          'activity': 'performance',
-          'metabolic': 'metabolic',
-          'inflammation': 'inflammation',
-          'hormones': 'hormones',
-          'other': 'general',
+          'sleep': 'sleep_quality',
+          'recovery': 'recovery_hrv',
+          'metabolic': 'biomarkers',
+          'hormonal': 'biomarkers',
+          'inflammatory': 'biomarkers', // Changed from 'stress' to 'biomarkers' for better alignment
+          'performance': 'activity_sleep',
+          'lifestyle': 'general',
+          // Legacy mappings (in case old code uses these):
+          'activity': 'activity_sleep',
+          'cardiovascular': 'biomarkers',
+          'cognitive': 'general',
+          'nutrition': 'nutrition',
+          'stress': 'stress',
         };
         
-        const insightsToInsert = insightPairs.map(pair => ({
-          userId: userId.toString(),
-          generatedDate: today,
-          title: pair.narrative.title,
-          body: pair.narrative.body,
-          action: pair.narrative.action || null,
-          confidenceScore: pair.ranked.confidenceScore,
-          impactScore: pair.ranked.impactScore,
-          actionabilityScore: pair.ranked.actionabilityScore,
-          freshnessScore: pair.ranked.freshnessScore,
-          overallScore: pair.ranked.rankScore,
-          evidenceTier: pair.ranked.evidenceTier,
-          primarySources: pair.ranked.variables,
-          category: categoryMap[pair.ranked.healthDomain] || 'general',
-          generatingLayer: layerMap[pair.ranked.layer] || 'A_physiological',
-          details: {
-            variables: pair.ranked.variables,
-            layer: pair.ranked.layer,
-            healthDomain: pair.ranked.healthDomain,
-          },
-        }));
+        const insightsToInsert = insightPairs.map(pair => {
+          // Defensive fallback: ensure category is always valid
+          const category = categoryMap[pair.ranked.healthDomain];
+          if (!category) {
+            logger.warn(`[InsightsEngineV2] Unknown healthDomain "${pair.ranked.healthDomain}", defaulting to "general"`);
+          }
+          
+          return {
+            userId: userId.toString(),
+            generatedDate: today,
+            title: pair.narrative.title,
+            body: pair.narrative.body,
+            action: pair.narrative.action || null,
+            confidenceScore: pair.ranked.confidenceScore,
+            impactScore: pair.ranked.impactScore,
+            actionabilityScore: pair.ranked.actionabilityScore,
+            freshnessScore: pair.ranked.freshnessScore,
+            overallScore: pair.ranked.rankScore,
+            evidenceTier: pair.ranked.evidenceTier,
+            primarySources: pair.ranked.variables,
+            category: category || 'general', // Defensive fallback to 'general'
+            generatingLayer: layerMap[pair.ranked.layer] || 'A_physiological',
+            details: {
+              variables: pair.ranked.variables,
+              layer: pair.ranked.layer,
+              healthDomain: pair.ranked.healthDomain,
+            },
+          };
+        });
         
         await db.insert(dailyInsights).values(insightsToInsert);
         

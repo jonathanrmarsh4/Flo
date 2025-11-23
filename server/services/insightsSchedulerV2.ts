@@ -81,7 +81,12 @@ async function processInsightsGeneration() {
     
     // Generate insights for eligible users
     for (const user of eligibleUsers) {
+      // Validate userId parsing
       const userId = parseInt(user.id, 10);
+      if (isNaN(userId)) {
+        logger.error(`[InsightsV2Scheduler] Invalid user ID: ${user.id}, skipping`);
+        continue;
+      }
       
       // Check if already running for this user (idempotency lock)
       if (runningGenerations.has(userId)) {
@@ -91,7 +96,7 @@ async function processInsightsGeneration() {
       
       logger.info(`[InsightsV2Scheduler] Generating insights for user ${user.id} (${user.firstName || 'Unknown'}) in timezone ${user.timezone}`);
       
-      // Add to running set (idempotency lock)
+      // Add to running set within try/finally to ensure cleanup happens
       runningGenerations.add(userId);
       
       try {
@@ -106,7 +111,7 @@ async function processInsightsGeneration() {
       } catch (error: any) {
         logger.error(`[InsightsV2Scheduler] Error generating insights for user ${userId}:`, error);
       } finally {
-        // Remove from running set
+        // Always remove from running set, even if errors occur
         runningGenerations.delete(userId);
       }
     }
