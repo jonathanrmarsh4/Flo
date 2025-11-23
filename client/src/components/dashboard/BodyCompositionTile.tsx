@@ -1,4 +1,4 @@
-import { Activity } from 'lucide-react';
+import { Activity, Weight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -118,9 +118,12 @@ export function BodyCompositionTile({
       }`}
       data-testid="tile-body-composition"
     >
-      <h3 className={`text-lg font-medium mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-        Body Composition
-      </h3>
+      <div className="flex items-center gap-2 mb-6">
+        <Weight className={`w-4 h-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+        <h3 className={`text-xs tracking-wide ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+          BODY COMPOSITION
+        </h3>
+      </div>
 
       {isLoading ? (
         <div className="space-y-6">
@@ -137,16 +140,16 @@ export function BodyCompositionTile({
         <div className="space-y-6">
           {/* Total Weight */}
           {weightKg !== null && weightKg !== undefined && (
-            <div className="space-y-2" data-testid="metric-weight">
+            <div data-testid="metric-weight">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${isDark ? 'text-white/90' : 'text-gray-700'}`}>
+                  <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                     Weight
                   </span>
                   {renderSourceBadge(snapshot?.weightSource || null)}
                 </div>
                 <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {weightKg.toFixed(1)} <span className="text-base font-normal">kg</span>
+                  {weightKg.toFixed(1)} <span className="text-sm font-normal">kg</span>
                 </span>
               </div>
             </div>
@@ -154,14 +157,12 @@ export function BodyCompositionTile({
 
           {/* BMI - only show if available */}
           {snapshot?.bmi !== null && snapshot?.bmi !== undefined && (
-            <div className="space-y-2" data-testid="metric-bmi">
+            <div data-testid="metric-bmi">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    BMI
-                  </span>
-                </div>
-                <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                  BMI
+                </span>
+                <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {snapshot.bmi.toFixed(1)}
                 </span>
               </div>
@@ -172,8 +173,8 @@ export function BodyCompositionTile({
           {hasBodyComp && weightKg !== null && weightKg !== undefined && leanMassKg !== null && leanMassKg !== undefined ? (
             <>
               {/* Visual breakdown bar */}
-              <div className="space-y-3" data-testid="body-comp-visualization">
-                <div className={`text-xs font-medium ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+              <div data-testid="body-comp-visualization">
+                <div className={`text-xs mb-2 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                   Body Composition
                 </div>
                 <div className="relative h-8 rounded-full overflow-hidden flex">
@@ -203,32 +204,32 @@ export function BodyCompositionTile({
               </div>
 
               {/* Lean Body Mass */}
-              <div className="space-y-2" data-testid="metric-lean-mass">
+              <div className="mt-4" data-testid="metric-lean-mass">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-blue-500" />
-                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                       Lean Mass
                     </span>
                     {renderSourceBadge(snapshot?.leanMassSource || null)}
                   </div>
-                  <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {leanPercent!.toFixed(1)}%
                   </span>
                 </div>
               </div>
 
               {/* Body Fat Mass */}
-              <div className="space-y-2" data-testid="metric-body-fat">
+              <div className="mt-4" data-testid="metric-body-fat">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-orange-500" />
-                    <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                       Body Fat
                     </span>
                     {renderSourceBadge(snapshot?.bodyFatSource || null)}
                   </div>
-                  <span className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <span className={`text-2xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     {bodyFatPct!.toFixed(1)}%
                   </span>
                 </div>
