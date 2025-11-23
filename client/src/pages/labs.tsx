@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw } from 'lucide-react';
+import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw, AlertCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
@@ -28,6 +28,80 @@ const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
   'Nutritional & Vitamin Status': 'Nutrition',
   'Inflammation & Immune Markers': 'Inflammation',
 };
+
+// Longevity-focused retest intervals (in months) based on clinical guidelines
+const RETEST_INTERVALS: Record<string, number | null> = {
+  // Core Longevity Panel (6-month)
+  'WBC': 6, 'RBC': 6, 'Hemoglobin': 6, 'Hematocrit': 6, 'MCV': 6, 'MCH': 6, 'MCHC': 6, 
+  'Platelets': 6, 'Neutrophils': 6, 'Lymphocytes': 6, 'Monocytes': 6, 'Eosinophils': 6, 'Basophils': 6,
+  'Sodium': 6, 'Potassium': 6, 'Chloride': 6, 'CO2': 6, 'BUN': 6, 'Creatinine': 6, 'eGFR': 6,
+  'Glucose': 6, 'Calcium': 6, 'Total Protein': 6, 'Albumin': 6, 'Globulin': 6, 'A/G Ratio': 6,
+  'ALT': 6, 'AST': 6, 'ALP': 6, 'Total Bilirubin': 6, 'Direct Bilirubin': 6, 'GGT': 6,
+  'Total Cholesterol': 6, 'LDL': 6, 'HDL': 6, 'Triglycerides': 6, 'VLDL': 6, 'Non-HDL Cholesterol': 6,
+  'ApoB': 6, 'Apolipoprotein B': 6,
+  'Fasting Glucose': 6, 'HbA1c': 6, 'Fasting Insulin': 6, 'HOMA-IR': 6,
+  'hs-CRP': 6, 'High-Sensitivity CRP': 6,
+  'Uric Acid': 6,
+  'Testosterone': 6, 'Total Testosterone': 6, 'Free Testosterone': 6, 'SHBG': 6,
+  'Estradiol': 6, 'E2': 6,
+  'PSA': 12, 'Prostate-Specific Antigen': 12,
+  
+  // Extended Longevity Panel (12-month)
+  'Iron': 12, 'Ferritin': 12, 'TIBC': 12, 'Transferrin Saturation': 12, 'Serum Iron': 12,
+  'Vitamin B12': 12, 'B12': 12,
+  'Folate': 12, 'Folic Acid': 12,
+  'Vitamin D': 12, '25-OH Vitamin D': 12, 'Vitamin D 25-Hydroxy': 12,
+  'Magnesium': 12, 'RBC Magnesium': 12,
+  'Urine Albumin': 12, 'Urine Creatinine': 12, 'ACR': 12, 'Albumin/Creatinine Ratio': 12,
+  'TSH': 12, 'Free T4': 12, 'Free T3': 12, 'T4': 12, 'T3': 12,
+  'Homocysteine': 12,
+  'IGF-1': 12, 'Insulin-like Growth Factor 1': 12,
+  
+  // One-off / Genetic markers (rarely retested)
+  'Lp(a)': null, 'Lipoprotein(a)': null,
+};
+
+// Default interval for any biomarker not explicitly listed
+const DEFAULT_INTERVAL_MONTHS = 6;
+
+// Helper function to determine if a retest is recommended
+function isRetestRecommended(dateString: string, biomarkerName: string): { isRecommended: boolean; daysOld: number } {
+  const testDate = new Date(dateString);
+  const today = new Date();
+  const daysOld = Math.floor((today.getTime() - testDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Look up the recommended interval for this specific biomarker
+  const intervalMonths = RETEST_INTERVALS[biomarkerName] ?? DEFAULT_INTERVAL_MONTHS;
+  
+  // If interval is null, it's a one-off test (like Lp(a)) - never recommend retest
+  if (intervalMonths === null) {
+    return {
+      isRecommended: false,
+      daysOld
+    };
+  }
+  
+  // Convert months to days (using 30.44 days per month average)
+  const intervalDays = Math.floor(intervalMonths * 30.44);
+  
+  return {
+    isRecommended: daysOld >= intervalDays,
+    daysOld
+  };
+}
+
+// Helper to format how long ago a test was
+function formatTestAge(daysOld: number): string {
+  if (daysOld < 30) {
+    return `${daysOld}d ago`;
+  } else if (daysOld < 365) {
+    const months = Math.floor(daysOld / 30);
+    return `${months}mo ago`;
+  } else {
+    const years = Math.floor(daysOld / 365);
+    return `${years}y ago`;
+  }
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -125,6 +199,14 @@ export default function Dashboard() {
     return config && config.category === selectedCategory;
   });
 
+  // Count how many tests need retesting in the filtered view
+  const retestsNeeded = filteredBiomarkerIds.filter(biomarkerId => {
+    const latest = getLatestMeasurement(biomarkerId);
+    if (!latest) return false;
+    const retestInfo = isRetestRecommended(latest.date, latest.biomarkerName);
+    return retestInfo.isRecommended;
+  }).length;
+
   const getLatestMeasurement = (biomarkerId: string) => {
     const measurements = measurementsByBiomarker.get(biomarkerId) || [];
     return measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
@@ -159,7 +241,28 @@ export default function Dashboard() {
       }`}>
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
-            <FloLogo size={32} showText={true} className={isDark ? 'text-white' : 'text-gray-900'} />
+            <div className="flex items-center gap-3">
+              <FloLogo size={32} />
+              <div>
+                <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Blood Panel
+                </h1>
+                <div className="flex items-center gap-2">
+                  <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    {filteredBiomarkerIds.length} biomarkers tracked
+                  </p>
+                  {retestsNeeded > 0 && (
+                    <>
+                      <span className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>•</span>
+                      <p className="text-xs text-amber-500 flex items-center gap-1" data-testid="text-retests-due">
+                        <AlertCircle className="w-3 h-3" />
+                        {retestsNeeded} due
+                      </p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Link 
                 href="/history"
@@ -247,6 +350,9 @@ export default function Dashboard() {
               
               const inRange = isInRange(biomarkerName, latest.value);
               const history = getBiomarkerHistory(biomarkerId);
+              
+              const retestInfo = isRetestRecommended(latest.date, biomarkerName);
+              const testAge = formatTestAge(retestInfo.daysOld);
 
               const handleTileClick = () => {
                 setSelectedInsightsBiomarker({
@@ -312,6 +418,28 @@ export default function Dashboard() {
                       unit={config.unit}
                       isDark={isDark}
                     />
+                  )}
+
+                  {/* Retest Recommendation */}
+                  {retestInfo.isRecommended && (
+                    <div className={`mt-3 pt-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-500" />
+                          <div>
+                            <p className={`text-xs font-medium ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                              Retest Recommended
+                            </p>
+                            <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                              Last tested {testAge}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="px-2 py-1 rounded-full bg-amber-500/20 border border-amber-500/30">
+                          <span className="text-[10px] text-amber-500 font-medium">Due</span>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               );
