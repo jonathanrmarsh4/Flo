@@ -186,19 +186,24 @@ ${historicalContext}
 ${biomarkers.slice(0, 10).map(b => `- ${b.name}: ${b.value} ${b.unit}${b.isAbnormal ? ' ⚠️ OUT OF RANGE' : ''}`).join('\n')}
 
 ## Your Task
-Generate 5-8 holistic health insights that provide comprehensive coverage across ALL categories:
+Generate up to 20 holistic health insights that provide comprehensive coverage across ALL categories:
 1. **BIOMARKERS**: Analyze blood work patterns and lab correlations (iron, ferritin, hormones, metabolic markers, etc.)
-2. **SLEEP**: Identify sleep quality patterns (duration, deep sleep, REM, latency, awakenings)
-3. **RECOVERY**: Analyze HRV, resting heart rate, and recovery trends
-4. **ACTIVITY**: Examine steps, exercise, active energy, and physical performance
+2. **SLEEP**: Identify sleep quality patterns and trends (total duration, deep sleep %, REM %, sleep efficiency, consistency trends over time)
+3. **RECOVERY**: Analyze HRV trends, resting heart rate patterns, and correlations between recovery metrics and other data
+4. **ACTIVITY**: Examine steps, exercise, active energy, VO2 max, and physical performance
 
 For each insight:
 - **Identify cross-domain patterns** (e.g., "low ferritin + poor sleep recovery + declining HRV")
+- **Look at TRENDS over time**, not just recent values (e.g., "sleep duration declining over the past 2 weeks")
+- **Find correlations between metrics** (e.g., "HRV drops correlate with poor sleep quality")
 - **Explain WHY correlations matter** with physiological mechanisms
 - **Interpret whether patterns are good/bad** for THIS user's profile
 - **Provide safe, practical recommendations** tailored to their current state
 
-IMPORTANT: Try to generate at least 1-2 insights for EACH category above. Use all available data to find meaningful patterns.
+IMPORTANT: Generate insights for ALL 4 categories. Even if recent data is sparse, look for trends and patterns over available history. Prioritize:
+- Sleep trends and quality patterns (especially if showing decline)
+- HRV correlations with sleep, stress, and recovery
+- Cross-metric relationships that reveal health patterns
 
 ## CRITICAL SAFETY RULES
 1. NO supplement dosages (e.g., "take 5000 IU vitamin D")
