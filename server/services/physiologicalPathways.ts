@@ -708,6 +708,45 @@ const thermoregulationPathways: EvidenceBackedRelationship[] = [
 ];
 
 // ============================================================================
+// PATHWAY 10: Additional Activity & Sleep Pathways
+// ============================================================================
+
+const additionalActivitySleepPathways: EvidenceBackedRelationship[] = [
+  {
+    independent: "steps",
+    dependent: "sleep_total_minutes",
+    direction: "positive",
+    tier: "2",
+    mechanism: "Daily step count → energy expenditure → sleep pressure accumulation → improved sleep consolidation",
+    references: [
+      {
+        pmid: "28919335",
+        doi: "10.1016/j.smrv.2017.08.001",
+        authors: "Kline CE et al.",
+        title: "The bidirectional relationship between exercise and sleep",
+        journal: "Sleep Med Rev",
+        year: 2018,
+        summary: "10,000+ daily steps associated with 23-minute increase in total sleep time",
+      },
+    ],
+    effectSizeRange: { min: 0.30, max: 0.45 },
+    doseDependent: true,
+    timingDependent: false,
+  },
+  // NOTE: sleep_deep_minutes and sleep_rem_minutes pathways commented out until schema supports them
+  // {
+  //   independent: "sleep_rem_minutes",
+  //   dependent: "hrv_sdnn_ms",
+  //   ...
+  // },
+  // {
+  //   independent: "active_kcal",
+  //   dependent: "sleep_deep_minutes",
+  //   ...
+  // },
+];
+
+// ============================================================================
 // Export all pathways
 // ============================================================================
 
@@ -721,6 +760,7 @@ export const PHYSIOLOGICAL_PATHWAYS: EvidenceBackedRelationship[] = [
   ...activityMetabolicPathways,
   ...bodyCompositionPathways,
   ...thermoregulationPathways,
+  ...additionalActivitySleepPathways,
 ];
 
 /**

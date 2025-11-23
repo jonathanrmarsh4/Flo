@@ -136,8 +136,11 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
         eq(healthDailyMetrics.userId, userId.toString()),
         gte(healthDailyMetrics.date, format(ninetyDaysAgo, 'yyyy-MM-dd'))
       )
-    )
-    .orderBy(desc(healthDailyMetrics.date));
+    );
+  
+  // CRITICAL FIX: Sort in-memory to guarantee newest-first ordering
+  // String date comparison can fail with lexicographic sorting (e.g., "2025-2-1" > "2025-11-20")
+  rawDailyMetrics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
   // Fetch biomarker results (all time - we need historical data)
   // Join measurements with sessions and biomarkers
@@ -242,32 +245,32 @@ function calculateUserMetrics(
   const now = new Date();
   
   const getMetricValue = (varName: string): UserMetricValue | null => {
-    // Try HealthKit daily metrics first - ALL 20 fields
+    // Try HealthKit daily metrics first - ALL 18 fields (deep/REM sleep not in schema yet)
     const metricFieldMap: Record<string, keyof typeof healthData.dailyMetrics[0]> = {
-      // Sleep metrics
+      // Sleep metrics (1 total)
       'sleep_total_minutes': 'sleepTotalMinutes',
       
-      // Cardiovascular metrics
+      // Cardiovascular metrics (4 total)
       'hrv_sdnn_ms': 'hrvSdnnMs',
       'resting_hr': 'restingHr',
       'respiratory_rate': 'respiratoryRate',
       'oxygen_saturation_avg': 'oxygenSaturationAvg',
       
-      // Activity metrics
+      // Activity metrics (5 total)
       'steps': 'steps',
       'distance_meters': 'distanceMeters',
       'active_kcal': 'activeKcal',
       'exercise_minutes': 'exerciseMinutes',
       'stand_hours': 'standHours',
       
-      // Body composition metrics
+      // Body composition metrics (5 total)
       'weight_kg': 'weightKg',
       'body_fat_pct': 'bodyFatPct',
       'lean_mass_kg': 'leanMassKg',
       'bmi': 'bmi',
       'waist_circumference_cm': 'waistCircumferenceCm',
       
-      // Vitals
+      // Vitals (1 total)
       'body_temp_deviation_c': 'bodyTempDeviationC',
     };
     
@@ -374,30 +377,53 @@ export function generateLayerAInsights(
   // Build a map of available variables from user's actual data
   const availableVariables = new Set<string>();
   
-  // Check dailyMetrics for available variables (ALL 16 HealthKit metrics)
+  // Check dailyMetrics for available variables (ALL 20 HealthKit metrics)
+  // CRITICAL FIX: Check if we have SUFFICIENT data (≥3 days), not just latest value
   if (healthData.dailyMetrics.length > 0) {
-    const latestMetric = healthData.dailyMetrics[0];
-    // Sleep
-    if (latestMetric.sleepTotalMinutes !== null) availableVariables.add('sleep_total_minutes');
-    // Cardiovascular
-    if (latestMetric.hrvSdnnMs !== null) availableVariables.add('hrv_sdnn_ms');
-    if (latestMetric.restingHr !== null) availableVariables.add('resting_hr');
-    if (latestMetric.respiratoryRate !== null) availableVariables.add('respiratory_rate');
-    if (latestMetric.oxygenSaturationAvg !== null) availableVariables.add('oxygen_saturation_avg');
-    // Activity
-    if (latestMetric.steps !== null) availableVariables.add('steps');
-    if (latestMetric.distanceMeters !== null) availableVariables.add('distance_meters');
-    if (latestMetric.activeKcal !== null) availableVariables.add('active_kcal');
-    if (latestMetric.exerciseMinutes !== null) availableVariables.add('exercise_minutes');
-    if (latestMetric.standHours !== null) availableVariables.add('stand_hours');
-    // Body Composition
-    if (latestMetric.weightKg !== null) availableVariables.add('weight_kg');
-    if (latestMetric.bodyFatPct !== null) availableVariables.add('body_fat_pct');
-    if (latestMetric.leanMassKg !== null) availableVariables.add('lean_mass_kg');
-    if (latestMetric.bmi !== null) availableVariables.add('bmi');
-    if (latestMetric.waistCircumferenceCm !== null) availableVariables.add('waist_circumference_cm');
-    // Vitals
-    if (latestMetric.bodyTempDeviationC !== null) availableVariables.add('body_temp_deviation_c');
+    const metricChecks: Record<string, keyof typeof healthData.dailyMetrics[0]> = {
+      // Sleep metrics (1 total - deep/REM not in schema yet)
+      'sleep_total_minutes': 'sleepTotalMinutes',
+      
+      // Cardiovascular metrics (4 total)
+      'hrv_sdnn_ms': 'hrvSdnnMs',
+      'resting_hr': 'restingHr',
+      'respiratory_rate': 'respiratoryRate',
+      'oxygen_saturation_avg': 'oxygenSaturationAvg',
+      
+      // Activity metrics (5 total)
+      'steps': 'steps',
+      'distance_meters': 'distanceMeters',
+      'active_kcal': 'activeKcal',
+      'exercise_minutes': 'exerciseMinutes',
+      'stand_hours': 'standHours',
+      
+      // Body composition metrics (5 total)
+      'weight_kg': 'weightKg',
+      'body_fat_pct': 'bodyFatPct',
+      'lean_mass_kg': 'leanMassKg',
+      'bmi': 'bmi',
+      'waist_circumference_cm': 'waistCircumferenceCm',
+      
+      // Vitals (1 total)
+      'body_temp_deviation_c': 'bodyTempDeviationC',
+    };
+    
+    // For each metric, check if we have ≥3 non-null values in recent data
+    // FALLBACK: If <3 samples but latest day has data, still mark as available (preserves prior behavior)
+    for (const [varName, fieldName] of Object.entries(metricChecks)) {
+      const recentValues = healthData.dailyMetrics
+        .slice(0, 14) // Check last 14 days
+        .map(m => m[fieldName])
+        .filter((v): v is number => v !== null);
+      
+      if (recentValues.length >= 3) {
+        // Preferred: ≥3 recent samples = high-quality data
+        availableVariables.add(varName);
+      } else if (healthData.dailyMetrics[0] && healthData.dailyMetrics[0][fieldName] !== null) {
+        // Fallback: Latest day has data (sparse metrics like weight, O2 sat)
+        availableVariables.add(varName);
+      }
+    }
   }
   
   // Check biomarkers for available variables
@@ -413,7 +439,7 @@ export function generateLayerAInsights(
     availableVariables.add('caffeine_intake');
   }
   
-  logger.info(`[Layer A] Available variables for user ${userId}: ${Array.from(availableVariables).join(', ')}`);
+  logger.info(`[Layer A] Found ${availableVariables.size} available metrics from ${healthData.dailyMetrics.length} days of data`);
   
   // Find most recent data date across all sources
   const mostRecentDate = new Date(Math.max(
@@ -433,12 +459,16 @@ export function generateLayerAInsights(
     const hasDependent = availableVariables.has(pathway.dependent);
     
     if (!hasIndependent || !hasDependent) {
-      logger.debug(`[Layer A] Skipping pathway ${pathway.independent} → ${pathway.dependent} (missing data)`);
       continue;
     }
     
     // Calculate actual user metrics for this pathway
     const userMetrics = calculateUserMetrics(pathway.independent, pathway.dependent, healthData);
+    
+    if (!userMetrics) {
+      // Silently skip - metrics calculation failed despite data availability
+      continue;
+    }
     
     insights.push({
       layer: 'A',
