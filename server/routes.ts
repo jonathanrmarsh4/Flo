@@ -5945,7 +5945,7 @@ ${userContext}`;
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      const insights = await db
+      const rawInsights = await db
         .select()
         .from(dailyInsights)
         .where(
@@ -5956,6 +5956,21 @@ ${userContext}`;
           )
         )
         .orderBy(desc(dailyInsights.overallScore));
+
+      // Map new dailyInsights fields to old insightCards format for frontend compatibility
+      const insights = rawInsights.map(insight => ({
+        id: insight.id,
+        userId: insight.userId,
+        category: insight.category,
+        pattern: insight.title, // Map title -> pattern
+        confidence: insight.confidenceScore / 100, // Convert 0-100 to 0-1
+        supportingData: insight.body, // Map body -> supportingData
+        details: insight.details,
+        isNew: insight.isNew,
+        isActive: !insight.isDismissed,
+        createdAt: insight.createdAt,
+        updatedAt: insight.updatedAt,
+      }));
 
       res.json({
         date: today,
