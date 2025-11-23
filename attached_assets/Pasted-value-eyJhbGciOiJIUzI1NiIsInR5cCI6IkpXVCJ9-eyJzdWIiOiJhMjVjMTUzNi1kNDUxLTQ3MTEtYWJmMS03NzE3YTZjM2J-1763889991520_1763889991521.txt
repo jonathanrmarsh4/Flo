@@ -1,0 +1,176 @@
+value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 401 
+⚡️  [error] - [ERROR] API request failed {"status":401,"response":"{\"error\":\"Unauthorized\"}"}
+⚡️  [error] - [API] Request failed: {}
+⚡️  [error] - [ERROR] API request failed {"error":{"message":"401: {\"error\":\"Unauthorized\"}","stack":"@https://get-flo.com/assets/index-BSEOwJ3B.js:48:52256"}}
+⚡️  To Native ->  SecureStoragePlugin get 24702941
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/daily-insights/generate
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 500 
+⚡️  [error] - [ERROR] API request failed {"status":500,"response":"{\"error\":\"Cannot read properties of undefined (reading 'toLowerCase')\"}"}
+⚡️  [error] - [API] Request failed: {}
+⚡️  [error] - [ERROR] API request failed {"error":{"message":"500: {\"error\":\"Cannot read properties of undefined (reading 'toLowerCase')\"}","stack":"@https://get-flo.com/assets/index-BSEOwJ3B.js:48:52256"}}
+⚡️  [error] - Force generation error: {}
+⚡️  To Native ->  SecureStoragePlugin get 24702942
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702943
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702944
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702945
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702946
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702947
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702948
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702949
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702950
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702951
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702952
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702953
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702954
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702955
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702956
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702957
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702958
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702959
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702960
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702961
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702962
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702963
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702964
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702965
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702966
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702967
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702968
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702969
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702970
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702971
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702972
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702973
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702974
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702975
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702976
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702977
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702978
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702979
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702980
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702981
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702982
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702983
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702984
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702985
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702986
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702987
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702988
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702989
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702990
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702991
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702992
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702993
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702994
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702995
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702996
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702997
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  To Native ->  SecureStoragePlugin get 24702998
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/daily-insights/trigger-check
+⚡️  To Native ->  SecureStoragePlugin get 24702999
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  To Native ->  SecureStoragePlugin get 24703000
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+⚡️  To Native ->  SecureStoragePlugin get 24703001
+⚡️  To Native ->  SecureStoragePlugin get 24703002
+⚡️  To Native ->  SecureStoragePlugin get 24703003
+⚡️  To Native ->  SecureStoragePlugin get 24703004
+⚡️  To Native ->  SecureStoragePlugin get 24703005
+⚡️  To Native ->  SecureStoragePlugin get 24703006
+⚡️  To Native ->  SecureStoragePlugin get 24703007
+⚡️  To Native ->  SecureStoragePlugin get 24703008
+⚡️  To Native ->  SecureStoragePlugin get 24703009
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMjVjMTUzNi1kNDUxLTQ3MTEtYWJmMS03NzE3YTZjM2JjMWYiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2Mzg4MzQ0OCwiZXhwIjoxNzY0NDg4MjQ4fQ.CdkVU5YITsPOGK
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+Tracking element window has a non-placeholder input view: (null)
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 24703010
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 24703011
+⚡️  TO JS {"value":"1763889489495"}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 24703012
+⚡️  TO JS undefined
+⚡️  To Native ->  Preferences set 24703013
+⚡️  TO JS undefined
+WebContent[16133] 0x800000161004100 - [sessionID=1]
