@@ -953,7 +953,9 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
             freshnessScore: clampScore(pair.ranked.freshnessScore),
             overallScore: clampScore(pair.ranked.rankScore),
             evidenceTier: pair.ranked.evidenceTier,
-            primarySources: pair.ranked.variables,
+            primarySources: pair.narrative.primarySources.length > 0 
+              ? pair.narrative.primarySources 
+              : pair.ranked.variables, // Fallback to variable names if primarySources is empty
             category: (category || 'general') as any, // Defensive fallback to 'general'
             generatingLayer: layerMap[pair.ranked.layer] || 'A_physiological',
             details: {

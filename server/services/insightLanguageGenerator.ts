@@ -199,6 +199,15 @@ export function hedgeByFreshness(
   }
 }
 
+/**
+ * Returns a label for data freshness (fresh/yellow/red)
+ */
+function getFreshnessLabel(daysSinceData: number): string {
+  if (daysSinceData <= 7) return 'fresh';
+  if (daysSinceData <= 90) return 'yellow';
+  return 'red';
+}
+
 // ============================================================================
 // Variable Name Formatting
 // ============================================================================
@@ -343,6 +352,7 @@ export interface GeneratedInsight {
   summary: string; // 1-2 sentence overview
   details: string; // Detailed explanation with evidence
   actionable: string; // Specific recommendation
+  primarySources: string[]; // Data sources with freshness indicators
   experiment?: ExperimentSuggestion; // N-of-1 experiment (if applicable)
 }
 
@@ -525,6 +535,24 @@ export function generateInsight(params: {
     }
   }
   
+  // Generate primary sources list with freshness indicators
+  const primarySources: string[] = [];
+  if (userMetrics) {
+    // Add independent variable source
+    const indepFreshness = getFreshnessLabel(userMetrics.independent.daysSinceData);
+    primarySources.push(
+      `${formatVariableName(userMetrics.independent.variable)} (${userMetrics.independent.dataSource}) - ${indepFreshness}, ${userMetrics.independent.daysSinceData} days old`
+    );
+    
+    // Add dependent variable source if different
+    if (userMetrics.dependent.variable !== userMetrics.independent.variable) {
+      const depFreshness = getFreshnessLabel(userMetrics.dependent.daysSinceData);
+      primarySources.push(
+        `${formatVariableName(userMetrics.dependent.variable)} (${userMetrics.dependent.dataSource}) - ${depFreshness}, ${userMetrics.dependent.daysSinceData} days old`
+      );
+    }
+  }
+  
   // Generate experiment suggestion (if requested and applicable)
   let experiment: ExperimentSuggestion | undefined;
   if (includeExperiment && layer !== 'D') {
@@ -541,6 +569,7 @@ export function generateInsight(params: {
     summary,
     details,
     actionable,
+    primarySources,
     experiment,
   };
 }
