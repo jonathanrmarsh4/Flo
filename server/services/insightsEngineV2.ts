@@ -739,6 +739,14 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
           'stress': 'stress',
         };
         
+        // Helper to clamp extreme values for PostgreSQL real type (range: ~1E-37 to ~1E+37)
+        const clampScore = (value: number): number => {
+          // Clamp to safe range: 0.0001 to 100
+          if (!isFinite(value) || value < 0.0001) return 0.0001;
+          if (value > 100) return 100;
+          return value;
+        };
+        
         const insightsToInsert = insightPairs.map(pair => {
           // Defensive fallback: ensure category is always valid
           const category = categoryMap[pair.ranked.healthDomain];
@@ -752,11 +760,11 @@ export async function generateDailyInsights(userId: number, forceRegenerate: boo
             title: pair.narrative.title,
             body: `${pair.narrative.summary}\n\n${pair.narrative.details}`,
             action: pair.narrative.actionable || null,
-            confidenceScore: pair.ranked.confidenceScore,
-            impactScore: pair.ranked.impactScore,
-            actionabilityScore: pair.ranked.actionabilityScore,
-            freshnessScore: pair.ranked.freshnessScore,
-            overallScore: pair.ranked.rankScore,
+            confidenceScore: clampScore(pair.ranked.confidenceScore),
+            impactScore: clampScore(pair.ranked.impactScore),
+            actionabilityScore: clampScore(pair.ranked.actionabilityScore),
+            freshnessScore: clampScore(pair.ranked.freshnessScore),
+            overallScore: clampScore(pair.ranked.rankScore),
             evidenceTier: pair.ranked.evidenceTier,
             primarySources: pair.ranked.variables,
             category: (category || 'general') as any, // Defensive fallback to 'general'

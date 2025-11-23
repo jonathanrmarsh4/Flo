@@ -1,0 +1,93 @@
+025-11-23 11:44:57.82
+5bd0d7ec
+User
+3:44:57 AM [express] POST /api/daily-insights/generate 500 in 299ms :: {"error":"\"1.038351891469811…
+2025-11-23 11:45:00.52
+5bd0d7ec
+User
+[2025-11-23T03:45:00.527Z] [INFO] [DailyInsightsV2] Manual scheduler check triggered
+2025-11-23 11:45:00.52
+5bd0d7ec
+User
+[2025-11-23T03:45:00.527Z] [INFO] [InsightsV2Scheduler] Manual trigger requested
+2025-11-23 11:45:00.52
+5bd0d7ec
+User
+[2025-11-23T03:45:00.528Z] [INFO] [InsightsV2Scheduler] Starting hourly check for users needing insights
+2025-11-23 11:45:00.53
+5bd0d7ec
+User
+3:45:00 AM [express] POST /api/daily-insights/trigger-check 200 in 163ms :: {"success":true,"message…
+2025-11-23 11:45:00.60
+5bd0d7ec
+User
+[2025-11-23T03:45:00.602Z] [INFO] [InsightsV2Scheduler] Checking 77 users for 06:00 local time
+2025-11-23 11:45:00.60
+5bd0d7ec
+User
+[2025-11-23T03:45:00.607Z] [INFO] [InsightsV2Scheduler] No users eligible, check complete (79ms)
+2025-11-23 11:45:00.60
+5bd0d7ec
+User
+[2025-11-23T03:45:00.607Z] [INFO] [InsightsV2Scheduler] Found 0 users at 06:00 local time
+2025-11-23 11:45:00.60
+5bd0d7ec
+User
+[2025-11-23T03:45:00.607Z] [INFO] [InsightsV2Scheduler] Found 0 users at 06:00 local time
+2025-11-23 11:45:00.60
+5bd0d7ec
+User
+[2025-11-23T03:45:00.607Z] [INFO] [InsightsV2Scheduler] No users eligible, check complete (79ms)
+2025-11-23 11:45:05.27
+5bd0d7ec
+User
+3:45:05 AM [express] GET /api/admin/healthkit/status 304 in 113ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:45:12.22
+5bd0d7ec
+User
+[2025-11-23T03:45:12.220Z] [INFO] [InsightsV2Scheduler] Starting hourly check for users needing insights
+2025-11-23 11:45:12.22
+5bd0d7ec
+User
+[2025-11-23T03:45:12.220Z] [INFO] [InsightsV2Scheduler] Manual trigger requested
+2025-11-23 11:45:12.22
+5bd0d7ec
+User
+[2025-11-23T03:45:12.220Z] [INFO] [DailyInsightsV2] Manual scheduler check triggered
+2025-11-23 11:45:12.22
+5bd0d7ec
+User
+3:45:12 AM [express] POST /api/daily-insights/trigger-check 200 in 42ms :: {"success":true,"message"…
+2025-11-23 11:45:12.29
+5bd0d7ec
+User
+[2025-11-23T03:45:12.295Z] [INFO] [InsightsV2Scheduler] Checking 77 users for 06:00 local time
+2025-11-23 11:45:12.29
+5bd0d7ec
+User
+[2025-11-23T03:45:12.298Z] [INFO] [InsightsV2Scheduler] Found 0 users at 06:00 local time
+2025-11-23 11:45:12.29
+5bd0d7ec
+User
+[2025-11-23T03:45:12.298Z] [INFO] [InsightsV2Scheduler] No users eligible, check complete (78ms)
+2025-11-23 11:45:15.25
+5bd0d7ec
+User
+3:45:15 AM [express] GET /api/admin/audit-logs 304 in 39ms :: [{"id":"e1c91b5c-82c4-4821-999b-41ac5b…
+2025-11-23 11:45:15.32
+5bd0d7ec
+User
+3:45:15 AM [express] GET /api/admin/healthkit/stats 304 in 39ms :: {"totalSamples":0,"totalUsers":0,…
+
+2025-11-23 11:45:15.45
+5bd0d7ec
+User
+3:45:15 AM [express] GET /api/admin/overview 304 in 206ms :: {"totalUsers":77,"activeUsers":77,"tota…
+2025-11-23 11:45:16.26
+5bd0d7ec
+User
+3:45:16 AM [express] GET /api/admin/healthkit/status 304 in 113ms :: {"status":"down","lastSync":nul…
+2025-11-23 11:45:16.26
+5bd0d7ec
+User
+3:45:16 AM [express] GET /api/admin/healthkit/status 304 in 113ms :: {"status":"down","lastSync":nul…

@@ -1,0 +1,109 @@
+5-11-23 11:44:57.56
+5bd0d7ec
+User
+[2025-11-23T03:44:57.562Z] [INFO] [DailyInsightsV2] Manual generation triggered for user a25c1536-d451-4711-abf1-7717a6c3bc1f, forceRegenerate=false
+2025-11-23 11:44:57.56
+5bd0d7ec
+User
+[2025-11-23T03:44:57.562Z] [INFO] [InsightsEngineV2] Generating insights for user NaN
+2025-11-23 11:44:57.61
+5bd0d7ec
+User
+[2025-11-23T03:44:57.619Z] [INFO] [InsightsEngineV2] Fetching health data
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.776Z] [INFO] [InsightsEngineV2] Data fetched - HealthKit: 0, Daily Metrics: 0, Biomarkers: 0, Life Events: 0
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.776Z] [INFO] [InsightsEngineV2] Running Layer A (Physiological Pathways)
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.777Z] [INFO] [InsightsEngineV2] Running Layer B (Bayesian Correlations)
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.776Z] [INFO] [Layer A] Generated 15 physiological pathway insights
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.777Z] [INFO] [Layer B] Generated 0 Bayesian correlation insights
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.777Z] [INFO] [InsightsEngineV2] Running Layer C (Dose-Response)
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.778Z] [INFO] [Layer C] Generated 0 dose-response insights
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.778Z] [INFO] [InsightsEngineV2] Generated 15 insight candidates (A:15, B:0, C:0, D:0)
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.778Z] [INFO] [InsightsEngineV2] Running Layer D (Anomaly Detection)
+2025-11-23 11:44:57.77
+5bd0d7ec
+User
+[2025-11-23T03:44:57.778Z] [INFO] [Layer D] No significant metric deviations detected
+2025-11-23 11:44:57.78
+5bd0d7ec
+User
+[2025-11-23T03:44:57.780Z] [INFO] [InsightsEngineV2] Selected 5 top insights
+2025-11-23 11:44:57.78
+5bd0d7ec
+User
+[2025-11-23T03:44:57.782Z] [INFO] [InsightsEngineV2] Insight 2: Stress events affects HRV (SDNN)
+2025-11-23 11:44:57.78
+5bd0d7ec
+User
+[2025-11-23T03:44:57.782Z] [INFO] [InsightsEngineV2] Insight 5: Late meal events affects fasting glucose
+2025-11-23 11:44:57.78
+5bd0d7ec
+User
+[2025-11-23T03:44:57.782Z] [INFO] [InsightsEngineV2] Insight 3: HRV (SDNN) affects total sleep
+2025-11-23 11:44:57.78
+5bd0d7ec
+User
+[2025-11-23T03:44:57.781Z] [INFO] [InsightsEngineV2] Insight 1: Total sleep affects resting heart rate
+2025-11-23 11:44:57.78
+5bd0d7ec
+User
+[2025-11-23T03:44:57.782Z] [INFO] [InsightsEngineV2] Storing 5 insights in database
+2025-11-23 11:44:57.78
+5bd0d7ec
+User
+[2025-11-23T03:44:57.782Z] [INFO] [InsightsEngineV2] Insight 4: Sauna events affects HRV (SDNN)
+2025-11-23 11:44:57.82
+5bd0d7ec
+User
+[2025-11-23T03:44:57.823Z] [ERROR] [InsightsEngineV2] Error generating insights for user NaN: {"error":{"message":"\"1.0383518914698113e-266\" is out of range for type real","stack":"error: \"1.0383518914698113e-266\" is out of range for type real\n at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async generateDailyInsights (file:///home/runner/workspace/dist/index.js:15452:9)\n at async file:///home/runner/workspace/dist/index.js:20125:24"}}
+2025-11-23 11:44:57.82
+5bd0d7ec
+User
+[2025-11-23T03:44:57.823Z] [ERROR] [DailyInsightsV2] Generation error: {"error":{"message":"\"1.0383518914698113e-266\" is out of range for type real","stack":"error: \"1.0383518914698113e-266\" is out of range for type real\n at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async generateDailyInsights (file:///home/runner/workspace/dist/index.js:15452:9)\n at async file:///home/runner/workspace/dist/index.js:20125:24"}}
+2025-11-23 11:44:57.82
+5bd0d7ec
+User
+[2025-11-23T03:44:57.823Z] [ERROR] [InsightsEngineV2] Database persistence failed for user NaN: {"error":{"message":"\"1.0383518914698113e-266\" is out of range for type real","stack":"error: \"1.0383518914698113e-266\" is out of range for type real\n at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async generateDailyInsights (file:///home/runner/workspace/dist/index.js:15452:9)\n at async file:///home/runner/workspace/dist/index.js:20125:24"}}
+2025-11-23 11:44:57.82
+5bd0d7ec
+User
+3:44:57 AM [express] POST /api/daily-insights/generate 500 in 299ms :: {"error":"\"1.038351891469811…
+2025-11-23 11:45:00.52
+5bd0d7ec
+User
+[2025-11-23T03:45:00.527Z] [INFO] [DailyInsightsV2] Manual scheduler check triggered
+2025-11-23 11:45:00.52
+5bd0d7ec
+User
+[2025-11-23T03:45:00.527Z] [INFO] [InsightsV2Scheduler] Manual trigger requested
+2025-11-23 11:45:00.52
+5bd0d7ec
+User
+[2025-11-23T03:45:00.528Z] [INFO] [InsightsV2Scheduler] Starting hourly check for users needing insights
+
