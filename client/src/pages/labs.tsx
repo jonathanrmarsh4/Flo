@@ -8,6 +8,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { TrendChart } from '@/components/TrendChart';
 import { UnifiedUploadModal } from '@/components/UnifiedUploadModal';
 import { BiomarkerInsightsModal } from '@/components/BiomarkerInsightsModal';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   mapAnalysisToBiomarkerReadings, 
@@ -67,19 +68,20 @@ export default function Dashboard() {
   } | null>(null);
 
   // Fetch biomarker sessions with measurements (new system)
-  const { data: sessionsData } = useQuery<any>({
+  const { data: sessionsData, isLoading: isSessionsLoading } = useQuery<any>({
     queryKey: ['/api/biomarker-sessions'],
     enabled: !!user,
   });
 
   // Fetch all biomarkers catalog
-  const { data: biomarkersData } = useQuery<any>({
+  const { data: biomarkersData, isLoading: isBiomarkersLoading } = useQuery<any>({
     queryKey: ['/api/biomarkers'],
     enabled: !!user,
   });
 
   const sessions = sessionsData?.sessions || [];
   const biomarkers = biomarkersData?.biomarkers || [];
+  const isInitialLoading = isSessionsLoading || isBiomarkersLoading;
 
   // Build measurements map: biomarkerId -> array of measurements with dates
   const measurementsByBiomarker = new Map<string, Array<{
@@ -204,7 +206,17 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="px-3 py-3">
-        {trackedBiomarkerIds.length === 0 ? (
+        {isInitialLoading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className={`backdrop-blur-xl rounded-2xl border p-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'}`}>
+                <Skeleton className="h-6 w-24 mb-3" />
+                <Skeleton className="h-10 w-16 mb-2" />
+                <Skeleton className="h-32 w-full rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : trackedBiomarkerIds.length === 0 ? (
           <div className={`backdrop-blur-xl rounded-2xl border p-8 text-center ${
             isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
           }`}>
