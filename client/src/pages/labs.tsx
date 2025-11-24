@@ -188,6 +188,12 @@ export default function Dashboard() {
   // Get tracked biomarker IDs (only those with measurements)
   const trackedBiomarkerIds = Array.from(measurementsByBiomarker.keys());
 
+  // Helper functions - define BEFORE using them
+  const getLatestMeasurement = (biomarkerId: string) => {
+    const measurements = measurementsByBiomarker.get(biomarkerId) || [];
+    return measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+  };
+
   // Filter by category
   const filteredBiomarkerIds = trackedBiomarkerIds.filter(biomarkerId => {
     if (selectedCategory === 'All') return true;
@@ -206,11 +212,6 @@ export default function Dashboard() {
     const retestInfo = isRetestRecommended(latest.date, latest.biomarkerName);
     return retestInfo.isRecommended;
   }).length;
-
-  const getLatestMeasurement = (biomarkerId: string) => {
-    const measurements = measurementsByBiomarker.get(biomarkerId) || [];
-    return measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-  };
 
   const isInRange = (biomarkerName: string, value: number) => {
     const config = BIOMARKER_CONFIGS[biomarkerName];
