@@ -77,22 +77,35 @@ export default function ActionsScreen() {
   const activeItems = allItems.filter(item => item.status === 'active');
   const completedItems = allItems.filter(item => item.status === 'completed');
   const dismissedItems = allItems.filter(item => item.status === 'dismissed');
+  const isDark = document.documentElement.classList.contains('dark');
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Target className="w-6 h-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold text-foreground" data-testid="heading-actions">
-            Action Plan
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Track your health improvement goals
-          </p>
-        </div>
-      </div>
+    <>
+      {/* Background Gradient */}
+      <div className={`fixed inset-0 ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900'
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      }`} />
+
+      <div className="relative min-h-screen pb-24">
+        <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
+          {/* Sticky Header */}
+          <div className={`sticky top-0 z-10 backdrop-blur-xl border-b transition-colors ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+          }`}>
+            <div className="flex items-center gap-3 p-4">
+              <Target className="w-6 h-6 text-teal-400" />
+              <div>
+                <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="heading-actions">
+                  Action Plan
+                </h1>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Track your health improvement goals
+                </p>
+              </div>
+            </div>
+          </div>
 
       {/* Report Tile - Summary of progress */}
       <ReportTile
@@ -201,9 +214,10 @@ export default function ActionsScreen() {
           )}
         </TabsContent>
       </Tabs>
-      </div>
+        </div>
 
-      <FloBottomNav />
-    </div>
+        <FloBottomNav />
+      </div>
+    </>
   );
 }

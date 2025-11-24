@@ -111,13 +111,13 @@ export default function InsightsScreen() {
   return (
     <>
       {/* Background Gradient */}
-      <div className={`fixed inset-0 z-50 ${
+      <div className={`fixed inset-0 ${
         isDark 
           ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900'
           : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
       }`} />
 
-      <div className="relative z-50 min-h-screen pb-24">
+      <div className="relative min-h-screen pb-24">
         <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
           {/* Sticky Header */}
           <div className={`sticky top-0 z-10 backdrop-blur-xl border-b transition-colors ${
