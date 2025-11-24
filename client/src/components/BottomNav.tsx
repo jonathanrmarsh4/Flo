@@ -1,4 +1,4 @@
-import { Home, Droplets, Activity, Lightbulb } from 'lucide-react';
+import { Home, Droplets, Activity, Target } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { FloIcon } from './FloLogo';
 
@@ -37,10 +37,10 @@ export function BottomNav({ isDark, onAddClick }: BottomNavProps) {
       path: '/diagnostics',
     },
     {
-      id: 'insights',
-      label: 'Insights',
-      icon: Lightbulb,
-      path: '/insights',
+      id: 'actions',
+      label: 'Actions',
+      icon: Target,
+      path: '/actions',
     },
   ];
 
