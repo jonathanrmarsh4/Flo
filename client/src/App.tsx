@@ -48,6 +48,46 @@ function Router() {
     }
   }, [isNative, isAuthenticated]);
 
+  // Auto-clear cache on version update (native only)
+  useEffect(() => {
+    if (!isNative) return;
+
+    const APP_VERSION = '1.0.1'; // Bump this to trigger cache clear
+    const VERSION_KEY = 'app_version';
+
+    async function checkAndClearCacheOnUpdate() {
+      try {
+        const { Preferences } = await import('@capacitor/preferences');
+        const WebViewCache = (await import('@/plugins/webviewCache')).default;
+
+        // Get stored version
+        const { value: storedVersion } = await Preferences.get({ key: VERSION_KEY });
+
+        if (storedVersion && storedVersion !== APP_VERSION) {
+          console.log(`[App] Version changed from ${storedVersion} to ${APP_VERSION} - clearing cache...`);
+          
+          // Clear WKWebView cache
+          const result = await WebViewCache.clearCache();
+          console.log('[App] Cache cleared:', result);
+
+          // Update stored version
+          await Preferences.set({ key: VERSION_KEY, value: APP_VERSION });
+          console.log('[App] ✅ Version updated and cache cleared successfully');
+        } else if (!storedVersion) {
+          // First launch - just store the version
+          await Preferences.set({ key: VERSION_KEY, value: APP_VERSION });
+          console.log('[App] ✅ First launch - version stored:', APP_VERSION);
+        } else {
+          console.log('[App] Version unchanged:', APP_VERSION);
+        }
+      } catch (error) {
+        console.error('[App] ❌ Error checking/clearing cache on version update:', error);
+      }
+    }
+
+    checkAndClearCacheOnUpdate();
+  }, [isNative]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
