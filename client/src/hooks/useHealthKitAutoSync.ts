@@ -42,6 +42,7 @@ export function useHealthKitAutoSync() {
           key.startsWith('/api/flomentum') ||
           key.startsWith('/api/biological-age') ||
           key.startsWith('/api/sleep') ||
+          key.startsWith('/api/readiness') ||
           key.startsWith('/api/labs') ||
           key.startsWith('/api/healthkit')
         );
@@ -55,6 +56,7 @@ export function useHealthKitAutoSync() {
         queryKey.startsWith('/api/flomentum') ||
         queryKey.startsWith('/api/biological-age') ||
         queryKey.startsWith('/api/sleep') ||
+        queryKey.startsWith('/api/readiness') ||
         queryKey.startsWith('/api/labs') ||
         queryKey.startsWith('/api/healthkit')
       );
@@ -114,6 +116,7 @@ export function useHealthKitAutoSync() {
             queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'], type: 'all' }),
             queryClient.refetchQueries({ queryKey: ['/api/biological-age'], type: 'all' }),
             queryClient.refetchQueries({ queryKey: ['/api/sleep/today'], type: 'all' }),
+            queryClient.refetchQueries({ queryKey: ['/api/readiness/today'], type: 'all' }),
             queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'], type: 'all' }),
             queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'], type: 'all' }),
           ]);
@@ -164,13 +167,14 @@ export function useHealthKitAutoSync() {
                 refetchType: 'all'
               });
               
-              // Explicitly refetch sleep-related queries
+              // Explicitly refetch sleep and readiness queries
               // CRITICAL: Use type: 'all' to force refetch even when queries are inactive
               await Promise.allSettled([
                 queryClient.refetchQueries({ queryKey: ['/api/sleep/today'], type: 'all' }),
+                queryClient.refetchQueries({ queryKey: ['/api/readiness/today'], type: 'all' }),
                 queryClient.refetchQueries({ queryKey: ['/api/dashboard/overview'], type: 'all' }),
               ]);
-              logger.info('✅ Sleep data refetched - UI updated');
+              logger.info('✅ Sleep and readiness data refetched - UI updated');
             } catch (err) {
               logger.error('Failed to refetch sleep data', err);
             }

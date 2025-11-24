@@ -3699,7 +3699,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Expires', '0');
       
       const userId = req.user.claims.sub;
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // TIMEZONE FIX: Get today's date in user's timezone, not UTC
+      // Query the user's most recent daily metric to get their timezone
+      const [recentMetric] = await db
+        .select({ timezone: userDailyMetrics.timezone })
+        .from(userDailyMetrics)
+        .where(eq(userDailyMetrics.userId, userId))
+        .orderBy(desc(userDailyMetrics.localDate))
+        .limit(1);
+      
+      const userTimezone = recentMetric?.timezone || 'UTC';
+      
+      // Calculate today's date in the user's timezone
+      const today = new Date().toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0]; // Format: YYYY-MM-DD
+      
+      logger.info(`[Readiness] Querying for date ${today} in timezone ${userTimezone}`);
 
       // Check if already computed
       const existing = await db
@@ -4201,8 +4221,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get today's sleep score and metrics
   app.get("/api/sleep/today", isAuthenticated, async (req: any, res) => {
     try {
+      // CRITICAL: Prevent iOS overnight caching - force fresh data after HealthKit sync
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       const userId = req.user.claims.sub;
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      // TIMEZONE FIX: Get today's date in user's timezone, not UTC
+      // Query the user's most recent daily metric to get their timezone
+      const [recentMetric] = await db
+        .select({ timezone: userDailyMetrics.timezone })
+        .from(userDailyMetrics)
+        .where(eq(userDailyMetrics.userId, userId))
+        .orderBy(desc(userDailyMetrics.localDate))
+        .limit(1);
+      
+      const userTimezone = recentMetric?.timezone || 'UTC';
+      
+      // Calculate today's date in the user's timezone
+      const today = new Date().toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0]; // Format: YYYY-MM-DD
+      
+      logger.info(`[Sleep] Querying for date ${today} in timezone ${userTimezone}`);
 
       // Check if already computed
       const existing = await db
