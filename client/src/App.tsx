@@ -14,7 +14,8 @@ import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
 import Dashboard from "@/pages/dashboard-new";
 import Labs from "@/pages/labs";
-import Insights from "@/pages/insights";
+import InsightsScreen from "@/pages/InsightsScreen";
+import ActionsScreen from "@/pages/ActionsScreen";
 import Report from "@/pages/report";
 import UploadPage from "@/pages/upload";
 import History from "@/pages/history";
@@ -71,8 +72,8 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/labs" component={Labs} />
-          <Route path="/insights" component={Insights} />
-          <Route path="/insights/:id" component={Insights} />
+          <Route path="/insights" component={InsightsScreen} />
+          <Route path="/actions" component={ActionsScreen} />
           <Route path="/report/:id" component={Report} />
           <Route path="/upload" component={UploadPage} />
           <Route path="/history" component={History} />

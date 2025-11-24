@@ -85,6 +85,9 @@ export const readinessBucketEnum = pgEnum("readiness_bucket", ["recover", "ok", 
 // Flōmentum enums
 export const flomentumZoneEnum = pgEnum("flomentum_zone", ["BUILDING", "MAINTAINING", "DRAINING"]);
 
+// Action plan enums
+export const actionPlanStatusEnum = pgEnum("action_plan_status", ["active", "completed", "dismissed"]);
+
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
 export const UserStatusEnum = z.enum(["active", "suspended"]);
@@ -2165,9 +2168,50 @@ export const dailyInsights = pgTable("daily_insights", {
   tierIdx: index("daily_insights_tier_idx").on(table.evidenceTier),
 }));
 
+// Action Plan Items - user-selected insights saved to action plan
+// Snapshots insight content to preserve even if original insight changes
+export const actionPlanItems = pgTable("action_plan_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Reference to original daily insight (nullable for future manual entries)
+  dailyInsightId: varchar("daily_insight_id").references(() => dailyInsights.id, { onDelete: "set null" }),
+  
+  // Snapshot fields - preserve content even if original insight changes/deleted
+  snapshotTitle: text("snapshot_title").notNull(),
+  snapshotInsight: text("snapshot_insight").notNull(), // The "insight" text
+  snapshotAction: text("snapshot_action").notNull(), // The "recommended action" text
+  category: insightCategoryEnum("category").notNull(),
+  
+  // Progress tracking
+  status: actionPlanStatusEnum("status").notNull().default("active"),
+  targetBiomarker: text("target_biomarker"), // e.g., "Vitamin D"
+  currentValue: real("current_value"), // Starting value
+  targetValue: real("target_value"), // Goal value
+  unit: text("unit"), // e.g., "ng/mL"
+  
+  // Metadata for additional tracking
+  metadata: jsonb("metadata"), // { progressData, notes, etc. }
+  
+  // Timestamps
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdx: index("action_plan_items_user_idx").on(table.userId),
+  statusIdx: index("action_plan_items_status_idx").on(table.status),
+  // Prevent duplicate active entries for same insight
+  userInsightStatusIdx: uniqueIndex("action_plan_items_user_insight_active_idx")
+    .on(table.userId, table.dailyInsightId)
+    .where(sql`${table.status} = 'active' AND ${table.dailyInsightId} IS NOT NULL`),
+}));
+
 // Zod enums for validation
 export const EvidenceTierEnum = z.enum(["1", "2", "3", "4", "5"]);
 export const FreshnessCategoryEnum = z.enum(["green", "yellow", "red"]);
+export const ActionPlanStatusEnum = z.enum(["active", "completed", "dismissed"]);
 
 // Insert schemas
 export const insertInsightReplicationHistorySchema = createInsertSchema(insightReplicationHistory).omit({
@@ -2190,9 +2234,20 @@ export const insertDailyInsightSchema = createInsertSchema(dailyInsights).omit({
   createdAt: true,
 });
 
+export const insertActionPlanItemSchema = createInsertSchema(actionPlanItems).omit({
+  id: true,
+  userId: true,  // userId is added by server, not client
+  addedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type InsertInsightReplicationHistory = z.infer<typeof insertInsightReplicationHistorySchema>;
 export type InsightReplicationHistory = typeof insightReplicationHistory.$inferSelect;
+
+export type InsertActionPlanItem = z.infer<typeof insertActionPlanItemSchema>;
+export type ActionPlanItem = typeof actionPlanItems.$inferSelect;
 
 export type InsertBiomarkerFreshnessMetadata = z.infer<typeof insertBiomarkerFreshnessMetadataSchema>;
 export type BiomarkerFreshnessMetadata = typeof biomarkerFreshnessMetadata.$inferSelect;

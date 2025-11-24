@@ -57,6 +57,9 @@ import {
   dailyInsights,
   insightFeedback,
   insertInsightFeedbackSchema,
+  actionPlanItems,
+  insertActionPlanItemSchema,
+  ActionPlanStatusEnum,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -6335,6 +6338,159 @@ ${userContext}`;
       res.json({ success: true });
     } catch (error: any) {
       logger.error('[DailyInsightsV2] Mark seen error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===============================
+  // ACTION PLAN API
+  // ===============================
+
+  // GET /api/action-plan - List user's action plan items
+  app.get("/api/action-plan", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Validate status query parameter using schema enum
+      let validatedStatus: string | undefined;
+      if (req.query.status) {
+        const statusResult = ActionPlanStatusEnum.safeParse(req.query.status);
+        if (!statusResult.success) {
+          return res.status(400).json({ error: "Invalid status. Must be one of: active, completed, dismissed" });
+        }
+        validatedStatus = statusResult.data;
+      }
+      
+      const items = await storage.listActionPlanItems(userId, validatedStatus);
+      
+      res.json({ items });
+    } catch (error: any) {
+      logger.error('[ActionPlan] List error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/action-plan - Add insight to action plan
+  app.post("/api/action-plan", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Validate required fields
+      const schema = z.object({
+        dailyInsightId: z.string().optional(),
+        snapshotTitle: z.string(),
+        snapshotInsight: z.string(),
+        snapshotAction: z.string(),
+        category: z.string(),
+        targetBiomarker: z.string().optional(),
+        currentValue: z.number().optional(),
+        targetValue: z.number().optional(),
+        unit: z.string().optional(),
+        metadata: z.any().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const data = validationResult.data;
+      
+      // If dailyInsightId provided, verify it exists and belongs to user
+      if (data.dailyInsightId) {
+        const insight = await db
+          .select()
+          .from(dailyInsights)
+          .where(
+            and(
+              eq(dailyInsights.id, data.dailyInsightId),
+              eq(dailyInsights.userId, userId)
+            )
+          )
+          .limit(1);
+
+        if (insight.length === 0) {
+          return res.status(404).json({ error: "Insight not found" });
+        }
+      }
+
+      const item = await storage.addActionPlanItem(userId, data as any);
+      
+      logger.info(`[ActionPlan] Item added by user ${userId}`);
+      res.json({ item });
+    } catch (error: any) {
+      logger.error('[ActionPlan] Add error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // PATCH /api/action-plan/:id - Update action plan item status
+  app.patch("/api/action-plan/:id", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const schema = z.object({
+        status: ActionPlanStatusEnum,
+        completedAt: z.string().optional(),
+      });
+
+      const validationResult = schema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const { status, completedAt } = validationResult.data;
+      const completedDate = completedAt ? new Date(completedAt) : (status === 'completed' ? new Date() : undefined);
+
+      const item = await storage.updateActionPlanItemStatus(id, userId, status, completedDate);
+      
+      if (!item) {
+        return res.status(404).json({ error: "Action plan item not found" });
+      }
+
+      logger.info(`[ActionPlan] Item ${id} status updated to ${status} by user ${userId}`);
+      res.json({ item });
+    } catch (error: any) {
+      logger.error('[ActionPlan] Update error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // DELETE /api/action-plan/:id - Remove action plan item
+  app.delete("/api/action-plan/:id", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Verify ownership before deleting
+      const item = await storage.getActionPlanItem(id, userId);
+      if (!item) {
+        return res.status(404).json({ error: "Action plan item not found" });
+      }
+
+      await storage.removeActionPlanItem(id, userId);
+      
+      logger.info(`[ActionPlan] Item ${id} removed by user ${userId}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[ActionPlan] Delete error:', error);
       res.status(500).json({ error: error.message });
     }
   });

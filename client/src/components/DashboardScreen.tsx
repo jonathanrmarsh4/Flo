@@ -4,7 +4,7 @@ import { BodyCompositionTile } from './dashboard/BodyCompositionTile';
 import { ReadinessTile } from './dashboard/ReadinessTile';
 import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumTile } from './dashboard/FlomentumTile';
-import { InsightsTile } from './InsightsTile';
+import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -301,14 +301,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
               {canAccessInsights ? (
-                <InsightsTile 
-                  isDark={isDark} 
-                  onTap={() => {
-                    if (!isDragging) {
-                      setShowInsights(true);
-                    }
-                  }} 
-                />
+                <AIInsightsTile />
               ) : (
                 <LockedTile
                   title="AI Insights"

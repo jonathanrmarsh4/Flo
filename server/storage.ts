@@ -23,6 +23,7 @@ import {
   diagnosticsStudies,
   diagnosticMetrics,
   userSettings,
+  actionPlanItems,
   type User,
   type UpsertUser,
   type Profile,
@@ -63,6 +64,8 @@ import {
   type InsertDiagnosticMetric,
   type UserSettings,
   type InsertUserSettings,
+  type ActionPlanItem,
+  type InsertActionPlanItem,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql, lt, gt } from "drizzle-orm";
@@ -234,6 +237,13 @@ export interface IStorage {
   createDiagnosticStudy(study: InsertDiagnosticsStudy): Promise<DiagnosticsStudy>;
   createDiagnosticMetrics(metrics: InsertDiagnosticMetric[]): Promise<void>;
   getLatestDiagnosticStudy(userId: string, type: string): Promise<DiagnosticsStudy | null>;
+  
+  // Action plan operations
+  listActionPlanItems(userId: string, status?: string): Promise<ActionPlanItem[]>;
+  addActionPlanItem(userId: string, data: InsertActionPlanItem): Promise<ActionPlanItem>;
+  updateActionPlanItemStatus(id: string, userId: string, status: string, completedAt?: Date): Promise<ActionPlanItem | null>;
+  removeActionPlanItem(id: string, userId: string): Promise<void>;
+  getActionPlanItem(id: string, userId: string): Promise<ActionPlanItem | null>;
   
   deleteUserData(userId: string): Promise<void>;
 }
@@ -1226,6 +1236,71 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(biomarkerTestSessions)
       .where(eq(biomarkerTestSessions.id, id));
+  }
+
+  // Action plan operations
+  async listActionPlanItems(userId: string, status?: string): Promise<ActionPlanItem[]> {
+    const whereConditions = status
+      ? and(
+          eq(actionPlanItems.userId, userId),
+          eq(actionPlanItems.status, status as any)
+        )
+      : eq(actionPlanItems.userId, userId);
+    
+    const items = await db
+      .select()
+      .from(actionPlanItems)
+      .where(whereConditions)
+      .orderBy(desc(actionPlanItems.addedAt));
+    
+    return items;
+  }
+
+  async addActionPlanItem(userId: string, data: InsertActionPlanItem): Promise<ActionPlanItem> {
+    const [item] = await db
+      .insert(actionPlanItems)
+      .values({ ...data, userId })
+      .returning();
+    
+    return item;
+  }
+
+  async updateActionPlanItemStatus(id: string, userId: string, status: string, completedAt?: Date): Promise<ActionPlanItem | null> {
+    const [item] = await db
+      .update(actionPlanItems)
+      .set({ 
+        status: status as any,
+        completedAt: completedAt || null,
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(actionPlanItems.id, id),
+        eq(actionPlanItems.userId, userId)
+      ))
+      .returning();
+    
+    return item || null;
+  }
+
+  async removeActionPlanItem(id: string, userId: string): Promise<void> {
+    await db
+      .delete(actionPlanItems)
+      .where(and(
+        eq(actionPlanItems.id, id),
+        eq(actionPlanItems.userId, userId)
+      ));
+  }
+
+  async getActionPlanItem(id: string, userId: string): Promise<ActionPlanItem | null> {
+    const [item] = await db
+      .select()
+      .from(actionPlanItems)
+      .where(and(
+        eq(actionPlanItems.id, id),
+        eq(actionPlanItems.userId, userId)
+      ));
+    
+    return item || null;
   }
 
   async deleteUserData(userId: string): Promise<void> {
