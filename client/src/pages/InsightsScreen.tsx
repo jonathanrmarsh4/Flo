@@ -157,8 +157,8 @@ export default function InsightsScreen() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 px-6 py-6 border-b border-white/10">
-          <div className="flex items-center justify-between mb-4">
-            <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1">
               <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-insights">
                 AI Insights
               </h1>
@@ -167,11 +167,11 @@ export default function InsightsScreen() {
               </p>
             </div>
             
-            {/* Refresh button */}
+            {/* Refresh button - moved to left side, aligned with title */}
             <button
               onClick={() => refreshInsightsMutation.mutate()}
               disabled={refreshInsightsMutation.isPending}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50"
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50 flex-shrink-0"
               data-testid="button-refresh-insights"
               aria-label="Refresh insights"
             >
