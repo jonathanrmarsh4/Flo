@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
+import { OverdueLabWorkTile } from "@/components/OverdueLabWorkTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
 import { Target, ListChecks, Filter, Plus, X } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
@@ -146,8 +147,10 @@ export default function ActionsScreen() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto overscroll-none px-6 py-4">
-          {/* Report Tile - Health Summary */}
-          <ReportTile />
+          {/* Lab Work Overdue Tile - Collapsible, starts collapsed */}
+          <div className="mb-4">
+            <OverdueLabWorkTile />
+          </div>
 
           {/* Action Items List */}
           {isLoading ? (
@@ -181,6 +184,11 @@ export default function ActionsScreen() {
               ))}
             </div>
           )}
+
+          {/* Report Tile - Health Summary (moved to bottom) */}
+          <div className="mt-4">
+            <ReportTile />
+          </div>
         </div>
 
         {/* Bottom Navigation */}

@@ -518,6 +518,194 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Lab Work Overdue - Get overdue and upcoming biomarkers that need retesting
+  app.get("/api/lab-work-overdue", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const now = new Date();
+
+      // Get all biomarkers from database
+      const allBiomarkers = await storage.getBiomarkers();
+      const biomarkerMap = new Map(allBiomarkers.map(b => [b.id, b]));
+
+      // Get all test sessions for user
+      const sessions = await storage.getTestSessionsByUser(userId);
+      
+      if (sessions.length === 0) {
+        return res.json({ overdue: [], upcoming: [], hasLabData: false });
+      }
+
+      // Get all measurements across sessions - track latest test date per biomarker
+      const measurementsByBiomarker = new Map<string, { testDate: Date; biomarkerId: string; biomarkerName: string }>();
+      
+      for (const session of sessions) {
+        const measurements = await storage.getMeasurementsBySession(session.id);
+        for (const m of measurements) {
+          const biomarker = biomarkerMap.get(m.biomarkerId);
+          if (!biomarker) continue;
+          
+          const existing = measurementsByBiomarker.get(m.biomarkerId);
+          // Keep the most recent test date for each biomarker
+          if (!existing || new Date(session.testDate) > new Date(existing.testDate)) {
+            measurementsByBiomarker.set(m.biomarkerId, { 
+              testDate: new Date(session.testDate), 
+              biomarkerId: m.biomarkerId,
+              biomarkerName: biomarker.name,
+            });
+          }
+        }
+      }
+
+      // Define panels and their associated biomarker names (case-insensitive matching)
+      // Uses broad pattern matching to catch common lab variations
+      const panelDefinitions: { name: string; frequency: number; biomarkerPatterns: string[] }[] = [
+        { 
+          name: 'Comprehensive Metabolic Panel', 
+          frequency: 90, // Quarterly - aligned with BIOMARKER_UPDATE_FREQUENCIES
+          biomarkerPatterns: ['glucose', 'creatinine', 'gfr', 'bun', 'sodium', 'potassium', 'chloride', 'co2', 'bicarbonate', 'calcium', 'albumin', 'protein', 'alt', 'ast', 'alp', 'alkaline', 'bilirubin']
+        },
+        { 
+          name: 'Lipid Panel', 
+          frequency: 90, // Quarterly
+          biomarkerPatterns: ['cholesterol', 'ldl', 'hdl', 'triglyceride', 'apob', 'apolipoprotein b']
+        },
+        { 
+          name: 'Complete Blood Count (CBC)', 
+          frequency: 90, // Quarterly
+          biomarkerPatterns: ['wbc', 'rbc', 'hemoglobin', 'hematocrit', 'platelet', 'white blood', 'red blood', 'leukocyte', 'erythrocyte', 'mcv', 'mch', 'rdw']
+        },
+        { 
+          name: 'Thyroid Panel (TSH, T3, T4)', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['tsh', 'free t4', 'free t3', 't4 free', 't3 free', 'thyroxine', 'triiodothyronine', 'thyroid']
+        },
+        { 
+          name: 'Iron Panel', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['ferritin', 'iron', 'tibc', 'transferrin']
+        },
+        { 
+          name: 'HbA1c', 
+          frequency: 90, // Quarterly
+          biomarkerPatterns: ['hba1c', 'a1c', 'hemoglobin a1c', 'glycated', 'glycosylated']
+        },
+        { 
+          name: 'Vitamin D', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['vitamin d', '25-oh d', '25oh', '25-hydroxy', 'd3', 'd2']
+        },
+        { 
+          name: 'Vitamin B12', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['b12', 'cobalamin', 'methylmalonic']
+        },
+        { 
+          name: 'hs-CRP', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['crp', 'c-reactive', 'hscrp', 'hs-crp']
+        },
+        { 
+          name: 'Testosterone (Total & Free)', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['testosterone']
+        },
+        { 
+          name: 'Homocysteine', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['homocysteine']
+        },
+        { 
+          name: 'Uric Acid', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['uric acid', 'urate']
+        },
+        { 
+          name: 'Insulin', 
+          frequency: 90, // Quarterly
+          biomarkerPatterns: ['insulin']
+        },
+        { 
+          name: 'Folate', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['folate', 'folic acid']
+        },
+        { 
+          name: 'Magnesium', 
+          frequency: 180, // Semi-annual
+          biomarkerPatterns: ['magnesium']
+        },
+      ];
+
+      // Helper to check if a biomarker name matches a pattern
+      const matchesPattern = (biomarkerName: string, patterns: string[]): boolean => {
+        const lowerName = biomarkerName.toLowerCase();
+        return patterns.some(pattern => lowerName.includes(pattern.toLowerCase()));
+      };
+
+      // Calculate overdue/upcoming per panel based on earliest due date among matching biomarkers
+      const overdueList: { id: string; name: string; lastTested: string; dueDate: string; daysOverdue: number; priority: 'high' | 'urgent' }[] = [];
+      const upcomingList: { id: string; name: string; lastTested: string; dueDate: string; daysUntilDue: number }[] = [];
+
+      for (const panel of panelDefinitions) {
+        // Find all biomarkers that match this panel
+        const matchingBiomarkers: { testDate: Date; biomarkerId: string; biomarkerName: string }[] = [];
+        
+        for (const [biomarkerId, data] of Array.from(measurementsByBiomarker.entries())) {
+          if (matchesPattern(data.biomarkerName, panel.biomarkerPatterns)) {
+            matchingBiomarkers.push(data);
+          }
+        }
+
+        if (matchingBiomarkers.length === 0) continue;
+
+        // Find the oldest test date among matching biomarkers (most likely to be overdue)
+        const oldestMeasurement = matchingBiomarkers.reduce((oldest, current) => 
+          current.testDate < oldest.testDate ? current : oldest
+        );
+
+        const dueDate = new Date(oldestMeasurement.testDate.getTime() + (panel.frequency * 24 * 60 * 60 * 1000));
+        const daysFromNow = Math.floor((dueDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+
+        if (daysFromNow < 0) {
+          // Overdue
+          const daysOverdue = Math.abs(daysFromNow);
+          overdueList.push({
+            id: oldestMeasurement.biomarkerId,
+            name: panel.name,
+            lastTested: oldestMeasurement.testDate.toISOString().split('T')[0],
+            dueDate: dueDate.toISOString().split('T')[0],
+            daysOverdue,
+            priority: daysOverdue > 30 ? 'urgent' : 'high',
+          });
+        } else if (daysFromNow <= 28) {
+          // Coming up within 4 weeks
+          upcomingList.push({
+            id: oldestMeasurement.biomarkerId,
+            name: panel.name,
+            lastTested: oldestMeasurement.testDate.toISOString().split('T')[0],
+            dueDate: dueDate.toISOString().split('T')[0],
+            daysUntilDue: daysFromNow,
+          });
+        }
+      }
+
+      // Sort overdue by days overdue (most overdue first)
+      overdueList.sort((a, b) => b.daysOverdue - a.daysOverdue);
+      
+      // Sort upcoming by days until due (soonest first)
+      upcomingList.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+
+      res.json({ 
+        overdue: overdueList, 
+        upcoming: upcomingList, 
+        hasLabData: true 
+      });
+    } catch (error) {
+      logger.error('Error fetching lab work overdue:', error);
+      res.status(500).json({ error: "Failed to fetch lab work overdue" });
+    }
+  });
+
   // Profile routes
   // Get user profile
   app.get("/api/profile", isAuthenticated, async (req: any, res) => {
