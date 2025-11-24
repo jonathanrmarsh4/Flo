@@ -157,7 +157,17 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
             </div>
 
             {/* Progress tracking for biomarkers */}
-            {item.targetBiomarker && item.currentValue !== null && item.targetValue !== null && (
+            {(() => {
+              // Debug logging for chart rendering
+              console.log(`[ActionCard ${item.id}] Chart check:`, {
+                targetBiomarker: item.targetBiomarker,
+                currentValue: item.currentValue,
+                targetValue: item.targetValue,
+                unit: item.unit,
+                shouldShow: !!(item.targetBiomarker && item.currentValue !== null && item.targetValue !== null)
+              });
+              return item.targetBiomarker && item.currentValue !== null && item.targetValue !== null;
+            })() && (
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-white">

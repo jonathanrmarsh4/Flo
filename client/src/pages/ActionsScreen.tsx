@@ -22,6 +22,18 @@ export default function ActionsScreen() {
     queryKey: ['/api/action-plan'],
   });
 
+  // Log data when it changes
+  if (actionPlanData?.items) {
+    console.log('[ActionsScreen] Action plan items loaded:', actionPlanData.items.map(item => ({
+      id: item.id,
+      title: item.snapshotTitle,
+      targetBiomarker: item.targetBiomarker,
+      currentValue: item.currentValue,
+      targetValue: item.targetValue,
+      unit: item.unit,
+    })));
+  }
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       return apiRequest('PATCH', `/api/action-plan/${id}`, { status });
