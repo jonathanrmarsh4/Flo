@@ -325,6 +325,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error(extractionResult.error || "Extraction failed - no data returned");
         }
 
+        // Validate and parse test date
+        if (!extractionResult.data.testDate) {
+          throw new Error("Could not extract test date from the lab report. Please ensure the report includes a collection date.");
+        }
+        
+        let testDate: Date;
+        try {
+          testDate = new Date(extractionResult.data.testDate);
+          if (isNaN(testDate.getTime())) {
+            throw new Error("Invalid date format");
+          }
+          // Sanity check: test date shouldn't be in the future or too far in the past
+          const now = Date.now();
+          const tenYearsAgo = now - (10 * 365.25 * 24 * 60 * 60 * 1000);
+          if (testDate.getTime() > now) {
+            throw new Error("Test date cannot be in the future");
+          }
+          if (testDate.getTime() < tenYearsAgo) {
+            throw new Error("Test date is more than 10 years old - please verify the date");
+          }
+        } catch (dateError: any) {
+          logger.error('Failed to parse test date:', { 
+            extractedDate: extractionResult.data.testDate, 
+            error: dateError.message 
+          });
+          throw new Error(`Invalid test date extracted from report: "${extractionResult.data.testDate}". ${dateError.message}`);
+        }
+
         // Get user profile for normalization context
         const profile = await storage.getProfile(userId);
         const userSex = profile?.sex ?? undefined;
@@ -338,9 +366,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userAgeY,
           profileName: "Global Default",
         });
-
-        // Create test session using extracted test date
-        const testDate = new Date(extractionResult.data.testDate);
         const session = await storage.createTestSession({
           userId,
           source: "ai_extracted",
