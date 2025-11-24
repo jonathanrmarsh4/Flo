@@ -2,19 +2,20 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { Target, ListChecks } from "lucide-react";
+import { Target, ListChecks, Filter } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
+
+type CategoryFilter = 'all' | 'sleep_quality' | 'performance_activity' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
 
 export default function ActionsScreen() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState<string>("active");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
 
   // Fetch all action plan items
   const { data: actionPlanData, isLoading } = useQuery<{ items: ActionPlanItem[] }>({
@@ -75,8 +76,20 @@ export default function ActionsScreen() {
 
   const allItems = actionPlanData?.items || [];
   const activeItems = allItems.filter(item => item.status === 'active');
-  const completedItems = allItems.filter(item => item.status === 'completed');
-  const dismissedItems = allItems.filter(item => item.status === 'dismissed');
+  
+  // Filter active items by category
+  const filteredItems = selectedCategory === 'all'
+    ? activeItems
+    : activeItems.filter(item => item.category === selectedCategory);
+
+  const categoryFilterOptions = [
+    { value: 'all' as CategoryFilter, label: 'All' },
+    { value: 'sleep_quality' as CategoryFilter, label: 'Sleep' },
+    { value: 'performance_activity' as CategoryFilter, label: 'Activity' },
+    { value: 'biomarkers' as CategoryFilter, label: 'Biomarkers' },
+    { value: 'recovery_hrv' as CategoryFilter, label: 'Recovery' },
+    { value: 'nutrition' as CategoryFilter, label: 'Nutrition' },
+  ];
 
   return (
     <>
@@ -94,125 +107,80 @@ export default function ActionsScreen() {
                   Action Plan
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-white/60">
-                  Track your health improvement goals
+                  {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
                 </p>
+              </div>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                <Filter className="w-4 h-4 text-gray-400 dark:text-white/40 flex-shrink-0" />
+                {categoryFilterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setSelectedCategory(option.value)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                      selectedCategory === option.value
+                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg'
+                        : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20'
+                    }`}
+                    data-testid={`filter-${option.value}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
 
-      {/* Report Tile - Summary of progress */}
-      <ReportTile
-        totalActive={activeItems.length}
-        totalCompleted={completedItems.length}
-        recentCompletions={completedItems.slice(0, 3)}
-      />
+      {/* Report Tile - Health Summary */}
+      <ReportTile />
 
-      {/* Tabs for Active/Completed/Dismissed */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="active" data-testid="tab-active">
-            Active ({activeItems.length})
-          </TabsTrigger>
-          <TabsTrigger value="completed" data-testid="tab-completed">
-            Completed ({completedItems.length})
-          </TabsTrigger>
-          <TabsTrigger value="dismissed" data-testid="tab-dismissed">
-            Dismissed ({dismissedItems.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Active Actions */}
-        <TabsContent value="active" className="mt-6">
-          <div className="backdrop-blur-xl rounded-2xl border p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400"></div>
-              </div>
-            ) : activeItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <ListChecks className="w-16 h-16 text-gray-300 dark:text-white/20 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  No Active Actions
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-white/60 mb-4">
-                  Add insights from your AI Insights to start tracking your health goals.
-                </p>
+      {/* Action Items List */}
+      {isLoading ? (
+        <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400"></div>
+          </div>
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
+          <div className="flex flex-col items-center justify-center text-center gap-4">
+            <ListChecks className="w-16 h-16 text-gray-300 dark:text-white/20" />
+            <div>
+              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+                {selectedCategory === 'all' ? 'No Active Actions' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Actions`}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-white/60 mb-4">
+                {selectedCategory === 'all'
+                  ? 'Add insights from your AI Insights to start tracking your health goals.'
+                  : 'Try selecting a different category to see more actions.'
+                }
+              </p>
+              {selectedCategory === 'all' && (
                 <Button
                   onClick={() => setLocation('/insights')}
                   data-testid="button-browse-insights"
                 >
                   Browse Insights
                 </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {activeItems.map((item) => (
-                  <ActionCard
-                    key={item.id}
-                    item={item}
-                    onComplete={handleComplete}
-                    onDismiss={handleDismiss}
-                  />
-                ))}
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </TabsContent>
-
-        {/* Completed Actions */}
-        <TabsContent value="completed" className="mt-6">
-          <div className="backdrop-blur-xl rounded-2xl border p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
-            {completedItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <ListChecks className="w-16 h-16 text-gray-300 dark:text-white/20 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  No Completed Actions
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-white/60">
-                  Complete active actions to see them here.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {completedItems.map((item) => (
-                  <ActionCard
-                    key={item.id}
-                    item={item}
-                    onRemove={handleRemove}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Dismissed Actions */}
-        <TabsContent value="dismissed" className="mt-6">
-          <div className="backdrop-blur-xl rounded-2xl border p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
-            {dismissedItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <ListChecks className="w-16 h-16 text-gray-300 dark:text-white/20 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  No Dismissed Actions
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-white/60">
-                  Dismissed actions will appear here.
-                </p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {dismissedItems.map((item) => (
-                  <ActionCard
-                    key={item.id}
-                    item={item}
-                    onRemove={handleRemove}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {filteredItems.map((item) => (
+            <ActionCard
+              key={item.id}
+              item={item}
+              onComplete={handleComplete}
+              onDismiss={handleDismiss}
+            />
+          ))}
+        </div>
+      )}
         </div>
 
         <FloBottomNav />

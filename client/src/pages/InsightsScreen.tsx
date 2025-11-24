@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { Sparkles, TrendingUp, Plus, Check, Loader2 } from "lucide-react";
+import { Sparkles, TrendingUp, Plus, Check, Loader2, Filter } from "lucide-react";
 
 interface DailyInsight {
   id: string;
@@ -68,9 +68,12 @@ const getCategoryLabel = (category: string) => {
   }
 };
 
+type CategoryFilter = 'all' | 'sleep_quality' | 'performance_activity' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
+
 export default function InsightsScreen() {
   const { toast } = useToast();
   const [addedInsights, setAddedInsights] = useState<Set<string>>(new Set());
+  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
 
   const { data, isLoading } = useQuery<{ insights: DailyInsight[]; count: number }>({
     queryKey: ['/api/daily-insights'],
@@ -106,6 +109,20 @@ export default function InsightsScreen() {
   });
 
   const insights = data?.insights || [];
+  
+  // Filter insights based on selected category
+  const filteredInsights = selectedCategory === 'all' 
+    ? insights 
+    : insights.filter(insight => insight.category === selectedCategory);
+
+  const categoryFilterOptions = [
+    { value: 'all' as CategoryFilter, label: 'All' },
+    { value: 'sleep_quality' as CategoryFilter, label: 'Sleep' },
+    { value: 'performance_activity' as CategoryFilter, label: 'Activity' },
+    { value: 'biomarkers' as CategoryFilter, label: 'Biomarkers' },
+    { value: 'recovery_hrv' as CategoryFilter, label: 'Recovery' },
+    { value: 'nutrition' as CategoryFilter, label: 'Nutrition' },
+  ];
 
   return (
     <>
@@ -123,8 +140,29 @@ export default function InsightsScreen() {
                   AI Insights
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-white/60">
-                  Personalized health insights powered by your data
+                  {filteredInsights.length} personalized recommendation{filteredInsights.length !== 1 ? 's' : ''}
                 </p>
+              </div>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+                <Filter className="w-4 h-4 text-gray-400 dark:text-white/40 flex-shrink-0" />
+                {categoryFilterOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setSelectedCategory(option.value)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                      selectedCategory === option.value
+                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg'
+                        : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20'
+                    }`}
+                    data-testid={`filter-${option.value}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -139,16 +177,19 @@ export default function InsightsScreen() {
           )}
 
           {/* Empty state */}
-          {!isLoading && insights.length === 0 && (
+          {!isLoading && filteredInsights.length === 0 && (
             <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
               <div className="flex flex-col items-center justify-center text-center gap-4">
                 <Sparkles className="w-16 h-16 text-gray-300 dark:text-white/20" />
                 <div>
                   <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                    No Insights Available
+                    {selectedCategory === 'all' ? 'No Insights Available' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Insights`}
                   </h3>
                   <p className="text-sm text-gray-600 dark:text-white/60">
-                    Check back tomorrow for personalized AI insights based on your health data.
+                    {selectedCategory === 'all' 
+                      ? 'Check back tomorrow for personalized AI insights based on your health data.'
+                      : 'Try selecting a different category to see more insights.'
+                    }
                   </p>
                 </div>
               </div>
@@ -156,13 +197,9 @@ export default function InsightsScreen() {
           )}
 
           {/* Insights list */}
-          {!isLoading && insights.length > 0 && (
+          {!isLoading && filteredInsights.length > 0 && (
             <div className="flex flex-col gap-4">
-              <div className="text-sm text-gray-600 dark:text-white/60">
-                {insights.length} insight{insights.length !== 1 ? 's' : ''} available
-              </div>
-
-              {insights.map((insight) => {
+              {filteredInsights.map((insight) => {
                 const isAdded = addedInsights.has(insight.id);
                 const isAdding = addToActionPlanMutation.isPending && 
                   addToActionPlanMutation.variables?.id === insight.id;
