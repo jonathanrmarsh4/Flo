@@ -1,6 +1,11 @@
 import { ArrowDown, ArrowUp, TrendingUp, TrendingDown, Award, Target, Activity, Flame, Heart, Zap, Brain, Droplet, Sparkles, ChevronRight, ChevronDown, Share2, Download, AlertTriangle, LucideIcon, Apple, Pill, Sun, Moon, FileText } from 'lucide-react';
 import { useState } from 'react';
-import type { BiologicalAgeData } from './InsightsScreen';
+
+export interface BiologicalAgeData {
+  biologicalAge: number;
+  chronologicalAge: number;
+  ageDifference: number;
+}
 
 // Icon mapping for dynamic icon rendering
 const ICON_MAP: Record<string, LucideIcon> = {
