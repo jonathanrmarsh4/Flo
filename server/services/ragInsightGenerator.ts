@@ -302,5 +302,22 @@ function buildUserProfileSummary(userContext: UserContext): string {
     parts.push(`${userContext.bodyComposition.weightKg.toFixed(1)}kg`);
   }
   
-  return parts.length > 0 ? parts.join(', ') : 'Profile incomplete';
+  let summary = parts.length > 0 ? parts.join(', ') : 'Profile incomplete';
+  
+  // Add health goals if available
+  if (userContext.goals && userContext.goals.length > 0) {
+    summary += `\n\n**Health Goals:** ${userContext.goals.join(', ')}`;
+  }
+  
+  // Add focus areas if available
+  if (userContext.focusAreas && userContext.focusAreas.length > 0) {
+    summary += `\n\n**Focus Areas:** ${userContext.focusAreas.join(', ')}`;
+  }
+  
+  // Add medical context if available
+  if (userContext.medicalContext) {
+    summary += `\n\n**Medical Context:** ${userContext.medicalContext}`;
+  }
+  
+  return summary;
 }

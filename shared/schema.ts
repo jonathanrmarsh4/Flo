@@ -103,7 +103,7 @@ export const SubscriptionStatusEnum = z.enum([
 
 export const SexEnum = z.enum(["Male", "Female", "Other"]);
 export const WeightUnitEnum = z.enum(["kg", "lbs"]);
-export const HeightUnitEnum = z.enum(["cm", "inches"]);
+export const HeightUnitEnum = z.enum(["cm", "inches", "in"]); // "in" is alias for "inches"
 export const ActivityLevelEnum = z.enum(["Sedentary", "Light", "Moderate", "Active", "Very Active"]);
 export const DietTypeEnum = z.enum(["Balanced", "Low Carb", "Mediterranean", "Vegetarian", "Vegan", "Keto", "Paleo"]);
 export const SmokingStatusEnum = z.enum(["Never", "Former", "Current"]);
@@ -164,7 +164,7 @@ export const healthBaselineSchema = z.object({
 export const aiPersonalizationSchema = z.object({
   tone: CommunicationToneEnum.optional(),
   insightsFrequency: InsightsFrequencyEnum.optional(),
-  focusAreas: z.array(FocusAreaEnum).optional(),
+  focusAreas: z.array(z.string()).optional(), // Allow custom focus areas, not just enum values
   medicalContext: z.string().max(2000).optional(), // User-provided context for AI (e.g., "I'm on TRT", medications, conditions)
 });
 
@@ -1206,7 +1206,7 @@ export const insertProfileSchema = createInsertSchema(profiles, {
   weightUnit: WeightUnitEnum.optional(),
   height: z.number().min(0).optional(),
   heightUnit: HeightUnitEnum.optional(),
-  goals: z.array(HealthGoalEnum).optional(),
+  goals: z.array(z.string()).optional(), // Allow custom goals, not just enum values
   healthBaseline: healthBaselineSchema.optional(),
   aiPersonalization: aiPersonalizationSchema.optional(),
 }).omit({
@@ -1230,7 +1230,7 @@ export const updateHealthBaselineSchema = z.object({
 });
 
 export const updateGoalsSchema = z.object({
-  goals: z.array(HealthGoalEnum),
+  goals: z.array(z.string()), // Allow custom goals, not just enum values
 });
 
 export const updateAIPersonalizationSchema = z.object({

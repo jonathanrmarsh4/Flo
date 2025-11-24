@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 interface ReminderSettingsProps {
   user: UserType;
   isEditing: boolean;
+  isDark?: boolean;
 }
 
 // Common timezones for quick selection
@@ -27,7 +28,7 @@ const COMMON_TIMEZONES = [
   { value: 'Australia/Perth', label: 'Perth' },
 ];
 
-export function ReminderSettings({ user, isEditing }: ReminderSettingsProps) {
+export function ReminderSettings({ user, isEditing, isDark = false }: ReminderSettingsProps) {
   const { toast } = useToast();
   const updateReminders = useUpdateReminderPreferences();
   
@@ -74,13 +75,13 @@ export function ReminderSettings({ user, isEditing }: ReminderSettingsProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Bell className="w-4 h-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Daily Health Reminders</span>
+        <Bell className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+        <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Daily Health Reminders</span>
       </div>
 
       {/* Enable/Disable Toggle */}
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">Enabled</span>
+        <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Enabled</span>
         {isEditing ? (
           <Button
             data-testid="toggle-reminders"
@@ -91,13 +92,13 @@ export function ReminderSettings({ user, isEditing }: ReminderSettingsProps) {
             {localEnabled ? "On" : "Off"}
           </Button>
         ) : (
-          <span className="text-sm">{user.reminderEnabled ? "On" : "Off"}</span>
+          <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{user.reminderEnabled ? "On" : "Off"}</span>
         )}
       </div>
 
       {/* Reminder Time */}
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+        <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'} flex items-center gap-1.5`}>
           <Clock className="w-3.5 h-3.5" />
           Time
         </span>
@@ -110,13 +111,13 @@ export function ReminderSettings({ user, isEditing }: ReminderSettingsProps) {
             className="w-32 h-8 text-sm"
           />
         ) : (
-          <span className="text-sm">{user.reminderTime}</span>
+          <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{user.reminderTime}</span>
         )}
       </div>
 
       {/* Timezone */}
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">Timezone</span>
+        <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Timezone</span>
         {isEditing ? (
           <Select value={localTimezone} onValueChange={setLocalTimezone}>
             <SelectTrigger data-testid="select-timezone" className="w-48 h-8 text-sm">
@@ -131,7 +132,7 @@ export function ReminderSettings({ user, isEditing }: ReminderSettingsProps) {
             </SelectContent>
           </Select>
         ) : (
-          <span className="text-sm text-muted-foreground">{user.reminderTimezone}</span>
+          <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>{user.reminderTimezone}</span>
         )}
       </div>
 

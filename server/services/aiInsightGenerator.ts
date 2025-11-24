@@ -39,6 +39,9 @@ export interface UserContext {
     leanMassKg: number | null;
     bmi: number | null;
   };
+  focusAreas?: string[] | null;
+  medicalContext?: string | null;
+  goals?: string[] | null;
 }
 
 export interface BaselineData {
@@ -108,6 +111,9 @@ export async function getUserContext(userId: string): Promise<UserContext> {
     age,
     sex,
     bodyComposition,
+    focusAreas: profile?.aiPersonalization?.focusAreas ?? null,
+    medicalContext: profile?.aiPersonalization?.medicalContext ?? null,
+    goals: profile?.goals ?? null,
   };
 }
 

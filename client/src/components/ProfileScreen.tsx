@@ -196,10 +196,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
     }`}>
       {/* Header */}
-      <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
+      <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
-        <div className="px-4 py-4">
+        <div className="px-4 py-4 pt-6">
           <div className="flex items-center justify-between">
             <button 
               onClick={onClose}
@@ -717,7 +717,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
           isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
         }`} data-testid="card-daily-reminders">
-          <ReminderSettings user={user} isEditing={isEditing} />
+          <ReminderSettings user={user} isEditing={isEditing} isDark={isDark} />
         </div>
 
         {/* AI Personalization */}
