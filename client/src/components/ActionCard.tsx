@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, TrendingUp, ChevronDown, ChevronUp, Target, TrendingDown } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
+import { BiomarkerProgressChart } from "./BiomarkerProgressChart";
 
 interface ActionCardProps {
   item: ActionPlanItem;
@@ -197,33 +198,15 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
                   </div>
                 </div>
 
-                {/* Chart Placeholder */}
-                <div 
-                  className="h-56 rounded-xl bg-slate-800/40 border border-white/10 p-4 flex flex-col"
-                  data-testid={`chart-placeholder-${item.id}`}
-                >
-                  {/* Chart Legend */}
-                  <div className="flex items-center justify-center gap-6 mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-0.5 bg-purple-400"></div>
-                      <span className="text-xs text-white/60">Actual Progress</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-0.5 bg-teal-400"></div>
-                      <span className="text-xs text-white/60">Forecast</span>
-                    </div>
-                  </div>
-                  
-                  {/* Chart Area */}
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center">
-                      <TrendingUp className="w-10 h-10 text-white/20 mx-auto mb-2" />
-                      <p className="text-xs text-white/40">
-                        Progress chart coming soon
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {/* Progress Chart */}
+                <BiomarkerProgressChart
+                  actionItemId={item.id}
+                  addedAt={item.addedAt}
+                  currentValue={item.currentValue}
+                  targetValue={item.targetValue}
+                  unit={item.unit || ''}
+                  timePeriod={timePeriod}
+                />
               </div>
             )}
 

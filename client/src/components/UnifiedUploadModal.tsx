@@ -56,6 +56,13 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
       queryClient.invalidateQueries({ queryKey: ["/api/blood-work/latest"] });
       queryClient.invalidateQueries({ queryKey: ["/api/biomarker-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/biomarkers"] });
+      // Invalidate action plan progress charts (new blood work may update progress)
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.includes('/api/action-plan') && query.queryKey[2] === 'progress';
+        }
+      });
       toast({
         title: "Analysis Complete",
         description: "Your blood work has been analyzed successfully!",
