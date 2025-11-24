@@ -48,6 +48,7 @@ export interface BaselineData {
   baseline30d: number | null;
   percentChange7d: number | null;
   percentChange30d: number | null;
+  unit?: string | null; // Unit of measurement for biomarkers (e.g., "mg/dL")
 }
 
 export interface AIGeneratedInsight {
@@ -468,15 +469,18 @@ function buildBaselineSummary(baselines: BaselineData[]): string {
     const parts: string[] = [b.variable];
     
     if (b.current !== null) {
-      parts.push(`Current: ${b.current.toFixed(1)}`);
+      const unit = b.unit ? ` ${b.unit}` : '';
+      parts.push(`Current: ${b.current.toFixed(1)}${unit}`);
     }
 
     if (b.baseline7d !== null && b.percentChange7d !== null) {
-      parts.push(`7-day baseline: ${b.baseline7d.toFixed(1)} (${b.percentChange7d >= 0 ? '+' : ''}${b.percentChange7d.toFixed(1)}% change)`);
+      const unit = b.unit ? ` ${b.unit}` : '';
+      parts.push(`7-day baseline: ${b.baseline7d.toFixed(1)}${unit} (${b.percentChange7d >= 0 ? '+' : ''}${b.percentChange7d.toFixed(1)}% change)`);
     }
 
     if (b.baseline30d !== null && b.percentChange30d !== null) {
-      parts.push(`30-day baseline: ${b.baseline30d.toFixed(1)} (${b.percentChange30d >= 0 ? '+' : ''}${b.percentChange30d.toFixed(1)}% change)`);
+      const unit = b.unit ? ` ${b.unit}` : '';
+      parts.push(`30-day baseline: ${b.baseline30d.toFixed(1)}${unit} (${b.percentChange30d >= 0 ? '+' : ''}${b.percentChange30d.toFixed(1)}% change)`);
     }
 
     return parts.join(', ');
