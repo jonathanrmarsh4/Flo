@@ -66,7 +66,7 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
   const isActive = item.status === 'active';
   const isCompleted = item.status === 'completed';
   const [isExpanded, setIsExpanded] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<'7D' | '14D' | '30D' | '90D'>('30D');
+  const [timePeriod, setTimePeriod] = useState<'3M' | '6M' | '9M' | '12M'>('3M');
 
   // Calculate days since added
   const daysSinceAdded = Math.floor((Date.now() - new Date(item.addedAt).getTime()) / (1000 * 60 * 60 * 24));
@@ -140,7 +140,7 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
             </div>
 
             {/* Action Recommendation Section */}
-            <div className="flex flex-col gap-3 p-4 rounded-xl bg-slate-100/10 border border-teal-400/30">
+            <div className="flex flex-col gap-3 p-4 rounded-xl bg-teal-500/10 border border-teal-400/30">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-teal-400" />
                 <h4 className="text-xs font-semibold text-teal-400 uppercase tracking-wide">
@@ -148,7 +148,7 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
                 </h4>
               </div>
               <p
-                className="text-sm text-slate-900 dark:text-slate-200 leading-relaxed"
+                className="text-sm text-white/90 leading-relaxed"
                 data-testid={`text-action-${item.id}`}
               >
                 {item.snapshotAction}
@@ -169,10 +169,10 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
                     className="px-3 py-1.5 rounded-lg bg-slate-800/60 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                     data-testid={`select-period-${item.id}`}
                   >
-                    <option value="7D">1 week</option>
-                    <option value="14D">2 weeks</option>
-                    <option value="30D">1 month</option>
-                    <option value="90D">3 months</option>
+                    <option value="3M">3 months</option>
+                    <option value="6M">6 months</option>
+                    <option value="9M">9 months</option>
+                    <option value="12M">12 months</option>
                   </select>
                 </div>
                 
