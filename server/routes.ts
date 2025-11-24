@@ -6346,6 +6346,47 @@ ${userContext}`;
     }
   });
 
+  // POST /api/daily-insights/refresh - Clear today's insights and regenerate new ones
+  app.post("/api/daily-insights/refresh", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      logger.info(`[DailyInsightsV2] Refreshing insights for user ${userId}`);
+      
+      // Delete today's existing insights
+      await db
+        .delete(dailyInsights)
+        .where(
+          and(
+            eq(dailyInsights.userId, userId),
+            eq(dailyInsights.generatedDate, today)
+          )
+        );
+      
+      logger.info(`[DailyInsightsV2] Deleted existing insights for user ${userId}`);
+      
+      // Generate new insights
+      const startTime = Date.now();
+      const insights = await generateDailyInsights(userId, true); // Force regeneration
+      const duration = Date.now() - startTime;
+      
+      logger.info(`[DailyInsightsV2] Generated ${insights.length} new insights for user ${userId} in ${duration}ms`);
+
+      res.json({ 
+        success: true,
+        insightsGenerated: insights.length,
+        durationMs: duration,
+      });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Refresh error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===============================
   // ACTION PLAN API
   // ===============================

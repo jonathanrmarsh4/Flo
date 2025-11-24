@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { Sparkles, TrendingUp, Plus, Check, Loader2, Filter } from "lucide-react";
+import { Sparkles, TrendingUp, Plus, Check, Loader2, Filter, RefreshCw } from "lucide-react";
 
 interface DailyInsight {
   id: string;
@@ -83,6 +83,26 @@ export default function InsightsScreen() {
     queryKey: ['/api/daily-insights'],
   });
 
+  const refreshInsightsMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/daily-insights/refresh', {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/daily-insights'] });
+      toast({
+        title: "Insights Refreshed",
+        description: `Generated ${data.insightsGenerated} new insight${data.insightsGenerated !== 1 ? 's' : ''}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to refresh insights",
+        variant: "destructive",
+      });
+    },
+  });
+
   const addToActionPlanMutation = useMutation({
     mutationFn: async (insight: DailyInsight) => {
       return apiRequest('POST', '/api/action-plan', {
@@ -146,6 +166,19 @@ export default function InsightsScreen() {
                 {filteredInsights.length} personalized recommendation{filteredInsights.length !== 1 ? 's' : ''}
               </p>
             </div>
+            
+            {/* Refresh button */}
+            <button
+              onClick={() => refreshInsightsMutation.mutate()}
+              disabled={refreshInsightsMutation.isPending}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50"
+              data-testid="button-refresh-insights"
+              aria-label="Refresh insights"
+            >
+              <RefreshCw 
+                className={`w-5 h-5 text-white ${refreshInsightsMutation.isPending ? 'animate-spin' : ''}`} 
+              />
+            </button>
           </div>
 
           {/* Category Filter Pills */}
