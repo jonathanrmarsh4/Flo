@@ -76,16 +76,21 @@ export function AIInsightsTile() {
   const newCount = insights.filter(i => i.isNew).length;
 
   return (
-    <div className="backdrop-blur-xl rounded-2xl border p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10" data-testid="tile-ai-insights">
+    <div className="backdrop-blur-xl rounded-3xl border p-6 bg-slate-800/40 border-white/10" data-testid="tile-ai-insights">
       <div className="flex flex-col gap-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">AI Insights</h2>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-purple-500/20">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">AI Insights</h2>
+              <p className="text-xs text-white/50">Personalized health recommendations</p>
+            </div>
           </div>
           {newCount > 0 && (
-            <Badge variant="default" className="bg-primary" data-testid="badge-new-count">
+            <Badge className="bg-gradient-to-r from-pink-500 to-rose-500 text-white border-0 px-3" data-testid="badge-new-count">
               {newCount} new
             </Badge>
           )}
@@ -110,44 +115,37 @@ export function AIInsightsTile() {
               <div
                 key={insight.id}
                 onClick={() => setIsModalOpen(true)}
-                className="p-3 rounded-md bg-muted/50 hover-elevate active-elevate-2 transition-all cursor-pointer"
+                className="p-4 rounded-xl bg-slate-700/30 border border-slate-600/30 hover:bg-slate-700/50 transition-all cursor-pointer"
                 data-testid={`preview-insight-${insight.id}`}
               >
-                <div className="flex items-start gap-3">
-                  <TrendingUp className="w-4 h-4 mt-1 text-primary flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge
-                        className={`${getCategoryColor(insight.category)} text-xs`}
-                        data-testid={`badge-category-${insight.id}`}
-                      >
-                        {getCategoryLabel(insight.category)}
-                      </Badge>
-                      {insight.isNew && (
-                        <Badge variant="default" className="bg-primary text-xs">
-                          New
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm font-medium text-foreground line-clamp-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <h3 className="text-base font-semibold text-white mb-2">
                       {insight.pattern}
+                    </h3>
+                    <p className="text-sm text-white/60 line-clamp-2">
+                      {insight.supportingData}
                     </p>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <Badge
+                    className={`${getCategoryColor(insight.category)} text-xs flex-shrink-0`}
+                    data-testid={`badge-category-${insight.id}`}
+                  >
+                    {getCategoryLabel(insight.category)}
+                  </Badge>
                 </div>
               </div>
             ))}
 
             {/* View all button */}
-            <Button
-              variant="outline"
-              className="w-full mt-2"
+            <button
               onClick={() => setIsModalOpen(true)}
+              className="w-full px-4 py-3 mt-2 rounded-xl border border-white/10 flex items-center justify-between transition-colors hover:bg-white/5 text-white/70 text-sm"
               data-testid="button-view-all-insights"
             >
-              View all insights
-              <ChevronRight className="w-4 h-4 ml-2" />
-            </Button>
+              <span>View all insights</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>
