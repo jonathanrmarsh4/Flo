@@ -6713,7 +6713,14 @@ ${userContext}`;
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + months);
 
-      // Query blood work measurements using deterministic biomarkerId join
+      // Add baseline point from when action was added (uses currentValue snapshot)
+      dataPoints.push({
+        date: startDate.toISOString(),
+        value: item.currentValue,
+        source: 'baseline'
+      });
+
+      // Query blood work measurements AFTER action was added using deterministic biomarkerId join
       const bloodWorkMeasurements = await db
         .select({
           value: biomarkerMeasurements.valueCanonical,
@@ -6726,7 +6733,7 @@ ${userContext}`;
           and(
             eq(biomarkerMeasurements.biomarkerId, item.biomarkerId),
             eq(biomarkerTestSessions.userId, userId),
-            gte(biomarkerTestSessions.testDate, startDate),
+            gt(biomarkerTestSessions.testDate, startDate), // Changed to > (not >=) to exclude baseline
             sql`${biomarkerTestSessions.testDate} <= ${endDate}`
           )
         )
