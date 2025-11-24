@@ -6235,6 +6235,52 @@ ${userContext}`;
     }
   });
 
+  // GET /api/daily-insights/debug - Debug endpoint to see raw database data
+  app.get("/api/daily-insights/debug", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
+      const rawInsights = await db
+        .select()
+        .from(dailyInsights)
+        .where(
+          and(
+            eq(dailyInsights.userId, userId),
+            eq(dailyInsights.generatedDate, today)
+          )
+        )
+        .orderBy(desc(dailyInsights.createdAt));
+
+      res.json({
+        date: today,
+        userId: userId,
+        count: rawInsights.length,
+        insights: rawInsights.map(insight => ({
+          id: insight.id,
+          title: insight.title,
+          category: insight.category,
+          targetBiomarker: insight.targetBiomarker,
+          currentValue: insight.currentValue,
+          targetValue: insight.targetValue,
+          unit: insight.unit,
+          body: insight.body?.substring(0, 100) + '...', // Truncate for readability
+          action: insight.action?.substring(0, 100) + '...',
+          isDismissed: insight.isDismissed,
+          isNew: insight.isNew,
+          createdAt: insight.createdAt,
+        }))
+      });
+    } catch (error: any) {
+      logger.error('[DailyInsightsV2] Debug error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
 
   // POST /api/daily-insights/feedback - Submit feedback for an insight
   app.post("/api/daily-insights/feedback", isAuthenticated, async (req: any, res) => {
