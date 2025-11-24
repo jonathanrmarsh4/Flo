@@ -6627,8 +6627,13 @@ ${userContext}`;
         return res.json({ dataPoints: [] });
       }
 
+      // Require biomarkerId for deterministic joins - legacy items without ID return empty until backfilled
+      if (!item.biomarkerId) {
+        logger.warn(`[ActionPlan] Item ${id} has no biomarkerId - returning empty progress (needs backfill)`);
+        return res.json({ dataPoints: [] });
+      }
+
       const dataPoints: Array<{ date: string; value: number; source: string }> = [];
-      const biomarkerName = item.targetBiomarker.toLowerCase().trim();
       const startDate = new Date(item.addedAt);
       
       // Calculate end date based on timeframe
@@ -6637,73 +6642,18 @@ ${userContext}`;
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + months);
 
-      // Helper function for flexible biomarker name matching
-      const biomarkerMatches = (target: string, candidate: string): boolean => {
-        const targetNorm = target.toLowerCase().replace(/[-_\s]/g, '');
-        const candidateNorm = candidate.toLowerCase().replace(/[-_\s]/g, '');
-        
-        // Direct match
-        if (targetNorm.includes(candidateNorm) || candidateNorm.includes(targetNorm)) {
-          return true;
-        }
-        
-        // Word-based matching (e.g., "Vitamin D" matches "vitamin_d")
-        const targetWords = target.toLowerCase().split(/[-_\s]+/).filter(w => w.length > 2);
-        const candidateWords = candidate.toLowerCase().split(/[-_\s]+/).filter(w => w.length > 2);
-        
-        // Check if any significant words match
-        for (const tw of targetWords) {
-          for (const cw of candidateWords) {
-            if (tw === cw || tw.includes(cw) || cw.includes(tw)) {
-              return true;
-            }
-          }
-        }
-        
-        return false;
-      };
-
-      // Query HealthKit samples for matching biomarker (within timeframe)
-      const healthkitData = await db
-        .select({
-          date: healthkitSamples.endDate,
-          value: healthkitSamples.value,
-          dataType: healthkitSamples.dataType,
-        })
-        .from(healthkitSamples)
-        .where(
-          and(
-            eq(healthkitSamples.userId, userId),
-            gte(healthkitSamples.endDate, startDate),
-            sql`${healthkitSamples.endDate} <= ${endDate}`
-          )
-        )
-        .orderBy(healthkitSamples.endDate);
-
-      // Filter HealthKit data by matching biomarker name
-      for (const sample of healthkitData) {
-        if (biomarkerMatches(biomarkerName, sample.dataType)) {
-          dataPoints.push({
-            date: sample.date.toISOString(),
-            value: sample.value,
-            source: 'healthkit'
-          });
-        }
-      }
-
-      // Query blood work measurements for matching biomarker (within timeframe)
+      // Query blood work measurements using deterministic biomarkerId join
       const bloodWorkMeasurements = await db
         .select({
-          biomarkerName: biomarkers.name,
           value: biomarkerMeasurements.valueCanonical,
           unit: biomarkerMeasurements.unitCanonical,
           testDate: biomarkerTestSessions.testDate,
         })
         .from(biomarkerMeasurements)
         .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
-        .innerJoin(biomarkers, eq(biomarkerMeasurements.biomarkerId, biomarkers.id))
         .where(
           and(
+            eq(biomarkerMeasurements.biomarkerId, item.biomarkerId),
             eq(biomarkerTestSessions.userId, userId),
             gte(biomarkerTestSessions.testDate, startDate),
             sql`${biomarkerTestSessions.testDate} <= ${endDate}`
@@ -6711,16 +6661,15 @@ ${userContext}`;
         )
         .orderBy(biomarkerTestSessions.testDate);
 
-      // Add blood work measurements to data points
       for (const measurement of bloodWorkMeasurements) {
-        if (biomarkerMatches(biomarkerName, measurement.biomarkerName)) {
-          dataPoints.push({
-            date: measurement.testDate.toISOString(),
-            value: measurement.value,
-            source: 'blood_work'
-          });
-        }
+        dataPoints.push({
+          date: measurement.testDate.toISOString(),
+          value: measurement.value,
+          source: 'blood_work'
+        });
       }
+      
+      logger.info(`[ActionPlan] Using deterministic biomarkerId ${item.biomarkerId}, found ${dataPoints.length} data points`);
 
       // Sort by date
       dataPoints.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
