@@ -6514,7 +6514,24 @@ ${userContext}`;
         }
       }
 
-      const item = await storage.addActionPlanItem(userId, data as any);
+      // Lookup biomarkerId if targetBiomarker is provided
+      let biomarkerId: string | undefined;
+      if (data.targetBiomarker) {
+        const biomarker = await db
+          .select({ id: biomarkers.id })
+          .from(biomarkers)
+          .where(eq(biomarkers.name, data.targetBiomarker))
+          .limit(1);
+        
+        if (biomarker.length > 0) {
+          biomarkerId = biomarker[0].id;
+          logger.info(`[ActionPlan] Matched biomarker "${data.targetBiomarker}" to ID ${biomarkerId}`);
+        } else {
+          logger.warn(`[ActionPlan] No biomarker found with exact name "${data.targetBiomarker}"`);
+        }
+      }
+
+      const item = await storage.addActionPlanItem(userId, { ...data, biomarkerId } as any);
       
       logger.info(`[ActionPlan] Item added by user ${userId}`);
       res.json({ item });
