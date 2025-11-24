@@ -153,7 +153,7 @@ export function TrendChart({ history, min, max, biomarker, unit, isDark }: Trend
                 onBlur={() => setHoveredPoint(null)}
                 tabIndex={0}
                 role="button"
-                aria-label={`Data point for ${format(new Date(point.date), 'MM/dd')}: ${point.value.toFixed(1)}${unit}`}
+                aria-label={`Data point for ${format(new Date(point.date), 'MM/yy')}: ${point.value.toFixed(1)}${unit}`}
                 data-testid={`point-${biomarker.toLowerCase().replace(/\s+/g, '-')}-${index}`}
               />
               {(hoveredPoint === index || isPressed) && (
@@ -175,7 +175,7 @@ export function TrendChart({ history, min, max, biomarker, unit, isDark }: Trend
                     className={`text-[9px] font-medium ${isDark ? 'fill-white' : 'fill-gray-900'}`}
                     data-testid={`tooltip-date-${biomarker.toLowerCase().replace(/\s+/g, '-')}-${index}`}
                   >
-                    {format(new Date(point.date), 'MM/dd')}
+                    {format(new Date(point.date), 'MM/yy')}
                   </text>
                   <text
                     x={tooltipX + tooltipWidth / 2}
