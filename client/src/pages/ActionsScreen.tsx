@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
+import { FloBottomNav } from "@/components/FloBottomNav";
 import { Target, ListChecks } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 
@@ -78,10 +79,11 @@ export default function ActionsScreen() {
   const dismissedItems = allItems.filter(item => item.status === 'dismissed');
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Target className="w-6 h-6 text-primary" />
+    <div className="min-h-screen bg-background pb-24">
+      <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Target className="w-6 h-6 text-primary" />
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="heading-actions">
             Action Plan
@@ -199,6 +201,9 @@ export default function ActionsScreen() {
           )}
         </TabsContent>
       </Tabs>
+      </div>
+
+      <FloBottomNav />
     </div>
   );
 }

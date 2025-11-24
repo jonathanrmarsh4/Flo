@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { FloBottomNav } from "@/components/FloBottomNav";
 import { Sparkles, TrendingUp, Plus, Check, Loader2 } from "lucide-react";
 
 interface DailyInsight {
@@ -87,10 +88,11 @@ export default function InsightsScreen() {
   const insights = data?.insights || [];
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Sparkles className="w-6 h-6 text-primary" />
+    <div className="min-h-screen bg-background pb-24">
+      <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <Sparkles className="w-6 h-6 text-primary" />
         <div>
           <h1 className="text-2xl font-bold text-foreground" data-testid="heading-insights">
             AI Insights
@@ -230,6 +232,9 @@ export default function InsightsScreen() {
           })}
         </div>
       )}
+      </div>
+
+      <FloBottomNav />
     </div>
   );
 }
