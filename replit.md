@@ -11,6 +11,34 @@ Flō is a mobile-first AI-powered health analytics platform designed to analyze 
 
 ## Recent Changes
 
+### Navigation & Insights/Actions Page Restructure (Nov 24, 2025)
+**Feature**: Restructured navigation and page hierarchy to separate Daily Insights (modal) from Action Plan (dedicated page).
+
+**Navigation Changes**:
+1. ✅ **Bottom toolbar updated**: Changed "Insights" tab → "Actions" tab linking to `/actions` page
+2. ✅ **AI Insights tile**: "View all insights" button now opens InsightsScreen as a modal overlay instead of navigating to separate page
+3. ✅ **InsightsModal component**: Created modal wrapper for InsightsScreen with backdrop, close button, and full-screen layout
+
+**Insights Page (Modal)**:
+- Removed tabs (Active/Completed/Dismissed)
+- Added category filter pills: All, Sleep, Activity, Biomarkers, Recovery, Nutrition
+- Category filtering with proper empty states
+- All insights displayed in scrollable list
+- Opens from AI Insights dashboard tile
+
+**Actions Page (`/actions`)**:
+- Accessible from bottom toolbar "Actions" button
+- Health Summary Report tile with "90+ Biomarkers" and "Shareable" badges
+- Category filter pills matching Insights page
+- Expandable/collapsible action cards:
+  - **Collapsed**: Title, category badge, timestamp, expand button
+  - **Expanded**: Full insight text, recommended action section, progress tracking (time period selector, current/target value cards, chart placeholder), action buttons
+- Shows filtered active actions in single list
+
+**User Flow**:
+- Dashboard → AI Insights tile "View all insights" → InsightsScreen modal
+- Bottom toolbar "Actions" button → Actions page (`/actions`)
+
 ### Dashboard Tile Drag-and-Drop Reordering (Nov 23, 2025)
 **Feature**: Implemented intuitive drag-and-drop tile reordering for the Flō dashboard, allowing users to personalize their dashboard layout.
 
