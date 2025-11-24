@@ -105,6 +105,17 @@ export default function InsightsScreen() {
 
   const addToActionPlanMutation = useMutation({
     mutationFn: async (insight: DailyInsight) => {
+      // Log what we're sending to debug progress tracking
+      console.log('[ActionPlan] Adding insight to action plan:', {
+        id: insight.id,
+        title: insight.pattern,
+        targetBiomarker: insight.targetBiomarker,
+        currentValue: insight.currentValue,
+        targetValue: insight.targetValue,
+        unit: insight.unit,
+        category: insight.category
+      });
+      
       return apiRequest('POST', '/api/action-plan', {
         dailyInsightId: insight.id,
         snapshotTitle: insight.pattern,
