@@ -19,7 +19,7 @@ import {
   canAccessFlomentum,
 } from "./middleware/planEnforcement";
 import { logger } from "./logger";
-import { eq, desc, and, gte, sql, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, and, gte, gt, sql, isNull, isNotNull } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
