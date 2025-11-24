@@ -28,6 +28,7 @@ const rawBiomarkerSchema = z.object({
 });
 
 const extractionResponseSchema = z.object({
+  testDate: z.string().describe("The date the lab test was performed (format: YYYY-MM-DD)"),
   biomarkers: z.array(rawBiomarkerSchema),
 });
 
@@ -53,21 +54,22 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
 
 async function extractRawBiomarkersWithGPT(pdfText: string, userId?: string): Promise<ExtractionResponse> {
   const startTime = Date.now();
-  const systemPrompt = `You are a precise medical lab report data extractor. Your ONLY job is to extract biomarker measurements EXACTLY as they appear in the report.
+  const systemPrompt = `You are a precise medical lab report data extractor. Your ONLY job is to extract biomarker measurements and test date EXACTLY as they appear in the report.
 
 CRITICAL RULES:
-1. Extract the biomarker name, value, unit, reference range, and flag EXACTLY as written - do NOT interpret, convert, or validate
-2. If a value is "<5.0", extract "<5.0" as-is
-3. If a reference range is "M: 300-1000 F: 15-70", extract "M: 300-1000 F: 15-70" as-is
-4. If a flag is "H" or "High" or "*", extract it exactly as-is
-5. Extract ONLY what you can see - if there's no flag, set flag_raw to null
-6. Be CONSERVATIVE - only extract data you're 100% confident about
-7. If a value or unit is missing, skip that biomarker entirely
-8. Do NOT hallucinate or infer missing data
+1. Extract the TEST DATE from the report header/metadata - look for "Collection Date", "Date Collected", "Test Date", "Sample Date", etc. Format as YYYY-MM-DD
+2. Extract the biomarker name, value, unit, reference range, and flag EXACTLY as written - do NOT interpret, convert, or validate
+3. If a value is "<5.0", extract "<5.0" as-is
+4. If a reference range is "M: 300-1000 F: 15-70", extract "M: 300-1000 F: 15-70" as-is
+5. If a flag is "H" or "High" or "*", extract it exactly as-is
+6. Extract ONLY what you can see - if there's no flag, set flag_raw to null
+7. Be CONSERVATIVE - only extract data you're 100% confident about
+8. If a value or unit is missing, skip that biomarker entirely
+9. Do NOT hallucinate or infer missing data
 
 Output pure extracted data only.`;
 
-  const userPrompt = `Extract all biomarker measurements from this lab report. For each biomarker, extract the 6 fields exactly as they appear:\n\n${pdfText}`;
+  const userPrompt = `Extract the test date and all biomarker measurements from this lab report. For the test date, look for when the sample was collected (not when the report was issued). For each biomarker, extract the 6 fields exactly as they appear:\n\n${pdfText}`;
 
   const openai = getOpenAIClient();
   
@@ -85,6 +87,10 @@ Output pure extracted data only.`;
         schema: {
           type: "object",
           properties: {
+            testDate: {
+              type: "string",
+              description: "The date the lab test was performed (format: YYYY-MM-DD)",
+            },
             biomarkers: {
               type: "array",
               items: {
@@ -120,7 +126,7 @@ Output pure extracted data only.`;
               },
             },
           },
-          required: ["biomarkers"],
+          required: ["testDate", "biomarkers"],
           additionalProperties: false,
         },
       },
