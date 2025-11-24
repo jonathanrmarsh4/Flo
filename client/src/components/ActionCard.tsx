@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, TrendingUp } from "lucide-react";
@@ -11,19 +10,40 @@ interface ActionCardProps {
   onRemove?: (id: string) => void;
 }
 
-const getCategoryColor = (category: string) => {
-  switch (category) {
-    case 'sleep_quality':
-      return 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20';
-    case 'recovery_hrv':
-      return 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20';
-    case 'performance_activity':
-      return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20';
-    case 'biomarkers':
-      return 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20';
-    default:
-      return 'bg-gray-500/10 text-gray-700 dark:text-gray-400 border-gray-500/20';
+const categoryColors = {
+  sleep_quality: {
+    bg: 'from-indigo-500/20 to-purple-500/20',
+    text: 'text-indigo-400',
+    border: 'border-indigo-500/30'
+  },
+  performance_activity: {
+    bg: 'from-orange-500/20 to-red-500/20',
+    text: 'text-orange-400',
+    border: 'border-orange-500/30'
+  },
+  biomarkers: {
+    bg: 'from-teal-500/20 to-cyan-500/20',
+    text: 'text-teal-400',
+    border: 'border-teal-500/30'
+  },
+  recovery_hrv: {
+    bg: 'from-green-500/20 to-emerald-500/20',
+    text: 'text-green-400',
+    border: 'border-green-500/30'
+  },
+  nutrition: {
+    bg: 'from-amber-500/20 to-yellow-500/20',
+    text: 'text-amber-400',
+    border: 'border-amber-500/30'
   }
+};
+
+const getCategoryColor = (category: string) => {
+  const colors = categoryColors[category as keyof typeof categoryColors];
+  if (colors) {
+    return `bg-gradient-to-r ${colors.bg} ${colors.text} ${colors.border}`;
+  }
+  return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
 };
 
 const getCategoryLabel = (category: string) => {
@@ -46,11 +66,9 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
   const isCompleted = item.status === 'completed';
 
   return (
-    <Card
-      className={`p-4 ${
-        isCompleted
-          ? 'opacity-60 bg-green-50 dark:bg-green-950/10 border-green-200 dark:border-green-900'
-          : ''
+    <div
+      className={`backdrop-blur-xl rounded-2xl border p-4 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10 ${
+        isCompleted ? 'opacity-75' : ''
       }`}
       data-testid={`card-action-${item.id}`}
     >
@@ -165,6 +183,6 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
           Added {new Date(item.addedAt).toLocaleDateString()}
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

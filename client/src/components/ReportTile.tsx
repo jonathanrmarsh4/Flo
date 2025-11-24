@@ -1,4 +1,3 @@
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, CheckCircle2, Target } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
@@ -9,19 +8,40 @@ interface ReportTileProps {
   recentCompletions?: ActionPlanItem[];
 }
 
-const getCategoryColor = (category: string) => {
-  switch (category) {
-    case 'sleep_quality':
-      return 'bg-purple-500/10 text-purple-700 dark:text-purple-400';
-    case 'recovery_hrv':
-      return 'bg-green-500/10 text-green-700 dark:text-green-400';
-    case 'performance_activity':
-      return 'bg-blue-500/10 text-blue-700 dark:text-blue-400';
-    case 'biomarkers':
-      return 'bg-amber-500/10 text-amber-700 dark:text-amber-400';
-    default:
-      return 'bg-gray-500/10 text-gray-700 dark:text-gray-400';
+const categoryColors = {
+  sleep_quality: {
+    bg: 'from-indigo-500/20 to-purple-500/20',
+    text: 'text-indigo-400',
+    border: 'border-indigo-500/30'
+  },
+  performance_activity: {
+    bg: 'from-orange-500/20 to-red-500/20',
+    text: 'text-orange-400',
+    border: 'border-orange-500/30'
+  },
+  biomarkers: {
+    bg: 'from-teal-500/20 to-cyan-500/20',
+    text: 'text-teal-400',
+    border: 'border-teal-500/30'
+  },
+  recovery_hrv: {
+    bg: 'from-green-500/20 to-emerald-500/20',
+    text: 'text-green-400',
+    border: 'border-green-500/30'
+  },
+  nutrition: {
+    bg: 'from-amber-500/20 to-yellow-500/20',
+    text: 'text-amber-400',
+    border: 'border-amber-500/30'
   }
+};
+
+const getCategoryColor = (category: string) => {
+  const colors = categoryColors[category as keyof typeof categoryColors];
+  if (colors) {
+    return `bg-gradient-to-r ${colors.bg} ${colors.text} ${colors.border}`;
+  }
+  return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
 };
 
 const getCategoryLabel = (category: string) => {
@@ -45,7 +65,7 @@ export function ReportTile({ totalActive, totalCompleted, recentCompletions = []
     : 0;
 
   return (
-    <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20" data-testid="tile-report">
+    <div className="backdrop-blur-xl rounded-2xl border p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10" data-testid="tile-report">
       <div className="flex flex-col gap-6">
         {/* Header */}
         <div className="flex items-center gap-2">
@@ -131,6 +151,6 @@ export function ReportTile({ totalActive, totalCompleted, recentCompletions = []
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 }

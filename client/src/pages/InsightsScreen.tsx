@@ -106,30 +106,23 @@ export default function InsightsScreen() {
   });
 
   const insights = data?.insights || [];
-  const isDark = document.documentElement.classList.contains('dark');
 
   return (
     <>
       {/* Background Gradient */}
-      <div className={`fixed inset-0 ${
-        isDark 
-          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900'
-          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
-      }`} />
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50 dark:from-slate-900 dark:via-blue-950 dark:to-slate-900" />
 
       <div className="relative min-h-screen pb-24">
         <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
           {/* Sticky Header */}
-          <div className={`sticky top-0 z-10 backdrop-blur-xl border-b transition-colors ${
-            isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
-          }`}>
+          <div className="sticky top-0 z-20 backdrop-blur-xl border-b transition-colors bg-white/70 border-black/10 dark:bg-white/5 dark:border-white/10">
             <div className="flex items-center gap-3 p-4">
               <Sparkles className="w-6 h-6 text-teal-400" />
               <div>
-                <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="heading-insights">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="heading-insights">
                   AI Insights
                 </h1>
-                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                <p className="text-sm text-gray-600 dark:text-white/60">
                   Personalized health insights powered by your data
                 </p>
               </div>
@@ -138,23 +131,23 @@ export default function InsightsScreen() {
 
           {/* Loading state */}
           {isLoading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400"></div>
+            <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400"></div>
+              </div>
             </div>
           )}
 
           {/* Empty state */}
           {!isLoading && insights.length === 0 && (
-            <div className={`backdrop-blur-xl rounded-2xl border p-12 ${
-              isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
-            }`}>
+            <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
               <div className="flex flex-col items-center justify-center text-center gap-4">
-                <Sparkles className={`w-16 h-16 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+                <Sparkles className="w-16 h-16 text-gray-300 dark:text-white/20" />
                 <div>
-                  <h3 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
                     No Insights Available
                   </h3>
-                  <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  <p className="text-sm text-gray-600 dark:text-white/60">
                     Check back tomorrow for personalized AI insights based on your health data.
                   </p>
                 </div>
@@ -165,7 +158,7 @@ export default function InsightsScreen() {
           {/* Insights list */}
           {!isLoading && insights.length > 0 && (
             <div className="flex flex-col gap-4">
-              <div className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+              <div className="text-sm text-gray-600 dark:text-white/60">
                 {insights.length} insight{insights.length !== 1 ? 's' : ''} available
               </div>
 
@@ -177,9 +170,7 @@ export default function InsightsScreen() {
                 return (
                   <div
                     key={insight.id}
-                    className={`backdrop-blur-xl rounded-2xl border transition-all p-6 ${
-                      isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
-                    }`}
+                    className="backdrop-blur-xl rounded-2xl border transition-all p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10"
                     data-testid={`card-insight-${insight.id}`}
                   >
                     <div className="flex flex-col gap-4">
@@ -200,7 +191,7 @@ export default function InsightsScreen() {
 
                       {/* Title */}
                       <h3
-                        className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}
+                        className="text-lg font-semibold text-gray-900 dark:text-white"
                         data-testid={`text-pattern-${insight.id}`}
                       >
                         {insight.pattern}
@@ -208,16 +199,14 @@ export default function InsightsScreen() {
 
                       {/* Supporting data */}
                       <p
-                        className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}
+                        className="text-sm text-gray-600 dark:text-white/70"
                         data-testid={`text-supporting-${insight.id}`}
                       >
                         {insight.supportingData}
                       </p>
 
                       {/* Action recommendation */}
-                      <div className={`p-3 rounded-xl border ${
-                        isDark ? 'bg-teal-500/5 border-teal-500/20' : 'bg-teal-50 border-teal-200'
-                      }`}>
+                      <div className="p-3 rounded-xl border bg-teal-50 border-teal-200 dark:bg-teal-500/5 dark:border-teal-500/20">
                         <div className="flex items-start gap-2">
                           <TrendingUp className="w-4 h-4 mt-0.5 text-teal-400 flex-shrink-0" />
                           <div className="flex-1">
@@ -225,7 +214,7 @@ export default function InsightsScreen() {
                               RECOMMENDED ACTION
                             </div>
                             <p
-                              className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-gray-700'}`}
+                              className="text-sm font-medium text-gray-700 dark:text-white/80"
                               data-testid={`text-action-${insight.id}`}
                             >
                               {insight.action}
@@ -238,9 +227,7 @@ export default function InsightsScreen() {
                       <div className="flex items-center gap-2 pt-2">
                         {isAdded ? (
                           <button
-                            className={`w-full p-2 rounded-lg transition-all border ${
-                              isDark ? 'bg-white/10 border-white/20' : 'bg-gray-100 border-gray-300'
-                            }`}
+                            className="w-full p-2 rounded-lg transition-all border bg-gray-100 border-gray-300 dark:bg-white/10 dark:border-white/20"
                             disabled
                             data-testid={`button-added-${insight.id}`}
                           >
@@ -251,11 +238,7 @@ export default function InsightsScreen() {
                           </button>
                         ) : (
                           <button
-                            className={`w-full p-2 rounded-lg transition-all ${
-                              isDark
-                                ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30'
-                                : 'bg-gradient-to-r from-teal-400 via-cyan-400 to-blue-400 text-white shadow-lg hover:shadow-xl'
-                            }`}
+                            className="w-full p-2 rounded-lg transition-all bg-gradient-to-r from-teal-400 via-cyan-400 to-blue-400 dark:from-teal-500 dark:via-cyan-500 dark:to-blue-500 text-white shadow-lg hover:shadow-xl dark:shadow-cyan-500/25 dark:hover:shadow-cyan-500/30"
                             onClick={() => addToActionPlanMutation.mutate(insight)}
                             disabled={isAdding}
                             data-testid={`button-add-${insight.id}`}
@@ -275,7 +258,7 @@ export default function InsightsScreen() {
                       </div>
 
                       {/* Confidence score */}
-                      <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      <div className="text-xs text-gray-500 dark:text-white/50">
                         Confidence: {Math.round(insight.confidence * 100)}%
                       </div>
                     </div>
