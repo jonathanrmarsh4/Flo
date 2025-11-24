@@ -242,7 +242,8 @@ export default function InsightsScreen() {
                     className="rounded-2xl border border-white/10 p-6 bg-slate-800/40"
                     data-testid={`card-insight-${insight.id}`}
                   >
-                    <div className="flex gap-4">
+                    {/* Header with icon, title and category */}
+                    <div className="flex gap-4 mb-4">
                       {/* Icon */}
                       <div className="flex-shrink-0">
                         <div className="p-3 rounded-xl bg-teal-500/20">
@@ -250,9 +251,8 @@ export default function InsightsScreen() {
                         </div>
                       </div>
 
-                      {/* Content */}
-                      <div className="flex-1 flex flex-col gap-4">
-                        {/* Header with title and category */}
+                      {/* Title and category */}
+                      <div className="flex-1 flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-3">
                           <h3
                             className="text-lg font-semibold text-white flex-1"
@@ -274,78 +274,81 @@ export default function InsightsScreen() {
                             Target: {insight.targetBiomarker}
                           </div>
                         )}
+                      </div>
+                    </div>
 
-                        {/* Insight Section */}
-                        <div className="p-4 rounded-xl bg-slate-700/40">
-                          <div className="text-xs text-teal-400 font-medium mb-2">Insight</div>
-                          <p
-                            className="text-sm text-white/80"
-                            data-testid={`text-supporting-${insight.id}`}
-                          >
-                            {insight.supportingData}
-                          </p>
-                        </div>
+                    {/* Dialogue boxes - aligned with left margin */}
+                    <div className="flex flex-col gap-4">
+                      {/* Insight Section */}
+                      <div className="p-4 rounded-xl bg-slate-700/40">
+                        <div className="text-xs text-teal-400 font-medium mb-2">Insight</div>
+                        <p
+                          className="text-sm text-white/80"
+                          data-testid={`text-supporting-${insight.id}`}
+                        >
+                          {insight.supportingData}
+                        </p>
+                      </div>
 
-                        {/* Recommended Action Section */}
-                        <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/20">
-                          <div className="text-xs text-teal-400 font-medium mb-2">Recommended Action</div>
-                          <p
-                            className="text-sm text-white/80"
-                            data-testid={`text-action-${insight.id}`}
-                          >
-                            {insight.action}
-                          </p>
-                        </div>
+                      {/* Recommended Action Section */}
+                      <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/20">
+                        <div className="text-xs text-teal-400 font-medium mb-2">Recommended Action</div>
+                        <p
+                          className="text-sm text-white/80"
+                          data-testid={`text-action-${insight.id}`}
+                        >
+                          {insight.action}
+                        </p>
+                      </div>
 
-                        {/* Current/Target Values (if applicable) */}
-                        {insight.targetBiomarker && insight.currentValue !== null && insight.targetValue !== null && (
-                          <div className="grid grid-cols-2 gap-3">
-                            {/* Current Value */}
-                            <div className="p-4 rounded-xl bg-slate-700/60">
-                              <div className="text-xs text-white/50 mb-2">
-                                Current
-                              </div>
-                              <div className="text-3xl font-bold text-white">
-                                {insight.currentValue} <span className="text-sm text-white/50 font-normal">{insight.unit}</span>
-                              </div>
+                      {/* Current/Target Values (if applicable) */}
+                      {insight.targetBiomarker && insight.currentValue !== null && insight.targetValue !== null && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Current Value */}
+                          <div className="p-4 rounded-xl bg-slate-700/60">
+                            <div className="text-xs text-white/50 mb-2">
+                              Current
                             </div>
-                            {/* Target Value */}
-                            <div className="p-4 rounded-xl bg-teal-500/20 border border-teal-400/30">
-                              <div className="text-xs text-teal-400 mb-2">
-                                Target
-                              </div>
-                              <div className="text-3xl font-bold text-teal-400">
-                                {insight.targetValue} <span className="text-sm text-teal-400/70 font-normal">{insight.unit}</span>
-                              </div>
+                            <div className="text-3xl font-bold text-white">
+                              {insight.currentValue} <span className="text-sm text-white/50 font-normal">{insight.unit}</span>
                             </div>
                           </div>
-                        )}
+                          {/* Target Value */}
+                          <div className="p-4 rounded-xl bg-teal-500/20 border border-teal-400/30">
+                            <div className="text-xs text-teal-400 mb-2">
+                              Target
+                            </div>
+                            <div className="text-3xl font-bold text-teal-400">
+                              {insight.targetValue} <span className="text-sm text-teal-400/70 font-normal">{insight.unit}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                        {/* Add to Action Plan button */}
-                        <button
-                          className="w-full px-6 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-cyan-500/50 flex items-center justify-center gap-2"
-                          onClick={() => addToActionPlanMutation.mutate(insight)}
-                          disabled={isAdding || isAdded}
-                          data-testid={`button-add-${insight.id}`}
-                        >
-                          {isAdded ? (
-                            <>
-                              <Check className="w-4 h-4" />
-                              <span>Added to Action Plan</span>
-                            </>
-                          ) : isAdding ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>Adding...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-4 h-4" />
-                              <span>Add to Action Plan</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
+                      {/* Add to Action Plan button */}
+                      <button
+                        className="w-full px-6 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-cyan-500/50 flex items-center justify-center gap-2"
+                        onClick={() => addToActionPlanMutation.mutate(insight)}
+                        disabled={isAdding || isAdded}
+                        data-testid={`button-add-${insight.id}`}
+                      >
+                        {isAdded ? (
+                          <>
+                            <Check className="w-4 h-4" />
+                            <span>Added to Action Plan</span>
+                          </>
+                        ) : isAdding ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Adding...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4" />
+                            <span>Add to Action Plan</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 );
