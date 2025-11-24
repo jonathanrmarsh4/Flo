@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import InsightsScreen from "@/pages/InsightsScreen";
 
@@ -7,10 +9,22 @@ interface InsightsModalProps {
 }
 
 export function InsightsModal({ isOpen, onClose }: InsightsModalProps) {
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+  const modalContent = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -36,4 +50,7 @@ export function InsightsModal({ isOpen, onClose }: InsightsModalProps) {
       </div>
     </div>
   );
+
+  // Render modal at document body level using portal
+  return createPortal(modalContent, document.body);
 }
