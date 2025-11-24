@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, ChevronRight, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { InsightsModal } from "./InsightsModal";
 
 interface DailyInsight {
   id: string;
@@ -66,6 +67,7 @@ const getCategoryLabel = (category: string) => {
 };
 
 export function AIInsightsTile() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const { data, isLoading } = useQuery<{ insights: DailyInsight[]; count: number }>({
     queryKey: ['/api/daily-insights'],
   });
@@ -107,50 +109,51 @@ export function AIInsightsTile() {
             {insights.slice(0, 2).map((insight) => (
               <div
                 key={insight.id}
+                onClick={() => setIsModalOpen(true)}
                 className="p-3 rounded-md bg-muted/50 hover-elevate active-elevate-2 transition-all cursor-pointer"
                 data-testid={`preview-insight-${insight.id}`}
               >
-                <Link href="/insights">
-                  <div className="flex items-start gap-3">
-                    <TrendingUp className="w-4 h-4 mt-1 text-primary flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge
-                          className={`${getCategoryColor(insight.category)} text-xs`}
-                          data-testid={`badge-category-${insight.id}`}
-                        >
-                          {getCategoryLabel(insight.category)}
+                <div className="flex items-start gap-3">
+                  <TrendingUp className="w-4 h-4 mt-1 text-primary flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge
+                        className={`${getCategoryColor(insight.category)} text-xs`}
+                        data-testid={`badge-category-${insight.id}`}
+                      >
+                        {getCategoryLabel(insight.category)}
+                      </Badge>
+                      {insight.isNew && (
+                        <Badge variant="default" className="bg-primary text-xs">
+                          New
                         </Badge>
-                        {insight.isNew && (
-                          <Badge variant="default" className="bg-primary text-xs">
-                            New
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium text-foreground line-clamp-2">
-                        {insight.pattern}
-                      </p>
+                      )}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <p className="text-sm font-medium text-foreground line-clamp-2">
+                      {insight.pattern}
+                    </p>
                   </div>
-                </Link>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                </div>
               </div>
             ))}
 
             {/* View all button */}
-            <Link href="/insights">
-              <Button
-                variant="outline"
-                className="w-full mt-2"
-                data-testid="button-view-all-insights"
-              >
-                View All {insights.length} Insights
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              className="w-full mt-2"
+              onClick={() => setIsModalOpen(true)}
+              data-testid="button-view-all-insights"
+            >
+              View all insights
+              <ChevronRight className="w-4 h-4 ml-2" />
+            </Button>
           </div>
         )}
       </div>
+
+      {/* Insights Modal */}
+      <InsightsModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }

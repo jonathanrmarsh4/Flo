@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Home, Droplets, Activity, Lightbulb } from "lucide-react";
+import { Home, Droplets, Activity, Target } from "lucide-react";
 import { FloIcon } from "./FloLogo";
 import { UnifiedUploadModal } from "./UnifiedUploadModal";
 
@@ -35,10 +35,10 @@ export function FloBottomNav() {
       path: '/diagnostics',
     },
     {
-      id: 'insights',
-      label: 'Insights',
-      icon: Lightbulb,
-      path: '/insights',
+      id: 'actions',
+      label: 'Actions',
+      icon: Target,
+      path: '/actions',
     },
   ];
 
