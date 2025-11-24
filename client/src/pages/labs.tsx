@@ -231,7 +231,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`min-h-screen pb-20 transition-colors ${
+    <div className={`min-h-screen pb-20 overscroll-none transition-colors ${
       isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'

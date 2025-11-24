@@ -347,7 +347,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   };
 
   return (
-    <div className={`min-h-screen pb-24 ${
+    <div className={`min-h-screen pb-24 overscroll-none ${
       isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
