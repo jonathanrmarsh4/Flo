@@ -122,17 +122,17 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
 
         {/* Expanded Content */}
         {isExpanded && (
-          <div className="flex flex-col gap-4 pt-3 border-t border-gray-200 dark:border-white/10">
+          <div className="flex flex-col gap-4 pt-4 border-t border-white/20">
             {/* Insight Section */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-gray-600 dark:text-white/60" />
-                <h4 className="text-xs font-semibold text-gray-600 dark:text-white/60 uppercase">
+                <TrendingUp className="w-4 h-4 text-white/60" />
+                <h4 className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                   Insight
                 </h4>
               </div>
               <p
-                className="text-sm text-gray-700 dark:text-white/80"
+                className="text-sm text-white/80 leading-relaxed"
                 data-testid={`text-insight-${item.id}`}
               >
                 {item.snapshotInsight}
@@ -140,15 +140,15 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
             </div>
 
             {/* Action Recommendation Section */}
-            <div className="flex flex-col gap-2 p-3 rounded-xl border bg-teal-50 border-teal-200 dark:bg-teal-500/5 dark:border-teal-500/20">
+            <div className="flex flex-col gap-3 p-4 rounded-xl bg-slate-100/10 border border-teal-400/30">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-teal-400" />
-                <h4 className="text-xs font-semibold text-teal-400 uppercase">
+                <h4 className="text-xs font-semibold text-teal-400 uppercase tracking-wide">
                   Recommended Action
                 </h4>
               </div>
               <p
-                className="text-sm font-medium text-gray-700 dark:text-white/80"
+                className="text-sm text-slate-900 dark:text-slate-200 leading-relaxed"
                 data-testid={`text-action-${item.id}`}
               >
                 {item.snapshotAction}
@@ -157,91 +157,98 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
 
             {/* Progress tracking for biomarkers */}
             {item.targetBiomarker && item.currentValue !== null && item.targetValue !== null && (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-semibold text-gray-600 dark:text-white/60 uppercase">
+                  <h4 className="text-sm font-semibold text-white">
                     Progress Tracking
                   </h4>
                   {/* Time Period Selector */}
-                  <div className="flex gap-1 p-1 rounded-lg bg-gray-100 dark:bg-white/5">
-                    {(['7D', '14D', '30D', '90D'] as const).map((period) => (
-                      <button
-                        key={period}
-                        onClick={() => setTimePeriod(period)}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                          timePeriod === period
-                            ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm'
-                            : 'text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white'
-                        }`}
-                        data-testid={`button-period-${period.toLowerCase()}-${item.id}`}
-                      >
-                        {period}
-                      </button>
-                    ))}
-                  </div>
+                  <select 
+                    value={timePeriod}
+                    onChange={(e) => setTimePeriod(e.target.value as typeof timePeriod)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800/60 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                    data-testid={`select-period-${item.id}`}
+                  >
+                    <option value="7D">1 week</option>
+                    <option value="14D">2 weeks</option>
+                    <option value="30D">1 month</option>
+                    <option value="90D">3 months</option>
+                  </select>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
                   {/* Current Value */}
-                  <div className="p-3 rounded-lg bg-gray-100 dark:bg-white/5">
-                    <div className="text-xs text-gray-600 dark:text-white/50 mb-1">
+                  <div className="p-4 rounded-xl bg-slate-800/60 border border-white/10">
+                    <div className="text-xs text-white/50 mb-2">
                       Current
                     </div>
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {item.currentValue} <span className="text-sm text-gray-500 dark:text-white/50">{item.unit}</span>
+                    <div className="text-3xl font-bold text-white">
+                      {item.currentValue} <span className="text-sm text-white/50 font-normal">{item.unit}</span>
                     </div>
                   </div>
                   {/* Target Value */}
-                  <div className="p-3 rounded-lg bg-teal-50 dark:bg-teal-500/10">
-                    <div className="text-xs text-teal-600 dark:text-teal-400 mb-1">
+                  <div className="p-4 rounded-xl bg-teal-500/20 border border-teal-400/30">
+                    <div className="text-xs text-teal-400 mb-2">
                       Target
                     </div>
-                    <div className="text-2xl font-bold text-teal-600 dark:text-teal-400">
-                      {item.targetValue} <span className="text-sm text-teal-500 dark:text-teal-400/70">{item.unit}</span>
+                    <div className="text-3xl font-bold text-teal-400">
+                      {item.targetValue} <span className="text-sm text-teal-400/70 font-normal">{item.unit}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Chart Placeholder */}
                 <div 
-                  className="h-48 rounded-lg border-2 border-dashed border-gray-300 dark:border-white/10 bg-gray-50 dark:bg-white/5 flex flex-col items-center justify-center gap-2"
+                  className="h-56 rounded-xl bg-slate-800/40 border border-white/10 p-4 flex flex-col"
                   data-testid={`chart-placeholder-${item.id}`}
                 >
-                  <TrendingDown className="w-8 h-8 text-gray-400 dark:text-white/30" />
-                  <p className="text-sm text-gray-500 dark:text-white/50">
-                    {item.targetBiomarker} Progress Chart
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-white/30">
-                    Showing {timePeriod} trend
-                  </p>
+                  {/* Chart Legend */}
+                  <div className="flex items-center justify-center gap-6 mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-0.5 bg-purple-400"></div>
+                      <span className="text-xs text-white/60">Actual Progress</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-0.5 bg-teal-400"></div>
+                      <span className="text-xs text-white/60">Forecast</span>
+                    </div>
+                  </div>
+                  
+                  {/* Chart Area */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                      <TrendingUp className="w-10 h-10 text-white/20 mx-auto mb-2" />
+                      <p className="text-xs text-white/40">
+                        Progress chart coming soon
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Action buttons */}
             {isActive && (
-              <div className="flex items-center gap-2 pt-2">
+              <div className="flex items-center gap-3 pt-2">
                 {onComplete && (
-                  <Button
-                    size="sm"
+                  <button
                     onClick={() => onComplete(item.id)}
-                    className="flex-1"
+                    className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
                     data-testid={`button-complete-${item.id}`}
                   >
-                    <Check className="w-4 h-4 mr-2" />
+                    <Check className="w-4 h-4" />
                     Mark Complete
-                  </Button>
+                  </button>
                 )}
                 {onDismiss && (
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
                     onClick={() => onDismiss(item.id)}
+                    className="px-6 py-3 rounded-xl bg-transparent border border-white/20 text-white/60 hover:text-white hover:border-white/30 transition-all flex items-center gap-2"
                     data-testid={`button-dismiss-${item.id}`}
                   >
-                    <X className="w-4 h-4 mr-2" />
+                    <X className="w-4 h-4" />
                     Dismiss
-                  </Button>
+                  </button>
                 )}
               </div>
             )}
