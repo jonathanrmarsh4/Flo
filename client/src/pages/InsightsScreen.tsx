@@ -125,73 +125,64 @@ export default function InsightsScreen() {
   ];
 
   return (
-    <>
-      {/* Background Gradient */}
-      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50 dark:from-slate-900 dark:via-blue-950 dark:to-slate-900" />
-
-      <div className="relative min-h-screen pb-24">
-        <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
-          {/* Sticky Header */}
-          <div className="sticky top-0 z-20 backdrop-blur-xl border-b transition-colors bg-white/70 border-black/10 dark:bg-white/5 dark:border-white/10">
-            <div className="flex items-center gap-3 p-4">
-              <Sparkles className="w-6 h-6 text-teal-400" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="heading-insights">
-                  AI Insights
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-white/60">
-                  {filteredInsights.length} personalized recommendation{filteredInsights.length !== 1 ? 's' : ''}
-                </p>
-              </div>
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-                <Filter className="w-4 h-4 text-gray-400 dark:text-white/40 flex-shrink-0" />
-                {categoryFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setSelectedCategory(option.value)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                      selectedCategory === option.value
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg'
-                        : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20'
-                    }`}
-                    data-testid={`filter-${option.value}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+    <div className="relative h-full flex flex-col bg-gradient-to-br from-purple-900 via-slate-900 to-slate-800 overflow-hidden">
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex-shrink-0 px-6 py-6 border-b border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-insights">
+                AI Insights
+              </h1>
+              <p className="text-sm text-white/60">
+                {filteredInsights.length} personalized recommendation{filteredInsights.length !== 1 ? 's' : ''}
+              </p>
             </div>
           </div>
 
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+            <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
+            {categoryFilterOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setSelectedCategory(option.value)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  selectedCategory === option.value
+                    ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+                data-testid={`filter-${option.value}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
           {/* Loading state */}
           {isLoading && (
-            <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
-              <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400"></div>
-              </div>
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400"></div>
             </div>
           )}
 
           {/* Empty state */}
           {!isLoading && filteredInsights.length === 0 && (
-            <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
-              <div className="flex flex-col items-center justify-center text-center gap-4">
-                <Sparkles className="w-16 h-16 text-gray-300 dark:text-white/20" />
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                    {selectedCategory === 'all' ? 'No Insights Available' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Insights`}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-white/60">
-                    {selectedCategory === 'all' 
-                      ? 'Check back tomorrow for personalized AI insights based on your health data.'
-                      : 'Try selecting a different category to see more insights.'
-                    }
-                  </p>
-                </div>
+            <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
+              <Sparkles className="w-16 h-16 text-white/20" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2 text-white">
+                  {selectedCategory === 'all' ? 'No Insights Available' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Insights`}
+                </h3>
+                <p className="text-sm text-white/60">
+                  {selectedCategory === 'all' 
+                    ? 'Check back tomorrow for personalized AI insights based on your health data.'
+                    : 'Try selecting a different category to see more insights.'
+                  }
+                </p>
               </div>
             </div>
           )}
@@ -207,96 +198,86 @@ export default function InsightsScreen() {
                 return (
                   <div
                     key={insight.id}
-                    className="backdrop-blur-xl rounded-2xl border transition-all p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10"
+                    className="rounded-2xl border border-white/10 p-6 bg-slate-800/40"
                     data-testid={`card-insight-${insight.id}`}
                   >
-                    <div className="flex flex-col gap-4">
-                      {/* Header with category and new badge */}
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border ${getCategoryColor(insight.category)}`}
-                          data-testid={`badge-category-${insight.id}`}
-                        >
-                          {getCategoryLabel(insight.category)}
-                        </span>
-                        {insight.isNew && (
-                          <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-xs text-white font-medium">
-                            new
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Title */}
-                      <h3
-                        className="text-lg font-semibold text-gray-900 dark:text-white"
-                        data-testid={`text-pattern-${insight.id}`}
-                      >
-                        {insight.pattern}
-                      </h3>
-
-                      {/* Supporting data */}
-                      <p
-                        className="text-sm text-gray-600 dark:text-white/70"
-                        data-testid={`text-supporting-${insight.id}`}
-                      >
-                        {insight.supportingData}
-                      </p>
-
-                      {/* Action recommendation */}
-                      <div className="p-3 rounded-xl border bg-teal-50 border-teal-200 dark:bg-teal-500/5 dark:border-teal-500/20">
-                        <div className="flex items-start gap-2">
-                          <TrendingUp className="w-4 h-4 mt-0.5 text-teal-400 flex-shrink-0" />
-                          <div className="flex-1">
-                            <div className="text-xs font-medium text-teal-400 mb-1">
-                              RECOMMENDED ACTION
-                            </div>
-                            <p
-                              className="text-sm font-medium text-gray-700 dark:text-white/80"
-                              data-testid={`text-action-${insight.id}`}
-                            >
-                              {insight.action}
-                            </p>
-                          </div>
+                    <div className="flex gap-4">
+                      {/* Icon */}
+                      <div className="flex-shrink-0">
+                        <div className="p-3 rounded-xl bg-teal-500/20">
+                          <Sparkles className="w-5 h-5 text-teal-400" />
                         </div>
                       </div>
 
-                      {/* Add to Action Plan button */}
-                      <div className="flex items-center gap-2 pt-2">
-                        {isAdded ? (
-                          <button
-                            className="w-full p-2 rounded-lg transition-all border bg-gray-100 border-gray-300 dark:bg-white/10 dark:border-white/20"
-                            disabled
-                            data-testid={`button-added-${insight.id}`}
+                      {/* Content */}
+                      <div className="flex-1 flex flex-col gap-4">
+                        {/* Header with title and category */}
+                        <div className="flex items-start justify-between gap-3">
+                          <h3
+                            className="text-lg font-semibold text-white flex-1"
+                            data-testid={`text-pattern-${insight.id}`}
                           >
-                            <div className="flex items-center justify-center gap-2">
-                              <Check className="w-4 h-4" />
-                              <span className="text-sm">Added to Action Plan</span>
-                            </div>
-                          </button>
-                        ) : (
-                          <button
-                            className="w-full p-2 rounded-lg transition-all bg-gradient-to-r from-teal-400 via-cyan-400 to-blue-400 dark:from-teal-500 dark:via-cyan-500 dark:to-blue-500 text-white shadow-lg hover:shadow-xl dark:shadow-cyan-500/25 dark:hover:shadow-cyan-500/30"
-                            onClick={() => addToActionPlanMutation.mutate(insight)}
-                            disabled={isAdding}
-                            data-testid={`button-add-${insight.id}`}
+                            {insight.pattern}
+                          </h3>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(insight.category)} flex-shrink-0`}
+                            data-testid={`badge-category-${insight.id}`}
                           >
-                            <div className="flex items-center justify-center gap-2">
-                              {isAdding ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Plus className="w-4 h-4" />
-                              )}
-                              <span className="text-sm font-medium">
-                                {isAdding ? 'Adding...' : 'Add to Action Plan'}
-                              </span>
-                            </div>
-                          </button>
-                        )}
-                      </div>
+                            {getCategoryLabel(insight.category)}
+                          </span>
+                        </div>
 
-                      {/* Confidence score */}
-                      <div className="text-xs text-gray-500 dark:text-white/50">
-                        Confidence: {Math.round(insight.confidence * 100)}%
+                        {/* Target label (if applicable) */}
+                        <div className="text-xs text-white/50">
+                          Target: Vitamin D
+                        </div>
+
+                        {/* Insight Section */}
+                        <div className="p-4 rounded-xl bg-slate-700/40">
+                          <div className="text-xs text-teal-400 font-medium mb-2">Insight</div>
+                          <p
+                            className="text-sm text-white/80"
+                            data-testid={`text-supporting-${insight.id}`}
+                          >
+                            {insight.supportingData}
+                          </p>
+                        </div>
+
+                        {/* Recommended Action Section */}
+                        <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/20">
+                          <div className="text-xs text-teal-400 font-medium mb-2">Recommended Action</div>
+                          <p
+                            className="text-sm text-white/80"
+                            data-testid={`text-action-${insight.id}`}
+                          >
+                            {insight.action}
+                          </p>
+                        </div>
+
+                        {/* Add to Action Plan button */}
+                        <button
+                          className="w-full px-6 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-sm font-medium transition-all hover:shadow-lg hover:shadow-cyan-500/50 flex items-center justify-center gap-2"
+                          onClick={() => addToActionPlanMutation.mutate(insight)}
+                          disabled={isAdding || isAdded}
+                          data-testid={`button-add-${insight.id}`}
+                        >
+                          {isAdded ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span>Added to Action Plan</span>
+                            </>
+                          ) : isAdding ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Adding...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4" />
+                              <span>Add to Action Plan</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -305,9 +286,7 @@ export default function InsightsScreen() {
             </div>
           )}
         </div>
-
-        <FloBottomNav />
       </div>
-    </>
+    </div>
   );
 }

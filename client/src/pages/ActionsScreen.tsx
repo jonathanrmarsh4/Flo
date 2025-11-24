@@ -7,7 +7,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { Target, ListChecks, Filter } from "lucide-react";
+import { Target, ListChecks, Filter, Plus, X } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 
 type CategoryFilter = 'all' | 'sleep_quality' | 'performance_activity' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
@@ -92,99 +92,86 @@ export default function ActionsScreen() {
   ];
 
   return (
-    <>
-      {/* Background Gradient */}
-      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50 dark:from-slate-900 dark:via-blue-950 dark:to-slate-900" />
+    <div className="relative h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex-shrink-0 px-6 py-6 border-b border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-actions">
+                Action Plan
+              </h1>
+              <p className="text-sm text-white/60">
+                {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <button className="p-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50">
+              <Plus className="w-5 h-5" />
+            </button>
+          </div>
 
-      <div className="relative min-h-screen pb-24">
-        <div className="flex flex-col gap-6 p-4 max-w-4xl mx-auto">
-          {/* Sticky Header */}
-          <div className="sticky top-0 z-20 backdrop-blur-xl border-b transition-colors bg-white/70 border-black/10 dark:bg-white/5 dark:border-white/10">
-            <div className="flex items-center gap-3 p-4">
-              <Target className="w-6 h-6 text-teal-400" />
+          {/* Category Filter Pills */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+            <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
+            {categoryFilterOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setSelectedCategory(option.value)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  selectedCategory === option.value
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+                data-testid={`filter-${option.value}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {/* Report Tile - Health Summary */}
+          <ReportTile />
+
+          {/* Action Items List */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+            </div>
+          ) : filteredItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
+              <ListChecks className="w-16 h-16 text-white/20" />
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white" data-testid="heading-actions">
-                  Action Plan
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-white/60">
-                  {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
+                <h3 className="text-lg font-semibold mb-2 text-white">
+                  {selectedCategory === 'all' ? 'No Active Actions' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Actions`}
+                </h3>
+                <p className="text-sm text-white/60 mb-4">
+                  {selectedCategory === 'all'
+                    ? 'Add insights from your AI Insights to start tracking your health goals.'
+                    : 'Try selecting a different category to see more actions.'
+                  }
                 </p>
               </div>
             </div>
-
-            {/* Category Filter Pills */}
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-                <Filter className="w-4 h-4 text-gray-400 dark:text-white/40 flex-shrink-0" />
-                {categoryFilterOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setSelectedCategory(option.value)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                      selectedCategory === option.value
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-lg'
-                        : 'bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:bg-gray-200 dark:hover:bg-white/20'
-                    }`}
-                    data-testid={`filter-${option.value}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {filteredItems.map((item) => (
+                <ActionCard
+                  key={item.id}
+                  item={item}
+                  onComplete={handleComplete}
+                  onDismiss={handleDismiss}
+                />
+              ))}
             </div>
-          </div>
-
-      {/* Report Tile - Health Summary */}
-      <ReportTile />
-
-      {/* Action Items List */}
-      {isLoading ? (
-        <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-400"></div>
-          </div>
-        </div>
-      ) : filteredItems.length === 0 ? (
-        <div className="backdrop-blur-xl rounded-2xl border p-12 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10">
-          <div className="flex flex-col items-center justify-center text-center gap-4">
-            <ListChecks className="w-16 h-16 text-gray-300 dark:text-white/20" />
-            <div>
-              <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                {selectedCategory === 'all' ? 'No Active Actions' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Actions`}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-white/60 mb-4">
-                {selectedCategory === 'all'
-                  ? 'Add insights from your AI Insights to start tracking your health goals.'
-                  : 'Try selecting a different category to see more actions.'
-                }
-              </p>
-              {selectedCategory === 'all' && (
-                <Button
-                  onClick={() => setLocation('/insights')}
-                  data-testid="button-browse-insights"
-                >
-                  Browse Insights
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {filteredItems.map((item) => (
-            <ActionCard
-              key={item.id}
-              item={item}
-              onComplete={handleComplete}
-              onDismiss={handleDismiss}
-            />
-          ))}
-        </div>
-      )}
+          )}
         </div>
 
+        {/* Bottom Navigation */}
         <FloBottomNav />
       </div>
-    </>
+    </div>
   );
 }

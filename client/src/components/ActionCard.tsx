@@ -73,7 +73,7 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
 
   return (
     <div
-      className={`backdrop-blur-xl rounded-2xl border p-4 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10 ${
+      className={`rounded-2xl border p-5 bg-slate-800/40 border-white/10 ${
         isCompleted ? 'opacity-75' : ''
       }`}
       data-testid={`card-action-${item.id}`}
@@ -82,47 +82,40 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
         {/* Collapsed Header - Always Visible */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge
-                className={getCategoryColor(item.category)}
-                data-testid={`badge-category-${item.id}`}
-              >
-                {getCategoryLabel(item.category)}
-              </Badge>
-              
-              {isCompleted && (
-                <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
-                  <Check className="w-3 h-3 mr-1" />
-                  Completed
-                </Badge>
-              )}
-            </div>
-
             {/* Title */}
             <h3
-              className="text-base font-semibold text-gray-900 dark:text-white"
+              className="text-base font-semibold text-white mb-2"
               data-testid={`text-title-${item.id}`}
             >
               {item.snapshotTitle}
             </h3>
 
             {/* Timestamp */}
-            <p className="text-xs text-gray-500 dark:text-white/50 mt-1">
+            <p className="text-xs text-white/50">
               Added {daysSinceAdded}d ago
             </p>
           </div>
 
-          {/* Expand/Collapse Button */}
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-            data-testid={`button-toggle-${item.id}`}
-          >
-            {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-gray-600 dark:text-white/60" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-gray-600 dark:text-white/60" />
-            )}
+          {/* Badge and Expand Button */}
+          <div className="flex items-center gap-2">
+            <Badge
+              className={`${getCategoryColor(item.category)} flex-shrink-0`}
+              data-testid={`badge-category-${item.id}`}
+            >
+              {getCategoryLabel(item.category)}
+            </Badge>
+            
+            {/* Expand/Collapse Button */}
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="p-1.5 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+              data-testid={`button-toggle-${item.id}`}
+            >
+              {isExpanded ? (
+                <ChevronUp className="w-5 h-5 text-white/60" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-white/60" />
+              )}
           </button>
         </div>
 
