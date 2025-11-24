@@ -143,7 +143,8 @@ export async function generateRAGInsights(
   userId: string,
   changes: DataChange[],
   biomarkers: Array<{ name: string; value: number; unit: string; testDate: Date; isAbnormal: boolean }>,
-  userContext: UserContext
+  userContext: UserContext,
+  availableBiomarkers: Array<{ id: string; name: string; unitCanonical: string }> = []
 ): Promise<RAGInsight[]> {
   
   if (changes.length === 0) {
@@ -175,6 +176,15 @@ export async function generateRAGInsights(
   // Build current state summary
   const currentStateSummary = buildCurrentStateSummary(changes, biomarkers, userContext);
   
+  // Build available biomarkers list for AI prompt
+  const biomarkerNamesSection = availableBiomarkers.length > 0
+    ? `## Available Biomarkers (Use EXACT Names Only)
+When specifying targetBiomarker, you MUST use the exact name from this list:
+${availableBiomarkers.map(b => `- "${b.name}" (canonical unit: ${b.unitCanonical})`).join('\n')}
+
+DO NOT use abbreviations or variations. Match these names EXACTLY.`
+    : '';
+
   // Generate insights using GPT-4o with retrieved context
   const prompt = `You are a health insights AI analyzing a user's recent health data changes.
 
@@ -189,6 +199,8 @@ ${historicalContext}
 
 ## Current Biomarker Status
 ${biomarkers.slice(0, 10).map(b => `- ${b.name}: ${b.value} ${b.unit}${b.isAbnormal ? ' ⚠️ OUT OF RANGE' : ''}`).join('\n')}
+
+${biomarkerNamesSection}
 
 ## Your Task
 Generate up to 20 holistic health insights that provide comprehensive coverage across ALL categories:
@@ -233,10 +245,10 @@ IMPORTANT: Generate insights for ALL 4 categories. Even if recent data is sparse
 ]
 
 IMPORTANT: For biomarker-related insights, ALWAYS include progress tracking:
-- **targetBiomarker**: Extract from the changes list (e.g., "Ferritin", "Globulin", "Vitamin D")
+- **targetBiomarker**: Use the EXACT name from the "Available Biomarkers" list above. Do NOT use abbreviations (e.g., use "Low Density Lipoprotein Cholesterol" not "LDL-C"). If not a biomarker insight, set to null.
 - **currentValue**: Current measured value (numeric)
 - **targetValue**: Age/sex-specific optimal target for this ${userContext.age || 'unknown'}yo ${userContext.sex || 'unknown'} user
-- **unit**: Unit from changes data (e.g., "ng/mL", "g/dL", "%")
+- **unit**: Use the canonical unit from the "Available Biomarkers" list (e.g., "ng/mL", "g/dL", "%")
 
 For non-biomarker insights (sleep, HRV, activity patterns), set these to null.`;
 

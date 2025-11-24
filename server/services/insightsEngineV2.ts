@@ -1040,13 +1040,26 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     logger.info('[InsightsEngineV2] Fetching user context');
     const userContext = await getUserContext(userId.toString());
     
-    // Step 5: Generate RAG-based holistic insights
+    // Step 5: Fetch available biomarker names for AI to use exact matches
+    logger.info('[InsightsEngineV2] Fetching available biomarker names');
+    const availableBiomarkers = await db
+      .select({
+        id: biomarkers.id,
+        name: biomarkers.name,
+        unitCanonical: biomarkers.canonicalUnit,
+      })
+      .from(biomarkers)
+      .orderBy(biomarkers.name);
+    logger.info(`[InsightsEngineV2] Found ${availableBiomarkers.length} available biomarkers`);
+    
+    // Step 6: Generate RAG-based holistic insights
     logger.info('[InsightsEngineV2] Generating RAG-based insights using vector search + GPT-4o');
     const ragInsights: RAGInsight[] = await generateRAGInsights(
       userId,
       dataChanges,
       healthData.biomarkers,
-      userContext
+      userContext,
+      availableBiomarkers
     );
     logger.info(`[InsightsEngineV2] Generated ${ragInsights.length} RAG insights`);
     
