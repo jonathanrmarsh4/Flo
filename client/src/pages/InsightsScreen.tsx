@@ -13,6 +13,10 @@ interface DailyInsight {
   action: string;
   confidence: number;
   isNew: boolean;
+  targetBiomarker?: string; // Name of the biomarker being tracked (e.g., "Vitamin D")
+  currentValue?: number; // Current value (e.g., 28)
+  targetValue?: number; // Target value to achieve (e.g., 50)
+  unit?: string; // Unit of measurement (e.g., "ng/mL")
 }
 
 const categoryColors = {
@@ -87,6 +91,10 @@ export default function InsightsScreen() {
         snapshotInsight: insight.supportingData,
         snapshotAction: insight.action,
         category: insight.category,
+        targetBiomarker: insight.targetBiomarker,
+        currentValue: insight.currentValue,
+        targetValue: insight.targetValue,
+        unit: insight.unit,
       });
     },
     onSuccess: (_, insight) => {
@@ -228,9 +236,11 @@ export default function InsightsScreen() {
                         </div>
 
                         {/* Target label (if applicable) */}
-                        <div className="text-xs text-white/50">
-                          Target: Vitamin D
-                        </div>
+                        {insight.targetBiomarker && (
+                          <div className="text-xs text-white/50">
+                            Target: {insight.targetBiomarker}
+                          </div>
+                        )}
 
                         {/* Insight Section */}
                         <div className="p-4 rounded-xl bg-slate-700/40">
@@ -253,6 +263,30 @@ export default function InsightsScreen() {
                             {insight.action}
                           </p>
                         </div>
+
+                        {/* Current/Target Values (if applicable) */}
+                        {insight.targetBiomarker && insight.currentValue !== null && insight.targetValue !== null && (
+                          <div className="grid grid-cols-2 gap-3">
+                            {/* Current Value */}
+                            <div className="p-4 rounded-xl bg-slate-700/60">
+                              <div className="text-xs text-white/50 mb-2">
+                                Current
+                              </div>
+                              <div className="text-3xl font-bold text-white">
+                                {insight.currentValue} <span className="text-sm text-white/50 font-normal">{insight.unit}</span>
+                              </div>
+                            </div>
+                            {/* Target Value */}
+                            <div className="p-4 rounded-xl bg-teal-500/20 border border-teal-400/30">
+                              <div className="text-xs text-teal-400 mb-2">
+                                Target
+                              </div>
+                              <div className="text-3xl font-bold text-teal-400">
+                                {insight.targetValue} <span className="text-sm text-teal-400/70 font-normal">{insight.unit}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Add to Action Plan button */}
                         <button
