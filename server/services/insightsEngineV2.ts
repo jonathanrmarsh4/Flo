@@ -480,12 +480,15 @@ function extractBaselines(variables: string[], healthData: HealthDataSnapshot): 
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     
     // If no HealthKit data, try biomarkers
+    const biomarkerMatches = healthData.biomarkers
+      .filter(b => b.name && biomarkerNameToCanonicalKey(b.name) === varName);
+    
     const biomarkerData = healthkitData.length === 0 
-      ? healthData.biomarkers
-          .filter(b => b.name && biomarkerNameToCanonicalKey(b.name) === varName)
+      ? biomarkerMatches
           .map(b => ({
             date: b.testDate,
             value: b.value,
+            unit: b.unit, // Preserve unit for AI
           }))
           .filter(d => !isNaN(d.value))
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -498,6 +501,7 @@ function extractBaselines(variables: string[], healthData: HealthDataSnapshot): 
     }
     
     const current = varData[0]?.value ?? null;
+    const unit = biomarkerData.length > 0 && biomarkerData[0]?.unit ? biomarkerData[0].unit : null;
     
     // For biomarkers (infrequent data), use ALL historical data as baseline
     // For HealthKit (daily data), use 7-day and 30-day windows
@@ -521,6 +525,7 @@ function extractBaselines(variables: string[], healthData: HealthDataSnapshot): 
         baseline30d: baseline,
         percentChange7d: percentChange,
         percentChange30d: percentChange,
+        unit, // Include unit for biomarkers
       });
     } else {
       // HealthKit: Use 7-day and 30-day windows
@@ -549,6 +554,7 @@ function extractBaselines(variables: string[], healthData: HealthDataSnapshot): 
         baseline30d,
         percentChange7d,
         percentChange30d,
+        unit: null, // HealthKit metrics don't have units passed to AI
       });
     }
   }
