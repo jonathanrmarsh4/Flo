@@ -32,6 +32,11 @@ export interface RAGInsight {
   action: string;
   confidence: number;
   relatedMetrics: string[];
+  // Progress tracking fields (for biomarker-related insights)
+  targetBiomarker?: string | null;
+  currentValue?: number | null;
+  targetValue?: number | null;
+  unit?: string | null;
 }
 
 /**
@@ -219,9 +224,21 @@ IMPORTANT: Generate insights for ALL 4 categories. Even if recent data is sparse
     "body": "2-3 sentences: What changed, why it matters physiologically, good/bad interpretation",
     "action": "Specific, safe recommendation with HOW to do it",
     "confidence": 0.85,
-    "relatedMetrics": ["metric1", "metric2", "metric3"]
+    "relatedMetrics": ["metric1", "metric2", "metric3"],
+    "targetBiomarker": "Biomarker name (e.g., 'Vitamin D', 'Ferritin') or null if not a biomarker insight",
+    "currentValue": 28.5 (numeric current value from recent data or null if not applicable),
+    "targetValue": 50 (numeric age/sex-specific optimal target or null if not applicable),
+    "unit": "ng/mL" (unit string or null if not applicable)
   }
-]`;
+]
+
+IMPORTANT: For biomarker-related insights, ALWAYS include progress tracking:
+- **targetBiomarker**: Extract from the changes list (e.g., "Ferritin", "Globulin", "Vitamin D")
+- **currentValue**: Current measured value (numeric)
+- **targetValue**: Age/sex-specific optimal target for this ${userContext.age || 'unknown'}yo ${userContext.sex || 'unknown'} user
+- **unit**: Unit from changes data (e.g., "ng/mL", "g/dL", "%")
+
+For non-biomarker insights (sleep, HRV, activity patterns), set these to null.`;
 
   try {
     const response = await openai.chat.completions.create({

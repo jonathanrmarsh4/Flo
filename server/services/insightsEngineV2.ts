@@ -1065,6 +1065,12 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
             title: insight.title,
             body: insight.body,
             action: insight.action || null,
+            // Progress tracking fields (from AI generation)
+            targetBiomarker: insight.targetBiomarker || null,
+            currentValue: insight.currentValue || null,
+            targetValue: insight.targetValue || null,
+            unit: insight.unit || null,
+            // Scoring
             confidenceScore: insight.confidence,
             impactScore: 0.7, // Default impact score for RAG insights
             actionabilityScore: 0.8, // RAG insights are designed to be actionable
