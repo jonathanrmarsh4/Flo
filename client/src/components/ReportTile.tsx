@@ -3,18 +3,18 @@ import { FileText, Share2 } from "lucide-react";
 
 export function ReportTile() {
   return (
-    <div className="backdrop-blur-xl rounded-2xl border p-6 bg-white/60 border-black/10 dark:bg-white/5 dark:border-white/10" data-testid="tile-health-report">
+    <div className="rounded-2xl border p-6 bg-slate-800/40 border-white/10 mb-4" data-testid="tile-health-report">
       <div className="flex flex-col gap-4">
         {/* Header with icon */}
         <div className="flex items-start gap-4">
-          <div className="p-3 rounded-xl bg-purple-500/10 dark:bg-purple-500/20">
-            <FileText className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+          <div className="p-3 rounded-2xl bg-purple-500/20">
+            <FileText className="w-6 h-6 text-purple-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-semibold text-white">
               Health Summary Report
             </h2>
-            <p className="text-sm text-gray-600 dark:text-white/60 mt-1">
+            <p className="text-sm text-white/60 mt-1">
               Comprehensive biomarker analysis ready to share
             </p>
           </div>
@@ -22,10 +22,11 @@ export function ReportTile() {
 
         {/* Badges */}
         <div className="flex items-center gap-2">
-          <Badge className="bg-gradient-to-r from-teal-500/20 to-cyan-500/20 text-teal-400 border-teal-500/30">
+          <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 border">
+            <span className="text-teal-400 mr-1">●</span>
             90+ Biomarkers
           </Badge>
-          <Badge className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-400 border-purple-500/30">
+          <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 border">
             <Share2 className="w-3 h-3 mr-1" />
             Shareable
           </Badge>
@@ -33,7 +34,7 @@ export function ReportTile() {
 
         {/* View Report Button */}
         <button
-          className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white font-medium shadow-lg hover:shadow-xl transition-all"
+          className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white font-semibold shadow-lg hover:shadow-xl transition-all"
           data-testid="button-view-report"
         >
           <div className="flex items-center justify-center gap-2">
