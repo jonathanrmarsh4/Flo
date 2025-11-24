@@ -116,7 +116,8 @@ export function ActionCard({ item, onComplete, onDismiss, onRemove }: ActionCard
               ) : (
                 <ChevronDown className="w-5 h-5 text-white/60" />
               )}
-          </button>
+            </button>
+          </div>
         </div>
 
         {/* Expanded Content */}
