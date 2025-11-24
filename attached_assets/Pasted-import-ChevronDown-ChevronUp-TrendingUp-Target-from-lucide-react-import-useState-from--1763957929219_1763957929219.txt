@@ -1,0 +1,457 @@
+import { ChevronDown, ChevronUp, TrendingUp, Target } from 'lucide-react';
+import { useState } from 'react';
+
+export interface ActionItem {
+  id: string;
+  title: string;
+  insight: string;
+  recommendedAction: string;
+  category: 'Sleep' | 'Activity' | 'Biomarkers' | 'Recovery' | 'Nutrition';
+  addedDate: string;
+  targetBiomarker?: string;
+  currentValue?: number;
+  targetValue?: number;
+  unit?: string;
+}
+
+interface ActionCardProps {
+  action: ActionItem;
+  isDark: boolean;
+  isExpanded?: boolean;
+}
+
+export function ActionCard({ action, isDark, isExpanded = false }: ActionCardProps) {
+  const [expanded, setExpanded] = useState(isExpanded);
+  const [selectedTimeframe, setSelectedTimeframe] = useState('3');
+
+  const categoryColors = {
+    Sleep: { bg: 'from-indigo-500/20 to-purple-500/20', text: 'text-indigo-400', border: 'border-indigo-500/30' },
+    Activity: { bg: 'from-orange-500/20 to-red-500/20', text: 'text-orange-400', border: 'border-orange-500/30' },
+    Biomarkers: { bg: 'from-teal-500/20 to-cyan-500/20', text: 'text-teal-400', border: 'border-teal-500/30' },
+    Recovery: { bg: 'from-green-500/20 to-emerald-500/20', text: 'text-green-400', border: 'border-green-500/30' },
+    Nutrition: { bg: 'from-amber-500/20 to-yellow-500/20', text: 'text-amber-400', border: 'border-amber-500/30' }
+  };
+
+  const colors = categoryColors[action.category];
+  const daysSinceAdded = Math.floor((new Date().getTime() - new Date(action.addedDate).getTime()) / (1000 * 60 * 60 * 24));
+
+  // Mock progress data - in production, this would come from the database
+  const generateMockProgress = () => {
+    const months = parseInt(selectedTimeframe);
+    const dataPoints = months * 2; // Bi-weekly data points
+    const actualData = [];
+    const forecastData = [];
+    const start = action.currentValue || 0;
+    const target = action.targetValue || 0;
+    const improvement = (target - start) / dataPoints;
+    
+    // Split point - actual data is only first 40% of timeline
+    const actualDataPoints = Math.floor(dataPoints * 0.4);
+
+    for (let i = 0; i <= dataPoints; i++) {
+      const date = new Date(Date.now() - (dataPoints - i) * 14 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      
+      // Forecast data - smooth progression
+      forecastData.push({
+        date,
+        value: start + (improvement * i),
+        isForecast: i > actualDataPoints
+      });
+      
+      // Actual data - only for past dates with more variation
+      if (i <= actualDataPoints) {
+        const actualImprovement = improvement * 0.7; // Actual progress is slower
+        const randomVariation = (Math.random() - 0.5) * (Math.abs(improvement) * 0.5);
+        actualData.push({
+          date,
+          value: start + (actualImprovement * i) + randomVariation,
+          isActual: true
+        });
+      }
+    }
+    return { actualData, forecastData };
+  };
+
+  const progressData = action.targetBiomarker ? generateMockProgress() : { actualData: [], forecastData: [] };
+
+  return (
+    <div 
+      className={`backdrop-blur-xl rounded-2xl border transition-all ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+      } ${expanded ? 'shadow-xl' : 'hover:shadow-lg'}`}
+    >
+      {/* Header - Always Visible */}
+      <div 
+        onClick={() => setExpanded(!expanded)}
+        className="p-4 cursor-pointer"
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {action.title}
+              </h3>
+            </div>
+            <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              Added {daysSinceAdded}d ago
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`px-2.5 py-1 rounded-full text-xs border bg-gradient-to-r ${colors.bg} ${colors.border}`}>
+              <span className={colors.text}>{action.category}</span>
+            </div>
+            {expanded ? (
+              <ChevronUp className={`w-5 h-5 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+            ) : (
+              <ChevronDown className={`w-5 h-5 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+            )}
+          </div>
+        </div>
+
+        {/* Collapsed Preview */}
+        {!expanded && (
+          <p className={`text-sm line-clamp-2 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+            {action.insight}
+          </p>
+        )}
+      </div>
+
+      {/* Expanded Content */}
+      {expanded && (
+        <div className={`px-4 pb-4 space-y-4 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+          {/* Insight */}
+          <div className="pt-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className={`w-4 h-4 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+              <h4 className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Insight
+              </h4>
+            </div>
+            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+              {action.insight}
+            </p>
+          </div>
+
+          {/* Recommended Action */}
+          <div className={`p-3 rounded-xl border ${isDark ? 'bg-teal-500/5 border-teal-500/20' : 'bg-teal-50 border-teal-200'}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Target className={`w-4 h-4 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+              <h4 className={`text-sm font-medium ${isDark ? 'text-teal-300' : 'text-teal-900'}`}>
+                Recommended Action
+              </h4>
+            </div>
+            <p className={`text-sm ${isDark ? 'text-teal-200/90' : 'text-teal-800'}`}>
+              {action.recommendedAction}
+            </p>
+          </div>
+
+          {/* Timeframe & Progress Chart */}
+          {action.targetBiomarker && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Progress Tracking
+                </h4>
+                <select
+                  value={selectedTimeframe}
+                  onChange={(e) => setSelectedTimeframe(e.target.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                    isDark 
+                      ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' 
+                      : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50'
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <option value="3">3 months</option>
+                  <option value="6">6 months</option>
+                  <option value="9">9 months</option>
+                  <option value="12">12 months</option>
+                </select>
+              </div>
+
+              {/* Current vs Target */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className={`p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                  <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Current</p>
+                  <p className={`text-xl font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {action.currentValue} <span className={`text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{action.unit}</span>
+                  </p>
+                </div>
+                <div className={`p-3 rounded-xl border bg-gradient-to-br ${colors.bg} ${colors.border}`}>
+                  <p className={`text-xs mb-1 ${colors.text}`}>Target</p>
+                  <p className={`text-xl font-medium ${colors.text}`}>
+                    {action.targetValue} <span className={`text-sm opacity-60`}>{action.unit}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Mini Progress Chart */}
+              <ProgressChart data={progressData} target={action.targetValue || 0} isDark={isDark} unit={action.unit || ''} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Mini Action Card for Dashboard Tile
+export function MiniActionCard({ action, isDark, onClick }: { action: ActionItem; isDark: boolean; onClick: () => void }) {
+  const categoryColors = {
+    Sleep: 'text-indigo-400',
+    Activity: 'text-orange-400',
+    Biomarkers: 'text-teal-400',
+    Recovery: 'text-green-400',
+    Nutrition: 'text-amber-400'
+  };
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`p-3 rounded-xl border transition-all cursor-pointer hover:scale-[1.02] ${
+        isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/80 border-black/10 hover:bg-white'
+      }`}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <h4 className={`text-sm font-medium line-clamp-1 flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {action.title}
+        </h4>
+        <span className={`text-xs ml-2 flex-shrink-0 ${categoryColors[action.category]}`}>
+          {action.category}
+        </span>
+      </div>
+      <p className={`text-xs line-clamp-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+        {action.insight}
+      </p>
+    </div>
+  );
+}
+
+// Progress Chart Component
+function ProgressChart({ data, target, isDark, unit }: { data: any; target: number; isDark: boolean; unit: string }) {
+  const chartWidth = 280;
+  const chartHeight = 140; // Increased for legend
+  const padding = { top: 30, bottom: 30, left: 40, right: 20 }; // Increased top for legend
+  const innerWidth = chartWidth - padding.left - padding.right;
+  const innerHeight = chartHeight - padding.top - padding.bottom;
+
+  const values = [...data.actualData.map(d => d.value), ...data.forecastData.map(d => d.value)];
+  const minValue = Math.min(...values, target) * 0.95;
+  const maxValue = Math.max(...values, target) * 1.05;
+  const valueRange = maxValue - minValue || 1;
+
+  // Forecast points
+  const forecastPoints = data.forecastData.map((d, i) => ({
+    x: padding.left + (i / (data.forecastData.length - 1)) * innerWidth,
+    y: padding.top + (1 - (d.value - minValue) / valueRange) * innerHeight,
+    value: d.value,
+    date: d.date
+  }));
+
+  // Actual points
+  const actualPoints = data.actualData.map((d, i) => {
+    const totalPoints = data.forecastData.length;
+    const ratio = i / (data.actualData.length - 1);
+    const adjustedIndex = ratio * (totalPoints - 1);
+    return {
+      x: padding.left + (adjustedIndex / (totalPoints - 1)) * innerWidth,
+      y: padding.top + (1 - (d.value - minValue) / valueRange) * innerHeight,
+      value: d.value,
+      date: d.date
+    };
+  });
+
+  const targetY = padding.top + (1 - (target - minValue) / valueRange) * innerHeight;
+
+  return (
+    <div className={`p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 mb-2">
+        <div className="flex items-center gap-1.5">
+          <div className="w-6 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+          <span className={`text-[10px] ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Actual Progress</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-6 h-0.5 bg-teal-400 opacity-50 rounded-full"></div>
+          <span className={`text-[10px] ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Forecast</span>
+        </div>
+      </div>
+
+      <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+        <defs>
+          <linearGradient id="actualGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#a855f7" />
+          </linearGradient>
+          <linearGradient id="actualAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+
+        {/* Target Line */}
+        <line
+          x1={padding.left}
+          y1={targetY}
+          x2={chartWidth - padding.right}
+          y2={targetY}
+          stroke="#14b8a6"
+          strokeWidth={1.5}
+          strokeDasharray="4 4"
+          opacity={0.4}
+        />
+        <text
+          x={chartWidth - padding.right - 2}
+          y={targetY - 5}
+          fill={isDark ? '#14b8a6' : '#0d9488'}
+          fontSize="9"
+          opacity={0.7}
+          textAnchor="end"
+        >
+          Target
+        </text>
+
+        {/* Forecast Area */}
+        <path
+          d={`M ${forecastPoints[0].x} ${chartHeight - padding.bottom} ${forecastPoints.map(p => `L ${p.x} ${p.y}`).join(' ')} L ${forecastPoints[forecastPoints.length - 1].x} ${chartHeight - padding.bottom} Z`}
+          fill="#14b8a6"
+          opacity={0.08}
+        />
+
+        {/* Forecast Line - Dashed, lighter */}
+        <path
+          d={`M ${forecastPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`}
+          fill="none"
+          stroke="#14b8a6"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="6 3"
+          opacity={0.5}
+        />
+
+        {/* Actual Progress Area */}
+        {actualPoints.length > 1 && (
+          <path
+            d={`M ${actualPoints[0].x} ${chartHeight - padding.bottom} ${actualPoints.map(p => `L ${p.x} ${p.y}`).join(' ')} L ${actualPoints[actualPoints.length - 1].x} ${chartHeight - padding.bottom} Z`}
+            fill="url(#actualAreaGradient)"
+          />
+        )}
+
+        {/* Actual Progress Line - Solid, prominent */}
+        {actualPoints.length > 1 && (
+          <path
+            d={`M ${actualPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`}
+            fill="none"
+            stroke="url(#actualGradient)"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* Actual Progress Points - Larger, more prominent */}
+        {actualPoints.map((point, i) => (
+          <g key={`actual-${i}`}>
+            <circle cx={point.x} cy={point.y} r={5} fill="#3b82f6" opacity={0.2} />
+            <circle cx={point.x} cy={point.y} r={3} fill="url(#actualGradient)" />
+            <circle cx={point.x} cy={point.y} r={1.5} fill="#fff" opacity={0.8} />
+          </g>
+        ))}
+
+        {/* Forecast Points - Smaller, subtle */}
+        {forecastPoints.map((point, i) => {
+          // Only show forecast points after actual data ends
+          const isAfterActual = i >= Math.floor((data.actualData.length / data.forecastData.length) * forecastPoints.length);
+          if (!isAfterActual) return null;
+          
+          return (
+            <g key={`forecast-${i}`}>
+              <circle cx={point.x} cy={point.y} r={2.5} fill="#14b8a6" opacity={0.3} />
+            </g>
+          );
+        })}
+
+        {/* X-axis labels */}
+        <text
+          x={forecastPoints[0].x}
+          y={chartHeight - padding.bottom + 15}
+          fill={isDark ? '#fff' : '#000'}
+          fontSize="9"
+          opacity={0.5}
+          textAnchor="start"
+        >
+          {data.forecastData[0].date}
+        </text>
+        <text
+          x={forecastPoints[forecastPoints.length - 1].x}
+          y={chartHeight - padding.bottom + 15}
+          fill={isDark ? '#fff' : '#000'}
+          fontSize="9"
+          opacity={0.5}
+          textAnchor="end"
+        >
+          {data.forecastData[data.forecastData.length - 1].date}
+        </text>
+
+        {/* "Today" marker at split point */}
+        {actualPoints.length > 0 && (
+          <>
+            <line
+              x1={actualPoints[actualPoints.length - 1].x}
+              y1={padding.top}
+              x2={actualPoints[actualPoints.length - 1].x}
+              y2={chartHeight - padding.bottom}
+              stroke={isDark ? '#fff' : '#000'}
+              strokeWidth={1}
+              strokeDasharray="2 2"
+              opacity={0.2}
+            />
+            <text
+              x={actualPoints[actualPoints.length - 1].x}
+              y={padding.top - 5}
+              fill={isDark ? '#fff' : '#000'}
+              fontSize="9"
+              opacity={0.6}
+              textAnchor="middle"
+            >
+              Today
+            </text>
+          </>
+        )}
+
+        {/* Y-axis labels */}
+        <text
+          x={padding.left - 5}
+          y={padding.top + 5}
+          fill={isDark ? '#fff' : '#000'}
+          fontSize="9"
+          opacity={0.5}
+          textAnchor="end"
+        >
+          {maxValue.toFixed(0)}
+        </text>
+        <text
+          x={padding.left - 5}
+          y={chartHeight - padding.bottom + 3}
+          fill={isDark ? '#fff' : '#000'}
+          fontSize="9"
+          opacity={0.5}
+          textAnchor="end"
+        >
+          {minValue.toFixed(0)}
+        </text>
+        <text
+          x={padding.left - 5}
+          y={padding.top - 8}
+          fill={isDark ? '#fff' : '#000'}
+          fontSize="8"
+          opacity={0.4}
+          textAnchor="end"
+        >
+          {unit}
+        </text>
+      </svg>
+    </div>
+  );
+}

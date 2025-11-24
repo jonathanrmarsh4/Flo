@@ -1,0 +1,353 @@
+import { X, Filter, Plus, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+
+interface InsightItem {
+  id: string;
+  title: string;
+  insight: string;
+  recommendedAction: string;
+  category: 'Sleep' | 'Activity' | 'Biomarkers' | 'Recovery' | 'Nutrition';
+  targetBiomarker?: string;
+  currentValue?: number;
+  targetValue?: number;
+  unit?: string;
+}
+
+interface InsightsScreenProps {
+  isDark: boolean;
+  onClose: () => void;
+  onAddToActionPlan?: (insight: InsightItem) => void;
+}
+
+// Mock AI-generated insights
+const mockInsights: InsightItem[] = [
+  {
+    id: '1',
+    title: 'Optimize Vitamin D Levels',
+    insight: 'Your Vitamin D levels have been trending below optimal range for the past 6 months, correlating with decreased energy and sleep quality.',
+    recommendedAction: 'Increase daily Vitamin D3 supplementation to 4,000 IU and aim for 15-20 minutes of direct sunlight exposure daily. Retest in 3 months.',
+    category: 'Biomarkers',
+    targetBiomarker: 'Vitamin D',
+    currentValue: 28,
+    targetValue: 50,
+    unit: 'ng/mL'
+  },
+  {
+    id: '2',
+    title: 'Improve Sleep Consistency',
+    insight: 'Your sleep onset time varies by more than 90 minutes across the week, impacting your HRV recovery and morning glucose levels.',
+    recommendedAction: 'Establish a consistent bedtime routine. Aim to sleep between 10:00-10:30 PM every night, including weekends. Track progress with HRV trends.',
+    category: 'Sleep',
+    targetBiomarker: 'HRV',
+    currentValue: 52,
+    targetValue: 68,
+    unit: 'ms'
+  },
+  {
+    id: '3',
+    title: 'Reduce Post-Meal Glucose Spikes',
+    insight: 'Your post-meal glucose levels spike above 140 mg/dL after high-carb meals, indicating insulin sensitivity concerns.',
+    recommendedAction: 'Start meals with protein and vegetables before carbohydrates. Add a 10-minute walk after lunch and dinner. Monitor fasting glucose weekly.',
+    category: 'Biomarkers',
+    targetBiomarker: 'Fasting Glucose',
+    currentValue: 98,
+    targetValue: 85,
+    unit: 'mg/dL'
+  },
+  {
+    id: '4',
+    title: 'Increase Weekly Zone 2 Training',
+    insight: 'Your cardiovascular biomarkers suggest insufficient aerobic base development. HDL could improve with consistent Zone 2 cardio.',
+    recommendedAction: 'Add 3 sessions of 45-minute Zone 2 cardio per week (heart rate 130-145 bpm). Track resting heart rate and HDL levels quarterly.',
+    category: 'Activity',
+    targetBiomarker: 'HDL',
+    currentValue: 42,
+    targetValue: 60,
+    unit: 'mg/dL'
+  },
+  {
+    id: '5',
+    title: 'Support Liver Health',
+    insight: 'Your ALT and AST levels are in the upper normal range, potentially indicating mild liver stress from diet or supplements.',
+    recommendedAction: 'Reduce alcohol to ≤2 drinks per week, increase cruciferous vegetables, and ensure adequate hydration (3L daily). Retest liver panel in 6 months.',
+    category: 'Recovery',
+    targetBiomarker: 'ALT',
+    currentValue: 38,
+    targetValue: 25,
+    unit: 'U/L'
+  },
+  {
+    id: '6',
+    title: 'Optimize Protein Intake',
+    insight: 'Your muscle recovery markers and body composition suggest you may be under-consuming protein relative to your activity level.',
+    recommendedAction: 'Increase daily protein to 1.6-2.0g per kg body weight. Focus on leucine-rich sources at breakfast. Track body composition monthly.',
+    category: 'Nutrition',
+    targetBiomarker: 'Creatinine',
+    currentValue: 0.9,
+    targetValue: 1.1,
+    unit: 'mg/dL'
+  },
+  {
+    id: '7',
+    title: 'Manage Cortisol Patterns',
+    insight: 'Your cortisol awakening response is blunted, suggesting chronic stress or HPA axis dysregulation affecting your energy levels.',
+    recommendedAction: 'Practice 10 minutes of morning sunlight exposure, avoid caffeine before 90 minutes post-waking, and add adaptogenic herbs like ashwagandha.',
+    category: 'Recovery',
+    targetBiomarker: 'Cortisol',
+    currentValue: 18,
+    targetValue: 14,
+    unit: 'μg/dL'
+  },
+  {
+    id: '8',
+    title: 'Improve Omega-3 Index',
+    insight: 'Your Omega-3 Index is below 8%, which is associated with increased inflammation and cardiovascular risk.',
+    recommendedAction: 'Add 2-3g of EPA/DHA daily from fish oil or algae sources. Prioritize fatty fish 2-3x weekly. Retest in 4 months.',
+    category: 'Nutrition',
+    targetBiomarker: 'Omega-3 Index',
+    currentValue: 5.2,
+    targetValue: 8.0,
+    unit: '%'
+  }
+];
+
+// Insight Card Component
+function InsightCard({ insight, isDark, onAddToActionPlan }: { insight: InsightItem; isDark: boolean; onAddToActionPlan?: (insight: InsightItem) => void }) {
+  const [isAdded, setIsAdded] = useState(false);
+  
+  const categoryColors = {
+    Sleep: { bg: 'from-indigo-500/20 to-blue-500/20', border: 'border-indigo-500/30', text: 'text-indigo-400' },
+    Activity: { bg: 'from-orange-500/20 to-amber-500/20', border: 'border-orange-500/30', text: 'text-orange-400' },
+    Biomarkers: { bg: 'from-teal-500/20 to-cyan-500/20', border: 'border-teal-500/30', text: 'text-teal-400' },
+    Recovery: { bg: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30', text: 'text-green-400' },
+    Nutrition: { bg: 'from-amber-500/20 to-yellow-500/20', border: 'border-amber-500/30', text: 'text-amber-400' }
+  };
+
+  const colors = categoryColors[insight.category];
+
+  const handleAdd = () => {
+    setIsAdded(true);
+    onAddToActionPlan?.(insight);
+    setTimeout(() => setIsAdded(false), 2000);
+  };
+
+  return (
+    <div 
+      className={`backdrop-blur-xl rounded-2xl border transition-all ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+      }`}
+    >
+      <div className="p-4">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start gap-3 flex-1">
+            <div className={`p-2.5 rounded-xl border bg-gradient-to-br ${colors.bg} ${colors.border}`}>
+              <Sparkles className={`w-4 h-4 ${colors.text}`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-start justify-between">
+                <h3 className={`font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {insight.title}
+                </h3>
+                <span className={`text-xs ml-2 flex-shrink-0 ${colors.text}`}>
+                  {insight.category}
+                </span>
+              </div>
+              {insight.targetBiomarker && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className={isDark ? 'text-white/50' : 'text-gray-500'}>Target:</span>
+                  <span className={isDark ? 'text-white/70' : 'text-gray-700'}>{insight.targetBiomarker}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Insight */}
+        <div className={`p-3 rounded-xl border mb-3 ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+          <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Insight</p>
+          <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+            {insight.insight}
+          </p>
+        </div>
+
+        {/* Recommended Action */}
+        <div className={`p-3 rounded-xl border bg-gradient-to-br ${colors.bg} ${colors.border}`}>
+          <p className={`text-xs mb-1 ${colors.text}`}>Recommended Action</p>
+          <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+            {insight.recommendedAction}
+          </p>
+        </div>
+
+        {/* Current vs Target */}
+        {insight.currentValue !== undefined && insight.targetValue !== undefined && (
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className={`p-3 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+              <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Current</p>
+              <p className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {insight.currentValue} <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{insight.unit}</span>
+              </p>
+            </div>
+            <div className={`p-3 rounded-xl border bg-gradient-to-br ${colors.bg} ${colors.border}`}>
+              <p className={`text-xs mb-1 ${colors.text}`}>Target</p>
+              <p className={`text-lg font-medium ${colors.text}`}>
+                {insight.targetValue} <span className="text-xs opacity-60">{insight.unit}</span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Add to Action Plan Button */}
+        <button
+          onClick={handleAdd}
+          disabled={isAdded}
+          className={`w-full mt-3 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+            isAdded
+              ? isDark
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-green-50 text-green-600 border border-green-200'
+              : isDark 
+                ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30' 
+                : 'bg-gradient-to-r from-teal-400 via-cyan-400 to-blue-400 text-white shadow-lg hover:shadow-xl'
+          }`}
+        >
+          {isAdded ? (
+            <>
+              <span className="text-sm">✓ Added to Action Plan</span>
+            </>
+          ) : (
+            <>
+              <Plus className="w-4 h-4" />
+              <span className="text-sm">Add to Action Plan</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export function InsightsScreen({ isDark, onClose, onAddToActionPlan }: InsightsScreenProps) {
+  const [selectedFilter, setSelectedFilter] = useState<string>('All');
+  const categories = ['All', 'Sleep', 'Activity', 'Biomarkers', 'Recovery', 'Nutrition'];
+
+  const filteredInsights = selectedFilter === 'All' 
+    ? mockInsights 
+    : mockInsights.filter(insight => insight.category === selectedFilter);
+
+  return (
+    <div 
+      className={`fixed inset-0 z-50 ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900' 
+          : 'bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50'
+      }`}
+    >
+      {/* Header */}
+      <header className={`sticky top-0 z-10 backdrop-blur-xl border-b transition-colors ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`}>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className={`text-xl font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                AI Insights
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                {filteredInsights.length} personalized {filteredInsights.length === 1 ? 'recommendation' : 'recommendations'}
+              </p>
+            </div>
+            <button 
+              onClick={onClose}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+              }`}
+            >
+              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Filter Tabs */}
+      <div className={`sticky top-[65px] z-10 backdrop-blur-xl border-b transition-colors ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`}>
+        <div className="px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <Filter className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+              {categories.map(category => {
+                const isActive = selectedFilter === category;
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedFilter(category)}
+                    className={`px-3 py-1.5 rounded-full whitespace-nowrap transition-all text-xs ${
+                      isActive
+                        ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/25'
+                        : isDark
+                          ? 'bg-white/10 text-white/70 hover:bg-white/20'
+                          : 'bg-white/60 text-gray-700 hover:bg-white/80'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Insights List */}
+      <main className="px-4 py-4 pb-24 overflow-y-auto" style={{ height: 'calc(100vh - 130px)' }}>
+        <div className="max-w-2xl mx-auto space-y-3">
+          {filteredInsights.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4 opacity-20">✨</div>
+              <h3 className={`mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                No insights in this category
+              </h3>
+              <p className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Try selecting a different filter
+              </p>
+            </div>
+          ) : (
+            filteredInsights.map((insight, index) => (
+              <div
+                key={insight.id}
+                style={{
+                  animation: `slideUp 0.4s ease-out ${index * 0.05}s both`
+                }}
+              >
+                <InsightCard insight={insight} isDark={isDark} onAddToActionPlan={onAddToActionPlan} />
+              </div>
+            ))
+          )}
+        </div>
+      </main>
+
+      <style>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
+    </div>
+  );
+}
