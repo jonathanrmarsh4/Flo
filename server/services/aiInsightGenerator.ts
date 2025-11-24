@@ -191,8 +191,12 @@ Generate a health insight with:
    - If this insight is about a specific biomarker that can be tracked (e.g., Vitamin D, HbA1c, Cholesterol, CRP, etc.):
      * **targetBiomarker**: The name of the biomarker (e.g., "Vitamin D", "HbA1c", "LDL Cholesterol")
      * **currentValue**: The user's CURRENT measured value from the baseline data (numeric)
-     * **targetValue**: The OPTIMAL target value the user should aim for (numeric, based on evidence)
-     * **unit**: The unit of measurement (e.g., "ng/mL", "%", "mg/dL")
+     * **targetValue**: The OPTIMAL target value for THIS USER based on:
+       - Age-specific reference ranges (different targets for 25yo vs 65yo)
+       - Sex-specific reference ranges (different targets for males vs females)
+       - Evidence-based optimal zones (not just "normal" but truly optimal for longevity/health)
+       - Example: For a 35yo male with Vitamin D at 28 ng/mL, target should be ~50 ng/mL (middle of optimal range 40-60)
+     * **unit**: The unit of measurement from the baseline data (e.g., "ng/mL", "%", "mg/dL")
    - If this insight is NOT about a trackable biomarker (e.g., sleep patterns, activity correlations without lab values):
      * Leave these fields NULL - not every insight needs progress tracking
 
@@ -243,15 +247,20 @@ Generate a health insight with:
   "action": "Specific recommendation with HOW to do it safely.",
   "targetBiomarker": "Biomarker name (e.g., 'Vitamin D') or null if not applicable",
   "currentValue": 28.5 (numeric current value or null if not applicable),
-  "targetValue": 50 (numeric optimal target or null if not applicable),
+  "targetValue": 50 (numeric age/sex-specific optimal target or null if not applicable),
   "unit": "ng/mL" (unit string or null if not applicable)
 }
 
-IMPORTANT: Only include progress tracking fields (targetBiomarker, currentValue, targetValue, unit) if:
-- The insight is about a SPECIFIC BIOMARKER with measured values
-- You have the current value from the baseline data
-- There is an evidence-based optimal target range
-- Examples: Vitamin D levels, HbA1c, LDL cholesterol, CRP, testosterone, etc.
+IMPORTANT: For biomarker insights, ALWAYS include progress tracking fields:
+- **targetBiomarker**: Extract from the baseline data variable name (e.g., "Vitamin D", "Globulin", "Ferritin")
+- **currentValue**: Extract from the baseline data current value (numeric)
+- **targetValue**: Calculate the MIDDLE of the age/sex-specific optimal range for THIS user
+  - Consider their age (${userContext.age || 'unknown'}) and sex (${userContext.sex || 'unknown'})
+  - Use evidence-based optimal ranges, not just "normal" clinical ranges
+  - Example targets: Vitamin D 50 ng/mL, HbA1c 5.0%, LDL 70 mg/dL, CRP <1.0 mg/L
+- **unit**: Extract from the baseline data unit field
+
+Only set these to null if the insight is NOT about a specific biomarker (e.g., sleep patterns, activity trends).
 
 Do NOT include progress tracking for:
 - General patterns (e.g., "sleep affects recovery")
