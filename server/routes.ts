@@ -6741,6 +6741,107 @@ ${userContext}`;
     }
   });
 
+  // POST /api/action-plan/backfill-biomarker-ids - Backfill biomarkerId for existing action plan items (admin only)
+  app.post("/api/action-plan/backfill-biomarker-ids", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      // Get all action plan items without biomarkerId
+      const itemsWithoutId = await db
+        .select()
+        .from(actionPlanItems)
+        .where(
+          and(
+            isNull(actionPlanItems.biomarkerId),
+            isNotNull(actionPlanItems.targetBiomarker)
+          )
+        );
+
+      logger.info(`[ActionPlan Backfill] Found ${itemsWithoutId.length} items without biomarkerId`);
+
+      let matched = 0;
+      let unmatched = 0;
+      const unmatchedNames: string[] = [];
+
+      for (const item of itemsWithoutId) {
+        const targetName = item.targetBiomarker!;
+
+        // Try exact match on biomarkers.name
+        let biomarkerId: string | null = null;
+        const exactMatch = await db
+          .select({ id: biomarkers.id })
+          .from(biomarkers)
+          .where(eq(biomarkers.name, targetName))
+          .limit(1);
+
+        if (exactMatch.length > 0) {
+          biomarkerId = exactMatch[0].id;
+          logger.info(`[ActionPlan Backfill] Exact match for "${targetName}"`);
+        } else {
+          // Try exact match on biomarkerSynonyms.label
+          const synonymMatch = await db
+            .select({ biomarkerId: biomarkerSynonyms.biomarkerId })
+            .from(biomarkerSynonyms)
+            .where(eq(biomarkerSynonyms.label, targetName))
+            .limit(1);
+
+          if (synonymMatch.length > 0) {
+            biomarkerId = synonymMatch[0].biomarkerId;
+            logger.info(`[ActionPlan Backfill] Synonym match for "${targetName}"`);
+          } else {
+            // Try case-insensitive fuzzy match
+            const fuzzyMatch = await db
+              .select({ biomarkerId: biomarkerSynonyms.biomarkerId })
+              .from(biomarkerSynonyms)
+              .where(sql`LOWER(${biomarkerSynonyms.label}) = LOWER(${targetName})`)
+              .limit(1);
+
+            if (fuzzyMatch.length > 0) {
+              biomarkerId = fuzzyMatch[0].biomarkerId;
+              logger.info(`[ActionPlan Backfill] Fuzzy match for "${targetName}"`);
+            } else {
+              // Also try fuzzy match on biomarkers.name
+              const biomarkerFuzzyMatch = await db
+                .select({ id: biomarkers.id })
+                .from(biomarkers)
+                .where(sql`LOWER(${biomarkers.name}) = LOWER(${targetName})`)
+                .limit(1);
+
+              if (biomarkerFuzzyMatch.length > 0) {
+                biomarkerId = biomarkerFuzzyMatch[0].id;
+                logger.info(`[ActionPlan Backfill] Fuzzy biomarker name match for "${targetName}"`);
+              }
+            }
+          }
+        }
+
+        // Update item if biomarkerId found
+        if (biomarkerId) {
+          await db
+            .update(actionPlanItems)
+            .set({ biomarkerId })
+            .where(eq(actionPlanItems.id, item.id));
+          matched++;
+        } else {
+          unmatched++;
+          unmatchedNames.push(targetName);
+          logger.warn(`[ActionPlan Backfill] No match found for "${targetName}"`);
+        }
+      }
+
+      logger.info(`[ActionPlan Backfill] Complete: ${matched} matched, ${unmatched} unmatched`);
+      
+      res.json({ 
+        success: true,
+        totalItems: itemsWithoutId.length,
+        matched,
+        unmatched,
+        unmatchedNames
+      });
+    } catch (error: any) {
+      logger.error('[ActionPlan Backfill] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   registerAdminRoutes(app);
   
   // Mobile auth routes (Apple, Google, Email/Password)
