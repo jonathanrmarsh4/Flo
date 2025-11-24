@@ -339,8 +339,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           profileName: "Global Default",
         });
 
-        // Create test session
-        const testDate = new Date();
+        // Create test session using extracted test date
+        const testDate = new Date(extractionResult.data.testDate);
         const session = await storage.createTestSession({
           userId,
           source: "ai_extracted",
