@@ -2135,6 +2135,12 @@ export const dailyInsights = pgTable("daily_insights", {
   body: text("body").notNull(), // Magnitude + evidence + context + freshness note
   action: text("action"), // Exact recommendation or experiment
   
+  // Progress tracking (for biomarker-related insights)
+  targetBiomarker: text("target_biomarker"), // Name of the biomarker being tracked (e.g., "Vitamin D")
+  currentValue: real("current_value"), // Current value (e.g., 28)
+  targetValue: real("target_value"), // Target value to achieve (e.g., 50)
+  unit: text("unit"), // Unit of measurement (e.g., "ng/mL")
+  
   // Scoring and classification
   confidenceScore: real("confidence_score").notNull(), // 0-100
   impactScore: real("impact_score").notNull(), // 0-100

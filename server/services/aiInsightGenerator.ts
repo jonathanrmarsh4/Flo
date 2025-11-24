@@ -54,6 +54,10 @@ export interface AIGeneratedInsight {
   title: string;
   body: string;
   action: string;
+  targetBiomarker?: string; // Name of the biomarker being tracked (e.g., "Vitamin D")
+  currentValue?: number; // Current value (e.g., 28)
+  targetValue?: number; // Target value to achieve (e.g., 50)
+  unit?: string; // Unit of measurement (e.g., "ng/mL")
 }
 
 // ============================================================================
@@ -172,6 +176,14 @@ Generate a health insight with:
    - MUST consider user's current state (e.g., don't recommend fat loss to lean individuals)
    - Include HOW to achieve it (specific training/nutrition/lifestyle guidance)
    - Use realistic timelines and targets
+4. **Progress Tracking** (for biomarker-related insights ONLY):
+   - If this insight is about a specific biomarker that can be tracked (e.g., Vitamin D, HbA1c, Cholesterol, CRP, etc.):
+     * **targetBiomarker**: The name of the biomarker (e.g., "Vitamin D", "HbA1c", "LDL Cholesterol")
+     * **currentValue**: The user's CURRENT measured value from the baseline data (numeric)
+     * **targetValue**: The OPTIMAL target value the user should aim for (numeric, based on evidence)
+     * **unit**: The unit of measurement (e.g., "ng/mL", "%", "mg/dL")
+   - If this insight is NOT about a trackable biomarker (e.g., sleep patterns, activity correlations without lab values):
+     * Leave these fields NULL - not every insight needs progress tracking
 
 ## CRITICAL SAFETY RULES (YOU MUST FOLLOW THESE)
 
@@ -217,8 +229,23 @@ Generate a health insight with:
 {
   "title": "Short punchy headline",
   "body": "What changed, why it matters, good/bad interpretation for this user.",
-  "action": "Specific recommendation with HOW to do it safely."
-}`;
+  "action": "Specific recommendation with HOW to do it safely.",
+  "targetBiomarker": "Biomarker name (e.g., 'Vitamin D') or null if not applicable",
+  "currentValue": 28.5 (numeric current value or null if not applicable),
+  "targetValue": 50 (numeric optimal target or null if not applicable),
+  "unit": "ng/mL" (unit string or null if not applicable)
+}
+
+IMPORTANT: Only include progress tracking fields (targetBiomarker, currentValue, targetValue, unit) if:
+- The insight is about a SPECIFIC BIOMARKER with measured values
+- You have the current value from the baseline data
+- There is an evidence-based optimal target range
+- Examples: Vitamin D levels, HbA1c, LDL cholesterol, CRP, testosterone, etc.
+
+Do NOT include progress tracking for:
+- General patterns (e.g., "sleep affects recovery")
+- Activity correlations without lab values
+- Behavioral insights without biomarkers`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -244,10 +271,14 @@ Generate a health insight with:
 
     const parsed = JSON.parse(content);
 
-    const insight = {
+    const insight: AIGeneratedInsight = {
       title: parsed.title || 'Health Insight',
       body: parsed.body || 'Correlation detected in your data.',
       action: parsed.action || 'Monitor this relationship over time.',
+      targetBiomarker: parsed.targetBiomarker || undefined,
+      currentValue: parsed.currentValue !== null && parsed.currentValue !== undefined ? Number(parsed.currentValue) : undefined,
+      targetValue: parsed.targetValue !== null && parsed.targetValue !== undefined ? Number(parsed.targetValue) : undefined,
+      unit: parsed.unit || undefined,
     };
     
     // POST-GENERATION SAFETY VALIDATION
@@ -261,11 +292,15 @@ Generate a health insight with:
   } catch (error) {
     logger.error('AI insight generation failed', { error, candidate });
     
-    // Fallback to basic insight
+    // Fallback to basic insight (without progress tracking)
     return {
       title: `${candidate.independent} affects ${candidate.dependent}`,
       body: `Your ${candidate.independent} and ${candidate.dependent} show a ${candidate.direction} relationship. This pattern is supported by ${evidenceExplanation}.`,
       action: `Monitor the relationship between ${candidate.independent} and ${candidate.dependent} to understand how changes affect your health.`,
+      targetBiomarker: undefined,
+      currentValue: undefined,
+      targetValue: undefined,
+      unit: undefined,
     };
   }
 }

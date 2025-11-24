@@ -354,6 +354,10 @@ export interface GeneratedInsight {
   actionable: string; // Specific recommendation
   primarySources: string[]; // Data sources with freshness indicators
   experiment?: ExperimentSuggestion; // N-of-1 experiment (if applicable)
+  targetBiomarker?: string; // Name of the biomarker being tracked (e.g., "Vitamin D")
+  currentValue?: number; // Current value (e.g., 28)
+  targetValue?: number; // Target value to achieve (e.g., 50)
+  unit?: string; // Unit of measurement (e.g., "ng/mL")
 }
 
 /**

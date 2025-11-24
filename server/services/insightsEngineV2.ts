@@ -578,6 +578,10 @@ export async function generateInsightNarrative(
       details: '', // AI body already includes all details
       actionable: aiInsight.action,
       primarySources: candidate.variables, // Use variables as sources
+      targetBiomarker: aiInsight.targetBiomarker,
+      currentValue: aiInsight.currentValue,
+      targetValue: aiInsight.targetValue,
+      unit: aiInsight.unit,
     };
   } catch (error) {
     logger.error('AI insight generation failed, falling back to template', { error, candidate });
@@ -1192,6 +1196,10 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
             title: pair.narrative.title,
             body: `${pair.narrative.summary}\n\n${pair.narrative.details}`,
             action: pair.narrative.actionable || null,
+            targetBiomarker: pair.narrative.targetBiomarker || null,
+            currentValue: pair.narrative.currentValue ?? null,
+            targetValue: pair.narrative.targetValue ?? null,
+            unit: pair.narrative.unit || null,
             confidenceScore: clampScore(pair.ranked.confidenceScore),
             impactScore: clampScore(pair.ranked.impactScore),
             actionabilityScore: clampScore(pair.ranked.actionabilityScore),

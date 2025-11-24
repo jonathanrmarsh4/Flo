@@ -6214,6 +6214,10 @@ ${userContext}`;
         confidence: insight.confidenceScore, // Already 0-1 range from scoring functions
         supportingData: insight.body, // Map body -> supportingData
         action: insight.action, // CRITICAL FIX: Include actionable recommendations
+        targetBiomarker: insight.targetBiomarker,
+        currentValue: insight.currentValue,
+        targetValue: insight.targetValue,
+        unit: insight.unit,
         details: insight.details,
         isNew: insight.isNew,
         isActive: !insight.isDismissed,
