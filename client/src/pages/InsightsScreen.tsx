@@ -83,26 +83,6 @@ export default function InsightsScreen() {
     queryKey: ['/api/daily-insights'],
   });
 
-  const refreshInsightsMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest('POST', '/api/daily-insights/refresh', {});
-    },
-    onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/daily-insights'] });
-      toast({
-        title: "Insights Refreshed",
-        description: `Generated ${data.insightsGenerated} new insight${data.insightsGenerated !== 1 ? 's' : ''}`,
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to refresh insights",
-        variant: "destructive",
-      });
-    },
-  });
-
   const addToActionPlanMutation = useMutation({
     mutationFn: async (insight: DailyInsight) => {
       // Log what we're sending to debug progress tracking
@@ -168,28 +148,13 @@ export default function InsightsScreen() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 px-6 py-6 border-b border-white/10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-insights">
-                AI Insights
-              </h1>
-              <p className="text-sm text-white/60">
-                {filteredInsights.length} personalized recommendation{filteredInsights.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-            
-            {/* Refresh button - moved to left side, aligned with title */}
-            <button
-              onClick={() => refreshInsightsMutation.mutate()}
-              disabled={refreshInsightsMutation.isPending}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50 flex-shrink-0"
-              data-testid="button-refresh-insights"
-              aria-label="Refresh insights"
-            >
-              <RefreshCw 
-                className={`w-5 h-5 text-white ${refreshInsightsMutation.isPending ? 'animate-spin' : ''}`} 
-              />
-            </button>
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-insights">
+              AI Insights
+            </h1>
+            <p className="text-sm text-white/60">
+              {filteredInsights.length} personalized recommendation{filteredInsights.length !== 1 ? 's' : ''}
+            </p>
           </div>
 
           {/* Category Filter Pills */}
