@@ -2191,7 +2191,8 @@ export const actionPlanItems = pgTable("action_plan_items", {
   
   // Progress tracking
   status: actionPlanStatusEnum("status").notNull().default("active"),
-  targetBiomarker: text("target_biomarker"), // e.g., "Vitamin D"
+  biomarkerId: varchar("biomarker_id").references(() => biomarkers.id, { onDelete: "set null" }), // For deterministic biomarker joins
+  targetBiomarker: text("target_biomarker"), // Display name e.g., "Vitamin D"
   currentValue: real("current_value"), // Starting value
   targetValue: real("target_value"), // Goal value
   unit: text("unit"), // e.g., "ng/mL"
