@@ -6562,20 +6562,33 @@ ${userContext}`;
         }
       }
 
-      // Lookup biomarkerId if targetBiomarker is provided
+      // Lookup biomarkerId if targetBiomarker is provided (with synonym matching)
       let biomarkerId: string | undefined;
       if (data.targetBiomarker) {
-        const biomarker = await db
+        // Try exact match first
+        const exactMatch = await db
           .select({ id: biomarkers.id })
           .from(biomarkers)
           .where(eq(biomarkers.name, data.targetBiomarker))
           .limit(1);
         
-        if (biomarker.length > 0) {
-          biomarkerId = biomarker[0].id;
-          logger.info(`[ActionPlan] Matched biomarker "${data.targetBiomarker}" to ID ${biomarkerId}`);
+        if (exactMatch.length > 0) {
+          biomarkerId = exactMatch[0].id;
+          logger.info(`[ActionPlan] Exact match: "${data.targetBiomarker}" → ID ${biomarkerId}`);
         } else {
-          logger.warn(`[ActionPlan] No biomarker found with exact name "${data.targetBiomarker}"`);
+          // Try synonym match (case-insensitive)
+          const synonymMatch = await db
+            .select({ biomarkerId: biomarkerSynonyms.biomarkerId })
+            .from(biomarkerSynonyms)
+            .where(sql`LOWER(${biomarkerSynonyms.label}) = LOWER(${data.targetBiomarker})`)
+            .limit(1);
+          
+          if (synonymMatch.length > 0) {
+            biomarkerId = synonymMatch[0].biomarkerId;
+            logger.info(`[ActionPlan] Synonym match: "${data.targetBiomarker}" → ID ${biomarkerId}`);
+          } else {
+            logger.warn(`[ActionPlan] No biomarker found for "${data.targetBiomarker}" (tried exact + synonyms)`);
+          }
         }
       }
 
