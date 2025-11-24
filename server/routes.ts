@@ -6592,9 +6592,19 @@ ${userContext}`;
         }
       }
 
-      const item = await storage.addActionPlanItem(userId, { ...data, biomarkerId } as any);
+      // Log what we're about to save
+      const itemData = { ...data, biomarkerId };
+      logger.info(`[ActionPlan] Saving item:`, {
+        targetBiomarker: itemData.targetBiomarker,
+        currentValue: itemData.currentValue,
+        targetValue: itemData.targetValue,
+        unit: itemData.unit,
+        biomarkerId: itemData.biomarkerId
+      });
       
-      logger.info(`[ActionPlan] Item added by user ${userId}`);
+      const item = await storage.addActionPlanItem(userId, itemData as any);
+      
+      logger.info(`[ActionPlan] Item added - ID: ${item.id}, biomarkerId: ${item.biomarkerId}, targetBiomarker: ${item.targetBiomarker}, currentValue: ${item.currentValue}`);
       res.json({ item });
     } catch (error: any) {
       logger.error('[ActionPlan] Add error:', error);
