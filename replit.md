@@ -1,7 +1,7 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is a mobile-first AI-powered health analytics platform designed to analyze blood work, calculate biological age, and provide personalized health recommendations. It features a dashboard with intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. Key capabilities include integration with OpenAI's GPT models and Apple HealthKit, and **Flō Oracle**, a Grok-powered voice chat coach for real-time health insights. The platform incorporates a **Stripe-powered subscription system** offering FREE and PREMIUM tiers with feature gating. Flō's core purpose is to deliver trusted, clear, and actionable health information, offering deep health insights and significant market potential in personalized wellness.
+Flō is a mobile-first AI-powered health analytics platform that analyzes blood work, calculates biological age, and provides personalized health recommendations. It features a dashboard with intelligent tiles summarizing lab results, diagnostic studies, and HealthKit data into actionable health scores. Key capabilities include integration with OpenAI's GPT models and Apple HealthKit, and **Flō Oracle**, a Grok-powered voice chat coach for real-time health insights. The platform incorporates a **Stripe-powered subscription system** offering FREE and PREMIUM tiers with feature gating. Flō's core purpose is to deliver trusted, clear, and actionable health information, offering deep health insights and significant market potential in personalized wellness.
 
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
@@ -9,112 +9,10 @@ Flō is a mobile-first AI-powered health analytics platform designed to analyze 
 - AI Health Commentary Policy: Flō Oracle is configured to provide evidence-based health analysis with educational disclaimers rather than blocking health insights. The AI can discuss what biomarkers might indicate, potential health patterns, and treatment options to discuss with physicians. All health-related responses include: "⚕️ This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions." Only truly dangerous patterns (specific medication prescriptions with dosages) are blocked.
 - Flō Oracle Personality: Changed from conversational/therapeutic style to analytical data scientist personality. The AI now proactively searches for patterns and correlations in user data, leads with data analysis rather than general conversation, and minimizes chitchat to focus on evidence-based insights. Primary mission: Connect the dots between metrics, spot trends, and surface actionable insights from data relationships.
 
-## Recent Changes
-
-### Navigation & Insights/Actions Page Restructure (Nov 24, 2025)
-**Feature**: Restructured navigation and page hierarchy to separate Daily Insights (modal) from Action Plan (dedicated page).
-
-**Navigation Changes**:
-1. ✅ **Bottom toolbar updated**: Changed "Insights" tab → "Actions" tab linking to `/actions` page
-2. ✅ **AI Insights tile**: "View all insights" button now opens InsightsScreen as a modal overlay instead of navigating to separate page
-3. ✅ **InsightsModal component**: Created modal wrapper for InsightsScreen with backdrop, close button, and full-screen layout
-
-**Insights Page (Modal)**:
-- Removed tabs (Active/Completed/Dismissed)
-- Added category filter pills: All, Sleep, Activity, Biomarkers, Recovery, Nutrition
-- Category filtering with proper empty states
-- All insights displayed in scrollable list
-- Opens from AI Insights dashboard tile
-
-**Actions Page (`/actions`)**:
-- Accessible from bottom toolbar "Actions" button
-- Health Summary Report tile with "90+ Biomarkers" and "Shareable" badges
-- Category filter pills matching Insights page
-- Expandable/collapsible action cards:
-  - **Collapsed**: Title, category badge, timestamp, expand button
-  - **Expanded**: Full insight text, recommended action section, progress tracking (time period selector, current/target value cards, chart placeholder), action buttons
-- Shows filtered active actions in single list
-
-**User Flow**:
-- Dashboard → AI Insights tile "View all insights" → InsightsScreen modal
-- Bottom toolbar "Actions" button → Actions page (`/actions`)
-
-### Dashboard Tile Drag-and-Drop Reordering (Nov 23, 2025)
-**Feature**: Implemented intuitive drag-and-drop tile reordering for the Flō dashboard, allowing users to personalize their dashboard layout.
-
-**Implementation**:
-1. ✅ **@dnd-kit integration**: Using `@dnd-kit/core` and `@dnd-kit/sortable` for smooth, accessible drag-and-drop
-2. ✅ **Persistent tile order**: `useTileOrder` hook manages order state with localStorage persistence across sessions
-3. ✅ **Visual indicators**: GripVertical icon handles in top-right corner of each tile, with hover states and opacity changes during drag
-4. ✅ **Locked hero tile**: Flō Overview tile permanently locked at position 0, all other tiles are reorderable
-5. ✅ **iOS mobile-optimized**: Critical tap-propagation fixes for Capacitor/iOS WebView compatibility:
-   - `isPressingHandle` state tracks handle press/release with 150ms delay
-   - Content wrapper intercepts bubbled pointer/click events during drag/handle press
-   - Handle events use both `stopPropagation()` AND `preventDefault()` to prevent tap-through
-   - Tile onClick handlers gated with `isDragging` check as double protection
-6. ✅ **Architect-approved**: Production-ready for iOS/Capacitor deployment
-
-**Reorderable Tiles**:
-- Flōmentum (momentum scoring)
-- AI Insights
-- Quick Stats (steps, active energy, stand hours)
-- Sleep Analysis
-- Readiness Score
-- Biological Age
-- Workouts
-- Heart & Metabolic Health
-- Body Composition
-
-**Technical Details**:
-- Touch-friendly sensors with 5px activation threshold
-- Smooth CSS transforms for drag animations
-- Vertical list sorting strategy
-- All tile interactions remain functional during reordering
-
-### RAG Insights Category Diversity Fix - Weighted Domain Scoring (Nov 23, 2025)
-**Problem**: User reported 8 insights generated but ZERO sleep or recovery insights despite poor sleep trends and HRV data available. Previous first-match classification strategy caused category starvation.
-
-**Root Cause**: The `classifyRAGInsight()` function used `determineHealthDomain()` which returned the FIRST matching domain. Mixed insights like ["Ferritin", "Sleep", "HRV"] collapsed into "biomarkers" category, starving Sleep and Recovery categories.
-
-**Solution**: Implemented weighted domain scoring classifier to prioritize sleep/recovery metrics.
-
-**Fixes Applied**:
-1. ✅ **Increased max insights to 20** (user request): Updated RAG prompt from "5-8 insights" to "up to 20 insights"
-2. ✅ **Enhanced prompt for trend analysis**:
-   - Explicitly requests insights across all 4 categories: BIOMARKERS, SLEEP, RECOVERY, ACTIVITY
-   - Emphasis on TRENDS over time (e.g., "sleep duration declining over past 2 weeks")
-   - Focus on HRV correlations with sleep, stress, and recovery
-   - Prioritize sleep and recovery pattern discovery
-3. ✅ **Relaxed HealthKit requirements** (`ragInsightGenerator.ts`):
-   - Changed minimum days from 14 → 10 days
-   - Allow up to 3 null values per metric (4+ valid values required per week)
-   - More forgiving change detection for sparse data
-4. ✅ **Implemented weighted domain scoring** (`insightsEngineV2.ts`):
-   - Expanded metric domain map to 45+ metrics with primary/secondary weights
-   - Sleep metrics: sleep, deep sleep, REM, sleep efficiency, latency, awakenings
-   - Recovery metrics: HRV, resting HR, respiratory rate
-   - Performance metrics: steps, active energy, exercise, VO2 max, stand hours
-   - Biomarkers organized by domain: inflammatory, hormonal, metabolic
-   - Scoring system: Primary domain = +2 points, Secondary domain = +1 point
-   - Priority-based tie-breaking: sleep > recovery > performance > biomarkers
-   - This ensures sleep/recovery insights win ties against biomarkers
-
-**Example Classifications**:
-- `["Sleep", "HRV"]` → sleep: 2, recovery: 3 → **recovery_hrv** ✅
-- `["Ferritin", "Sleep"]` → inflammatory: 2, sleep: 2 → **sleep_quality** (priority) ✅
-- `["HRV", "Resting HR"]` → recovery: 4 → **recovery_hrv** ✅
-- `["Ferritin"]` → inflammatory: 2 → **biomarkers** ✅
-
-**Expected Results**:
-- Up to 20 holistic insights generated daily (up from 5-8)
-- Sleep insights properly categorized even when mixed with biomarkers
-- Recovery/HRV insights prioritized for proper category distribution
-- Comprehensive coverage across Sleep, Activity, Biomarkers, and Recovery categories
-
 ## System Architecture
 
 ### UI/UX Decisions
-The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, utilizing Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. The UI includes locked tiles and paywall modals for subscription management, alongside an admin panel with manual insight generation controls.
+The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, utilizing Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. The UI includes locked tiles and paywall modals for subscription management, alongside an admin panel with manual insight generation controls. A recent dark theme overhaul updated AI Insights, Actions, and related components with new design specifications, including specific gradients, backgrounds, and text hierarchy. Navigation was restructured to separate Daily Insights (modal) from Action Plan (dedicated page), and dashboard tiles now support drag-and-drop reordering with persistence.
 
 ### Technical Implementations
 **Frontend:** Built with React, TypeScript, and Vite, using TanStack Query for server state and Wouter for routing. It includes biomarker insights, AI-powered health reports, PDF upload for blood work parsing, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, and **Flō Oracle voice chat** using ElevenLabs via WebSockets. The dashboard also features a **Flōmentum tile** for daily health momentum scores.
@@ -123,7 +21,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, workouts, daily metrics, Flōmentum data, RAG Insights, life events, push notification management, billing, and audit logs.
 
-**Daily Insights Engine v2.0 (RAG-Based):** Generates 0-5 personalized health insights daily at 06:00 local time using a simplified 2-layer architecture: **RAG Layer** (holistic cross-domain pattern discovery via vector search + GPT-4o) and **Layer D** (out-of-range biomarker safety net). It uses evidence-based confidence scoring, insight ranking, domain diversity limits, and natural language generation.
+**Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights daily using a 2-layer architecture: **RAG Layer** (holistic cross-domain pattern discovery via vector search + GPT-4o) and **Layer D** (out-of-range biomarker safety net). It uses evidence-based confidence scoring, insight ranking, domain diversity limits, and natural language generation. The system incorporates weighted domain scoring to ensure diverse category insights, particularly for sleep and recovery, by prioritizing these metrics and relaxing HealthKit requirements for sparse data.
 
 **Conversational Life Event Logging System:** Automatically tracks comprehensive health narratives from Flō Oracle conversations, including dosage, symptoms, and health goals, by parsing events into structured JSONB logged to the `life_events` table. These events integrate into Flō Oracle's context.
 
@@ -157,7 +55,3 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **OpenAI:** GPT-4o and GPT-5 models for health insights, text-embedding-3-small for RAG.
 - **xAI (Grok):** grok-3-mini model for Flō Oracle.
 - **ElevenLabs:** Conversational AI platform for natural voice interactions.
-
-### Key Technologies/Libraries
-- **Frontend:** `@tanstack/react-query`, `wouter`, `@radix-ui/*`, `tailwindcss`, `react-hook-form`, `zod`, `date-fns`, `@capacitor/*`, `capacitor-secure-storage-plugin`, `@healthpilot/healthkit`.
-- **Backend:** `express`, `drizzle-orm`, `@neondatabase/serverless`, `passport`, `openid-client`, `express-session`, `connect-pg-simple`, `@google-cloud/storage`, `openai`, `jose`, `jsonwebtoken`, `pdf-parse`, `apns2`.
