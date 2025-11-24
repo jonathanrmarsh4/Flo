@@ -37,7 +37,7 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
       <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
-        <div className="px-4 py-4">
+        <div className="px-4 pt-4 pb-4">
           <div className="flex items-center justify-center">
             <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Diagnostics</h1>
           </div>

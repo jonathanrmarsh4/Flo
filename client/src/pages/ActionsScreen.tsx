@@ -107,38 +107,40 @@ export default function ActionsScreen() {
     <div className="relative h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex-shrink-0 px-6 py-6 pt-[env(safe-area-inset-top)] border-b border-white/10">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-actions">
-                Action Plan
-              </h1>
-              <p className="text-sm text-white/60">
-                {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-            <button className="p-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50">
-              <Plus className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Category Filter Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-            <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
-            {categoryFilterOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setSelectedCategory(option.value)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                  selectedCategory === option.value
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
-                    : 'bg-white/10 text-white/70 hover:bg-white/20'
-                }`}
-                data-testid={`filter-${option.value}`}
-              >
-                {option.label}
+        <div className="flex-shrink-0 pt-[env(safe-area-inset-top)] border-b border-white/10">
+          <div className="px-6 pt-6 pb-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-actions">
+                  Action Plan
+                </h1>
+                <p className="text-sm text-white/60">
+                  {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button className="p-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50">
+                <Plus className="w-5 h-5" />
               </button>
-            ))}
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+              <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
+              {categoryFilterOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setSelectedCategory(option.value)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                    selectedCategory === option.value
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
+                      : 'bg-white/10 text-white/70 hover:bg-white/20'
+                  }`}
+                  data-testid={`filter-${option.value}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
