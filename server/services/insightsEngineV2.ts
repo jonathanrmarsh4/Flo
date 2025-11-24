@@ -577,6 +577,14 @@ export async function generateInsightNarrative(
     // Use AI to generate contextual insight
     const aiInsight = await generateContextualInsight(candidate, userContext, baselines);
     
+    // DEBUG: Log what the AI generated
+    logger.info(`[AI Insight Generated] ${aiInsight.title}`, {
+      targetBiomarker: aiInsight.targetBiomarker,
+      currentValue: aiInsight.currentValue,
+      targetValue: aiInsight.targetValue,
+      unit: aiInsight.unit,
+    });
+    
     // Convert AI insight to GeneratedInsight format
     return {
       title: aiInsight.title,

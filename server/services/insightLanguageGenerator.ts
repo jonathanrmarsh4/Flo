@@ -575,5 +575,10 @@ export function generateInsight(params: {
     actionable,
     primarySources,
     experiment,
+    // Template-based insights don't have progress tracking
+    targetBiomarker: undefined,
+    currentValue: undefined,
+    targetValue: undefined,
+    unit: undefined,
   };
 }

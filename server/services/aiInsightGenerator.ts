@@ -145,6 +145,16 @@ export async function generateContextualInsight(
 
   // Build baseline summary
   const baselineSummary = buildBaselineSummary(baselines);
+  
+  // DEBUG: Log baseline data being passed to AI
+  logger.info(`[AI Prompt Debug] Baseline data for "${candidate.independent}"`, {
+    baselineCount: baselines.length,
+    baselines: baselines.map(b => ({
+      variable: b.variable,
+      current: b.current,
+      unit: b.unit,
+    })),
+  });
 
   // Build correlation summary
   const correlationSummary = buildCorrelationSummary(candidate);
