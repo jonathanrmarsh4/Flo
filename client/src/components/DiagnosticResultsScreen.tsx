@@ -28,13 +28,13 @@ interface DiagnosticResultsScreenProps {
 
 export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaScan, userSex }: DiagnosticResultsScreenProps) {
   return (
-    <div className={`h-full overflow-y-auto pb-20 transition-colors ${
+    <div className={`h-full overflow-y-auto overscroll-none pb-20 transition-colors ${
       isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
     }`}>
       {/* Header */}
-      <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
+      <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
         <div className="px-4 py-4">

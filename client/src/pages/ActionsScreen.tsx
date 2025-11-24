@@ -107,7 +107,7 @@ export default function ActionsScreen() {
     <div className="relative h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex-shrink-0 px-6 py-6 border-b border-white/10">
+        <div className="flex-shrink-0 px-6 py-6 pt-[env(safe-area-inset-top)] border-b border-white/10">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-actions">
@@ -143,7 +143,7 @@ export default function ActionsScreen() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto overscroll-none px-6 py-4">
           {/* Report Tile - Health Summary */}
           <ReportTile />
 
