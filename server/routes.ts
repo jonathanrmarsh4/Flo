@@ -19,7 +19,7 @@ import {
   canAccessFlomentum,
 } from "./middleware/planEnforcement";
 import { logger } from "./logger";
-import { eq, desc, and, gte, sql } from "drizzle-orm";
+import { eq, desc, and, gte, sql, isNull, isNotNull } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -51,6 +51,7 @@ import {
   deviceTokens,
   apnsConfiguration,
   biomarkers,
+  biomarkerSynonyms,
   biomarkerTestSessions,
   biomarkerMeasurements,
   insertNotificationTriggerSchema,
@@ -6737,6 +6738,33 @@ ${userContext}`;
       });
     } catch (error: any) {
       logger.error('[DailyInsightsV2] Force generate error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/action-plan/debug - Debug action plan items (admin only)
+  app.get("/api/action-plan/debug", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.query.userId as string;
+      
+      const items = await db
+        .select({
+          id: actionPlanItems.id,
+          targetBiomarker: actionPlanItems.targetBiomarker,
+          biomarkerId: actionPlanItems.biomarkerId,
+          currentValue: actionPlanItems.currentValue,
+          targetValue: actionPlanItems.targetValue,
+          unit: actionPlanItems.unit,
+          addedAt: actionPlanItems.addedAt,
+        })
+        .from(actionPlanItems)
+        .where(userId ? eq(actionPlanItems.userId, userId) : sql`true`)
+        .orderBy(desc(actionPlanItems.addedAt))
+        .limit(10);
+
+      res.json({ items });
+    } catch (error: any) {
+      logger.error('[ActionPlan Debug] Error:', error);
       res.status(500).json({ error: error.message });
     }
   });
