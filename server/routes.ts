@@ -63,6 +63,7 @@ import {
   actionPlanItems,
   insertActionPlanItemSchema,
   ActionPlanStatusEnum,
+  users,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -6234,6 +6235,52 @@ ${userContext}`;
       });
     } catch (error: any) {
       logger.error('[DailyInsightsV2] Fetch error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/whoami - Get authenticated user's ID and basic info
+  app.get("/api/whoami", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      // Get user info from database
+      const user = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      // Count data
+      const [insightCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(dailyInsights)
+        .where(eq(dailyInsights.userId, userId));
+
+      const [actionCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(actionPlanItems)
+        .where(eq(actionPlanItems.userId, userId));
+
+      res.json({
+        userId: userId,
+        user: user[0] || null,
+        dataCounts: {
+          insights: Number(insightCount?.count || 0),
+          actionPlan: Number(actionCount?.count || 0),
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Whoami] Error:', error);
       res.status(500).json({ error: error.message });
     }
   });
