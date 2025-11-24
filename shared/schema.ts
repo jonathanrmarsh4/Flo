@@ -85,6 +85,11 @@ export const readinessBucketEnum = pgEnum("readiness_bucket", ["recover", "ok", 
 // Flōmentum enums
 export const flomentumZoneEnum = pgEnum("flomentum_zone", ["BUILDING", "MAINTAINING", "DRAINING"]);
 
+// Data export and sharing enums
+export const exportFormatEnum = pgEnum("export_format", ["pdf", "csv", "json"]);
+export const exportStatusEnum = pgEnum("export_status", ["pending", "processing", "completed", "failed"]);
+export const shareLinkStatusEnum = pgEnum("share_link_status", ["active", "expired", "revoked"]);
+
 // Zod enums for validation and UI options
 export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
 export const UserStatusEnum = z.enum(["active", "suspended"]);
@@ -2165,9 +2170,96 @@ export const dailyInsights = pgTable("daily_insights", {
   tierIdx: index("daily_insights_tier_idx").on(table.evidenceTier),
 }));
 
+// Data exports - tracks export job generation
+export const dataExports = pgTable("data_exports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  format: exportFormatEnum("format").notNull(), // pdf, csv, json
+  status: exportStatusEnum("status").notNull().default("pending"),
+  
+  // Export configuration
+  includeTypes: text("include_types").array().notNull(), // ["biomarkers", "healthkit", "insights", "life_events"]
+  dateRangeStart: timestamp("date_range_start"), // null = all time
+  dateRangeEnd: timestamp("date_range_end"), // null = all time
+  sessionId: varchar("session_id"), // Optional: export specific test session only
+  
+  // Output
+  fileUrl: text("file_url"), // GCS URL when completed
+  fileName: text("file_name").notNull(), // "flo_export_2025-11-24.pdf"
+  fileSizeBytes: integer("file_size_bytes"), // Size in bytes
+  
+  // Metadata
+  recordCount: integer("record_count"), // Number of records exported
+  errorMessage: text("error_message"), // If failed
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => ({
+  userIdx: index("data_exports_user_idx").on(table.userId),
+  statusIdx: index("data_exports_status_idx").on(table.status),
+  createdIdx: index("data_exports_created_idx").on(table.createdAt),
+}));
+
+// Share links - temporary access tokens for sharing health data
+export const shareLinks = pgTable("share_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Access token (unique, used in URL)
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  
+  // Share configuration
+  exportId: varchar("export_id").references(() => dataExports.id, { onDelete: "cascade" }),
+  title: text("title").notNull(), // "My Lab Results - Nov 2025"
+  description: text("description"), // Optional description
+  
+  // Security
+  passwordHash: text("password_hash"), // Optional password protection (bcrypt)
+  requiresEmail: boolean("requires_email").default(false).notNull(), // Require email to access
+  
+  // Access control
+  status: shareLinkStatusEnum("status").notNull().default("active"),
+  expiresAt: timestamp("expires_at"), // null = never expires
+  maxAccessCount: integer("max_access_count"), // null = unlimited
+  currentAccessCount: integer("current_access_count").default(0).notNull(),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  lastAccessedAt: timestamp("last_accessed_at"),
+  revokedAt: timestamp("revoked_at"),
+}, (table) => ({
+  tokenIdx: uniqueIndex("share_links_token_idx").on(table.token),
+  userIdx: index("share_links_user_idx").on(table.userId),
+  statusIdx: index("share_links_status_idx").on(table.status),
+  expiresIdx: index("share_links_expires_idx").on(table.expiresAt),
+}));
+
+// Share link access logs - audit trail for share link usage
+export const shareLinkAccessLogs = pgTable("share_link_access_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shareLinkId: varchar("share_link_id").notNull().references(() => shareLinks.id, { onDelete: "cascade" }),
+  
+  // Access details
+  accessorEmail: text("accessor_email"), // If requiresEmail is true
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  
+  // What was accessed
+  action: text("action").notNull(), // "view", "download"
+  
+  accessedAt: timestamp("accessed_at").defaultNow().notNull(),
+}, (table) => ({
+  shareLinkIdx: index("share_link_access_logs_link_idx").on(table.shareLinkId),
+  accessedIdx: index("share_link_access_logs_accessed_idx").on(table.accessedAt),
+}));
+
 // Zod enums for validation
 export const EvidenceTierEnum = z.enum(["1", "2", "3", "4", "5"]);
 export const FreshnessCategoryEnum = z.enum(["green", "yellow", "red"]);
+export const ExportFormatEnum = z.enum(["pdf", "csv", "json"]);
+export const ExportStatusEnum = z.enum(["pending", "processing", "completed", "failed"]);
+export const ShareLinkStatusEnum = z.enum(["active", "expired", "revoked"]);
 
 // Insert schemas
 export const insertInsightReplicationHistorySchema = createInsertSchema(insightReplicationHistory).omit({
@@ -2202,3 +2294,30 @@ export type InsightFeedback = typeof insightFeedback.$inferSelect;
 
 export type InsertDailyInsight = z.infer<typeof insertDailyInsightSchema>;
 export type DailyInsight = typeof dailyInsights.$inferSelect;
+
+export const insertDataExportSchema = createInsertSchema(dataExports).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export const insertShareLinkSchema = createInsertSchema(shareLinks).omit({
+  id: true,
+  createdAt: true,
+  lastAccessedAt: true,
+  revokedAt: true,
+});
+
+export const insertShareLinkAccessLogSchema = createInsertSchema(shareLinkAccessLogs).omit({
+  id: true,
+  accessedAt: true,
+});
+
+export type InsertDataExport = z.infer<typeof insertDataExportSchema>;
+export type DataExport = typeof dataExports.$inferSelect;
+
+export type InsertShareLink = z.infer<typeof insertShareLinkSchema>;
+export type ShareLink = typeof shareLinks.$inferSelect;
+
+export type InsertShareLinkAccessLog = z.infer<typeof insertShareLinkAccessLogSchema>;
+export type ShareLinkAccessLog = typeof shareLinkAccessLogs.$inferSelect;
