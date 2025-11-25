@@ -1,5 +1,12 @@
-import { useState } from 'react';
-import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, CircleDot } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { HealthKitService } from '@/services/healthkit';
+import type { HealthDataType } from '@/types/healthkit';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { useUpdateDemographics } from '@/hooks/useProfile';
 
 interface SetupStepsProps {
   isDark: boolean;
@@ -8,21 +15,62 @@ interface SetupStepsProps {
 
 type SetupStep = 'notifications' | 'profile' | 'bloodwork' | 'optional' | 'complete';
 
+// Generate year options (100 years back from current year)
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
+const months = [
+  { value: '01', label: 'January' },
+  { value: '02', label: 'February' },
+  { value: '03', label: 'March' },
+  { value: '04', label: 'April' },
+  { value: '05', label: 'May' },
+  { value: '06', label: 'June' },
+  { value: '07', label: 'July' },
+  { value: '08', label: 'August' },
+  { value: '09', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+
+// Get days in month
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
 export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState<SetupStep>('notifications');
   const [completedSteps, setCompletedSteps] = useState<SetupStep[]>([]);
   
-  // Form state
+  // Profile mutation hook
+  const updateDemographics = useUpdateDemographics();
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  
+  // Permission states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [healthKitEnabled, setHealthKitEnabled] = useState(false);
+  const [isRequestingNotifications, setIsRequestingNotifications] = useState(false);
+  const [isRequestingHealthKit, setIsRequestingHealthKit] = useState(false);
+  
+  // Profile form state with separate date fields
   const [profileData, setProfileData] = useState({
     name: '',
-    dateOfBirth: '',
+    birthYear: '',
+    birthMonth: '',
+    birthDay: '',
     biologicalSex: '',
     height: '',
     weight: ''
   });
-  const [bloodworkUploaded, setBloodworkUploaded] = useState(false);
+  
+  // Blood work upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadComplete, setUploadComplete] = useState(false);
+  
+  // Optional scans state
   const [optionalScansUploaded, setOptionalScansUploaded] = useState({
     cac: false,
     dexa: false
@@ -37,25 +85,277 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
   const currentStepIndex = steps.findIndex(step => step.id === currentStep);
 
+  // Get available days based on selected year and month
+  const availableDays = profileData.birthYear && profileData.birthMonth
+    ? Array.from(
+        { length: getDaysInMonth(parseInt(profileData.birthYear), parseInt(profileData.birthMonth)) },
+        (_, i) => String(i + 1).padStart(2, '0')
+      )
+    : Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+
+  // Compute ISO date string from separate fields
+  const dateOfBirth = profileData.birthYear && profileData.birthMonth && profileData.birthDay
+    ? `${profileData.birthYear}-${profileData.birthMonth}-${profileData.birthDay}`
+    : '';
+
+  // Request notification permission
+  const handleNotificationToggle = async () => {
+    if (notificationsEnabled) {
+      setNotificationsEnabled(false);
+      return;
+    }
+
+    const isNative = Capacitor.isNativePlatform();
+    
+    if (isNative) {
+      setIsRequestingNotifications(true);
+      try {
+        const permStatus = await LocalNotifications.checkPermissions();
+        
+        if (permStatus.display === 'granted') {
+          setNotificationsEnabled(true);
+          toast({ title: 'Notifications enabled', description: 'You will receive health reminders' });
+        } else {
+          const result = await LocalNotifications.requestPermissions();
+          if (result.display === 'granted') {
+            setNotificationsEnabled(true);
+            toast({ title: 'Notifications enabled', description: 'You will receive health reminders' });
+          } else {
+            toast({ 
+              title: 'Permission denied', 
+              description: 'You can enable notifications later in Settings',
+              variant: 'destructive'
+            });
+          }
+        }
+      } catch (error) {
+        console.error('[Onboarding] Notification permission error:', error);
+        toast({ title: 'Error', description: 'Could not request notification permission', variant: 'destructive' });
+      } finally {
+        setIsRequestingNotifications(false);
+      }
+    } else {
+      // Web platform - show info but keep toggle disabled (no real permissions on web)
+      toast({ 
+        title: 'iOS Required', 
+        description: 'Open Flō on your iPhone to enable notifications',
+      });
+      // Don't enable - native permissions only work on device
+    }
+  };
+
+  // Request HealthKit permission
+  const handleHealthKitToggle = async () => {
+    if (healthKitEnabled) {
+      setHealthKitEnabled(false);
+      return;
+    }
+
+    const isNative = Capacitor.isNativePlatform();
+    
+    if (isNative) {
+      setIsRequestingHealthKit(true);
+      try {
+        const available = await HealthKitService.isAvailable();
+        
+        if (!available) {
+          toast({ 
+            title: 'HealthKit not available', 
+            description: 'HealthKit is not available on this device',
+            variant: 'destructive'
+          });
+          setIsRequestingHealthKit(false);
+          return;
+        }
+
+        // Request comprehensive HealthKit permissions
+        const allDataTypes: HealthDataType[] = [
+          'heartRateVariability', 'restingHeartRate', 'respiratoryRate',
+          'oxygenSaturation', 'sleepAnalysis', 'bodyTemperature',
+          'weight', 'height', 'bmi', 'bodyFatPercentage', 'leanBodyMass',
+          'heartRate', 'bloodPressureSystolic', 'bloodPressureDiastolic',
+          'bloodGlucose', 'vo2Max', 'walkingHeartRateAverage',
+          'steps', 'distance', 'calories', 'basalEnergyBurned',
+          'flightsClimbed', 'appleExerciseTime', 'appleStandTime',
+        ];
+
+        const result = await HealthKitService.requestAuthorization({
+          read: allDataTypes,
+          write: [],
+        });
+
+        if (result && (result.readAuthorized?.length || 0) > 0) {
+          setHealthKitEnabled(true);
+          toast({ title: 'HealthKit connected', description: 'Your health data will sync automatically' });
+        } else {
+          toast({ 
+            title: 'Limited access', 
+            description: 'Some HealthKit permissions were denied. You can update this in Settings.',
+          });
+          setHealthKitEnabled(true); // Still mark as enabled if any permissions granted
+        }
+      } catch (error) {
+        console.error('[Onboarding] HealthKit permission error:', error);
+        toast({ title: 'Error', description: 'Could not request HealthKit permission', variant: 'destructive' });
+      } finally {
+        setIsRequestingHealthKit(false);
+      }
+    } else {
+      // Web platform - show info but keep toggle disabled (no real permissions on web)
+      toast({ 
+        title: 'iOS Required', 
+        description: 'Open Flō on your iPhone to connect HealthKit',
+      });
+      // Don't enable - native permissions only work on device
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10485760) { // 10MB limit
+        toast({
+          title: 'File too large',
+          description: 'Please select a file smaller than 10MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  // Handle file upload
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+
+    setIsUploading(true);
+    try {
+      // Get signed upload URL
+      const uploadRes = await apiRequest('POST', '/api/objects/upload', {});
+      const { uploadURL, objectPath } = await uploadRes.json();
+
+      // Upload file directly to signed URL
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: selectedFile,
+        headers: { 'Content-Type': selectedFile.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file');
+      }
+
+      // Trigger analysis
+      const analyzeRes = await apiRequest('POST', '/api/blood-work/analyze', {
+        fileUrl: objectPath,
+        fileName: selectedFile.name,
+      });
+
+      if (!analyzeRes.ok) {
+        const errorData = await analyzeRes.json();
+        throw new Error(errorData.details || errorData.error || 'Analysis failed');
+      }
+
+      // Invalidate blood work cache so dashboard refreshes
+      queryClient.invalidateQueries({ queryKey: ['/api/blood-work'] });
+      
+      // Reset file selection
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      setUploadComplete(true);
+      toast({
+        title: 'Upload successful',
+        description: 'Your blood work is being analyzed',
+      });
+    } catch (error: any) {
+      console.error('[Onboarding] Upload error:', error);
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload blood work',
+        variant: 'destructive',
+      });
+      // Reset file on error so user can try again
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleNotificationsNext = () => {
-    if (notificationsEnabled || healthKitEnabled) {
+    // On native, require at least one permission enabled
+    // On web, allow progression since permissions can't be granted
+    const isNative = Capacitor.isNativePlatform();
+    
+    if (notificationsEnabled || healthKitEnabled || !isNative) {
       setCompletedSteps([...completedSteps, 'notifications']);
       setCurrentStep('profile');
     }
   };
 
-  const handleProfileNext = () => {
-    if (profileData.name && profileData.dateOfBirth && profileData.biologicalSex) {
+  const handleProfileNext = async () => {
+    if (!profileData.name || !profileData.birthYear || !profileData.birthMonth || !profileData.birthDay || !profileData.biologicalSex) {
+      return;
+    }
+    
+    setIsSavingProfile(true);
+    try {
+      // Construct date from separate fields
+      const dob = new Date(`${profileData.birthYear}-${profileData.birthMonth}-${profileData.birthDay}`);
+      
+      // Map biologicalSex to expected format
+      const sexMap: Record<string, 'Male' | 'Female' | 'Other'> = {
+        'male': 'Male',
+        'female': 'Female',
+        'other': 'Other',
+      };
+      
+      // Save demographics to backend
+      await updateDemographics.mutateAsync({
+        dateOfBirth: dob,
+        sex: sexMap[profileData.biologicalSex] || 'Other',
+        height: profileData.height ? parseFloat(profileData.height) : undefined,
+        heightUnit: 'inches' as const,
+        weight: profileData.weight ? parseFloat(profileData.weight) : undefined,
+        weightUnit: 'lbs' as const,
+      });
+      
+      toast({
+        title: 'Profile saved',
+        description: 'Your information has been saved',
+      });
+      
       setCompletedSteps([...completedSteps, 'profile']);
       setCurrentStep('bloodwork');
+    } catch (error: any) {
+      console.error('[Onboarding] Profile save error:', error);
+      toast({
+        title: 'Error saving profile',
+        description: error.message || 'Failed to save your profile',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
   const handleBloodworkNext = () => {
-    if (bloodworkUploaded) {
+    if (uploadComplete) {
       setCompletedSteps([...completedSteps, 'bloodwork']);
       setCurrentStep('optional');
     }
+  };
+
+  const handleBloodworkSkip = () => {
+    setCompletedSteps([...completedSteps, 'bloodwork']);
+    setCurrentStep('optional');
   };
 
   const handleOptionalNext = () => {
@@ -69,13 +369,19 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
   const isStepComplete = (stepId: SetupStep) => completedSteps.includes(stepId);
 
+  const inputClassName = `w-full px-4 py-3 rounded-xl border transition-all ${
+    isDark 
+      ? 'bg-white/5 border-white/10 text-white placeholder-white/40 focus:bg-white/10 focus:border-cyan-500/50' 
+      : 'bg-white/60 border-black/10 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-cyan-500/50'
+  } focus:outline-none`;
+
   return (
     <div className="h-full flex flex-col">
       {/* Progress Header */}
       <div className={`sticky top-0 z-10 backdrop-blur-xl border-b ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
-        <div className="px-6 py-4">
+        <div className="px-6 py-4 pt-[calc(env(safe-area-inset-top)+16px)]">
           <h2 className={`text-xl mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Setup Your Account
           </h2>
@@ -124,14 +430,14 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
               {/* Notifications Toggle */}
               <div 
-                onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+                onClick={!isRequestingNotifications ? handleNotificationToggle : undefined}
                 className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                   notificationsEnabled
                     ? 'border-cyan-500/50 bg-gradient-to-br from-cyan-500/10 to-blue-500/10'
                     : isDark 
                       ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                       : 'bg-white/60 border-black/10 hover:bg-white/80'
-                }`}
+                } ${isRequestingNotifications ? 'opacity-70 cursor-wait' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 flex-1">
@@ -140,7 +446,11 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                         ? 'bg-gradient-to-br from-cyan-500 to-blue-500'
                         : isDark ? 'bg-white/10' : 'bg-gray-200'
                     }`}>
-                      <Bell className={`w-5 h-5 ${notificationsEnabled ? 'text-white' : isDark ? 'text-white/60' : 'text-gray-600'}`} />
+                      {isRequestingNotifications ? (
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      ) : (
+                        <Bell className={`w-5 h-5 ${notificationsEnabled ? 'text-white' : isDark ? 'text-white/60' : 'text-gray-600'}`} />
+                      )}
                     </div>
                     <div className="flex-1">
                       <h4 className={`font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -163,14 +473,14 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
               {/* HealthKit Toggle */}
               <div 
-                onClick={() => setHealthKitEnabled(!healthKitEnabled)}
+                onClick={!isRequestingHealthKit ? handleHealthKitToggle : undefined}
                 className={`p-4 rounded-2xl border cursor-pointer transition-all ${
                   healthKitEnabled
                     ? 'border-cyan-500/50 bg-gradient-to-br from-cyan-500/10 to-blue-500/10'
                     : isDark 
                       ? 'bg-white/5 border-white/10 hover:bg-white/10' 
                       : 'bg-white/60 border-black/10 hover:bg-white/80'
-                }`}
+                } ${isRequestingHealthKit ? 'opacity-70 cursor-wait' : ''}`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3 flex-1">
@@ -179,7 +489,11 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                         ? 'bg-gradient-to-br from-cyan-500 to-blue-500'
                         : isDark ? 'bg-white/10' : 'bg-gray-200'
                     }`}>
-                      <Heart className={`w-5 h-5 ${healthKitEnabled ? 'text-white' : isDark ? 'text-white/60' : 'text-gray-600'}`} />
+                      {isRequestingHealthKit ? (
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      ) : (
+                        <Heart className={`w-5 h-5 ${healthKitEnabled ? 'text-white' : isDark ? 'text-white/60' : 'text-gray-600'}`} />
+                      )}
                     </div>
                     <div className="flex-1">
                       <h4 className={`font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -200,22 +514,30 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 </div>
               </div>
 
-              <button
-                onClick={handleNotificationsNext}
-                disabled={!notificationsEnabled && !healthKitEnabled}
-                className={`w-full py-4 rounded-xl font-medium transition-all ${
-                  notificationsEnabled || healthKitEnabled
-                    ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg hover:shadow-xl'
-                    : isDark 
-                      ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span>Continue</span>
-                  <ChevronRight className="w-5 h-5" />
-                </div>
-              </button>
+              {(() => {
+                const isNative = Capacitor.isNativePlatform();
+                const canProceed = notificationsEnabled || healthKitEnabled || !isNative;
+                const hasPermission = notificationsEnabled || healthKitEnabled;
+                
+                return (
+                  <button
+                    onClick={handleNotificationsNext}
+                    disabled={!canProceed}
+                    className={`w-full py-4 rounded-xl font-medium transition-all ${
+                      canProceed
+                        ? 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white shadow-lg hover:shadow-xl'
+                        : isDark 
+                          ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <span>{!isNative && !hasPermission ? 'Skip for Now' : 'Continue'}</span>
+                      <ChevronRight className="w-5 h-5" />
+                    </div>
+                  </button>
+                );
+              })()}
             </div>
           )}
 
@@ -248,28 +570,52 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                     value={profileData.name}
                     onChange={(e) => setProfileData({...profileData, name: e.target.value})}
                     placeholder="Your name"
-                    className={`w-full px-4 py-3 rounded-xl border transition-all ${
-                      isDark 
-                        ? 'bg-white/5 border-white/10 text-white placeholder-white/40 focus:bg-white/10 focus:border-cyan-500/50' 
-                        : 'bg-white/60 border-black/10 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-cyan-500/50'
-                    } focus:outline-none`}
+                    className={inputClassName}
                   />
                 </div>
 
+                {/* Date of Birth - Three Dropdowns */}
                 <div>
                   <label className={`block text-sm mb-2 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
                     Date of Birth *
                   </label>
-                  <input
-                    type="date"
-                    value={profileData.dateOfBirth}
-                    onChange={(e) => setProfileData({...profileData, dateOfBirth: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl border transition-all ${
-                      isDark 
-                        ? 'bg-white/5 border-white/10 text-white focus:bg-white/10 focus:border-cyan-500/50' 
-                        : 'bg-white/60 border-black/10 text-gray-900 focus:bg-white focus:border-cyan-500/50'
-                    } focus:outline-none`}
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    {/* Year */}
+                    <select
+                      value={profileData.birthYear}
+                      onChange={(e) => setProfileData({...profileData, birthYear: e.target.value, birthDay: ''})}
+                      className={inputClassName}
+                    >
+                      <option value="">Year</option>
+                      {years.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                    
+                    {/* Month */}
+                    <select
+                      value={profileData.birthMonth}
+                      onChange={(e) => setProfileData({...profileData, birthMonth: e.target.value, birthDay: ''})}
+                      className={inputClassName}
+                    >
+                      <option value="">Month</option>
+                      {months.map(month => (
+                        <option key={month.value} value={month.value}>{month.label}</option>
+                      ))}
+                    </select>
+                    
+                    {/* Day */}
+                    <select
+                      value={profileData.birthDay}
+                      onChange={(e) => setProfileData({...profileData, birthDay: e.target.value})}
+                      className={inputClassName}
+                    >
+                      <option value="">Day</option>
+                      {availableDays.map(day => (
+                        <option key={day} value={day}>{parseInt(day)}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div>
@@ -279,11 +625,7 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                   <select
                     value={profileData.biologicalSex}
                     onChange={(e) => setProfileData({...profileData, biologicalSex: e.target.value})}
-                    className={`w-full px-4 py-3 rounded-xl border transition-all ${
-                      isDark 
-                        ? 'bg-white/5 border-white/10 text-white focus:bg-white/10 focus:border-cyan-500/50' 
-                        : 'bg-white/60 border-black/10 text-gray-900 focus:bg-white focus:border-cyan-500/50'
-                    } focus:outline-none`}
+                    className={inputClassName}
                   >
                     <option value="">Select...</option>
                     <option value="male">Male</option>
@@ -294,34 +636,26 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={`block text-sm mb-2 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                      Height (cm)
+                      Height (inches)
                     </label>
                     <input
                       type="number"
                       value={profileData.height}
                       onChange={(e) => setProfileData({...profileData, height: e.target.value})}
-                      placeholder="175"
-                      className={`w-full px-4 py-3 rounded-xl border transition-all ${
-                        isDark 
-                          ? 'bg-white/5 border-white/10 text-white placeholder-white/40 focus:bg-white/10 focus:border-cyan-500/50' 
-                          : 'bg-white/60 border-black/10 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-cyan-500/50'
-                      } focus:outline-none`}
+                      placeholder="68"
+                      className={inputClassName}
                     />
                   </div>
                   <div>
                     <label className={`block text-sm mb-2 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                      Weight (kg)
+                      Weight (lbs)
                     </label>
                     <input
                       type="number"
                       value={profileData.weight}
                       onChange={(e) => setProfileData({...profileData, weight: e.target.value})}
-                      placeholder="75"
-                      className={`w-full px-4 py-3 rounded-xl border transition-all ${
-                        isDark 
-                          ? 'bg-white/5 border-white/10 text-white placeholder-white/40 focus:bg-white/10 focus:border-cyan-500/50' 
-                          : 'bg-white/60 border-black/10 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-cyan-500/50'
-                      } focus:outline-none`}
+                      placeholder="165"
+                      className={inputClassName}
                     />
                   </div>
                 </div>
@@ -329,9 +663,9 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
               <button
                 onClick={handleProfileNext}
-                disabled={!profileData.name || !profileData.dateOfBirth || !profileData.biologicalSex}
+                disabled={isSavingProfile || !profileData.name || !profileData.birthYear || !profileData.birthMonth || !profileData.birthDay || !profileData.biologicalSex}
                 className={`w-full py-4 rounded-xl font-medium transition-all ${
-                  profileData.name && profileData.dateOfBirth && profileData.biologicalSex
+                  profileData.name && profileData.birthYear && profileData.birthMonth && profileData.birthDay && profileData.biologicalSex && !isSavingProfile
                     ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-green-500 text-white shadow-lg hover:shadow-xl'
                     : isDark 
                       ? 'bg-white/10 text-white/40 cursor-not-allowed'
@@ -339,8 +673,17 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">
-                  <span>Continue</span>
-                  <ChevronRight className="w-5 h-5" />
+                  {isSavingProfile ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Continue</span>
+                      <ChevronRight className="w-5 h-5" />
+                    </>
+                  )}
                 </div>
               </button>
             </div>
@@ -364,18 +707,29 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 </p>
               </div>
 
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
               {/* Upload Area */}
               <div 
-                onClick={() => setBloodworkUploaded(true)}
+                onClick={() => !isUploading && !uploadComplete && fileInputRef.current?.click()}
                 className={`p-8 rounded-2xl border-2 border-dashed cursor-pointer transition-all text-center ${
-                  bloodworkUploaded
+                  uploadComplete
                     ? 'border-purple-500/50 bg-gradient-to-br from-purple-500/10 to-pink-500/10'
-                    : isDark 
-                      ? 'border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10' 
-                      : 'border-gray-300 hover:border-gray-400 bg-white/60 hover:bg-white/80'
-                }`}
+                    : selectedFile
+                      ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-pink-500/5'
+                      : isDark 
+                        ? 'border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10' 
+                        : 'border-gray-300 hover:border-gray-400 bg-white/60 hover:bg-white/80'
+                } ${isUploading ? 'opacity-70 cursor-wait' : ''}`}
               >
-                {bloodworkUploaded ? (
+                {uploadComplete ? (
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
                       <Check className="w-8 h-8 text-white" />
@@ -384,7 +738,28 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                       Blood work uploaded!
                     </div>
                     <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                      Your results are ready to analyze
+                      Your results are being analyzed
+                    </p>
+                  </div>
+                ) : isUploading ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-white animate-spin" />
+                    </div>
+                    <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Uploading...
+                    </div>
+                  </div>
+                ) : selectedFile ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20`}>
+                      <Upload className={`w-8 h-8 ${isDark ? 'text-purple-300' : 'text-purple-600'}`} />
+                    </div>
+                    <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {selectedFile.name}
+                    </div>
+                    <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                      Click "Upload" to analyze
                     </p>
                   </div>
                 ) : (
@@ -395,7 +770,7 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                       <Upload className={`w-8 h-8 ${isDark ? 'text-white/60' : 'text-gray-600'}`} />
                     </div>
                     <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Click to upload
+                      Tap to select file
                     </div>
                     <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                       PDF, JPEG, or PNG • Max 10MB
@@ -404,31 +779,53 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 )}
               </div>
 
+              {/* Upload button when file is selected */}
+              {selectedFile && !uploadComplete && !isUploading && (
+                <button
+                  onClick={handleUpload}
+                  className="w-full py-3 rounded-xl font-medium transition-all bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white shadow-lg hover:shadow-xl"
+                >
+                  Upload & Analyze
+                </button>
+              )}
+
               {/* Info Box */}
               <div className={`p-4 rounded-xl border ${
                 isDark ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'
               }`}>
                 <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
-                  💡 Tip: You can also manually enter your biomarker values after setup
+                  You can also upload blood work later from the Labs screen
                 </p>
               </div>
 
-              <button
-                onClick={handleBloodworkNext}
-                disabled={!bloodworkUploaded}
-                className={`w-full py-4 rounded-xl font-medium transition-all ${
-                  bloodworkUploaded
-                    ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white shadow-lg hover:shadow-xl'
-                    : isDark 
-                      ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span>Continue</span>
-                  <ChevronRight className="w-5 h-5" />
-                </div>
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleBloodworkSkip}
+                  className={`flex-1 py-4 rounded-xl font-medium transition-all ${
+                    isDark 
+                      ? 'bg-white/10 text-white hover:bg-white/20' 
+                      : 'bg-black/5 text-gray-900 hover:bg-black/10'
+                  }`}
+                >
+                  Skip for now
+                </button>
+                <button
+                  onClick={handleBloodworkNext}
+                  disabled={!uploadComplete}
+                  className={`flex-1 py-4 rounded-xl font-medium transition-all ${
+                    uploadComplete
+                      ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white shadow-lg hover:shadow-xl'
+                      : isDark 
+                        ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span>Continue</span>
+                    <ChevronRight className="w-5 h-5" />
+                  </div>
+                </button>
+              </div>
             </div>
           )}
 
