@@ -3006,7 +3006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes - User management
-  app.get("/api/admin/users", requireAdmin, async (req: any, res) => {
+  app.get("/api/admin/users", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       // Validate query parameters
       const validationResult = listUsersQuerySchema.safeParse(req.query);
@@ -3033,7 +3033,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Consolidated PATCH endpoint for updating user role and/or status
-  app.patch("/api/admin/users/:id", requireAdmin, async (req: any, res) => {
+  app.patch("/api/admin/users/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
       const userId = req.params.id;
@@ -3058,7 +3058,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/users/:userId/billing", requireAdmin, async (req, res) => {
+  app.get("/api/admin/users/:userId/billing", isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const { userId } = req.params;
       const billingInfo = await storage.getBillingInfo(userId);
@@ -3070,7 +3070,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin notification trigger management
-  app.get("/api/admin/notification-triggers", requireAdmin, async (req, res) => {
+  app.get("/api/admin/notification-triggers", isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const triggers = await db
         .select({
@@ -3097,7 +3097,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/notification-triggers", requireAdmin, async (req: any, res) => {
+  app.post("/api/admin/notification-triggers", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
       const validationResult = insertNotificationTriggerSchema.safeParse({
@@ -3123,7 +3123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/notification-triggers/:id", requireAdmin, async (req: any, res) => {
+  app.patch("/api/admin/notification-triggers/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const triggerId = req.params.id;
       const adminId = req.user.claims.sub;
@@ -3157,7 +3157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/notification-triggers/:id", requireAdmin, async (req: any, res) => {
+  app.delete("/api/admin/notification-triggers/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const triggerId = req.params.id;
       const adminId = req.user.claims.sub;
@@ -3321,7 +3321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // APNs configuration management (admin only)
-  app.get("/api/admin/apns-config", requireAdmin, async (req, res) => {
+  app.get("/api/admin/apns-config", isAuthenticated, requireAdmin, async (req, res) => {
     try {
       const configs = await db
         .select({
@@ -3345,7 +3345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/apns-config", requireAdmin, async (req: any, res) => {
+  app.post("/api/admin/apns-config", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims.sub;
       const { insertApnsConfigurationSchema } = await import("@shared/schema");
@@ -3377,7 +3377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/apns-config/:id", requireAdmin, async (req: any, res) => {
+  app.patch("/api/admin/apns-config/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const configId = req.params.id;
       const adminId = req.user.claims.sub;
@@ -3418,7 +3418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/apns-config/:id", requireAdmin, async (req: any, res) => {
+  app.delete("/api/admin/apns-config/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const configId = req.params.id;
       const adminId = req.user.claims.sub;
@@ -3445,7 +3445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test push notification endpoint (admin only)
-  app.post("/api/admin/test-reminder", requireAdmin, async (req: any, res) => {
+  app.post("/api/admin/test-reminder", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.body;
 
@@ -3502,7 +3502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/test-push", requireAdmin, async (req: any, res) => {
+  app.post("/api/admin/test-push", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId, title, body } = req.body;
 
@@ -3522,7 +3522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clear Flō Oracle context cache (admin only, for debugging)
-  app.post("/api/admin/clear-oracle-cache", requireAdmin, async (req: any, res) => {
+  app.post("/api/admin/clear-oracle-cache", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.body;
       const { clearContextCache } = await import('./services/floOracleContextBuilder');
