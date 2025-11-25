@@ -340,34 +340,27 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
         'other': 'Other',
       };
       
-      // Convert metric to imperial if needed (API expects inches/lbs)
-      let heightInches: number | undefined;
-      let weightLbs: number | undefined;
+      // Save values as entered with the user's preferred unit system
+      let heightValue: number | undefined;
+      let weightValue: number | undefined;
       
       if (profileData.height) {
-        const heightValue = parseFloat(profileData.height);
-        // Convert cm to inches and round to 1 decimal place
-        heightInches = isMetric 
-          ? Math.round((heightValue / 2.54) * 10) / 10 
-          : heightValue;
+        heightValue = parseFloat(profileData.height);
       }
       
       if (profileData.weight) {
-        const weightValue = parseFloat(profileData.weight);
-        // Convert kg to lbs and round to 1 decimal place
-        weightLbs = isMetric 
-          ? Math.round((weightValue * 2.205) * 10) / 10 
-          : weightValue;
+        weightValue = parseFloat(profileData.weight);
       }
       
-      // Save demographics to backend
+      // Save demographics to backend with user's preferred units
+      // Metric users: cm/kg, Imperial users: inches/lbs
       await updateDemographics.mutateAsync({
         dateOfBirth: dob,
         sex: sexMap[profileData.biologicalSex] || 'Other',
-        height: heightInches,
-        heightUnit: 'inches' as const,
-        weight: weightLbs,
-        weightUnit: 'lbs' as const,
+        height: heightValue,
+        heightUnit: isMetric ? 'cm' : 'inches',
+        weight: weightValue,
+        weightUnit: isMetric ? 'kg' : 'lbs',
       });
       
       toast({

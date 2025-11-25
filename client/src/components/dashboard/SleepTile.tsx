@@ -18,22 +18,11 @@ interface SleepTileProps {
   };
 }
 
-const DEFAULT_DATA = {
-  nightflo_score: 82,
-  score_label: 'Good',
-  score_delta_vs_baseline: 6,
-  trend_direction: 'up' as const,
-  total_sleep_duration: '7h 32m',
-  time_in_bed: '8h 05m',
-  sleep_efficiency_pct: 92,
-  deep_sleep_pct: 18,
-  rem_sleep_pct: 22,
-  bedtime_local: '10:47 pm',
-  waketime_local: '6:19 am',
-  headline_insight: 'Solid recovery, but a bit light on deep sleep tonight.'
-};
-
-export function SleepTile({ isDark, data = DEFAULT_DATA }: SleepTileProps) {
+export function SleepTile({ isDark, data }: SleepTileProps) {
+  // Don't render the tile if there's no data - prevents showing fake data to new users
+  if (!data || data.nightflo_score === null || data.nightflo_score === undefined) {
+    return null;
+  }
   // Styled to match Flō Overview tile
 
   const getScoreColors = () => {
