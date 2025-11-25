@@ -260,30 +260,32 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
   };
 
   return (
-    <div className={`h-full overflow-y-auto transition-colors ${
-      isDark 
-        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
-        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
-    }`}>
-      {/* Header */}
-      <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
-        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+    <div className="fixed inset-0 z-[100] overflow-hidden">
+      <div className={`h-full overflow-y-auto transition-colors ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
       }`}>
-        <div className="px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={onClose}
-              className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
-            >
-              ← Back
-            </button>
-            <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Full AI Report</h1>
-            <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
-              <Share2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'}`} />
-            </button>
+        {/* Header */}
+        <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+        }`}>
+          <div className="px-4 pt-4 pb-4">
+            <div className="flex items-center justify-between">
+              <button 
+                onClick={onClose}
+                className={`text-sm ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}
+                data-testid="button-close-report"
+              >
+                ← Back
+              </button>
+              <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Full AI Report</h1>
+              <button className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
+                <Share2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-gray-900'}`} />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Content */}
       <div className="px-4 py-6 space-y-4">
@@ -621,6 +623,7 @@ export function FullReportScreen({ isDark, onClose, reportData: providedData }: 
         <div className={`text-center py-4 text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
           Powered by Flō AI • insights-v1.2
         </div>
+      </div>
       </div>
     </div>
   );
