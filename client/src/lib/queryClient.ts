@@ -15,7 +15,7 @@ function getApiBaseUrl(): string {
   return '';
 }
 
-// Get auth token from secure encrypted storage (mobile) or session cookie (web)
+// Get auth token from secure encrypted storage (mobile) or localStorage (web)
 async function getAuthToken(): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
     try {
@@ -30,7 +30,13 @@ async function getAuthToken(): Promise<string | null> {
       return null;
     }
   }
-  // For web, we rely on session cookies automatically sent by the browser
+  // For web, check localStorage for JWT token (from email/password login)
+  const webToken = localStorage.getItem('auth_token');
+  if (webToken) {
+    logger.debug('Retrieved auth token from localStorage', { hasToken: true });
+    return webToken;
+  }
+  // Fall back to session cookies automatically sent by the browser
   return null;
 }
 
