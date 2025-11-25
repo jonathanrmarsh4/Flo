@@ -14,9 +14,8 @@
 import OpenAI from 'openai';
 import { logger } from '../logger';
 import { db } from '../db';
-import { profiles } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
-import { BodyCompositionService } from './bodyCompositionService';
+import { profiles, healthDailyMetrics } from '../../shared/schema';
+import { eq, desc, and, gte } from 'drizzle-orm';
 import type { InsightCandidate } from './insightsEngineV2';
 import type { EvidenceTier } from './evidenceHierarchy';
 
@@ -85,7 +84,7 @@ export async function getUserContext(userId: string): Promise<UserContext> {
 
   const sex = profile?.sex ?? null;
 
-  // Get body composition (DEXA + HealthKit)
+  // Get body composition from HealthKit data
   let bodyComposition = {
     weightKg: null as number | null,
     bodyFatPct: null as number | null,
@@ -94,15 +93,33 @@ export async function getUserContext(userId: string): Promise<UserContext> {
   };
 
   try {
-    const bodyComp = await BodyCompositionService.getBodyComposition(userId);
-    if (bodyComp.snapshot) {
-      bodyComposition = {
-        weightKg: bodyComp.snapshot.weightKg ?? null,
-        bodyFatPct: bodyComp.snapshot.bodyFatPct ?? null,
-        leanMassKg: bodyComp.snapshot.leanMassKg ?? null,
-        bmi: bodyComp.snapshot.bmi ?? null,
-      };
-    }
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+
+    const healthData = await db
+      .select()
+      .from(healthDailyMetrics)
+      .where(
+        and(
+          eq(healthDailyMetrics.userId, userId),
+          gte(healthDailyMetrics.date, ninetyDaysAgoStr)
+        )
+      )
+      .orderBy(desc(healthDailyMetrics.date))
+      .limit(30);
+
+    const mostRecentWeight = healthData.find(d => d.weightKg !== null);
+    const mostRecentBodyFat = healthData.find(d => d.bodyFatPct !== null);
+    const mostRecentLeanMass = healthData.find(d => d.leanMassKg !== null);
+    const mostRecentBmi = healthData.find(d => d.bmi !== null);
+
+    bodyComposition = {
+      weightKg: mostRecentWeight?.weightKg ?? null,
+      bodyFatPct: mostRecentBodyFat?.bodyFatPct ?? null,
+      leanMassKg: mostRecentLeanMass?.leanMassKg ?? null,
+      bmi: mostRecentBmi?.bmi ?? null,
+    };
   } catch (error) {
     logger.warn('Could not fetch body composition for AI context', { userId, error });
   }

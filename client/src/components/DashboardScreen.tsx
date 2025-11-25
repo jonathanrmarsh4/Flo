@@ -247,10 +247,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
                   bloodPressureScore={dashboardData?.details?.cardiometabolicDetails?.bloodPressureScore}
                   cacScore={dashboardData?.details?.cardiometabolicDetails?.cacScore}
                 />
-                <BodyCompositionTile 
-                  isDark={isDark}
-                  score={dashboardData?.componentScores?.bodyComposition}
-                />
+                <BodyCompositionTile isDark={isDark} />
               </div>
             </SortableItem>
           );

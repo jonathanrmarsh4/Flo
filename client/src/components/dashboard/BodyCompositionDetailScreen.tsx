@@ -5,9 +5,6 @@ interface BodyCompositionData {
   body_composition_score: number;
   body_fat_percent: number | null;
   lean_mass_percent: number | null;
-  visceral_fat_area_cm2: number | null;
-  visceral_fat_score: number | null;
-  bone_health_category: 'normal' | 'osteopenia' | 'osteoporosis';
   weight_kg: number | null;
   bmi: number | null;
   last_updated: string | null;

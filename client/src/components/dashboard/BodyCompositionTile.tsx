@@ -7,9 +7,6 @@ interface BodyCompositionData {
   body_composition_score: number;
   body_fat_percent: number | null;
   lean_mass_percent: number | null;
-  visceral_fat_area_cm2: number | null;
-  visceral_fat_score: number | null;
-  bone_health_category: 'normal' | 'osteopenia' | 'osteoporosis';
   weight_kg: number | null;
   bmi: number | null;
   last_updated: string | null;
@@ -71,16 +68,6 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
     if (data.body_composition_score >= 60) return isDark ? 'text-blue-400' : 'text-blue-600';
     if (data.body_composition_score >= 40) return isDark ? 'text-yellow-400' : 'text-yellow-600';
     return isDark ? 'text-orange-400' : 'text-orange-600';
-  };
-
-  const getBoneColor = () => {
-    if (data.bone_health_category === 'normal') {
-      return isDark ? 'text-green-400' : 'text-green-600';
-    } else if (data.bone_health_category === 'osteopenia') {
-      return isDark ? 'text-yellow-400' : 'text-yellow-700';
-    } else {
-      return isDark ? 'text-red-400' : 'text-red-600';
-    }
   };
 
   const bodyFatPercent = data.body_fat_percent ?? 0;
@@ -168,22 +155,25 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              {data.visceral_fat_area_cm2 !== null && data.visceral_fat_score !== null && (
-                <MetricRow 
-                  label="Visceral Fat"
-                  value={`${data.visceral_fat_area_cm2.toFixed(0)} cm²`}
-                  score={data.visceral_fat_score}
-                  isDark={isDark}
-                />
-              )}
-              <MetricRow 
-                label="Bone Health"
-                value={data.bone_health_category.charAt(0).toUpperCase() + data.bone_health_category.slice(1)}
-                valueColor={getBoneColor()}
-                isDark={isDark}
-              />
-            </div>
+            {/* Additional metrics only shown when available */}
+            {(data.weight_kg !== null || data.bmi !== null) && (
+              <div className="space-y-2">
+                {data.weight_kg !== null && (
+                  <MetricRow 
+                    label="Weight"
+                    value={`${data.weight_kg} kg`}
+                    isDark={isDark}
+                  />
+                )}
+                {data.bmi !== null && (
+                  <MetricRow 
+                    label="BMI"
+                    value={`${data.bmi}`}
+                    isDark={isDark}
+                  />
+                )}
+              </div>
+            )}
           </>
         )}
       </div>

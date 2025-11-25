@@ -5330,6 +5330,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userId = req.user.claims.sub;
       
+      // Get user's sex for sex-specific scoring
+      const profile = await storage.getProfile(userId);
+      const isFemale = profile?.sex === 'Female';
+      
       // Query HealthKit data from health_daily_metrics (last 90 days)
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
@@ -5346,13 +5350,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .orderBy(desc(healthDailyMetrics.date));
 
-      // Check if we have any body composition data from HealthKit
+      // Check if we have body composition data (need either body fat % or weight+lean mass to render tile meaningfully)
       const hasBodyCompData = healthData.some(d => 
-        d.bodyFatPct !== null || d.leanMassKg !== null || d.weightKg !== null
+        d.bodyFatPct !== null || (d.weightKg !== null && d.leanMassKg !== null)
       );
 
       if (!hasBodyCompData) {
-        // No HealthKit body composition data - tile should not render
+        // No body composition data - tile should not render
         return res.json({ hasData: false, data: null, history: [] });
       }
 
@@ -5370,35 +5374,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bodyFatPercent = ((mostRecentWeight.weightKg - mostRecentLeanMass.leanMassKg) / mostRecentWeight.weightKg) * 100;
       }
       
+      // Always calculate lean mass percent when we have body fat
       if (bodyFatPercent !== null) {
         leanMassPercent = 100 - bodyFatPercent;
       }
 
-      // Calculate body composition score (0-100)
-      // Score based on body fat % ranges for health
+      // Sex-specific body composition score (0-100)
+      // Men optimal: 10-20%, Women optimal: 18-28%
       let bodyCompositionScore = 50; // Default
       if (bodyFatPercent !== null) {
-        // Optimal ranges: Men 10-20%, Women 18-28%
-        // Using a general healthy range of 15-25% for scoring
-        if (bodyFatPercent < 10) {
-          bodyCompositionScore = 70 + (10 - bodyFatPercent) * 2; // Very low fat, cap at ~90
-        } else if (bodyFatPercent <= 15) {
-          bodyCompositionScore = 85 + (15 - bodyFatPercent); // Excellent range
-        } else if (bodyFatPercent <= 20) {
-          bodyCompositionScore = 75 + (20 - bodyFatPercent) * 2; // Good range
-        } else if (bodyFatPercent <= 25) {
-          bodyCompositionScore = 60 + (25 - bodyFatPercent) * 3; // Average range
-        } else if (bodyFatPercent <= 30) {
-          bodyCompositionScore = 40 + (30 - bodyFatPercent) * 4; // Below average
+        if (isFemale) {
+          // Women: optimal 18-28%
+          if (bodyFatPercent < 14) {
+            bodyCompositionScore = 65 + (14 - bodyFatPercent) * 2; // Very low fat
+          } else if (bodyFatPercent <= 18) {
+            bodyCompositionScore = 80 + (18 - bodyFatPercent) * 1.5; // Athletic
+          } else if (bodyFatPercent <= 24) {
+            bodyCompositionScore = 75 + (24 - bodyFatPercent) * 0.8; // Fit
+          } else if (bodyFatPercent <= 28) {
+            bodyCompositionScore = 60 + (28 - bodyFatPercent) * 3.75; // Average
+          } else if (bodyFatPercent <= 35) {
+            bodyCompositionScore = 40 + (35 - bodyFatPercent) * 2.8; // Below average
+          } else {
+            bodyCompositionScore = Math.max(20, 40 - (bodyFatPercent - 35) * 1.5); // High fat
+          }
         } else {
-          bodyCompositionScore = Math.max(20, 40 - (bodyFatPercent - 30) * 2); // High fat
+          // Men: optimal 10-20%
+          if (bodyFatPercent < 6) {
+            bodyCompositionScore = 65 + (6 - bodyFatPercent) * 3; // Very low fat
+          } else if (bodyFatPercent <= 10) {
+            bodyCompositionScore = 85 + (10 - bodyFatPercent) * 2.5; // Athletic
+          } else if (bodyFatPercent <= 15) {
+            bodyCompositionScore = 75 + (15 - bodyFatPercent) * 2; // Fit
+          } else if (bodyFatPercent <= 20) {
+            bodyCompositionScore = 60 + (20 - bodyFatPercent) * 3; // Average
+          } else if (bodyFatPercent <= 25) {
+            bodyCompositionScore = 40 + (25 - bodyFatPercent) * 4; // Below average
+          } else {
+            bodyCompositionScore = Math.max(20, 40 - (bodyFatPercent - 25) * 2); // High fat
+          }
         }
         bodyCompositionScore = Math.min(100, Math.max(0, Math.round(bodyCompositionScore)));
       }
 
-      // Build history array for charts (last 90 days with data)
+      // Build history array for charts (only entries with calculable percentages)
       const history = healthData
-        .filter(d => d.bodyFatPct !== null || d.leanMassKg !== null || d.weightKg !== null)
+        .filter(d => d.bodyFatPct !== null || (d.weightKg !== null && d.leanMassKg !== null))
         .map(d => {
           let fat = d.bodyFatPct;
           if (fat === null && d.weightKg && d.leanMassKg) {
@@ -5418,9 +5439,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           body_composition_score: bodyCompositionScore,
           body_fat_percent: bodyFatPercent ? parseFloat(bodyFatPercent.toFixed(1)) : null,
           lean_mass_percent: leanMassPercent ? parseFloat(leanMassPercent.toFixed(1)) : null,
-          visceral_fat_area_cm2: null, // HealthKit doesn't have VAT directly
-          visceral_fat_score: null,
-          bone_health_category: 'normal' as const, // Default, HealthKit doesn't have bone density
           weight_kg: mostRecentWeight?.weightKg ? parseFloat(mostRecentWeight.weightKg.toFixed(1)) : null,
           bmi: mostRecentBmi?.bmi ? parseFloat(mostRecentBmi.bmi.toFixed(1)) : null,
           last_updated: mostRecentWeight?.date || mostRecentBodyFat?.date || mostRecentLeanMass?.date,
