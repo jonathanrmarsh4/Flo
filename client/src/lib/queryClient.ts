@@ -33,9 +33,11 @@ async function getAuthToken(): Promise<string | null> {
   // For web, check localStorage for JWT token (from email/password login)
   const webToken = localStorage.getItem('auth_token');
   if (webToken) {
+    console.log('[QueryClient] Found JWT token in localStorage');
     logger.debug('Retrieved auth token from localStorage', { hasToken: true });
     return webToken;
   }
+  console.log('[QueryClient] No JWT token in localStorage, will use session cookies');
   // Fall back to session cookies automatically sent by the browser
   return null;
 }

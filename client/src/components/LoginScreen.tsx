@@ -28,6 +28,14 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
+      // First, clear any existing session cookies from previous Replit Auth login
+      // This prevents the old session from taking priority over the new JWT
+      try {
+        await fetch('/api/logout', { method: 'GET', credentials: 'include' });
+      } catch (e) {
+        // Ignore logout errors - session might not exist
+      }
+
       const response = await fetch('/api/mobile/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,8 +54,9 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
       // This prevents data leakage between accounts
       queryClient.clear();
 
-      // Store JWT token
+      // Store JWT token in localStorage for web authentication
       localStorage.setItem('auth_token', data.token);
+      console.log('[LoginScreen] JWT token stored in localStorage:', data.token ? 'yes' : 'no');
       logger.info('Email login successful, redirecting to dashboard');
       
       // Redirect to dashboard
