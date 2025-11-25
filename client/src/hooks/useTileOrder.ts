@@ -6,17 +6,15 @@ export type TileId =
   | 'flomentum'
   | 'readiness'
   | 'sleep'
-  | 'insights'
-  | 'quick-stats';
+  | 'insights';
 
-// Default tile order
+// Default tile order (quick-stats removed - hidden by design)
 const DEFAULT_TILE_ORDER: TileId[] = [
   'health-metrics',
   'flomentum',
   'readiness',
   'sleep',
   'insights',
-  'quick-stats',
 ];
 
 const STORAGE_KEY = 'flo-dashboard-tile-order';
@@ -29,11 +27,15 @@ export function useTileOrder() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as TileId[];
-        // Validate that all tiles are present
-        const hasAllTiles = DEFAULT_TILE_ORDER.every(id => parsed.includes(id));
-        if (hasAllTiles && parsed.length === DEFAULT_TILE_ORDER.length) {
-          return parsed;
+        const parsed = JSON.parse(stored) as string[];
+        // Filter out any removed tiles (like 'quick-stats') and validate
+        const validTiles = parsed.filter((id): id is TileId => 
+          DEFAULT_TILE_ORDER.includes(id as TileId)
+        );
+        // Validate that all current tiles are present
+        const hasAllTiles = DEFAULT_TILE_ORDER.every(id => validTiles.includes(id));
+        if (hasAllTiles && validTiles.length === DEFAULT_TILE_ORDER.length) {
+          return validTiles;
         }
       }
     } catch (error) {

@@ -317,62 +317,127 @@ export default function FlomentumScreen() {
               </div>
             ) : (
               <>
-                {/* Weekly Score Card */}
+                {/* Hero Weekly Score Card */}
+                <Card 
+                  className={`backdrop-blur-xl rounded-3xl border p-8 relative overflow-hidden ${
+                    isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+                  }`}
+                >
+                  {/* Ambient glow */}
+                  <div className="absolute inset-0 opacity-30">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-full blur-3xl"></div>
+                  </div>
+
+                  <div className="relative z-10">
+                    <div className="text-center mb-6">
+                      <h2 className={`text-2xl mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-weekly-title">
+                        Flōmentum Weekly
+                      </h2>
+                      <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full ${
+                        isDark ? 'bg-blue-500/20 border border-white/10' : 'bg-blue-100 border border-black/10'
+                      }`} data-testid="badge-week-date">
+                        <span className={`text-xs ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                          Week of {new Date(weeklyData.weekStartDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Large Score Display with Ring */}
+                    <div className="flex justify-center mb-6">
+                      <div className="relative" style={{ width: 180, height: 180 }}>
+                        {(() => {
+                          const circumference = 2 * Math.PI * 75;
+                          const progress = (weeklyData.averageScore / 100) * circumference;
+                          return (
+                            <svg className="w-full h-full transform -rotate-90">
+                              {/* Background ring */}
+                              <circle
+                                cx="90"
+                                cy="90"
+                                r="75"
+                                stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}
+                                strokeWidth="12"
+                                fill="none"
+                              />
+                              {/* Progress ring */}
+                              <circle
+                                cx="90"
+                                cy="90"
+                                r="75"
+                                stroke="url(#weeklyScoreGradient)"
+                                strokeWidth="12"
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={circumference - progress}
+                                className="transition-all duration-1000 ease-out"
+                                style={{ filter: 'drop-shadow(0 0 10px rgba(99, 102, 241, 0.6))' }}
+                              />
+                              <defs>
+                                <linearGradient id="weeklyScoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                  <stop offset="0%" stopColor="#6366f1" />
+                                  <stop offset="100%" stopColor="#a855f7" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                          );
+                        })()}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className={`text-5xl mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-score-weekly">
+                            {weeklyData.averageScore}
+                          </span>
+                          <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>avg score</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Daily Breakdown Card */}
                 <Card 
                   className={`backdrop-blur-xl rounded-3xl border p-6 ${
                     isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
                   }`}
                 >
-                  <h2 className={`text-2xl mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-weekly-title">
-                    Flōmentum Weekly
-                  </h2>
-                  
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <div className={`text-5xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-score-weekly">
-                        {weeklyData.averageScore}
-                      </div>
-                      <div className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`} data-testid="text-week-date">
-                        Week of {new Date(weeklyData.weekStartDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                    
-                    <div className={`px-4 py-2 rounded-full ${colors.badgeBg}`} data-testid="badge-this-week">
-                      <span className={`text-sm ${colors.badgeText}`}>This Week</span>
-                    </div>
-                  </div>
-
-                  {/* Daily Strip */}
+                  <h3 className={`text-lg mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-daily-breakdown-title">
+                    Daily Breakdown
+                  </h3>
                   <div className={`p-4 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
                     <div className="flex items-end justify-between gap-2">
                       {weeklyData.dailyScores.map((day, index) => {
                         const isToday = index === weeklyData.dailyScores.length - 1;
-                        const maxValue = Math.max(...weeklyData.dailyScores.map(d => d.score));
-                        const height = (day.score / maxValue) * 100;
+                        const maxValue = Math.max(...weeklyData.dailyScores.map(d => d.score), 1);
+                        const height = Math.max((day.score / maxValue) * 100, 5);
+                        const zoneColor = day.zone === 'BUILDING' 
+                          ? 'from-teal-500 to-green-500' 
+                          : day.zone === 'MAINTAINING' 
+                            ? 'from-blue-500 to-indigo-500' 
+                            : 'from-amber-500 to-orange-500';
                         
                         return (
                           <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                            <div className={`text-xs ${
+                            <div className={`text-xs font-medium ${
                               isToday 
-                                ? isDark ? 'text-teal-400' : 'text-teal-600'
-                                : isDark ? 'text-white/40' : 'text-gray-400'
+                                ? isDark ? 'text-purple-400' : 'text-purple-600'
+                                : isDark ? 'text-white/60' : 'text-gray-600'
                             }`} data-testid={`text-day-score-${index}`}>
                               {day.score}
                             </div>
-                            <div className="w-full flex items-end justify-center" style={{ height: '60px' }}>
+                            <div className="w-full flex items-end justify-center" style={{ height: '80px' }}>
                               <div 
-                                className={`w-full rounded-lg transition-all ${
-                                  isToday
-                                    ? isDark ? 'bg-gradient-to-t from-teal-500 to-green-500' : 'bg-gradient-to-t from-teal-600 to-green-600'
-                                    : isDark ? 'bg-white/20' : 'bg-gray-300'
+                                className={`w-full max-w-8 rounded-lg transition-all bg-gradient-to-t ${zoneColor} ${
+                                  isToday ? 'ring-2 ring-purple-400/50' : ''
                                 }`}
-                                style={{ height: `${height}%` }}
+                                style={{ 
+                                  height: `${height}%`,
+                                  boxShadow: isToday ? '0 0 12px rgba(168, 85, 247, 0.4)' : undefined
+                                }}
                                 data-testid={`bar-day-${index}`}
                               ></div>
                             </div>
-                            <div className={`text-[10px] ${
+                            <div className={`text-[10px] font-medium ${
                               isToday 
-                                ? isDark ? 'text-teal-400' : 'text-teal-600'
+                                ? isDark ? 'text-purple-400' : 'text-purple-600'
                                 : isDark ? 'text-white/50' : 'text-gray-500'
                             }`} data-testid={`text-day-label-${index}`}>
                               {day.label}
@@ -392,25 +457,26 @@ export default function FlomentumScreen() {
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-4">
-                      <CheckCircle className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} data-testid="icon-helped" />
+                      <div className={`p-2 rounded-xl ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
+                        <CheckCircle className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-600'}`} data-testid="icon-helped" />
+                      </div>
                       <h3 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-helped-title">
                         What helped
                       </h3>
                     </div>
-                    <ul className="space-y-2">
+                    <div className="space-y-3">
                       {weeklyData.whatHelped.map((item, index) => (
-                        <li 
+                        <div 
                           key={index}
-                          className={`flex items-start gap-2 text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}
+                          className={`p-3 rounded-xl ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}
                           data-testid={`text-helped-${index}`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                            isDark ? 'bg-green-400' : 'bg-green-600'
-                          }`}></span>
-                          {item}
-                        </li>
+                          <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                            {item}
+                          </span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </Card>
                 )}
 
@@ -422,25 +488,26 @@ export default function FlomentumScreen() {
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-4">
-                      <AlertCircle className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} data-testid="icon-held-back" />
+                      <div className={`p-2 rounded-xl ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
+                        <AlertCircle className={`w-4 h-4 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} data-testid="icon-held-back" />
+                      </div>
                       <h3 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-held-back-title">
                         What held you back
                       </h3>
                     </div>
-                    <ul className="space-y-2">
+                    <div className="space-y-3">
                       {weeklyData.whatHeldBack.map((item, index) => (
-                        <li 
+                        <div 
                           key={index}
-                          className={`flex items-start gap-2 text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}
+                          className={`p-3 rounded-xl ${isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200'}`}
                           data-testid={`text-held-back-${index}`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
-                            isDark ? 'bg-amber-400' : 'bg-amber-600'
-                          }`}></span>
-                          {item}
-                        </li>
+                          <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                            {item}
+                          </span>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </Card>
                 )}
 
@@ -451,7 +518,9 @@ export default function FlomentumScreen() {
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-3">
-                    <Target className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} data-testid="icon-next-week-focus" />
+                    <div className={`p-2 rounded-xl ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
+                      <Target className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} data-testid="icon-next-week-focus" />
+                    </div>
                     <h3 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-next-week-focus-title">
                       One focus for next week
                     </h3>
@@ -463,7 +532,7 @@ export default function FlomentumScreen() {
 
                 {/* Footer */}
                 <div className={`text-center text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`} data-testid="text-footer-weekly">
-                  Flōmentum updates daily from Apple Health.
+                  Weekly insights generated from your Flōmentum data.
                 </div>
               </>
             )}

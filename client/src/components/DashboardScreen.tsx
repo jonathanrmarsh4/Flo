@@ -315,26 +315,6 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
             </SortableItem>
           );
 
-        case 'quick-stats':
-          return (
-            <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <div className="grid grid-cols-2 gap-4">
-                <QuickStatCard
-                  label="Data Points"
-                  value="247"
-                  trend="+12 this week"
-                  isDark={isDark}
-                />
-                <QuickStatCard
-                  label="Streak"
-                  value="28d"
-                  trend="Personal best!"
-                  isDark={isDark}
-                />
-              </div>
-            </SortableItem>
-          );
-
         default:
           return null;
       }
@@ -469,33 +449,6 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           onUpgrade={handleUpgrade}
         />
       )}
-    </div>
-  );
-}
-
-interface QuickStatCardProps {
-  label: string;
-  value: string;
-  trend: string;
-  isDark: boolean;
-}
-
-function QuickStatCard({ label, value, trend, isDark }: QuickStatCardProps) {
-  return (
-    <div className={`backdrop-blur-xl rounded-2xl border p-4 transition-all ${
-      isDark 
-        ? 'bg-white/5 border-white/10' 
-        : 'bg-white/60 border-black/10'
-    }`}>
-      <div className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-        {label}
-      </div>
-      <div className={`text-2xl mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-        {value}
-      </div>
-      <div className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-        {trend}
-      </div>
     </div>
   );
 }

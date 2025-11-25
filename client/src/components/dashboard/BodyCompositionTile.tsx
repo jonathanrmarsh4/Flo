@@ -1,4 +1,4 @@
-import { Activity, ChevronRight } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BodyCompositionDetailScreen } from './BodyCompositionDetailScreen';
@@ -98,7 +98,11 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
               Body Comp
             </h3>
           </div>
-          <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+          <div className={`text-[10px] px-2 py-0.5 rounded-full ${
+            isDark ? 'bg-white/10 text-white/50' : 'bg-gray-100 text-gray-500'
+          }`}>
+            Tap
+          </div>
         </div>
 
         <div className="mb-4">
