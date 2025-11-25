@@ -115,6 +115,10 @@ export default function MobileAuth() {
           hasUser: !!data.user 
         });
         
+        // CRITICAL: Clear ALL cached data from any previous user session
+        // This prevents data leakage between accounts
+        queryClient.clear();
+        
         // Store JWT token in secure encrypted storage (always native for Apple Sign-In)
         if (data.token) {
           try {
@@ -129,8 +133,7 @@ export default function MobileAuth() {
           }
         }
         
-        // Refetch user data and wait for it to complete
-        await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        // Refetch user data for the new session
         await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
         
         toast({
@@ -171,6 +174,10 @@ export default function MobileAuth() {
       if (response.ok) {
         const responseData = await response.json();
         
+        // CRITICAL: Clear ALL cached data from any previous user session
+        // This prevents data leakage between accounts
+        queryClient.clear();
+        
         // Store JWT token in secure encrypted storage (mobile only)
         if (responseData.token && isNative) {
           try {
@@ -184,7 +191,8 @@ export default function MobileAuth() {
           }
         }
         
-        await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        // Refetch user data for the new session
+        await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
         toast({
           title: "Welcome Back!",
           description: "Successfully signed in",
@@ -217,6 +225,10 @@ export default function MobileAuth() {
       if (response.ok) {
         const responseData = await response.json();
         
+        // CRITICAL: Clear ALL cached data from any previous user session
+        // This prevents data leakage between accounts
+        queryClient.clear();
+        
         // Store JWT token in secure encrypted storage (mobile only)
         if (responseData.token && isNative) {
           try {
@@ -230,7 +242,8 @@ export default function MobileAuth() {
           }
         }
         
-        await queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+        // Refetch user data for the new session
+        await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
         toast({
           title: "Account Created!",
           description: "Welcome to Flō",
