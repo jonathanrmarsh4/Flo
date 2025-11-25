@@ -1,4 +1,4 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
@@ -952,6 +952,94 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Method */}
+        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+        }`} data-testid="card-payment-method">
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+            <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Payment Method
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {/* Apple Pay Card */}
+            <div 
+              className={`p-4 rounded-2xl border ${
+                isDark 
+                  ? 'bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10' 
+                  : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
+              }`}
+              style={{
+                boxShadow: isDark 
+                  ? '0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  : '0 10px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
+              }}
+              data-testid="payment-apple-pay"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* Apple Pay Logo */}
+                  <div 
+                    className="w-12 h-12 rounded-xl bg-black flex items-center justify-center"
+                    style={{
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                    }}
+                  >
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                      <path d="M20.5 8.5c-.8 0-1.5-.3-2.1-.8-.5-.5-.9-1.3-.9-2.2 0-.1 0-.2.1-.2.1 0 .2 0 .2.1 1.1.4 2 1.5 2 2.8 0 .1 0 .2-.1.2-.1.1-.1.1-.2.1zm3.9 1.8c-1.2 0-2.1.6-2.8.6-.7 0-1.8-.6-3-.6-1.5 0-2.9.9-3.7 2.3-1.5 2.7-.4 6.6 1.1 8.8.7 1.1 1.6 2.3 2.7 2.3 1.1 0 1.5-.7 2.8-.7 1.3 0 1.7.7 2.9.7 1.2 0 1.9-1.1 2.6-2.2.8-1.3 1.1-2.5 1.1-2.6 0 0-2.2-.8-2.2-3.2 0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3.1-1.6l-.2-.6z" fill="white"/>
+                      <text x="16" y="27" fill="white" fontSize="8" fontWeight="600" textAnchor="middle" fontFamily="system-ui, -apple-system">Pay</text>
+                    </svg>
+                  </div>
+                  
+                  <div>
+                    <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Apple Pay
+                    </div>
+                    <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      Visa •••• 4242
+                    </div>
+                  </div>
+                </div>
+                
+                <button 
+                  className={`px-4 py-2 rounded-lg text-sm transition-all ${
+                    isDark 
+                      ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30' 
+                      : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100 border border-cyan-200'
+                  }`}
+                  data-testid="button-manage-payment"
+                >
+                  Manage
+                </button>
+              </div>
+            </div>
+
+            {/* Add Payment Method Button */}
+            <button 
+              className={`w-full p-4 rounded-2xl border-2 border-dashed transition-all ${
+                isDark 
+                  ? 'border-white/20 hover:border-cyan-500/50 hover:bg-cyan-500/5' 
+                  : 'border-gray-300 hover:border-cyan-400 hover:bg-cyan-50/50'
+              }`}
+              data-testid="button-add-payment"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <CreditCard className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  Add Payment Method
+                </span>
+              </div>
+            </button>
+
+            {/* Payment Info */}
+            <div className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'} px-2`}>
+              <p>Payments are processed securely through Apple Pay. Your card information is never stored on our servers.</p>
             </div>
           </div>
         </div>
