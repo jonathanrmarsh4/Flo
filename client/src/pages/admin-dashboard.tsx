@@ -48,7 +48,8 @@ export default function AdminDashboard() {
       const params = new URLSearchParams();
       if (searchQuery) params.append('query', searchQuery);
       if (selectedFilter !== 'all') params.append('status', selectedFilter);
-      return await apiRequest('GET', `/api/admin/users?${params}`) as any;
+      const res = await apiRequest('GET', `/api/admin/users?${params}`);
+      return await res.json();
     },
   });
 
