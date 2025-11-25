@@ -59,8 +59,8 @@ export function InsightsModal({ isOpen, onClose }: InsightsModalProps) {
 
       {/* Modal Content */}
       <div className="relative w-full h-full max-w-2xl mx-auto flex flex-col bg-gradient-to-br from-slate-900 to-slate-800">
-        {/* Header Buttons */}
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {/* Header Buttons - with iOS safe area padding */}
+        <div className="absolute right-4 z-10 flex items-center gap-2" style={{ top: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
           {/* Refresh Button */}
           <button
             onClick={() => refreshInsightsMutation.mutate()}
