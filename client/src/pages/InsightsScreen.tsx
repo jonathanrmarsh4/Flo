@@ -146,9 +146,9 @@ export default function InsightsScreen() {
   return (
     <div className="relative h-full flex flex-col bg-gradient-to-br from-purple-900 via-slate-900 to-slate-800 overflow-hidden">
       <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 py-6 border-b border-white/10">
-          <div className="mb-4">
+        {/* Header with iOS safe area padding */}
+        <div className="flex-shrink-0 px-6 py-6 pt-[env(safe-area-inset-top)] border-b border-white/10">
+          <div className="mb-4 mt-4">
             <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-insights">
               AI Insights
             </h1>
