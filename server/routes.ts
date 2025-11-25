@@ -5320,36 +5320,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Body composition endpoint - unified DEXA + HealthKit data
+  // Body composition endpoint - HealthKit data ONLY (no DEXA fallback)
+  // Returns null if no HealthKit data available - tile should not render
   app.get("/api/body-composition", isAuthenticated, async (req: any, res) => {
     try {
-      // Disable caching to ensure fresh HealthKit data is always fetched
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
       res.setHeader('Expires', '0');
 
       const userId = req.user.claims.sub;
       
-      // PRODUCTION DEBUG: Log what we're about to query
-      console.log('🔍 [BODY COMP API] Fetching body composition for userId:', userId);
+      // Query HealthKit data from health_daily_metrics (last 90 days)
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+
+      const healthData = await db
+        .select()
+        .from(healthDailyMetrics)
+        .where(
+          and(
+            eq(healthDailyMetrics.userId, userId),
+            gte(healthDailyMetrics.date, ninetyDaysAgoStr)
+          )
+        )
+        .orderBy(desc(healthDailyMetrics.date));
+
+      // Check if we have any body composition data from HealthKit
+      const hasBodyCompData = healthData.some(d => 
+        d.bodyFatPct !== null || d.leanMassKg !== null || d.weightKg !== null
+      );
+
+      if (!hasBodyCompData) {
+        // No HealthKit body composition data - tile should not render
+        return res.json({ hasData: false, data: null, history: [] });
+      }
+
+      // Get most recent values for each metric
+      const mostRecentWeight = healthData.find(d => d.weightKg !== null);
+      const mostRecentBodyFat = healthData.find(d => d.bodyFatPct !== null);
+      const mostRecentLeanMass = healthData.find(d => d.leanMassKg !== null);
+      const mostRecentBmi = healthData.find(d => d.bmi !== null);
+
+      // Calculate body fat % from weight and lean mass if not directly available
+      let bodyFatPercent = mostRecentBodyFat?.bodyFatPct ?? null;
+      let leanMassPercent: number | null = null;
       
-      const { BodyCompositionService } = await import("./services/bodyCompositionService");
+      if (bodyFatPercent === null && mostRecentWeight?.weightKg && mostRecentLeanMass?.leanMassKg) {
+        bodyFatPercent = ((mostRecentWeight.weightKg - mostRecentLeanMass.leanMassKg) / mostRecentWeight.weightKg) * 100;
+      }
       
-      const data = await BodyCompositionService.getBodyComposition(userId);
-      
-      // PRODUCTION DEBUG: Log what we got back
-      console.log('📊 [BODY COMP API] Response:', JSON.stringify({
-        hasSnapshot: !!data.snapshot,
-        weightKg: data.snapshot?.weightKg,
-        bodyFatPct: data.snapshot?.bodyFatPct,
-        leanMassKg: data.snapshot?.leanMassKg,
-        bmi: data.snapshot?.bmi,
-        weightSource: data.snapshot?.weightSource,
-        bodyFatSource: data.snapshot?.bodyFatSource,
-        trendCount: data.trend?.length || 0,
-      }, null, 2));
-      
-      res.json(data);
+      if (bodyFatPercent !== null) {
+        leanMassPercent = 100 - bodyFatPercent;
+      }
+
+      // Calculate body composition score (0-100)
+      // Score based on body fat % ranges for health
+      let bodyCompositionScore = 50; // Default
+      if (bodyFatPercent !== null) {
+        // Optimal ranges: Men 10-20%, Women 18-28%
+        // Using a general healthy range of 15-25% for scoring
+        if (bodyFatPercent < 10) {
+          bodyCompositionScore = 70 + (10 - bodyFatPercent) * 2; // Very low fat, cap at ~90
+        } else if (bodyFatPercent <= 15) {
+          bodyCompositionScore = 85 + (15 - bodyFatPercent); // Excellent range
+        } else if (bodyFatPercent <= 20) {
+          bodyCompositionScore = 75 + (20 - bodyFatPercent) * 2; // Good range
+        } else if (bodyFatPercent <= 25) {
+          bodyCompositionScore = 60 + (25 - bodyFatPercent) * 3; // Average range
+        } else if (bodyFatPercent <= 30) {
+          bodyCompositionScore = 40 + (30 - bodyFatPercent) * 4; // Below average
+        } else {
+          bodyCompositionScore = Math.max(20, 40 - (bodyFatPercent - 30) * 2); // High fat
+        }
+        bodyCompositionScore = Math.min(100, Math.max(0, Math.round(bodyCompositionScore)));
+      }
+
+      // Build history array for charts (last 90 days with data)
+      const history = healthData
+        .filter(d => d.bodyFatPct !== null || d.leanMassKg !== null || d.weightKg !== null)
+        .map(d => {
+          let fat = d.bodyFatPct;
+          if (fat === null && d.weightKg && d.leanMassKg) {
+            fat = ((d.weightKg - d.leanMassKg) / d.weightKg) * 100;
+          }
+          return {
+            date: d.date,
+            bodyFatPercent: fat ? parseFloat(fat.toFixed(1)) : null,
+            leanMassPercent: fat ? parseFloat((100 - fat).toFixed(1)) : null,
+            weightKg: d.weightKg ? parseFloat(d.weightKg.toFixed(1)) : null,
+          };
+        });
+
+      res.json({
+        hasData: true,
+        data: {
+          body_composition_score: bodyCompositionScore,
+          body_fat_percent: bodyFatPercent ? parseFloat(bodyFatPercent.toFixed(1)) : null,
+          lean_mass_percent: leanMassPercent ? parseFloat(leanMassPercent.toFixed(1)) : null,
+          visceral_fat_area_cm2: null, // HealthKit doesn't have VAT directly
+          visceral_fat_score: null,
+          bone_health_category: 'normal' as const, // Default, HealthKit doesn't have bone density
+          weight_kg: mostRecentWeight?.weightKg ? parseFloat(mostRecentWeight.weightKg.toFixed(1)) : null,
+          bmi: mostRecentBmi?.bmi ? parseFloat(mostRecentBmi.bmi.toFixed(1)) : null,
+          last_updated: mostRecentWeight?.date || mostRecentBodyFat?.date || mostRecentLeanMass?.date,
+        },
+        history,
+      });
     } catch (error) {
       logger.error('Error fetching body composition:', error);
       res.status(500).json({ error: "Failed to fetch body composition data" });
