@@ -1,0 +1,2188 @@
+// 🎨 DEMO MODE: To view the Toast Demo, uncomment the lines below and comment out the main App export at the bottom
+// import ToastDemoApp from './ToastDemoApp';
+// export default ToastDemoApp;
+
+// MAIN APP
+import { useState } from "react";
+import {
+  Plus,
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  User,
+  Lightbulb,
+  LogOut,
+  Moon,
+  Sun,
+  X,
+  Sparkles,
+  Upload,
+  FileText,
+  Edit3,
+  Shield,
+  Home,
+  Droplet,
+  MoreHorizontal,
+  MessageCircle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { BIOMARKER_INSIGHTS } from "./biomarker-insights";
+import { FloLogo, FloIcon } from "./components/FloLogo";
+import { InsightsScreen } from "./components/InsightsScreen";
+import { ActionsScreen } from "./components/ActionsScreen";
+import { DoctorReportScreen } from "./components/DoctorReportScreen";
+import { HealthReportScreen } from "./components/HealthReportScreen";
+import { FullReportScreen } from "./components/FullReportScreen";
+import { ProfileScreen } from "./components/ProfileScreen";
+import { LoginScreen } from "./components/LoginScreen";
+import { AdminScreen } from "./components/AdminScreen";
+import { LandingPage } from "./components/LandingPage";
+import { SplashScreen } from "./components/SplashScreen";
+import { DiagnosticResultsScreen } from "./components/DiagnosticResultsScreen";
+import { DashboardScreen } from "./components/DashboardScreen";
+import { BloodPanelScreen } from "./components/BloodPanelScreen";
+import { FlomentumScreen } from "./components/FlomentumScreen";
+import { VoiceChatScreen } from "./components/VoiceChatScreen";
+import { OnboardingScreen } from "./components/OnboardingScreen";
+
+interface Reading {
+  id: string;
+  biomarker: string;
+  value: number;
+  date: string;
+}
+
+interface BiomarkerConfig {
+  unit: string;
+  min: number;
+  max: number;
+  category: string;
+}
+
+interface BiomarkerInsight {
+  lifestyle: string[];
+  nutrition: string[];
+  supplementation: string[];
+  medicalReferral?: string;
+}
+
+const CATEGORIES = [
+  "All",
+  "Basic Panels",
+  "Lipid & Cardiovascular Health",
+  "Hormonal & Endocrine",
+  "Metabolic & Diabetes",
+  "Liver & Kidney Function",
+  "Nutritional & Vitamin Status",
+  "Inflammation & Immune Markers",
+  "Cardiometabolic & Advanced Panels",
+  "Infectious Disease & General Health",
+  "Longevity & Specialized Panels",
+];
+
+const BIOMARKERS: Record<string, BiomarkerConfig> = {
+  // Basic Panels
+  RBC: {
+    unit: "M/μL",
+    min: 4.2,
+    max: 5.9,
+    category: "Basic Panels",
+  },
+  WBC: {
+    unit: "K/μL",
+    min: 4.5,
+    max: 11.0,
+    category: "Basic Panels",
+  },
+  Hemoglobin: {
+    unit: "g/dL",
+    min: 12,
+    max: 17,
+    category: "Basic Panels",
+  },
+  Hematocrit: {
+    unit: "%",
+    min: 36,
+    max: 50,
+    category: "Basic Panels",
+  },
+  MCV: {
+    unit: "fL",
+    min: 80,
+    max: 100,
+    category: "Basic Panels",
+  },
+  MCH: {
+    unit: "pg",
+    min: 27,
+    max: 33,
+    category: "Basic Panels",
+  },
+  Platelets: {
+    unit: "K/μL",
+    min: 150,
+    max: 400,
+    category: "Basic Panels",
+  },
+  Glucose: {
+    unit: "mg/dL",
+    min: 70,
+    max: 100,
+    category: "Basic Panels",
+  },
+  Calcium: {
+    unit: "mg/dL",
+    min: 8.5,
+    max: 10.5,
+    category: "Basic Panels",
+  },
+  Sodium: {
+    unit: "mEq/L",
+    min: 135,
+    max: 145,
+    category: "Basic Panels",
+  },
+  Potassium: {
+    unit: "mEq/L",
+    min: 3.5,
+    max: 5.0,
+    category: "Basic Panels",
+  },
+  CO2: {
+    unit: "mEq/L",
+    min: 23,
+    max: 29,
+    category: "Basic Panels",
+  },
+  Chloride: {
+    unit: "mEq/L",
+    min: 96,
+    max: 106,
+    category: "Basic Panels",
+  },
+  BUN: {
+    unit: "mg/dL",
+    min: 7,
+    max: 20,
+    category: "Basic Panels",
+  },
+  Creatinine: {
+    unit: "mg/dL",
+    min: 0.7,
+    max: 1.3,
+    category: "Basic Panels",
+  },
+  ALT: {
+    unit: "U/L",
+    min: 7,
+    max: 56,
+    category: "Basic Panels",
+  },
+  AST: {
+    unit: "U/L",
+    min: 10,
+    max: 40,
+    category: "Basic Panels",
+  },
+  ALP: {
+    unit: "U/L",
+    min: 30,
+    max: 120,
+    category: "Basic Panels",
+  },
+  Bilirubin: {
+    unit: "mg/dL",
+    min: 0.1,
+    max: 1.2,
+    category: "Basic Panels",
+  },
+  "Total Protein": {
+    unit: "g/dL",
+    min: 6.0,
+    max: 8.3,
+    category: "Basic Panels",
+  },
+  Albumin: {
+    unit: "g/dL",
+    min: 3.5,
+    max: 5.5,
+    category: "Basic Panels",
+  },
+
+  // Lipid & Cardiovascular Health
+  "Total Cholesterol": {
+    unit: "mg/dL",
+    min: 125,
+    max: 200,
+    category: "Lipid & Cardiovascular Health",
+  },
+  HDL: {
+    unit: "mg/dL",
+    min: 40,
+    max: 100,
+    category: "Lipid & Cardiovascular Health",
+  },
+  LDL: {
+    unit: "mg/dL",
+    min: 50,
+    max: 100,
+    category: "Lipid & Cardiovascular Health",
+  },
+  Triglycerides: {
+    unit: "mg/dL",
+    min: 50,
+    max: 150,
+    category: "Lipid & Cardiovascular Health",
+  },
+  "Non-HDL Cholesterol": {
+    unit: "mg/dL",
+    min: 60,
+    max: 130,
+    category: "Lipid & Cardiovascular Health",
+  },
+  ApoA1: {
+    unit: "mg/dL",
+    min: 120,
+    max: 180,
+    category: "Lipid & Cardiovascular Health",
+  },
+  ApoB: {
+    unit: "mg/dL",
+    min: 40,
+    max: 100,
+    category: "Lipid & Cardiovascular Health",
+  },
+  "Lipoprotein(a)": {
+    unit: "mg/dL",
+    min: 0,
+    max: 30,
+    category: "Lipid & Cardiovascular Health",
+  },
+  "hs-CRP": {
+    unit: "mg/L",
+    min: 0,
+    max: 3,
+    category: "Lipid & Cardiovascular Health",
+  },
+  Homocysteine: {
+    unit: "μmol/L",
+    min: 5,
+    max: 15,
+    category: "Lipid & Cardiovascular Health",
+  },
+
+  // Hormonal & Endocrine
+  TSH: {
+    unit: "mIU/L",
+    min: 0.5,
+    max: 4.5,
+    category: "Hormonal & Endocrine",
+  },
+  "Free T3": {
+    unit: "pg/mL",
+    min: 2.3,
+    max: 4.2,
+    category: "Hormonal & Endocrine",
+  },
+  "Free T4": {
+    unit: "ng/dL",
+    min: 0.8,
+    max: 1.8,
+    category: "Hormonal & Endocrine",
+  },
+  "Reverse T3": {
+    unit: "ng/dL",
+    min: 9,
+    max: 27,
+    category: "Hormonal & Endocrine",
+  },
+  "Anti-TPO": {
+    unit: "IU/mL",
+    min: 0,
+    max: 35,
+    category: "Hormonal & Endocrine",
+  },
+  "Anti-TG": {
+    unit: "IU/mL",
+    min: 0,
+    max: 40,
+    category: "Hormonal & Endocrine",
+  },
+  "Total Testosterone": {
+    unit: "ng/dL",
+    min: 300,
+    max: 1000,
+    category: "Hormonal & Endocrine",
+  },
+  "Free Testosterone": {
+    unit: "pg/mL",
+    min: 50,
+    max: 200,
+    category: "Hormonal & Endocrine",
+  },
+  SHBG: {
+    unit: "nmol/L",
+    min: 20,
+    max: 60,
+    category: "Hormonal & Endocrine",
+  },
+  "Estradiol (E2)": {
+    unit: "pg/mL",
+    min: 10,
+    max: 40,
+    category: "Hormonal & Endocrine",
+  },
+  "DHEA-S": {
+    unit: "μg/dL",
+    min: 80,
+    max: 560,
+    category: "Hormonal & Endocrine",
+  },
+  "Cortisol (AM)": {
+    unit: "μg/dL",
+    min: 6,
+    max: 23,
+    category: "Hormonal & Endocrine",
+  },
+  "Cortisol (PM)": {
+    unit: "μg/dL",
+    min: 3,
+    max: 16,
+    category: "Hormonal & Endocrine",
+  },
+  Insulin: {
+    unit: "μIU/mL",
+    min: 2,
+    max: 20,
+    category: "Hormonal & Endocrine",
+  },
+  "C-Peptide": {
+    unit: "ng/mL",
+    min: 0.9,
+    max: 4.0,
+    category: "Hormonal & Endocrine",
+  },
+  LH: {
+    unit: "mIU/mL",
+    min: 1.5,
+    max: 9.3,
+    category: "Hormonal & Endocrine",
+  },
+  FSH: {
+    unit: "mIU/mL",
+    min: 1.4,
+    max: 18.1,
+    category: "Hormonal & Endocrine",
+  },
+  Prolactin: {
+    unit: "ng/mL",
+    min: 2,
+    max: 18,
+    category: "Hormonal & Endocrine",
+  },
+  "IGF-1": {
+    unit: "ng/mL",
+    min: 115,
+    max: 307,
+    category: "Hormonal & Endocrine",
+  },
+
+  // Metabolic & Diabetes
+  "Fasting Glucose": {
+    unit: "mg/dL",
+    min: 70,
+    max: 100,
+    category: "Metabolic & Diabetes",
+  },
+  HbA1c: {
+    unit: "%",
+    min: 4,
+    max: 5.6,
+    category: "Metabolic & Diabetes",
+  },
+  "HOMA-IR": {
+    unit: "score",
+    min: 0,
+    max: 2.0,
+    category: "Metabolic & Diabetes",
+  },
+  Fructosamine: {
+    unit: "μmol/L",
+    min: 200,
+    max: 285,
+    category: "Metabolic & Diabetes",
+  },
+
+  // Liver & Kidney Function
+  GGT: {
+    unit: "U/L",
+    min: 0,
+    max: 55,
+    category: "Liver & Kidney Function",
+  },
+  eGFR: {
+    unit: "mL/min",
+    min: 60,
+    max: 120,
+    category: "Liver & Kidney Function",
+  },
+  "Uric Acid": {
+    unit: "mg/dL",
+    min: 3.5,
+    max: 7.2,
+    category: "Liver & Kidney Function",
+  },
+
+  // Nutritional & Vitamin Status
+  "Vitamin D (25-OH)": {
+    unit: "ng/mL",
+    min: 30,
+    max: 100,
+    category: "Nutritional & Vitamin Status",
+  },
+  "Vitamin B12": {
+    unit: "pg/mL",
+    min: 200,
+    max: 900,
+    category: "Nutritional & Vitamin Status",
+  },
+  "Folate (B9)": {
+    unit: "ng/mL",
+    min: 2.7,
+    max: 17,
+    category: "Nutritional & Vitamin Status",
+  },
+  Ferritin: {
+    unit: "ng/mL",
+    min: 30,
+    max: 200,
+    category: "Nutritional & Vitamin Status",
+  },
+  Iron: {
+    unit: "μg/dL",
+    min: 60,
+    max: 170,
+    category: "Nutritional & Vitamin Status",
+  },
+  TIBC: {
+    unit: "μg/dL",
+    min: 250,
+    max: 450,
+    category: "Nutritional & Vitamin Status",
+  },
+  "Transferrin Saturation": {
+    unit: "%",
+    min: 20,
+    max: 50,
+    category: "Nutritional & Vitamin Status",
+  },
+  Magnesium: {
+    unit: "mg/dL",
+    min: 1.7,
+    max: 2.2,
+    category: "Nutritional & Vitamin Status",
+  },
+  Zinc: {
+    unit: "μg/dL",
+    min: 70,
+    max: 120,
+    category: "Nutritional & Vitamin Status",
+  },
+  Copper: {
+    unit: "μg/dL",
+    min: 70,
+    max: 140,
+    category: "Nutritional & Vitamin Status",
+  },
+  Selenium: {
+    unit: "μg/L",
+    min: 70,
+    max: 150,
+    category: "Nutritional & Vitamin Status",
+  },
+  "Omega-3 Index": {
+    unit: "%",
+    min: 8,
+    max: 12,
+    category: "Nutritional & Vitamin Status",
+  },
+
+  // Inflammation & Immune Markers
+  ESR: {
+    unit: "mm/hr",
+    min: 0,
+    max: 20,
+    category: "Inflammation & Immune Markers",
+  },
+  Fibrinogen: {
+    unit: "mg/dL",
+    min: 200,
+    max: 400,
+    category: "Inflammation & Immune Markers",
+  },
+  ANA: {
+    unit: "titer",
+    min: 0,
+    max: 1,
+    category: "Inflammation & Immune Markers",
+  },
+  "Rheumatoid Factor": {
+    unit: "IU/mL",
+    min: 0,
+    max: 14,
+    category: "Inflammation & Immune Markers",
+  },
+
+  // Cardiometabolic & Advanced Panels
+  "LP-PLA2": {
+    unit: "ng/mL",
+    min: 0,
+    max: 200,
+    category: "Cardiometabolic & Advanced Panels",
+  },
+  "Galectin-3": {
+    unit: "ng/mL",
+    min: 0,
+    max: 17.8,
+    category: "Cardiometabolic & Advanced Panels",
+  },
+  "NT-proBNP": {
+    unit: "pg/mL",
+    min: 0,
+    max: 125,
+    category: "Cardiometabolic & Advanced Panels",
+  },
+
+  // Infectious Disease & General Health
+  "CBC with Differential": {
+    unit: "panel",
+    min: 0,
+    max: 1,
+    category: "Infectious Disease & General Health",
+  },
+
+  // Longevity & Specialized Panels
+  "Telomere Length": {
+    unit: "kb",
+    min: 7.0,
+    max: 12.0,
+    category: "Longevity & Specialized Panels",
+  },
+  "8-OHdG": {
+    unit: "ng/mL",
+    min: 0,
+    max: 5,
+    category: "Longevity & Specialized Panels",
+  },
+  MDA: {
+    unit: "nmol/mL",
+    min: 0,
+    max: 2.5,
+    category: "Longevity & Specialized Panels",
+  },
+  "IL-6": {
+    unit: "pg/mL",
+    min: 0,
+    max: 5,
+    category: "Longevity & Specialized Panels",
+  },
+  "TNF-α": {
+    unit: "pg/mL",
+    min: 0,
+    max: 8,
+    category: "Longevity & Specialized Panels",
+  },
+};
+
+const INITIAL_DATA: Reading[] = [
+  // Basic Panels
+  {
+    id: "1",
+    biomarker: "Glucose",
+    value: 95,
+    date: "2025-10-15",
+  },
+  {
+    id: "2",
+    biomarker: "Glucose",
+    value: 88,
+    date: "2025-09-12",
+  },
+  {
+    id: "3",
+    biomarker: "Glucose",
+    value: 102,
+    date: "2025-08-08",
+  },
+  {
+    id: "4",
+    biomarker: "Glucose",
+    value: 85,
+    date: "2025-07-05",
+  },
+
+  // Lipid & Cardiovascular Health
+  {
+    id: "5",
+    biomarker: "Total Cholesterol",
+    value: 195,
+    date: "2025-10-15",
+  },
+  {
+    id: "6",
+    biomarker: "Total Cholesterol",
+    value: 210,
+    date: "2025-08-10",
+  },
+  {
+    id: "7",
+    biomarker: "Total Cholesterol",
+    value: 185,
+    date: "2025-06-05",
+  },
+  { id: "8", biomarker: "HDL", value: 55, date: "2025-10-15" },
+  { id: "9", biomarker: "LDL", value: 95, date: "2025-10-15" },
+  {
+    id: "10",
+    biomarker: "Triglycerides",
+    value: 120,
+    date: "2025-10-15",
+  },
+
+  // Nutritional & Vitamin Status
+  {
+    id: "11",
+    biomarker: "Vitamin D (25-OH)",
+    value: 28,
+    date: "2025-10-15",
+  },
+  {
+    id: "12",
+    biomarker: "Vitamin D (25-OH)",
+    value: 35,
+    date: "2025-08-10",
+  },
+  {
+    id: "13",
+    biomarker: "Vitamin D (25-OH)",
+    value: 42,
+    date: "2025-06-05",
+  },
+  {
+    id: "14",
+    biomarker: "Vitamin B12",
+    value: 450,
+    date: "2025-10-15",
+  },
+  {
+    id: "15",
+    biomarker: "Ferritin",
+    value: 85,
+    date: "2025-10-15",
+  },
+
+  // Basic Panels - Blood
+  {
+    id: "16",
+    biomarker: "Hemoglobin",
+    value: 14.5,
+    date: "2025-10-15",
+  },
+  {
+    id: "17",
+    biomarker: "Hemoglobin",
+    value: 13.8,
+    date: "2025-08-10",
+  },
+
+  // Liver & Kidney
+  { id: "18", biomarker: "ALT", value: 25, date: "2025-10-15" },
+  {
+    id: "19",
+    biomarker: "Creatinine",
+    value: 1.1,
+    date: "2025-10-15",
+  },
+
+  // Hormonal & Endocrine
+  {
+    id: "20",
+    biomarker: "TSH",
+    value: 2.5,
+    date: "2025-10-15",
+  },
+
+  // Metabolic & Diabetes
+  {
+    id: "21",
+    biomarker: "HbA1c",
+    value: 5.3,
+    date: "2025-10-15",
+  },
+  {
+    id: "22",
+    biomarker: "HbA1c",
+    value: 5.5,
+    date: "2025-08-10",
+  },
+];
+
+// Helper function to get available units for each biomarker
+const getAvailableUnits = (biomarker: string): string[] => {
+  const defaultUnit = BIOMARKERS[biomarker]?.unit || "";
+
+  // Common alternative units for different biomarker types
+  const unitMap: Record<string, string[]> = {
+    Glucose: ["mg/dL", "mmol/L"],
+    "Fasting Glucose": ["mg/dL", "mmol/L"],
+    "Total Cholesterol": ["mg/dL", "mmol/L"],
+    HDL: ["mg/dL", "mmol/L"],
+    LDL: ["mg/dL", "mmol/L"],
+    Triglycerides: ["mg/dL", "mmol/L"],
+    "Non-HDL Cholesterol": ["mg/dL", "mmol/L"],
+    Creatinine: ["mg/dL", "μmol/L"],
+    BUN: ["mg/dL", "mmol/L"],
+    "Vitamin D (25-OH)": ["ng/mL", "nmol/L"],
+    "Vitamin B12": ["pg/mL", "pmol/L"],
+    Ferritin: ["ng/mL", "μg/L", "pmol/L"],
+    Hemoglobin: ["g/dL", "g/L"],
+    Calcium: ["mg/dL", "mmol/L"],
+    Magnesium: ["mg/dL", "mmol/L"],
+  };
+
+  return unitMap[biomarker] || [defaultUnit];
+};
+
+// Helper function to extract key terms from recommendation text
+const extractKeywords = (
+  text: string,
+  category: "supplement" | "nutrition" | "lifestyle",
+): string[] => {
+  const keywords: string[] = [];
+
+  if (category === "supplement") {
+    // Extract supplement names (text before dosage or dash)
+    const supplementPatterns = [
+      /^([A-Za-z0-9\s\-]+?)(?:\s*\(|\s*-)/, // Name before parenthesis or dash
+      /([A-Z][a-z]+(?:\s+[A-Z]?[a-z]+)*)\s*\(/, // Capitalized words before parenthesis
+    ];
+
+    for (const pattern of supplementPatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const keyword = match[1].trim();
+        if (keyword.length > 2 && !keywords.includes(keyword)) {
+          keywords.push(keyword);
+          break;
+        }
+      }
+    }
+  } else if (category === "nutrition") {
+    // Extract food items and nutrients
+    const foodPatterns = [
+      /omega-3/gi,
+      /fatty fish/gi,
+      /salmon/gi,
+      /mackerel/gi,
+      /sardines/gi,
+      /whole grains/gi,
+      /legumes/gi,
+      /fiber/gi,
+      /protein/gi,
+      /vegetables/gi,
+      /fruits/gi,
+      /nuts/gi,
+      /seeds/gi,
+      /beans/gi,
+      /oats/gi,
+      /flaxseeds/gi,
+      /walnuts/gi,
+      /plant sterols/gi,
+      /egg yolks/gi,
+      /mushrooms/gi,
+      /red meat/gi,
+      /organ meats/gi,
+      /shellfish/gi,
+    ];
+
+    for (const pattern of foodPatterns) {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach((match) => {
+          const keyword =
+            match.charAt(0).toUpperCase() +
+            match.slice(1).toLowerCase();
+          if (!keywords.includes(keyword)) {
+            keywords.push(keyword);
+          }
+        });
+      }
+    }
+  } else if (category === "lifestyle") {
+    // Extract lifestyle actions
+    const actionPatterns = [
+      /exercise/gi,
+      /yoga/gi,
+      /meditation/gi,
+      /sleep/gi,
+      /walking/gi,
+      /running/gi,
+      /swimming/gi,
+      /aerobic/gi,
+      /cardio/gi,
+      /strength training/gi,
+      /sun exposure/gi,
+      /hydration/gi,
+      /stress reduction/gi,
+      /quit smoking/gi,
+      /weight loss/gi,
+      /movement/gi,
+    ];
+
+    for (const pattern of actionPatterns) {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach((match) => {
+          const keyword =
+            match.charAt(0).toUpperCase() +
+            match.slice(1).toLowerCase();
+          if (!keywords.includes(keyword)) {
+            keywords.push(keyword);
+          }
+        });
+      }
+    }
+  }
+
+  return keywords.slice(0, 3); // Limit to 3 keywords max
+};
+
+export default function App() {
+  const [readings, setReadings] =
+    useState<Reading[]>(INITIAL_DATA);
+  const [showModal, setShowModal] = useState(false);
+  const [selectedBiomarker, setSelectedBiomarker] =
+    useState("");
+  const [value, setValue] = useState("");
+  const [date, setDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [selectedCategory, setSelectedCategory] =
+    useState("All");
+  const [isDark, setIsDark] = useState(true);
+  const [insightsBiomarker, setInsightsBiomarker] = useState<
+    string | null
+  >(null);
+  const [addMode, setAddMode] = useState<"manual" | "upload">(
+    "manual",
+  );
+  const [selectedUnit, setSelectedUnit] = useState("");
+  const [showInsightsScreen, setShowInsightsScreen] = useState(false);
+  const [showActionsScreen, setShowActionsScreen] = useState(false);
+  const [showDoctorReportScreen, setShowDoctorReportScreen] = useState(false);
+  const [showHealthReportScreen, setShowHealthReportScreen] = useState(false);
+  const [showFullReportScreen, setShowFullReportScreen] =
+    useState(false);
+  const [showProfileScreen, setShowProfileScreen] =
+    useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showAdminScreen, setShowAdminScreen] = useState(false);
+  const [showLandingPage, setShowLandingPage] = useState(true);
+  const [showLoginScreen, setShowLoginScreen] = useState(false);
+  const [showSplashScreen, setShowSplashScreen] =
+    useState(false);
+  const [showDiagnosticScreen, setShowDiagnosticScreen] =
+    useState(false);
+  const [showDashboard, setShowDashboard] = useState(true);
+  const [showBloodPanel, setShowBloodPanel] = useState(false);
+  const [showFlomentumScreen, setShowFlomentumScreen] =
+    useState(false);
+  const [showVoiceChatScreen, setShowVoiceChatScreen] =
+    useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Handler for biomarker selection - auto-select default unit
+  const handleBiomarkerChange = (biomarkerName: string) => {
+    setSelectedBiomarker(biomarkerName);
+    if (biomarkerName) {
+      const defaultUnit = BIOMARKERS[biomarkerName]?.unit || "";
+      setSelectedUnit(defaultUnit);
+    } else {
+      setSelectedUnit("");
+    }
+  };
+
+  const handleAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBiomarker || !value) return;
+
+    const newReading: Reading = {
+      id: Date.now().toString(),
+      biomarker: selectedBiomarker,
+      value: parseFloat(value),
+      date: date,
+    };
+
+    setReadings([newReading, ...readings]);
+    setSelectedBiomarker("");
+    setValue("");
+    setShowModal(false);
+  };
+
+  const getLatestReading = (biomarker: string) => {
+    return readings
+      .filter((r) => r.biomarker === biomarker)
+      .sort(
+        (a, b) =>
+          new Date(b.date).getTime() -
+          new Date(a.date).getTime(),
+      )[0];
+  };
+
+  const isInRange = (biomarker: string, value: number) => {
+    const config =
+      BIOMARKERS[biomarker as keyof typeof BIOMARKERS];
+    return value >= config.min && value <= config.max;
+  };
+
+  const trackedBiomarkers = [
+    ...new Set(readings.map((r) => r.biomarker)),
+  ];
+
+  // Get biomarkers that are out of range for shop recommendations
+  const outOfRangeBiomarkers = trackedBiomarkers.filter(
+    (biomarker) => {
+      const latest = getLatestReading(biomarker);
+      return latest && !isInRange(biomarker, latest.value);
+    },
+  );
+
+  const getBiomarkerHistory = (biomarker: string) => {
+    return readings
+      .filter((r) => r.biomarker === biomarker)
+      .sort(
+        (a, b) =>
+          new Date(a.date).getTime() -
+          new Date(b.date).getTime(),
+      );
+  };
+
+  // Filter biomarkers by category
+  const filteredBiomarkers = trackedBiomarkers.filter(
+    (biomarker) => {
+      if (selectedCategory === "All") return true;
+      const config = BIOMARKERS[biomarker];
+      return config && config.category === selectedCategory;
+    },
+  );
+
+  // Show splash screen for screenshot (press S key to toggle)
+  if (showSplashScreen) {
+    return <SplashScreen />;
+  }
+
+  // Show landing page first
+  if (showLandingPage) {
+    return (
+      <LandingPage
+        onGetStarted={() => {
+          setShowLandingPage(false);
+          setShowLoginScreen(true);
+        }}
+        isDark={isDark}
+        setIsDark={setIsDark}
+      />
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated && showLoginScreen) {
+    return (
+      <LoginScreen
+        onLogin={() => {
+          setIsAuthenticated(true);
+          setShowOnboarding(true);
+        }}
+        isDark={isDark}
+      />
+    );
+  }
+
+  // Show onboarding for new users
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen
+        isDark={isDark}
+        onComplete={() => setShowOnboarding(false)}
+        onSkip={() => setShowOnboarding(false)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`min-h-screen pb-20 transition-colors ${
+        isDark
+          ? "bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900"
+          : "bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50"
+      }`}
+    >
+      {/* Compact Mobile Header - only show when not on dashboard */}
+      {!showDashboard && (
+        <>
+          <header
+            className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
+              isDark
+                ? "bg-white/5 border-white/10"
+                : "bg-white/70 border-black/10"
+            }`}
+          >
+            <div className="px-4 py-3">
+              <div className="flex items-center justify-between">
+                <FloLogo
+                  size={32}
+                  showText={true}
+                  className={
+                    isDark ? "text-white" : "text-gray-900"
+                  }
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowAdminScreen(true)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDark
+                        ? "hover:bg-white/10"
+                        : "hover:bg-black/5"
+                    }`}
+                    title="Admin Dashboard"
+                  >
+                    <Shield
+                      className={`w-4 h-4 ${isDark ? "text-cyan-400" : "text-cyan-600"}`}
+                    />
+                  </button>
+                  <button
+                    onClick={() => setIsDark(!isDark)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDark
+                        ? "hover:bg-white/10"
+                        : "hover:bg-black/5"
+                    }`}
+                  >
+                    {isDark ? (
+                      <Sun className="w-4 h-4 text-white/70" />
+                    ) : (
+                      <Moon className="w-4 h-4 text-gray-600" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => alert("Logout")}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDark
+                        ? "hover:bg-white/10"
+                        : "hover:bg-black/5"
+                    }`}
+                  >
+                    <LogOut
+                      className={`w-4 h-4 ${isDark ? "text-white/70" : "text-gray-600"}`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Compact Category Pills - only for blood panel */}
+          {showBloodPanel && (
+            <div
+              className={`sticky top-[57px] z-40 backdrop-blur-xl border-b transition-colors ${
+                isDark
+                  ? "bg-white/5 border-white/10"
+                  : "bg-white/70 border-black/10"
+              }`}
+            >
+              <div className="px-3 py-2.5">
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory">
+                  {CATEGORIES.map((category) => {
+                    // Abbreviate long category names for the pills
+                    const displayName =
+                      category ===
+                      "Lipid & Cardiovascular Health"
+                        ? "Lipids & Cardio"
+                        : category === "Hormonal & Endocrine"
+                          ? "Hormones"
+                          : category === "Metabolic & Diabetes"
+                            ? "Metabolic"
+                            : category ===
+                                "Liver & Kidney Function"
+                              ? "Liver & Kidney"
+                              : category ===
+                                  "Nutritional & Vitamin Status"
+                                ? "Nutrition"
+                                : category ===
+                                    "Inflammation & Immune Markers"
+                                  ? "Inflammation"
+                                  : category ===
+                                      "Cardiometabolic & Advanced Panels"
+                                    ? "Advanced"
+                                    : category ===
+                                        "Infectious Disease & General Health"
+                                      ? "Infectious"
+                                      : category ===
+                                          "Longevity & Specialized Panels"
+                                        ? "Longevity"
+                                        : category;
+
+                    return (
+                      <button
+                        key={category}
+                        onClick={() =>
+                          setSelectedCategory(category)
+                        }
+                        className={`
+                    px-3 py-1.5 rounded-full whitespace-nowrap transition-all flex-shrink-0 text-xs snap-start
+                    ${
+                      selectedCategory === category
+                        ? "bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25"
+                        : isDark
+                          ? "bg-white/10 text-white/70 hover:bg-white/20"
+                          : "bg-white/60 text-gray-700 hover:bg-white/80"
+                    }
+                  `}
+                      >
+                        {displayName}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Main Content */}
+      {showDashboard && !showBloodPanel && (
+        <DashboardScreen
+          isDark={isDark}
+          onSettingsClick={() => setShowProfileScreen(true)}
+          onAdminClick={() => setShowAdminScreen(true)}
+          onFlomentumClick={() => setShowFlomentumScreen(true)}
+          onInsightsClick={() => setShowInsightsScreen(true)}
+          onReportClick={() => setShowDoctorReportScreen(true)}
+        />
+      )}
+
+      {showBloodPanel && (
+        <div className="fixed inset-0 z-50">
+          <BloodPanelScreen
+            isDark={isDark}
+            onClose={() => {
+              setShowBloodPanel(false);
+              setShowDashboard(true);
+            }}
+            readings={readings}
+            biomarkers={BIOMARKERS}
+            categories={CATEGORIES}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            onBiomarkerClick={setInsightsBiomarker}
+            getLatestReading={getLatestReading}
+            isInRange={isInRange}
+            getBiomarkerHistory={getBiomarkerHistory}
+          />
+        </div>
+      )}
+
+      {/* Add Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowModal(false)}
+          />
+
+          <div
+            className={`relative h-full w-full flex flex-col ${
+              isDark ? "bg-slate-950" : "bg-white"
+            }`}
+          >
+            {/* Header */}
+            <div
+              className={`flex items-center justify-between px-4 py-4 border-b ${
+                isDark ? "border-white/10" : "border-gray-200"
+              }`}
+            >
+              <h2
+                className={`${isDark ? "text-white" : "text-gray-900"}`}
+              >
+                Add Test Results
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark
+                    ? "hover:bg-white/10"
+                    : "hover:bg-black/5"
+                }`}
+              >
+                <X
+                  className={`w-5 h-5 ${isDark ? "text-white/70" : "text-gray-600"}`}
+                />
+              </button>
+            </div>
+
+            {/* Mode Tabs */}
+            <div
+              className={`flex gap-2 px-4 py-3 border-b ${
+                isDark ? "border-white/10" : "border-gray-200"
+              }`}
+            >
+              <button
+                onClick={() => setAddMode("manual")}
+                className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${
+                  addMode === "manual"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                    : isDark
+                      ? "bg-white/5 text-white/60"
+                      : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                <Edit3 className="w-4 h-4" />
+                <span className="text-sm">Manual Entry</span>
+              </button>
+              <button
+                onClick={() => setAddMode("upload")}
+                className={`flex-1 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-all ${
+                  addMode === "upload"
+                    ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
+                    : isDark
+                      ? "bg-white/5 text-white/60"
+                      : "bg-gray-100 text-gray-600"
+                }`}
+              >
+                <Upload className="w-4 h-4" />
+                <span className="text-sm">Upload</span>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {addMode === "manual" ? (
+                <form
+                  onSubmit={handleAdd}
+                  className="space-y-4 max-w-md mx-auto"
+                >
+                  <div>
+                    <label
+                      className={`block text-sm mb-2 ${isDark ? "text-white/70" : "text-gray-600"}`}
+                    >
+                      Biomarker
+                    </label>
+                    <select
+                      value={selectedBiomarker}
+                      onChange={(e) =>
+                        handleBiomarkerChange(e.target.value)
+                      }
+                      className={`w-full px-4 py-3 border rounded-xl ${
+                        isDark
+                          ? "bg-white/5 border-white/10 text-white"
+                          : "bg-gray-50 border-gray-200 text-gray-900"
+                      }`}
+                      required
+                    >
+                      <option value="">
+                        Select biomarker...
+                      </option>
+                      {Object.keys(BIOMARKERS).map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      className={`block text-sm mb-2 ${isDark ? "text-white/70" : "text-gray-600"}`}
+                    >
+                      Value
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      placeholder="Enter value"
+                      className={`w-full px-4 py-3 border rounded-xl ${
+                        isDark
+                          ? "bg-white/5 border-white/10 text-white placeholder-white/40"
+                          : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"
+                      }`}
+                      required
+                    />
+                    {selectedBiomarker && (
+                      <p
+                        className={`text-xs mt-1.5 ${isDark ? "text-white/40" : "text-gray-500"}`}
+                      >
+                        Optimal range:{" "}
+                        {BIOMARKERS[selectedBiomarker].min} -{" "}
+                        {BIOMARKERS[selectedBiomarker].max}{" "}
+                        {BIOMARKERS[selectedBiomarker].unit}
+                      </p>
+                    )}
+                  </div>
+
+                  {selectedBiomarker && (
+                    <div>
+                      <label
+                        className={`block text-sm mb-2 ${isDark ? "text-white/70" : "text-gray-600"}`}
+                      >
+                        Unit of Measure
+                      </label>
+                      <select
+                        value={selectedUnit}
+                        onChange={(e) =>
+                          setSelectedUnit(e.target.value)
+                        }
+                        className={`w-full px-4 py-3 border rounded-xl ${
+                          isDark
+                            ? "bg-white/5 border-white/10 text-white"
+                            : "bg-gray-50 border-gray-200 text-gray-900"
+                        }`}
+                        required
+                      >
+                        {getAvailableUnits(
+                          selectedBiomarker,
+                        ).map((unit) => (
+                          <option key={unit} value={unit}>
+                            {unit}
+                          </option>
+                        ))}
+                      </select>
+                      {getAvailableUnits(selectedBiomarker)
+                        .length > 1 && (
+                        <p
+                          className={`text-xs mt-1.5 ${isDark ? "text-white/40" : "text-gray-500"}`}
+                        >
+                          💡 Select the unit shown on your lab
+                          report
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label
+                      className={`block text-sm mb-2 ${isDark ? "text-white/70" : "text-gray-600"}`}
+                    >
+                      Test Date
+                    </label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded-xl ${
+                        isDark
+                          ? "bg-white/5 border-white/10 text-white"
+                          : "bg-gray-50 border-gray-200 text-gray-900"
+                      }`}
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full px-4 py-3.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl text-white mt-6"
+                  >
+                    Add Result
+                  </button>
+                </form>
+              ) : (
+                <div className="max-w-md mx-auto">
+                  <div
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${
+                      isDark
+                        ? "border-white/20 hover:border-white/40 hover:bg-white/5"
+                        : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    <Upload
+                      className={`w-16 h-16 mx-auto mb-4 ${isDark ? "text-white/40" : "text-gray-400"}`}
+                    />
+                    <h3
+                      className={`mb-2 ${isDark ? "text-white" : "text-gray-900"}`}
+                    >
+                      Upload Lab Results
+                    </h3>
+                    <p
+                      className={`text-sm mb-4 ${isDark ? "text-white/60" : "text-gray-600"}`}
+                    >
+                      Drag and drop your lab results here, or
+                      click to browse
+                    </p>
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      onChange={(e) => {
+                        if (
+                          e.target.files &&
+                          e.target.files[0]
+                        ) {
+                          alert(
+                            `File uploaded: ${e.target.files[0].name}\nAI parsing coming soon!`,
+                          );
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="file-upload"
+                      className={`inline-block px-6 py-2.5 rounded-xl cursor-pointer transition-colors ${
+                        isDark
+                          ? "bg-white/10 hover:bg-white/20 text-white"
+                          : "bg-gray-200 hover:bg-gray-300 text-gray-900"
+                      }`}
+                    >
+                      Choose File
+                    </label>
+                    <p
+                      className={`text-xs mt-4 ${isDark ? "text-white/40" : "text-gray-500"}`}
+                    >
+                      Supported formats: PDF, JPG, PNG
+                    </p>
+                  </div>
+
+                  <div
+                    className={`mt-6 p-4 rounded-xl ${
+                      isDark ? "bg-blue-500/10" : "bg-blue-50"
+                    }`}
+                  >
+                    <div className="flex gap-3">
+                      <FileText
+                        className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-blue-400" : "text-blue-600"}`}
+                      />
+                      <div>
+                        <h4
+                          className={`text-sm mb-1 ${isDark ? "text-blue-300" : "text-blue-900"}`}
+                        >
+                          AI-Powered Extraction
+                        </h4>
+                        <p
+                          className={`text-xs ${isDark ? "text-blue-200" : "text-blue-800"}`}
+                        >
+                          Our AI will automatically extract
+                          biomarker values from your lab
+                          reports. You'll be able to review and
+                          confirm the data before saving.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Insights Modal */}
+      {insightsBiomarker && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setInsightsBiomarker(null)}
+          />
+
+          <div
+            className={`relative w-full max-w-2xl max-h-[85vh] rounded-t-3xl sm:rounded-3xl border overflow-hidden ${
+              isDark
+                ? "bg-slate-900 border-white/20"
+                : "bg-white border-gray-200"
+            }`}
+          >
+            {/* Header */}
+            <div
+              className={`sticky top-0 z-10 backdrop-blur-xl border-b px-5 py-4 ${
+                isDark
+                  ? "bg-slate-900/90 border-white/10"
+                  : "bg-white/90 border-gray-200"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  <h2
+                    className={`${isDark ? "text-white" : "text-gray-900"}`}
+                  >
+                    {insightsBiomarker} Insights
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setInsightsBiomarker(null)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark
+                      ? "hover:bg-white/10"
+                      : "hover:bg-black/5"
+                  }`}
+                >
+                  <X
+                    className={`w-5 h-5 ${isDark ? "text-white/70" : "text-gray-600"}`}
+                  />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div
+              className="overflow-y-auto p-5 space-y-4"
+              style={{ maxHeight: "calc(85vh - 70px)" }}
+            >
+              {BIOMARKER_INSIGHTS[insightsBiomarker] ? (
+                <>
+                  {/* Lifestyle Actions */}
+                  <div
+                    className={`rounded-2xl p-4 ${
+                      isDark
+                        ? "bg-blue-500/10 border border-blue-500/20"
+                        : "bg-blue-50 border border-blue-200"
+                    }`}
+                  >
+                    <h3
+                      className={`text-sm mb-2 flex items-center gap-2 ${isDark ? "text-blue-300" : "text-blue-900"}`}
+                    >
+                      <Activity className="w-4 h-4" />
+                      Lifestyle Actions
+                    </h3>
+                    <ul className="space-y-2.5">
+                      {BIOMARKER_INSIGHTS[
+                        insightsBiomarker
+                      ].lifestyle.map((item, index) => {
+                        const keywords = extractKeywords(
+                          item,
+                          "lifestyle",
+                        );
+                        return (
+                          <li
+                            key={index}
+                            className="flex flex-col gap-1.5"
+                          >
+                            {keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {keywords.map((keyword, i) => (
+                                  <span
+                                    key={i}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                      isDark
+                                        ? "bg-blue-400/20 text-blue-300 border border-blue-400/30"
+                                        : "bg-blue-200 text-blue-900 border border-blue-300"
+                                    }`}
+                                  >
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <span
+                              className={`text-xs ${isDark ? "text-blue-100" : "text-blue-800"}`}
+                            >
+                              • {item}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+
+                  {/* Nutrition */}
+                  <div
+                    className={`rounded-2xl p-4 ${
+                      isDark
+                        ? "bg-green-500/10 border border-green-500/20"
+                        : "bg-green-50 border border-green-200"
+                    }`}
+                  >
+                    <h3
+                      className={`text-sm mb-2 flex items-center gap-2 ${isDark ? "text-green-300" : "text-green-900"}`}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      Nutrition
+                    </h3>
+                    <ul className="space-y-2.5">
+                      {BIOMARKER_INSIGHTS[
+                        insightsBiomarker
+                      ].nutrition.map((item, index) => {
+                        const keywords = extractKeywords(
+                          item,
+                          "nutrition",
+                        );
+                        return (
+                          <li
+                            key={index}
+                            className="flex flex-col gap-1.5"
+                          >
+                            {keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {keywords.map((keyword, i) => (
+                                  <span
+                                    key={i}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                      isDark
+                                        ? "bg-green-400/20 text-green-300 border border-green-400/30"
+                                        : "bg-green-200 text-green-900 border border-green-300"
+                                    }`}
+                                  >
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <span
+                              className={`text-xs ${isDark ? "text-green-100" : "text-green-800"}`}
+                            >
+                              • {item}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+
+                  {/* Supplementation */}
+                  <div
+                    className={`rounded-2xl p-4 ${
+                      isDark
+                        ? "bg-purple-500/10 border border-purple-500/20"
+                        : "bg-purple-50 border border-purple-200"
+                    }`}
+                  >
+                    <h3
+                      className={`text-sm mb-2 flex items-center gap-2 ${isDark ? "text-purple-300" : "text-purple-900"}`}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Supplementation
+                    </h3>
+                    <ul className="space-y-2.5">
+                      {BIOMARKER_INSIGHTS[
+                        insightsBiomarker
+                      ].supplementation.map((item, index) => {
+                        const keywords = extractKeywords(
+                          item,
+                          "supplement",
+                        );
+                        return (
+                          <li
+                            key={index}
+                            className="flex flex-col gap-1.5"
+                          >
+                            {keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {keywords.map((keyword, i) => (
+                                  <span
+                                    key={i}
+                                    className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                      isDark
+                                        ? "bg-purple-400/20 text-purple-300 border border-purple-400/30"
+                                        : "bg-purple-200 text-purple-900 border border-purple-300"
+                                    }`}
+                                  >
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <span
+                              className={`text-xs ${isDark ? "text-purple-100" : "text-purple-800"}`}
+                            >
+                              • {item}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+
+                  {/* Medical Referral */}
+                  {BIOMARKER_INSIGHTS[insightsBiomarker]
+                    .medicalReferral && (
+                    <div
+                      className={`rounded-2xl p-4 ${
+                        isDark
+                          ? "bg-red-500/10 border border-red-500/20"
+                          : "bg-red-50 border border-red-200"
+                      }`}
+                    >
+                      <h3
+                        className={`text-sm mb-2 flex items-center gap-2 ${isDark ? "text-red-300" : "text-red-900"}`}
+                      >
+                        <TrendingDown className="w-4 h-4" />
+                        Medical Referral
+                      </h3>
+                      <p
+                        className={`text-xs ${isDark ? "text-red-100" : "text-red-800"}`}
+                      >
+                        {
+                          BIOMARKER_INSIGHTS[insightsBiomarker]
+                            .medicalReferral
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Disclaimer */}
+                  <div
+                    className={`text-[10px] p-3 rounded-xl ${
+                      isDark
+                        ? "bg-white/5 text-white/40"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    ⚠️ These insights are for educational
+                    purposes only and should not replace
+                    professional medical advice. Always consult
+                    with qualified healthcare providers before
+                    making changes to your health regimen.
+                  </div>
+                </>
+              ) : (
+                <div
+                  className={`rounded-2xl p-6 text-center ${
+                    isDark ? "bg-white/5" : "bg-gray-100"
+                  }`}
+                >
+                  <Sparkles
+                    className={`w-12 h-12 mx-auto mb-3 ${isDark ? "text-purple-400" : "text-purple-600"}`}
+                  />
+                  <h3
+                    className={`mb-2 ${isDark ? "text-white" : "text-gray-900"}`}
+                  >
+                    AI Insights Coming Soon
+                  </h3>
+                  <p
+                    className={`text-sm ${isDark ? "text-white/60" : "text-gray-600"}`}
+                  >
+                    Detailed insights for {insightsBiomarker}{" "}
+                    will be available in a future update. In the
+                    meantime, consult with your healthcare
+                    provider about your results.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Navigation */}
+      <nav
+        className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t transition-colors ${
+          isDark
+            ? "bg-white/5 border-white/10"
+            : "bg-white/70 border-black/10"
+        }`}
+      >
+        <div className="grid grid-cols-5 items-center px-2 py-3">
+          <button
+            onClick={() => {
+              setShowDashboard(true);
+              setShowBloodPanel(false);
+              setShowDiagnosticScreen(false);
+            }}
+            className="flex flex-col items-center gap-1 px-2 py-2"
+          >
+            <Home
+              className={`w-5 h-5 ${showDashboard && !showBloodPanel ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            />
+            <span
+              className={`text-[10px] ${showDashboard && !showBloodPanel ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            >
+              Dashboard
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setShowBloodPanel(true);
+              setShowDashboard(false);
+              setShowDiagnosticScreen(false);
+            }}
+            className="flex flex-col items-center gap-1 px-2 py-2"
+          >
+            <Droplet
+              className={`w-5 h-5 ${showBloodPanel ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            />
+            <span
+              className={`text-[10px] ${showBloodPanel ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            >
+              Labs
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              // Context-aware center button behavior
+              if (showDashboard && !showBloodPanel && !showDiagnosticScreen) {
+                // On Dashboard: Open voice chat
+                setShowVoiceChatScreen(true);
+              } else {
+                // On Labs/Diagnostics: Open add modal
+                setShowModal(true);
+              }
+            }}
+            className="flex flex-col items-center gap-1 px-2 py-2 -mt-2"
+          >
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 flex items-center justify-center shadow-xl shadow-cyan-500/30">
+              <FloIcon size={28} className="text-white" />
+            </div>
+            <span
+              className={`text-[10px] mt-1 ${isDark ? "text-white/70" : "text-gray-600"}`}
+            >
+              {showDashboard && !showBloodPanel && !showDiagnosticScreen ? "Chat" : "Add"}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setShowDiagnosticScreen(true);
+              setShowDashboard(false);
+              setShowBloodPanel(false);
+            }}
+            className="flex flex-col items-center gap-1 px-2 py-2"
+          >
+            <Activity
+              className={`w-5 h-5 ${showDiagnosticScreen ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            />
+            <span
+              className={`text-[10px] ${showDiagnosticScreen ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            >
+              Diagnostics
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              setShowActionsScreen(true);
+            }}
+            className="flex flex-col items-center gap-1 px-2 py-2"
+          >
+            <Lightbulb
+              className={`w-5 h-5 ${showActionsScreen ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            />
+            <span
+              className={`text-[10px] ${showActionsScreen ? (isDark ? "text-cyan-400" : "text-cyan-600") : isDark ? "text-white/70" : "text-gray-600"}`}
+            >
+              Actions
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Insights Screen */}
+      {showInsightsScreen && (
+        <div className="fixed inset-0 z-50">
+          <InsightsScreen
+            isDark={isDark}
+            onClose={() => setShowInsightsScreen(false)}
+            onAddToActionPlan={(insight) => {
+              // In production, this would add the insight to the user's action plan
+              console.log('Adding insight to action plan:', insight);
+              setShowInsightsScreen(false);
+              setShowActionsScreen(true);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Actions Screen */}
+      {showActionsScreen && (
+        <div className="fixed inset-0 z-50">
+          <ActionsScreen
+            isDark={isDark}
+            onClose={() => setShowActionsScreen(false)}
+            onOpenReport={() => {
+              setShowActionsScreen(false);
+              setShowHealthReportScreen(true);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Doctor Report Screen */}
+      {showDoctorReportScreen && (
+        <DoctorReportScreen
+          isDark={isDark}
+          onClose={() => setShowDoctorReportScreen(false)}
+        />
+      )}
+
+      {/* Health Summary Report Screen */}
+      {showHealthReportScreen && (
+        <div className="fixed inset-0 z-50">
+          <HealthReportScreen
+            isDark={isDark}
+            onClose={() => setShowHealthReportScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* Full Report Screen */}
+      {showFullReportScreen && (
+        <div className="fixed inset-0 z-50">
+          <FullReportScreen
+            isDark={isDark}
+            onClose={() => setShowFullReportScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* Profile Screen */}
+      {showProfileScreen && (
+        <div className="fixed inset-0 z-50">
+          <ProfileScreen
+            isDark={isDark}
+            onClose={() => setShowProfileScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* Admin Screen */}
+      {showAdminScreen && (
+        <div className="fixed inset-0 z-50">
+          <AdminScreen
+            isDark={isDark}
+            onClose={() => setShowAdminScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* Diagnostic Results Screen */}
+      {showDiagnosticScreen && (
+        <div className="fixed inset-0 z-50">
+          <DiagnosticResultsScreen
+            isDark={isDark}
+            onClose={() => setShowDiagnosticScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* Flomentum Screen */}
+      {showFlomentumScreen && (
+        <div className="fixed inset-0 z-50">
+          <FlomentumScreen
+            isDark={isDark}
+            onClose={() => setShowFlomentumScreen(false)}
+          />
+        </div>
+      )}
+
+      {/* Voice Chat Popup Overlay */}
+      <AnimatePresence>
+        {showVoiceChatScreen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm"
+          >
+            <VoiceChatScreen
+              isDark={isDark}
+              onClose={() => {
+                setShowVoiceChatScreen(false);
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+interface TrendChartProps {
+  history: Reading[];
+  min: number;
+  max: number;
+  biomarker: string;
+  isDark: boolean;
+}
+
+function TrendChart({
+  history,
+  min,
+  max,
+  biomarker,
+  isDark,
+}: TrendChartProps) {
+  const chartWidth = 300;
+  const chartHeight = 80;
+  const padding = { top: 10, bottom: 10, left: 0, right: 0 };
+  const innerHeight =
+    chartHeight - padding.top - padding.bottom;
+
+  // Calculate the range for the chart
+  const allValues = history.map((r) => r.value);
+  const minValue = Math.min(...allValues, min);
+  const maxValue = Math.max(...allValues, max);
+  const valueRange = maxValue - minValue || 1;
+
+  // Create points for the line
+  const points = history.map((reading, index) => {
+    const x =
+      (index / Math.max(history.length - 1, 1)) * chartWidth;
+    const y =
+      padding.top +
+      (1 - (reading.value - minValue) / valueRange) *
+        innerHeight;
+    const inRange =
+      reading.value >= min && reading.value <= max;
+    return { x, y, value: reading.value, inRange };
+  });
+
+  // Calculate optimal range band positions
+  const optimalMinY =
+    padding.top +
+    (1 - (min - minValue) / valueRange) * innerHeight;
+  const optimalMaxY =
+    padding.top +
+    (1 - (max - minValue) / valueRange) * innerHeight;
+  const bandHeight = Math.max(1, optimalMinY - optimalMaxY);
+
+  return (
+    <div
+      className={`mt-4 pt-4 border-t ${isDark ? "border-white/10" : "border-gray-200"}`}
+    >
+      <div
+        className={`text-xs mb-2 ${isDark ? "text-white/40" : "text-gray-500"}`}
+      >
+        Trend Over Time
+      </div>
+      <svg
+        width="100%"
+        height={chartHeight}
+        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+        className="overflow-visible"
+      >
+        {/* Reference range band */}
+        <defs>
+          <linearGradient
+            id={`gradient-${biomarker}`}
+            x1="0%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+          >
+            <stop
+              offset="0%"
+              stopColor="#10b981"
+              stopOpacity="0.15"
+            />
+            <stop
+              offset="100%"
+              stopColor="#10b981"
+              stopOpacity="0.05"
+            />
+          </linearGradient>
+        </defs>
+
+        {/* Optimal range background */}
+        <rect
+          x={0}
+          y={optimalMaxY}
+          width={chartWidth}
+          height={bandHeight}
+          fill={`url(#gradient-${biomarker})`}
+          rx={3}
+        />
+
+        {/* Reference range border lines */}
+        <line
+          x1={0}
+          y1={optimalMaxY}
+          x2={chartWidth}
+          y2={optimalMaxY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          opacity={0.3}
+        />
+        <line
+          x1={0}
+          y1={optimalMinY}
+          x2={chartWidth}
+          y2={optimalMinY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          opacity={0.3}
+        />
+
+        {/* Draw line segments with color based on whether in range */}
+        {points.map((point, index) => {
+          if (index === 0) return null;
+          const prevPoint = points[index - 1];
+          const isSegmentInRange =
+            point.inRange && prevPoint.inRange;
+
+          return (
+            <line
+              key={`line-${index}`}
+              x1={prevPoint.x}
+              y1={prevPoint.y}
+              x2={point.x}
+              y2={point.y}
+              stroke={isSegmentInRange ? "#10b981" : "#ef4444"}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              opacity={0.9}
+            />
+          );
+        })}
+
+        {/* Data point markers */}
+        {points.map((point, index) => (
+          <g key={`point-${index}`}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={5}
+              fill={point.inRange ? "#10b981" : "#ef4444"}
+              opacity={0.2}
+            />
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={3}
+              fill={point.inRange ? "#10b981" : "#ef4444"}
+              stroke={point.inRange ? "#10b981" : "#ef4444"}
+              strokeWidth={1.5}
+            />
+          </g>
+        ))}
+      </svg>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-3 text-xs">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <span
+            className={
+              isDark ? "text-white/50" : "text-gray-500"
+            }
+          >
+            In Range
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span
+            className={
+              isDark ? "text-white/50" : "text-gray-500"
+            }
+          >
+            Out of Range
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
