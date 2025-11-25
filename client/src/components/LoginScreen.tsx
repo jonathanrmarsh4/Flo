@@ -3,6 +3,7 @@ import { ArrowRight, Sparkles, Mail, Lock, AlertCircle } from 'lucide-react';
 import { FloLogo } from './FloLogo';
 import { useLocation } from 'wouter';
 import { logger } from '@/lib/logger';
+import { queryClient } from '@/lib/queryClient';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -27,7 +28,7 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/mobile/login', {
+      const response = await fetch('/api/mobile/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -36,10 +37,14 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Login failed');
+        setError(data.error || data.message || 'Login failed');
         setIsLoading(false);
         return;
       }
+
+      // CRITICAL: Clear ALL cached data from any previous user session
+      // This prevents data leakage between accounts
+      queryClient.clear();
 
       // Store JWT token
       localStorage.setItem('auth_token', data.token);
