@@ -5322,6 +5322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Body composition endpoint - HealthKit data ONLY (no DEXA fallback)
   // Returns null if no HealthKit data available - tile should not render
+  // Uses age-and-sex-adjusted scoring algorithm v1
   app.get("/api/body-composition", isAuthenticated, async (req: any, res) => {
     try {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -5330,9 +5331,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userId = req.user.claims.sub;
       
-      // Get user's sex for sex-specific scoring
+      // Get user's profile for sex and age
       const profile = await storage.getProfile(userId);
-      const isFemale = profile?.sex === 'Female';
+      const sex = profile?.sex === 'Female' ? 'female' : 'male';
+      
+      // Calculate age from DOB
+      let age: number | null = null;
+      if (profile?.dateOfBirth) {
+        const dob = new Date(profile.dateOfBirth);
+        const today = new Date();
+        age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+        age = Math.max(18, Math.min(100, age)); // Clamp to valid range
+      }
       
       // Query HealthKit data from health_daily_metrics (last 90 days)
       const ninetyDaysAgo = new Date();
@@ -5350,7 +5364,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .orderBy(desc(healthDailyMetrics.date));
 
-      // Check if we have body composition data (need either body fat % or weight+lean mass to render tile meaningfully)
+      // Check if we have body composition data
+      // Support TWO scenarios:
+      // 1. Direct bodyFatPct from HealthKit (most common)
+      // 2. Weight + Lean Mass to calculate body fat
       const hasBodyCompData = healthData.some(d => 
         d.bodyFatPct !== null || (d.weightKg !== null && d.leanMassKg !== null)
       );
@@ -5361,87 +5378,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get most recent values for each metric
+      const mostRecentBodyFatDirect = healthData.find(d => d.bodyFatPct !== null);
+      const mostRecentWithBothMetrics = healthData.find(d => d.weightKg !== null && d.leanMassKg !== null);
       const mostRecentWeight = healthData.find(d => d.weightKg !== null);
-      const mostRecentBodyFat = healthData.find(d => d.bodyFatPct !== null);
-      const mostRecentLeanMass = healthData.find(d => d.leanMassKg !== null);
       const mostRecentBmi = healthData.find(d => d.bmi !== null);
 
-      // Calculate body fat % from weight and lean mass if not directly available
-      let bodyFatPercent = mostRecentBodyFat?.bodyFatPct ?? null;
-      let leanMassPercent: number | null = null;
-      
-      if (bodyFatPercent === null && mostRecentWeight?.weightKg && mostRecentLeanMass?.leanMassKg) {
-        bodyFatPercent = ((mostRecentWeight.weightKg - mostRecentLeanMass.leanMassKg) / mostRecentWeight.weightKg) * 100;
-      }
-      
-      // Always calculate lean mass percent when we have body fat
-      if (bodyFatPercent !== null) {
-        leanMassPercent = 100 - bodyFatPercent;
+      // Calculate body fat and lean mass percentages
+      // Priority: Use weight+leanMass calculation if available, else use direct bodyFatPct
+      let bodyFatPercent: number;
+      let leanMassPercent: number;
+      let weightKg: number | null = mostRecentWeight?.weightKg ?? null;
+      let leanMassKg: number | null = null;
+      let lastUpdated: string;
+
+      if (mostRecentWithBothMetrics) {
+        // Best case: We have both weight and lean mass
+        weightKg = mostRecentWithBothMetrics.weightKg!;
+        leanMassKg = mostRecentWithBothMetrics.leanMassKg!;
+        leanMassPercent = (leanMassKg / weightKg) * 100;
+        const rawBodyFatPercent = 100 * (1 - leanMassKg / weightKg);
+        bodyFatPercent = Math.max(3, Math.min(60, rawBodyFatPercent));
+        lastUpdated = mostRecentWithBothMetrics.date;
+      } else if (mostRecentBodyFatDirect) {
+        // Fallback: Direct body fat percentage from HealthKit
+        bodyFatPercent = Math.max(3, Math.min(60, mostRecentBodyFatDirect.bodyFatPct!));
+        leanMassPercent = 100 - bodyFatPercent; // Derived (approximate)
+        lastUpdated = mostRecentBodyFatDirect.date;
+      } else {
+        // Should not reach here due to hasBodyCompData check, but safety fallback
+        return res.json({ hasData: false, data: null, history: [] });
       }
 
-      // Sex-specific body composition score (0-100)
-      // Men optimal: 10-20%, Women optimal: 18-28%
-      let bodyCompositionScore = 50; // Default
-      if (bodyFatPercent !== null) {
-        if (isFemale) {
-          // Women: optimal 18-28%
-          if (bodyFatPercent < 14) {
-            bodyCompositionScore = 65 + (14 - bodyFatPercent) * 2; // Very low fat
-          } else if (bodyFatPercent <= 18) {
-            bodyCompositionScore = 80 + (18 - bodyFatPercent) * 1.5; // Athletic
-          } else if (bodyFatPercent <= 24) {
-            bodyCompositionScore = 75 + (24 - bodyFatPercent) * 0.8; // Fit
-          } else if (bodyFatPercent <= 28) {
-            bodyCompositionScore = 60 + (28 - bodyFatPercent) * 3.75; // Average
-          } else if (bodyFatPercent <= 35) {
-            bodyCompositionScore = 40 + (35 - bodyFatPercent) * 2.8; // Below average
-          } else {
-            bodyCompositionScore = Math.max(20, 40 - (bodyFatPercent - 35) * 1.5); // High fat
-          }
-        } else {
-          // Men: optimal 10-20%
-          if (bodyFatPercent < 6) {
-            bodyCompositionScore = 65 + (6 - bodyFatPercent) * 3; // Very low fat
-          } else if (bodyFatPercent <= 10) {
-            bodyCompositionScore = 85 + (10 - bodyFatPercent) * 2.5; // Athletic
-          } else if (bodyFatPercent <= 15) {
-            bodyCompositionScore = 75 + (15 - bodyFatPercent) * 2; // Fit
-          } else if (bodyFatPercent <= 20) {
-            bodyCompositionScore = 60 + (20 - bodyFatPercent) * 3; // Average
-          } else if (bodyFatPercent <= 25) {
-            bodyCompositionScore = 40 + (25 - bodyFatPercent) * 4; // Below average
-          } else {
-            bodyCompositionScore = Math.max(20, 40 - (bodyFatPercent - 25) * 2); // High fat
+      // Age-and-sex-adjusted ideal body fat ranges
+      const getIdealBodyFatRange = (userAge: number, userSex: 'male' | 'female'): { min: number; max: number } => {
+        const ranges = {
+          male: [
+            { ageMin: 18, ageMax: 39.999, idealMin: 8, idealMax: 18 },
+            { ageMin: 40, ageMax: 59.999, idealMin: 11, idealMax: 21 },
+            { ageMin: 60, ageMax: 120, idealMin: 13, idealMax: 24 },
+          ],
+          female: [
+            { ageMin: 18, ageMax: 39.999, idealMin: 21, idealMax: 32 },
+            { ageMin: 40, ageMax: 59.999, idealMin: 23, idealMax: 33 },
+            { ageMin: 60, ageMax: 120, idealMin: 24, idealMax: 35 },
+          ],
+        };
+        
+        const sexRanges = ranges[userSex];
+        for (const r of sexRanges) {
+          if (userAge >= r.ageMin && userAge <= r.ageMax) {
+            return { min: r.idealMin, max: r.idealMax };
           }
         }
-        bodyCompositionScore = Math.min(100, Math.max(0, Math.round(bodyCompositionScore)));
+        // Fallback to last range
+        const last = sexRanges[sexRanges.length - 1];
+        return { min: last.idealMin, max: last.idealMax };
+      };
+
+      // Scoring algorithm parameters
+      // Modified: Very lean individuals get EXCELLENT scores since being lean is healthy
+      // Being below ideal has minimal penalty (max 5 points); being above ideal has steeper penalty
+      const PARAMS = {
+        underSpanPercent: 10,  // How far below ideal before max penalty (10%)
+        overSpanPercent: 20,   // How far above ideal before score reaches 0
+        insideRangeMinScore: 80,
+        insideRangeMaxScore: 100,
+        tooLeanFloorScore: 90, // Minimum score for being too lean (being lean is EXCELLENT)
+        tooLeanMaxPenalty: 10, // Maximum penalty for being too lean (only lose 10 points max)
+      };
+
+      // Calculate body composition score
+      let bodyCompositionScore: number | null = null;
+      
+      if (age !== null) {
+        const { min: idealMin, max: idealMax } = getIdealBodyFatRange(age, sex);
+        const idealMid = (idealMin + idealMax) / 2;
+        
+        if (bodyFatPercent >= idealMin && bodyFatPercent <= idealMax) {
+          // Within ideal range: score 80-100 based on how central
+          const halfRange = (idealMax - idealMin) / 2;
+          if (halfRange === 0) {
+            bodyCompositionScore = PARAMS.insideRangeMaxScore;
+          } else {
+            const distanceFromMid = Math.abs(bodyFatPercent - idealMid);
+            const centralness = 1 - distanceFromMid / halfRange;
+            bodyCompositionScore = PARAMS.insideRangeMinScore + 
+              (PARAMS.insideRangeMaxScore - PARAMS.insideRangeMinScore) * centralness;
+          }
+        } else if (bodyFatPercent < idealMin) {
+          // Too lean: very soft penalty (being very lean is still excellent!)
+          // Score ranges from 90-100 for being under ideal
+          // At ideal edge: 100, at extreme lean: 90 (never lower than 90)
+          const deficit = idealMin - bodyFatPercent;
+          const normalizedDeficit = Math.max(0, Math.min(1, deficit / PARAMS.underSpanPercent));
+          // Use square root for even softer penalty curve
+          const softPenalty = Math.sqrt(normalizedDeficit);
+          bodyCompositionScore = PARAMS.insideRangeMaxScore - (PARAMS.tooLeanMaxPenalty * softPenalty);
+        } else {
+          // Too much fat: score 0-80 based on how far above ideal (steeper penalty)
+          const excess = bodyFatPercent - idealMax;
+          const normalizedExcess = Math.max(0, Math.min(1, excess / PARAMS.overSpanPercent));
+          bodyCompositionScore = PARAMS.insideRangeMinScore * (1 - normalizedExcess);
+        }
+        
+        // Clamp and round final score
+        bodyCompositionScore = Math.max(0, Math.min(100, Math.round(bodyCompositionScore)));
       }
 
-      // Build history array for charts (only entries with calculable percentages)
+      // Build history array for charts
+      // Include entries with either direct bodyFatPct OR weight+leanMass
       const history = healthData
         .filter(d => d.bodyFatPct !== null || (d.weightKg !== null && d.leanMassKg !== null))
         .map(d => {
-          let fat = d.bodyFatPct;
-          if (fat === null && d.weightKg && d.leanMassKg) {
-            fat = ((d.weightKg - d.leanMassKg) / d.weightKg) * 100;
+          let fat: number;
+          let lean: number;
+          
+          if (d.weightKg !== null && d.leanMassKg !== null) {
+            // Calculate from weight and lean mass
+            fat = Math.max(3, Math.min(60, 100 * (1 - d.leanMassKg / d.weightKg)));
+            lean = (d.leanMassKg / d.weightKg) * 100;
+          } else if (d.bodyFatPct !== null) {
+            // Use direct body fat percentage
+            fat = Math.max(3, Math.min(60, d.bodyFatPct));
+            lean = 100 - fat;
+          } else {
+            // Should not reach here due to filter, but safety
+            return null;
           }
+          
           return {
             date: d.date,
-            bodyFatPercent: fat ? parseFloat(fat.toFixed(1)) : null,
-            leanMassPercent: fat ? parseFloat((100 - fat).toFixed(1)) : null,
+            bodyFatPercent: parseFloat(fat.toFixed(1)),
+            leanMassPercent: parseFloat(lean.toFixed(1)),
             weightKg: d.weightKg ? parseFloat(d.weightKg.toFixed(1)) : null,
           };
-        });
+        })
+        .filter((d): d is NonNullable<typeof d> => d !== null);
+
+      // Determine score context for UI labeling
+      let scoreContext: 'optimal' | 'athletic_lean' | 'above_optimal' | null = null;
+      let scoreLabel: string | null = null;
+      
+      if (age !== null) {
+        const { min: idealMin, max: idealMax } = getIdealBodyFatRange(age, sex);
+        
+        if (bodyFatPercent >= idealMin && bodyFatPercent <= idealMax) {
+          scoreContext = 'optimal';
+          scoreLabel = 'Optimal Range';
+        } else if (bodyFatPercent < idealMin) {
+          scoreContext = 'athletic_lean';
+          scoreLabel = 'Athletic Leanness';
+        } else {
+          scoreContext = 'above_optimal';
+          scoreLabel = bodyFatPercent > idealMax + 10 ? 'Above Optimal' : 'Slightly Above Optimal';
+        }
+      }
 
       res.json({
         hasData: true,
         data: {
           body_composition_score: bodyCompositionScore,
-          body_fat_percent: bodyFatPercent ? parseFloat(bodyFatPercent.toFixed(1)) : null,
-          lean_mass_percent: leanMassPercent ? parseFloat(leanMassPercent.toFixed(1)) : null,
-          weight_kg: mostRecentWeight?.weightKg ? parseFloat(mostRecentWeight.weightKg.toFixed(1)) : null,
+          body_fat_percent: parseFloat(bodyFatPercent.toFixed(1)),
+          lean_mass_percent: parseFloat(leanMassPercent.toFixed(1)),
+          weight_kg: weightKg ? parseFloat(weightKg.toFixed(1)) : null,
+          lean_mass_kg: leanMassKg ? parseFloat(leanMassKg.toFixed(1)) : null,
           bmi: mostRecentBmi?.bmi ? parseFloat(mostRecentBmi.bmi.toFixed(1)) : null,
-          last_updated: mostRecentWeight?.date || mostRecentBodyFat?.date || mostRecentLeanMass?.date,
+          last_updated: lastUpdated,
+          score_context: scoreContext,
+          score_label: scoreLabel,
         },
         history,
       });

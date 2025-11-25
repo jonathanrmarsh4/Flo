@@ -2,12 +2,15 @@ import { X, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface BodyCompositionData {
-  body_composition_score: number;
-  body_fat_percent: number | null;
-  lean_mass_percent: number | null;
+  body_composition_score: number | null;
+  body_fat_percent: number;
+  lean_mass_percent: number;
   weight_kg: number | null;
+  lean_mass_kg: number | null;
   bmi: number | null;
-  last_updated: string | null;
+  last_updated: string;
+  score_context: 'optimal' | 'athletic_lean' | 'above_optimal' | null;
+  score_label: string | null;
 }
 
 interface HistoryEntry {
@@ -25,14 +28,16 @@ interface BodyCompositionDetailScreenProps {
 }
 
 export function BodyCompositionDetailScreen({ isDark, onClose, data, history }: BodyCompositionDetailScreenProps) {
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return isDark ? 'text-green-400' : 'text-green-600';
-    if (score >= 60) return isDark ? 'text-blue-400' : 'text-blue-600';
-    if (score >= 40) return isDark ? 'text-yellow-400' : 'text-yellow-600';
+  const getScoreColor = (score: number | null) => {
+    const s = score ?? 50;
+    if (s >= 80) return isDark ? 'text-green-400' : 'text-green-600';
+    if (s >= 60) return isDark ? 'text-blue-400' : 'text-blue-600';
+    if (s >= 40) return isDark ? 'text-yellow-400' : 'text-yellow-600';
     return isDark ? 'text-orange-400' : 'text-orange-600';
   };
 
-  const getScoreLabel = (score: number) => {
+  const getScoreLabel = (score: number | null) => {
+    if (score === null) return 'Score unavailable';
     if (score >= 80) return 'Excellent';
     if (score >= 60) return 'Good';
     if (score >= 40) return 'Average';
@@ -106,26 +111,39 @@ export function BodyCompositionDetailScreen({ isDark, onClose, data, history }: 
         <div className="p-6 overflow-y-auto" style={{ height: 'calc(100vh - 80px - env(safe-area-inset-top))' }}>
           <div className="text-center mb-8">
             <div className={`text-6xl font-bold ${getScoreColor(data.body_composition_score)}`} data-testid="text-detail-score">
-              {data.body_composition_score}
+              {data.body_composition_score ?? '--'}
             </div>
             <div className={`text-lg mt-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
               Overall Score
             </div>
-            <div className={`text-sm mt-1 ${getScoreColor(data.body_composition_score)}`}>
-              {getScoreLabel(data.body_composition_score)}
-            </div>
+            {data.score_label && (
+              <div className={`inline-block px-3 py-1 rounded-full text-sm mt-2 ${
+                data.score_context === 'optimal' 
+                  ? (isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700')
+                  : data.score_context === 'athletic_lean'
+                  ? (isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700')
+                  : (isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700')
+              }`}>
+                {data.score_label}
+              </div>
+            )}
+            {data.score_context === 'athletic_lean' && (
+              <div className={`text-xs mt-3 max-w-xs mx-auto ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Your body fat is below typical ranges. This is normal for athletes and those with high fitness levels.
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-8">
             <MetricCard 
               label="Body Fat"
-              value={data.body_fat_percent !== null ? `${data.body_fat_percent}%` : '--'}
+              value={`${data.body_fat_percent}%`}
               color="orange"
               isDark={isDark}
             />
             <MetricCard 
               label="Lean Mass"
-              value={data.lean_mass_percent !== null ? `${data.lean_mass_percent.toFixed(1)}%` : '--'}
+              value={`${data.lean_mass_percent.toFixed(1)}%`}
               color="blue"
               isDark={isDark}
             />

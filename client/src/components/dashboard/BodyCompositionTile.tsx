@@ -4,12 +4,15 @@ import { useQuery } from '@tanstack/react-query';
 import { BodyCompositionDetailScreen } from './BodyCompositionDetailScreen';
 
 interface BodyCompositionData {
-  body_composition_score: number;
-  body_fat_percent: number | null;
-  lean_mass_percent: number | null;
+  body_composition_score: number | null;
+  body_fat_percent: number;
+  lean_mass_percent: number;
   weight_kg: number | null;
+  lean_mass_kg: number | null;
   bmi: number | null;
-  last_updated: string | null;
+  last_updated: string;
+  score_context: 'optimal' | 'athletic_lean' | 'above_optimal' | null;
+  score_label: string | null;
 }
 
 interface HistoryEntry {
@@ -64,9 +67,10 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
   const data = response.data;
 
   const getScoreColor = () => {
-    if (data.body_composition_score >= 80) return isDark ? 'text-green-400' : 'text-green-600';
-    if (data.body_composition_score >= 60) return isDark ? 'text-blue-400' : 'text-blue-600';
-    if (data.body_composition_score >= 40) return isDark ? 'text-yellow-400' : 'text-yellow-600';
+    const score = data.body_composition_score ?? 50;
+    if (score >= 80) return isDark ? 'text-green-400' : 'text-green-600';
+    if (score >= 60) return isDark ? 'text-blue-400' : 'text-blue-600';
+    if (score >= 40) return isDark ? 'text-yellow-400' : 'text-yellow-600';
     return isDark ? 'text-orange-400' : 'text-orange-600';
   };
 
@@ -97,16 +101,29 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
           <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
         </div>
 
-        <div className="flex items-baseline gap-2 mb-4">
-          <span className={`text-4xl ${getScoreColor()}`} data-testid="text-body-comp-score">
-            {data.body_composition_score}
-          </span>
-          <span className={`text-lg ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-            /100
-          </span>
+        <div className="mb-4">
+          <div className="flex items-baseline gap-2">
+            <span className={`text-4xl ${getScoreColor()}`} data-testid="text-body-comp-score">
+              {data.body_composition_score ?? '--'}
+            </span>
+            <span className={`text-lg ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+              /100
+            </span>
+          </div>
+          {data.score_label && (
+            <div className={`text-xs mt-1 ${
+              data.score_context === 'optimal' 
+                ? (isDark ? 'text-green-400' : 'text-green-600')
+                : data.score_context === 'athletic_lean'
+                ? (isDark ? 'text-cyan-400' : 'text-cyan-600')
+                : (isDark ? 'text-yellow-400' : 'text-yellow-600')
+            }`}>
+              {data.score_label}
+            </div>
+          )}
         </div>
 
-        {data.body_fat_percent !== null && data.lean_mass_percent !== null && (
+        {data.body_fat_percent != null && data.lean_mass_percent != null && (
           <>
             <div className="flex items-center gap-3 mb-4">
               <div className="relative w-16 h-16">
