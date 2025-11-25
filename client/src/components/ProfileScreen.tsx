@@ -4,6 +4,7 @@ import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
 import { ReminderSettings } from '@/components/ReminderSettings';
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen';
+import { TermsOfServiceScreen } from '@/components/TermsOfServiceScreen';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,6 +26,7 @@ interface ProfileScreenProps {
 export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showTermsOfService, setShowTermsOfService] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
@@ -1069,7 +1071,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
             </button>
 
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+            <button 
+              onClick={() => setShowTermsOfService(true)}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
             }`} data-testid="button-terms">
               <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
@@ -1134,6 +1138,14 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         <PrivacyPolicyScreen 
           isDark={isDark} 
           onClose={() => setShowPrivacyPolicy(false)} 
+        />
+      )}
+
+      {/* Terms of Service Screen */}
+      {showTermsOfService && (
+        <TermsOfServiceScreen 
+          isDark={isDark} 
+          onClose={() => setShowTermsOfService(false)} 
         />
       )}
     </div>

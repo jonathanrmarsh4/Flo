@@ -1,0 +1,360 @@
+import { Download, CheckCircle, FileText, Calendar, Activity, User, Database, X } from 'lucide-react';
+import { useState } from 'react';
+
+interface ExportDataScreenProps {
+  isDark: boolean;
+  onClose?: () => void;
+}
+
+// Mock user data for export
+const generateMockBiomarkerData = () => {
+  const biomarkers = [
+    'RBC', 'WBC', 'Hemoglobin', 'Hematocrit', 'Platelets',
+    'Total Cholesterol', 'LDL-C', 'HDL-C', 'Triglycerides',
+    'Fasting Glucose', 'HbA1c', 'Vitamin D', 'Vitamin B12',
+    'TSH', 'Free T3', 'Free T4', 'Cortisol', 'Testosterone',
+    'ALT', 'AST', 'Creatinine', 'eGFR'
+  ];
+  
+  const data = [];
+  const startDate = new Date('2023-01-15');
+  
+  biomarkers.forEach(biomarker => {
+    // Generate 3-5 readings per biomarker over time
+    const numReadings = Math.floor(Math.random() * 3) + 3;
+    for (let i = 0; i < numReadings; i++) {
+      const date = new Date(startDate);
+      date.setMonth(date.getMonth() + (i * 3)); // Every 3 months
+      
+      data.push({
+        biomarker,
+        date: date.toISOString().split('T')[0],
+        value: (Math.random() * 100 + 20).toFixed(2),
+        unit: getUnit(biomarker),
+        category: getCategory(biomarker),
+        status: ['Optimal', 'Normal', 'Attention'][Math.floor(Math.random() * 3)]
+      });
+    }
+  });
+  
+  return data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+const getUnit = (biomarker: string) => {
+  const units: Record<string, string> = {
+    'RBC': 'M/μL',
+    'WBC': 'K/μL',
+    'Hemoglobin': 'g/dL',
+    'Hematocrit': '%',
+    'Platelets': 'K/μL',
+    'Total Cholesterol': 'mg/dL',
+    'LDL-C': 'mg/dL',
+    'HDL-C': 'mg/dL',
+    'Triglycerides': 'mg/dL',
+    'Fasting Glucose': 'mg/dL',
+    'HbA1c': '%',
+    'Vitamin D': 'ng/mL',
+    'Vitamin B12': 'pg/mL',
+    'TSH': 'mIU/L',
+    'Free T3': 'pg/mL',
+    'Free T4': 'ng/dL',
+    'Cortisol': 'μg/dL',
+    'Testosterone': 'ng/dL',
+    'ALT': 'U/L',
+    'AST': 'U/L',
+    'Creatinine': 'mg/dL',
+    'eGFR': 'mL/min/1.73m²'
+  };
+  return units[biomarker] || 'units';
+};
+
+const getCategory = (biomarker: string) => {
+  if (['RBC', 'WBC', 'Hemoglobin', 'Hematocrit', 'Platelets'].includes(biomarker)) return 'Basic Panels';
+  if (['Total Cholesterol', 'LDL-C', 'HDL-C', 'Triglycerides'].includes(biomarker)) return 'Lipid & Cardiovascular';
+  if (['TSH', 'Free T3', 'Free T4', 'Cortisol', 'Testosterone'].includes(biomarker)) return 'Hormones';
+  if (['Fasting Glucose', 'HbA1c'].includes(biomarker)) return 'Metabolic';
+  if (['Vitamin D', 'Vitamin B12'].includes(biomarker)) return 'Vitamins & Minerals';
+  if (['ALT', 'AST'].includes(biomarker)) return 'Liver Function';
+  if (['Creatinine', 'eGFR'].includes(biomarker)) return 'Kidney Function';
+  return 'Other';
+};
+
+export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportComplete, setExportComplete] = useState(false);
+
+  const handleExportCSV = () => {
+    setIsExporting(true);
+    setExportComplete(false);
+
+    // Simulate export delay
+    setTimeout(() => {
+      const data = generateMockBiomarkerData();
+      
+      // Create CSV content
+      const headers = ['Date', 'Biomarker', 'Value', 'Unit', 'Category', 'Status'];
+      const csvRows = [headers.join(',')];
+      
+      data.forEach(row => {
+        const values = [
+          row.date,
+          row.biomarker,
+          row.value,
+          row.unit,
+          row.category,
+          row.status
+        ];
+        csvRows.push(values.join(','));
+      });
+      
+      const csvContent = csvRows.join('\n');
+      
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `flo-biomarker-data-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setIsExporting(false);
+      setExportComplete(true);
+      
+      // Reset success message after 3 seconds
+      setTimeout(() => setExportComplete(false), 3000);
+    }, 1000);
+  };
+
+  const exportOptions = [
+    {
+      title: 'Biomarker Data',
+      description: 'All your biomarker readings with dates, values, and categories',
+      icon: Activity,
+      records: '250+ readings',
+      color: 'teal'
+    },
+    {
+      title: 'Personal Information',
+      description: 'Your profile details and account information',
+      icon: User,
+      records: 'Profile data',
+      color: 'blue'
+    },
+    {
+      title: 'Action Plans',
+      description: 'Your active and completed health interventions',
+      icon: CheckCircle,
+      records: '15 interventions',
+      color: 'purple'
+    },
+    {
+      title: 'AI Insights History',
+      description: 'All AI-generated insights and correlations',
+      icon: Database,
+      records: '87 insights',
+      color: 'cyan'
+    }
+  ];
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <Download className={`w-6 h-6 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+          <h2 className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Export My Data
+          </h2>
+        </div>
+        <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+          Download your complete Flō health data in CSV format for personal records or to share with healthcare providers.
+        </p>
+      </div>
+
+      {/* Main Export Card */}
+      <div className={`rounded-2xl border p-8 mb-6 backdrop-blur-xl ${
+        isDark 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/80 border-gray-200'
+      }`}>
+        <div className="text-center mb-6">
+          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 ${
+            isDark 
+              ? 'bg-gradient-to-br from-teal-500/20 to-cyan-500/20 border border-teal-500/30' 
+              : 'bg-gradient-to-br from-teal-50 to-cyan-50 border border-teal-200'
+          }`}>
+            <FileText className={`w-8 h-8 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+          </div>
+          <h3 className={`text-xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Complete Data Export
+          </h3>
+          <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+            Export all your health data in a single CSV file
+          </p>
+        </div>
+
+        {/* Export Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className={`p-4 rounded-xl text-center ${
+            isDark ? 'bg-white/5' : 'bg-gray-50'
+          }`}>
+            <div className={`text-2xl mb-1 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+              250+
+            </div>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              Biomarker Readings
+            </div>
+          </div>
+          <div className={`p-4 rounded-xl text-center ${
+            isDark ? 'bg-white/5' : 'bg-gray-50'
+          }`}>
+            <div className={`text-2xl mb-1 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+              87
+            </div>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              AI Insights
+            </div>
+          </div>
+          <div className={`p-4 rounded-xl text-center ${
+            isDark ? 'bg-white/5' : 'bg-gray-50'
+          }`}>
+            <div className={`text-2xl mb-1 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+              15
+            </div>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              Action Plans
+            </div>
+          </div>
+        </div>
+
+        {/* Export Button */}
+        <button
+          onClick={handleExportCSV}
+          disabled={isExporting}
+          className={`w-full py-4 rounded-xl font-medium transition-all ${
+            isExporting
+              ? isDark
+                ? 'bg-white/10 text-white/50 cursor-not-allowed'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              : exportComplete
+                ? 'bg-gradient-to-r from-teal-500 to-green-500 text-white'
+                : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white hover:shadow-xl hover:scale-[1.02]'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-2">
+            {isExporting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Preparing Export...
+              </>
+            ) : exportComplete ? (
+              <>
+                <CheckCircle className="w-5 h-5" />
+                Export Complete!
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                Download CSV File
+              </>
+            )}
+          </div>
+        </button>
+
+        {exportComplete && (
+          <div className={`mt-4 p-3 rounded-lg text-sm text-center ${
+            isDark 
+              ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30' 
+              : 'bg-teal-50 text-teal-700 border border-teal-200'
+          }`}>
+            Your data has been downloaded successfully!
+          </div>
+        )}
+      </div>
+
+      {/* What's Included Section */}
+      <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
+        isDark 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/80 border-gray-200'
+      }`}>
+        <h4 className={`text-sm font-medium mb-4 ${isDark ? 'text-white/80' : 'text-gray-900'}`}>
+          What's included in your export:
+        </h4>
+        <div className="space-y-3">
+          {exportOptions.map((option, index) => {
+            const Icon = option.icon;
+            return (
+              <div 
+                key={index}
+                className={`flex items-start gap-3 p-3 rounded-lg ${
+                  isDark ? 'bg-white/5' : 'bg-gray-50'
+                }`}
+              >
+                <div className={`p-2 rounded-lg ${
+                  option.color === 'teal' ? (isDark ? 'bg-teal-500/20 text-teal-400' : 'bg-teal-100 text-teal-600') :
+                  option.color === 'blue' ? (isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600') :
+                  option.color === 'purple' ? (isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600') :
+                  (isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-600')
+                }`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1">
+                  <div className={`text-sm font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {option.title}
+                  </div>
+                  <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    {option.description}
+                  </div>
+                </div>
+                <div className={`text-xs px-2 py-1 rounded ${
+                  isDark ? 'bg-white/10 text-white/60' : 'bg-white text-gray-600'
+                }`}>
+                  {option.records}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Privacy Notice */}
+      <div className={`mt-6 p-4 rounded-xl border ${
+        isDark 
+          ? 'bg-blue-500/5 border-blue-500/20 text-blue-300' 
+          : 'bg-blue-50 border-blue-200 text-blue-700'
+      }`}>
+        <div className="flex items-start gap-3">
+          <Database className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <strong>Your data, your control.</strong> This export includes all personal health data stored in Flō. 
+            Keep this file secure and only share with trusted healthcare providers. Learn more about our{' '}
+            <a href="#" className="underline hover:no-underline">data privacy policy</a>.
+          </div>
+        </div>
+      </div>
+
+      {/* File Format Info */}
+      <div className={`mt-4 text-xs text-center ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+        CSV files can be opened with Excel, Google Sheets, or any spreadsheet application
+      </div>
+
+      {/* Close Button */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className={`absolute top-4 right-4 p-2 rounded-full bg-gray-500/20 text-gray-500 hover:bg-gray-500 hover:text-white ${
+            isDark ? 'bg-gray-500/20 text-gray-500 hover:bg-gray-500 hover:text-white' : 'bg-gray-500/20 text-gray-500 hover:bg-gray-500 hover:text-white'
+          }`}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
