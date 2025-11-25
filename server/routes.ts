@@ -1098,6 +1098,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let bestMeasurements: any[] = [];
       let bestMatchCount = 0;
       
+      logger.info(`[BioAge] Checking ${sortedSessions.length} sessions for user ${userId}`);
+      
       for (const session of sortedSessions) {
         const sessionMeasurements = await storage.getMeasurementsBySession(session.id);
         if (sessionMeasurements.length === 0) continue;
@@ -1108,12 +1110,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         const matchCount = requiredBiomarkerNames.filter(name => sessionBiomarkerNames.has(name)).length;
 
+        logger.info(`[BioAge] Session ${session.id} (${session.testDate}): ${matchCount} matches - [${Array.from(sessionBiomarkerNames).join(', ')}]`);
+
         if (matchCount > bestMatchCount) {
           bestMatchCount = matchCount;
           bestSession = session;
           bestMeasurements = sessionMeasurements;
         }
       }
+      
+      logger.info(`[BioAge] Best session: ${bestSession?.id} with ${bestMatchCount} matches`);
 
       // If no session has measurements, return error
       if (!bestSession) {
