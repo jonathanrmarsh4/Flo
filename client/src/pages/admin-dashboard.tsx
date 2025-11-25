@@ -5,7 +5,7 @@ import {
   Users, DollarSign, Activity, TrendingUp, Search,
   Settings, BarChart3, Zap, Database, AlertCircle, CheckCircle, XCircle,
   CreditCard, Ban, Shield, FileText, Bell, Server, Link, Wifi, Edit2, Trash2,
-  ChevronDown, Heart, Sparkles
+  ChevronDown, Heart, Sparkles, Wallet
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -872,10 +872,113 @@ export default function AdminDashboard() {
           <AdminNotificationConfig />
         )}
 
-        {(activeTab === 'billing' || activeTab === 'analytics') && (
+        {activeTab === 'billing' && (
+          <div className="space-y-6">
+            {/* Payment Method Tile */}
+            <div className="backdrop-blur-xl rounded-3xl border p-6 bg-white/5 border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <Wallet className="w-5 h-5 text-cyan-400" />
+                <h2 className="text-lg text-white">
+                  Payment Method
+                </h2>
+              </div>
+
+              <div className="space-y-3">
+                {/* Apple Pay Card */}
+                <div 
+                  className="p-4 rounded-2xl border bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10"
+                  style={{
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+                  }}
+                  data-testid="payment-apple-pay"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {/* Apple Pay Logo */}
+                      <div 
+                        className="w-12 h-12 rounded-xl bg-black flex items-center justify-center"
+                        style={{
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                        }}
+                      >
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                          <path d="M20.5 8.5c-.8 0-1.5-.3-2.1-.8-.5-.5-.9-1.3-.9-2.2 0-.1 0-.2.1-.2.1 0 .2 0 .2.1 1.1.4 2 1.5 2 2.8 0 .1 0 .2-.1.2-.1.1-.1.1-.2.1zm3.9 1.8c-1.2 0-2.1.6-2.8.6-.7 0-1.8-.6-3-.6-1.5 0-2.9.9-3.7 2.3-1.5 2.7-.4 6.6 1.1 8.8.7 1.1 1.6 2.3 2.7 2.3 1.1 0 1.5-.7 2.8-.7 1.3 0 1.7.7 2.9.7 1.2 0 1.9-1.1 2.6-2.2.8-1.3 1.1-2.5 1.1-2.6 0 0-2.2-.8-2.2-3.2 0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3.1-1.6l-.2-.6z" fill="white"/>
+                          <text x="16" y="27" fill="white" fontSize="8" fontWeight="600" textAnchor="middle" fontFamily="system-ui, -apple-system">Pay</text>
+                        </svg>
+                      </div>
+                      
+                      <div>
+                        <div className="font-medium text-white">
+                          Apple Pay
+                        </div>
+                        <div className="text-sm text-white/50">
+                          Visa •••• 4242
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button 
+                      className="px-4 py-2 rounded-lg text-sm transition-all bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30"
+                      data-testid="button-manage-payment"
+                    >
+                      Manage
+                    </button>
+                  </div>
+                </div>
+
+                {/* Add Payment Method Button */}
+                <button 
+                  className="w-full p-4 rounded-2xl border-2 border-dashed transition-all border-white/20 hover:border-cyan-500/50 hover:bg-cyan-500/5"
+                  data-testid="button-add-payment"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <CreditCard className="w-4 h-4 text-white/50" />
+                    <span className="text-sm text-white/70">
+                      Add Payment Method
+                    </span>
+                  </div>
+                </button>
+
+                {/* Payment Info */}
+                <div className="text-xs text-white/40 px-2">
+                  <p>Payments are processed securely through Apple Pay. Your card information is never stored on our servers.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscription Overview */}
+            <div className="backdrop-blur-xl rounded-3xl border p-6 bg-white/5 border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="w-5 h-5 text-green-400" />
+                <h2 className="text-lg text-white">
+                  Subscription Overview
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="text-2xl text-white mb-1">{totalUsers}</div>
+                  <div className="text-sm text-white/50">Total Subscribers</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="text-2xl text-purple-400 mb-1">
+                    {(overviewData as any)?.premiumUsers || 0}
+                  </div>
+                  <div className="text-sm text-white/50">Premium Users</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="text-2xl text-green-400 mb-1">${totalRevenue.toFixed(2)}</div>
+                  <div className="text-sm text-white/50">Total Revenue</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
           <div className="rounded-2xl border bg-white/5 border-white/10 p-12 text-center">
             <div className="text-white/50">
-              {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} features coming soon
+              Analytics features coming soon
             </div>
           </div>
         )}
