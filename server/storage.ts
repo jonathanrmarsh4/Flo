@@ -1123,7 +1123,7 @@ export class DatabaseStorage implements IStorage {
     // Of those, how many had activity in last 7 days
     const [retainedResult] = await db
       .select({
-        count: sql<number>`COUNT(DISTINCT o.user_id)::int`,
+        count: sql<number>`COUNT(DISTINCT ${openaiUsageEvents.userId})::int`,
       })
       .from(openaiUsageEvents)
       .innerJoin(users, eq(openaiUsageEvents.userId, users.id))
