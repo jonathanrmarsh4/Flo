@@ -108,6 +108,24 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  app.get('/api/admin/analytics/comprehensive', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const period = (req.query.period as 'today' | '7d' | '30d' | '90d' | 'all') || '30d';
+      const cacheKey = `admin:analytics:comprehensive:${period}`;
+      let data = getCached(cacheKey);
+      
+      if (!data) {
+        data = await storage.getComprehensiveAnalytics(period);
+        setCache(cacheKey, data);
+      }
+      
+      res.json(data);
+    } catch (error) {
+      logger.error('Error fetching comprehensive analytics', error);
+      res.status(500).json({ error: "Failed to fetch comprehensive analytics" });
+    }
+  });
+
   app.get('/api/admin/billing/summary', isAuthenticated, requireAdmin, async (req, res) => {
     if (!stripe) {
       return res.status(503).json({ error: "Stripe is not configured" });

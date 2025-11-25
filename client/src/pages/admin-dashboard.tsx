@@ -11,6 +11,7 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { AdminNotificationConfig } from '@/components/admin/AdminNotificationConfig';
 import { AdminReportModelSettings } from '@/components/admin/AdminReportModelSettings';
+import { AdminAnalyticsTab } from '@/components/admin/AdminAnalyticsTab';
 
 interface AdminUserSummary {
   id: string;
@@ -872,12 +873,16 @@ export default function AdminDashboard() {
           <AdminNotificationConfig />
         )}
 
-        {(activeTab === 'billing' || activeTab === 'analytics') && (
+        {activeTab === 'billing' && (
           <div className="rounded-2xl border bg-white/5 border-white/10 p-12 text-center">
             <div className="text-white/50">
-              {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} features coming soon
+              Billing features coming soon
             </div>
           </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <AdminAnalyticsTab />
         )}
 
         {activeTab === 'settings' && (
