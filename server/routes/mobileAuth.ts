@@ -6,6 +6,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 import { storage } from "../storage";
 import { logger } from "../logger";
+import { sendPasswordResetEmail } from "../services/emailService";
 import {
   appleSignInSchema,
   googleSignInSchema,
@@ -505,16 +506,21 @@ router.post("/api/mobile/auth/request-reset", async (req, res) => {
         // Generate secure random token
         const resetToken = crypto.randomBytes(32).toString('hex');
         
+        // Hash the token for secure storage (we store the hash, send plain token in email)
+        const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+        
         // Set expiry to 1 hour from now
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
         
-        // Store reset token
-        await storage.createPasswordResetToken(user.id, resetToken, expiresAt);
+        // Store hashed reset token
+        await storage.createPasswordResetToken(user.id, tokenHash, expiresAt);
         
-        // In production, send email with reset link containing the token
-        // For now, log it in development only
-        logger.info('Password reset token generated', { email: user.email, token: resetToken });
+        // Send password reset email with plain token (user clicks link with this)
+        const emailSent = await sendPasswordResetEmail(user.email!, resetToken);
+        if (!emailSent) {
+          logger.warn('Failed to send password reset email, but token was created', { email: user.email });
+        }
       }
     }
     
@@ -539,8 +545,11 @@ router.post("/api/mobile/auth/reset", async (req, res) => {
     // Validate request body
     const body = passwordResetSchema.parse(req.body);
     
-    // Find user by valid reset token (not expired)
-    const user = await storage.getUserByResetToken(body.token);
+    // Hash the incoming token to match against stored hash
+    const tokenHash = crypto.createHash('sha256').update(body.token).digest('hex');
+    
+    // Find user by valid reset token hash (not expired)
+    const user = await storage.getUserByResetToken(tokenHash);
     
     if (!user) {
       return res.status(400).json({ error: "Invalid or expired reset token" });
@@ -549,8 +558,10 @@ router.post("/api/mobile/auth/reset", async (req, res) => {
     // Hash new password with bcrypt
     const passwordHash = await bcrypt.hash(body.newPassword, 10);
     
-    // Update password and clear reset token
+    // Update password and clear reset token (single-use: token is deleted)
     await storage.updatePasswordHash(user.id, passwordHash);
+    
+    logger.info('Password reset successful', { userId: user.id });
     
     res.json({ 
       success: true,

@@ -709,24 +709,24 @@ export class DatabaseStorage implements IStorage {
       .where(eq(userCredentials.userId, userId));
   }
 
-  async createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void> {
+  async createPasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
     await db
       .update(userCredentials)
       .set({ 
-        resetToken: token,
+        resetToken: tokenHash,
         resetTokenExpiresAt: expiresAt,
         updatedAt: new Date(),
       })
       .where(eq(userCredentials.userId, userId));
   }
 
-  async getUserByResetToken(token: string): Promise<User | undefined> {
+  async getUserByResetToken(tokenHash: string): Promise<User | undefined> {
     const [credentials] = await db
       .select()
       .from(userCredentials)
       .where(
         and(
-          eq(userCredentials.resetToken, token),
+          eq(userCredentials.resetToken, tokenHash),
           gt(userCredentials.resetTokenExpiresAt, sql`now()`)
         )
       );

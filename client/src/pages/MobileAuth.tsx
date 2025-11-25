@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
 import { SignInWithApple } from '@capacitor-community/apple-sign-in';
-import { Mail, Lock, Eye, EyeOff, User, ArrowRight, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowRight, Sparkles, ArrowLeft, CheckCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,19 +12,22 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import { emailRegisterSchema, emailLoginSchema } from '@shared/schema';
+import { emailRegisterSchema, emailLoginSchema, passwordResetRequestSchema } from '@shared/schema';
 import { logger } from '@/lib/logger';
 
 type LoginFormData = z.infer<typeof emailLoginSchema>;
 type RegisterFormData = z.infer<typeof emailRegisterSchema>;
+type ForgotPasswordFormData = z.infer<typeof passwordResetRequestSchema>;
 
 export default function MobileAuth() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot-password'>('login');
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [isRegisterLoading, setIsRegisterLoading] = useState(false);
+  const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
 
@@ -54,6 +57,14 @@ export default function MobileAuth() {
       password: '',
       firstName: '',
       lastName: '',
+    },
+  });
+
+  // Forgot password form
+  const forgotPasswordForm = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(passwordResetRequestSchema),
+    defaultValues: {
+      email: '',
     },
   });
 
@@ -241,12 +252,60 @@ export default function MobileAuth() {
     }
   };
 
+  // Forgot password handler
+  const handleForgotPassword = async (data: ForgotPasswordFormData) => {
+    setIsForgotPasswordLoading(true);
+    setGeneralError(null);
+
+    try {
+      const response = await apiRequest('POST', '/api/mobile/auth/request-reset', data);
+      
+      if (response.ok) {
+        setForgotPasswordSent(true);
+        toast({
+          title: "Check Your Email",
+          description: "If an account exists, you'll receive password reset instructions.",
+        });
+      }
+    } catch (error: any) {
+      logger.error('Forgot password error', error);
+      const errorMessage = error.message || "Failed to send reset email";
+      setGeneralError(errorMessage);
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsForgotPasswordLoading(false);
+    }
+  };
+
   // Toggle between login and register
   const handleToggleMode = () => {
     setMode(mode === 'login' ? 'register' : 'login');
     setGeneralError(null);
+    setForgotPasswordSent(false);
     loginForm.reset();
     registerForm.reset();
+    forgotPasswordForm.reset();
+  };
+
+  // Go to forgot password
+  const handleGoToForgotPassword = () => {
+    setMode('forgot-password');
+    setGeneralError(null);
+    setForgotPasswordSent(false);
+    forgotPasswordForm.reset();
+  };
+
+  // Back to login from forgot password
+  const handleBackToLogin = () => {
+    setMode('login');
+    setGeneralError(null);
+    setForgotPasswordSent(false);
+    forgotPasswordForm.reset();
   };
 
   return (
@@ -271,16 +330,26 @@ export default function MobileAuth() {
         {/* Auth Card */}
         <div className="w-full max-w-sm backdrop-blur-xl rounded-3xl border border-white/10 bg-white/5 p-6 space-y-4">
           <div className="text-center mb-4">
+            {mode === 'forgot-password' && (
+              <button
+                onClick={handleBackToLogin}
+                className="absolute left-6 top-6 text-white/60 hover:text-white/80 transition-colors flex items-center gap-1"
+                data-testid="button-back-to-login"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span className="text-sm">Back</span>
+              </button>
+            )}
             <h2 className="text-xl text-white mb-1">
-              {mode === 'login' ? 'Welcome Back' : 'Create Account'}
+              {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : 'Reset Password'}
             </h2>
             <p className="text-sm text-white/60">
-              {mode === 'login' ? 'Sign in to continue' : 'Start your evolution'}
+              {mode === 'login' ? 'Sign in to continue' : mode === 'register' ? 'Start your evolution' : 'Enter your email to reset'}
             </p>
           </div>
 
-          {/* Social Auth Buttons (iOS only) */}
-          {isNative && (
+          {/* Social Auth Buttons (iOS only) - only show on login/register */}
+          {isNative && mode !== 'forgot-password' && (
             <div className="space-y-3">
               <Button
                 onClick={handleAppleSignIn}
@@ -388,6 +457,17 @@ export default function MobileAuth() {
                   )}
                 />
 
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleGoToForgotPassword}
+                    className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
+                    data-testid="button-forgot-password"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+
                 <Button
                   type="submit"
                   disabled={isLoginLoading}
@@ -409,6 +489,91 @@ export default function MobileAuth() {
                 </Button>
               </form>
             </Form>
+          )}
+
+          {/* Forgot Password Form */}
+          {mode === 'forgot-password' && (
+            <>
+              {forgotPasswordSent ? (
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-teal-500/20 flex items-center justify-center">
+                    <CheckCircle className="w-8 h-8 text-teal-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg text-white mb-2">Check Your Email</h3>
+                    <p className="text-sm text-white/60">
+                      If an account exists with that email, we've sent password reset instructions.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleBackToLogin}
+                    className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30 text-white flex items-center justify-center gap-2"
+                    data-testid="button-back-to-signin"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    <span>Back to Sign In</span>
+                  </Button>
+                </div>
+              ) : (
+                <Form {...forgotPasswordForm}>
+                  <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPassword)} className="space-y-4">
+                    <FormField
+                      control={forgotPasswordForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/80 text-sm">Email</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                              <Input
+                                {...field}
+                                type="email"
+                                className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                                placeholder="you@example.com"
+                                disabled={isForgotPasswordLoading}
+                                data-testid="input-reset-email"
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage className="text-red-400" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <Button
+                      type="submit"
+                      disabled={isForgotPasswordLoading}
+                      className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30 text-white flex items-center justify-center gap-2"
+                      data-testid="button-submit-reset"
+                    >
+                      {isForgotPasswordLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Sending...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" />
+                          <span>Send Reset Link</span>
+                        </>
+                      )}
+                    </Button>
+
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleBackToLogin}
+                        className="text-sm text-white/60 hover:text-white/80 transition-colors"
+                        data-testid="button-cancel-reset"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </Form>
+              )}
+            </>
           )}
 
           {/* Registration Form */}
@@ -538,19 +703,21 @@ export default function MobileAuth() {
             </Form>
           )}
 
-          {/* Toggle Mode */}
-          <div className="text-center pt-2">
-            <button
-              onClick={handleToggleMode}
-              className="text-sm text-white/60 hover:text-white/80 transition-colors"
-              data-testid="button-toggle-register"
-            >
-              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-              <span className="text-cyan-400 font-medium">
-                {mode === 'login' ? 'Sign Up' : 'Sign In'}
-              </span>
-            </button>
-          </div>
+          {/* Toggle Mode - only show on login/register */}
+          {mode !== 'forgot-password' && (
+            <div className="text-center pt-2">
+              <button
+                onClick={handleToggleMode}
+                className="text-sm text-white/60 hover:text-white/80 transition-colors"
+                data-testid="button-toggle-register"
+              >
+                {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                <span className="text-cyan-400 font-medium">
+                  {mode === 'login' ? 'Sign Up' : 'Sign In'}
+                </span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Disclaimer */}

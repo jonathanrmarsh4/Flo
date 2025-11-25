@@ -12,6 +12,7 @@ import { initializeNotifications } from "@/lib/notifications";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
+import ResetPassword from "@/pages/ResetPassword";
 import Dashboard from "@/pages/dashboard-new";
 import Labs from "@/pages/labs";
 import InsightsScreen from "@/pages/InsightsScreen";
@@ -100,6 +101,9 @@ function Router() {
     <Switch>
       {/* Mobile auth route - accessible for testing and native platforms */}
       <Route path="/mobile-auth" component={MobileAuth} />
+      
+      {/* Password reset route - accessible to all users */}
+      <Route path="/reset-password" component={ResetPassword} />
       
       {isLoading || !isAuthenticated ? (
         isNative ? (
