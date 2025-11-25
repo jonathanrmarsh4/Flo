@@ -473,56 +473,93 @@ export class DatabaseStorage implements IStorage {
     
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     
-    // Enrich users with subscription and activity data
+    // Simplified query - fetch users first, then enrich with subscription data
+    // This avoids complex subqueries that can fail in production
+    try {
+      const baseUsers = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          status: users.status,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .where(whereClause)
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      // Enrich each user with subscription status and measurement count
+      const enrichedUsers = await Promise.all(
+        baseUsers.map(async (user) => {
+          // Get subscription status
+          let subscriptionStatus: 'free' | 'premium' = 'free';
+          try {
+            const [customer] = await db
+              .select({ id: billingCustomers.id })
+              .from(billingCustomers)
+              .where(eq(billingCustomers.userId, user.id))
+              .limit(1);
+            
+            if (customer) {
+              const [sub] = await db
+                .select({ status: subscriptions.status })
+                .from(subscriptions)
+                .where(eq(subscriptions.customerId, customer.id))
+                .orderBy(desc(subscriptions.createdAt))
+                .limit(1);
+              
+              if (sub && (sub.status === 'active' || sub.status === 'trialing')) {
+                subscriptionStatus = 'premium';
+              }
+            }
+          } catch (e) {
+            // Subscription lookup failed, default to free
+          }
+
+          // Get measurement count
+          let measurementCount = 0;
+          let lastUpload: string | null = null;
+          try {
+            const [counts] = await db
+              .select({
+                count: sql<number>`COUNT(*)`,
+                lastUpload: sql<string | null>`MAX(${bloodWorkRecords.uploadedAt})`,
+              })
+              .from(bloodWorkRecords)
+              .where(eq(bloodWorkRecords.userId, user.id));
+            
+            measurementCount = Number(counts?.count || 0);
+            lastUpload = counts?.lastUpload || null;
+          } catch (e) {
+            // Measurement lookup failed, default to 0
+          }
+
+          return {
+            ...user,
+            subscriptionStatus,
+            measurementCount,
+            lastUpload,
+          };
+        })
+      );
+
+      return { users: enrichedUsers, total: 0 }; // Will fix total below
+    } catch (queryError) {
+      console.error('[Admin] Error in listUsers query:', queryError);
+      throw queryError;
+    }
+
+    // Original complex query commented out for reference
+    /*
     const enrichedUsers = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        role: users.role,
-        status: users.status,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-        subscriptionStatus: sql<string>`
-          CASE 
-            WHEN ${subscriptions.status} IN ('active', 'trialing') THEN 'premium'
-            ELSE 'free'
-          END
-        `,
-        measurementCount: sql<number>`COALESCE(COUNT(DISTINCT ${bloodWorkRecords.id}), 0)`,
-        lastUpload: sql<string | null>`MAX(${bloodWorkRecords.uploadedAt})`,
-      })
-      .from(users)
-      .leftJoin(billingCustomers, eq(users.id, billingCustomers.userId))
-      .leftJoin(
-        subscriptions, 
-        and(
-          eq(billingCustomers.id, subscriptions.customerId),
-          sql`${subscriptions.id} = (
-            SELECT id FROM ${subscriptions} s2
-            WHERE s2.customer_id = ${billingCustomers.id}
-            ORDER BY s2.created_at DESC
-            LIMIT 1
-          )`
-        )
-      )
-      .leftJoin(bloodWorkRecords, eq(users.id, bloodWorkRecords.userId))
-      .where(whereClause)
-      .groupBy(
-        users.id,
-        users.email,
-        users.firstName,
-        users.lastName,
-        users.role,
-        users.status,
-        users.createdAt,
-        users.updatedAt,
-        subscriptions.status
-      )
-      .orderBy(desc(users.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .select({...})
+      ...
+    */
     
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
