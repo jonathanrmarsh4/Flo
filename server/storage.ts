@@ -195,7 +195,7 @@ export interface IStorage {
   updateMeasurement(id: string, updates: Partial<BiomarkerMeasurement>): Promise<BiomarkerMeasurement>;
   deleteMeasurement(id: string): Promise<void>;
   deleteTestSession(id: string): Promise<void>;
-  getMeasurementHistory(userId: string, biomarkerId: string, limit?: number): Promise<BiomarkerMeasurement[]>;
+  getMeasurementHistory(userId: string, biomarkerId: string, limit?: number): Promise<(BiomarkerMeasurement & { testDate: Date })[]>;
   getLatestMeasurementForBiomarker(userId: string, biomarkerId: string, measurementId?: string): Promise<BiomarkerMeasurement | undefined>;
   getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string): Promise<any>;
   cacheBiomarkerInsights(params: {
@@ -1139,7 +1139,7 @@ export class DatabaseStorage implements IStorage {
     return measurement?.biomarker_measurements;
   }
 
-  async getMeasurementHistory(userId: string, biomarkerId: string, limit: number = 5): Promise<BiomarkerMeasurement[]> {
+  async getMeasurementHistory(userId: string, biomarkerId: string, limit: number = 5): Promise<(BiomarkerMeasurement & { testDate: Date })[]> {
     const measurements = await db
       .select()
       .from(biomarkerMeasurements)
@@ -1152,7 +1152,11 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(biomarkerTestSessions.testDate))
       .limit(limit);
-    return measurements.map(m => m.biomarker_measurements);
+    // Include testDate from session for display (actual sample collection date)
+    return measurements.map(m => ({
+      ...m.biomarker_measurements,
+      testDate: m.biomarker_test_sessions.testDate,
+    }));
   }
 
   async checkDuplicateMeasurement(params: {
