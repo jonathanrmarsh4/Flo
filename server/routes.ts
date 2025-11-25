@@ -1123,6 +1123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If no session has measurements, return error
       if (!bestSession) {
+        logger.warn(`[BioAge] No session with measurements found for user ${userId}`);
         return res.status(400).json({ 
           error: "No biomarker measurements found. Please add test results to calculate biological age.",
           missingData: "biomarkers"
@@ -1131,6 +1132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const latestSession = bestSession;
       const measurements = bestMeasurements;
+      logger.info(`[BioAge] Using session ${latestSession.id} with ${measurements.length} measurements`);
 
       // Get all biomarkers to map IDs to names
       const biomarkers = await storage.getBiomarkers();
@@ -1143,6 +1145,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return [biomarker?.name, m];
         })
       );
+      
+      logger.info(`[BioAge] Measurement map keys: [${Array.from(measurementMap.keys()).join(', ')}]`);
 
       // Required biomarkers for PhenoAge calculation
       // Note: CRP can be either "CRP" or "hs-CRP" (high-sensitivity CRP)
@@ -1258,8 +1262,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if we have all required biomarkers
+      logger.info(`[BioAge] Extracted values: ${JSON.stringify(biomarkerValues)}`);
+      logger.info(`[BioAge] Missing biomarkers: [${missingBiomarkers.join(', ')}]`);
+      
       if (missingBiomarkers.length > 0) {
         // Return partial data with chronological age and what's missing
+        logger.info(`[BioAge] Returning incomplete - missing ${missingBiomarkers.length} biomarkers`);
         return res.status(200).json({ 
           chronologicalAge: ageYears,
           biologicalAge: null,
@@ -1305,6 +1313,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Calculate PhenoAge
         const phenoAge = calculatePhenoAge(phenoAgeInputs);
         const ageAcceleration = calculatePhenoAgeAccel(phenoAge, ageYears);
+
+        logger.info(`[BioAge] SUCCESS! PhenoAge=${phenoAge.toFixed(1)}, ChronoAge=${ageYears}, Accel=${ageAcceleration.toFixed(1)}`);
 
         res.json({
           biologicalAge: Math.round(phenoAge * 10) / 10, // Round to 1 decimal
