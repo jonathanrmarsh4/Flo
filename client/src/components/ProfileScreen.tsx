@@ -1054,14 +1054,6 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
             </button>
 
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-              isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            }`} data-testid="button-contact">
-              <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
-                Contact Us
-              </span>
-              <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
-            </button>
           </div>
         </div>
 
