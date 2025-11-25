@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { getAuthHeaders, getApiBaseUrl } from "@/lib/queryClient";
 import { FileText, Share2, Loader2 } from "lucide-react";
 import { FullReportScreen, FullReportData } from "./FullReportScreen";
 
@@ -13,7 +13,13 @@ export function ReportTile() {
 
   const generateReportMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/comprehensive-report', {
+      const baseUrl = getApiBaseUrl();
+      const headers = await getAuthHeaders();
+      
+      console.log('[ReportTile] Generating report with auth headers:', Object.keys(headers));
+      
+      const response = await fetch(`${baseUrl}/api/comprehensive-report`, {
+        headers,
         credentials: 'include',
       });
       if (!response.ok) {
