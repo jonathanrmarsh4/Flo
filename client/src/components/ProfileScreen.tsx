@@ -974,18 +974,6 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
             </button>
 
             <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-              isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            }`} data-testid="button-privacy-settings">
-              <div className="flex items-center gap-3">
-                <Shield className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
-                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
-                  Privacy Settings
-                </span>
-              </div>
-              <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
-            </button>
-
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               isDark ? 'hover:bg-red-500/10' : 'hover:bg-red-50'
             }`} data-testid="button-delete-data">
               <div className="flex items-center gap-3">
@@ -996,57 +984,6 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               </div>
               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
             </button>
-          </div>
-        </div>
-
-        {/* Developer Actions */}
-        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
-          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
-        }`} data-testid="card-developer-actions">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-            <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Actions
-            </h2>
-          </div>
-
-          <div className="space-y-2">
-            <button 
-              onClick={() => generateInsights.mutate()}
-              disabled={generateInsights.isPending}
-              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-              } ${generateInsights.isPending ? 'opacity-50 cursor-not-allowed' : ''}`} 
-              data-testid="button-generate-insights"
-            >
-              <div className="flex items-center gap-3">
-                {generateInsights.isPending ? (
-                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                ) : (
-                  <Brain className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                )}
-                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
-                  {generateInsights.isPending ? 'Generating Insights...' : 'Generate Health Insights'}
-                </span>
-              </div>
-              {!generateInsights.isPending && (
-                <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
-              )}
-            </button>
-            
-            <Link href="/shortcuts">
-              <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-              }`} data-testid="button-ios-shortcuts">
-                <div className="flex items-center gap-3">
-                  <Smartphone className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                  <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
-                    iOS Shortcuts
-                  </span>
-                </div>
-                <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
-              </button>
-            </Link>
           </div>
         </div>
 
@@ -1092,18 +1029,6 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
                 Medical Disclaimer
               </span>
-              <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
-            </button>
-
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-              isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-            }`} data-testid="button-about">
-              <div className="flex items-center gap-3">
-                <Info className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
-                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
-                  About Flō
-                </span>
-              </div>
               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
             </button>
 
