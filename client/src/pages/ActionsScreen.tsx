@@ -8,7 +8,7 @@ import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
 import { OverdueLabWorkTile } from "@/components/OverdueLabWorkTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { Target, ListChecks, Filter, Plus, X } from "lucide-react";
+import { Target, ListChecks, Filter, X } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 
 type CategoryFilter = 'all' | 'sleep_quality' | 'performance_activity' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
@@ -119,9 +119,6 @@ export default function ActionsScreen() {
                   {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
                 </p>
               </div>
-              <button className="p-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50">
-                <Plus className="w-5 h-5" />
-              </button>
             </div>
 
             {/* Category Filter Pills */}
@@ -146,7 +143,7 @@ export default function ActionsScreen() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto overscroll-none px-6 py-4">
+        <div className="flex-1 overflow-y-auto overscroll-none px-6 py-4 pb-32">
           {/* Lab Work Overdue Tile - Collapsible, starts collapsed */}
           <div className="mb-4">
             <OverdueLabWorkTile />
