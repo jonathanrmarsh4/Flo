@@ -7,8 +7,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
 import { Capacitor } from '@capacitor/core';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { initializeNotifications } from "@/lib/notifications";
+import { OnboardingScreen } from "@/components/OnboardingScreen";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
@@ -30,9 +31,46 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import BillingPage from "@/pages/billing";
 import ShortcutsPage from "@/pages/shortcuts";
 
+const ONBOARDING_COMPLETED_KEY = 'flo_onboarding_completed';
+
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const isNative = Capacitor.isNativePlatform();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  
+  // Check if user needs to see onboarding
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      // Check localStorage for this specific user
+      const onboardingKey = `${ONBOARDING_COMPLETED_KEY}_${user.id}`;
+      const completed = localStorage.getItem(onboardingKey);
+      
+      if (!completed) {
+        setShowOnboarding(true);
+      }
+      setOnboardingChecked(true);
+    } else if (!isAuthenticated) {
+      setShowOnboarding(false);
+      setOnboardingChecked(true);
+    }
+  }, [isAuthenticated, user?.id]);
+
+  const handleOnboardingComplete = () => {
+    if (user?.id) {
+      const onboardingKey = `${ONBOARDING_COMPLETED_KEY}_${user.id}`;
+      localStorage.setItem(onboardingKey, 'true');
+    }
+    setShowOnboarding(false);
+  };
+
+  const handleOnboardingSkip = () => {
+    if (user?.id) {
+      const onboardingKey = `${ONBOARDING_COMPLETED_KEY}_${user.id}`;
+      localStorage.setItem(onboardingKey, 'skipped');
+    }
+    setShowOnboarding(false);
+  };
   
   // Automatically sync HealthKit data in background on app launch
   useHealthKitAutoSync();
@@ -89,11 +127,22 @@ function Router() {
     checkAndClearCacheOnUpdate();
   }, [isNative]);
 
-  if (isLoading) {
+  if (isLoading || !onboardingChecked) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
+    );
+  }
+
+  // Show onboarding for authenticated users who haven't completed it
+  if (isAuthenticated && showOnboarding) {
+    return (
+      <OnboardingScreen
+        isDark={true}
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingSkip}
+      />
     );
   }
 
