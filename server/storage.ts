@@ -1194,7 +1194,7 @@ export class DatabaseStorage implements IStorage {
         uniqueUsers: sql<number>`COUNT(DISTINCT user_id)::int`,
       })
       .from(insightCards)
-      .where(sql`generated_date >= ${startDate.toISOString().split('T')[0]}`);
+      .where(sql`created_at >= ${startDate}`);
     
     const [actionPlanUsage] = await db
       .select({
