@@ -208,3 +208,191 @@ export async function sendWelcomeEmail(email: string, firstName?: string): Promi
     return false;
   }
 }
+
+export async function sendBugReportEmail(
+  title: string,
+  description: string,
+  severity: 'low' | 'medium' | 'high',
+  userEmail?: string,
+  userId?: number
+): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    
+    const severityColors = {
+      low: '#facc15',
+      medium: '#f97316',
+      high: '#ef4444'
+    };
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      to: 'bug@nuvitaelabs.com',
+      replyTo: userEmail || undefined,
+      subject: `[Bug Report - ${severity.toUpperCase()}] ${title}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse;">
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: ${severityColors[severity]}; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+                      <h1 style="margin: 0; color: #000; font-size: 18px; font-weight: 600;">
+                        Bug Report - ${severity.toUpperCase()} Severity
+                      </h1>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-top: none; border-radius: 0 0 12px 12px; padding: 24px;">
+                      <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 20px; font-weight: 500;">
+                        ${title}
+                      </h2>
+                      
+                      <div style="margin-bottom: 16px;">
+                        <p style="margin: 0 0 8px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase;">Description</p>
+                        <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 15px; line-height: 1.6; white-space: pre-wrap;">
+                          ${description}
+                        </p>
+                      </div>
+                      
+                      <hr style="border: none; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 20px 0;" />
+                      
+                      <div style="display: flex; gap: 20px;">
+                        <div>
+                          <p style="margin: 0 0 4px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px;">User ID</p>
+                          <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">${userId || 'Not logged in'}</p>
+                        </div>
+                        <div>
+                          <p style="margin: 0 0 4px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px;">User Email</p>
+                          <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">${userEmail || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <p style="margin: 0 0 4px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px;">Submitted</p>
+                          <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">${new Date().toISOString()}</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: `Bug Report - ${severity.toUpperCase()} Severity\n\nTitle: ${title}\n\nDescription:\n${description}\n\nUser ID: ${userId || 'Not logged in'}\nUser Email: ${userEmail || 'Not provided'}\nSubmitted: ${new Date().toISOString()}`
+    });
+
+    if (error) {
+      logger.error('Failed to send bug report email', { error, title });
+      return false;
+    }
+
+    logger.info('Bug report email sent successfully', { title, messageId: data?.id });
+    return true;
+  } catch (error) {
+    logger.error('Error sending bug report email', { error, title });
+    return false;
+  }
+}
+
+export async function sendSupportRequestEmail(
+  name: string,
+  email: string,
+  subject: string,
+  message: string,
+  userId?: number
+): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      to: 'support@nuvitaelabs.com',
+      replyTo: email,
+      subject: `[Support Request] ${subject}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse;">
+                  <!-- Header -->
+                  <tr>
+                    <td style="background: linear-gradient(135deg, #14b8a6, #06b6d4); padding: 16px 24px; border-radius: 12px 12px 0 0;">
+                      <h1 style="margin: 0; color: #fff; font-size: 18px; font-weight: 600;">
+                        Support Request
+                      </h1>
+                    </td>
+                  </tr>
+                  
+                  <!-- Content -->
+                  <tr>
+                    <td style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-top: none; border-radius: 0 0 12px 12px; padding: 24px;">
+                      <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 20px; font-weight: 500;">
+                        ${subject}
+                      </h2>
+                      
+                      <div style="margin-bottom: 16px;">
+                        <p style="margin: 0 0 8px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase;">Message</p>
+                        <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 15px; line-height: 1.6; white-space: pre-wrap;">
+                          ${message}
+                        </p>
+                      </div>
+                      
+                      <hr style="border: none; border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 20px 0;" />
+                      
+                      <div>
+                        <div style="margin-bottom: 12px;">
+                          <p style="margin: 0 0 4px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px;">From</p>
+                          <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">${name} &lt;${email}&gt;</p>
+                        </div>
+                        <div style="margin-bottom: 12px;">
+                          <p style="margin: 0 0 4px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px;">User ID</p>
+                          <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">${userId || 'Not logged in'}</p>
+                        </div>
+                        <div>
+                          <p style="margin: 0 0 4px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px;">Submitted</p>
+                          <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">${new Date().toISOString()}</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: `Support Request\n\nSubject: ${subject}\n\nMessage:\n${message}\n\nFrom: ${name} <${email}>\nUser ID: ${userId || 'Not logged in'}\nSubmitted: ${new Date().toISOString()}`
+    });
+
+    if (error) {
+      logger.error('Failed to send support request email', { error, subject });
+      return false;
+    }
+
+    logger.info('Support request email sent successfully', { subject, messageId: data?.id });
+    return true;
+  } catch (error) {
+    logger.error('Error sending support request email', { error, subject });
+    return false;
+  }
+}

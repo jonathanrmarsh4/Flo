@@ -19,6 +19,7 @@ import {
   canAccessFlomentum,
 } from "./middleware/planEnforcement";
 import { logger } from "./logger";
+import { sendBugReportEmail, sendSupportRequestEmail } from "./services/emailService";
 import { eq, desc, and, gte, gt, sql, isNull, isNotNull } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
@@ -123,6 +124,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error deleting user data:', error);
       res.status(500).json({ error: "Failed to delete user data" });
+    }
+  });
+
+  // POST /api/support/bug-report - Submit a bug report
+  app.post('/api/support/bug-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description, severity } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).json({ error: "Title and description are required" });
+      }
+
+      if (severity && !['low', 'medium', 'high'].includes(severity)) {
+        return res.status(400).json({ error: "Invalid severity level" });
+      }
+
+      // Get user email for reply-to
+      const user = await storage.getUser(userId);
+      const userEmail = user?.email;
+
+      const success = await sendBugReportEmail(
+        title,
+        description,
+        severity || 'medium',
+        userEmail || undefined,
+        userId
+      );
+
+      if (!success) {
+        return res.status(500).json({ error: "Failed to send bug report" });
+      }
+
+      logger.info('Bug report submitted', { userId, title, severity });
+      res.json({ success: true, message: "Bug report submitted successfully" });
+    } catch (error) {
+      logger.error('Error submitting bug report:', error);
+      res.status(500).json({ error: "Failed to submit bug report" });
+    }
+  });
+
+  // POST /api/support/contact - Submit a support request
+  app.post('/api/support/contact', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { name, email, subject, message } = req.body;
+
+      if (!name || !email || !subject || !message) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+
+      const success = await sendSupportRequestEmail(
+        name,
+        email,
+        subject,
+        message,
+        userId
+      );
+
+      if (!success) {
+        return res.status(500).json({ error: "Failed to send support request" });
+      }
+
+      logger.info('Support request submitted', { userId, subject });
+      res.json({ success: true, message: "Support request submitted successfully" });
+    } catch (error) {
+      logger.error('Error submitting support request:', error);
+      res.status(500).json({ error: "Failed to submit support request" });
     }
   });
 

@@ -8,6 +8,7 @@ import { TermsOfServiceScreen } from '@/components/TermsOfServiceScreen';
 import { MedicalDisclaimerScreen } from '@/components/MedicalDisclaimerScreen';
 import { ExportDataScreen } from '@/components/ExportDataScreen';
 import { DeleteDataConfirmation } from '@/components/DeleteDataConfirmation';
+import { HelpSupportScreen } from '@/components/HelpSupportScreen';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,6 +34,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [showMedicalDisclaimer, setShowMedicalDisclaimer] = useState(false);
   const [showExportData, setShowExportData] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -1041,7 +1043,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
             </button>
 
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+            <button 
+              onClick={() => setShowHelpSupport(true)}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
             }`} data-testid="button-help">
               <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
@@ -1136,6 +1140,13 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         }}
         isDeleting={isDeleting}
       />
+
+      {showHelpSupport && (
+        <HelpSupportScreen 
+          isDark={isDark} 
+          onClose={() => setShowHelpSupport(false)} 
+        />
+      )}
     </div>
   );
 }
