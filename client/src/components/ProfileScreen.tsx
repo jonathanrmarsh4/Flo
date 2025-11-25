@@ -6,6 +6,8 @@ import { ReminderSettings } from '@/components/ReminderSettings';
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen';
 import { TermsOfServiceScreen } from '@/components/TermsOfServiceScreen';
 import { MedicalDisclaimerScreen } from '@/components/MedicalDisclaimerScreen';
+import { ExportDataScreen } from '@/components/ExportDataScreen';
+import { DeleteDataConfirmation } from '@/components/DeleteDataConfirmation';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,6 +31,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showTermsOfService, setShowTermsOfService] = useState(false);
   const [showMedicalDisclaimer, setShowMedicalDisclaimer] = useState(false);
+  const [showExportData, setShowExportData] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
@@ -961,7 +966,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
 
           <div className="space-y-2">
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+            <button 
+              onClick={() => setShowExportData(true)}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
             }`} data-testid="button-export-data">
               <div className="flex items-center gap-3">
@@ -973,7 +980,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
             </button>
 
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+            <button 
+              onClick={() => setShowDeleteConfirmation(true)}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               isDark ? 'hover:bg-red-500/10' : 'hover:bg-red-50'
             }`} data-testid="button-delete-data">
               <div className="flex items-center gap-3">
@@ -1085,6 +1094,48 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           onClose={() => setShowMedicalDisclaimer(false)} 
         />
       )}
+
+      {showExportData && (
+        <ExportDataScreen 
+          isDark={isDark} 
+          onClose={() => setShowExportData(false)} 
+        />
+      )}
+
+      <DeleteDataConfirmation
+        isOpen={showDeleteConfirmation}
+        onClose={() => setShowDeleteConfirmation(false)}
+        onConfirm={async () => {
+          setIsDeleting(true);
+          try {
+            const response = await fetch('/api/user/data', {
+              method: 'DELETE',
+              credentials: 'include',
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to delete data');
+            }
+            
+            toast({
+              title: "Data Deleted",
+              description: "All your health data has been permanently deleted.",
+            });
+            
+            setShowDeleteConfirmation(false);
+            window.location.reload();
+          } catch (error) {
+            toast({
+              title: "Delete Failed",
+              description: "Failed to delete your data. Please try again.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsDeleting(false);
+          }
+        }}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }

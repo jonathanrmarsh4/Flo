@@ -1366,6 +1366,155 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async getUserExportStats(userId: string): Promise<{ biomarkerReadings: number; aiInsights: number; actionPlans: number }> {
+    // Get biomarker readings count
+    const sessions = await db
+      .select()
+      .from(biomarkerTestSessions)
+      .where(eq(biomarkerTestSessions.userId, userId));
+    
+    let biomarkerReadings = 0;
+    for (const session of sessions) {
+      const measurements = await db
+        .select()
+        .from(biomarkerMeasurements)
+        .where(eq(biomarkerMeasurements.sessionId, session.id));
+      biomarkerReadings += measurements.length;
+    }
+    
+    // Get AI insights count
+    const insights = await db
+      .select()
+      .from(biomarkerInsights)
+      .where(eq(biomarkerInsights.userId, userId));
+    
+    // Get action plans count
+    const actionItems = await db
+      .select()
+      .from(actionPlanItems)
+      .where(eq(actionPlanItems.userId, userId));
+    
+    return {
+      biomarkerReadings,
+      aiInsights: insights.length,
+      actionPlans: actionItems.length
+    };
+  }
+
+  async exportUserDataAsCsv(userId: string): Promise<string> {
+    const rows: string[] = [];
+    
+    // CSV header
+    rows.push('Type,Date,Name,Value,Unit,Category,Status,Notes');
+    
+    // Get user profile
+    const user = await this.getUser(userId);
+    const profile = await this.getProfile(userId);
+    
+    if (user) {
+      rows.push(`Profile,${new Date().toISOString().split('T')[0]},Email,"${user.email || ''}",,,`);
+      rows.push(`Profile,${new Date().toISOString().split('T')[0]},First Name,"${user.firstName || ''}",,,`);
+      rows.push(`Profile,${new Date().toISOString().split('T')[0]},Last Name,"${user.lastName || ''}",,,`);
+    }
+    
+    if (profile) {
+      if (profile.dateOfBirth) {
+        rows.push(`Profile,,Date of Birth,"${profile.dateOfBirth.toISOString().split('T')[0]}",,,`);
+      }
+      if (profile.sex) {
+        rows.push(`Profile,,Sex,"${profile.sex}",,,`);
+      }
+      if (profile.weight) {
+        rows.push(`Profile,,Weight,"${profile.weight}","${profile.weightUnit || 'kg'}",,`);
+      }
+      if (profile.height) {
+        rows.push(`Profile,,Height,"${profile.height}","${profile.heightUnit || 'cm'}",,`);
+      }
+    }
+    
+    // Get biomarker measurements with test dates
+    const sessions = await db
+      .select()
+      .from(biomarkerTestSessions)
+      .where(eq(biomarkerTestSessions.userId, userId))
+      .orderBy(desc(biomarkerTestSessions.testDate));
+    
+    const allBiomarkers = await db.select().from(biomarkers);
+    const biomarkerMap = new Map(allBiomarkers.map(b => [b.id, b]));
+    
+    for (const session of sessions) {
+      const measurements = await db
+        .select()
+        .from(biomarkerMeasurements)
+        .where(eq(biomarkerMeasurements.sessionId, session.id));
+      
+      for (const measurement of measurements) {
+        const biomarker = biomarkerMap.get(measurement.biomarkerId);
+        const testDate = session.testDate?.toISOString().split('T')[0] || '';
+        const name = biomarker?.name || measurement.biomarkerId;
+        const value = measurement.valueDisplay || measurement.valueCanonical?.toString() || '';
+        const unit = measurement.unitCanonical || biomarker?.canonicalUnit || '';
+        const category = biomarker?.category || '';
+        
+        // Determine status based on flags
+        let status = 'Normal';
+        if (measurement.flags && Array.isArray(measurement.flags)) {
+          if (measurement.flags.includes('critical_high') || measurement.flags.includes('critical_low')) {
+            status = 'Critical';
+          } else if (measurement.flags.includes('out_of_range_high') || measurement.flags.includes('out_of_range_low')) {
+            status = 'Attention';
+          } else if (measurement.flags.includes('optimal')) {
+            status = 'Optimal';
+          }
+        }
+        
+        rows.push(`Biomarker,${testDate},"${this.escapeCsv(name)}","${value}","${unit}","${category}",${status},`);
+      }
+    }
+    
+    // Get AI insights
+    const insights = await db
+      .select()
+      .from(biomarkerInsights)
+      .where(eq(biomarkerInsights.userId, userId));
+    
+    for (const insight of insights) {
+      const biomarker = biomarkerMap.get(insight.biomarkerId);
+      const date = insight.generatedAt?.toISOString().split('T')[0] || '';
+      const name = biomarker?.name || insight.biomarkerId;
+      
+      if (insight.lifestyleActions && Array.isArray(insight.lifestyleActions)) {
+        for (const action of insight.lifestyleActions) {
+          rows.push(`AI Insight,${date},"${this.escapeCsv(name)}",,,,"Lifestyle Action","${this.escapeCsv(action)}"`);
+        }
+      }
+      
+      if (insight.nutrition && Array.isArray(insight.nutrition)) {
+        for (const item of insight.nutrition) {
+          rows.push(`AI Insight,${date},"${this.escapeCsv(name)}",,,,"Nutrition","${this.escapeCsv(item)}"`);
+        }
+      }
+    }
+    
+    // Get Action Plan items
+    const actionItems = await db
+      .select()
+      .from(actionPlanItems)
+      .where(eq(actionPlanItems.userId, userId));
+    
+    for (const item of actionItems) {
+      const date = item.createdAt?.toISOString().split('T')[0] || '';
+      rows.push(`Action Plan,${date},"${this.escapeCsv(item.title)}",,,,"${item.status}","${this.escapeCsv(item.description || '')}"`);
+    }
+    
+    return rows.join('\n');
+  }
+
+  private escapeCsv(str: string): string {
+    if (!str) return '';
+    return str.replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '');
+  }
+
   async getCachedBiomarkerInsights(userId: string, biomarkerId: string, measurementSignature: string) {
     const [insights] = await db
       .select()

@@ -126,6 +126,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/user/export-stats - Get counts for export preview
+  app.get('/api/user/export-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const stats = await storage.getUserExportStats(userId);
+      res.json(stats);
+    } catch (error) {
+      logger.error('Error getting export stats:', error);
+      res.status(500).json({ error: "Failed to get export stats" });
+    }
+  });
+
+  // GET /api/user/export-csv - Export all user data as CSV
+  app.get('/api/user/export-csv', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const csvContent = await storage.exportUserDataAsCsv(userId);
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="flo-health-data-${new Date().toISOString().split('T')[0]}.csv"`);
+      res.send(csvContent);
+    } catch (error) {
+      logger.error('Error exporting user data:', error);
+      res.status(500).json({ error: "Failed to export user data" });
+    }
+  });
+
   // Object storage routes
   const objectStorageService = new ObjectStorageService();
 
