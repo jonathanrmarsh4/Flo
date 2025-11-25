@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
 import { ReminderSettings } from '@/components/ReminderSettings';
+import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +24,7 @@ interface ProfileScreenProps {
 
 export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
@@ -1056,7 +1058,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
 
           <div className="space-y-2">
-            <button className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+            <button 
+              onClick={() => setShowPrivacyPolicy(true)}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
             }`} data-testid="button-privacy-policy">
               <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
@@ -1124,6 +1128,14 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
         </div>
       </div>
+
+      {/* Privacy Policy Screen */}
+      {showPrivacyPolicy && (
+        <PrivacyPolicyScreen 
+          isDark={isDark} 
+          onClose={() => setShowPrivacyPolicy(false)} 
+        />
+      )}
     </div>
   );
 }
