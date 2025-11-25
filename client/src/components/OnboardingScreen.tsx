@@ -11,10 +11,8 @@ interface OnboardingScreenProps {
 
 export function OnboardingScreen({ isDark, onComplete, onSkip }: OnboardingScreenProps) {
   const [currentPhase, setCurrentPhase] = useState<'showcase' | 'setup'>('showcase');
-  const [showcaseComplete, setShowcaseComplete] = useState(false);
 
   const handleShowcaseComplete = () => {
-    setShowcaseComplete(true);
     setCurrentPhase('setup');
   };
 
