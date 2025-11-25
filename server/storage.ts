@@ -1166,7 +1166,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // 5. Feature usage
-    const { oracleConversations, insightCards, flomentumDaily, healthkitSamples: hkSamples } = await import("@shared/schema");
+    const { insightCards, flomentumDaily, healthkitSamples: hkSamples } = await import("@shared/schema");
     
     const [healthkitSyncUsage] = await db
       .select({
@@ -1176,13 +1176,17 @@ export class DatabaseStorage implements IStorage {
       .from(hkSamples)
       .where(sql`created_at >= ${startDate}`);
     
+    // Oracle usage - tracked via openaiUsageEvents with 'oracle' operation
     const [oracleUsage] = await db
       .select({
         count: sql<number>`COUNT(*)::int`,
         uniqueUsers: sql<number>`COUNT(DISTINCT user_id)::int`,
       })
-      .from(oracleConversations)
-      .where(sql`created_at >= ${startDate}`);
+      .from(openaiUsageEvents)
+      .where(and(
+        sql`created_at >= ${startDate}`,
+        sql`operation ILIKE '%oracle%' OR operation ILIKE '%grok%'`
+      ));
     
     const [insightsUsage] = await db
       .select({
