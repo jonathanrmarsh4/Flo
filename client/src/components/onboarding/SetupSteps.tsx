@@ -38,11 +38,34 @@ function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }
 
+// Countries that use imperial system (US, Liberia, Myanmar)
+const imperialCountries = ['US', 'LR', 'MM'];
+
+// Detect if user's locale uses metric system
+function useMetricSystem(): boolean {
+  try {
+    // Guard against SSR/environments where navigator is undefined
+    if (typeof navigator === 'undefined') {
+      return false; // Default to imperial
+    }
+    const locale = navigator.language || 'en-US';
+    // Extract country code from locale (e.g., "en-AU" -> "AU", "en-US" -> "US")
+    const parts = locale.split('-');
+    const countryCode = parts.length > 1 ? parts[1].toUpperCase() : 'US';
+    return !imperialCountries.includes(countryCode);
+  } catch {
+    return false; // Default to imperial if detection fails
+  }
+}
+
 export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentStep, setCurrentStep] = useState<SetupStep>('notifications');
   const [completedSteps, setCompletedSteps] = useState<SetupStep[]>([]);
+  
+  // Detect unit system based on device locale
+  const isMetric = useMetricSystem();
   
   // Profile mutation hook
   const updateDemographics = useUpdateDemographics();
@@ -317,13 +340,33 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
         'other': 'Other',
       };
       
+      // Convert metric to imperial if needed (API expects inches/lbs)
+      let heightInches: number | undefined;
+      let weightLbs: number | undefined;
+      
+      if (profileData.height) {
+        const heightValue = parseFloat(profileData.height);
+        // Convert cm to inches and round to 1 decimal place
+        heightInches = isMetric 
+          ? Math.round((heightValue / 2.54) * 10) / 10 
+          : heightValue;
+      }
+      
+      if (profileData.weight) {
+        const weightValue = parseFloat(profileData.weight);
+        // Convert kg to lbs and round to 1 decimal place
+        weightLbs = isMetric 
+          ? Math.round((weightValue * 2.205) * 10) / 10 
+          : weightValue;
+      }
+      
       // Save demographics to backend
       await updateDemographics.mutateAsync({
         dateOfBirth: dob,
         sex: sexMap[profileData.biologicalSex] || 'Other',
-        height: profileData.height ? parseFloat(profileData.height) : undefined,
+        height: heightInches,
         heightUnit: 'inches' as const,
-        weight: profileData.weight ? parseFloat(profileData.weight) : undefined,
+        weight: weightLbs,
         weightUnit: 'lbs' as const,
       });
       
@@ -636,25 +679,25 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={`block text-sm mb-2 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                      Height (inches)
+                      Height ({isMetric ? 'cm' : 'inches'})
                     </label>
                     <input
                       type="number"
                       value={profileData.height}
                       onChange={(e) => setProfileData({...profileData, height: e.target.value})}
-                      placeholder="68"
+                      placeholder={isMetric ? '175' : '68'}
                       className={inputClassName}
                     />
                   </div>
                   <div>
                     <label className={`block text-sm mb-2 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                      Weight (lbs)
+                      Weight ({isMetric ? 'kg' : 'lbs'})
                     </label>
                     <input
                       type="number"
                       value={profileData.weight}
                       onChange={(e) => setProfileData({...profileData, weight: e.target.value})}
-                      placeholder="165"
+                      placeholder={isMetric ? '75' : '165'}
                       className={inputClassName}
                     />
                   </div>

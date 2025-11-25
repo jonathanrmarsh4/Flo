@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronLeft, Droplet, Sparkles, Target, TrendingUp, Activity, Brain } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Sparkles, Target, TrendingUp, Activity, Brain } from 'lucide-react';
+import floLogo from '@assets/Flo Clear_1764063194603.png';
 
 interface FeatureShowcaseProps {
   isDark: boolean;
@@ -9,12 +10,13 @@ interface FeatureShowcaseProps {
 const features = [
   {
     id: 'welcome',
-    icon: Droplet,
+    icon: null, // Uses logo image instead
     title: 'Welcome to Flō',
     subtitle: 'Your Journey to Optimal Health',
     description: 'Track biomarkers, get AI-powered insights, and optimize your health naturally through balanced, minimal interventions.',
     gradient: 'from-cyan-500 via-blue-500 to-purple-500',
     accentColor: 'cyan',
+    useLogo: true,
   },
   {
     id: 'biomarkers',
@@ -82,6 +84,7 @@ export function FeatureShowcase({ isDark, onComplete }: FeatureShowcaseProps) {
   };
 
   const Icon = currentFeature.icon;
+  const useLogo = 'useLogo' in currentFeature && currentFeature.useLogo;
 
   return (
     <div className="h-full flex flex-col items-center justify-center px-6 py-12">
@@ -98,15 +101,30 @@ export function FeatureShowcase({ isDark, onComplete }: FeatureShowcaseProps) {
             ? 'bg-white/5 border-white/10' 
             : 'bg-white/60 border-black/10'
         }`}>
-          {/* Icon */}
+          {/* Icon or Logo */}
           <div className="flex justify-center mb-6">
-            <div className={`p-6 rounded-3xl bg-gradient-to-br ${currentFeature.gradient} shadow-2xl`}
-              style={{
-                animation: 'floatPulse 3s ease-in-out infinite'
-              }}
-            >
-              <Icon className="w-12 h-12 text-white" />
-            </div>
+            {useLogo ? (
+              <div 
+                className="w-28 h-28 rounded-3xl overflow-hidden shadow-2xl"
+                style={{
+                  animation: 'floatPulse 3s ease-in-out infinite'
+                }}
+              >
+                <img 
+                  src={floLogo} 
+                  alt="Flō" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : Icon && (
+              <div className={`p-6 rounded-3xl bg-gradient-to-br ${currentFeature.gradient} shadow-2xl`}
+                style={{
+                  animation: 'floatPulse 3s ease-in-out infinite'
+                }}
+              >
+                <Icon className="w-12 h-12 text-white" />
+              </div>
+            )}
           </div>
 
           {/* Title & Subtitle */}

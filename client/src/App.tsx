@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -38,6 +38,7 @@ function Router() {
   const isNative = Capacitor.isNativePlatform();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [, setLocation] = useLocation();
   
   // Check if user needs to see onboarding
   useEffect(() => {
@@ -62,6 +63,8 @@ function Router() {
       localStorage.setItem(onboardingKey, 'true');
     }
     setShowOnboarding(false);
+    // Navigate to root to ensure valid route after onboarding
+    setLocation('/');
   };
 
   const handleOnboardingSkip = () => {
@@ -70,6 +73,8 @@ function Router() {
       localStorage.setItem(onboardingKey, 'skipped');
     }
     setShowOnboarding(false);
+    // Navigate to root to ensure valid route after onboarding
+    setLocation('/');
   };
   
   // Automatically sync HealthKit data in background on app launch
