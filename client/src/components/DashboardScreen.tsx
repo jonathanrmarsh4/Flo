@@ -439,6 +439,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
               readiness={dashboardData?.componentScores?.readiness}
               inflammation={dashboardData?.componentScores?.inflammation}
               lastCheckin={dashboardData?.lastUpdated}
+              missingMetrics={bioAgeData?.missingBiomarkers}
             />
 
             {/* Sortable Tiles */}

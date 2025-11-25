@@ -11,6 +11,7 @@ interface FloOverviewTileProps {
   readiness?: number | null;
   inflammation?: number | null;
   lastCheckin?: string | null;
+  missingMetrics?: string[];
 }
 
 export function FloOverviewTile({
@@ -24,7 +25,10 @@ export function FloOverviewTile({
   readiness,
   inflammation,
   lastCheckin,
+  missingMetrics,
 }: FloOverviewTileProps) {
+  const hasMissingMetrics = missingMetrics && missingMetrics.length > 0;
+  const canCalculateBioAge = bioAge !== null && bioAge !== undefined && !hasMissingMetrics;
   const getScoreColor = (score: number | null | undefined) => {
     if (score === null || score === undefined) return isDark ? 'text-white/30' : 'text-gray-400';
     if (score >= 80) return 'text-green-500';
@@ -69,54 +73,108 @@ export function FloOverviewTile({
 
       {/* Biological Age Section */}
       <div className="mb-6">
-        <div className={`text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-          Biological Age
-        </div>
-        <div className="flex items-baseline gap-3 mb-2">
-          <span className={`text-5xl ${isDark ? 'text-green-400' : 'text-green-600'}`} data-testid="text-bio-age">
-            {bioAge ?? '--'}
-          </span>
-          <span className={`text-2xl ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-            years
-          </span>
-          {bioAgeDelta !== null && bioAgeDelta !== undefined && bioAgeDelta !== 0 && (
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
-              bioAgeDelta < 0 
-                ? isDark ? 'bg-green-500/20' : 'bg-green-100'
-                : isDark ? 'bg-red-500/20' : 'bg-red-100'
-            }`}>
-              {bioAgeDelta < 0 ? (
-                <TrendingDown className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
-              ) : (
-                <TrendingUp className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
-              )}
-              <span className={`text-sm ${
-                bioAgeDelta < 0 
-                  ? isDark ? 'text-green-400' : 'text-green-700'
-                  : isDark ? 'text-red-400' : 'text-red-700'
-              }`}>
-                {Math.abs(bioAgeDelta)} yrs
-              </span>
+        {canCalculateBioAge ? (
+          <>
+            <div className={`text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+              Biological Age
             </div>
-          )}
-        </div>
-        <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-          {bioAgeDelta !== null && bioAgeDelta !== undefined ? (
-            <>
-              vs. calendar age {calendarAge ?? '--'}
-              {bioAgeDelta !== 0 && (
-                <> • {bioAgeDelta < 0 ? 'Improved' : 'Behind'} {Math.abs(bioAgeDelta).toFixed(1)} yrs this year</>
+            <div className="flex items-baseline gap-3 mb-2">
+              <span className={`text-5xl ${
+                bioAgeDelta && bioAgeDelta < 0 
+                  ? isDark ? 'text-green-400' : 'text-green-600'
+                  : isDark ? 'text-orange-400' : 'text-orange-600'
+              }`} data-testid="text-bio-age">
+                {bioAge}
+              </span>
+              <span className={`text-2xl ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                years
+              </span>
+              {bioAgeDelta !== null && bioAgeDelta !== undefined && bioAgeDelta !== 0 && (
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-lg ${
+                  bioAgeDelta < 0 
+                    ? isDark ? 'bg-green-500/20' : 'bg-green-100'
+                    : isDark ? 'bg-red-500/20' : 'bg-red-100'
+                }`}>
+                  {bioAgeDelta < 0 ? (
+                    <TrendingDown className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                  ) : (
+                    <TrendingUp className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                  )}
+                  <span className={`text-sm ${
+                    bioAgeDelta < 0 
+                      ? isDark ? 'text-green-400' : 'text-green-700'
+                      : isDark ? 'text-red-400' : 'text-red-700'
+                  }`}>
+                    {Math.abs(bioAgeDelta)} yrs
+                  </span>
+                </div>
               )}
-              {bioAgeDelta === 0 && (
-                <> • On track with calendar age</>
+            </div>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              {bioAgeDelta !== null && bioAgeDelta !== undefined ? (
+                <>
+                  vs. calendar age {calendarAge ?? '--'}
+                  {bioAgeDelta !== 0 && (
+                    <> • {bioAgeDelta < 0 ? 'Improved' : 'Behind'} {Math.abs(bioAgeDelta).toFixed(1)} yrs this year</>
+                  )}
+                  {bioAgeDelta === 0 && (
+                    <> • On track with calendar age</>
+                  )}
+                </>
+              ) : (
+                <>
+                  vs. calendar age {calendarAge ?? '--'}
+                </>
               )}
-            </>
-          ) : (
-            <>
-              vs. calendar age {calendarAge ?? '--'}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        ) : (
+          /* Missing Metrics Bubble */
+          <div className={`relative rounded-2xl border-2 p-4 overflow-hidden ${
+            isDark 
+              ? 'bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 border-purple-500/30' 
+              : 'bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 border-purple-400/40'
+          }`}>
+            <div className="relative">
+              <div className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Biological Age
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className={`text-5xl ${isDark ? 'text-purple-400/40' : 'text-purple-400/60'}`} data-testid="text-bio-age">
+                    --
+                  </div>
+                </div>
+                <div className="flex-1 mt-1">
+                  <div className={`text-sm font-medium mb-2 ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
+                    More data needed
+                  </div>
+                  {hasMissingMetrics && (
+                    <>
+                      <div className={`text-xs mb-3 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                        Upload these biomarkers to calculate:
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {missingMetrics!.map((metric, index) => (
+                          <div 
+                            key={index}
+                            className={`px-2 py-1 rounded-lg text-[10px] border ${
+                              isDark 
+                                ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' 
+                                : 'bg-purple-100 border-purple-300 text-purple-700'
+                            }`}
+                          >
+                            {metric}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Flō Score Circle and Components */}
