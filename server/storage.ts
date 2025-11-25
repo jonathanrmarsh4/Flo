@@ -1176,7 +1176,7 @@ export class DatabaseStorage implements IStorage {
       .from(hkSamples)
       .where(sql`created_at >= ${startDate}`);
     
-    // Oracle usage - tracked via openaiUsageEvents with 'oracle' operation
+    // Oracle usage - tracked via openaiUsageEvents with 'oracle' or 'grok' in endpoint
     const [oracleUsage] = await db
       .select({
         count: sql<number>`COUNT(*)::int`,
@@ -1185,7 +1185,7 @@ export class DatabaseStorage implements IStorage {
       .from(openaiUsageEvents)
       .where(and(
         sql`created_at >= ${startDate}`,
-        sql`operation ILIKE '%oracle%' OR operation ILIKE '%grok%'`
+        sql`(endpoint ILIKE '%oracle%' OR endpoint ILIKE '%grok%' OR model ILIKE '%grok%')`
       ));
     
     const [insightsUsage] = await db
