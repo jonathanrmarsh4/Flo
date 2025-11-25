@@ -540,47 +540,35 @@ export class DatabaseStorage implements IStorage {
           }
 
           return {
-            ...user,
+            id: user.id,
+            email: user.email || '',
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            status: user.status,
+            createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
+            updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : new Date().toISOString(),
             subscriptionStatus,
             measurementCount,
-            lastUpload,
+            lastUpload: lastUpload ? new Date(lastUpload).toISOString() : null,
           };
         })
       );
 
-      return { users: enrichedUsers, total: 0 }; // Will fix total below
+      // Get total count
+      const [countResult] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(users)
+        .where(whereClause);
+
+      return { 
+        users: enrichedUsers, 
+        total: Number(countResult?.count || 0) 
+      };
     } catch (queryError) {
       console.error('[Admin] Error in listUsers query:', queryError);
       throw queryError;
     }
-
-    // Original complex query commented out for reference
-    /*
-    const enrichedUsers = await db
-      .select({...})
-      ...
-    */
-    
-    const [countResult] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(users)
-      .where(whereClause);
-    
-    // Format dates and ensure types match AdminUserSummary
-    const formattedUsers = enrichedUsers.map(user => ({
-      ...user,
-      email: user.email || '',
-      subscriptionStatus: (user.subscriptionStatus || 'free') as 'free' | 'premium',
-      measurementCount: Number(user.measurementCount || 0),
-      lastUpload: user.lastUpload ? new Date(user.lastUpload).toISOString() : null,
-      createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString(),
-      updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : new Date().toISOString(),
-    }));
-    
-    return {
-      users: formattedUsers,
-      total: Number(countResult?.count || 0),
-    };
   }
 
   async updateUser(userId: string, data: UpdateUser, adminId: string): Promise<User | null> {
