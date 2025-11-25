@@ -81,7 +81,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 z-50">
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-10 backdrop-blur-xl border-b border-white/10 bg-gradient-to-br from-slate-900/80 via-blue-950/80 to-slate-900/80">
+      <div className="fixed top-0 left-0 right-0 z-10 pt-[env(safe-area-inset-top)] backdrop-blur-xl border-b border-white/10 bg-gradient-to-br from-slate-900/80 via-blue-950/80 to-slate-900/80">
         <div className="h-16 px-5 flex items-center justify-between">
           <button
             onClick={onClose}
@@ -105,7 +105,7 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
       </div>
 
       {/* Filter Tabs */}
-      <div className="fixed top-16 left-0 right-0 z-10 backdrop-blur-xl border-b border-white/10 bg-gradient-to-br from-slate-900/80 via-blue-950/80 to-slate-900/80">
+      <div className="fixed left-0 right-0 z-10 backdrop-blur-xl border-b border-white/10 bg-gradient-to-br from-slate-900/80 via-blue-950/80 to-slate-900/80" style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))' }}>
         <div className="flex gap-2 overflow-x-auto px-5 py-3 scrollbar-hide">
           {FILTER_TABS.map((tab) => (
             <button
@@ -124,8 +124,8 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="pt-32 pb-32 px-5 overflow-y-auto h-full">
+      {/* Content Area - accounts for header (4rem) + safe area + filter tabs (~3.5rem) */}
+      <div className="pb-32 px-5 overflow-y-auto h-full" style={{ paddingTop: 'calc(8rem + env(safe-area-inset-top, 0px))' }}>
         {isLoading ? (
           <InsightsLoadingSkeleton />
         ) : (
