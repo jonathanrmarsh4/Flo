@@ -1,3 +1,14 @@
+/**
+ * @deprecated This module is deprecated for iOS subscriptions.
+ * 
+ * Apple App Store Guidelines require all digital subscriptions to use StoreKit (In-App Purchase).
+ * Use `storekit.ts` instead for iOS subscription purchases.
+ * 
+ * This file is kept for potential web Stripe payments if needed in the future.
+ * 
+ * @see client/src/lib/storekit.ts for iOS subscription handling
+ */
+
 let Stripe: any = null;
 let ApplePayEventsEnum: any = null;
 let Capacitor: any = null;
