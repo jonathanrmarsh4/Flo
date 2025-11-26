@@ -3,69 +3,156 @@ import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Check, Sparkles, CreditCard, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
-import { usePlan, useAvailablePlans } from '@/hooks/usePlan';
+import { Check, Sparkles, ArrowLeft, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { usePlan } from '@/hooks/usePlan';
 import { useMutation } from '@tanstack/react-query';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { isApplePayAvailable, payWithApplePay, isNativePlatform, getPlatform } from '@/lib/stripe-native';
+import {
+  isStoreKitAvailable,
+  getProducts,
+  purchaseSubscription,
+  restorePurchases,
+  PRODUCT_IDS,
+  type StoreKitProduct,
+} from '@/lib/storekit';
+
+interface ProductPricing {
+  monthly: StoreKitProduct | null;
+  yearly: StoreKitProduct | null;
+  isLoading: boolean;
+  error: string | null;
+}
 
 export default function BillingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<'monthly' | 'annual'>('monthly');
-  const [canUseApplePay, setCanUseApplePay] = useState(false);
-  const [isProcessingApplePay, setIsProcessingApplePay] = useState(false);
+  const [storeKitReady, setStoreKitReady] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [pricing, setPricing] = useState<ProductPricing>({
+    monthly: null,
+    yearly: null,
+    isLoading: true,
+    error: null,
+  });
 
   useEffect(() => {
-    async function checkApplePay() {
-      const isNative = await isNativePlatform();
-      const platform = await getPlatform();
-      if (isNative && platform === 'ios') {
-        const available = await isApplePayAvailable();
-        setCanUseApplePay(available);
-        console.log('[Billing] Apple Pay available:', available);
+    async function initStoreKit() {
+      try {
+        const available = await isStoreKitAvailable();
+        console.log('[Billing] StoreKit available:', available);
+        setStoreKitReady(available);
+        
+        if (available) {
+          const products = await getProducts([
+            PRODUCT_IDS.PREMIUM_MONTHLY,
+            PRODUCT_IDS.PREMIUM_YEARLY,
+          ]);
+          
+          console.log('[Billing] Products fetched:', products);
+          
+          const monthlyProduct = products.find(p => p.productId === PRODUCT_IDS.PREMIUM_MONTHLY) || null;
+          const yearlyProduct = products.find(p => p.productId === PRODUCT_IDS.PREMIUM_YEARLY) || null;
+          
+          setPricing({
+            monthly: monthlyProduct,
+            yearly: yearlyProduct,
+            isLoading: false,
+            error: products.length === 0 ? 'Products not available' : null,
+          });
+        } else {
+          setPricing({
+            monthly: null,
+            yearly: null,
+            isLoading: false,
+            error: 'This app requires iOS to manage subscriptions through the App Store.',
+          });
+        }
+      } catch (error: any) {
+        console.error('[Billing] Init error:', error);
+        setPricing({
+          monthly: null,
+          yearly: null,
+          isLoading: false,
+          error: error.message || 'Failed to load pricing',
+        });
       }
     }
-    checkApplePay();
+    
+    initStoreKit();
   }, []);
-  
-  const { data: planData, isLoading: planLoading } = usePlan();
-  const { data: availablePlansData, isLoading: plansLoading } = useAvailablePlans();
 
-  const createCheckoutMutation = useMutation({
-    mutationFn: async (priceId: string) => {
-      const res = await fetch('/api/billing/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ priceId }),
-      });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to create checkout session');
-      }
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
-    },
-    onError: (error: any) => {
-      const errorMessage = error.message || 'Failed to create checkout session';
-      const isConfigError = errorMessage.includes('No such price');
+  const { data: planData, isLoading: planLoading } = usePlan();
+
+  const handlePurchase = async () => {
+    const productId = selectedPeriod === 'monthly' 
+      ? PRODUCT_IDS.PREMIUM_MONTHLY 
+      : PRODUCT_IDS.PREMIUM_YEARLY;
+    
+    setIsPurchasing(true);
+    try {
+      console.log('[Billing] Starting purchase for:', productId);
+      const result = await purchaseSubscription(productId);
       
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['/api/billing/plan'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+        toast({
+          title: 'Welcome to Premium!',
+          description: 'Your subscription is now active. Enjoy unlimited access!',
+        });
+        setLocation('/');
+      } else {
+        if (result.error !== 'Purchase was cancelled') {
+          toast({
+            title: 'Purchase Failed',
+            description: result.error || 'Unable to complete purchase. Please try again.',
+            variant: 'destructive',
+          });
+        }
+      }
+    } catch (error: any) {
       toast({
-        title: 'Checkout Failed',
-        description: isConfigError 
-          ? 'Billing system is not configured yet. Please contact support at support@get-flo.com'
-          : errorMessage,
+        title: 'Purchase Error',
+        description: error.message || 'An unexpected error occurred',
         variant: 'destructive',
       });
-    },
-  });
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    setIsRestoring(true);
+    try {
+      console.log('[Billing] Restoring purchases...');
+      const transactions = await restorePurchases();
+      
+      if (transactions.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['/api/billing/plan'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+        toast({
+          title: 'Purchases Restored',
+          description: 'Your previous purchases have been restored.',
+        });
+      } else {
+        toast({
+          title: 'No Purchases Found',
+          description: 'No previous purchases were found to restore.',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Restore Failed',
+        description: error.message || 'Unable to restore purchases',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRestoring(false);
+    }
+  };
 
   const cancelSubscriptionMutation = useMutation({
     mutationFn: async () => {
@@ -92,57 +179,31 @@ export default function BillingPage() {
     },
   });
 
-  const handleApplePaySubscription = async (priceId: string, amount: number) => {
-    setIsProcessingApplePay(true);
-    try {
-      const label = selectedPeriod === 'monthly' ? 'Flō Premium (Monthly)' : 'Flō Premium (Annual)';
-      const result = await payWithApplePay(priceId, amount, label);
-      
-      if (result.success) {
-        queryClient.invalidateQueries({ queryKey: ['/api/billing/plan'] });
-        toast({
-          title: 'Welcome to Premium!',
-          description: 'Your subscription is now active.',
-        });
-        setLocation('/');
-      } else {
-        toast({
-          title: 'Payment Failed',
-          description: result.error || 'Apple Pay payment was not completed',
-          variant: 'destructive',
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Payment Error',
-        description: error.message || 'An error occurred during payment',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsProcessingApplePay(false);
-    }
-  };
-
-  if (planLoading || plansLoading) {
+  if (planLoading || pricing.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin" data-testid="loading-spinner" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-white" data-testid="loading-spinner" />
+          <p className="text-white/70 text-sm">Loading subscription options...</p>
+        </div>
       </div>
     );
   }
 
   const currentPlan = planData?.plan;
   const isPremium = currentPlan?.id === 'premium';
-  const premiumPlan = availablePlansData?.plans?.premium;
-  const premiumPricing = availablePlansData?.pricing?.premium;
-
-  const monthlyPrice = premiumPricing?.monthly?.amount || 999;
-  const annualPrice = premiumPricing?.annual?.amount || 11000;
-  const annualMonthly = Math.floor(annualPrice / 12);
+  
+  const selectedProduct = selectedPeriod === 'monthly' ? pricing.monthly : pricing.yearly;
+  const monthlyProduct = pricing.monthly;
+  const yearlyProduct = pricing.yearly;
+  
+  const monthlyCost = monthlyProduct?.price || 0;
+  const yearlyCost = yearlyProduct?.price || 0;
+  const yearlyMonthlyCost = yearlyCost / 12;
+  const savings = monthlyCost > 0 ? Math.floor((1 - yearlyMonthlyCost / monthlyCost) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white pb-8">
-      {/* Header */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/5 border-b border-white/10">
         <div className="px-4 py-3 flex items-center gap-3">
           <Button
@@ -161,7 +222,6 @@ export default function BillingPage() {
       </header>
 
       <main className="px-4 py-6 space-y-6">
-        {/* Current Plan */}
         <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-current-plan">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -223,7 +283,10 @@ export default function BillingPage() {
             </div>
 
             {isPremium && (
-              <div className="pt-4 border-t border-white/10">
+              <div className="pt-4 border-t border-white/10 space-y-3">
+                <p className="text-xs text-white/50 text-center">
+                  To manage your subscription, go to Settings &gt; Apple ID &gt; Subscriptions on your device
+                </p>
                 <Button
                   variant="outline"
                   onClick={() => cancelSubscriptionMutation.mutate()}
@@ -234,22 +297,18 @@ export default function BillingPage() {
                   {cancelSubscriptionMutation.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Cancelling...
+                      Processing...
                     </>
                   ) : (
                     'Cancel Subscription'
                   )}
                 </Button>
-                <p className="text-xs text-white/50 mt-2 text-center">
-                  Access continues until end of billing period
-                </p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Upgrade to Premium */}
-        {!isPremium && premiumPlan && (
+        {!isPremium && (
           <>
             <div className="space-y-2">
               <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -261,137 +320,131 @@ export default function BillingPage() {
               </p>
             </div>
 
-            {/* Billing Period Toggle */}
-            <div className="flex items-center justify-center gap-2 p-1 backdrop-blur-xl bg-slate-800/50 rounded-xl border border-white/10" data-testid="toggle-billing-period">
-              <Button
-                variant={selectedPeriod === 'monthly' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedPeriod('monthly')}
-                className={selectedPeriod === 'monthly' ? 'flex-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 text-white/70 hover:text-white hover:bg-white/5'}
-                data-testid="button-monthly"
-              >
-                Monthly
-              </Button>
-              <Button
-                variant={selectedPeriod === 'annual' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedPeriod('annual')}
-                className={selectedPeriod === 'annual' ? 'flex-1 gap-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 gap-1 text-white/70 hover:text-white hover:bg-white/5'}
-                data-testid="button-annual"
-              >
-                Annual
-                <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-300 border-green-500/30">Save {Math.floor((1 - annualMonthly / monthlyPrice) * 100)}%</Badge>
-              </Button>
-            </div>
-
-            {/* Premium Plan Card */}
-            <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-premium-plan">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-white">
-                    <Sparkles className="w-5 h-5 text-blue-400" />
-                    Premium
-                  </CardTitle>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-white" data-testid="text-price">
-                      ${selectedPeriod === 'monthly' ? (monthlyPrice / 100).toFixed(2) : (annualPrice / 100).toFixed(0)}
-                    </div>
-                    <div className="text-xs text-white/60">
-                      {selectedPeriod === 'monthly' ? 'per month' : 'per year'}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <PremiumFeature text="Unlimited lab report uploads" />
-                  <PremiumFeature text="View all biomarkers (unlimited)" />
-                  <PremiumFeature text="Flō Oracle AI health coach (200 msgs/day)" />
-                  <PremiumFeature text="AI-generated insight cards" />
-                  <PremiumFeature text="Flōmentum daily momentum scoring" />
-                  <PremiumFeature text="RAG-powered pattern detection" />
-                  <PremiumFeature text="Advanced health analytics" />
-                </div>
-              </CardContent>
-              <CardFooter className="flex-col gap-3">
-                {canUseApplePay && (
+            {pricing.error ? (
+              <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-error">
+                <CardContent className="py-8 text-center">
+                  <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+                  <p className="text-white/70 mb-4">{pricing.error}</p>
                   <Button
-                    className="w-full gap-2 bg-black hover:bg-gray-900 text-white"
-                    size="lg"
-                    onClick={() => {
-                      const priceId = selectedPeriod === 'monthly'
-                        ? premiumPricing?.monthly?.stripePriceId
-                        : premiumPricing?.annual?.stripePriceId;
-                      const amount = selectedPeriod === 'monthly' ? monthlyPrice : annualPrice;
-                      console.log('[Billing] Apple Pay clicked', { priceId, amount, selectedPeriod, premiumPricing });
-                      if (priceId) {
-                        handleApplePaySubscription(priceId, amount);
-                      } else {
-                        toast({
-                          title: 'Configuration Error',
-                          description: 'Billing is not configured. Please contact support.',
-                          variant: 'destructive',
-                        });
-                      }
-                    }}
-                    disabled={isProcessingApplePay}
-                    data-testid="button-apple-pay"
+                    variant="outline"
+                    onClick={() => window.location.reload()}
+                    className="border-white/10"
                   >
-                    {isProcessingApplePay ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" className="mr-1">
-                          <path d="M20.5 8.5c-.8 0-1.5-.3-2.1-.8-.5-.5-.9-1.3-.9-2.2 0-.1 0-.2.1-.2.1 0 .2 0 .2.1 1.1.4 2 1.5 2 2.8 0 .1 0 .2-.1.2-.1.1-.1.1-.2.1zm3.9 1.8c-1.2 0-2.1.6-2.8.6-.7 0-1.8-.6-3-.6-1.5 0-2.9.9-3.7 2.3-1.5 2.7-.4 6.6 1.1 8.8.7 1.1 1.6 2.3 2.7 2.3 1.1 0 1.5-.7 2.8-.7 1.3 0 1.7.7 2.9.7 1.2 0 1.9-1.1 2.6-2.2.8-1.3 1.1-2.5 1.1-2.6 0 0-2.2-.8-2.2-3.2 0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3.1-1.6l-.2-.6z" fill="white"/>
-                          <text x="16" y="27" fill="white" fontSize="8" fontWeight="600" textAnchor="middle" fontFamily="system-ui, -apple-system">Pay</text>
-                        </svg>
-                        Pay with Apple Pay
-                      </>
-                    )}
+                    Try Again
                   </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {monthlyProduct && yearlyProduct && (
+                  <div className="flex items-center justify-center gap-2 p-1 backdrop-blur-xl bg-slate-800/50 rounded-xl border border-white/10" data-testid="toggle-billing-period">
+                    <Button
+                      variant={selectedPeriod === 'monthly' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setSelectedPeriod('monthly')}
+                      className={selectedPeriod === 'monthly' ? 'flex-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 text-white/70 hover:text-white hover:bg-white/5'}
+                      data-testid="button-monthly"
+                    >
+                      Monthly
+                    </Button>
+                    <Button
+                      variant={selectedPeriod === 'annual' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setSelectedPeriod('annual')}
+                      className={selectedPeriod === 'annual' ? 'flex-1 gap-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 gap-1 text-white/70 hover:text-white hover:bg-white/5'}
+                      data-testid="button-annual"
+                    >
+                      Annual
+                      {savings > 0 && (
+                        <Badge variant="secondary" className="text-xs bg-green-500/20 text-green-300 border-green-500/30">
+                          Save {savings}%
+                        </Badge>
+                      )}
+                    </Button>
+                  </div>
                 )}
-                <Button
-                  className={`w-full gap-2 ${canUseApplePay ? 'bg-slate-700 hover:bg-slate-600' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
-                  size="lg"
-                  onClick={() => {
-                    const priceId = selectedPeriod === 'monthly'
-                      ? premiumPricing?.monthly?.stripePriceId
-                      : premiumPricing?.annual?.stripePriceId;
-                    console.log('[Billing] Card payment clicked', { priceId, selectedPeriod, premiumPricing });
-                    if (priceId) {
-                      createCheckoutMutation.mutate(priceId);
-                    } else {
-                      toast({
-                        title: 'Configuration Error',
-                        description: 'Billing is not configured. Please contact support.',
-                        variant: 'destructive',
-                      });
-                    }
-                  }}
-                  disabled={createCheckoutMutation.isPending}
-                  data-testid="button-subscribe"
-                >
-                  {createCheckoutMutation.isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Redirecting to checkout...
-                    </>
-                  ) : (
-                    <>
-                      <CreditCard className="w-4 h-4" />
-                      {canUseApplePay ? 'Or Pay with Card' : 'Subscribe Now'}
-                    </>
-                  )}
-                </Button>
-              </CardFooter>
-            </Card>
+
+                <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-premium-plan">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-white">
+                        <Sparkles className="w-5 h-5 text-blue-400" />
+                        Premium
+                      </CardTitle>
+                      <div className="text-right">
+                        {selectedProduct ? (
+                          <>
+                            <div className="text-2xl font-bold text-white" data-testid="text-price">
+                              {selectedProduct.displayPrice}
+                            </div>
+                            <div className="text-xs text-white/60">
+                              {selectedPeriod === 'monthly' ? 'per month' : 'per year'}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-white/50">Loading price...</div>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="space-y-2">
+                      <PremiumFeature text="Unlimited lab report uploads" />
+                      <PremiumFeature text="View all biomarkers (unlimited)" />
+                      <PremiumFeature text="Flō Oracle AI health coach (200 msgs/day)" />
+                      <PremiumFeature text="AI-generated insight cards" />
+                      <PremiumFeature text="Flōmentum daily momentum scoring" />
+                      <PremiumFeature text="RAG-powered pattern detection" />
+                      <PremiumFeature text="Advanced health analytics" />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex-col gap-3">
+                    <Button
+                      className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                      size="lg"
+                      onClick={handlePurchase}
+                      disabled={isPurchasing || !selectedProduct}
+                      data-testid="button-subscribe"
+                    >
+                      {isPurchasing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          Subscribe Now
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      className="w-full text-white/60 hover:text-white"
+                      onClick={handleRestore}
+                      disabled={isRestoring}
+                      data-testid="button-restore"
+                    >
+                      {isRestoring ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Restoring...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2" />
+                          Restore Purchases
+                        </>
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </>
+            )}
           </>
         )}
 
-        {/* Help */}
         <Card className="backdrop-blur-xl bg-white/5 border-white/10" data-testid="card-help">
           <CardHeader>
             <CardTitle className="text-sm flex items-center gap-2 text-white">
@@ -404,7 +457,8 @@ export default function BillingPage() {
               Questions about billing? Contact us at support@get-flo.com
             </p>
             <p className="text-xs text-white/50">
-              Subscriptions auto-renew. Cancel anytime before next billing period.
+              Subscriptions are billed through the App Store and auto-renew. 
+              Manage your subscription in iOS Settings &gt; Apple ID &gt; Subscriptions.
             </p>
           </CardContent>
         </Card>
