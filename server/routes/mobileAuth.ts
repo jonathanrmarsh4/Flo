@@ -439,6 +439,13 @@ router.post("/api/mobile/auth/register", async (req, res) => {
     const verificationExpiresAt = new Date();
     verificationExpiresAt.setHours(verificationExpiresAt.getHours() + 24);
     
+    logger.info('Verification token generated for registration', { 
+      email: body.email,
+      tokenLength: verificationToken.length,
+      hashPrefix: verificationTokenHash.substring(0, 8),
+      expiresAt: verificationExpiresAt.toISOString()
+    });
+    
     // Create user account with pending_verification status
     const user = await storage.upsertUser({
       email: body.email,
@@ -663,13 +670,18 @@ router.post("/api/mobile/auth/verify-email", async (req, res) => {
       token: z.string().min(1, "Verification token is required"),
     }).parse(req.body);
     
+    logger.info('Email verification attempt', { tokenLength: body.token.length });
+    
     // Hash the incoming token to match against stored hash
     const tokenHash = crypto.createHash('sha256').update(body.token).digest('hex');
+    
+    logger.info('Token hash generated', { hashPrefix: tokenHash.substring(0, 8) });
     
     // Find user by valid verification token hash (not expired)
     const user = await storage.getUserByVerificationToken(tokenHash);
     
     if (!user) {
+      logger.warn('Verification failed - no user found for token', { hashPrefix: tokenHash.substring(0, 8) });
       return res.status(400).json({ error: "Invalid or expired verification link" });
     }
     
