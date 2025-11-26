@@ -136,6 +136,146 @@ function average(values: number[]): number | null {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+// Workout session interface
+interface WorkoutSession {
+  workoutType: string;
+  startDate: Date;
+  duration: number;
+  totalDistance: number | null;
+  totalEnergyBurned: number | null;
+  averageHeartRate: number | null;
+}
+
+// Daily metrics interface
+interface DailyMetric {
+  date: string;
+  steps: number | null;
+  exerciseMinutes: number | null;
+  activeKcal: number | null;
+  standHours: number | null;
+  distanceMeters: number | null;
+  sleepTotalMinutes: number | null;
+  hrvSdnnMs: number | null;
+  restingHr: number | null;
+  [key: string]: any;
+}
+
+/**
+ * Build activity summary for AI prompt
+ */
+function buildActivitySummary(dailyMetrics: DailyMetric[], workouts: WorkoutSession[]): string {
+  if (dailyMetrics.length === 0 && workouts.length === 0) {
+    return 'No activity data available';
+  }
+  
+  const sections: string[] = [];
+  
+  // Calculate step statistics
+  const stepsData = dailyMetrics.filter(m => m.steps !== null).map(m => ({ date: m.date, value: m.steps! }));
+  if (stepsData.length >= 7) {
+    const last7Days = stepsData.slice(0, 7);
+    const previous7Days = stepsData.slice(7, 14);
+    
+    const recentAvg = last7Days.reduce((sum, d) => sum + d.value, 0) / last7Days.length;
+    const prevAvg = previous7Days.length > 0 ? previous7Days.reduce((sum, d) => sum + d.value, 0) / previous7Days.length : null;
+    
+    // Find 30-day and 90-day baselines
+    const last30Days = stepsData.slice(0, Math.min(30, stepsData.length));
+    const baseline30 = last30Days.reduce((sum, d) => sum + d.value, 0) / last30Days.length;
+    
+    sections.push(`### Daily Steps (Last 7 Days)`);
+    sections.push(`- Recent 7-day average: ${Math.round(recentAvg).toLocaleString()} steps/day`);
+    if (prevAvg && prevAvg > 0) {
+      const change = ((recentAvg - prevAvg) / prevAvg * 100);
+      if (isFinite(change)) {
+        sections.push(`- Previous 7-day average: ${Math.round(prevAvg).toLocaleString()} steps/day`);
+        sections.push(`- Week-over-week change: ${change > 0 ? '+' : ''}${change.toFixed(1)}%`);
+      }
+    }
+    sections.push(`- 30-day baseline: ${Math.round(baseline30).toLocaleString()} steps/day`);
+    
+    // Flag if below baseline (guard against zero baseline)
+    if (baseline30 > 0) {
+      const percentBelowBaseline = ((baseline30 - recentAvg) / baseline30 * 100);
+      if (percentBelowBaseline > 15 && isFinite(percentBelowBaseline)) {
+        sections.push(`- ⚠️ ACTIVITY DROP: Current week is ${percentBelowBaseline.toFixed(0)}% BELOW your typical baseline`);
+      }
+    }
+    
+    // Show daily breakdown
+    sections.push(`\nDaily breakdown (newest first):`);
+    last7Days.slice(0, 7).forEach(d => {
+      // Guard against zero baseline for status calculation
+      const status = baseline30 > 0 
+        ? (d.value < baseline30 * 0.7 ? '🔴 Low' : d.value > baseline30 * 1.2 ? '🟢 High' : '⚪ Normal')
+        : '⚪ Normal';
+      sections.push(`  - ${d.date}: ${d.value.toLocaleString()} steps ${status}`);
+    });
+  }
+  
+  // Workout frequency analysis
+  if (workouts.length > 0) {
+    sections.push(`\n### Workout Sessions (Last 90 Days: ${workouts.length} total)`);
+    
+    // Group by week
+    const now = new Date();
+    const thisWeek = workouts.filter(w => {
+      const daysDiff = Math.floor((now.getTime() - new Date(w.startDate).getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff < 7;
+    });
+    const lastWeek = workouts.filter(w => {
+      const daysDiff = Math.floor((now.getTime() - new Date(w.startDate).getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff >= 7 && daysDiff < 14;
+    });
+    const last4Weeks = workouts.filter(w => {
+      const daysDiff = Math.floor((now.getTime() - new Date(w.startDate).getTime()) / (1000 * 60 * 60 * 24));
+      return daysDiff < 28;
+    });
+    
+    // Calculate weekly average from last 4 weeks
+    const weeklyAvg = last4Weeks.length / 4;
+    
+    sections.push(`- This week: ${thisWeek.length} workouts`);
+    sections.push(`- Last week: ${lastWeek.length} workouts`);
+    sections.push(`- 4-week average: ${weeklyAvg.toFixed(1)} workouts/week`);
+    
+    // Flag if below typical
+    if (thisWeek.length < weeklyAvg * 0.6 && weeklyAvg >= 2) {
+      sections.push(`- ⚠️ WORKOUT DROP: This week is below your typical ${weeklyAvg.toFixed(1)} workouts/week`);
+    }
+    
+    // Workout type breakdown
+    const typeCount = new Map<string, number>();
+    workouts.forEach(w => {
+      typeCount.set(w.workoutType, (typeCount.get(w.workoutType) || 0) + 1);
+    });
+    sections.push(`\nWorkout types (last 90 days):`);
+    Array.from(typeCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .forEach(([type, count]) => {
+        sections.push(`  - ${type}: ${count} sessions`);
+      });
+    
+    // Recent workouts
+    sections.push(`\nRecent workouts:`);
+    workouts.slice(0, 5).forEach(w => {
+      const date = new Date(w.startDate).toISOString().split('T')[0];
+      sections.push(`  - ${date}: ${w.workoutType} (${Math.round(w.duration)} min${w.totalEnergyBurned ? `, ${Math.round(w.totalEnergyBurned)} kcal` : ''})`);
+    });
+  }
+  
+  // Exercise minutes trend
+  const exerciseData = dailyMetrics.filter(m => m.exerciseMinutes !== null).map(m => ({ date: m.date, value: m.exerciseMinutes! }));
+  if (exerciseData.length >= 7) {
+    const last7Days = exerciseData.slice(0, 7);
+    const recentTotal = last7Days.reduce((sum, d) => sum + d.value, 0);
+    sections.push(`\n### Exercise Minutes This Week: ${Math.round(recentTotal)} minutes`);
+  }
+  
+  return sections.join('\n');
+}
+
 /**
  * Generate holistic insights using RAG (vector search + GPT-4o)
  */
@@ -144,11 +284,16 @@ export async function generateRAGInsights(
   changes: DataChange[],
   biomarkers: Array<{ name: string; value: number; unit: string; testDate: Date; isAbnormal: boolean }>,
   userContext: UserContext,
-  availableBiomarkers: Array<{ id: string; name: string; unitCanonical: string }> = []
+  availableBiomarkers: Array<{ id: string; name: string; unitCanonical: string }> = [],
+  dailyMetrics: DailyMetric[] = [],
+  workouts: WorkoutSession[] = []
 ): Promise<RAGInsight[]> {
   
-  if (changes.length === 0) {
-    logger.info('[RAG] No significant changes detected, skipping insight generation');
+  // Even if no biomarker changes, we should still analyze activity patterns
+  const hasActivityData = dailyMetrics.length > 0 || workouts.length > 0;
+  
+  if (changes.length === 0 && !hasActivityData) {
+    logger.info('[RAG] No significant changes and no activity data, skipping insight generation');
     return [];
   }
   
@@ -185,6 +330,9 @@ ${availableBiomarkers.map(b => `- "${b.name}" (canonical unit: ${b.unitCanonical
 DO NOT use abbreviations or variations. Match these names EXACTLY.`
     : '';
 
+  // Build activity summary for AI
+  const activitySummary = buildActivitySummary(dailyMetrics, workouts);
+  
   // Generate insights using GPT-4o with retrieved context
   const prompt = `You are a health insights AI analyzing a user's recent health data changes.
 
@@ -192,13 +340,16 @@ DO NOT use abbreviations or variations. Match these names EXACTLY.`
 ${buildUserProfileSummary(userContext)}
 
 ## Recent Changes (Last 7-14 Days)
-${changes.map(c => `- ${c.metric}: ${c.previous?.toFixed(1)}${c.unit || ''} → ${c.current?.toFixed(1)}${c.unit || ''} (${c.percentChange! > 0 ? '+' : ''}${c.percentChange?.toFixed(1)}%)`).join('\n')}
+${changes.length > 0 ? changes.map(c => `- ${c.metric}: ${c.previous?.toFixed(1)}${c.unit || ''} → ${c.current?.toFixed(1)}${c.unit || ''} (${c.percentChange! > 0 ? '+' : ''}${c.percentChange?.toFixed(1)}%)`).join('\n') : 'No significant metric changes detected'}
 
 ## Historical Patterns (Vector Search Results)
 ${historicalContext}
 
 ## Current Biomarker Status
-${biomarkers.slice(0, 10).map(b => `- ${b.name}: ${b.value} ${b.unit}${b.isAbnormal ? ' ⚠️ OUT OF RANGE' : ''}`).join('\n')}
+${biomarkers.slice(0, 10).map(b => `- ${b.name}: ${b.value} ${b.unit}${b.isAbnormal ? ' ⚠️ OUT OF RANGE' : ''}`).join('\n') || 'No biomarker data available'}
+
+## Activity & Workout Data (IMPORTANT - Analyze This!)
+${activitySummary}
 
 ${biomarkerNamesSection}
 
@@ -207,20 +358,38 @@ Generate up to 20 holistic health insights that provide comprehensive coverage a
 1. **BIOMARKERS**: Analyze blood work patterns and lab correlations (iron, ferritin, hormones, metabolic markers, etc.)
 2. **SLEEP**: Identify sleep quality patterns and trends (total duration, deep sleep %, REM %, sleep efficiency, consistency trends over time)
 3. **RECOVERY**: Analyze HRV trends, resting heart rate patterns, and correlations between recovery metrics and other data
-4. **ACTIVITY**: Examine steps, exercise, active energy, VO2 max, and physical performance
+4. **ACTIVITY** (HIGH PRIORITY): Examine steps, workouts, exercise minutes, and physical performance
+
+## ACTIVITY INSIGHTS (CRITICAL - MUST GENERATE THESE)
+Look at the Activity & Workout Data section above and generate personalized activity insights:
+
+### When Activity is BELOW User's Baseline:
+- If steps are below their 30-day baseline, generate an insight with a PERSONALIZED step target
+- If workout frequency is below their typical weekly average, encourage them to get back on track
+- Set achievable targets based on THEIR history, not generic 10K step goals
+- Example: If user averages 6,000 steps but is at 4,000 this week, target 5,500 (not 10,000)
+
+### Workout Frequency Goals:
+- If user typically does 3+ workouts/week but is behind, remind them
+- Combine steps + workouts for holistic activity insights
+- Example: "You've done 1 workout this week vs your usual 3. Try a 30-min session today."
+
+### Activity Correlations:
+- Link activity to other metrics (e.g., "Your HRV is 15% higher on days you hit 6K+ steps")
+- Show how activity impacts sleep, recovery, energy
 
 For each insight:
-- **Identify cross-domain patterns** (e.g., "low ferritin + poor sleep recovery + declining HRV")
-- **Look at TRENDS over time**, not just recent values (e.g., "sleep duration declining over the past 2 weeks")
-- **Find correlations between metrics** (e.g., "HRV drops correlate with poor sleep quality")
-- **Explain WHY correlations matter** with physiological mechanisms
-- **Interpret whether patterns are good/bad** for THIS user's profile
-- **Provide safe, practical recommendations** tailored to their current state
+- **Compare current activity to USER'S OWN baseline** - personalized, not generic targets
+- **Identify cross-domain patterns** (e.g., "low steps + poor sleep + declining HRV")
+- **Look at TRENDS over time**, not just recent values
+- **Provide achievable, personalized targets** based on their history
+- **Explain WHY activity matters** with physiological mechanisms
 
-IMPORTANT: Generate insights for ALL 4 categories. Even if recent data is sparse, look for trends and patterns over available history. Prioritize:
-- Sleep trends and quality patterns (especially if showing decline)
-- HRV correlations with sleep, stress, and recovery
-- Cross-metric relationships that reveal health patterns
+IMPORTANT: Generate insights for ALL 4 categories. Prioritize:
+- Activity pattern drops (⚠️ ACTIVITY DROP or ⚠️ WORKOUT DROP flags in data)
+- Personalized step/workout targets when below baseline
+- Sleep trends and quality patterns
+- HRV correlations with activity and sleep
 
 ## CRITICAL SAFETY RULES
 1. NO supplement dosages (e.g., "take 5000 IU vitamin D")
@@ -234,7 +403,7 @@ IMPORTANT: Generate insights for ALL 4 categories. Even if recent data is sparse
   {
     "title": "Short punchy headline (5-8 words)",
     "body": "2-3 sentences: What changed, why it matters physiologically, good/bad interpretation",
-    "action": "Specific, safe recommendation with HOW to do it",
+    "action": "Specific, safe recommendation with HOW to do it. For activity insights, include a SPECIFIC TARGET (e.g., 'Aim for 5,500 steps today' or 'Complete 2 more workouts this week')",
     "confidence": 0.85,
     "relatedMetrics": ["metric1", "metric2", "metric3"],
     "targetBiomarker": "Biomarker name (e.g., 'Vitamin D', 'Ferritin') or null if not a biomarker insight",
@@ -250,7 +419,12 @@ IMPORTANT: For biomarker-related insights, ALWAYS include progress tracking:
 - **targetValue**: Age/sex-specific optimal target for this ${userContext.age || 'unknown'}yo ${userContext.sex || 'unknown'} user
 - **unit**: Use the canonical unit from the "Available Biomarkers" list (e.g., "ng/mL", "g/dL", "%")
 
-For non-biomarker insights (sleep, HRV, activity patterns), set these to null.`;
+For activity insights (steps, workouts), you can set:
+- **currentValue**: Current steps/workout count this week
+- **targetValue**: Personalized target based on user's baseline
+- **unit**: "steps" or "workouts/week"
+
+For other non-biomarker insights (sleep, HRV patterns), set these to null.`;
 
   try {
     const response = await openai.chat.completions.create({

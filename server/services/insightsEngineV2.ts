@@ -9,7 +9,7 @@
  */
 
 import { db } from '../db';
-import { users, dailyInsights, healthkitSamples, biomarkerMeasurements, biomarkerTestSessions, biomarkers, lifeEvents, healthDailyMetrics } from '../../shared/schema';
+import { users, dailyInsights, healthkitSamples, biomarkerMeasurements, biomarkerTestSessions, biomarkers, lifeEvents, healthDailyMetrics, healthkitWorkouts } from '../../shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
@@ -98,6 +98,16 @@ export interface HealthDataSnapshot {
     details: any;
     happenedAt: Date;
   }>;
+  
+  // Workout sessions from HealthKit
+  workouts: Array<{
+    workoutType: string;
+    startDate: Date;
+    duration: number; // minutes
+    totalDistance: number | null; // meters
+    totalEnergyBurned: number | null; // kcal
+    averageHeartRate: number | null;
+  }>;
 }
 
 /**
@@ -171,6 +181,25 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
     )
     .orderBy(desc(lifeEvents.happenedAt));
   
+  // Fetch workout sessions (past 90 days)
+  const rawWorkouts = await db
+    .select({
+      workoutType: healthkitWorkouts.workoutType,
+      startDate: healthkitWorkouts.startDate,
+      duration: healthkitWorkouts.duration,
+      totalDistance: healthkitWorkouts.totalDistance,
+      totalEnergyBurned: healthkitWorkouts.totalEnergyBurned,
+      averageHeartRate: healthkitWorkouts.averageHeartRate,
+    })
+    .from(healthkitWorkouts)
+    .where(
+      and(
+        eq(healthkitWorkouts.userId, userId.toString()),
+        gte(healthkitWorkouts.startDate, ninetyDaysAgo)
+      )
+    )
+    .orderBy(desc(healthkitWorkouts.startDate));
+  
   return {
     healthkitSamples: rawHealthkitSamples.map(s => ({
       ...s,
@@ -211,6 +240,14 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
     lifeEvents: rawLifeEvents.map(e => ({
       ...e,
       happenedAt: new Date(e.happenedAt),
+    })),
+    workouts: rawWorkouts.map(w => ({
+      workoutType: w.workoutType,
+      startDate: new Date(w.startDate),
+      duration: w.duration,
+      totalDistance: w.totalDistance,
+      totalEnergyBurned: w.totalEnergyBurned,
+      averageHeartRate: w.averageHeartRate,
     })),
   };
 }
@@ -1029,7 +1066,7 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     // Step 2: Fetch user's comprehensive health data (90 days)
     logger.info('[InsightsEngineV2] Fetching health data');
     const healthData = await fetchHealthData(userId);
-    logger.info(`[InsightsEngineV2] Data fetched - HealthKit: ${healthData.healthkitSamples.length}, Daily Metrics: ${healthData.dailyMetrics.length}, Biomarkers: ${healthData.biomarkers.length}, Life Events: ${healthData.lifeEvents.length}`);
+    logger.info(`[InsightsEngineV2] Data fetched - HealthKit: ${healthData.healthkitSamples.length}, Daily Metrics: ${healthData.dailyMetrics.length}, Biomarkers: ${healthData.biomarkers.length}, Life Events: ${healthData.lifeEvents.length}, Workouts: ${healthData.workouts.length}`);
     
     // Step 3: NEW RAG-BASED APPROACH - Detect data changes and use AI to find patterns
     logger.info('[InsightsEngineV2] Detecting significant data changes');
@@ -1059,7 +1096,9 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
       dataChanges,
       healthData.biomarkers,
       userContext,
-      availableBiomarkers
+      availableBiomarkers,
+      healthData.dailyMetrics,
+      healthData.workouts
     );
     logger.info(`[InsightsEngineV2] Generated ${ragInsights.length} RAG insights`);
     
