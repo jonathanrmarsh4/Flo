@@ -869,6 +869,20 @@ export const userDailyMetrics = pgTable("user_daily_metrics", {
   sleepHours: real("sleep_hours"), // Total sleep hours (night before localDate)
   restingHrBpm: real("resting_hr_bpm"), // Average resting heart rate
   hrvMs: real("hrv_ms"), // Average HRV in milliseconds
+  weightKg: real("weight_kg"), // Body weight in kg (most recent sample)
+  heightCm: real("height_cm"), // Height in cm
+  bmi: real("bmi"), // Body Mass Index
+  bodyFatPercent: real("body_fat_percent"), // Body fat percentage (0-100)
+  leanBodyMassKg: real("lean_body_mass_kg"), // Lean body mass in kg
+  waistCircumferenceCm: real("waist_circumference_cm"), // Waist circumference in cm
+  distanceMeters: real("distance_meters"), // Walking + running distance in meters
+  flightsClimbed: integer("flights_climbed"), // Flights of stairs climbed
+  standHours: integer("stand_hours"), // Hours with at least 1 minute of standing
+  avgHeartRateBpm: real("avg_heart_rate_bpm"), // Average heart rate during day
+  systolicBp: real("systolic_bp"), // Systolic blood pressure in mmHg
+  diastolicBp: real("diastolic_bp"), // Diastolic blood pressure in mmHg
+  bloodGlucoseMgDl: real("blood_glucose_mg_dl"), // Blood glucose in mg/dL
+  vo2Max: real("vo2_max"), // VO2 max in mL/kg/min
   normalizationVersion: text("normalization_version").notNull().default("norm_v1"), // Track algorithm version
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

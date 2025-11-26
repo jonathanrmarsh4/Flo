@@ -3796,18 +3796,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         localDate: req.body.localDate,
       }, null, 2));
 
-      // CRITICAL: Extract body composition fields BEFORE validation
-      // They're not in userDailyMetrics schema, so validation would strip them
-      const bodyCompFields = {
+      // Extract ALL extended health metrics from iOS (now in schema)
+      const extendedMetrics = {
         weightKg: dailyMetrics.weightKg ?? null,
+        heightCm: dailyMetrics.heightCm ?? null,
+        bmi: dailyMetrics.bmi ?? null,
         bodyFatPercent: dailyMetrics.bodyFatPercent ?? null,
         leanBodyMassKg: dailyMetrics.leanBodyMassKg ?? null,
-        bmi: dailyMetrics.bmi ?? null,
         waistCircumferenceCm: dailyMetrics.waistCircumferenceCm ?? null,
+        distanceMeters: dailyMetrics.distanceMeters ?? null,
+        flightsClimbed: dailyMetrics.flightsClimbed ?? null,
+        standHours: dailyMetrics.standHours ?? null,
+        avgHeartRateBpm: dailyMetrics.avgHeartRateBpm ?? null,
+        systolicBp: dailyMetrics.systolicBp ?? null,
+        diastolicBp: dailyMetrics.diastolicBp ?? null,
+        bloodGlucoseMgDl: dailyMetrics.bloodGlucoseMgDl ?? null,
+        vo2Max: dailyMetrics.vo2Max ?? null,
       };
 
-      // PRODUCTION DEBUG: Log what was extracted
-      console.log('🔍 [BODY COMP DEBUG] Extracted bodyCompFields:', JSON.stringify(bodyCompFields, null, 2));
+      // Log extended metrics for debugging
+      logger.debug('[HealthKit] Extended metrics received', { extendedMetrics });
 
       // Validate input (this will strip body comp fields, which is why we extracted them above)
       const validationResult = insertUserDailyMetricsSchema.safeParse({
@@ -3829,7 +3837,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
       // Also populate health_daily_metrics for Flōmentum consistency and body composition tracking
-      // Note: Body composition fields come from bodyCompFields (extracted before validation)
       const healthMetricsData = {
         userId,
         date: metrics.localDate,
@@ -3839,21 +3846,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         steps: metrics.stepsNormalized ?? null,
         activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
         exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
-        weightKg: bodyCompFields.weightKg,
-        bodyFatPct: bodyCompFields.bodyFatPercent,
-        leanMassKg: bodyCompFields.leanBodyMassKg,
-        bmi: bodyCompFields.bmi,
-        waistCircumferenceCm: bodyCompFields.waistCircumferenceCm,
+        weightKg: extendedMetrics.weightKg,
+        bodyFatPct: extendedMetrics.bodyFatPercent,
+        leanMassKg: extendedMetrics.leanBodyMassKg,
+        bmi: extendedMetrics.bmi,
+        waistCircumferenceCm: extendedMetrics.waistCircumferenceCm,
       };
 
-      console.log('💾 [BODY COMP DEBUG] Saving to health_daily_metrics:', JSON.stringify({
-        weightKg: healthMetricsData.weightKg,
-        bodyFatPct: healthMetricsData.bodyFatPct,
-        leanMassKg: healthMetricsData.leanMassKg,
-        bmi: healthMetricsData.bmi,
-        waistCircumferenceCm: healthMetricsData.waistCircumferenceCm,
-        date: healthMetricsData.date,
-      }, null, 2));
+      logger.debug('[HealthKit] Saving to health_daily_metrics', { healthMetricsData });
 
       try {
         console.log('⏳ [BODY COMP DEBUG] Starting database insert...');
@@ -3895,12 +3895,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .limit(1);
 
+      // Combine validated metrics with extended health fields
+      const fullMetrics = {
+        ...metrics,
+        weightKg: extendedMetrics.weightKg,
+        heightCm: extendedMetrics.heightCm,
+        bmi: extendedMetrics.bmi,
+        bodyFatPercent: extendedMetrics.bodyFatPercent,
+        leanBodyMassKg: extendedMetrics.leanBodyMassKg,
+        waistCircumferenceCm: extendedMetrics.waistCircumferenceCm,
+        distanceMeters: extendedMetrics.distanceMeters,
+        flightsClimbed: extendedMetrics.flightsClimbed,
+        standHours: extendedMetrics.standHours,
+        avgHeartRateBpm: extendedMetrics.avgHeartRateBpm,
+        systolicBp: extendedMetrics.systolicBp,
+        diastolicBp: extendedMetrics.diastolicBp,
+        bloodGlucoseMgDl: extendedMetrics.bloodGlucoseMgDl,
+        vo2Max: extendedMetrics.vo2Max,
+      };
+
       if (existing.length > 0) {
         // Update existing record
         await db
           .update(userDailyMetrics)
           .set({
-            ...metrics,
+            ...fullMetrics,
             updatedAt: new Date(),
           })
           .where(
@@ -3913,7 +3932,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`[HealthKit] Updated daily metrics for ${userId}, ${metrics.localDate}`);
       } else {
         // Insert new record
-        await db.insert(userDailyMetrics).values(metrics);
+        await db.insert(userDailyMetrics).values(fullMetrics);
 
         logger.info(`[HealthKit] Inserted daily metrics for ${userId}, ${metrics.localDate}`);
       }
