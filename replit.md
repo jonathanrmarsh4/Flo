@@ -54,12 +54,20 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 ### Feature Specifications
 - **Flō Oracle:** Grok-powered voice chat coach with natural voice interactions via ElevenLabs.
-- **HealthKit Integration:** Background syncing for 26 data types and workout sessions.
-- **Flōmentum:** Daily health momentum scores.
+- **HealthKit Integration:** Background syncing for 26+ data types and workout sessions, including extended daily metrics (blood pressure, blood glucose, VO2 max, distance, flights climbed, stand hours, average heart rate, height).
+- **Flōmentum:** Daily health momentum scores with stand hours integration.
 - **Stripe Billing:** Comprehensive subscription management and feature gating.
 - **Daily Insights Engine:** Personalized, evidence-based health insights.
 - **Life Event Logging:** Automated tracking of conversational health events, including dosage.
 - **iOS Shortcuts:** Quick event logging via secure API keys and pre-built templates.
+
+### Extended HealthKit Metrics (user_daily_metrics table)
+The following 14 extended health metrics are now tracked from iOS HealthKit:
+1. **Body Composition:** weightKg, heightCm, bmi, bodyFatPercent, leanBodyMassKg, waistCircumferenceCm
+2. **Activity:** distanceMeters (walking/running), flightsClimbed, standHours (Apple Watch)
+3. **Cardiovascular:** avgHeartRateBpm (daily average), systolicBp, diastolicBp (blood pressure)
+4. **Metabolic:** bloodGlucoseMgDl
+5. **Cardiorespiratory Fitness:** vo2Max (mL/kg/min)
 
 ## External Dependencies
 
