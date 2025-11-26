@@ -8,7 +8,8 @@ import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
 import { OverdueLabWorkTile } from "@/components/OverdueLabWorkTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { Target, ListChecks, Filter, X } from "lucide-react";
+import { usePlan } from "@/hooks/usePlan";
+import { ListChecks, Filter, Sparkles } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 
 type CategoryFilter = 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
@@ -17,6 +18,10 @@ export default function ActionsScreen() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+  
+  // Check user's plan for premium features
+  const { data: planData } = usePlan();
+  const isFreePlan = planData?.plan?.id === 'free';
 
   // Fetch all action plan items
   const { data: actionPlanData, isLoading } = useQuery<{ items: ActionPlanItem[] }>({
@@ -149,6 +154,36 @@ export default function ActionsScreen() {
             <OverdueLabWorkTile />
           </div>
 
+          {/* Premium Upgrade Banner for Free Users */}
+          {isFreePlan && (
+            <div 
+              className="mb-4 p-4 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"
+              data-testid="premium-upgrade-banner"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-semibold mb-1">Unlock AI-Powered Actions</h3>
+                  <p className="text-white/70 text-sm leading-relaxed">
+                    Upgrade to Flō Premium to get personalized AI insights and actionable recommendations based on your health data.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
+                    onClick={() => setLocation('/billing')}
+                    data-testid="button-upgrade-premium"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Upgrade to Premium
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action Items List */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -163,7 +198,9 @@ export default function ActionsScreen() {
                 </h3>
                 <p className="text-sm text-white/60 mb-4">
                   {selectedCategory === 'all'
-                    ? 'Add insights from your AI Insights to start tracking your health goals.'
+                    ? (isFreePlan 
+                        ? 'Upgrade to Premium to unlock personalized AI insights and actions tailored to your health data.'
+                        : 'Add insights from your AI Insights to start tracking your health goals.')
                     : 'Try selecting a different category to see more actions.'
                   }
                 </p>
