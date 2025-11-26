@@ -3974,7 +3974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             steps: metrics.stepsRawSum ?? metrics.stepsNormalized ?? null, // Use raw sum, fallback to normalized
             activeKcal: metrics.activeEnergyKcal ?? null,
             exerciseMinutes: metrics.exerciseMinutes ?? null, // Now available from iOS HealthKit
-            standHours: null, // Not available in userDailyMetrics
+            standHours: fullMetrics.standHours ?? null, // Now available from iOS HealthKit
           };
 
           const context: any = {

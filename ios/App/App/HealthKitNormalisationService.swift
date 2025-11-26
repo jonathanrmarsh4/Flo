@@ -1418,8 +1418,9 @@ public class HealthKitNormalisationService {
                 return
             }
             
-            // VO2 Max in mL/kg/min
-            let vo2Max = sample.quantity.doubleValue(for: HKUnit.literUnit(with: .milli).unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: .minute())))
+            // VO2 Max in mL/kg/min (using composed HKUnit for reliability)
+            let mlPerKgMin = HKUnit.literUnit(with: .milli).unitDivided(by: HKUnit.gramUnit(with: .kilo)).unitDivided(by: HKUnit.minute())
+            let vo2Max = sample.quantity.doubleValue(for: mlPerKgMin)
             completion(vo2Max)
         }
         
