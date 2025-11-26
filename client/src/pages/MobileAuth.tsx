@@ -251,13 +251,11 @@ export default function MobileAuth() {
           }
         }
         
-        // Refetch user data for the new session
-        await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
+        // Show verification email message (don't navigate - user needs to verify first)
         toast({
           title: "Account Created!",
-          description: "Welcome to Flō",
+          description: "Please check your email to verify your account. If you can't find it, check your spam folder.",
         });
-        setLocation('/');
       }
     } catch (error: any) {
       logger.error('Registration error', error);
