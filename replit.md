@@ -29,6 +29,16 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Conversational Life Event Logging System:** Automatically tracks comprehensive health narratives from Flō Oracle conversations, including dosage, symptoms, and health goals, by parsing events into structured JSONB logged to the `life_events` table. These events integrate into Flō Oracle's context.
 
+**Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (GPT-based) for bidirectional AI learning. Key components:
+- **user_insights table:** Vector-embedded insights with source tracking (`gpt_insights`, `grok_chat`, `chat_summary`), importance levels (1-5), status management, and tags
+- **flo_chat_messages table:** Conversation transcript storage for nightly summarization
+- **Hybrid Retrieval:** Combines recency-based (top 10 most recent) and semantic search (top 5 by vector similarity) with deduplication
+- **GPT → Brain:** Daily insights pipeline writes discoveries to brain asynchronously after generation
+- **Brain → Grok:** Chat handler injects relevant insights into system prompt via `[AI_INSIGHTS]` section
+- **Grok → Brain:** BRAIN_UPDATE_JSON parsing extracts and persists discoveries from chat responses
+- **Nightly Summary Job:** GPT-4o analyzes chat transcripts to extract durable insights with 0.92 similarity deduplication
+- **Setup Required:** Run `scripts/setup-user-insights-embeddings.sql` in Supabase to create vector search function
+
 **Admin User Management:** Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, providing user management, system overview metrics, and audit logs.
 
 **AI Usage Analytics System:** Tracks all OpenAI and Grok API calls with token counts, costs, and latency, stored in the `openaiUsageEvents` table and displayed in the admin dashboard.
