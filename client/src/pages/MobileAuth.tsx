@@ -225,6 +225,15 @@ export default function MobileAuth() {
       if (response.ok) {
         const responseData = await response.json();
         
+        // Check if account needs approval
+        if (responseData.status === 'pending_approval') {
+          toast({
+            title: "Account Created!",
+            description: "Please check your email. You'll be notified once your account is approved.",
+          });
+          return;
+        }
+        
         // CRITICAL: Clear ALL cached data from any previous user session
         // This prevents data leakage between accounts
         queryClient.clear();
