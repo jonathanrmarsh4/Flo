@@ -66,9 +66,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
                   <!-- Logo -->
                   <tr>
                     <td align="center" style="padding-bottom: 32px;">
-                      <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
-                        <span style="color: white; font-size: 28px; font-weight: bold;">F</span>
-                      </div>
+                      <img src="https://get-flo.com/favicon.png" alt="Flō" width="60" height="60" style="display: block; border-radius: 16px;" />
                       <h1 style="margin: 16px 0 0 0; color: #ffffff; font-size: 28px; font-weight: 300;">Flō</h1>
                     </td>
                   </tr>
@@ -157,9 +155,7 @@ export async function sendWelcomeEmail(email: string, firstName?: string): Promi
                   <!-- Logo -->
                   <tr>
                     <td align="center" style="padding-bottom: 32px;">
-                      <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
-                        <span style="color: white; font-size: 28px; font-weight: bold;">F</span>
-                      </div>
+                      <img src="https://get-flo.com/favicon.png" alt="Flō" width="60" height="60" style="display: block; border-radius: 16px;" />
                       <h1 style="margin: 16px 0 0 0; color: #ffffff; font-size: 28px; font-weight: 300;">Flō</h1>
                     </td>
                   </tr>
@@ -424,9 +420,7 @@ export async function sendAccountApprovalEmail(email: string, firstName?: string
                   <!-- Logo -->
                   <tr>
                     <td align="center" style="padding-bottom: 32px;">
-                      <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
-                        <span style="color: white; font-size: 28px; font-weight: bold;">F</span>
-                      </div>
+                      <img src="https://get-flo.com/favicon.png" alt="Flō" width="60" height="60" style="display: block; border-radius: 16px;" />
                       <h1 style="margin: 16px 0 0 0; color: #ffffff; font-size: 28px; font-weight: 300;">Flō</h1>
                     </td>
                   </tr>
@@ -508,9 +502,7 @@ export async function sendVerificationEmail(email: string, verificationToken: st
                 <table role="presentation" style="max-width: 480px; width: 100%; border-collapse: collapse;">
                   <tr>
                     <td align="center" style="padding-bottom: 32px;">
-                      <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
-                        <span style="color: white; font-size: 28px; font-weight: bold;">F</span>
-                      </div>
+                      <img src="https://get-flo.com/favicon.png" alt="Flō" width="60" height="60" style="display: block; border-radius: 16px;" />
                       <h1 style="margin: 16px 0 0 0; color: #ffffff; font-size: 28px; font-weight: 300;">Flō</h1>
                     </td>
                   </tr>
