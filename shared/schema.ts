@@ -227,6 +227,8 @@ export const userCredentials = pgTable("user_credentials", {
   lastLoginAt: timestamp("last_login_at"),
   resetToken: varchar("reset_token").unique(), // Password reset token
   resetTokenExpiresAt: timestamp("reset_token_expires_at"), // Reset token expiry
+  verificationToken: varchar("verification_token").unique(), // Email verification token
+  verificationTokenExpiresAt: timestamp("verification_token_expires_at"), // Verification token expiry
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1615,6 +1617,7 @@ export const insertUserCredentialsSchema = createInsertSchema(userCredentials, {
   // Coerce date fields from ISO strings
   lastLoginAt: z.coerce.date().nullable().optional(),
   resetTokenExpiresAt: z.coerce.date().nullable().optional(),
+  verificationTokenExpiresAt: z.coerce.date().nullable().optional(),
 }).omit({
   id: true,
   createdAt: true,
@@ -1628,6 +1631,8 @@ export const userCredentialsSchema = z.object({
   lastLoginAt: z.date().nullable(),
   resetToken: z.string().nullable(),
   resetTokenExpiresAt: z.date().nullable(),
+  verificationToken: z.string().nullable(),
+  verificationTokenExpiresAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
