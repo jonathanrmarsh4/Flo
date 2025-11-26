@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "QRJGSY642V.com.flo.healthapp",
+        "paths": [
+          "/verify-email",
+          "/verify-email/*",
+          "/reset-password",
+          "/reset-password/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "QRJGSY642V.com.flo.healthapp"
+    ]
+  }
+}

@@ -100,6 +100,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
+  // Apple App Site Association for Universal Links (iOS deep linking)
+  app.get('/.well-known/apple-app-site-association', (_req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.json({
+      applinks: {
+        apps: [],
+        details: [
+          {
+            appID: "QRJGSY642V.com.flo.healthapp",
+            paths: ["/verify-email", "/verify-email/*", "/reset-password", "/reset-password/*"]
+          }
+        ]
+      },
+      webcredentials: {
+        apps: ["QRJGSY642V.com.flo.healthapp"]
+      }
+    });
+  });
+
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
