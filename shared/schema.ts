@@ -17,8 +17,8 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Admin & Billing enums
-export const userRoleEnum = pgEnum("user_role", ["free", "premium", "admin"]);
-export const userStatusEnum = pgEnum("user_status", ["active", "suspended"]);
+export const userRoleEnum = pgEnum("user_role", ["free", "premium", "admin", "apple_test"]);
+export const userStatusEnum = pgEnum("user_status", ["active", "suspended", "pending_approval"]);
 export const billingProviderEnum = pgEnum("billing_provider", ["stripe"]);
 export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "incomplete",
@@ -89,8 +89,8 @@ export const flomentumZoneEnum = pgEnum("flomentum_zone", ["BUILDING", "MAINTAIN
 export const actionPlanStatusEnum = pgEnum("action_plan_status", ["active", "completed", "dismissed"]);
 
 // Zod enums for validation and UI options
-export const UserRoleEnum = z.enum(["free", "premium", "admin"]);
-export const UserStatusEnum = z.enum(["active", "suspended"]);
+export const UserRoleEnum = z.enum(["free", "premium", "admin", "apple_test"]);
+export const UserStatusEnum = z.enum(["active", "suspended", "pending_approval"]);
 export const SubscriptionStatusEnum = z.enum([
   "incomplete",
   "incomplete_expired",
