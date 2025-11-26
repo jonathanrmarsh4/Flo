@@ -47,7 +47,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
     const resetLink = `https://get-flo.com/reset-password?token=${resetToken}`;
     
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      from: fromEmail || 'Flō <noreply@nuvitaelabs.com>',
       to: email,
       replyTo: 'support@nuvitaelabs.com',
       subject: 'Reset Your Flō Password',
@@ -138,7 +138,7 @@ export async function sendWelcomeEmail(email: string, firstName?: string): Promi
     const name = firstName || 'there';
     
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      from: fromEmail || 'Flō <noreply@nuvitaelabs.com>',
       to: email,
       replyTo: 'support@nuvitaelabs.com',
       subject: 'Welcome to Flō',
@@ -228,7 +228,7 @@ export async function sendBugReportEmail(
     };
     
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      from: fromEmail || 'Flō <noreply@nuvitaelabs.com>',
       to: 'bug@nuvitaelabs.com',
       replyTo: userEmail || undefined,
       subject: `[Bug Report - ${severity.toUpperCase()}] ${title}`,
@@ -319,7 +319,7 @@ export async function sendSupportRequestEmail(
     const { client, fromEmail } = await getResendClient();
     
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      from: fromEmail || 'Flō <noreply@nuvitaelabs.com>',
       to: 'support@nuvitaelabs.com',
       replyTo: email,
       subject: `[Support Request] ${subject}`,
@@ -405,8 +405,9 @@ export async function sendAccountApprovalEmail(email: string, firstName?: string
     const name = firstName || 'there';
     
     const { data, error } = await client.emails.send({
-      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      from: fromEmail || 'Flō <noreply@nuvitaelabs.com>',
       to: email,
+      replyTo: 'support@nuvitaelabs.com',
       subject: 'Welcome to Flō - Your Account is Approved!',
       html: `
         <!DOCTYPE html>
