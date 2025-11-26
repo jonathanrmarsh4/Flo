@@ -136,8 +136,8 @@ export default function BillingPage() {
   const premiumPlan = availablePlansData?.plans?.premium;
   const premiumPricing = availablePlansData?.pricing?.premium;
 
-  const monthlyPrice = premiumPricing?.monthly?.amount || 1999;
-  const annualPrice = premiumPricing?.annual?.amount || 19999;
+  const monthlyPrice = premiumPricing?.monthly?.amount || 999;
+  const annualPrice = premiumPricing?.annual?.amount || 11000;
   const annualMonthly = Math.floor(annualPrice / 12);
 
   return (

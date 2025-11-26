@@ -219,13 +219,13 @@ export const PLANS: Record<PlanId, Plan> = {
 export const PRICING = {
   PREMIUM_MONTHLY: {
     priceId: process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID || 'price_premium_monthly',
-    amount: 2999, // $29.99 in cents
+    amount: 999, // $9.99 in cents
     currency: 'usd',
     interval: 'month' as const,
   },
   PREMIUM_YEARLY: {
     priceId: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID || 'price_premium_yearly',
-    amount: 29999, // $299.99 in cents
+    amount: 11000, // $110 in cents
     currency: 'usd',
     interval: 'year' as const,
   },
