@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useSearch } from "wouter";
+import { Capacitor } from "@capacitor/core";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -41,14 +42,25 @@ export default function VerifyEmail() {
           return;
         }
 
-        // Store the JWT token for authentication
+        // Store the JWT token for authentication using the correct storage mechanism
         if (data.token) {
-          localStorage.setItem("mobile_auth_token", data.token);
+          if (Capacitor.isNativePlatform()) {
+            try {
+              const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+              await SecureStoragePlugin.set({ key: 'auth_token', value: data.token });
+              console.log('[VerifyEmail] JWT token stored in secure storage');
+            } catch (storageError) {
+              console.error('[VerifyEmail] Failed to store token in secure storage:', storageError);
+            }
+          } else {
+            localStorage.setItem("auth_token", data.token);
+            console.log('[VerifyEmail] JWT token stored in localStorage');
+          }
         }
 
-        // Store user info
+        // Store user info in localStorage (for quick access on both platforms)
         if (data.user) {
-          localStorage.setItem("mobile_user", JSON.stringify(data.user));
+          localStorage.setItem("auth_user", JSON.stringify(data.user));
         }
 
         // Clear any existing query cache and refetch user data
