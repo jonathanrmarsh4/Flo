@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
 import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
 import { useEffect, useState } from 'react';
 import { initializeNotifications } from "@/lib/notifications";
 import { initializeStripeNative } from "@/lib/stripe-native";
@@ -81,6 +82,44 @@ function Router() {
   
   // Automatically sync HealthKit data in background on app launch
   useHealthKitAutoSync();
+
+  // Handle deep links from Universal Links (native only)
+  useEffect(() => {
+    if (!isNative) return;
+
+    // Handle URLs when app is opened via Universal Link
+    const handleDeepLink = (event: { url: string }) => {
+      console.log('[App] Deep link received:', event.url);
+      
+      try {
+        const url = new URL(event.url);
+        const path = url.pathname;
+        const search = url.search;
+        
+        console.log('[App] Navigating to:', path + search);
+        
+        // Navigate to the path (wouter will handle hash routing)
+        setLocation(path + search);
+      } catch (error) {
+        console.error('[App] Error parsing deep link:', error);
+      }
+    };
+
+    // Listen for app URL open events
+    CapacitorApp.addListener('appUrlOpen', handleDeepLink);
+
+    // Also check if app was launched with a URL (cold start)
+    CapacitorApp.getLaunchUrl().then((result) => {
+      if (result?.url) {
+        console.log('[App] Launched with URL:', result.url);
+        handleDeepLink({ url: result.url });
+      }
+    });
+
+    return () => {
+      CapacitorApp.removeAllListeners();
+    };
+  }, [isNative, setLocation]);
 
   // Initialize notifications on app start (native only)
   useEffect(() => {
