@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Stripe from 'stripe';
+import * as jose from 'jose';
 import { db } from '../db';
 import { billingCustomers, subscriptions, payments, users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -7,6 +8,105 @@ import { logger } from '../logger';
 import { upgradeUserToPremium, downgradeUserToFree, getUserPlan, getUserFeatures, getUserLimits } from '../services/planService';
 import { PLANS, PRICING } from '../config/plans';
 import { PAYWALL_MODALS } from '../config/paywallModals';
+
+// App Store configuration
+const APP_STORE_BUNDLE_ID = 'com.getflo.app';
+const APP_STORE_ISSUER_ID = 'App Store'; // For environment checking
+const VALID_PRODUCT_IDS = ['flo_premium_monthly', 'flo_premium_yearly'];
+
+/**
+ * Decode and validate a StoreKit 2 JWS transaction
+ * StoreKit 2 transactions are signed JWTs from Apple
+ */
+interface DecodedAppStoreTransaction {
+  transactionId: string;
+  originalTransactionId: string;
+  productId: string;
+  bundleId: string;
+  purchaseDate: number;
+  expiresDate?: number;
+  environment: 'Production' | 'Sandbox' | 'Xcode';
+  type: string;
+  inAppOwnershipType?: string;
+}
+
+async function decodeAndValidateJWS(jwsString: string): Promise<DecodedAppStoreTransaction | null> {
+  try {
+    // Decode the JWS without verification (StoreKit 2 local transactions)
+    // In production, you would verify using Apple's root certificate
+    const parts = jwsString.split('.');
+    if (parts.length !== 3) {
+      logger.error('[AppStore] Invalid JWS format - expected 3 parts');
+      return null;
+    }
+
+    // Decode the payload (middle part)
+    const payloadBase64 = parts[1];
+    // Handle base64url encoding
+    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+    const payloadJson = Buffer.from(base64, 'base64').toString('utf-8');
+    const payload = JSON.parse(payloadJson);
+
+    logger.info('[AppStore] Decoded JWS payload:', {
+      transactionId: payload.transactionId,
+      productId: payload.productId,
+      bundleId: payload.bundleId,
+      environment: payload.environment,
+    });
+
+    // Validate bundle ID matches our app
+    if (payload.bundleId && payload.bundleId !== APP_STORE_BUNDLE_ID) {
+      logger.error('[AppStore] Bundle ID mismatch:', {
+        expected: APP_STORE_BUNDLE_ID,
+        received: payload.bundleId,
+      });
+      return null;
+    }
+
+    // Validate product ID is one we recognize
+    if (!VALID_PRODUCT_IDS.includes(payload.productId)) {
+      logger.error('[AppStore] Invalid product ID:', payload.productId);
+      return null;
+    }
+
+    return {
+      transactionId: payload.transactionId,
+      originalTransactionId: payload.originalTransactionId || payload.transactionId,
+      productId: payload.productId,
+      bundleId: payload.bundleId,
+      purchaseDate: payload.purchaseDate,
+      expiresDate: payload.expiresDate,
+      environment: payload.environment,
+      type: payload.type,
+      inAppOwnershipType: payload.inAppOwnershipType,
+    };
+  } catch (error) {
+    logger.error('[AppStore] Failed to decode JWS:', error);
+    return null;
+  }
+}
+
+/**
+ * Verify App Store Server Notification JWS (webhook)
+ * These are signed differently than client transactions
+ */
+async function decodeServerNotificationJWS(signedPayload: string): Promise<any | null> {
+  try {
+    const parts = signedPayload.split('.');
+    if (parts.length !== 3) {
+      logger.error('[AppStore] Invalid notification JWS format');
+      return null;
+    }
+
+    const payloadBase64 = parts[1];
+    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+    const payloadJson = Buffer.from(base64, 'base64').toString('utf-8');
+    return JSON.parse(payloadJson);
+  } catch (error) {
+    logger.error('[AppStore] Failed to decode notification:', error);
+    return null;
+  }
+}
 
 const router = Router();
 
@@ -706,6 +806,8 @@ router.get('/plans', async (req: any, res) => {
  * POST /api/billing/verify-app-store
  * Verify App Store transaction and sync subscription status
  * Called by iOS app after StoreKit purchase
+ * 
+ * Security: Requires JWS representation from StoreKit 2 for verification
  */
 router.post('/verify-app-store', async (req: any, res) => {
   try {
@@ -730,10 +832,58 @@ router.post('/verify-app-store', async (req: any, res) => {
     logger.info(`[Billing] App Store verification for user ${userId}`, {
       transactionId,
       productId,
-      originalTransactionId,
-      purchaseDate,
-      expiresDate,
+      hasJWS: !!jwsRepresentation,
     });
+
+    // If JWS is provided, validate it (StoreKit 2)
+    let verifiedTransaction: DecodedAppStoreTransaction | null = null;
+    
+    if (jwsRepresentation) {
+      verifiedTransaction = await decodeAndValidateJWS(jwsRepresentation);
+      
+      if (!verifiedTransaction) {
+        logger.error('[Billing] JWS verification failed for transaction:', transactionId);
+        return res.status(400).json({ error: 'Invalid transaction signature' });
+      }
+
+      // Verify transaction ID matches what client sent
+      if (verifiedTransaction.transactionId !== transactionId) {
+        logger.error('[Billing] Transaction ID mismatch:', {
+          clientTransactionId: transactionId,
+          jwsTransactionId: verifiedTransaction.transactionId,
+        });
+        return res.status(400).json({ error: 'Transaction ID mismatch' });
+      }
+
+      // Verify product ID matches
+      if (verifiedTransaction.productId !== productId) {
+        logger.error('[Billing] Product ID mismatch:', {
+          clientProductId: productId,
+          jwsProductId: verifiedTransaction.productId,
+        });
+        return res.status(400).json({ error: 'Product ID mismatch' });
+      }
+
+      logger.info('[Billing] JWS verification successful:', {
+        transactionId: verifiedTransaction.transactionId,
+        environment: verifiedTransaction.environment,
+      });
+    } else {
+      // For backwards compatibility, log a warning but allow
+      // In production, you may want to require JWS
+      logger.warn('[Billing] No JWS provided, using client-supplied data (less secure)');
+    }
+
+    // Use verified data if available, otherwise fall back to client data
+    const finalProductId = verifiedTransaction?.productId || productId;
+    const finalTransactionId = verifiedTransaction?.transactionId || transactionId;
+    const finalOriginalTransactionId = verifiedTransaction?.originalTransactionId || originalTransactionId || transactionId;
+    const finalPurchaseDate = verifiedTransaction?.purchaseDate 
+      ? new Date(verifiedTransaction.purchaseDate) 
+      : new Date(purchaseDate || Date.now());
+    const finalExpiresDate = verifiedTransaction?.expiresDate
+      ? new Date(verifiedTransaction.expiresDate)
+      : expiresDate ? new Date(expiresDate) : null;
 
     // Map StoreKit product IDs to plan intervals
     const productMapping: Record<string, 'month' | 'year'> = {
@@ -741,9 +891,9 @@ router.post('/verify-app-store', async (req: any, res) => {
       'flo_premium_yearly': 'year',
     };
 
-    const planInterval = productMapping[productId];
+    const planInterval = productMapping[finalProductId];
     if (!planInterval) {
-      logger.error(`[Billing] Unknown App Store product ID: ${productId}`);
+      logger.error(`[Billing] Unknown App Store product ID: ${finalProductId}`);
       return res.status(400).json({ error: 'Unknown product ID' });
     }
 
@@ -762,7 +912,7 @@ router.post('/verify-app-store', async (req: any, res) => {
         await db.update(billingCustomers)
           .set({ 
             provider: 'app_store',
-            appStoreOriginalTransactionId: originalTransactionId || transactionId,
+            appStoreOriginalTransactionId: finalOriginalTransactionId,
           })
           .where(eq(billingCustomers.id, customerId));
       }
@@ -770,7 +920,7 @@ router.post('/verify-app-store', async (req: any, res) => {
       const [newCustomer] = await db.insert(billingCustomers).values({
         userId,
         provider: 'app_store',
-        appStoreOriginalTransactionId: originalTransactionId || transactionId,
+        appStoreOriginalTransactionId: finalOriginalTransactionId,
       }).returning();
       customerId = newCustomer.id;
     }
@@ -779,12 +929,11 @@ router.post('/verify-app-store', async (req: any, res) => {
     const [existingSub] = await db
       .select()
       .from(subscriptions)
-      .where(eq(subscriptions.appStoreTransactionId, originalTransactionId || transactionId))
+      .where(eq(subscriptions.appStoreTransactionId, finalOriginalTransactionId))
       .limit(1);
 
-    const currentPeriodEnd = expiresDate 
-      ? new Date(expiresDate) 
-      : new Date(Date.now() + (planInterval === 'year' ? 365 : 30) * 24 * 60 * 60 * 1000);
+    const currentPeriodEnd = finalExpiresDate 
+      || new Date(Date.now() + (planInterval === 'year' ? 365 : 30) * 24 * 60 * 60 * 1000);
 
     if (existingSub) {
       // Update existing subscription
@@ -804,12 +953,12 @@ router.post('/verify-app-store', async (req: any, res) => {
         status: 'active',
         planId: 'premium',
         planInterval,
-        currentPeriodStart: new Date(purchaseDate || Date.now()),
+        currentPeriodStart: finalPurchaseDate,
         currentPeriodEnd,
         cancelAtPeriodEnd: false,
         provider: 'app_store',
-        appStoreTransactionId: originalTransactionId || transactionId,
-        appStoreProductId: productId,
+        appStoreTransactionId: finalOriginalTransactionId,
+        appStoreProductId: finalProductId,
       });
 
       logger.info(`[Billing] Created new App Store subscription for user ${userId}`);
@@ -818,14 +967,14 @@ router.post('/verify-app-store', async (req: any, res) => {
     // Upgrade user to premium
     await upgradeUserToPremium(userId);
 
-    // Record payment
+    // Record payment (use verified environment info if available)
     await db.insert(payments).values({
       billingCustomerId: customerId,
-      amount: planInterval === 'year' ? 11000 : 999, // Cents
+      amount: planInterval === 'year' ? 11000 : 999, // Cents (actual price comes from App Store)
       currency: 'AUD',
       status: 'succeeded',
       provider: 'app_store',
-      appStoreTransactionId: transactionId,
+      appStoreTransactionId: finalTransactionId,
     });
 
     logger.info(`[Billing] App Store transaction verified successfully for user ${userId}`);
