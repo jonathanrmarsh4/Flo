@@ -294,10 +294,10 @@ export default function BillingPage() {
                   </CardTitle>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-white" data-testid="text-price">
-                      ${selectedPeriod === 'monthly' ? (monthlyPrice / 100).toFixed(2) : (annualMonthly / 100).toFixed(2)}
+                      ${selectedPeriod === 'monthly' ? (monthlyPrice / 100).toFixed(2) : (annualPrice / 100).toFixed(0)}
                     </div>
                     <div className="text-xs text-white/60">
-                      per month{selectedPeriod === 'annual' && ', billed annually'}
+                      {selectedPeriod === 'monthly' ? 'per month' : 'per year'}
                     </div>
                   </div>
                 </div>
