@@ -11,6 +11,7 @@ import { userDailyMetrics, bloodWorkRecords, systemSettings, insertSystemSetting
 import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { generateDailyReminder } from "../services/dailyReminderService";
 import { fromError } from "zod-validation-error";
+import { sendAccountApprovalEmail } from "../services/emailService";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -214,6 +215,28 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ error: "Cannot modify your own role or status" });
       }
 
+      // Security: Check if user is pending_approval - must use approve/reject endpoints instead
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (user.status === 'pending_approval') {
+        return res.status(403).json({ 
+          error: "Cannot modify pending users directly",
+          message: "Use the approve or reject endpoints for pending users"
+        });
+      }
+
+      // Security: Prevent setting role to apple_test for non-pending users
+      // apple_test role should only be assigned during account creation or by explicit admin action
+      if (role === 'apple_test' && user.role !== 'apple_test') {
+        return res.status(403).json({ 
+          error: "Cannot assign apple_test role",
+          message: "The apple_test role can only be assigned to dedicated test accounts"
+        });
+      }
+
       const updatedUser = await storage.updateUser(userId, { role, status }, adminId);
       
       if (!updatedUser) {
@@ -244,6 +267,156 @@ export function registerAdminRoutes(app: Express) {
         return res.status(404).json({ error: "User not found" });
       }
       res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Approve a pending user - sets status to 'active' and sends notification email
+  app.post('/api/admin/users/:id/approve', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const adminId = req.user.claims.sub || req.user.id;
+
+      // Get the user first to check current status
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (user.status !== 'pending_approval') {
+        return res.status(400).json({ error: "User is not pending approval" });
+      }
+
+      // Update user status to active
+      const updatedUser = await storage.updateUser(userId, { status: 'active' }, adminId);
+
+      // Send approval notification email
+      if (user.email) {
+        const emailSent = await sendAccountApprovalEmail(user.email, user.firstName);
+        if (!emailSent) {
+          logger.warn('Failed to send approval email, but user was approved', { userId, email: user.email });
+        }
+      }
+
+      logger.info('User approved successfully', { userId, adminId });
+      res.json({ 
+        success: true, 
+        message: "User approved successfully",
+        user: updatedUser
+      });
+    } catch (error) {
+      logger.error('Error approving user', error);
+      res.status(500).json({ error: "Failed to approve user" });
+    }
+  });
+
+  // Reject a pending user - sets status to 'suspended'
+  app.post('/api/admin/users/:id/reject', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const adminId = req.user.claims.sub || req.user.id;
+
+      // Get the user first to check current status
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      if (user.status !== 'pending_approval') {
+        return res.status(400).json({ error: "User is not pending approval" });
+      }
+
+      // Update user status to suspended (rejected)
+      const updatedUser = await storage.updateUser(userId, { status: 'suspended' }, adminId);
+
+      logger.info('User rejected successfully', { userId, adminId });
+      res.json({ 
+        success: true, 
+        message: "User rejected successfully",
+        user: updatedUser
+      });
+    } catch (error) {
+      logger.error('Error rejecting user', error);
+      res.status(500).json({ error: "Failed to reject user" });
+    }
+  });
+
+  // Get pending approval users count
+  app.get('/api/admin/users/pending-count', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const result = await storage.listUsers({ status: 'pending_approval', limit: 1000, offset: 0 });
+      res.json({ count: result.total });
+    } catch (error) {
+      logger.error('Error fetching pending users count', error);
+      res.status(500).json({ error: "Failed to fetch pending users count" });
+    }
+  });
+
+  // Create an Apple Test User account (for App Store review)
+  // These accounts bypass pending approval and are immediately active
+  app.post('/api/admin/users/create-test-account', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { email, password, firstName, lastName } = req.body;
+      const adminId = req.user.claims.sub || req.user.id;
+
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ error: "Email already registered" });
+      }
+
+      // Import bcrypt for password hashing
+      const bcrypt = await import('bcryptjs');
+      const passwordHash = await bcrypt.hash(password, 10);
+
+      // Create the test user with apple_test role and active status (bypasses approval)
+      const user = await storage.upsertUser({
+        email,
+        firstName: firstName || 'Apple',
+        lastName: lastName || 'Test User',
+        role: 'apple_test',
+        status: 'active', // Immediately active - bypasses pending approval
+      });
+
+      // Create user credentials
+      await storage.createUserCredentials({
+        userId: user.id,
+        passwordHash,
+      });
+
+      // Create auth provider record
+      await storage.upsertAuthProvider({
+        userId: user.id,
+        provider: 'email',
+        providerUserId: user.id,
+        email,
+      });
+
+      // Create profile
+      const existingProfile = await storage.getProfile(user.id);
+      if (!existingProfile) {
+        await storage.upsertProfile(user.id, {});
+      }
+
+      logger.info('Apple Test User created', { userId: user.id, email, adminId });
+      res.json({ 
+        success: true, 
+        message: "Apple Test User created successfully",
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          status: user.status,
+        }
+      });
+    } catch (error) {
+      logger.error('Error creating Apple Test User', error);
+      res.status(500).json({ error: "Failed to create Apple Test User" });
     }
   });
 

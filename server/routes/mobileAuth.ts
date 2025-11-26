@@ -106,10 +106,19 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
       }
     }
     
+    let isNewUser = false;
+    
     if (user) {
-      // Existing user - check if suspended
+      // Existing user - check if suspended or pending approval
       if (user.status === "suspended") {
         return res.status(403).json({ error: "Account suspended" });
+      }
+      if (user.status === "pending_approval") {
+        return res.status(403).json({ 
+          error: "Account pending approval",
+          message: "Your account is awaiting approval. You'll receive an email once approved.",
+          status: "pending_approval"
+        });
       }
       
       // Update auth provider with complete token data
@@ -130,11 +139,13 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
         },
       });
     } else {
-      // New user - create account
+      // New user - create account with pending_approval status
+      isNewUser = true;
       user = await storage.upsertUser({
         email: appleEmail,
         firstName: body.givenName,
         lastName: body.familyName,
+        status: "pending_approval",
       });
       
       // Create auth provider record with complete token data
@@ -162,7 +173,24 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
       }
     }
     
-    // Generate JWT token for mobile authentication
+    // For new users with pending_approval, return success but no token
+    if (isNewUser) {
+      return res.json({ 
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          status: user.status,
+        },
+        authenticated: false,
+        message: "Registration successful! Your account is pending approval. You'll receive an email once approved.",
+        status: "pending_approval"
+      });
+    }
+    
+    // Generate JWT token for mobile authentication (existing approved users only)
     const token = generateMobileAuthToken(user.id);
     
     res.json({ 
@@ -243,10 +271,19 @@ router.post("/api/mobile/auth/google", async (req, res) => {
       }
     }
     
+    let isNewUser = false;
+    
     if (user) {
-      // Existing user - check if suspended
+      // Existing user - check if suspended or pending approval
       if (user.status === "suspended") {
         return res.status(403).json({ error: "Account suspended" });
+      }
+      if (user.status === "pending_approval") {
+        return res.status(403).json({ 
+          error: "Account pending approval",
+          message: "Your account is awaiting approval. You'll receive an email once approved.",
+          status: "pending_approval"
+        });
       }
       
       // Update auth provider metadata
@@ -262,11 +299,13 @@ router.post("/api/mobile/auth/google", async (req, res) => {
         },
       });
     } else {
-      // New user - create account
+      // New user - create account with pending_approval status
+      isNewUser = true;
       user = await storage.upsertUser({
         email: googleEmail,
         firstName: body.givenName,
         lastName: body.familyName,
+        status: "pending_approval",
       });
       
       // Create auth provider record
@@ -289,7 +328,24 @@ router.post("/api/mobile/auth/google", async (req, res) => {
       }
     }
     
-    // Generate JWT token for mobile authentication
+    // For new users with pending_approval, return success but no token
+    if (isNewUser) {
+      return res.json({ 
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          status: user.status,
+        },
+        authenticated: false,
+        message: "Registration successful! Your account is pending approval. You'll receive an email once approved.",
+        status: "pending_approval"
+      });
+    }
+    
+    // Generate JWT token for mobile authentication (existing approved users only)
     const token = generateMobileAuthToken(user.id);
     
     res.json({ 
@@ -377,13 +433,13 @@ router.post("/api/mobile/auth/register", async (req, res) => {
     // Hash password with bcrypt (10 rounds)
     const passwordHash = await bcrypt.hash(body.password, 10);
     
-    // Create user account
+    // Create user account with pending_approval status (requires admin approval)
     const user = await storage.upsertUser({
       email: body.email,
       firstName: body.firstName?.trim() || null,  // Store null if empty
       lastName: body.lastName?.trim() || null,
       role: "free",
-      status: "active",
+      status: "pending_approval",
     });
     
     // Create user credentials
@@ -406,9 +462,7 @@ router.post("/api/mobile/auth/register", async (req, res) => {
       await storage.upsertProfile(user.id, {});
     }
     
-    // Generate JWT token for mobile authentication
-    const token = generateMobileAuthToken(user.id);
-    
+    // New users are pending approval - return success but no token
     res.json({ 
       user: {
         id: user.id,
@@ -418,8 +472,9 @@ router.post("/api/mobile/auth/register", async (req, res) => {
         role: user.role,
         status: user.status,
       },
-      token, // JWT token for mobile apps
-      authenticated: true,
+      authenticated: false,
+      message: "Registration successful! Your account is pending approval. You'll receive an email once approved.",
+      status: "pending_approval"
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
@@ -446,6 +501,15 @@ router.post("/api/mobile/auth/login", async (req, res) => {
     // Check if account is suspended
     if (user.status === "suspended") {
       return res.status(403).json({ message: "Account suspended. Please contact support." });
+    }
+    
+    // Check if account is pending approval
+    if (user.status === "pending_approval") {
+      return res.status(403).json({ 
+        error: "Account pending approval",
+        message: "Your account is awaiting approval. You'll receive an email once approved.",
+        status: "pending_approval"
+      });
     }
     
     // Get user credentials

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Skeleton } from "./ui/skeleton";
-import { Search, ChevronLeft, ChevronRight, Crown, Activity, Calendar, AlertCircle, Users as UsersIcon } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, Crown, Activity, Calendar, AlertCircle, Users as UsersIcon, Clock, Check, X } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { AdminUserSummary } from "@shared/schema";
 
@@ -58,6 +58,34 @@ export function AdminUsersTab() {
     },
   });
 
+  const approveUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest('POST', `/api/admin/users/${userId}/approve`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/admin/users');
+        },
+      });
+    },
+  });
+
+  const rejectUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest('POST', `/api/admin/users/${userId}/reject`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/admin/users');
+        },
+      });
+    },
+  });
+
   const handleRoleChange = (userId: string, role: string) => {
     updateUserMutation.mutate({ userId, role });
   };
@@ -65,6 +93,16 @@ export function AdminUsersTab() {
   const handleStatusChange = (userId: string, status: string) => {
     updateUserMutation.mutate({ userId, status });
   };
+
+  const handleApprove = (userId: string) => {
+    approveUserMutation.mutate(userId);
+  };
+
+  const handleReject = (userId: string) => {
+    rejectUserMutation.mutate(userId);
+  };
+
+  const pendingCount = data?.users.filter(u => u.status === 'pending_approval').length || 0;
 
   const totalPages = Math.ceil((data?.total || 0) / limit);
 
@@ -97,14 +135,16 @@ export function AdminUsersTab() {
               <SelectItem value="free">Free</SelectItem>
               <SelectItem value="premium">Premium</SelectItem>
               <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="apple_test">Apple Test</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={(value) => { setStatusFilter(value); setPage(0); }}>
-            <SelectTrigger className="w-full md:w-40 bg-white/5 border-white/10 text-white" data-testid="select-status-filter">
+            <SelectTrigger className="w-full md:w-48 bg-white/5 border-white/10 text-white" data-testid="select-status-filter">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="pending_approval">Pending Approval</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="suspended">Suspended</SelectItem>
             </SelectContent>
@@ -117,7 +157,7 @@ export function AdminUsersTab() {
         <Alert className="mb-6 bg-red-500/10 border-red-500/50" data-testid="alert-error">
           <AlertCircle className="h-4 w-4 text-red-500" />
           <AlertDescription className="text-white/90">
-            Failed to load users. <Button variant="link" onClick={() => refetch()} className="text-red-400 hover:text-red-300 p-0 h-auto" data-testid="button-retry">Try again</Button>
+            Failed to load users. <button onClick={() => refetch()} className="text-red-400 hover:text-red-300 underline" data-testid="button-retry">Try again</button>
           </AlertDescription>
         </Alert>
       )}
@@ -177,6 +217,7 @@ export function AdminUsersTab() {
                   <TableHead className="text-white/70">Role</TableHead>
                   <TableHead className="text-white/70">Status</TableHead>
                   <TableHead className="text-white/70">Joined</TableHead>
+                  <TableHead className="text-white/70">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -229,26 +270,64 @@ export function AdminUsersTab() {
                           <SelectItem value="free">Free</SelectItem>
                           <SelectItem value="premium">Premium</SelectItem>
                           <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="apple_test">Apple Test</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
                     <TableCell>
-                      <Select 
-                        value={user.status} 
-                        onValueChange={(value) => handleStatusChange(user.id, value)}
-                        disabled={updateUserMutation.isPending}
-                      >
-                        <SelectTrigger className="w-32 h-8 bg-white/5 border-white/10 text-white text-xs" data-testid={`select-status-${user.id}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="suspended">Suspended</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {user.status === 'pending_approval' ? (
+                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Pending
+                        </Badge>
+                      ) : (
+                        <Select 
+                          value={user.status} 
+                          onValueChange={(value) => handleStatusChange(user.id, value)}
+                          disabled={updateUserMutation.isPending}
+                        >
+                          <SelectTrigger className="w-32 h-8 bg-white/5 border-white/10 text-white text-xs" data-testid={`select-status-${user.id}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="suspended">Suspended</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                     <TableCell className="text-white/70 text-sm">
                       {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {user.status === 'pending_approval' ? (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleApprove(user.id)}
+                            disabled={approveUserMutation.isPending || rejectUserMutation.isPending}
+                            className="h-8 px-3 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400"
+                            data-testid={`button-approve-${user.id}`}
+                          >
+                            <Check className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleReject(user.id)}
+                            disabled={approveUserMutation.isPending || rejectUserMutation.isPending}
+                            className="h-8 px-3 bg-red-500/20 hover:bg-red-500/30 text-red-400"
+                            data-testid={`button-reject-${user.id}`}
+                          >
+                            <X className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-white/40 text-sm">—</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

@@ -396,3 +396,85 @@ export async function sendSupportRequestEmail(
     return false;
   }
 }
+
+export async function sendAccountApprovalEmail(email: string, firstName?: string | null): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const name = firstName || 'there';
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'Flō <noreply@get-flo.com>',
+      to: email,
+      subject: 'Welcome to Flō - Your Account is Approved!',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 480px; width: 100%; border-collapse: collapse;">
+                  <!-- Logo -->
+                  <tr>
+                    <td align="center" style="padding-bottom: 32px;">
+                      <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+                        <span style="color: white; font-size: 28px; font-weight: bold;">F</span>
+                      </div>
+                      <h1 style="margin: 16px 0 0 0; color: #ffffff; font-size: 28px; font-weight: 300;">Flō</h1>
+                    </td>
+                  </tr>
+                  
+                  <!-- Card -->
+                  <tr>
+                    <td style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 32px;">
+                      <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 22px; font-weight: 500; text-align: center;">
+                        Welcome to Flō!
+                      </h2>
+                      <p style="margin: 0 0 24px 0; color: rgba(255, 255, 255, 0.7); font-size: 15px; line-height: 1.6; text-align: center;">
+                        Hi ${name}, great news! Your account has been approved. You can now log in and start your personalized health journey.
+                      </p>
+                      
+                      <p style="margin: 0 0 24px 0; color: rgba(255, 255, 255, 0.7); font-size: 15px; line-height: 1.6; text-align: center;">
+                        Upload your lab results, sync with Apple HealthKit, and let Flō's AI provide you with personalized health insights.
+                      </p>
+                      
+                      <p style="margin: 24px 0 0 0; color: rgba(255, 255, 255, 0.5); font-size: 13px; text-align: center;">
+                        Open the Flō app on your device to get started.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td align="center" style="padding-top: 32px;">
+                      <p style="margin: 0; color: rgba(255, 255, 255, 0.4); font-size: 12px;">
+                        © ${new Date().getFullYear()} Flō Health. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: `Welcome to Flō!\n\nHi ${name}, great news! Your account has been approved. You can now log in and start your personalized health journey.\n\nUpload your lab results, sync with Apple HealthKit, and let Flō's AI provide you with personalized health insights.\n\nOpen the Flō app on your device to get started.\n\n© ${new Date().getFullYear()} Flō Health. All rights reserved.`
+    });
+
+    if (error) {
+      logger.error('Failed to send account approval email', { error, email });
+      return false;
+    }
+
+    logger.info('Account approval email sent successfully', { email, messageId: data?.id });
+    return true;
+  } catch (error) {
+    logger.error('Error sending account approval email', { error, email });
+    return false;
+  }
+}
