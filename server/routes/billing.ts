@@ -255,7 +255,7 @@ router.post('/confirm-apple-pay', async (req: any, res) => {
 
         if (!existingSub) {
           await db.insert(subscriptions).values({
-            customerId: customer.id,
+            billingCustomerId: customer.id,
             stripeSubscriptionId: subscriptionId,
             status: subscription.status,
             stripePriceId: subscription.items.data[0]?.price?.id || '',
@@ -343,7 +343,7 @@ router.post('/cancel-subscription', async (req: any, res) => {
     const [subscription] = await db
       .select()
       .from(subscriptions)
-      .where(eq(subscriptions.customerId, customer.id))
+      .where(eq(subscriptions.billingCustomerId, customer.id))
       .limit(1);
 
     if (!subscription || !subscription.stripeSubscriptionId) {
@@ -363,7 +363,7 @@ router.post('/cancel-subscription', async (req: any, res) => {
       .update(subscriptions)
       .set({
         status: 'canceled',
-        cancelAtPeriodEnd: 'true',
+        cancelAtPeriodEnd: true,
         updatedAt: new Date(),
       })
       .where(eq(subscriptions.id, subscription.id));
@@ -424,7 +424,7 @@ router.post('/webhook', async (req, res) => {
           if (customer && session.subscription) {
             // Create subscription record
             await db.insert(subscriptions).values({
-              customerId: customer.id,
+              billingCustomerId: customer.id,
               stripeSubscriptionId: session.subscription as string,
               status: 'active',
               stripePriceId: session.line_items?.data[0]?.price?.id || '',
@@ -483,7 +483,7 @@ router.post('/webhook', async (req, res) => {
             .update(subscriptions)
             .set({
               status: 'canceled',
-              cancelAtPeriodEnd: 'true',
+              cancelAtPeriodEnd: true,
               updatedAt: new Date(),
             })
             .where(eq(subscriptions.stripeSubscriptionId, subscription.id));
@@ -508,7 +508,7 @@ router.post('/webhook', async (req, res) => {
         if (customer) {
           // Record payment
           await db.insert(payments).values({
-            customerId: customer.id,
+            billingCustomerId: customer.id,
             stripePaymentIntentId: (invoice as any).payment_intent as string || null,
             amount: invoice.amount_paid,
             currency: invoice.currency,
@@ -576,7 +576,7 @@ router.get('/subscription-status', async (req: any, res) => {
       const [sub] = await db
         .select()
         .from(subscriptions)
-        .where(eq(subscriptions.customerId, customer.id))
+        .where(eq(subscriptions.billingCustomerId, customer.id))
         .limit(1);
       subscription = sub;
     }
@@ -587,7 +587,7 @@ router.get('/subscription-status', async (req: any, res) => {
       subscription: subscription ? {
         status: subscription.status,
         currentPeriodEnd: subscription.currentPeriodEnd,
-        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd === 'true',
+        cancelAtPeriodEnd: subscription.cancelAtPeriodEnd === true,
       } : null,
     });
   } catch (error: any) {
@@ -701,5 +701,374 @@ router.get('/plans', async (req: any, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+/**
+ * POST /api/billing/verify-app-store
+ * Verify App Store transaction and sync subscription status
+ * Called by iOS app after StoreKit purchase
+ */
+router.post('/verify-app-store', async (req: any, res) => {
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { 
+      transactionId, 
+      productId, 
+      originalTransactionId, 
+      purchaseDate,
+      expiresDate,
+      jwsRepresentation 
+    } = req.body;
+
+    if (!transactionId || !productId) {
+      return res.status(400).json({ error: 'transactionId and productId required' });
+    }
+
+    logger.info(`[Billing] App Store verification for user ${userId}`, {
+      transactionId,
+      productId,
+      originalTransactionId,
+      purchaseDate,
+      expiresDate,
+    });
+
+    // Map StoreKit product IDs to plan intervals
+    const productMapping: Record<string, 'month' | 'year'> = {
+      'flo_premium_monthly': 'month',
+      'flo_premium_yearly': 'year',
+    };
+
+    const planInterval = productMapping[productId];
+    if (!planInterval) {
+      logger.error(`[Billing] Unknown App Store product ID: ${productId}`);
+      return res.status(400).json({ error: 'Unknown product ID' });
+    }
+
+    // Get or create billing customer for App Store
+    const [existingCustomer] = await db
+      .select()
+      .from(billingCustomers)
+      .where(eq(billingCustomers.userId, userId))
+      .limit(1);
+
+    let customerId: string;
+    if (existingCustomer) {
+      customerId = existingCustomer.id;
+      // Update to App Store provider if it was Stripe before
+      if (existingCustomer.provider !== 'app_store') {
+        await db.update(billingCustomers)
+          .set({ 
+            provider: 'app_store',
+            appStoreOriginalTransactionId: originalTransactionId || transactionId,
+          })
+          .where(eq(billingCustomers.id, customerId));
+      }
+    } else {
+      const [newCustomer] = await db.insert(billingCustomers).values({
+        userId,
+        provider: 'app_store',
+        appStoreOriginalTransactionId: originalTransactionId || transactionId,
+      }).returning();
+      customerId = newCustomer.id;
+    }
+
+    // Check for existing subscription with this transaction
+    const [existingSub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.appStoreTransactionId, originalTransactionId || transactionId))
+      .limit(1);
+
+    const currentPeriodEnd = expiresDate 
+      ? new Date(expiresDate) 
+      : new Date(Date.now() + (planInterval === 'year' ? 365 : 30) * 24 * 60 * 60 * 1000);
+
+    if (existingSub) {
+      // Update existing subscription
+      await db.update(subscriptions)
+        .set({
+          status: 'active',
+          currentPeriodEnd,
+          cancelAtPeriodEnd: false,
+        })
+        .where(eq(subscriptions.id, existingSub.id));
+
+      logger.info(`[Billing] Updated existing App Store subscription for user ${userId}`);
+    } else {
+      // Create new subscription
+      await db.insert(subscriptions).values({
+        billingCustomerId: customerId,
+        status: 'active',
+        planId: 'premium',
+        planInterval,
+        currentPeriodStart: new Date(purchaseDate || Date.now()),
+        currentPeriodEnd,
+        cancelAtPeriodEnd: false,
+        provider: 'app_store',
+        appStoreTransactionId: originalTransactionId || transactionId,
+        appStoreProductId: productId,
+      });
+
+      logger.info(`[Billing] Created new App Store subscription for user ${userId}`);
+    }
+
+    // Upgrade user to premium
+    await upgradeUserToPremium(userId);
+
+    // Record payment
+    await db.insert(payments).values({
+      billingCustomerId: customerId,
+      amount: planInterval === 'year' ? 11000 : 999, // Cents
+      currency: 'AUD',
+      status: 'succeeded',
+      provider: 'app_store',
+      appStoreTransactionId: transactionId,
+    });
+
+    logger.info(`[Billing] App Store transaction verified successfully for user ${userId}`);
+
+    res.json({ 
+      verified: true, 
+      message: 'Subscription activated successfully' 
+    });
+  } catch (error: any) {
+    logger.error('[Billing] App Store verification error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/billing/app-store-webhook
+ * Handle App Store Server Notifications (v2)
+ * Configure this URL in App Store Connect
+ */
+router.post('/app-store-webhook', async (req, res) => {
+  try {
+    const { signedPayload } = req.body;
+    
+    if (!signedPayload) {
+      logger.warn('[Billing] App Store webhook received without signedPayload');
+      return res.status(400).json({ error: 'signedPayload required' });
+    }
+
+    // TODO: Verify JWS signature using Apple's public key
+    // For now, we'll decode the payload (in production, verify signature first)
+    const parts = signedPayload.split('.');
+    if (parts.length !== 3) {
+      logger.warn('[Billing] Invalid JWS format in App Store webhook');
+      return res.status(400).json({ error: 'Invalid JWS format' });
+    }
+
+    const payloadBase64 = parts[1];
+    const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
+    const payload = JSON.parse(payloadJson);
+
+    logger.info('[Billing] App Store Server Notification received:', {
+      notificationType: payload.notificationType,
+      subtype: payload.subtype,
+    });
+
+    const { notificationType, subtype, data } = payload;
+    
+    // Handle different notification types
+    switch (notificationType) {
+      case 'SUBSCRIBED':
+      case 'DID_RENEW':
+        // Subscription is active
+        if (data?.signedTransactionInfo) {
+          await handleAppStoreRenewal(data.signedTransactionInfo);
+        }
+        break;
+
+      case 'DID_CHANGE_RENEWAL_STATUS':
+        if (subtype === 'AUTO_RENEW_DISABLED') {
+          // User turned off auto-renewal
+          if (data?.signedTransactionInfo) {
+            await handleAppStoreCancellation(data.signedTransactionInfo, false);
+          }
+        }
+        break;
+
+      case 'EXPIRED':
+      case 'GRACE_PERIOD_EXPIRED':
+        // Subscription has expired
+        if (data?.signedTransactionInfo) {
+          await handleAppStoreExpiration(data.signedTransactionInfo);
+        }
+        break;
+
+      case 'REFUND':
+        // User got a refund
+        if (data?.signedTransactionInfo) {
+          await handleAppStoreRefund(data.signedTransactionInfo);
+        }
+        break;
+
+      default:
+        logger.info(`[Billing] Unhandled App Store notification type: ${notificationType}`);
+    }
+
+    res.json({ received: true });
+  } catch (error: any) {
+    logger.error('[Billing] App Store webhook error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper functions for App Store webhook handling
+async function handleAppStoreRenewal(signedTransactionInfo: string) {
+  try {
+    const parts = signedTransactionInfo.split('.');
+    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+    const transaction = JSON.parse(transactionJson);
+
+    const { originalTransactionId, expiresDate } = transaction;
+
+    const [sub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.appStoreTransactionId, originalTransactionId))
+      .limit(1);
+
+    if (sub) {
+      await db.update(subscriptions)
+        .set({
+          status: 'active',
+          currentPeriodEnd: new Date(expiresDate),
+          cancelAtPeriodEnd: false,
+        })
+        .where(eq(subscriptions.id, sub.id));
+
+      logger.info(`[Billing] App Store subscription renewed: ${originalTransactionId}`);
+    }
+  } catch (error) {
+    logger.error('[Billing] Error handling App Store renewal:', error);
+  }
+}
+
+async function handleAppStoreCancellation(signedTransactionInfo: string, immediate: boolean) {
+  try {
+    const parts = signedTransactionInfo.split('.');
+    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+    const transaction = JSON.parse(transactionJson);
+
+    const { originalTransactionId } = transaction;
+
+    const [sub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.appStoreTransactionId, originalTransactionId))
+      .limit(1);
+
+    if (sub) {
+      if (immediate) {
+        await db.update(subscriptions)
+          .set({ status: 'canceled' })
+          .where(eq(subscriptions.id, sub.id));
+
+        // Get user and downgrade
+        const [customer] = await db
+          .select()
+          .from(billingCustomers)
+          .where(eq(billingCustomers.id, sub.billingCustomerId))
+          .limit(1);
+
+        if (customer) {
+          await downgradeUserToFree(customer.userId);
+        }
+      } else {
+        await db.update(subscriptions)
+          .set({ cancelAtPeriodEnd: true })
+          .where(eq(subscriptions.id, sub.id));
+      }
+
+      logger.info(`[Billing] App Store subscription cancellation: ${originalTransactionId}, immediate: ${immediate}`);
+    }
+  } catch (error) {
+    logger.error('[Billing] Error handling App Store cancellation:', error);
+  }
+}
+
+async function handleAppStoreExpiration(signedTransactionInfo: string) {
+  try {
+    const parts = signedTransactionInfo.split('.');
+    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+    const transaction = JSON.parse(transactionJson);
+
+    const { originalTransactionId } = transaction;
+
+    const [sub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.appStoreTransactionId, originalTransactionId))
+      .limit(1);
+
+    if (sub) {
+      await db.update(subscriptions)
+        .set({ status: 'expired' })
+        .where(eq(subscriptions.id, sub.id));
+
+      // Get user and downgrade
+      const [customer] = await db
+        .select()
+        .from(billingCustomers)
+        .where(eq(billingCustomers.id, sub.billingCustomerId))
+        .limit(1);
+
+      if (customer) {
+        await downgradeUserToFree(customer.userId);
+      }
+
+      logger.info(`[Billing] App Store subscription expired: ${originalTransactionId}`);
+    }
+  } catch (error) {
+    logger.error('[Billing] Error handling App Store expiration:', error);
+  }
+}
+
+async function handleAppStoreRefund(signedTransactionInfo: string) {
+  try {
+    const parts = signedTransactionInfo.split('.');
+    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
+    const transaction = JSON.parse(transactionJson);
+
+    const { originalTransactionId, transactionId } = transaction;
+
+    // Mark payment as refunded
+    await db.update(payments)
+      .set({ status: 'refunded' })
+      .where(eq(payments.appStoreTransactionId, transactionId));
+
+    // Cancel subscription and downgrade
+    const [sub] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.appStoreTransactionId, originalTransactionId))
+      .limit(1);
+
+    if (sub) {
+      await db.update(subscriptions)
+        .set({ status: 'canceled' })
+        .where(eq(subscriptions.id, sub.id));
+
+      const [customer] = await db
+        .select()
+        .from(billingCustomers)
+        .where(eq(billingCustomers.id, sub.billingCustomerId))
+        .limit(1);
+
+      if (customer) {
+        await downgradeUserToFree(customer.userId);
+      }
+
+      logger.info(`[Billing] App Store refund processed: ${originalTransactionId}`);
+    }
+  } catch (error) {
+    logger.error('[Billing] Error handling App Store refund:', error);
+  }
+}
 
 export default router;

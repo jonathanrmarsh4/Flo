@@ -19,7 +19,7 @@ import { z } from "zod";
 // Admin & Billing enums
 export const userRoleEnum = pgEnum("user_role", ["free", "premium", "admin", "apple_test"]);
 export const userStatusEnum = pgEnum("user_status", ["active", "suspended", "pending_approval"]);
-export const billingProviderEnum = pgEnum("billing_provider", ["stripe"]);
+export const billingProviderEnum = pgEnum("billing_provider", ["stripe", "app_store"]);
 export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "incomplete",
   "incomplete_expired",
@@ -27,7 +27,8 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "active",
   "past_due",
   "canceled",
-  "unpaid"
+  "unpaid",
+  "expired"
 ]);
 
 // Auth provider enums
@@ -311,12 +312,13 @@ export const analysisResults = pgTable("analysis_results", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Billing customers table (links users to Stripe)
+// Billing customers table (links users to Stripe or App Store)
 export const billingCustomers = pgTable("billing_customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
   provider: billingProviderEnum("provider").default("stripe").notNull(),
   stripeCustomerId: varchar("stripe_customer_id").unique(),
+  appStoreOriginalTransactionId: varchar("app_store_original_transaction_id"),
   countryCode: varchar("country_code", { length: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -325,24 +327,31 @@ export const billingCustomers = pgTable("billing_customers", {
 // Subscriptions table
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
+  billingCustomerId: varchar("billing_customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
   stripeSubscriptionId: varchar("stripe_subscription_id").unique(),
   stripePriceId: varchar("stripe_price_id"),
+  provider: billingProviderEnum("provider").default("stripe"),
+  planId: varchar("plan_id").default("premium"),
+  planInterval: varchar("plan_interval"),
+  appStoreTransactionId: varchar("app_store_transaction_id"),
+  appStoreProductId: varchar("app_store_product_id"),
   status: subscriptionStatusEnum("status").notNull(),
   currentPeriodStart: timestamp("current_period_start"),
   currentPeriodEnd: timestamp("current_period_end"),
-  cancelAtPeriodEnd: text("cancel_at_period_end").default("false"),
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Payments table (for Apple Pay metadata)
+// Payments table (for App Store and Stripe transactions)
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
+  billingCustomerId: varchar("billing_customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
   stripePaymentIntentId: varchar("stripe_payment_intent_id").unique(),
+  provider: billingProviderEnum("provider").default("stripe"),
+  appStoreTransactionId: varchar("app_store_transaction_id"),
   amount: integer("amount").notNull(),
-  currency: varchar("currency", { length: 3 }).default("usd"),
+  currency: varchar("currency", { length: 3 }).default("aud"),
   status: text("status").notNull(),
   paymentMethod: text("payment_method"),
   last4: varchar("last4", { length: 4 }),
