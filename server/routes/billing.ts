@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import Stripe from 'stripe';
-import * as jose from 'jose';
+import { 
+  SignedDataVerifier, 
+  AppStoreServerAPIClient, 
+  Environment,
+  JWSTransactionDecodedPayload,
+  VerificationException
+} from '@apple/app-store-server-library';
 import { db } from '../db';
 import { billingCustomers, subscriptions, payments, users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
@@ -8,15 +14,157 @@ import { logger } from '../logger';
 import { upgradeUserToPremium, downgradeUserToFree, getUserPlan, getUserFeatures, getUserLimits } from '../services/planService';
 import { PLANS, PRICING } from '../config/plans';
 import { PAYWALL_MODALS } from '../config/paywallModals';
+import { getAppleRootCertificates } from '../config/appleRootCerts';
 
 // App Store configuration
-const APP_STORE_BUNDLE_ID = 'com.getflo.app';
-const APP_STORE_ISSUER_ID = 'App Store'; // For environment checking
+const APP_STORE_BUNDLE_ID = process.env.APP_STORE_BUNDLE_ID || 'com.getflo.app';
+const APP_STORE_ISSUER_ID = process.env.APP_STORE_ISSUER_ID || '';
+const APP_STORE_KEY_ID = process.env.APP_STORE_KEY_ID || '';
+const APP_STORE_PRIVATE_KEY = process.env.APP_STORE_PRIVATE_KEY || '';
+const APP_STORE_APP_APPLE_ID = process.env.APP_STORE_APP_APPLE_ID ? Number(process.env.APP_STORE_APP_APPLE_ID) : undefined;
 const VALID_PRODUCT_IDS = ['flo_premium_monthly', 'flo_premium_yearly'];
 
+// Determine environment based on NODE_ENV
+const isProduction = process.env.NODE_ENV === 'production';
+const appStoreEnvironment = isProduction ? Environment.PRODUCTION : Environment.SANDBOX;
+
+// Security: Explicit toggle for JWS verification requirement
+// Defaults to true in production, can be explicitly set via env var
+// Set APP_STORE_REQUIRE_VERIFICATION=true in staging to enforce verification regardless of NODE_ENV
+const REQUIRE_JWS_VERIFICATION = process.env.APP_STORE_REQUIRE_VERIFICATION === 'false' 
+  ? false 
+  : (process.env.APP_STORE_REQUIRE_VERIFICATION === 'true' || isProduction);
+
+// Validate required configuration at startup for production
+if (REQUIRE_JWS_VERIFICATION) {
+  if (!APP_STORE_APP_APPLE_ID) {
+    logger.error('[AppStore] CRITICAL: APP_STORE_APP_APPLE_ID is required when JWS verification is enabled');
+    logger.error('[AppStore] Set APP_STORE_APP_APPLE_ID to your App Store app ID from App Store Connect');
+  }
+  
+  logger.info('[AppStore] JWS verification ENABLED', {
+    environment: appStoreEnvironment,
+    bundleId: APP_STORE_BUNDLE_ID,
+    appAppleId: APP_STORE_APP_APPLE_ID,
+    requireVerification: REQUIRE_JWS_VERIFICATION,
+  });
+} else {
+  logger.warn('[AppStore] JWS verification DISABLED - decode-only mode (DEVELOPMENT ONLY)');
+}
+
 /**
- * Decode and validate a StoreKit 2 JWS transaction
- * StoreKit 2 transactions are signed JWTs from Apple
+ * Initialize App Store Server API client and verifier
+ * These use Apple's official library for cryptographic verification
+ */
+let signedDataVerifier: SignedDataVerifier | null = null;
+let appStoreClient: AppStoreServerAPIClient | null = null;
+let verifierInitFailed = false;
+
+// Load Apple Root Certificates for JWS verification
+// These are Apple's official root CA certificates (G2, G3, and Inc Root)
+// Source: https://www.apple.com/certificateauthority/
+let appleRootCertificates: Buffer[] | null = null;
+
+function loadAppleRootCertificates(): Buffer[] {
+  if (appleRootCertificates) return appleRootCertificates;
+  
+  try {
+    appleRootCertificates = getAppleRootCertificates();
+    logger.info('[AppStore] Loaded Apple Root Certificates', {
+      count: appleRootCertificates.length,
+    });
+    return appleRootCertificates;
+  } catch (error) {
+    logger.error('[AppStore] CRITICAL: Failed to load Apple Root Certificates:', error);
+    return [];
+  }
+}
+
+// Initialize the verifier with Apple's root certificates
+function getSignedDataVerifier(): SignedDataVerifier | null {
+  if (signedDataVerifier) return signedDataVerifier;
+  if (verifierInitFailed) return null;
+  
+  const rootCerts = loadAppleRootCertificates();
+  
+  if (rootCerts.length === 0) {
+    verifierInitFailed = true;
+    logger.error('[AppStore] CRITICAL: No Apple Root Certificates available - verification impossible');
+    return null;
+  }
+  
+  // For Production environment, APP_STORE_APP_APPLE_ID is required
+  if (appStoreEnvironment === Environment.PRODUCTION && !APP_STORE_APP_APPLE_ID) {
+    verifierInitFailed = true;
+    logger.error('[AppStore] CRITICAL: APP_STORE_APP_APPLE_ID is required for Production environment');
+    logger.error('[AppStore] Get your App Apple ID from App Store Connect → App Information → General Information');
+    return null;
+  }
+  
+  try {
+    // Initialize SignedDataVerifier with Apple's root certificates
+    // enableOnlineChecks performs OCSP revocation checking
+    signedDataVerifier = new SignedDataVerifier(
+      rootCerts,
+      true, // enableOnlineChecks - validates certificate revocation via OCSP
+      appStoreEnvironment,
+      APP_STORE_BUNDLE_ID,
+      APP_STORE_APP_APPLE_ID // Required for Production environment
+    );
+    logger.info('[AppStore] SignedDataVerifier initialized successfully', {
+      environment: appStoreEnvironment,
+      bundleId: APP_STORE_BUNDLE_ID,
+      appAppleId: APP_STORE_APP_APPLE_ID,
+      rootCertsLoaded: rootCerts.length,
+      onlineChecks: true,
+    });
+    return signedDataVerifier;
+  } catch (error) {
+    verifierInitFailed = true;
+    logger.error('[AppStore] CRITICAL: Failed to initialize SignedDataVerifier:', error);
+    if (REQUIRE_JWS_VERIFICATION) {
+      logger.error('[AppStore] Verification required: All App Store transactions will be rejected');
+    }
+    return null;
+  }
+}
+
+function getAppStoreClient(): AppStoreServerAPIClient | null {
+  if (appStoreClient) return appStoreClient;
+  
+  if (!APP_STORE_ISSUER_ID || !APP_STORE_KEY_ID || !APP_STORE_PRIVATE_KEY) {
+    if (isProduction) {
+      logger.error('[AppStore] CRITICAL: App Store Server API credentials not configured in production');
+    } else {
+      logger.warn('[AppStore] App Store Server API credentials not configured (development mode)');
+    }
+    return null;
+  }
+  
+  // Validate private key format
+  if (!APP_STORE_PRIVATE_KEY.includes('-----BEGIN PRIVATE KEY-----')) {
+    logger.error('[AppStore] CRITICAL: APP_STORE_PRIVATE_KEY must be in PEM format');
+    return null;
+  }
+  
+  try {
+    appStoreClient = new AppStoreServerAPIClient(
+      APP_STORE_PRIVATE_KEY,
+      APP_STORE_KEY_ID,
+      APP_STORE_ISSUER_ID,
+      APP_STORE_BUNDLE_ID,
+      appStoreEnvironment
+    );
+    logger.info('[AppStore] AppStoreServerAPIClient initialized successfully');
+    return appStoreClient;
+  } catch (error) {
+    logger.error('[AppStore] Failed to initialize AppStoreServerAPIClient:', error);
+    return null;
+  }
+}
+
+/**
+ * Decoded App Store Transaction type
  */
 interface DecodedAppStoreTransaction {
   transactionId: string;
@@ -28,30 +176,93 @@ interface DecodedAppStoreTransaction {
   environment: 'Production' | 'Sandbox' | 'Xcode';
   type: string;
   inAppOwnershipType?: string;
+  verified: boolean;
 }
 
-async function decodeAndValidateJWS(jwsString: string): Promise<DecodedAppStoreTransaction | null> {
+/**
+ * Verify a StoreKit 2 JWS transaction using Apple's official library
+ * This performs cryptographic signature verification
+ * 
+ * SECURITY: In production, returns null if verification cannot be performed
+ */
+async function verifyAndDecodeJWS(jwsString: string): Promise<DecodedAppStoreTransaction | null> {
+  const verifier = getSignedDataVerifier();
+  
+  if (verifier) {
+    try {
+      // Use Apple's library to verify the signature and decode the payload
+      const decodedTransaction = await verifier.verifyAndDecodeTransaction(jwsString);
+      
+      logger.info('[AppStore] JWS verified successfully:', {
+        transactionId: decodedTransaction.transactionId,
+        productId: decodedTransaction.productId,
+        bundleId: decodedTransaction.bundleId,
+        environment: decodedTransaction.environment,
+      });
+
+      // Validate product ID is one we recognize
+      if (!VALID_PRODUCT_IDS.includes(decodedTransaction.productId || '')) {
+        logger.error('[AppStore] Invalid product ID:', decodedTransaction.productId);
+        return null;
+      }
+
+      return {
+        transactionId: String(decodedTransaction.transactionId),
+        originalTransactionId: String(decodedTransaction.originalTransactionId || decodedTransaction.transactionId),
+        productId: decodedTransaction.productId || '',
+        bundleId: decodedTransaction.bundleId || '',
+        purchaseDate: Number(decodedTransaction.purchaseDate),
+        expiresDate: decodedTransaction.expiresDate ? Number(decodedTransaction.expiresDate) : undefined,
+        environment: decodedTransaction.environment as 'Production' | 'Sandbox' | 'Xcode',
+        type: decodedTransaction.type || '',
+        inAppOwnershipType: decodedTransaction.inAppOwnershipType,
+        verified: true,
+      };
+    } catch (error) {
+      if (error instanceof VerificationException) {
+        logger.error('[AppStore] JWS verification failed:', {
+          status: error.status,
+          message: error.message,
+        });
+      } else {
+        logger.error('[AppStore] JWS verification error:', error);
+      }
+      return null;
+    }
+  }
+  
+  // SECURITY: In production, reject transactions when verifier is unavailable
+  if (REQUIRE_JWS_VERIFICATION) {
+    logger.error('[AppStore] SECURITY: Verifier unavailable in production - rejecting transaction');
+    return null;
+  }
+  
+  // Development only: Decode without verification
+  logger.warn('[AppStore] DEVELOPMENT ONLY: Verifier not available, using decode-only (NOT SECURE)');
+  return decodeJWSWithoutVerification(jwsString);
+}
+
+/**
+ * Decode JWS without cryptographic verification
+ * ONLY used as fallback when verifier is not available
+ */
+function decodeJWSWithoutVerification(jwsString: string): DecodedAppStoreTransaction | null {
   try {
-    // Decode the JWS without verification (StoreKit 2 local transactions)
-    // In production, you would verify using Apple's root certificate
     const parts = jwsString.split('.');
     if (parts.length !== 3) {
       logger.error('[AppStore] Invalid JWS format - expected 3 parts');
       return null;
     }
 
-    // Decode the payload (middle part)
     const payloadBase64 = parts[1];
-    // Handle base64url encoding
     const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
     const payloadJson = Buffer.from(base64, 'base64').toString('utf-8');
     const payload = JSON.parse(payloadJson);
 
-    logger.info('[AppStore] Decoded JWS payload:', {
+    logger.warn('[AppStore] Decoded JWS WITHOUT verification:', {
       transactionId: payload.transactionId,
       productId: payload.productId,
       bundleId: payload.bundleId,
-      environment: payload.environment,
     });
 
     // Validate bundle ID matches our app
@@ -63,7 +274,6 @@ async function decodeAndValidateJWS(jwsString: string): Promise<DecodedAppStoreT
       return null;
     }
 
-    // Validate product ID is one we recognize
     if (!VALID_PRODUCT_IDS.includes(payload.productId)) {
       logger.error('[AppStore] Invalid product ID:', payload.productId);
       return null;
@@ -79,6 +289,7 @@ async function decodeAndValidateJWS(jwsString: string): Promise<DecodedAppStoreT
       environment: payload.environment,
       type: payload.type,
       inAppOwnershipType: payload.inAppOwnershipType,
+      verified: false, // Mark as NOT verified
     };
   } catch (error) {
     logger.error('[AppStore] Failed to decode JWS:', error);
@@ -87,21 +298,38 @@ async function decodeAndValidateJWS(jwsString: string): Promise<DecodedAppStoreT
 }
 
 /**
- * Verify App Store Server Notification JWS (webhook)
- * These are signed differently than client transactions
+ * Verify and decode App Store Server Notification JWS
+ * 
+ * SECURITY: In production, returns null if verification cannot be performed
  */
-async function decodeServerNotificationJWS(signedPayload: string): Promise<any | null> {
-  try {
-    const parts = signedPayload.split('.');
-    if (parts.length !== 3) {
-      logger.error('[AppStore] Invalid notification JWS format');
+async function verifyAndDecodeNotification(signedPayload: string): Promise<any | null> {
+  const verifier = getSignedDataVerifier();
+  
+  if (verifier) {
+    try {
+      const decodedNotification = await verifier.verifyAndDecodeNotification(signedPayload);
+      logger.info('[AppStore] Notification verified successfully');
+      return decodedNotification;
+    } catch (error) {
+      logger.error('[AppStore] Notification verification failed:', error);
       return null;
     }
-
+  }
+  
+  // SECURITY: In production, reject notifications when verifier is unavailable
+  if (REQUIRE_JWS_VERIFICATION) {
+    logger.error('[AppStore] SECURITY: Verifier unavailable in production - rejecting notification');
+    return null;
+  }
+  
+  // Development only: Decode without verification
+  logger.warn('[AppStore] DEVELOPMENT ONLY: Notification verifier not available, using decode-only');
+  try {
+    const parts = signedPayload.split('.');
+    if (parts.length !== 3) return null;
     const payloadBase64 = parts[1];
     const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
-    const payloadJson = Buffer.from(base64, 'base64').toString('utf-8');
-    return JSON.parse(payloadJson);
+    return JSON.parse(Buffer.from(base64, 'base64').toString('utf-8'));
   } catch (error) {
     logger.error('[AppStore] Failed to decode notification:', error);
     return null;
@@ -835,11 +1063,11 @@ router.post('/verify-app-store', async (req: any, res) => {
       hasJWS: !!jwsRepresentation,
     });
 
-    // If JWS is provided, validate it (StoreKit 2)
+    // If JWS is provided, verify it cryptographically (StoreKit 2)
     let verifiedTransaction: DecodedAppStoreTransaction | null = null;
     
     if (jwsRepresentation) {
-      verifiedTransaction = await decodeAndValidateJWS(jwsRepresentation);
+      verifiedTransaction = await verifyAndDecodeJWS(jwsRepresentation);
       
       if (!verifiedTransaction) {
         logger.error('[Billing] JWS verification failed for transaction:', transactionId);
@@ -993,6 +1221,8 @@ router.post('/verify-app-store', async (req: any, res) => {
  * POST /api/billing/app-store-webhook
  * Handle App Store Server Notifications (v2)
  * Configure this URL in App Store Connect
+ * 
+ * Security: Uses Apple's official library for JWS signature verification
  */
 router.post('/app-store-webhook', async (req, res) => {
   try {
@@ -1003,17 +1233,13 @@ router.post('/app-store-webhook', async (req, res) => {
       return res.status(400).json({ error: 'signedPayload required' });
     }
 
-    // TODO: Verify JWS signature using Apple's public key
-    // For now, we'll decode the payload (in production, verify signature first)
-    const parts = signedPayload.split('.');
-    if (parts.length !== 3) {
-      logger.warn('[Billing] Invalid JWS format in App Store webhook');
-      return res.status(400).json({ error: 'Invalid JWS format' });
+    // Verify and decode the notification using Apple's library
+    const payload = await verifyAndDecodeNotification(signedPayload);
+    
+    if (!payload) {
+      logger.error('[Billing] App Store webhook JWS verification failed');
+      return res.status(400).json({ error: 'Invalid notification signature' });
     }
-
-    const payloadBase64 = parts[1];
-    const payloadJson = Buffer.from(payloadBase64, 'base64').toString('utf-8');
-    const payload = JSON.parse(payloadJson);
 
     logger.info('[Billing] App Store Server Notification received:', {
       notificationType: payload.notificationType,
@@ -1068,11 +1294,15 @@ router.post('/app-store-webhook', async (req, res) => {
 });
 
 // Helper functions for App Store webhook handling
+// Note: These use verifyAndDecodeJWS for cryptographic verification
+
 async function handleAppStoreRenewal(signedTransactionInfo: string) {
   try {
-    const parts = signedTransactionInfo.split('.');
-    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
-    const transaction = JSON.parse(transactionJson);
+    const transaction = await verifyAndDecodeJWS(signedTransactionInfo);
+    if (!transaction) {
+      logger.error('[Billing] Failed to verify renewal transaction');
+      return;
+    }
 
     const { originalTransactionId, expiresDate } = transaction;
 
@@ -1086,12 +1316,12 @@ async function handleAppStoreRenewal(signedTransactionInfo: string) {
       await db.update(subscriptions)
         .set({
           status: 'active',
-          currentPeriodEnd: new Date(expiresDate),
+          currentPeriodEnd: expiresDate ? new Date(expiresDate) : sub.currentPeriodEnd,
           cancelAtPeriodEnd: false,
         })
         .where(eq(subscriptions.id, sub.id));
 
-      logger.info(`[Billing] App Store subscription renewed: ${originalTransactionId}`);
+      logger.info(`[Billing] App Store subscription renewed: ${originalTransactionId} (verified: ${transaction.verified})`);
     }
   } catch (error) {
     logger.error('[Billing] Error handling App Store renewal:', error);
@@ -1100,9 +1330,11 @@ async function handleAppStoreRenewal(signedTransactionInfo: string) {
 
 async function handleAppStoreCancellation(signedTransactionInfo: string, immediate: boolean) {
   try {
-    const parts = signedTransactionInfo.split('.');
-    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
-    const transaction = JSON.parse(transactionJson);
+    const transaction = await verifyAndDecodeJWS(signedTransactionInfo);
+    if (!transaction) {
+      logger.error('[Billing] Failed to verify cancellation transaction');
+      return;
+    }
 
     const { originalTransactionId } = transaction;
 
@@ -1134,7 +1366,7 @@ async function handleAppStoreCancellation(signedTransactionInfo: string, immedia
           .where(eq(subscriptions.id, sub.id));
       }
 
-      logger.info(`[Billing] App Store subscription cancellation: ${originalTransactionId}, immediate: ${immediate}`);
+      logger.info(`[Billing] App Store subscription cancellation: ${originalTransactionId}, immediate: ${immediate} (verified: ${transaction.verified})`);
     }
   } catch (error) {
     logger.error('[Billing] Error handling App Store cancellation:', error);
@@ -1143,9 +1375,11 @@ async function handleAppStoreCancellation(signedTransactionInfo: string, immedia
 
 async function handleAppStoreExpiration(signedTransactionInfo: string) {
   try {
-    const parts = signedTransactionInfo.split('.');
-    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
-    const transaction = JSON.parse(transactionJson);
+    const transaction = await verifyAndDecodeJWS(signedTransactionInfo);
+    if (!transaction) {
+      logger.error('[Billing] Failed to verify expiration transaction');
+      return;
+    }
 
     const { originalTransactionId } = transaction;
 
@@ -1171,7 +1405,7 @@ async function handleAppStoreExpiration(signedTransactionInfo: string) {
         await downgradeUserToFree(customer.userId);
       }
 
-      logger.info(`[Billing] App Store subscription expired: ${originalTransactionId}`);
+      logger.info(`[Billing] App Store subscription expired: ${originalTransactionId} (verified: ${transaction.verified})`);
     }
   } catch (error) {
     logger.error('[Billing] Error handling App Store expiration:', error);
@@ -1180,9 +1414,11 @@ async function handleAppStoreExpiration(signedTransactionInfo: string) {
 
 async function handleAppStoreRefund(signedTransactionInfo: string) {
   try {
-    const parts = signedTransactionInfo.split('.');
-    const transactionJson = Buffer.from(parts[1], 'base64').toString('utf-8');
-    const transaction = JSON.parse(transactionJson);
+    const transaction = await verifyAndDecodeJWS(signedTransactionInfo);
+    if (!transaction) {
+      logger.error('[Billing] Failed to verify refund transaction');
+      return;
+    }
 
     const { originalTransactionId, transactionId } = transaction;
 
@@ -1213,7 +1449,7 @@ async function handleAppStoreRefund(signedTransactionInfo: string) {
         await downgradeUserToFree(customer.userId);
       }
 
-      logger.info(`[Billing] App Store refund processed: ${originalTransactionId}`);
+      logger.info(`[Billing] App Store refund processed: ${originalTransactionId} (verified: ${transaction.verified})`);
     }
   } catch (error) {
     logger.error('[Billing] Error handling App Store refund:', error);
