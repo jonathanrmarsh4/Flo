@@ -49,6 +49,7 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
     const { data, error } = await client.emails.send({
       from: fromEmail || 'Flō <noreply@get-flo.com>',
       to: email,
+      replyTo: 'support@nuvitaelabs.com',
       subject: 'Reset Your Flō Password',
       html: `
         <!DOCTYPE html>
@@ -139,6 +140,7 @@ export async function sendWelcomeEmail(email: string, firstName?: string): Promi
     const { data, error } = await client.emails.send({
       from: fromEmail || 'Flō <noreply@get-flo.com>',
       to: email,
+      replyTo: 'support@nuvitaelabs.com',
       subject: 'Welcome to Flō',
       html: `
         <!DOCTYPE html>
