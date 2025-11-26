@@ -11,7 +11,7 @@ import { FloBottomNav } from "@/components/FloBottomNav";
 import { Target, ListChecks, Filter, X } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 
-type CategoryFilter = 'all' | 'sleep_quality' | 'performance_activity' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
+type CategoryFilter = 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
 
 export default function ActionsScreen() {
   const { toast } = useToast();
@@ -98,7 +98,7 @@ export default function ActionsScreen() {
   const categoryFilterOptions = [
     { value: 'all' as CategoryFilter, label: 'All' },
     { value: 'sleep_quality' as CategoryFilter, label: 'Sleep' },
-    { value: 'performance_activity' as CategoryFilter, label: 'Activity' },
+    { value: 'activity_sleep' as CategoryFilter, label: 'Activity' },
     { value: 'biomarkers' as CategoryFilter, label: 'Biomarkers' },
     { value: 'recovery_hrv' as CategoryFilter, label: 'Recovery' },
     { value: 'nutrition' as CategoryFilter, label: 'Nutrition' },

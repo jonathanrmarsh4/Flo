@@ -21,7 +21,7 @@ const categoryColors = {
     text: 'text-indigo-400',
     border: 'border-indigo-500/30'
   },
-  performance_activity: {
+  activity_sleep: {
     bg: 'from-orange-500/20 to-red-500/20',
     text: 'text-orange-400',
     border: 'border-orange-500/30'
@@ -57,7 +57,7 @@ const getCategoryLabel = (category: string) => {
       return 'Sleep';
     case 'recovery_hrv':
       return 'Recovery';
-    case 'performance_activity':
+    case 'activity_sleep':
       return 'Activity';
     case 'biomarkers':
       return 'Biomarkers';

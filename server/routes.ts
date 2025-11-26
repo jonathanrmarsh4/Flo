@@ -7066,18 +7066,18 @@ ${userContext}`;
     }
 
     try {
-      // Validate required fields
+      // Validate required fields (accept null values from JSON as well as undefined)
       const schema = z.object({
-        dailyInsightId: z.string().optional(),
+        dailyInsightId: z.string().optional().nullable(),
         snapshotTitle: z.string(),
         snapshotInsight: z.string(),
         snapshotAction: z.string(),
         category: z.string(),
-        targetBiomarker: z.string().optional(),
-        currentValue: z.number().optional(),
-        targetValue: z.number().optional(),
-        unit: z.string().optional(),
-        metadata: z.any().optional(),
+        targetBiomarker: z.string().optional().nullable(),
+        currentValue: z.number().optional().nullable(),
+        targetValue: z.number().optional().nullable(),
+        unit: z.string().optional().nullable(),
+        metadata: z.any().optional().nullable(),
       });
 
       const validationResult = schema.safeParse(req.body);

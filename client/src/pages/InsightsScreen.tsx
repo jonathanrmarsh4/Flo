@@ -25,7 +25,7 @@ const categoryColors = {
     text: 'text-indigo-400',
     border: 'border-indigo-500/30'
   },
-  performance_activity: {
+  activity_sleep: {
     bg: 'from-orange-500/20 to-red-500/20',
     text: 'text-orange-400',
     border: 'border-orange-500/30'
@@ -61,7 +61,7 @@ const getCategoryLabel = (category: string) => {
       return 'Sleep';
     case 'recovery_hrv':
       return 'Recovery';
-    case 'performance_activity':
+    case 'activity_sleep':
       return 'Activity';
     case 'biomarkers':
       return 'Biomarkers';
@@ -72,7 +72,7 @@ const getCategoryLabel = (category: string) => {
   }
 };
 
-type CategoryFilter = 'all' | 'sleep_quality' | 'performance_activity' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
+type CategoryFilter = 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
 
 export default function InsightsScreen() {
   const { toast } = useToast();
@@ -137,7 +137,7 @@ export default function InsightsScreen() {
   const categoryFilterOptions = [
     { value: 'all' as CategoryFilter, label: 'All' },
     { value: 'sleep_quality' as CategoryFilter, label: 'Sleep' },
-    { value: 'performance_activity' as CategoryFilter, label: 'Activity' },
+    { value: 'activity_sleep' as CategoryFilter, label: 'Activity' },
     { value: 'biomarkers' as CategoryFilter, label: 'Biomarkers' },
     { value: 'recovery_hrv' as CategoryFilter, label: 'Recovery' },
     { value: 'nutrition' as CategoryFilter, label: 'Nutrition' },
