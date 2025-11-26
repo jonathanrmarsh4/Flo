@@ -111,7 +111,8 @@ router.post('/create-checkout-session', async (req: any, res) => {
 
 /**
  * POST /api/billing/create-payment-intent
- * Create payment intent for one-time payment (if needed)
+ * Create payment intent for Apple Pay subscription
+ * Returns clientSecret for native payment sheet
  */
 router.post('/create-payment-intent', async (req: any, res) => {
   if (!stripe) {
@@ -119,17 +120,189 @@ router.post('/create-payment-intent', async (req: any, res) => {
   }
 
   try {
-    const { amount } = req.body;
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
-      currency: 'usd',
-      payment_method_types: ['card'],
-      // Apple Pay is automatically enabled in payment_method_types when card is included
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { priceId } = req.body;
+    if (!priceId || typeof priceId !== 'string') {
+      return res.status(400).json({ error: 'Invalid priceId' });
+    }
+
+    // Validate priceId is one we recognize
+    const validPriceIds = [
+      PRICING.PREMIUM_MONTHLY.priceId,
+      PRICING.PREMIUM_YEARLY.priceId,
+    ];
+    if (!validPriceIds.includes(priceId)) {
+      return res.status(400).json({ error: 'Invalid priceId' });
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user || !user.email) {
+      return res.status(400).json({ error: 'User email required' });
+    }
+
+    // Create or get Stripe customer
+    let stripeCustomerId: string;
+    const [existingCustomer] = await db
+      .select()
+      .from(billingCustomers)
+      .where(eq(billingCustomers.userId, userId))
+      .limit(1);
+
+    if (existingCustomer?.stripeCustomerId) {
+      stripeCustomerId = existingCustomer.stripeCustomerId;
+    } else {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        metadata: {
+          userId,
+        },
+      });
+      stripeCustomerId = customer.id;
+
+      await db.insert(billingCustomers).values({
+        userId,
+        stripeCustomerId: customer.id,
+        provider: 'stripe',
+      });
+    }
+
+    // Create subscription with incomplete payment (for Apple Pay)
+    const subscription = await stripe.subscriptions.create({
+      customer: stripeCustomerId,
+      items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: {
+        save_default_payment_method: 'on_subscription',
+      },
+      expand: ['latest_invoice.payment_intent'],
+      metadata: {
+        userId,
+      },
     });
 
-    res.json({ clientSecret: paymentIntent.client_secret });
+    const invoice = subscription.latest_invoice as any;
+    const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
+
+    if (!paymentIntent?.client_secret) {
+      return res.status(500).json({ error: 'Failed to create payment intent' });
+    }
+
+    logger.info(`[Billing] Created Apple Pay subscription intent for user ${userId}`);
+
+    res.json({ 
+      clientSecret: paymentIntent.client_secret,
+      subscriptionId: subscription.id,
+    });
   } catch (error: any) {
     logger.error('[Billing] Create payment intent error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/billing/confirm-apple-pay
+ * Confirm Apple Pay subscription completion and upgrade user
+ */
+router.post('/confirm-apple-pay', async (req: any, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured' });
+  }
+
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { subscriptionId } = req.body;
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'subscriptionId required' });
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    if (subscription.status === 'active' || subscription.status === 'trialing') {
+      const [customer] = await db
+        .select()
+        .from(billingCustomers)
+        .where(eq(billingCustomers.userId, userId))
+        .limit(1);
+
+      if (customer) {
+        const [existingSub] = await db
+          .select()
+          .from(subscriptions)
+          .where(eq(subscriptions.stripeSubscriptionId, subscriptionId))
+          .limit(1);
+
+        if (!existingSub) {
+          await db.insert(subscriptions).values({
+            customerId: customer.id,
+            stripeSubscriptionId: subscriptionId,
+            status: subscription.status,
+            stripePriceId: subscription.items.data[0]?.price?.id || '',
+            currentPeriodStart: new Date((subscription as any).current_period_start * 1000),
+            currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
+          });
+        }
+      }
+
+      await upgradeUserToPremium(userId);
+
+      logger.info(`[Billing] Apple Pay confirmed - user ${userId} upgraded to premium`);
+      res.json({ success: true, message: 'Subscription activated!' });
+    } else {
+      logger.warn(`[Billing] Apple Pay subscription ${subscriptionId} is ${subscription.status}, not active`);
+      res.status(400).json({ error: `Subscription is ${subscription.status}` });
+    }
+  } catch (error: any) {
+    logger.error('[Billing] Confirm Apple Pay error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/billing/cancel-incomplete-subscription
+ * Cancel an incomplete subscription (e.g., when Apple Pay is cancelled)
+ */
+router.post('/cancel-incomplete-subscription', async (req: any, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured' });
+  }
+
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { subscriptionId } = req.body;
+    if (!subscriptionId) {
+      return res.status(400).json({ error: 'subscriptionId required' });
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+    if (subscription.status === 'incomplete') {
+      await stripe.subscriptions.cancel(subscriptionId);
+      logger.info(`[Billing] Cancelled incomplete subscription ${subscriptionId} for user ${userId}`);
+      res.json({ success: true, message: 'Subscription cancelled' });
+    } else {
+      logger.info(`[Billing] Subscription ${subscriptionId} is ${subscription.status}, not cancelling`);
+      res.json({ success: true, message: 'No action needed' });
+    }
+  } catch (error: any) {
+    logger.error('[Billing] Cancel incomplete subscription error:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -9,11 +9,27 @@ import { usePlan, useAvailablePlans } from '@/hooks/usePlan';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { isApplePayAvailable, payWithApplePay, isNativePlatform, getPlatform } from '@/lib/stripe-native';
 
 export default function BillingPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [selectedPeriod, setSelectedPeriod] = useState<'monthly' | 'annual'>('monthly');
+  const [canUseApplePay, setCanUseApplePay] = useState(false);
+  const [isProcessingApplePay, setIsProcessingApplePay] = useState(false);
+
+  useEffect(() => {
+    async function checkApplePay() {
+      const isNative = await isNativePlatform();
+      const platform = await getPlatform();
+      if (isNative && platform === 'ios') {
+        const available = await isApplePayAvailable();
+        setCanUseApplePay(available);
+        console.log('[Billing] Apple Pay available:', available);
+      }
+    }
+    checkApplePay();
+  }, []);
   
   const { data: planData, isLoading: planLoading } = usePlan();
   const { data: availablePlansData, isLoading: plansLoading } = useAvailablePlans();
@@ -75,6 +91,37 @@ export default function BillingPage() {
       });
     },
   });
+
+  const handleApplePaySubscription = async (priceId: string, amount: number) => {
+    setIsProcessingApplePay(true);
+    try {
+      const label = selectedPeriod === 'monthly' ? 'Flō Premium (Monthly)' : 'Flō Premium (Annual)';
+      const result = await payWithApplePay(priceId, amount, label);
+      
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['/api/billing/plan'] });
+        toast({
+          title: 'Welcome to Premium!',
+          description: 'Your subscription is now active.',
+        });
+        setLocation('/');
+      } else {
+        toast({
+          title: 'Payment Failed',
+          description: result.error || 'Apple Pay payment was not completed',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Payment Error',
+        description: error.message || 'An error occurred during payment',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingApplePay(false);
+    }
+  };
 
   if (planLoading || plansLoading) {
     return (
@@ -266,9 +313,41 @@ export default function BillingPage() {
                   <PremiumFeature text="Advanced health analytics" />
                 </div>
               </CardContent>
-              <CardFooter>
+              <CardFooter className="flex-col gap-3">
+                {canUseApplePay && (
+                  <Button
+                    className="w-full gap-2 bg-black hover:bg-gray-900 text-white"
+                    size="lg"
+                    onClick={() => {
+                      const priceId = selectedPeriod === 'monthly'
+                        ? premiumPricing?.monthly?.stripePriceId
+                        : premiumPricing?.annual?.stripePriceId;
+                      const amount = selectedPeriod === 'monthly' ? monthlyPrice : annualPrice;
+                      if (priceId) {
+                        handleApplePaySubscription(priceId, amount);
+                      }
+                    }}
+                    disabled={isProcessingApplePay}
+                    data-testid="button-apple-pay"
+                  >
+                    {isProcessingApplePay ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="20" height="20" viewBox="0 0 32 32" fill="none" className="mr-1">
+                          <path d="M20.5 8.5c-.8 0-1.5-.3-2.1-.8-.5-.5-.9-1.3-.9-2.2 0-.1 0-.2.1-.2.1 0 .2 0 .2.1 1.1.4 2 1.5 2 2.8 0 .1 0 .2-.1.2-.1.1-.1.1-.2.1zm3.9 1.8c-1.2 0-2.1.6-2.8.6-.7 0-1.8-.6-3-.6-1.5 0-2.9.9-3.7 2.3-1.5 2.7-.4 6.6 1.1 8.8.7 1.1 1.6 2.3 2.7 2.3 1.1 0 1.5-.7 2.8-.7 1.3 0 1.7.7 2.9.7 1.2 0 1.9-1.1 2.6-2.2.8-1.3 1.1-2.5 1.1-2.6 0 0-2.2-.8-2.2-3.2 0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3.1-1.6l-.2-.6z" fill="white"/>
+                          <text x="16" y="27" fill="white" fontSize="8" fontWeight="600" textAnchor="middle" fontFamily="system-ui, -apple-system">Pay</text>
+                        </svg>
+                        Pay with Apple Pay
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Button
-                  className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  className={`w-full gap-2 ${canUseApplePay ? 'bg-slate-700 hover:bg-slate-600' : 'bg-blue-600 hover:bg-blue-700'} text-white`}
                   size="lg"
                   onClick={() => {
                     const priceId = selectedPeriod === 'monthly'
@@ -289,7 +368,7 @@ export default function BillingPage() {
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4" />
-                      Subscribe Now
+                      {canUseApplePay ? 'Or Pay with Card' : 'Subscribe Now'}
                     </>
                   )}
                 </Button>

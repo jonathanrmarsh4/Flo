@@ -9,6 +9,7 @@ import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
 import { Capacitor } from '@capacitor/core';
 import { useEffect, useState } from 'react';
 import { initializeNotifications } from "@/lib/notifications";
+import { initializeStripeNative } from "@/lib/stripe-native";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
@@ -91,6 +92,17 @@ function Router() {
       });
     }
   }, [isNative, isAuthenticated]);
+
+  // Initialize Stripe native plugin for Apple Pay (native only)
+  useEffect(() => {
+    if (isNative) {
+      initializeStripeNative().then(success => {
+        if (success) {
+          console.log('[App] Stripe native plugin initialized');
+        }
+      });
+    }
+  }, [isNative]);
 
   // Auto-clear cache on version update (native only)
   useEffect(() => {
