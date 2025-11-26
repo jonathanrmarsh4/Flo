@@ -73,8 +73,20 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
   }
   
   try {
-    const result = await plugin.getProductDetails({ productIds });
+    // Add timeout to prevent hanging if App Store is slow/unavailable
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Product fetch timed out - check App Store Connect setup')), 15000);
+    });
+    
+    const fetchPromise = plugin.getProductDetails({ productIds });
+    const result = await Promise.race([fetchPromise, timeoutPromise]);
+    
     console.log('[StoreKit] Products fetched:', result);
+    
+    if (!result.products || result.products.length === 0) {
+      console.warn('[StoreKit] No products returned - check App Store Connect configuration');
+      return [];
+    }
     
     return (result.products || []).map((product: any) => ({
       productId: product.productId,
@@ -85,9 +97,10 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
       displayPrice: product.localizedPrice || `$${product.price}`,
       subscriptionPeriod: product.subscriptionPeriod,
     }));
-  } catch (error) {
+  } catch (error: any) {
     console.error('[StoreKit] Failed to fetch products:', error);
-    return [];
+    // Rethrow with helpful message
+    throw new Error(error.message || 'Failed to load products from App Store');
   }
 }
 

@@ -38,50 +38,61 @@ export default function BillingPage() {
     error: null,
   });
 
-  useEffect(() => {
-    async function initStoreKit() {
-      try {
-        const available = await isStoreKitAvailable();
-        console.log('[Billing] StoreKit available:', available);
-        setStoreKitReady(available);
+  const loadProducts = async () => {
+    setPricing(prev => ({ ...prev, isLoading: true, error: null }));
+    
+    try {
+      const available = await isStoreKitAvailable();
+      console.log('[Billing] StoreKit available:', available);
+      setStoreKitReady(available);
+      
+      if (available) {
+        const products = await getProducts([
+          PRODUCT_IDS.PREMIUM_MONTHLY,
+          PRODUCT_IDS.PREMIUM_YEARLY,
+        ]);
         
-        if (available) {
-          const products = await getProducts([
-            PRODUCT_IDS.PREMIUM_MONTHLY,
-            PRODUCT_IDS.PREMIUM_YEARLY,
-          ]);
-          
-          console.log('[Billing] Products fetched:', products);
-          
-          const monthlyProduct = products.find(p => p.productId === PRODUCT_IDS.PREMIUM_MONTHLY) || null;
-          const yearlyProduct = products.find(p => p.productId === PRODUCT_IDS.PREMIUM_YEARLY) || null;
-          
-          setPricing({
-            monthly: monthlyProduct,
-            yearly: yearlyProduct,
-            isLoading: false,
-            error: products.length === 0 ? 'Products not available' : null,
-          });
-        } else {
+        console.log('[Billing] Products fetched:', products);
+        
+        const monthlyProduct = products.find(p => p.productId === PRODUCT_IDS.PREMIUM_MONTHLY) || null;
+        const yearlyProduct = products.find(p => p.productId === PRODUCT_IDS.PREMIUM_YEARLY) || null;
+        
+        if (!monthlyProduct && !yearlyProduct) {
           setPricing({
             monthly: null,
             yearly: null,
             isLoading: false,
-            error: 'This app requires iOS to manage subscriptions through the App Store.',
+            error: 'Subscription products are not available yet. Please check back later.',
+          });
+        } else {
+          setPricing({
+            monthly: monthlyProduct,
+            yearly: yearlyProduct,
+            isLoading: false,
+            error: null,
           });
         }
-      } catch (error: any) {
-        console.error('[Billing] Init error:', error);
+      } else {
         setPricing({
           monthly: null,
           yearly: null,
           isLoading: false,
-          error: error.message || 'Failed to load pricing',
+          error: 'This app requires iOS to manage subscriptions through the App Store.',
         });
       }
+    } catch (error: any) {
+      console.error('[Billing] Init error:', error);
+      setPricing({
+        monthly: null,
+        yearly: null,
+        isLoading: false,
+        error: error.message || 'Failed to load pricing. Please try again.',
+      });
     }
-    
-    initStoreKit();
+  };
+
+  useEffect(() => {
+    loadProducts();
   }, []);
 
   const { data: planData, isLoading: planLoading } = usePlan();
@@ -185,6 +196,43 @@ export default function BillingPage() {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 animate-spin text-white" data-testid="loading-spinner" />
           <p className="text-white/70 text-sm">Loading subscription options...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (pricing.error && !pricing.monthly && !pricing.yearly) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
+        <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/5 border-b border-white/10">
+          <div className="px-4 py-3 flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/')}
+              data-testid="button-back-error"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-semibold">Subscription</h1>
+            </div>
+          </div>
+        </header>
+        <div className="flex flex-col items-center justify-center px-6 py-20 gap-6">
+          <AlertCircle className="w-12 h-12 text-amber-400" />
+          <div className="text-center space-y-2">
+            <h2 className="text-lg font-semibold">Unable to Load Products</h2>
+            <p className="text-white/70 text-sm max-w-xs">{pricing.error}</p>
+          </div>
+          <Button 
+            onClick={loadProducts}
+            className="gap-2"
+            data-testid="button-retry-products"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Try Again
+          </Button>
         </div>
       </div>
     );
