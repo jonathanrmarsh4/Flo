@@ -6,7 +6,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 import { storage } from "../storage";
 import { logger } from "../logger";
-import { sendPasswordResetEmail } from "../services/emailService";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../services/emailService";
 import {
   appleSignInSchema,
   googleSignInSchema,
@@ -433,19 +433,27 @@ router.post("/api/mobile/auth/register", async (req, res) => {
     // Hash password with bcrypt (10 rounds)
     const passwordHash = await bcrypt.hash(body.password, 10);
     
-    // Create user account with pending_approval status (requires admin approval)
+    // Generate verification token (24 hour expiry)
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    const verificationExpiresAt = new Date();
+    verificationExpiresAt.setHours(verificationExpiresAt.getHours() + 24);
+    
+    // Create user account with pending_verification status
     const user = await storage.upsertUser({
       email: body.email,
-      firstName: body.firstName?.trim() || null,  // Store null if empty
+      firstName: body.firstName?.trim() || null,
       lastName: body.lastName?.trim() || null,
       role: "free",
-      status: "pending_approval",
+      status: "pending_approval", // Will be set to "active" on email verification
     });
     
-    // Create user credentials
+    // Create user credentials with verification token
     await storage.createUserCredentials({
       userId: user.id,
       passwordHash,
+      verificationToken: verificationTokenHash,
+      verificationTokenExpiresAt: verificationExpiresAt,
     });
     
     // Create auth provider record (provider="email")
@@ -462,7 +470,13 @@ router.post("/api/mobile/auth/register", async (req, res) => {
       await storage.upsertProfile(user.id, {});
     }
     
-    // New users are pending approval - return success but no token
+    // Send verification email with plain token (user clicks link with this)
+    const emailSent = await sendVerificationEmail(body.email, verificationToken, body.firstName || undefined);
+    if (!emailSent) {
+      logger.warn('Failed to send verification email', { email: body.email });
+    }
+    
+    // Return success - user needs to verify email
     res.json({ 
       user: {
         id: user.id,
@@ -473,8 +487,8 @@ router.post("/api/mobile/auth/register", async (req, res) => {
         status: user.status,
       },
       authenticated: false,
-      message: "Registration successful! Your account is pending approval. You'll receive an email once approved.",
-      status: "pending_approval"
+      message: "Registration successful! Please check your email to verify your account.",
+      status: "pending_verification"
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
