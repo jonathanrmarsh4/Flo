@@ -2278,3 +2278,110 @@ export type InsightFeedback = typeof insightFeedback.$inferSelect;
 
 export type InsertDailyInsight = z.infer<typeof insertDailyInsightSchema>;
 export type DailyInsight = typeof dailyInsights.$inferSelect;
+
+// ============================================================================
+// Shared Brain - User Insights (GPT Insights + Grok Chat Memory Layer)
+// ============================================================================
+
+// Source of insight: which subsystem created it
+export const userInsightSourceEnum = pgEnum("user_insight_source", [
+  "gpt_insights_job",    // From GPT-based daily insights generation
+  "chat_brain_update",   // From Grok chat BRAIN_UPDATE_JSON
+  "chat_summary_job",    // From nightly chat transcript summarization
+  "manual"               // Manual entry (future use)
+]);
+
+// Status of insight: whether it's still relevant
+export const userInsightStatusEnum = pgEnum("user_insight_status", [
+  "active",    // Currently relevant
+  "resolved",  // Issue/pattern has been addressed
+  "dismissed"  // User or system dismissed it
+]);
+
+// Shared user_insights store - the "brain" that both GPT Insights and Grok Chat read/write
+export const userInsights = pgTable("user_insights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Natural language insight or note about user's health, behavior, or patterns
+  text: text("text").notNull(),
+  
+  // Which subsystem created this insight
+  source: userInsightSourceEnum("source").default("gpt_insights_job").notNull(),
+  
+  // Short keywords for filtering and retrieval (e.g., ['lipids', 'sleep', 'trend-worse'])
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`).notNull(),
+  
+  // 1-5 where 5 = critical/high impact - used to prioritize what we pass into chat
+  importance: integer("importance").default(3).notNull(),
+  
+  // Whether this insight is still relevant (soft delete pattern)
+  status: userInsightStatusEnum("status").default("active").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  // Primary retrieval: recent insights for a user
+  userIdCreatedAtIdx: index("idx_user_insights_user_id_created_at").on(table.userId, table.createdAt),
+  // Filter by status
+  userIdStatusIdx: index("idx_user_insights_user_id_status").on(table.userId, table.status),
+  // For deduplication: find similar insights by user
+  userIdx: index("idx_user_insights_user_idx").on(table.userId),
+}));
+
+// Zod enums for validation
+export const UserInsightSourceEnum = z.enum(["gpt_insights_job", "chat_brain_update", "chat_summary_job", "manual"]);
+export const UserInsightStatusEnum = z.enum(["active", "resolved", "dismissed"]);
+
+// Insert schema
+export const insertUserInsightSchema = createInsertSchema(userInsights).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types
+export type InsertUserInsight = z.infer<typeof insertUserInsightSchema>;
+export type UserInsight = typeof userInsights.$inferSelect;
+
+// ============================================================================
+// Flo Chat Messages - Transcript Storage for Chat Summary Job
+// ============================================================================
+
+// Sender of chat message
+export const chatSenderEnum = pgEnum("chat_sender", ["user", "flo"]);
+
+// Chat messages between user and Flo Oracle
+export const floChatMessages = pgTable("flo_chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  // Who sent the message
+  sender: chatSenderEnum("sender").notNull(),
+  
+  // The message content
+  message: text("message").notNull(),
+  
+  // Optional: session ID to group conversations
+  sessionId: varchar("session_id"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  // Primary retrieval: recent messages for a user
+  userIdCreatedAtIdx: index("idx_flo_chat_messages_user_id_created_at").on(table.userId, table.createdAt),
+  // Session lookup
+  sessionIdx: index("idx_flo_chat_messages_session_id").on(table.sessionId),
+}));
+
+// Zod enums for validation
+export const ChatSenderEnum = z.enum(["user", "flo"]);
+
+// Insert schema
+export const insertFloChatMessageSchema = createInsertSchema(floChatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Types
+export type InsertFloChatMessage = z.infer<typeof insertFloChatMessageSchema>;
+export type FloChatMessage = typeof floChatMessages.$inferSelect;
