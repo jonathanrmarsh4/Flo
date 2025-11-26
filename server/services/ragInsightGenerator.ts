@@ -183,9 +183,38 @@ export interface ActivityBaselines {
 }
 
 /**
+ * Get CDC/WHO recommended daily step target based on age
+ * Sources: 
+ * - Adults 18-64: 8,000-10,000 steps/day (CDC recommends ~8,000 for significant health benefits)
+ * - Adults 65+: 6,000-8,000 steps/day (lower targets due to mobility considerations)
+ * - Children/teens: Higher activity needs but less common in this app
+ */
+function getDemographicStepTarget(age: number | null, sex: 'Male' | 'Female' | 'Other' | null): number {
+  // Default to adult recommendation if age unknown
+  if (!age || age < 18) {
+    return 8000; // Default adult target
+  }
+  
+  if (age >= 65) {
+    // Seniors: 6,000-8,000 steps, target 7,000
+    return 7000;
+  } else if (age >= 50) {
+    // Middle-aged adults: target 8,000
+    return 8000;
+  } else {
+    // Young adults 18-49: target 10,000 (optimal)
+    return 10000;
+  }
+}
+
+/**
  * Compute activity baselines for progress tracking
  */
-function computeActivityBaselines(dailyMetrics: DailyMetric[], workouts: WorkoutSession[]): ActivityBaselines {
+function computeActivityBaselines(
+  dailyMetrics: DailyMetric[], 
+  workouts: WorkoutSession[],
+  userContext?: { age: number | null; sex: 'Male' | 'Female' | 'Other' | null }
+): ActivityBaselines {
   const baselines: ActivityBaselines = {
     steps: {
       current7DayAvg: null,
@@ -205,6 +234,12 @@ function computeActivityBaselines(dailyMetrics: DailyMetric[], workouts: Workout
     },
   };
 
+  // Get demographic-based step target
+  const demographicTarget = getDemographicStepTarget(
+    userContext?.age ?? null, 
+    userContext?.sex ?? null
+  );
+
   // Calculate step baselines
   const stepsData = dailyMetrics.filter(m => m.steps !== null).map(m => ({ date: m.date, value: m.steps! }));
   if (stepsData.length >= 7) {
@@ -216,23 +251,26 @@ function computeActivityBaselines(dailyMetrics: DailyMetric[], workouts: Workout
     const baseline30 = last30Days.reduce((sum, d) => sum + d.value, 0) / last30Days.length;
     baselines.steps.baseline30Day = Math.round(baseline30);
 
-    // Calculate percent below baseline and always set a target for tracking
+    // Calculate percent below baseline
     if (baseline30 > 0 && isFinite(baseline30)) {
       const percentBelow = ((baseline30 - recentAvg) / baseline30 * 100);
       if (isFinite(percentBelow)) {
         baselines.steps.percentBelowBaseline = percentBelow > 0 ? Math.round(percentBelow * 10) / 10 : 0;
-        
-        // Always suggest a target for tracking
-        if (percentBelow > 0) {
-          // Below baseline: suggest halfway between current and baseline (achievable goal)
-          const suggestedTarget = Math.round((recentAvg + baseline30) / 2 / 100) * 100;
-          baselines.steps.suggestedTarget = suggestedTarget;
-        } else {
-          // At or above baseline: suggest maintaining the baseline
-          baselines.steps.suggestedTarget = Math.round(baseline30 / 100) * 100;
-        }
       }
     }
+    
+    // Set target based on demographic recommendations and current performance
+    // Use the higher of: demographic recommendation or user's personal baseline
+    // This ensures:
+    // - Users below CDC guidelines are pushed toward health recommendations
+    // - High-performing users maintain their established level
+    const targetBaseline = Math.max(demographicTarget, Math.round(baseline30));
+    
+    // Target is always the full goal (not intermediate) - shows users what they should aim for
+    // The insight text will provide context about achievable steps to reach the target
+    baselines.steps.suggestedTarget = targetBaseline;
+    
+    logger.info(`[RAG] Step target calculation: current=${Math.round(recentAvg)}, baseline30=${Math.round(baseline30)}, demographic=${demographicTarget}, suggested=${baselines.steps.suggestedTarget}`);
   }
 
   // Calculate workout baselines
@@ -296,7 +334,22 @@ function injectActivityTrackingFields(insights: RAGInsight[], baselines: Activit
     const isStepsInsight = stepKeywords.some(kw => containsWord(combined, kw));
     
     // Check if this is a workout-related insight (use word boundaries)
-    const workoutKeywords = ['workout', 'workouts', 'exercise session', 'training session', 'gym', 'cardio', 'strength training'];
+    // Expanded list to catch common exercise terminology GPT might use
+    const workoutKeywords = [
+      'workout', 'workouts', 
+      'exercise session', 'exercise sessions',
+      'training session', 'training sessions', 'training',
+      'gym', 'fitness',
+      'cardio', 'cardiovascular',
+      'strength training', 'strength session', 'weight training', 'weights',
+      'running', 'run', 'jog', 'jogging',
+      'cycling', 'bike', 'biking', 'peloton',
+      'swimming', 'swim',
+      'yoga', 'pilates',
+      'hiit', 'crossfit',
+      'aerobic', 'aerobics',
+      'physical activity'
+    ];
     const isWorkoutInsight = workoutKeywords.some(kw => containsWord(combined, kw));
     
     // Inject step tracking if we have data and insight is steps-related
@@ -642,7 +695,11 @@ For other non-biomarker insights (sleep, HRV patterns), set these to null.`;
     logger.info(`[RAG] Generated ${insights.length} holistic insights`);
     
     // Post-process activity insights to inject baseline tracking values
-    const activityBaselines = computeActivityBaselines(dailyMetrics, workouts);
+    // Pass userContext for demographic-based step targets
+    const activityBaselines = computeActivityBaselines(dailyMetrics, workouts, {
+      age: userContext.age,
+      sex: userContext.sex
+    });
     const enhancedInsights = injectActivityTrackingFields(insights, activityBaselines);
     
     return enhancedInsights;

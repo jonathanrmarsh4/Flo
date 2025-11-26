@@ -116,22 +116,17 @@ export function BiomarkerProgressChart({
     );
   }
 
-  if (!data || data.dataPoints.length === 0) {
+  // Check if we have actual data points to show
+  const hasActualData = data && data.dataPoints.length > 0;
+  
+  // For activity insights (steps, workouts), we may not have historical data
+  // but we can still show the forecast line from current to target
+  const hasForecastData = forecastData.length > 0 && currentValue !== undefined && targetValue !== undefined;
+  
+  // If we have neither actual data nor forecast data, show empty state
+  if (!hasActualData && !hasForecastData) {
     return (
       <div className="h-56 rounded-xl bg-slate-800/40 border border-white/10 p-4 flex flex-col">
-        {/* Chart Legend */}
-        <div className="flex items-center justify-center gap-6 mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-0.5 bg-purple-400"></div>
-            <span className="text-xs text-white/60">Actual Progress</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-0.5 bg-teal-400"></div>
-            <span className="text-xs text-white/60">Forecast</span>
-          </div>
-        </div>
-        
-        {/* Empty State */}
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <TrendingUp className="w-10 h-10 text-white/20 mx-auto mb-2" />
@@ -143,6 +138,14 @@ export function BiomarkerProgressChart({
       </div>
     );
   }
+  
+  // Use forecast data for chart when no actual data (activity insights)
+  const chartDataToUse = hasActualData ? chartData : forecastData.map(f => ({
+    timestamp: f.date,
+    displayDate: f.displayDate,
+    actualValue: undefined,
+    forecastValue: f.value,
+  }));
 
   // Calculate Y-axis domain (with some padding)
   const minValue = Math.min(currentValue, targetValue, ...actualData.map(d => d.value));
@@ -168,7 +171,7 @@ export function BiomarkerProgressChart({
       {/* Chart */}
       <ResponsiveContainer width="100%" height={180}>
         <LineChart
-          data={chartData}
+          data={chartDataToUse}
           margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
