@@ -5785,7 +5785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (!weeklyData) {
-        return res.status(404).json({ error: "No weekly data available yet" });
+        return res.json(null);
       }
 
       res.json({
@@ -5848,7 +5848,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       if (!dailyScore) {
-        return res.status(404).json({ error: "No Flōmentum score for today" });
+        return res.json(null);
       }
 
       // Get quick snapshot (recent 3 scores for trend)
