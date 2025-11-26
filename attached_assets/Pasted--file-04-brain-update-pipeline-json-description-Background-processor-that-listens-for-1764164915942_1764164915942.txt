@@ -1,0 +1,32 @@
+{
+  "file": "04_brain_update_pipeline.json",
+  "description": "Background processor that listens for BRAIN_UPDATE_JSON lines emitted by Grok, validates them, and persists them as new user_insights rows and vector entries. This is side-effect only and must not block chat responses.",
+  "input_contract": {
+    "raw_grok_response": "string",
+    "user_id": "uuid"
+  },
+  "parsing_logic": {
+    "steps": [
+      "1. After receiving the raw Grok response, split it into lines.",
+      "2. Identify any line that starts with the prefix `BRAIN_UPDATE_JSON:`.",
+      "3. If no such line exists, do nothing.",
+      "4. If present, strip the prefix and parse the remainder as JSON in a try/catch block.",
+      "5. Validate that the JSON has fields: text (string, non-empty), tags (array of strings, optional), importance (integer 1-5, optional default 3).",
+      "6. If validation fails, log and ignore; do NOT affect the visible chat response."
+    ]
+  },
+  "persistence_logic": {
+    "on_valid_brain_update": [
+      "Insert a new row into user_insights with: user_id, text, tags (or []), importance (or 3), source = 'chat_brain_update', status = 'active'.",
+      "Generate an embedding from `text` using the standard embedding model.",
+      "Upsert into the user_insights_embedding index with metadata { user_id, insight_id, importance, tags, created_at }.",
+      "All of this runs in a background worker or asynchronous job queue; the chat HTTP response should not wait for it to complete."
+    ]
+  },
+  "example_raw_response": "Here's what I'm seeing: your sleep duration has improved over the last few weeks, but your HRV is still lagging behind. That often means quality and timing still need work, not just quantity.\n\nBRAIN_UPDATE_JSON: {\"text\": \"User has recently improved sleep duration but HRV is still low; focus should shift to quality and timing of sleep.\", \"tags\": [\"sleep\", \"hrv\"], \"importance\": 4}",
+  "non_blocking_principles": [
+    "The chat reply must be sent to the client regardless of whether BRAIN_UPDATE_JSON processing succeeds or fails.",
+    "If the JSON parsing or DB write fails, log the error and continue; do not retry synchronously in the chat path.",
+    "This pipeline is additive and must not interfere with existing logging or analytics."
+  ]
+}
