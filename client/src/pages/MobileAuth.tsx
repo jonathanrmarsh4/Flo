@@ -197,7 +197,7 @@ export default function MobileAuth() {
           title: "Welcome Back!",
           description: "Successfully signed in",
         });
-        setLocation('/dashboard');
+        setLocation('/');
       }
     } catch (error: any) {
       logger.error('Login error', error);
@@ -248,7 +248,7 @@ export default function MobileAuth() {
           title: "Account Created!",
           description: "Welcome to Flō",
         });
-        setLocation('/dashboard');
+        setLocation('/');
       }
     } catch (error: any) {
       logger.error('Registration error', error);
