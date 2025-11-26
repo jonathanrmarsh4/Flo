@@ -33,7 +33,10 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **AI Usage Analytics System:** Tracks all OpenAI and Grok API calls with token counts, costs, and latency, stored in the `openaiUsageEvents` table and displayed in the admin dashboard.
 
-**Billing & Subscription System:** Supports FREE (limited) and PREMIUM (unlimited) tiers via Stripe integration for checkout, webhooks, and subscription lifecycle events, with feature gating middleware.
+**Billing & Subscription System:** Supports FREE (limited) and PREMIUM (unlimited) tiers with dual payment provider support:
+- **StoreKit 2 (iOS):** Native in-app purchases using Apple's StoreKit 2 framework with cryptographic JWS verification. Uses `@apple/app-store-server-library` for production-grade transaction verification with embedded Apple Root CA certificates (G2, G3, Inc). Transactions are verified against Apple's certificate trust chain with OCSP revocation checking. Product IDs: `flo_premium_monthly` and `flo_premium_yearly`.
+- **Stripe (Web fallback):** Standard Stripe integration for web-based purchases, checkout, and webhooks.
+- **Security:** App Store transactions require JWS signature verification in production (`APP_STORE_REQUIRE_VERIFICATION=true` by default). Unverified transactions are rejected. Development mode allows decode-only with explicit warnings.
 
 **Daily Reminder Notifications:** Implements programmatic notification permission flows for iOS and Android.
 
