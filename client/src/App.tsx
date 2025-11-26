@@ -15,6 +15,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
 import ResetPassword from "@/pages/ResetPassword";
+import VerifyEmail from "@/pages/VerifyEmail";
 import Dashboard from "@/pages/dashboard-new";
 import Labs from "@/pages/labs";
 import InsightsScreen from "@/pages/InsightsScreen";
@@ -170,6 +171,9 @@ function Router() {
       
       {/* Password reset route - accessible to all users */}
       <Route path="/reset-password" component={ResetPassword} />
+      
+      {/* Email verification route - accessible to all users */}
+      <Route path="/verify-email" component={VerifyEmail} />
       
       {isLoading || !isAuthenticated ? (
         isNative ? (
