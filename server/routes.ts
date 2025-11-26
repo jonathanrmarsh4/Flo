@@ -6052,6 +6052,15 @@ ${userContext}`;
 
       logger.info('[FloOracle] Chat request', { userId, messageLength: message.length });
 
+      // Import brain services for shared memory
+      const { getHybridInsights, formatInsightsForChat, saveChatMessage } = await import('./services/brainService');
+      const { processAndPersistBrainUpdates, generateBrainUpdatePromptSection } = await import('./services/brainUpdateParser');
+
+      // Fire-and-forget: store user message in chat history
+      saveChatMessage(userId, 'user', message.trim()).catch(err => {
+        logger.error('[FloOracle] Failed to store user message:', err);
+      });
+
       // Step 1: Check for life event logging (conversational behavior tracking)
       let eventAcknowledgment: string | null = null;
       const { couldContainLifeEvent, extractLifeEvent } = await import('./services/lifeEventParser');
@@ -6103,25 +6112,36 @@ ${userContext}`;
         });
       }
 
-      // Step 2: Load user's health context + RAG-retrieved insights + recent life events
+      // Step 2: Load user's health context + RAG-retrieved insights + recent life events + shared brain
       const { buildUserHealthContext, getRelevantInsights, getRecentLifeEvents } = await import('./services/floOracleContextBuilder');
-      const [healthContext, insightsContext, lifeEventsContext] = await Promise.all([
+      const [healthContext, insightsContext, lifeEventsContext, brainInsights] = await Promise.all([
         buildUserHealthContext(userId),
         getRelevantInsights(userId, 5),
         getRecentLifeEvents(userId, 14),
+        getHybridInsights(userId, message.trim(), { recentLimit: 10, semanticLimit: 5 })
+          .catch(err => {
+            logger.error('[FloOracle] Failed to retrieve brain insights:', err);
+            return { merged: [] };
+          }),
       ]);
       
       let fullContext = healthContext;
       if (insightsContext) fullContext += `\n${insightsContext}`;
       if (lifeEventsContext) fullContext += `\n${lifeEventsContext}`;
       if (correlationInsight) fullContext += `\n\nREAL-TIME CORRELATION DETECTED:\n${correlationInsight}`;
+      
+      // Add shared brain insights and BRAIN_UPDATE capability
+      const brainContext = formatInsightsForChat(brainInsights.merged);
+      const brainPromptSection = generateBrainUpdatePromptSection(brainContext);
+      fullContext += `\n\n${brainPromptSection}`;
 
       logger.info('[FloOracle] Health context loaded', { 
         userId,
         hasBiomarkers: healthContext.includes('biomarkers'),
         hasDEXA: healthContext.includes('DEXA'),
         hasHealthKit: healthContext.includes('HealthKit'),
-        hasCorrelation: !!correlationInsight
+        hasCorrelation: !!correlationInsight,
+        brainInsightsCount: brainInsights.merged?.length || 0,
       });
 
       // Build conversation with health context
@@ -6180,11 +6200,23 @@ ${fullContext}`;
         return res.json({ response: guardrailResult.violation.replacement });
       }
 
-      // Step 4: Combine life event acknowledgment with response
+      // Step 4: Process BRAIN_UPDATE_JSON and clean response
       const grokReply = guardrailResult.sanitizedOutput || grokResponse;
+      const { cleanedResponse, persistedCount } = await processAndPersistBrainUpdates(userId, grokReply);
+      
+      if (persistedCount > 0) {
+        logger.info('[FloOracle] Persisted brain updates from chat', { userId, count: persistedCount });
+      }
+
+      // Step 5: Combine life event acknowledgment with cleaned response
       const finalResponse = eventAcknowledgment 
-        ? `${eventAcknowledgment} ${grokReply}`
-        : grokReply;
+        ? `${eventAcknowledgment} ${cleanedResponse}`
+        : cleanedResponse;
+      
+      // Fire-and-forget: store Flo's response in chat history
+      saveChatMessage(userId, 'flo', finalResponse).catch(err => {
+        logger.error('[FloOracle] Failed to store Flo response:', err);
+      });
       
       res.json({ response: finalResponse });
 

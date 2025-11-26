@@ -20,6 +20,7 @@ import { getFreshnessCategory, SLOW_MOVING_BIOMARKERS } from './dataClassificati
 import { logger } from '../logger';
 import { getUserContext, generateContextualInsight, type UserContext, type BaselineData } from './aiInsightGenerator';
 import { detectDataChanges, generateRAGInsights, type RAGInsight } from './ragInsightGenerator';
+import { writeBatchInsightsToBrain } from './brainService';
 
 // ============================================================================
 // Shared Interface for Insight Candidates
@@ -1294,6 +1295,21 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
         await db.insert(dailyInsights).values(insightsToInsert);
         
         logger.info(`[InsightsEngineV2] Successfully stored ${insightsToInsert.length} insights for user ${userId}`);
+        
+        // Async write to shared brain (fire-and-forget, non-blocking)
+        const brainInsights = insightPairs.map(pair => ({
+          text: `${pair.narrative.title}: ${pair.narrative.summary}`,
+          tags: pair.ranked.variables,
+          importance: Math.min(5, Math.max(1, Math.round(pair.ranked.impactScore))),
+        }));
+        
+        writeBatchInsightsToBrain(userId, brainInsights, 'gpt_insights_job')
+          .then(ids => {
+            logger.info(`[InsightsEngineV2] Wrote ${ids.length} insights to shared brain for user ${userId}`);
+          })
+          .catch(err => {
+            logger.error(`[InsightsEngineV2] Failed to write to shared brain:`, err);
+          });
       } catch (dbError: any) {
         logger.error(`[InsightsEngineV2] Database persistence failed for user ${userId}:`, dbError);
         throw dbError; // Re-throw to signal failure to scheduler
