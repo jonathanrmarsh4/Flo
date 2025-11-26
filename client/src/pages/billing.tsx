@@ -323,8 +323,15 @@ export default function BillingPage() {
                         ? premiumPricing?.monthly?.stripePriceId
                         : premiumPricing?.annual?.stripePriceId;
                       const amount = selectedPeriod === 'monthly' ? monthlyPrice : annualPrice;
+                      console.log('[Billing] Apple Pay clicked', { priceId, amount, selectedPeriod, premiumPricing });
                       if (priceId) {
                         handleApplePaySubscription(priceId, amount);
+                      } else {
+                        toast({
+                          title: 'Configuration Error',
+                          description: 'Billing is not configured. Please contact support.',
+                          variant: 'destructive',
+                        });
                       }
                     }}
                     disabled={isProcessingApplePay}
@@ -353,8 +360,15 @@ export default function BillingPage() {
                     const priceId = selectedPeriod === 'monthly'
                       ? premiumPricing?.monthly?.stripePriceId
                       : premiumPricing?.annual?.stripePriceId;
+                    console.log('[Billing] Card payment clicked', { priceId, selectedPeriod, premiumPricing });
                     if (priceId) {
                       createCheckoutMutation.mutate(priceId);
+                    } else {
+                      toast({
+                        title: 'Configuration Error',
+                        description: 'Billing is not configured. Please contact support.',
+                        variant: 'destructive',
+                      });
                     }
                   }}
                   disabled={createCheckoutMutation.isPending}
