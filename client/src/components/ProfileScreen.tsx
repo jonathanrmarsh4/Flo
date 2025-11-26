@@ -1008,6 +1008,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 </div>
                 
                 <button 
+                  onClick={() => setLocation('/billing')}
                   className={`px-4 py-2 rounded-lg text-sm transition-all ${
                     isDark 
                       ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30' 
@@ -1022,6 +1023,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
 
             {/* Add Payment Method Button */}
             <button 
+              onClick={() => setLocation('/billing')}
               className={`w-full p-4 rounded-2xl border-2 border-dashed transition-all ${
                 isDark 
                   ? 'border-white/20 hover:border-cyan-500/50 hover:bg-cyan-500/5' 
