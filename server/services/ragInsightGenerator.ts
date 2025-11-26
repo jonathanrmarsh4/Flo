@@ -161,6 +161,194 @@ interface DailyMetric {
 }
 
 /**
+ * Computed activity baselines for post-processing insights
+ */
+export interface ActivityBaselines {
+  steps: {
+    current7DayAvg: number | null;
+    baseline30Day: number | null;
+    percentBelowBaseline: number | null;
+    suggestedTarget: number | null;
+  };
+  workouts: {
+    thisWeekCount: number;
+    weeklyAverage: number;
+    isBelowAverage: boolean;
+    suggestedTarget: number | null;
+  };
+  exerciseMinutes: {
+    weeklyTotal: number | null;
+    dailyAverage: number | null;
+  };
+}
+
+/**
+ * Compute activity baselines for progress tracking
+ */
+function computeActivityBaselines(dailyMetrics: DailyMetric[], workouts: WorkoutSession[]): ActivityBaselines {
+  const baselines: ActivityBaselines = {
+    steps: {
+      current7DayAvg: null,
+      baseline30Day: null,
+      percentBelowBaseline: null,
+      suggestedTarget: null,
+    },
+    workouts: {
+      thisWeekCount: 0,
+      weeklyAverage: 0,
+      isBelowAverage: false,
+      suggestedTarget: null,
+    },
+    exerciseMinutes: {
+      weeklyTotal: null,
+      dailyAverage: null,
+    },
+  };
+
+  // Calculate step baselines
+  const stepsData = dailyMetrics.filter(m => m.steps !== null).map(m => ({ date: m.date, value: m.steps! }));
+  if (stepsData.length >= 7) {
+    const last7Days = stepsData.slice(0, 7);
+    const recentAvg = last7Days.reduce((sum, d) => sum + d.value, 0) / last7Days.length;
+    baselines.steps.current7DayAvg = Math.round(recentAvg);
+
+    const last30Days = stepsData.slice(0, Math.min(30, stepsData.length));
+    const baseline30 = last30Days.reduce((sum, d) => sum + d.value, 0) / last30Days.length;
+    baselines.steps.baseline30Day = Math.round(baseline30);
+
+    // Calculate percent below baseline and always set a target for tracking
+    if (baseline30 > 0 && isFinite(baseline30)) {
+      const percentBelow = ((baseline30 - recentAvg) / baseline30 * 100);
+      if (isFinite(percentBelow)) {
+        baselines.steps.percentBelowBaseline = percentBelow > 0 ? Math.round(percentBelow * 10) / 10 : 0;
+        
+        // Always suggest a target for tracking
+        if (percentBelow > 0) {
+          // Below baseline: suggest halfway between current and baseline (achievable goal)
+          const suggestedTarget = Math.round((recentAvg + baseline30) / 2 / 100) * 100;
+          baselines.steps.suggestedTarget = suggestedTarget;
+        } else {
+          // At or above baseline: suggest maintaining the baseline
+          baselines.steps.suggestedTarget = Math.round(baseline30 / 100) * 100;
+        }
+      }
+    }
+  }
+
+  // Calculate workout baselines
+  const now = new Date();
+  const thisWeek = workouts.filter(w => {
+    const daysDiff = Math.floor((now.getTime() - new Date(w.startDate).getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff < 7;
+  });
+  const last4Weeks = workouts.filter(w => {
+    const daysDiff = Math.floor((now.getTime() - new Date(w.startDate).getTime()) / (1000 * 60 * 60 * 24));
+    return daysDiff < 28;
+  });
+
+  baselines.workouts.thisWeekCount = thisWeek.length;
+  baselines.workouts.weeklyAverage = last4Weeks.length / 4;
+  
+  // Check if below average and always set a target for tracking
+  if (baselines.workouts.weeklyAverage >= 1) {
+    baselines.workouts.suggestedTarget = Math.max(1, Math.round(baselines.workouts.weeklyAverage));
+    if (thisWeek.length < baselines.workouts.weeklyAverage * 0.6 && baselines.workouts.weeklyAverage >= 2) {
+      baselines.workouts.isBelowAverage = true;
+    }
+  }
+
+  // Calculate exercise minutes
+  const exerciseData = dailyMetrics.filter(m => m.exerciseMinutes !== null).map(m => m.exerciseMinutes!);
+  if (exerciseData.length >= 7) {
+    const last7Days = exerciseData.slice(0, 7);
+    baselines.exerciseMinutes.weeklyTotal = Math.round(last7Days.reduce((sum, v) => sum + v, 0));
+    baselines.exerciseMinutes.dailyAverage = Math.round(baselines.exerciseMinutes.weeklyTotal / 7);
+  }
+
+  logger.info('[RAG] Computed activity baselines:', {
+    steps: baselines.steps,
+    workouts: baselines.workouts,
+  });
+
+  return baselines;
+}
+
+/**
+ * Check if text contains word with word boundary (avoid partial matches like "improvement" matching "movement")
+ */
+function containsWord(text: string, word: string): boolean {
+  const regex = new RegExp(`\\b${word}\\b`, 'i');
+  return regex.test(text);
+}
+
+/**
+ * Post-process activity insights to inject computed baseline values
+ */
+function injectActivityTrackingFields(insights: RAGInsight[], baselines: ActivityBaselines): RAGInsight[] {
+  return insights.map(insight => {
+    const titleLower = insight.title.toLowerCase();
+    const bodyLower = insight.body.toLowerCase();
+    const actionLower = insight.action.toLowerCase();
+    const combined = titleLower + ' ' + bodyLower + ' ' + actionLower;
+    
+    // Check if this is a steps-related insight (use word boundaries to avoid false matches)
+    const stepKeywords = ['step', 'steps', 'walking', 'walk', 'daily activity', '10,000', '10000'];
+    const isStepsInsight = stepKeywords.some(kw => containsWord(combined, kw));
+    
+    // Check if this is a workout-related insight (use word boundaries)
+    const workoutKeywords = ['workout', 'workouts', 'exercise session', 'training session', 'gym', 'cardio', 'strength training'];
+    const isWorkoutInsight = workoutKeywords.some(kw => containsWord(combined, kw));
+    
+    // Inject step tracking if we have data and insight is steps-related
+    // Use explicit null/undefined checks to allow zero as valid value
+    const hasStepBaselines = baselines.steps.current7DayAvg !== null && 
+                             baselines.steps.current7DayAvg !== undefined &&
+                             baselines.steps.suggestedTarget !== null && 
+                             baselines.steps.suggestedTarget !== undefined;
+    
+    if (isStepsInsight && hasStepBaselines) {
+      // Only inject if GPT didn't already provide valid numeric values
+      const hasValidValues = insight.targetBiomarker && 
+                             typeof insight.currentValue === 'number' && 
+                             typeof insight.targetValue === 'number';
+      if (!hasValidValues) {
+        logger.info(`[RAG] Injecting step tracking for insight: "${insight.title}" (current: ${baselines.steps.current7DayAvg}, target: ${baselines.steps.suggestedTarget})`);
+        return {
+          ...insight,
+          targetBiomarker: 'Daily Steps',
+          currentValue: baselines.steps.current7DayAvg,
+          targetValue: baselines.steps.suggestedTarget,
+          unit: 'steps/day',
+        };
+      }
+    }
+    
+    // Inject workout tracking if we have data and insight is workout-related
+    // Use explicit null check - thisWeekCount can legitimately be 0
+    const hasWorkoutBaselines = baselines.workouts.suggestedTarget !== null && 
+                                baselines.workouts.suggestedTarget !== undefined;
+    
+    if (isWorkoutInsight && hasWorkoutBaselines) {
+      const hasValidValues = insight.targetBiomarker && 
+                             typeof insight.currentValue === 'number' && 
+                             typeof insight.targetValue === 'number';
+      if (!hasValidValues) {
+        logger.info(`[RAG] Injecting workout tracking for insight: "${insight.title}" (current: ${baselines.workouts.thisWeekCount}, target: ${baselines.workouts.suggestedTarget})`);
+        return {
+          ...insight,
+          targetBiomarker: 'Weekly Workouts',
+          currentValue: baselines.workouts.thisWeekCount,
+          targetValue: baselines.workouts.suggestedTarget,
+          unit: 'workouts/week',
+        };
+      }
+    }
+    
+    return insight;
+  });
+}
+
+/**
  * Build activity summary for AI prompt
  */
 function buildActivitySummary(dailyMetrics: DailyMetric[], workouts: WorkoutSession[]): string {
@@ -452,7 +640,12 @@ For other non-biomarker insights (sleep, HRV patterns), set these to null.`;
     const insights: RAGInsight[] = Array.isArray(parsed.insights) ? parsed.insights : [parsed];
     
     logger.info(`[RAG] Generated ${insights.length} holistic insights`);
-    return insights;
+    
+    // Post-process activity insights to inject baseline tracking values
+    const activityBaselines = computeActivityBaselines(dailyMetrics, workouts);
+    const enhancedInsights = injectActivityTrackingFields(insights, activityBaselines);
+    
+    return enhancedInsights;
     
   } catch (error: any) {
     logger.error('[RAG] Failed to generate insights:', error);
