@@ -655,6 +655,65 @@ router.post("/api/mobile/auth/reset", async (req, res) => {
   }
 });
 
+// Email verification endpoint (frictionless flow)
+router.post("/api/mobile/auth/verify-email", async (req, res) => {
+  try {
+    // Validate request body
+    const body = z.object({
+      token: z.string().min(1, "Verification token is required"),
+    }).parse(req.body);
+    
+    // Hash the incoming token to match against stored hash
+    const tokenHash = crypto.createHash('sha256').update(body.token).digest('hex');
+    
+    // Find user by valid verification token hash (not expired)
+    const user = await storage.getUserByVerificationToken(tokenHash);
+    
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired verification link" });
+    }
+    
+    // Activate the user account
+    await storage.upsertUser({
+      email: user.email!,
+      status: "active",
+    });
+    
+    // Clear the verification token (single-use)
+    await storage.clearVerificationToken(user.id);
+    
+    // Update last login time
+    await storage.updateLastLoginAt(user.id);
+    
+    // Generate JWT token for immediate login
+    const token = generateMobileAuthToken(user.id);
+    
+    logger.info('Email verification successful, user activated', { userId: user.id, email: user.email });
+    
+    res.json({ 
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: "active",
+      },
+      token, // JWT token for immediate login
+      authenticated: true,
+      message: "Email verified successfully! Welcome to Flō.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "ZodError") {
+      const validationError = fromError(error);
+      return res.status(400).json({ error: validationError.toString() });
+    }
+    logger.error('Email verification error', error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Set password endpoint (for OAuth users who want to add email/password auth)
 router.post("/api/mobile/auth/set-password", async (req, res) => {
   try {

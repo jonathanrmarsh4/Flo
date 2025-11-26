@@ -160,6 +160,8 @@ export interface IStorage {
   updatePasswordHash(userId: string, passwordHash: string): Promise<void>;
   createPasswordResetToken(userId: string, token: string, expiresAt: Date): Promise<void>;
   getUserByResetToken(token: string): Promise<User | undefined>;
+  getUserByVerificationToken(token: string): Promise<User | undefined>;
+  clearVerificationToken(userId: string): Promise<void>;
   updateLastLoginAt(userId: string): Promise<void>;
   
   // Biomarker operations
@@ -761,6 +763,35 @@ export class DatabaseStorage implements IStorage {
     }
     
     return this.getUser(credentials.userId);
+  }
+
+  async getUserByVerificationToken(tokenHash: string): Promise<User | undefined> {
+    const [credentials] = await db
+      .select()
+      .from(userCredentials)
+      .where(
+        and(
+          eq(userCredentials.verificationToken, tokenHash),
+          gt(userCredentials.verificationTokenExpiresAt, sql`now()`)
+        )
+      );
+    
+    if (!credentials) {
+      return undefined;
+    }
+    
+    return this.getUser(credentials.userId);
+  }
+
+  async clearVerificationToken(userId: string): Promise<void> {
+    await db
+      .update(userCredentials)
+      .set({
+        verificationToken: null,
+        verificationTokenExpiresAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, userId));
   }
 
   async updateLastLoginAt(userId: string): Promise<void> {
