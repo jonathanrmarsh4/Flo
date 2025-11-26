@@ -481,3 +481,87 @@ export async function sendAccountApprovalEmail(email: string, firstName?: string
     return false;
   }
 }
+
+export async function sendVerificationEmail(email: string, verificationToken: string, firstName?: string): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    const name = firstName || 'there';
+    
+    const verifyLink = `https://get-flo.com/verify-email?token=${verificationToken}`;
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'Flō <noreply@nuvitaelabs.com>',
+      to: email,
+      replyTo: 'support@nuvitaelabs.com',
+      subject: 'Verify Your Flō Account',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 480px; width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td align="center" style="padding-bottom: 32px;">
+                      <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); border-radius: 16px; display: flex; align-items: center; justify-content: center;">
+                        <span style="color: white; font-size: 28px; font-weight: bold;">F</span>
+                      </div>
+                      <h1 style="margin: 16px 0 0 0; color: #ffffff; font-size: 28px; font-weight: 300;">Flō</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 32px;">
+                      <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 22px; font-weight: 500; text-align: center;">
+                        Welcome, ${name}!
+                      </h2>
+                      <p style="margin: 0 0 24px 0; color: rgba(255, 255, 255, 0.7); font-size: 15px; line-height: 1.6; text-align: center;">
+                        Thanks for signing up for Flō! Tap the button below to verify your email and start your health journey.
+                      </p>
+                      <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                          <td align="center">
+                            <a href="${verifyLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 500; border-radius: 12px;">
+                              Verify & Get Started
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                      <p style="margin: 24px 0 0 0; color: rgba(255, 255, 255, 0.5); font-size: 13px; text-align: center;">
+                        This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding-top: 32px;">
+                      <p style="margin: 0; color: rgba(255, 255, 255, 0.4); font-size: 12px;">
+                        © ${new Date().getFullYear()} Flō Health. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: `Welcome to Flō, ${name}!\n\nThanks for signing up! Click the link below to verify your email and start your health journey:\n\n${verifyLink}\n\nThis link expires in 24 hours. If you didn't create this account, you can safely ignore this email.\n\n© ${new Date().getFullYear()} Flō Health. All rights reserved.`
+    });
+
+    if (error) {
+      logger.error('Failed to send verification email', { error, email });
+      return false;
+    }
+
+    logger.info('Verification email sent successfully', { email, messageId: data?.id });
+    return true;
+  } catch (error) {
+    logger.error('Error sending verification email', { error, email });
+    return false;
+  }
+}
