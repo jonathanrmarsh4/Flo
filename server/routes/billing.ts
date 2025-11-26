@@ -177,6 +177,8 @@ router.post('/create-payment-intent', async (req: any, res) => {
     }
 
     // Create subscription with incomplete payment (for Apple Pay)
+    logger.info(`[Billing] Creating subscription for customer ${stripeCustomerId} with price ${priceId}`);
+    
     const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
       items: [{ price: priceId }],
@@ -190,10 +192,16 @@ router.post('/create-payment-intent', async (req: any, res) => {
       },
     });
 
+    logger.info(`[Billing] Subscription created: ${subscription.id}, status: ${subscription.status}`);
+    
     const invoice = subscription.latest_invoice as any;
+    logger.info(`[Billing] Invoice: ${invoice?.id}, status: ${invoice?.status}`);
+    
     const paymentIntent = invoice?.payment_intent as Stripe.PaymentIntent;
+    logger.info(`[Billing] PaymentIntent: ${paymentIntent?.id}, status: ${paymentIntent?.status}, has_secret: ${!!paymentIntent?.client_secret}`);
 
     if (!paymentIntent?.client_secret) {
+      logger.error(`[Billing] No client_secret in payment intent. Invoice: ${JSON.stringify(invoice)}`);
       return res.status(500).json({ error: 'Failed to create payment intent' });
     }
 
