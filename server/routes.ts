@@ -6732,17 +6732,129 @@ ${userContext}`;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasElevenLabs = !!process.env.ELEVENLABS_AGENT_ID;
     
-    // Prefer Grok+OpenAI speech relay for secure user identification
-    const provider = hasOpenAI ? 'grok-openai' : (hasElevenLabs ? 'elevenlabs' : 'none');
+    // Prefer OpenAI Realtime for natural conversational voice
+    const provider = hasOpenAI ? 'openai-realtime' : (hasElevenLabs ? 'elevenlabs' : 'none');
     
     res.json({
       provider,
       available: {
-        grokOpenai: hasOpenAI,
+        openaiRealtime: hasOpenAI,
         openai: hasOpenAI,
         elevenlabs: hasElevenLabs
       }
     });
+  });
+
+  // Async brain update endpoint - receives transcripts from OpenAI Realtime and processes through Grok for brain extraction
+  app.post("/api/voice/brain-update", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { userMessage, assistantMessage } = req.body;
+      
+      // Basic validation
+      if (!userMessage && !assistantMessage) {
+        return res.status(400).json({ error: 'At least one message is required' });
+      }
+      
+      if (userMessage && typeof userMessage !== 'string') {
+        return res.status(400).json({ error: 'userMessage must be a string' });
+      }
+      
+      if (assistantMessage && typeof assistantMessage !== 'string') {
+        return res.status(400).json({ error: 'assistantMessage must be a string' });
+      }
+      
+      // Limit message sizes
+      const maxLength = 10000;
+      if ((userMessage?.length || 0) > maxLength || (assistantMessage?.length || 0) > maxLength) {
+        return res.status(400).json({ error: 'Message too long' });
+      }
+      
+      logger.info('[BrainUpdate] Processing voice transcripts', { 
+        userId, 
+        hasUser: !!userMessage,
+        hasAssistant: !!assistantMessage
+      });
+      
+      // Store messages in chat history
+      const { floChatMessages } = await import('@shared/schema');
+      
+      if (userMessage) {
+        await db.insert(floChatMessages).values({
+          userId,
+          sender: 'user',
+          message: userMessage
+        });
+      }
+      
+      if (assistantMessage) {
+        await db.insert(floChatMessages).values({
+          userId,
+          sender: 'flo',
+          message: assistantMessage
+        });
+      }
+      
+      // Fire-and-forget: Send conversation to Grok for brain update extraction
+      // This runs asynchronously so we don't block the response
+      if (userMessage && assistantMessage) {
+        (async () => {
+          try {
+            const grokClientModule = await import('./services/grokClient');
+            const { processAndPersistBrainUpdates } = await import('./services/brainUpdateParser');
+            
+            // Ask Grok to analyze the conversation and extract any brain updates
+            const analysisPrompt = `You are analyzing a voice conversation between a user and a health AI assistant. Extract any important insights about the user's health that should be remembered for future conversations.
+
+USER SAID: "${userMessage}"
+
+ASSISTANT SAID: "${assistantMessage}"
+
+If you identify any important patterns, health goals, lifestyle information, or key context about this user that should be remembered, output it as:
+
+BRAIN_UPDATE_JSON: {"insight": "Description of what you learned", "tags": ["relevant", "tags"], "importance": 3}
+END_BRAIN_UPDATE
+
+Importance levels: 1=minor note, 2=useful context, 3=standard, 4=important pattern, 5=critical insight
+
+Only create BRAIN_UPDATE entries for genuinely useful information. Don't create updates for:
+- Greetings or small talk
+- Temporary states or single-day fluctuations
+- Generic health advice that was given
+
+If there's nothing worth remembering, just respond with "No brain updates needed."`;
+
+            const messages = [
+              { role: 'user' as const, content: analysisPrompt }
+            ];
+            
+            const grokResponse = await grokClientModule.grokClient.chat(messages, {
+              model: 'grok-3-mini',
+              maxTokens: 500,
+              temperature: 0.3
+            });
+            
+            // Process any brain updates from Grok's analysis
+            const result = await processAndPersistBrainUpdates(userId, grokResponse);
+            
+            if (result.persistedCount > 0) {
+              logger.info('[BrainUpdate] Grok extracted brain updates from voice conversation', { 
+                userId, 
+                persistedCount: result.persistedCount 
+              });
+            }
+          } catch (brainError) {
+            logger.error('[BrainUpdate] Grok brain extraction failed:', brainError);
+          }
+        })();
+      }
+      
+      res.json({ success: true });
+      
+    } catch (error: any) {
+      logger.error('[BrainUpdate] Error processing brain update:', error);
+      res.status(500).json({ error: 'Failed to process brain update' });
+    }
   });
 
   // ────────────────────────────────────────────────────────────────
