@@ -65,8 +65,8 @@ class GeminiLiveClient {
       sessionFailed = reject;
     });
 
-    // Try the standard Live API model first - native audio model may have different requirements
-    const model = 'gemini-2.0-flash-live-001';
+    // Native audio model for voice conversations
+    const model = 'gemini-2.5-flash-native-audio-preview-09-2025';
     
     const connectParams: LiveConnectParameters = {
       model,
@@ -102,9 +102,8 @@ class GeminiLiveClient {
         },
       },
       config: {
-        // Enable both audio and text responses
-        responseModalities: [Modality.AUDIO, Modality.TEXT],
-        // Re-enable system instruction now that connection works
+        // Native audio model requires AUDIO modality only
+        responseModalities: [Modality.AUDIO],
         systemInstruction: config.systemInstruction,
       },
     };
