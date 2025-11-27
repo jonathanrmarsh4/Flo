@@ -480,10 +480,21 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     isPlayingRef.current = true;
     setVoiceState('speaking');
     
-    const playbackContext = playbackContextRef.current;
+    let playbackContext = playbackContextRef.current;
     if (!playbackContext) {
       console.error('[VoiceChat] No playback context!');
       return;
+    }
+    
+    // CRITICAL: Resume AudioContext before each playback on iOS
+    if (playbackContext.state === 'suspended') {
+      console.log('[VoiceChat] Resuming suspended AudioContext...');
+      try {
+        await playbackContext.resume();
+        console.log('[VoiceChat] AudioContext resumed, state:', playbackContext.state);
+      } catch (e) {
+        console.error('[VoiceChat] Failed to resume AudioContext:', e);
+      }
     }
     
     // Concatenate all queued audio
@@ -498,16 +509,37 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     
     // Calculate expected duration for fallback timeout
     const durationSec = combined.length / 16000;
-    console.log('[VoiceChat] Playing audio, samples:', combined.length, 'duration:', durationSec.toFixed(2), 's');
+    console.log('[VoiceChat] Playing audio, samples:', combined.length, 'duration:', durationSec.toFixed(2), 's', 'context state:', playbackContext.state);
     
     try {
-      // Create audio buffer at 16kHz
-      const audioBuffer = playbackContext.createBuffer(1, combined.length, 16000);
-      audioBuffer.copyToChannel(combined, 0);
+      // Create audio buffer at native sample rate for better iOS compatibility
+      // Then resample from 16kHz to context's sample rate
+      const contextSampleRate = playbackContext.sampleRate;
+      const resampleRatio = contextSampleRate / 16000;
+      const resampledLength = Math.ceil(combined.length * resampleRatio);
+      
+      console.log('[VoiceChat] Resampling from 16kHz to', contextSampleRate, 'Hz, ratio:', resampleRatio.toFixed(2));
+      
+      const audioBuffer = playbackContext.createBuffer(1, resampledLength, contextSampleRate);
+      const channelData = audioBuffer.getChannelData(0);
+      
+      // Linear interpolation resampling
+      for (let i = 0; i < resampledLength; i++) {
+        const srcIndex = i / resampleRatio;
+        const srcIndexFloor = Math.floor(srcIndex);
+        const srcIndexCeil = Math.min(srcIndexFloor + 1, combined.length - 1);
+        const fraction = srcIndex - srcIndexFloor;
+        channelData[i] = combined[srcIndexFloor] * (1 - fraction) + combined[srcIndexCeil] * fraction;
+      }
       
       const source = playbackContext.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(playbackContext.destination);
+      
+      // Add gain node to ensure proper routing on iOS
+      const gainNode = playbackContext.createGain();
+      gainNode.gain.value = 1.0;
+      source.connect(gainNode);
+      gainNode.connect(playbackContext.destination);
       
       currentSourceRef.current = source;
       
@@ -537,7 +569,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       };
       
       source.start();
-      console.log('[VoiceChat] Audio source started');
+      console.log('[VoiceChat] Audio source started at', contextSampleRate, 'Hz');
     } catch (error) {
       console.error('[VoiceChat] Error playing audio:', error);
       isPlayingRef.current = false;
