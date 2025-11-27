@@ -57,5 +57,9 @@
         <string>Flō would like to save health metrics and wellness data to your Apple Health app.</string>
         <key>NSUserNotificationsUsageDescription</key>
         <string>Flō sends you personalized daily health insights and reminders based on your biomarker data and health metrics.</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>Flō uses your microphone for voice conversations with Flō Oracle, your AI health coach.</string>
+        <key>NSSpeechRecognitionUsageDescription</key>
+        <string>Flō uses speech recognition to understand your voice commands when talking with Flō Oracle.</string>
 </dict>
 </plist>
