@@ -583,12 +583,15 @@ export default function AdminDashboard() {
               </div>
               <div className="rounded-xl border bg-white/5 border-white/10 p-4">
                 <div className="text-xs text-white/50">Providers Used</div>
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2 flex-wrap">
                   {apiUsageData && (apiUsageData as any).some((item: any) => item.provider === 'openai') && (
                     <span className="px-2 py-1 rounded-md bg-green-500/20 text-green-300 text-xs">OpenAI</span>
                   )}
                   {apiUsageData && (apiUsageData as any).some((item: any) => item.provider === 'grok') && (
                     <span className="px-2 py-1 rounded-md bg-blue-500/20 text-blue-300 text-xs">Grok (xAI)</span>
+                  )}
+                  {apiUsageData && (apiUsageData as any).some((item: any) => item.provider === 'gemini') && (
+                    <span className="px-2 py-1 rounded-md bg-purple-500/20 text-purple-300 text-xs">Gemini (Google)</span>
                   )}
                 </div>
               </div>
@@ -620,9 +623,11 @@ export default function AdminDashboard() {
                             <span className={`px-2 py-0.5 rounded-md text-xs ${
                               item.provider === 'openai' 
                                 ? 'bg-green-500/20 text-green-300' 
+                                : item.provider === 'gemini'
+                                ? 'bg-purple-500/20 text-purple-300'
                                 : 'bg-blue-500/20 text-blue-300'
                             }`}>
-                              {item.provider === 'openai' ? 'OpenAI' : 'Grok'}
+                              {item.provider === 'openai' ? 'OpenAI' : item.provider === 'gemini' ? 'Gemini' : 'Grok'}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-purple-400">{item.model}</td>

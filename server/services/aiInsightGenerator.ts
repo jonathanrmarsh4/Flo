@@ -12,6 +12,7 @@
  */
 
 import { geminiInsightsClient } from './geminiInsightsClient';
+import { trackGeminiUsage } from './aiUsageTracker';
 import { logger } from '../logger';
 import { db } from '../db';
 import { profiles, healthDailyMetrics } from '../../shared/schema';
@@ -138,12 +139,14 @@ export async function getUserContext(userId: string): Promise<UserContext> {
  * @param candidate - Insight candidate from analysis layers
  * @param userContext - User profile and body composition
  * @param baselines - Baseline data for involved variables
+ * @param userId - Optional user ID for usage tracking
  * @returns AI-generated insight with title, body, and action
  */
 export async function generateContextualInsight(
   candidate: InsightCandidate,
   userContext: UserContext,
-  baselines: BaselineData[]
+  baselines: BaselineData[],
+  userId?: string
 ): Promise<AIGeneratedInsight> {
   
   // Build evidence tier explanation
@@ -296,6 +299,14 @@ Do NOT include progress tracking for:
     const content = response.text;
     if (!content) {
       throw new Error('Empty response from Gemini');
+    }
+    
+    // Track Gemini usage for admin monitoring
+    if (response.usage && userId) {
+      trackGeminiUsage('daily_insights_layer_d', 'gemini-2.5-pro', response.usage, {
+        userId,
+        metadata: { insightType: candidate.layer },
+      }).catch(err => logger.error('[AI] Failed to track Gemini usage:', err));
     }
 
     const parsed = JSON.parse(content);

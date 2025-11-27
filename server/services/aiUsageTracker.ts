@@ -8,6 +8,7 @@ import { logger } from "../logger";
  * Centralized service for tracking AI API usage and costs across:
  * - OpenAI (GPT-4o, GPT-5, text-embedding-3-small)
  * - Grok (grok-3-mini, grok-4)
+ * - Gemini (gemini-2.5-pro, gemini-2.5-flash)
  * 
  * Automatically calculates costs based on current pricing and logs to database
  */
@@ -46,6 +47,23 @@ const PRICING = {
     provider: 'grok',
     input: 1.00,
     output: 4.00,
+  },
+  
+  // Gemini Models (Google)
+  'gemini-2.5-pro': {
+    provider: 'gemini',
+    input: 1.25,  // $1.25 per 1M input tokens (>200K context)
+    output: 10.00, // $10.00 per 1M output tokens (>200K context)
+  },
+  'gemini-2.5-flash': {
+    provider: 'gemini',
+    input: 0.15,  // $0.15 per 1M input tokens
+    output: 0.60, // $0.60 per 1M output tokens
+  },
+  'gemini-2.5-flash-native-audio': {
+    provider: 'gemini',
+    input: 0.15,  // Same as flash text pricing
+    output: 0.60,
   },
 } as const;
 
@@ -181,11 +199,34 @@ export async function trackGrokChat(
 }
 
 /**
+ * Convenience wrapper for tracking Gemini usage
+ */
+export async function trackGeminiUsage(
+  endpoint: string,
+  model: ModelName,
+  usage: UsageMetrics,
+  options?: {
+    userId?: string;
+    latencyMs?: number;
+    status?: 'success' | 'error';
+    errorMessage?: string;
+    metadata?: Record<string, any>;
+  }
+): Promise<void> {
+  return trackAIUsage({
+    endpoint,
+    model,
+    usage,
+    ...options,
+  });
+}
+
+/**
  * Get provider name from model
  */
-export function getProviderForModel(model: string): 'openai' | 'grok' | 'unknown' {
+export function getProviderForModel(model: string): 'openai' | 'grok' | 'gemini' | 'unknown' {
   if (model in PRICING) {
-    return PRICING[model as ModelName].provider as 'openai' | 'grok';
+    return PRICING[model as ModelName].provider as 'openai' | 'grok' | 'gemini';
   }
   return 'unknown';
 }

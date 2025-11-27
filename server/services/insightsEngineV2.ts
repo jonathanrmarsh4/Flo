@@ -609,11 +609,12 @@ export async function generateInsightNarrative(
   rankedInsight: RankedInsight,
   candidate: InsightCandidate,
   userContext: UserContext,
-  baselines: BaselineData[]
+  baselines: BaselineData[],
+  userId?: string
 ): Promise<GeneratedInsight> {
   try {
     // Use AI to generate contextual insight
-    const aiInsight = await generateContextualInsight(candidate, userContext, baselines);
+    const aiInsight = await generateContextualInsight(candidate, userContext, baselines, userId);
     
     // DEBUG: Log what the AI generated
     logger.info(`[AI Insight Generated] ${aiInsight.title}`, {
@@ -1223,7 +1224,7 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
       const baselines: BaselineData[] = extractBaselines(candidate.variables, healthData);
       
       // Generate AI-powered insight
-      const narrative = await generateInsightNarrative(rankedInsight, candidate, userContext, baselines);
+      const narrative = await generateInsightNarrative(rankedInsight, candidate, userContext, baselines, userId);
       insightPairs.push({ narrative, ranked: rankedInsight, candidate });
       
       logger.info(`[InsightsEngineV2] Insight ${index + 1}: ${narrative.title}`);

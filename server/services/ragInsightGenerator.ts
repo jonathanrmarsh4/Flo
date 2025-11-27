@@ -9,6 +9,7 @@ import { logger } from '../logger';
 import { searchSimilarContent } from './embeddingService';
 import { getUserContext, type UserContext } from './aiInsightGenerator';
 import { geminiInsightsClient } from './geminiInsightsClient';
+import { trackGeminiUsage } from './aiUsageTracker';
 import { differenceInDays, format } from 'date-fns';
 
 export interface DataChange {
@@ -679,6 +680,14 @@ For other non-biomarker insights (sleep, HRV patterns), set these to null.`;
     const insights: RAGInsight[] = Array.isArray(parsed.insights) ? parsed.insights : Array.isArray(parsed) ? parsed : [parsed];
     
     logger.info(`[RAG] Generated ${insights.length} holistic insights`);
+    
+    // Track Gemini usage for admin monitoring
+    if (response.usage) {
+      trackGeminiUsage('daily_insights_rag', 'gemini-2.5-pro', response.usage, {
+        userId,
+        metadata: { insightsGenerated: insights.length },
+      }).catch(err => logger.error('[RAG] Failed to track Gemini usage:', err));
+    }
     
     // Post-process activity insights to inject baseline tracking values
     // Pass userContext for demographic-based step targets

@@ -115,6 +115,7 @@ Start the conversation warmly, using their name if you have it.`;
     const config: GeminiLiveConfig = {
       systemInstruction,
       voiceName: geminiVoiceName,
+      userId,
     };
 
     // Create session state

@@ -6,10 +6,18 @@
 
 import { GoogleGenAI, Modality, Session, LiveConnectParameters, LiveServerMessage } from '@google/genai';
 import { logger } from '../logger';
+import { trackGeminiUsage } from './aiUsageTracker';
+
+interface SessionMetadata {
+  startTime: number;
+  userId?: string;
+  audioChunkCount: number;
+}
 
 export interface GeminiLiveConfig {
   systemInstruction: string;
   voiceName?: string;
+  userId?: string;
 }
 
 export interface LiveSessionCallbacks {
@@ -23,6 +31,49 @@ export interface LiveSessionCallbacks {
 class GeminiLiveClient {
   private client: GoogleGenAI | null = null;
   private activeSessions: Map<string, Session> = new Map();
+  private sessionMetadata: Map<string, SessionMetadata> = new Map();
+
+  /**
+   * Track usage and clean up session metadata
+   * Called on both clean closes and unexpected terminations
+   */
+  private trackAndCleanup(sessionId: string, closeReason: string): void {
+    const metadata = this.sessionMetadata.get(sessionId);
+    
+    if (metadata) {
+      const durationMs = Date.now() - metadata.startTime;
+      const durationSeconds = Math.ceil(durationMs / 1000);
+      
+      // Estimate tokens based on audio duration
+      // Gemini Live uses approximately 25 tokens per second of audio for input/output
+      const estimatedTokens = Math.ceil(durationSeconds * 25);
+      
+      trackGeminiUsage('voice_chat', 'gemini-2.5-flash-native-audio', {
+        promptTokens: estimatedTokens,
+        completionTokens: estimatedTokens,
+        totalTokens: estimatedTokens * 2,
+      }, {
+        userId: metadata.userId,
+        latencyMs: durationMs,
+        metadata: { 
+          durationSeconds,
+          audioChunks: metadata.audioChunkCount,
+          closeReason,
+        },
+      }).catch(err => logger.error('[GeminiLive] Failed to track usage:', err));
+      
+      logger.info('[GeminiLive] Session usage tracked', { 
+        sessionId,
+        closeReason,
+        durationSeconds,
+        estimatedTokens,
+        audioChunks: metadata.audioChunkCount,
+      });
+      
+      // Always clean up metadata
+      this.sessionMetadata.delete(sessionId);
+    }
+  }
 
   constructor() {
     const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -91,12 +142,20 @@ class GeminiLiveClient {
           callbacks.onError(new Error(error.message || 'Gemini Live session error'));
         },
         onclose: (event: CloseEvent) => {
-          logger.info('[GeminiLive] Session closed', { 
+          const closeReason = event?.wasClean 
+            ? 'clean_close' 
+            : `unexpected_close_${event?.code || 'unknown'}`;
+          
+          logger.info('[GeminiLive] Session closed via callback', { 
             sessionId, 
             code: event?.code,
             reason: event?.reason,
             wasClean: event?.wasClean
           });
+          
+          // Track usage and cleanup metadata for all close paths
+          this.trackAndCleanup(sessionId, closeReason);
+          
           this.activeSessions.delete(sessionId);
           callbacks.onClose();
         },
@@ -130,6 +189,13 @@ class GeminiLiveClient {
       
       this.activeSessions.set(sessionId, session);
       
+      // Initialize session metadata for tracking
+      this.sessionMetadata.set(sessionId, {
+        startTime: Date.now(),
+        userId: config.userId,
+        audioChunkCount: 0,
+      });
+      
       // Wait for session to be fully ready (onopen callback)
       // Add a timeout to prevent hanging forever
       const timeoutPromise = new Promise<void>((_, reject) => {
@@ -140,7 +206,8 @@ class GeminiLiveClient {
       
       logger.info('[GeminiLive] Session connected and ready', { 
         sessionId,
-        hasSession: !!session 
+        hasSession: !!session,
+        userId: config.userId
       });
     } catch (error: any) {
       logger.error('[GeminiLive] Failed to create session', { 
@@ -196,6 +263,12 @@ class GeminiLiveClient {
 
     const base64Audio = audioData.toString('base64');
     
+    // Increment audio chunk count for usage tracking
+    const metadata = this.sessionMetadata.get(sessionId);
+    if (metadata) {
+      metadata.audioChunkCount++;
+    }
+    
     try {
       await session.sendRealtimeInput({
         audio: {
@@ -229,14 +302,22 @@ class GeminiLiveClient {
   }
 
   /**
-   * Close a session
+   * Close a session and track usage
+   * Note: The onclose callback will also track usage, so we use trackAndCleanup
+   * which safely handles multiple calls via sessionMetadata.get check
    */
   async closeSession(sessionId: string): Promise<void> {
     const session = this.activeSessions.get(sessionId);
+    
     if (session) {
       try {
+        // Track usage and cleanup metadata before closing
+        // This is safe to call - trackAndCleanup checks if metadata exists
+        this.trackAndCleanup(sessionId, 'app_initiated_close');
+        
         session.close();
         this.activeSessions.delete(sessionId);
+        
         logger.info('[GeminiLive] Session closed', { sessionId });
       } catch (error: any) {
         logger.error('[GeminiLive] Error closing session', { sessionId, error: error.message });

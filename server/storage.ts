@@ -873,7 +873,12 @@ export class DatabaseStorage implements IStorage {
     return results.map(r => {
       // Determine provider from model name
       const model = r.model.toLowerCase();
-      const provider = model.includes('grok') ? 'grok' : 'openai';
+      let provider = 'openai';
+      if (model.includes('grok')) {
+        provider = 'grok';
+      } else if (model.includes('gemini')) {
+        provider = 'gemini';
+      }
       
       return {
         date: r.date,
