@@ -8,7 +8,7 @@ import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './gemi
 import { buildUserHealthContext } from './floOracleContextBuilder';
 import { logger } from '../logger';
 import { db } from '../db';
-import { floChatMessages, profiles } from '@shared/schema';
+import { floChatMessages, users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 const FLO_ORACLE_SYSTEM_PROMPT = `You are Flō Oracle — a curious, analytical health coach who speaks naturally in voice conversations.
@@ -72,8 +72,8 @@ class GeminiVoiceService {
     logger.info('[GeminiVoice] Starting session', { userId, sessionId });
 
     // Get user's first name and health context
-    const [profile] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
-    const firstName = profile?.firstName || undefined;
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const firstName = user?.firstName || undefined;
     const healthContext = await buildUserHealthContext(userId);
 
     // Build the full system prompt
@@ -210,17 +210,12 @@ Start the conversation warmly, using their name if you have it.`;
       // Combine transcript into a single conversation record
       const fullTranscript = state.transcript.join('\n');
       
+      // Insert using the correct schema (sender, message fields)
       await db.insert(floChatMessages).values({
-        id: crypto.randomUUID(),
         userId: state.userId,
-        role: 'session_transcript',
-        content: fullTranscript,
-        isVoice: true,
-        metadata: {
-          sessionId,
-          duration: Date.now() - state.startedAt.getTime(),
-          messageCount: state.transcript.length,
-        },
+        sender: 'flo',
+        message: fullTranscript,
+        sessionId: sessionId,
       });
 
       logger.info('[GeminiVoice] Conversation persisted', { 
@@ -241,9 +236,9 @@ Start the conversation warmly, using their name if you have it.`;
    */
   getActiveSessionCount(): number {
     let count = 0;
-    for (const state of this.sessionStates.values()) {
+    this.sessionStates.forEach(state => {
       if (state.isActive) count++;
-    }
+    });
     return count;
   }
 }

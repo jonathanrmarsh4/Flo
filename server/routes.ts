@@ -8118,5 +8118,161 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   app.use('/api/billing', isAuthenticated, billingRouter);
 
   const httpServer = createServer(app);
+  
+  // ────────────────────────────────────────────────────────────────
+  // GEMINI LIVE WEBSOCKET - Real-time bidirectional voice streaming
+  // ────────────────────────────────────────────────────────────────
+  
+  const WebSocket = await import('ws');
+  const wss = new WebSocket.WebSocketServer({ server: httpServer, path: '/api/voice/gemini-live' });
+  
+  wss.on('connection', async (ws: any, req: any) => {
+    logger.info('[GeminiLive WS] New connection attempt');
+    
+    let userId: string | null = null;
+    let sessionId: string | null = null;
+    
+    try {
+      // Parse auth from URL params (mobile app passes JWT)
+      const url = new URL(req.url || '', `http://${req.headers.host}`);
+      const token = url.searchParams.get('token');
+      
+      // Require JWT_SECRET to be set for production
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        logger.error('[GeminiLive WS] JWT_SECRET not configured');
+        ws.close(4003, 'Server configuration error');
+        return;
+      }
+      
+      if (token) {
+        // Verify JWT token with actual secret
+        const jwt = await import('jsonwebtoken');
+        try {
+          const decoded = jwt.default.verify(token, jwtSecret) as { userId: string };
+          userId = decoded.userId;
+        } catch (jwtError: any) {
+          logger.error('[GeminiLive WS] JWT verification failed', { error: jwtError.message });
+          ws.close(4001, 'Invalid token');
+          return;
+        }
+      } else {
+        // No token provided
+        logger.warn('[GeminiLive WS] No token provided');
+        ws.close(4001, 'Authentication required');
+        return;
+      }
+      
+      if (!userId) {
+        ws.close(4001, 'Invalid authentication');
+        return;
+      }
+      
+      logger.info('[GeminiLive WS] Authenticated user', { userId });
+      
+      // Import and start Gemini voice session
+      const { geminiVoiceService } = await import('./services/geminiVoiceService');
+      
+      if (!geminiVoiceService.isAvailable()) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Gemini Live not available' }));
+        ws.close(4003, 'Service unavailable');
+        return;
+      }
+      
+      // Start the voice session
+      sessionId = await geminiVoiceService.startSession(userId, {
+        onAudioChunk: (audioData: Buffer) => {
+          // Send audio back to client as base64
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'audio',
+              data: audioData.toString('base64'),
+            }));
+          }
+        },
+        onTranscript: (text: string, isFinal: boolean) => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'transcript',
+              text,
+              isFinal,
+            }));
+          }
+        },
+        onError: (error: Error) => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: error.message,
+            }));
+          }
+        },
+        onClose: () => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.close(1000, 'Session ended');
+          }
+        },
+      });
+      
+      ws.send(JSON.stringify({ type: 'connected', sessionId }));
+      logger.info('[GeminiLive WS] Session started', { userId, sessionId });
+      
+      // Handle incoming messages (audio data from client)
+      ws.on('message', async (data: any) => {
+        try {
+          const message = JSON.parse(data.toString());
+          
+          if (message.type === 'audio' && message.data && sessionId) {
+            // Decode base64 audio and send to Gemini
+            const audioBuffer = Buffer.from(message.data, 'base64');
+            await geminiVoiceService.sendAudio(sessionId, audioBuffer);
+          } else if (message.type === 'text' && message.text && sessionId) {
+            // Send text input (for accessibility/testing)
+            await geminiVoiceService.sendText(sessionId, message.text);
+          } else if (message.type === 'end') {
+            // End the session
+            if (sessionId) {
+              await geminiVoiceService.endSession(sessionId);
+            }
+            ws.close(1000, 'Session ended by client');
+          }
+        } catch (error: any) {
+          logger.error('[GeminiLive WS] Message processing error', { error: error.message });
+          ws.send(JSON.stringify({ type: 'error', message: 'Failed to process message' }));
+        }
+      });
+      
+      // Handle close - ensure session cleanup
+      ws.on('close', async () => {
+        logger.info('[GeminiLive WS] Connection closed', { userId, sessionId });
+        if (sessionId) {
+          try {
+            await geminiVoiceService.endSession(sessionId);
+            sessionId = null; // Prevent double cleanup
+          } catch (cleanupError: any) {
+            logger.error('[GeminiLive WS] Session cleanup error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+      // Handle errors
+      ws.on('error', async (error: Error) => {
+        logger.error('[GeminiLive WS] WebSocket error', { userId, sessionId, error: error.message });
+        if (sessionId) {
+          try {
+            await geminiVoiceService.endSession(sessionId);
+            sessionId = null;
+          } catch (cleanupError: any) {
+            logger.error('[GeminiLive WS] Session cleanup error on error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+    } catch (error: any) {
+      logger.error('[GeminiLive WS] Connection error', { error: error.message });
+      ws.close(4002, 'Server error');
+    }
+  });
+  
   return httpServer;
 }
