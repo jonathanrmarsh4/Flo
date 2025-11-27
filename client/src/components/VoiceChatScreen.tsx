@@ -232,6 +232,21 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         // Start in 'speaking' state - wait for AI greeting before listening
         setVoiceState('speaking');
         
+        // REQUIRED: Send conversation_initiation_client_data to start the conversation
+        // This tells ElevenLabs the client is ready and triggers the agent's first greeting
+        ws.send(JSON.stringify({
+          type: "conversation_initiation_client_data",
+          conversation_config_override: {
+            agent: {
+              tts: {
+                // Request PCM audio at 16kHz for easier native playback
+                output_format: "pcm_16000"
+              }
+            }
+          }
+        }));
+        console.log('[VoiceChat] Sent conversation_initiation_client_data with PCM format');
+        
         // Start microphone capture but don't send audio yet (voiceState is 'speaking')
         // Audio will only be sent when voiceState becomes 'listening'
         if (useNativeMic) {
