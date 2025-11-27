@@ -1,4 +1,4 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
@@ -36,8 +36,20 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState('Amanda');
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
+  const [isLoadingVoicePreference, setIsLoadingVoicePreference] = useState(true);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  
+  // Voice options for AI Voice Settings
+  const voiceOptions = [
+    { name: 'Amanda', description: 'Warm & Professional', gender: 'Female' },
+    { name: 'Morgan', description: 'Calm & Reassuring', gender: 'Female' },
+    { name: 'Izzy', description: 'Energetic & Friendly', gender: 'Female' },
+    { name: 'Ethan', description: 'Clear & Confident', gender: 'Male' },
+    { name: 'Jon', description: 'Thoughtful & Steady', gender: 'Male' }
+  ];
   
   // Fetch profile data from backend
   const { data: profile, isLoading, error } = useProfile();
@@ -141,6 +153,106 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
       }
     }
   }, [profile, isEditing]);
+
+  // Fetch voice preference on mount
+  useEffect(() => {
+    const fetchVoicePreference = async () => {
+      try {
+        const response = await apiRequest('GET', '/api/profile/voice-preference');
+        const data = await response.json();
+        if (data.current) {
+          setSelectedVoice(data.current);
+        }
+      } catch (error) {
+        console.error('[VoicePreference] Failed to fetch:', error);
+      } finally {
+        setIsLoadingVoicePreference(false);
+      }
+    };
+    fetchVoicePreference();
+  }, []);
+
+  // Audio reference for voice playback
+  const audioRef = { current: null as HTMLAudioElement | null };
+
+  // Handle voice selection
+  const handleSelectVoice = async (voiceName: string) => {
+    const previousVoice = selectedVoice;
+    setSelectedVoice(voiceName);
+    
+    try {
+      await apiRequest('PATCH', '/api/profile/voice-preference', { voicePreference: voiceName });
+      toast({
+        title: "Voice Updated",
+        description: `${voiceName} is now your AI voice.`,
+      });
+    } catch (error) {
+      console.error('[VoicePreference] Failed to save:', error);
+      setSelectedVoice(previousVoice);
+      toast({
+        title: "Update Failed",
+        description: "Could not save voice preference. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle voice sample playback
+  const handlePlayVoice = async (voiceName: string) => {
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    
+    if (playingVoice === voiceName) {
+      setPlayingVoice(null);
+      return;
+    }
+    
+    setPlayingVoice(voiceName);
+    
+    try {
+      const response = await fetch(`/api/voice/sample/${voiceName}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch voice sample');
+      }
+      
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      
+      audio.onended = () => {
+        setPlayingVoice(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      audio.onerror = () => {
+        setPlayingVoice(null);
+        URL.revokeObjectURL(audioUrl);
+        toast({
+          title: "Playback Error",
+          description: "Could not play voice sample.",
+          variant: "destructive",
+        });
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error('[VoiceSample] Playback failed:', error);
+      setPlayingVoice(null);
+      toast({
+        title: "Sample Unavailable",
+        description: "Voice sample could not be loaded.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: Date | string | null | undefined): number | null => {
@@ -953,6 +1065,98 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* AI Voice Settings */}
+        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+        }`} data-testid="card-ai-voice-settings">
+          <div className="flex items-center gap-2 mb-4">
+            <Mic className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+            <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              AI Voice Settings
+            </h2>
+          </div>
+
+          <p className={`text-xs mb-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            Choose your preferred voice for AI interactions
+          </p>
+
+          <div className="space-y-3">
+            {voiceOptions.map((voice) => (
+              <div
+                key={voice.name}
+                className={`relative p-4 rounded-2xl border transition-all cursor-pointer ${
+                  selectedVoice === voice.name
+                    ? isDark
+                      ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/50'
+                      : 'bg-gradient-to-r from-purple-50 to-blue-50 border-purple-300'
+                    : isDark
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                      : 'bg-white/60 border-gray-200 hover:bg-white'
+                }`}
+                onClick={() => handleSelectVoice(voice.name)}
+                data-testid={`voice-option-${voice.name.toLowerCase()}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    {/* Selection Indicator */}
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      selectedVoice === voice.name
+                        ? isDark
+                          ? 'border-purple-400 bg-purple-500'
+                          : 'border-purple-500 bg-purple-500'
+                        : isDark
+                          ? 'border-white/30'
+                          : 'border-gray-300'
+                    }`}>
+                      {selectedVoice === voice.name && (
+                        <Check className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+
+                    {/* Voice Info */}
+                    <div className="flex-1">
+                      <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {voice.name}
+                      </div>
+                      <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        {voice.description} • {voice.gender}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Play Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayVoice(voice.name);
+                    }}
+                    className={`p-2.5 rounded-full transition-all ${
+                      playingVoice === voice.name
+                        ? isDark
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-purple-500 text-white'
+                        : isDark
+                          ? 'bg-white/10 text-purple-400 hover:bg-white/20'
+                          : 'bg-purple-100 text-purple-600 hover:bg-purple-200'
+                    }`}
+                    data-testid={`button-play-voice-${voice.name.toLowerCase()}`}
+                  >
+                    {playingVoice === voice.name ? (
+                      <div className="flex gap-0.5 items-center justify-center w-4 h-4">
+                        <div className="w-0.5 h-3 bg-white rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+                        <div className="w-0.5 h-4 bg-white rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+                        <div className="w-0.5 h-2 bg-white rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    ) : (
+                      <Play className="w-4 h-4" fill="currentColor" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
