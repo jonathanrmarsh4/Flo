@@ -38,7 +38,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     {
       id: '1',
       type: 'flo',
-      content: "Hi there! I'm Flō Oracle, your personal health AI powered by Grok. Tap the mic to start a conversation - I'll keep listening after each response so we can chat naturally.",
+      content: "Hey! I'm Flō Oracle - think of me as your curious health detective who loves digging into your data. Tap the phone to start our conversation, and we'll explore what your body's telling us together. What's been on your mind lately?",
       timestamp: new Date(),
       isVoice: false,
     },
