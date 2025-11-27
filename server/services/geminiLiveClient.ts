@@ -65,8 +65,11 @@ class GeminiLiveClient {
       sessionFailed = reject;
     });
 
+    // Try the standard Live API model first - native audio model may have different requirements
+    const model = 'gemini-2.0-flash-live-001';
+    
     const connectParams: LiveConnectParameters = {
-      model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+      model,
       callbacks: {
         onopen: () => {
           logger.info('[GeminiLive] Session opened', { sessionId });
