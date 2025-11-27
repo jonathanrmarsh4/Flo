@@ -6867,7 +6867,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const userId = req.user.claims.sub;
       
       // Get audio from request body (base64 encoded)
-      const { audioBase64, conversationHistory } = req.body;
+      const { audioBase64, audioMimeType, conversationHistory } = req.body;
       
       if (!audioBase64) {
         return res.status(400).json({ error: 'Audio data is required' });
@@ -6876,6 +6876,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       logger.info('[SpeechRelay] Processing voice request', { 
         userId, 
         audioLength: audioBase64.length,
+        audioMimeType: audioMimeType || 'audio/webm',
         historyLength: conversationHistory?.length || 0
       });
       
@@ -6892,6 +6893,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       // Process audio through the relay
       const result = await speechRelayService.processAudio(audioBuffer, {
         userId,
+        audioMimeType: audioMimeType || 'audio/webm',
         conversationHistory: conversationHistory || []
       });
       

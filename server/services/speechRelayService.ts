@@ -8,6 +8,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 interface SpeechRelayConfig {
   userId: string;
+  audioMimeType?: string;
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
@@ -41,16 +42,17 @@ class SpeechRelayService {
       throw new Error('OpenAI API key not configured');
     }
 
-    const { userId, conversationHistory = [] } = config;
+    const { userId, audioMimeType = 'audio/webm', conversationHistory = [] } = config;
 
     logger.info('[SpeechRelay] Processing audio for user', { 
       userId, 
       audioSize: audioBuffer.length,
+      audioMimeType,
       historyLength: conversationHistory.length
     });
 
     // Step 1: Transcribe audio using Whisper
-    const transcript = await this.transcribeAudio(audioBuffer);
+    const transcript = await this.transcribeAudio(audioBuffer, audioMimeType);
     logger.info('[SpeechRelay] Transcription complete', { 
       userId, 
       transcriptLength: transcript.length 
@@ -78,13 +80,19 @@ class SpeechRelayService {
     };
   }
 
-  private async transcribeAudio(audioBuffer: Buffer): Promise<string> {
+  private async transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
     if (!this.openai) {
       throw new Error('OpenAI not initialized');
     }
 
+    // Determine the file extension based on MIME type
+    const extension = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'mp4' : 'webm';
+    const filename = `audio.${extension}`;
+    
+    logger.info('[SpeechRelay] Creating audio file for Whisper', { mimeType, filename });
+
     // Create a File object from the buffer for the API
-    const audioFile = new File([audioBuffer], 'audio.webm', { type: 'audio/webm' });
+    const audioFile = new File([audioBuffer], filename, { type: mimeType });
 
     const transcription = await this.openai.audio.transcriptions.create({
       file: audioFile,
@@ -206,10 +214,10 @@ ${userContext}`;
       throw new Error('OpenAI API key not configured');
     }
 
-    const { userId, conversationHistory = [] } = config;
+    const { userId, audioMimeType = 'audio/webm', conversationHistory = [] } = config;
 
     // Step 1: Transcribe audio
-    const transcript = await this.transcribeAudio(audioBuffer);
+    const transcript = await this.transcribeAudio(audioBuffer, audioMimeType);
     onTranscript(transcript);
 
     // Step 2: Get Grok response (full response for now, streaming could be added later)

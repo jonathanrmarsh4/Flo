@@ -50,6 +50,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const audioMimeTypeRef = useRef<string>('audio/webm');
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -128,10 +129,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       streamRef.current = stream;
       audioChunksRef.current = [];
       
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
-      });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      audioMimeTypeRef.current = mimeType;
       
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       
       mediaRecorder.ondataavailable = (event) => {
@@ -194,10 +195,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     
     try {
       const audioBlob = new Blob(audioChunksRef.current, { 
-        type: mediaRecorderRef.current?.mimeType || 'audio/webm' 
+        type: audioMimeTypeRef.current 
       });
       
-      console.log('[VoiceChat] Processing audio:', audioBlob.size, 'bytes');
+      console.log('[VoiceChat] Processing audio:', audioBlob.size, 'bytes, type:', audioMimeTypeRef.current);
       
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(
@@ -208,6 +209,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       
       const response = await apiRequest('POST', '/api/voice/speech-relay', {
         audioBase64: base64Audio,
+        audioMimeType: audioMimeTypeRef.current,
         conversationHistory
       });
       
