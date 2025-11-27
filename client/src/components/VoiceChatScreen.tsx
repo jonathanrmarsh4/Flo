@@ -338,8 +338,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       
       setConversationHistory(prev => [
         ...prev,
-        { role: 'user', content: text },
-        { role: 'assistant', content: result.reply }
+        { role: 'user' as const, content: text },
+        { role: 'assistant' as const, content: result.reply }
       ].slice(-20));
       
     } catch (error: any) {
