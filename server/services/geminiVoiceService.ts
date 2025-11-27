@@ -63,6 +63,7 @@ class GeminiVoiceService {
     callbacks: {
       onAudioChunk: (audioData: Buffer) => void;
       onTranscript: (text: string, isFinal: boolean) => void;
+      onModelText: (text: string) => void;
       onError: (error: Error) => void;
       onClose: () => void;
     }
@@ -113,6 +114,14 @@ Start the conversation warmly, using their name if you have it.`;
           }
         }
         callbacks.onTranscript(text, isFinal);
+      },
+      onModelText: (text: string) => {
+        // Track model's text response
+        const currentState = this.sessionStates.get(sessionId);
+        if (currentState && text) {
+          currentState.transcript.push(`[Flō]: ${text}`);
+        }
+        callbacks.onModelText(text);
       },
       onError: (error: Error) => {
         logger.error('[GeminiVoice] Session error', { sessionId, error: error.message });

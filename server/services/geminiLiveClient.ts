@@ -15,6 +15,7 @@ export interface GeminiLiveConfig {
 export interface LiveSessionCallbacks {
   onAudioChunk: (audioData: Buffer) => void;
   onTranscript: (text: string, isFinal: boolean) => void;
+  onModelText: (text: string) => void;
   onError: (error: Error) => void;
   onClose: () => void;
 }
@@ -76,7 +77,7 @@ class GeminiLiveClient {
         },
       },
       config: {
-        responseModalities: [Modality.AUDIO],
+        responseModalities: [Modality.AUDIO, Modality.TEXT],
         systemInstruction: config.systemInstruction,
       },
     };
@@ -102,11 +103,12 @@ class GeminiLiveClient {
         callbacks.onAudioChunk(audioBuffer);
       }
 
-      // Handle text/transcript if present in serverContent
+      // Handle model's text response if present in serverContent
       if (message.serverContent?.modelTurn?.parts) {
         for (const part of message.serverContent.modelTurn.parts) {
           if (part.text) {
-            callbacks.onTranscript(part.text, false);
+            // This is the model's text response
+            callbacks.onModelText(part.text);
           }
         }
       }

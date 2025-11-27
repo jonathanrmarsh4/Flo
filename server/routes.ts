@@ -8199,6 +8199,15 @@ If there's nothing worth remembering, just respond with "No brain updates needed
             }));
           }
         },
+        onModelText: (text: string) => {
+          // Send model's text response to client
+          if (ws.readyState === WebSocket.default.OPEN && text) {
+            ws.send(JSON.stringify({
+              type: 'response_text',
+              text,
+            }));
+          }
+        },
         onError: (error: Error) => {
           if (ws.readyState === WebSocket.default.OPEN) {
             ws.send(JSON.stringify({

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Mic, Volume2, Activity, Heart, Moon, TrendingUp, Loader2, Send, Square, Phone, PhoneOff } from 'lucide-react';
+import { X, Mic, Volume2, Activity, Heart, Moon, TrendingUp, Loader2, Send, Phone, PhoneOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FloLogo } from './FloLogo';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import xaiLogo from '@assets/xai-logo.svg';
+import { useGeminiLiveVoice } from '@/hooks/useGeminiLiveVoice';
 
 interface Message {
   id: string;
@@ -19,19 +19,12 @@ interface VoiceChatScreenProps {
   onClose: () => void;
 }
 
-type VoiceState = 'idle' | 'recording' | 'processing' | 'speaking';
-
 const quickSuggestions = [
   { icon: Activity, text: "What's my glucose trend?", color: "from-blue-500 to-cyan-500" },
   { icon: Heart, text: "Review my heart health", color: "from-red-500 to-pink-500" },
   { icon: Moon, text: "Analyze my sleep quality", color: "from-purple-500 to-indigo-500" },
   { icon: TrendingUp, text: "Show recent improvements", color: "from-green-500 to-emerald-500" },
 ];
-
-const SILENCE_THRESHOLD = 8;
-const SILENCE_DURATION_MS = 900; // Reduced from 1500ms for faster response
-const MIN_RECORDING_MS = 500;
-const AUTO_RESUME_DELAY_MS = 400;
 
 export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [messages, setMessages] = useState<Message[]>([
@@ -44,633 +37,169 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     },
   ]);
   
-  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
-  const [audioLevel, setAudioLevel] = useState(0);
   const [isVoiceMode, setIsVoiceMode] = useState(true);
-  const [isConversationActive, setIsConversationActive] = useState(false);
-  
   const [inputValue, setInputValue] = useState('');
   const [isTextLoading, setIsTextLoading] = useState(false);
-  
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [currentTranscript, setCurrentTranscript] = useState('');
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioMimeTypeRef = useRef<string>('audio/webm');
-  const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  
-  const silenceStartRef = useRef<number | null>(null);
-  const recordingStartRef = useRef<number | null>(null);
-  const hasSpokenRef = useRef<boolean>(false);
-  const isProcessingRef = useRef<boolean>(false);
-  const shouldContinueRef = useRef<boolean>(false);
-  const autoResumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
+
+  // Use Gemini Live for voice
+  const {
+    isConnected,
+    isListening,
+    isSpeaking,
+    error: geminiError,
+    connect,
+    disconnect,
+    startListening,
+    stopListening,
+    sendText,
+  } = useGeminiLiveVoice({
+    onTranscript: (text, isFinal) => {
+      console.log('[VoiceChat] Transcript:', text, 'Final:', isFinal);
+      setCurrentTranscript(text);
+      
+      if (isFinal && text.trim()) {
+        // Add user message
+        const userMessage: Message = {
+          id: Date.now().toString(),
+          type: 'user',
+          content: text,
+          timestamp: new Date(),
+          isVoice: true,
+        };
+        setMessages(prev => [...prev, userMessage]);
+        setCurrentTranscript('');
+        
+        // Update conversation history
+        setConversationHistory(prev => [
+          ...prev,
+          { role: 'user' as const, content: text }
+        ].slice(-20));
+      }
+    },
+    onError: (error) => {
+      console.error('[VoiceChat] Gemini error:', error);
+      toast({
+        title: "Voice error",
+        description: error,
+        variant: "destructive",
+      });
+    },
+    onConnected: () => {
+      console.log('[VoiceChat] Connected to Gemini Live');
+      // Send initial greeting request
+      sendText("Hello! Please greet me and let me know you're ready to help with my health data.");
+      // Start listening for user speech
+      startListening();
+    },
+    onDisconnected: () => {
+      console.log('[VoiceChat] Disconnected from Gemini Live');
+    },
+    onFloResponse: (text) => {
+      // Add Flo's response as a message
+      const floMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'flo',
+        content: text,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      setMessages(prev => [...prev, floMessage]);
+      
+      // Update conversation history
+      setConversationHistory(prev => [
+        ...prev,
+        { role: 'assistant' as const, content: text }
+      ].slice(-20));
+    },
+  });
+
+  const isProcessing = !isConnected && messages.length > 1;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      shouldContinueRef.current = false;
-      if (autoResumeTimeoutRef.current) {
-        clearTimeout(autoResumeTimeoutRef.current);
-      }
-      cleanupRecording();
+      disconnect();
     };
-  }, []);
-
-  const cleanupRecording = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    mediaRecorderRef.current = null;
-    
-    setAudioLevel(0);
-  }, []);
-
-  const startRecordingInternal = useCallback(async () => {
-    try {
-      console.log('[VoiceChat] Starting recording with VAD...');
-      
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        }
-      });
-      
-      streamRef.current = stream;
-      audioChunksRef.current = [];
-      silenceStartRef.current = null;
-      hasSpokenRef.current = false;
-      recordingStartRef.current = Date.now();
-      isProcessingRef.current = false;
-      
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-      audioMimeTypeRef.current = mimeType;
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mediaRecorder;
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.onstop = () => {
-        console.log('[VoiceChat] MediaRecorder stopped, processing...');
-        processRecordingInternal();
-      };
-      
-      mediaRecorder.start(100);
-      setVoiceState('recording');
-      
-      const audioContext = new AudioContext();
-      audioContextRef.current = audioContext;
-      
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      analyserRef.current = analyser;
-      
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      
-      const checkAudioLevel = () => {
-        if (!analyserRef.current || !mediaRecorderRef.current) {
-          return;
-        }
-        
-        analyserRef.current.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        const normalizedLevel = Math.min(100, average * 1.5);
-        setAudioLevel(normalizedLevel);
-        
-        const now = Date.now();
-        const recordingDuration = now - (recordingStartRef.current || now);
-        
-        if (average > SILENCE_THRESHOLD) {
-          hasSpokenRef.current = true;
-          silenceStartRef.current = null;
-        } else if (hasSpokenRef.current && recordingDuration > MIN_RECORDING_MS) {
-          if (!silenceStartRef.current) {
-            silenceStartRef.current = now;
-          } else if (now - silenceStartRef.current > SILENCE_DURATION_MS) {
-            console.log('[VoiceChat] Silence detected, auto-stopping...');
-            stopRecordingInternal();
-            return;
-          }
-        }
-        
-        animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
-      };
-      
-      checkAudioLevel();
-      
-      console.log('[VoiceChat] Recording started with VAD');
-      
-    } catch (error: any) {
-      console.error('[VoiceChat] Failed to start recording:', error);
-      shouldContinueRef.current = false;
-      setIsConversationActive(false);
-      
-      if (error.name === 'NotAllowedError') {
-        toast({
-          title: "Microphone access denied",
-          description: "Please allow microphone access to use voice chat.",
-          variant: "destructive",
-        });
-        setIsVoiceMode(false);
-      } else {
-        toast({
-          title: "Recording failed",
-          description: "Could not start recording. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
-  }, [toast]);
-
-  const stopRecordingInternal = useCallback(() => {
-    console.log('[VoiceChat] Stopping recording...');
-    
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    
-    setAudioLevel(0);
-  }, []);
-
-  // Audio queue for streaming playback
-  const audioQueueRef = useRef<string[]>([]);
-  const isPlayingQueueRef = useRef(false);
-  const floMessageIdRef = useRef<string>('');
-  
-  // Play queued audio chunks sequentially
-  const playNextInQueue = useCallback(() => {
-    if (audioQueueRef.current.length === 0) {
-      isPlayingQueueRef.current = false;
-      console.log('[VoiceChat] Audio queue empty, all chunks played');
-      isProcessingRef.current = false;
-      
-      if (shouldContinueRef.current) {
-        autoResumeTimeoutRef.current = setTimeout(() => {
-          if (shouldContinueRef.current) {
-            console.log('[VoiceChat] Auto-resuming recording after streaming...');
-            startRecordingInternal();
-          }
-        }, AUTO_RESUME_DELAY_MS);
-      } else {
-        setVoiceState('idle');
-        setIsConversationActive(false);
-      }
-      return;
-    }
-    
-    isPlayingQueueRef.current = true;
-    const audioBase64 = audioQueueRef.current.shift()!;
-    
-    const audioData = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
-    const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
-    const audioUrl = URL.createObjectURL(audioBlob);
-    
-    const audioEl = new Audio(audioUrl);
-    audioElementRef.current = audioEl;
-    
-    audioEl.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      playNextInQueue();
-    };
-    
-    audioEl.onerror = () => {
-      console.error('[VoiceChat] Audio chunk playback error');
-      URL.revokeObjectURL(audioUrl);
-      playNextInQueue();
-    };
-    
-    audioEl.play().catch(() => {
-      console.error('[VoiceChat] Failed to play audio chunk');
-      playNextInQueue();
-    });
-  }, [startRecordingInternal]);
-
-  const processRecordingInternal = useCallback(async () => {
-    if (isProcessingRef.current) return;
-    if (audioChunksRef.current.length === 0) {
-      console.log('[VoiceChat] No audio recorded');
-      if (shouldContinueRef.current) {
-        autoResumeTimeoutRef.current = setTimeout(() => {
-          if (shouldContinueRef.current) {
-            startRecordingInternal();
-          }
-        }, AUTO_RESUME_DELAY_MS);
-      } else {
-        setVoiceState('idle');
-        setIsConversationActive(false);
-      }
-      return;
-    }
-    
-    isProcessingRef.current = true;
-    setVoiceState('processing');
-    
-    try {
-      const audioBlob = new Blob(audioChunksRef.current, { 
-        type: audioMimeTypeRef.current 
-      });
-      
-      console.log('[VoiceChat] Processing audio:', audioBlob.size, 'bytes, type:', audioMimeTypeRef.current);
-      
-      if (audioBlob.size < 1000) {
-        console.log('[VoiceChat] Audio too short, skipping');
-        isProcessingRef.current = false;
-        if (shouldContinueRef.current) {
-          autoResumeTimeoutRef.current = setTimeout(() => {
-            if (shouldContinueRef.current) {
-              startRecordingInternal();
-            }
-          }, AUTO_RESUME_DELAY_MS);
-        } else {
-          setVoiceState('idle');
-          setIsConversationActive(false);
-        }
-        return;
-      }
-      
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const base64Audio = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-      
-      console.log('[VoiceChat] Sending to streaming speech relay...');
-      
-      // Reset audio queue
-      audioQueueRef.current = [];
-      isPlayingQueueRef.current = false;
-      
-      let transcript = '';
-      let accumulatedText = '';
-      floMessageIdRef.current = (Date.now() + 1).toString();
-      
-      // Use streaming endpoint
-      const response = await fetch('/api/voice/speech-relay-stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          audioBase64: base64Audio,
-          audioMimeType: audioMimeTypeRef.current,
-          conversationHistory
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Streaming request failed: ${response.status}`);
-      }
-      
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body');
-      }
-      
-      const decoder = new TextDecoder();
-      let buffer = '';
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        
-        // Parse SSE events from buffer
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        
-        let eventType = '';
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            eventType = line.slice(7).trim();
-          } else if (line.startsWith('data: ') && eventType) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              
-              if (eventType === 'transcript' && data.transcript) {
-                transcript = data.transcript;
-                console.log('[VoiceChat] Received transcript:', transcript);
-                
-                // Add user message
-                const userMessage: Message = {
-                  id: Date.now().toString(),
-                  type: 'user',
-                  content: transcript,
-                  timestamp: new Date(),
-                  isVoice: true,
-                };
-                setMessages(prev => [...prev, userMessage]);
-                
-                // Check for empty transcript
-                if (transcript.length < 2) {
-                  console.log('[VoiceChat] Empty transcript, continuing to listen...');
-                  isProcessingRef.current = false;
-                  reader.cancel();
-                  if (shouldContinueRef.current) {
-                    autoResumeTimeoutRef.current = setTimeout(() => {
-                      if (shouldContinueRef.current) {
-                        startRecordingInternal();
-                      }
-                    }, AUTO_RESUME_DELAY_MS);
-                  }
-                  return;
-                }
-              } else if (eventType === 'text' && data.text) {
-                accumulatedText += data.text + ' ';
-                console.log('[VoiceChat] Text chunk:', data.text.substring(0, 30) + '...');
-                
-                // Update or add Flo message with accumulated text
-                setMessages(prev => {
-                  const existing = prev.find(m => m.id === floMessageIdRef.current);
-                  if (existing) {
-                    return prev.map(m => 
-                      m.id === floMessageIdRef.current 
-                        ? { ...m, content: accumulatedText.trim() }
-                        : m
-                    );
-                  } else {
-                    return [...prev, {
-                      id: floMessageIdRef.current,
-                      type: 'flo' as const,
-                      content: accumulatedText.trim(),
-                      timestamp: new Date(),
-                      isVoice: true,
-                    }];
-                  }
-                });
-              } else if (eventType === 'audio' && data.audio) {
-                console.log('[VoiceChat] Audio chunk received, length:', data.audio.length);
-                
-                // Queue audio chunk
-                audioQueueRef.current.push(data.audio);
-                
-                // Start playing if not already
-                if (!isPlayingQueueRef.current) {
-                  setVoiceState('speaking');
-                  playNextInQueue();
-                }
-              } else if (eventType === 'done') {
-                console.log('[VoiceChat] Stream complete');
-                
-                // Update conversation history
-                if (transcript && accumulatedText) {
-                  setConversationHistory(prev => [
-                    ...prev,
-                    { role: 'user' as const, content: transcript },
-                    { role: 'assistant' as const, content: accumulatedText.trim() }
-                  ].slice(-20));
-                }
-              } else if (eventType === 'error') {
-                console.error('[VoiceChat] Stream error:', data.error);
-                throw new Error(data.error);
-              }
-            } catch (parseError) {
-              console.error('[VoiceChat] Failed to parse SSE data:', parseError);
-            }
-            eventType = '';
-          }
-        }
-      }
-      
-      // If no audio was received or played, resume recording
-      if (audioQueueRef.current.length === 0 && !isPlayingQueueRef.current) {
-        console.log('[VoiceChat] No audio received from stream');
-        isProcessingRef.current = false;
-        if (shouldContinueRef.current) {
-          autoResumeTimeoutRef.current = setTimeout(() => {
-            if (shouldContinueRef.current) {
-              startRecordingInternal();
-            }
-          }, AUTO_RESUME_DELAY_MS);
-        } else {
-          setVoiceState('idle');
-          setIsConversationActive(false);
-        }
-      }
-      
-    } catch (error: any) {
-      console.error('[VoiceChat] Streaming processing failed:', error);
-      
-      toast({
-        title: "Voice processing failed",
-        description: error.message || "Could not process your voice. Please try again.",
-        variant: "destructive",
-      });
-      
-      isProcessingRef.current = false;
-      shouldContinueRef.current = false;
-      setVoiceState('idle');
-      setIsConversationActive(false);
-    }
-  }, [conversationHistory, toast, startRecordingInternal, playNextInQueue]);
+  }, [disconnect]);
 
   const startConversation = useCallback(async () => {
-    console.log('[VoiceChat] Starting conversation with AI greeting...');
-    shouldContinueRef.current = true;
-    setIsConversationActive(true);
-    setVoiceState('processing');
-    
-    try {
-      // First, get AI greeting
-      const response = await apiRequest('POST', '/api/voice/greeting', {});
-      const result = await response.json() as {
-        greeting: string;
-        audioBase64: string;
-        audioFormat: string;
-      };
-      
-      console.log('[VoiceChat] Received greeting:', result.greeting.substring(0, 50) + '...');
-      
-      // Add greeting to messages
-      const greetingMessage: Message = {
-        id: Date.now().toString(),
-        type: 'flo',
-        content: result.greeting,
-        timestamp: new Date(),
-        isVoice: true,
-      };
-      setMessages(prev => [...prev, greetingMessage]);
-      
-      // Add to conversation history
-      setConversationHistory(prev => [
-        ...prev,
-        { role: 'assistant' as const, content: result.greeting }
-      ]);
-      
-      // Play greeting audio
-      setVoiceState('speaking');
-      
-      const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
-      const audioBlob = new Blob([audioData], { type: `audio/${result.audioFormat}` });
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      const audioEl = new Audio(audioUrl);
-      audioElementRef.current = audioEl;
-      
-      audioEl.onended = () => {
-        console.log('[VoiceChat] Greeting playback ended, starting to listen...');
-        URL.revokeObjectURL(audioUrl);
-        
-        // After greeting ends, start listening for user's response
-        if (shouldContinueRef.current) {
-          autoResumeTimeoutRef.current = setTimeout(() => {
-            if (shouldContinueRef.current) {
-              startRecordingInternal();
-            }
-          }, AUTO_RESUME_DELAY_MS);
-        }
-      };
-      
-      audioEl.onerror = () => {
-        console.error('[VoiceChat] Greeting audio error');
-        URL.revokeObjectURL(audioUrl);
-        
-        // Still start listening even if audio failed
-        if (shouldContinueRef.current) {
-          startRecordingInternal();
-        }
-      };
-      
-      await audioEl.play();
-      
-    } catch (error: any) {
-      console.error('[VoiceChat] Failed to get greeting:', error);
-      
-      // Fallback: just start listening without greeting
-      toast({
-        title: "Couldn't start with greeting",
-        description: "Starting to listen now...",
-        variant: "destructive",
-      });
-      
-      await startRecordingInternal();
-    }
-  }, [startRecordingInternal, toast]);
+    console.log('[VoiceChat] Starting Gemini Live conversation...');
+    await connect();
+  }, [connect]);
 
   const endConversation = useCallback(() => {
     console.log('[VoiceChat] Ending conversation...');
-    shouldContinueRef.current = false;
-    
-    if (autoResumeTimeoutRef.current) {
-      clearTimeout(autoResumeTimeoutRef.current);
-      autoResumeTimeoutRef.current = null;
-    }
-    
-    if (audioElementRef.current) {
-      audioElementRef.current.pause();
-      audioElementRef.current = null;
-    }
-    
-    cleanupRecording();
-    setVoiceState('idle');
-    setIsConversationActive(false);
-    isProcessingRef.current = false;
-  }, [cleanupRecording]);
+    stopListening();
+    disconnect();
+  }, [stopListening, disconnect]);
 
   const handleMicPress = useCallback(() => {
-    if (!isConversationActive) {
-      startConversation();
-    } else {
+    if (isConnected) {
+      // End conversation
       endConversation();
+    } else {
+      // Start conversation
+      startConversation();
     }
-  }, [isConversationActive, startConversation, endConversation]);
+  }, [isConnected, startConversation, endConversation]);
 
-  const handleTextSubmit = useCallback(async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    
+  const handleTextSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!inputValue.trim() || isTextLoading) return;
     
-    const text = inputValue.trim();
+    const userText = inputValue.trim();
     setInputValue('');
     setIsTextLoading(true);
     
+    // Add user message
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
-      content: text,
+      content: userText,
       timestamp: new Date(),
       isVoice: false,
     };
     setMessages(prev => [...prev, userMessage]);
     
     try {
+      // Use text chat API for text mode
       const response = await apiRequest('POST', '/api/flo-oracle/chat', {
-        message: text,
-        conversationHistory
+        message: userText,
+        conversationHistory,
       });
       
-      const result = await response.json() as { reply: string };
+      const result = await response.json() as { response: string };
       
+      // Add Flo response
       const floMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'flo',
-        content: result.reply,
+        content: result.response,
         timestamp: new Date(),
         isVoice: false,
       };
-      
       setMessages(prev => [...prev, floMessage]);
       
+      // Update conversation history
       setConversationHistory(prev => [
         ...prev,
-        { role: 'user' as const, content: text },
-        { role: 'assistant' as const, content: result.reply }
+        { role: 'user' as const, content: userText },
+        { role: 'assistant' as const, content: result.response }
       ].slice(-20));
       
     } catch (error: any) {
       console.error('[VoiceChat] Text chat failed:', error);
-      
       toast({
         title: "Message failed",
         description: "Could not send message. Please try again.",
@@ -694,10 +223,6 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     endConversation();
     setIsVoiceMode(false);
   }, [endConversation]);
-
-  const isRecording = voiceState === 'recording';
-  const isProcessing = voiceState === 'processing';
-  const isSpeaking = voiceState === 'speaking';
 
   return (
     <motion.div
@@ -743,16 +268,15 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 Flō Oracle
               </h1>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <img src={xaiLogo} alt="xAI" className="w-3 h-3 opacity-50" />
                 <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                  Powered by Grok
+                  Powered by Gemini
                 </span>
               </div>
             </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {isConversationActive && (
+            {isConnected && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -824,6 +348,19 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             ))}
           </AnimatePresence>
           
+          {/* Show current transcript while listening */}
+          {currentTranscript && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex justify-end"
+            >
+              <div className={`max-w-[85%] px-4 py-3 rounded-2xl bg-gradient-to-r from-teal-500/50 via-cyan-500/50 to-blue-500/50 text-white/80`}>
+                <p className="text-sm leading-relaxed italic">{currentTranscript}...</p>
+              </div>
+            </motion.div>
+          )}
+          
           {isProcessing && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -836,14 +373,14 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 <div className="flex items-center gap-2">
                   <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                   <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    Thinking...
+                    Connecting...
                   </span>
                 </div>
               </div>
             </motion.div>
           )}
           
-          {messages.length === 1 && !isConversationActive && (
+          {messages.length === 1 && !isConnected && (
             <div className="mt-4">
               <p className={`text-center text-xs mb-3 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
                 Quick suggestions:
@@ -889,8 +426,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                   onClick={handleMicPress}
                   disabled={isProcessing}
                   className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl disabled:opacity-70 ${
-                    isConversationActive
-                      ? isRecording
+                    isConnected
+                      ? isListening
                         ? 'bg-red-500 shadow-red-500/50'
                         : isSpeaking
                           ? 'bg-purple-500 shadow-purple-500/50'
@@ -901,18 +438,18 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 >
                   {isProcessing ? (
                     <Loader2 className="w-7 h-7 text-white animate-spin" />
-                  ) : isConversationActive ? (
+                  ) : isConnected ? (
                     <PhoneOff className="w-6 h-6 text-white" />
                   ) : (
                     <Phone className="w-7 h-7 text-white" />
                   )}
                   
-                  {isRecording && (
+                  {isListening && (
                     <>
                       <motion.div
                         className="absolute inset-0 rounded-full border-2 border-red-400"
                         animate={{
-                          scale: [1, 1.3 + (audioLevel / 100) * 0.3, 1],
+                          scale: [1, 1.3, 1],
                           opacity: [0.6, 0.2, 0.6],
                         }}
                         transition={{
@@ -924,7 +461,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                       <motion.div
                         className="absolute inset-0 rounded-full border-2 border-red-300"
                         animate={{
-                          scale: [1, 1.5 + (audioLevel / 100) * 0.5, 1],
+                          scale: [1, 1.5, 1],
                           opacity: [0.4, 0.1, 0.4],
                         }}
                         transition={{
@@ -951,7 +488,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                     />
                   )}
                   
-                  {isConversationActive && !isRecording && !isSpeaking && !isProcessing && (
+                  {isConnected && !isListening && !isSpeaking && !isProcessing && (
                     <motion.div
                       className="absolute inset-0 rounded-full border-2 border-orange-400"
                       animate={{
@@ -967,20 +504,18 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 </motion.button>
                 
                 <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  {isConversationActive
-                    ? isRecording 
+                  {isConnected
+                    ? isListening 
                       ? 'Listening...' 
                       : isSpeaking
                         ? 'Flō is speaking...'
-                        : isProcessing
-                          ? 'Processing...'
-                          : 'Tap to end call'
+                        : 'Tap to end call'
                     : 'Tap to start call'
                   }
                 </p>
                 
                 <p className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-                  {isConversationActive
+                  {isConnected
                     ? 'Conversation stays open until you hang up'
                     : 'Have a natural conversation with Flō'
                   }

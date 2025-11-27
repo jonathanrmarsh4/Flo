@@ -1,6 +1,7 @@
 /**
  * Gemini Live Voice Hook
  * Provides real-time bidirectional voice streaming using WebSocket
+ * Uses separate audio contexts for capture (16kHz) and playback (24kHz)
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -14,9 +15,74 @@ interface GeminiLiveState {
 
 interface UseGeminiLiveVoiceOptions {
   onTranscript?: (text: string, isFinal: boolean) => void;
+  onFloResponse?: (text: string) => void;
   onError?: (error: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
+}
+
+// Simple moving average low-pass filter
+function lowPassFilter(input: Float32Array, windowSize: number): Float32Array {
+  if (windowSize <= 1) return input;
+  
+  const output = new Float32Array(input.length);
+  const halfWindow = Math.floor(windowSize / 2);
+  
+  for (let i = 0; i < input.length; i++) {
+    let sum = 0;
+    let count = 0;
+    const start = Math.max(0, i - halfWindow);
+    const end = Math.min(input.length, i + halfWindow + 1);
+    
+    for (let j = start; j < end; j++) {
+      sum += input[j];
+      count++;
+    }
+    output[i] = sum / count;
+  }
+  
+  return output;
+}
+
+// Downsample audio to target rate using low-pass filter + decimation
+function downsample(input: Float32Array, inputSampleRate: number, outputSampleRate: number): Float32Array {
+  if (inputSampleRate === outputSampleRate) {
+    return input;
+  }
+  
+  const ratio = inputSampleRate / outputSampleRate;
+  // Calculate exact output length, ensuring we don't access past input bounds
+  const outputLength = Math.floor(input.length / ratio);
+  if (outputLength === 0) return new Float32Array(0);
+  
+  // Apply low-pass filter before decimation to prevent aliasing
+  // Window size should be approximately the decimation ratio
+  const filterWindow = Math.ceil(ratio);
+  const filtered = lowPassFilter(input, filterWindow);
+  
+  // Simple decimation - pick every Nth sample
+  const output = new Float32Array(outputLength);
+  for (let i = 0; i < outputLength; i++) {
+    const srcIndex = Math.floor(i * ratio);
+    output[i] = filtered[srcIndex];
+  }
+  
+  return output;
+}
+
+// Convert Uint8Array to base64 in chunks to avoid call stack limits
+function uint8ToBase64(uint8: Uint8Array): string {
+  const CHUNK_SIZE = 32768; // 32KB chunks to stay well under 65k limit
+  let binary = '';
+  
+  for (let offset = 0; offset < uint8.length; offset += CHUNK_SIZE) {
+    const chunk = uint8.subarray(offset, Math.min(offset + CHUNK_SIZE, uint8.length));
+    for (let i = 0; i < chunk.length; i++) {
+      binary += String.fromCharCode(chunk[i]);
+    }
+  }
+  
+  return btoa(binary);
 }
 
 export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
@@ -28,14 +94,18 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   });
 
   const wsRef = useRef<WebSocket | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
+  
+  // Separate contexts for capture and playback
+  const playbackContextRef = useRef<AudioContext | null>(null);
+  const captureContextRef = useRef<AudioContext | null>(null);
+  
   const audioQueueRef = useRef<AudioBuffer[]>([]);
   const isPlayingRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
-  // Play queued audio buffers sequentially
+  // Play queued audio buffers sequentially using playback context
   const playNextAudio = useCallback(() => {
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
@@ -47,8 +117,11 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     setState(prev => ({ ...prev, isSpeaking: true }));
 
     const buffer = audioQueueRef.current.shift()!;
-    const ctx = audioContextRef.current;
-    if (!ctx) return;
+    const ctx = playbackContextRef.current;
+    if (!ctx) {
+      console.error('[GeminiLive] No playback context available');
+      return;
+    }
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -57,14 +130,21 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     source.start();
   }, []);
 
-  // Decode and queue incoming audio
+  // Decode and queue incoming audio (24kHz PCM from Gemini)
   const handleAudioData = useCallback(async (base64Audio: string) => {
     try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext({ sampleRate: 24000 });
+      // Initialize playback context if needed (separate from capture)
+      if (!playbackContextRef.current) {
+        playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
       }
 
-      const ctx = audioContextRef.current;
+      const ctx = playbackContextRef.current;
+      
+      // Resume context if suspended (autoplay policy)
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      
       const binaryString = atob(base64Audio);
       const bytes = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) {
@@ -135,6 +215,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
               options.onTranscript?.(message.text, message.isFinal);
               break;
 
+            case 'response_text':
+              // Model's text response
+              console.log('[GeminiLive] Model response:', message.text?.substring(0, 50));
+              options.onFloResponse?.(message.text);
+              break;
+
             case 'error':
               console.error('[GeminiLive] Error:', message.message);
               setState(prev => ({ ...prev, error: message.message }));
@@ -166,7 +252,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     }
   }, [options, handleAudioData]);
 
-  // Start streaming microphone audio using MediaRecorder for better compatibility
+  // Start streaming microphone audio as raw PCM (resampled to 16kHz)
   const startListening = useCallback(async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.error('[GeminiLive] Not connected');
@@ -185,76 +271,65 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
       streamRef.current = stream;
 
-      // Create audio context for resampling if needed
-      const audioContext = new AudioContext();
-      audioContextRef.current = audioContext;
+      // Create capture context at device's native sample rate
+      // We'll resample to 16kHz before sending
+      const captureContext = new AudioContext();
+      captureContextRef.current = captureContext;
       
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
+      if (captureContext.state === 'suspended') {
+        await captureContext.resume();
       }
 
-      const source = audioContext.createMediaStreamSource(stream);
+      const deviceSampleRate = captureContext.sampleRate;
+      console.log('[GeminiLive] Device sample rate:', deviceSampleRate);
+
+      const source = captureContext.createMediaStreamSource(stream);
       sourceRef.current = source;
 
-      // Create a destination for processing (NOT connected to speakers to avoid feedback)
-      const destination = audioContext.createMediaStreamDestination();
-      source.connect(destination);
+      // Use ScriptProcessor to capture raw samples
+      // Buffer size of 4096 gives good balance of latency and efficiency
+      const processor = captureContext.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
 
-      // Use MediaRecorder for capturing - more reliable across browsers
-      const mediaRecorder = new MediaRecorder(destination.stream, {
-        mimeType: 'audio/webm;codecs=opus',
-      });
-
-      // Store reference for cleanup
-      (processorRef as any).current = mediaRecorder;
-
-      // Collect audio chunks and send periodically
-      const audioChunks: Blob[] = [];
-      let sendInterval: NodeJS.Timeout;
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunks.push(e.data);
+      processor.onaudioprocess = (e) => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          return;
         }
+
+        const inputData = e.inputBuffer.getChannelData(0);
+        
+        // Downsample from device rate to 16kHz for Gemini
+        const resampled = downsample(inputData, deviceSampleRate, 16000);
+        if (resampled.length === 0) return;
+        
+        // Convert float32 (-1 to 1) to int16 PCM
+        const int16Data = new Int16Array(resampled.length);
+        for (let i = 0; i < resampled.length; i++) {
+          const s = Math.max(-1, Math.min(1, resampled[i]));
+          int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        // Convert to base64 using chunked method to avoid stack limits
+        const base64Audio = uint8ToBase64(new Uint8Array(int16Data.buffer));
+
+        // Send PCM to server
+        wsRef.current.send(JSON.stringify({
+          type: 'audio',
+          data: base64Audio,
+        }));
       };
 
-      // Send audio data every 250ms for low latency
-      sendInterval = setInterval(async () => {
-        if (audioChunks.length === 0) return;
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-
-        const blob = new Blob(audioChunks, { type: 'audio/webm' });
-        audioChunks.length = 0; // Clear the array
-
-        try {
-          // Convert blob to base64
-          const arrayBuffer = await blob.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          let binary = '';
-          for (let i = 0; i < uint8Array.length; i++) {
-            binary += String.fromCharCode(uint8Array[i]);
-          }
-          const base64Audio = btoa(binary);
-
-          // Send to server (server will need to decode webm and convert to PCM)
-          wsRef.current.send(JSON.stringify({
-            type: 'audio',
-            data: base64Audio,
-            format: 'webm',
-          }));
-        } catch (error) {
-          console.error('[GeminiLive] Failed to send audio chunk:', error);
-        }
-      }, 250);
-
-      // Store interval for cleanup
-      (processorRef as any).sendInterval = sendInterval;
-
-      // Start recording with timeslice for continuous data
-      mediaRecorder.start(100);
+      // Connect source → processor → destination (must connect to destination for onaudioprocess to fire)
+      // Create a silent destination to avoid feedback
+      const gainNode = captureContext.createGain();
+      gainNode.gain.value = 0; // Silent - no feedback
+      
+      source.connect(processor);
+      processor.connect(gainNode);
+      gainNode.connect(captureContext.destination);
 
       setState(prev => ({ ...prev, isListening: true }));
-      console.log('[GeminiLive] Started listening with MediaRecorder');
+      console.log('[GeminiLive] Started listening - capturing and resampling to 16kHz');
 
     } catch (error: any) {
       console.error('[GeminiLive] Failed to start listening:', error);
@@ -265,30 +340,34 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
   // Stop listening
   const stopListening = useCallback(() => {
-    // Stop send interval
-    if ((processorRef as any).sendInterval) {
-      clearInterval((processorRef as any).sendInterval);
-      (processorRef as any).sendInterval = null;
-    }
-    
-    // Stop MediaRecorder
-    if ((processorRef as any).current && (processorRef as any).current.state !== 'inactive') {
+    // Disconnect ScriptProcessor
+    if (processorRef.current) {
       try {
-        (processorRef as any).current.stop();
+        processorRef.current.disconnect();
       } catch (e) {
-        // Ignore errors when stopping
+        // Ignore errors when disconnecting
       }
-      (processorRef as any).current = null;
+      processorRef.current = null;
     }
 
     if (sourceRef.current) {
-      sourceRef.current.disconnect();
+      try {
+        sourceRef.current.disconnect();
+      } catch (e) {
+        // Ignore errors when disconnecting
+      }
       sourceRef.current = null;
     }
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
+    }
+
+    // Close capture context (but keep playback context for incoming audio)
+    if (captureContextRef.current) {
+      captureContextRef.current.close().catch(() => {});
+      captureContextRef.current = null;
     }
 
     setState(prev => ({ ...prev, isListening: false }));
@@ -307,6 +386,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
     audioQueueRef.current = [];
     isPlayingRef.current = false;
+
+    // Close playback context
+    if (playbackContextRef.current) {
+      playbackContextRef.current.close().catch(() => {});
+      playbackContextRef.current = null;
+    }
 
     setState({
       isConnected: false,
@@ -335,10 +420,6 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   useEffect(() => {
     return () => {
       disconnect();
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
     };
   }, [disconnect]);
 
