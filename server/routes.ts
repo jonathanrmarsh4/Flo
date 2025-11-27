@@ -978,6 +978,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get voice preference
+  app.get("/api/profile/voice-preference", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { VoicePreferenceEnum, VOICE_NAME_TO_GEMINI } = await import('@shared/schema');
+      
+      const [user] = await db.select({ voicePreference: users.voicePreference })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      const voicePreference = user?.voicePreference || 'Amanda';
+      const voiceOptions = VoicePreferenceEnum.options.map(name => ({
+        name,
+        geminiVoice: VOICE_NAME_TO_GEMINI[name],
+        isSelected: name === voicePreference
+      }));
+      
+      res.json({
+        current: voicePreference,
+        options: voiceOptions
+      });
+    } catch (error) {
+      logger.error('Error fetching voice preference:', error);
+      res.status(500).json({ error: "Failed to fetch voice preference" });
+    }
+  });
+
+  // Update voice preference
+  app.patch("/api/profile/voice-preference", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { voicePreference } = req.body;
+      const { VoicePreferenceEnum } = await import('@shared/schema');
+      
+      // Validate voice preference
+      const validationResult = VoicePreferenceEnum.safeParse(voicePreference);
+      if (!validationResult.success) {
+        return res.status(400).json({ 
+          error: 'Invalid voice preference', 
+          valid: VoicePreferenceEnum.options 
+        });
+      }
+      
+      await db.update(users)
+        .set({ voicePreference: validationResult.data, updatedAt: new Date() })
+        .where(eq(users.id, userId));
+      
+      logger.info('[VoicePreference] Updated', { userId, voicePreference: validationResult.data });
+      
+      res.json({ voicePreference: validationResult.data });
+    } catch (error) {
+      logger.error('Error updating voice preference:', error);
+      res.status(500).json({ error: "Failed to update voice preference" });
+    }
+  });
+
   // Biomarker normalization routes
   // Single measurement normalization
   app.post("/api/normalize", isAuthenticated, async (req: any, res) => {
@@ -6772,6 +6829,139 @@ ${userContext}`;
       }
     });
   });
+
+  // Voice sample endpoint - generates TTS audio samples for voice preview
+  app.get("/api/voice/sample/:voiceName", isAuthenticated, async (req: any, res) => {
+    try {
+      const { voiceName } = req.params;
+      const { VOICE_NAME_TO_GEMINI, GEMINI_VOICES } = await import('@shared/schema');
+      
+      // Map display name to Gemini voice
+      const geminiVoice = VOICE_NAME_TO_GEMINI[voiceName];
+      if (!geminiVoice) {
+        return res.status(400).json({ error: 'Invalid voice name', valid: Object.keys(VOICE_NAME_TO_GEMINI) });
+      }
+      
+      // Check if Gemini API is available
+      const apiKey = process.env.GOOGLE_AI_API_KEY;
+      if (!apiKey) {
+        return res.status(503).json({ error: 'Voice sampling not available' });
+      }
+      
+      logger.info('[VoiceSample] Generating sample', { voiceName, geminiVoice });
+      
+      // Use Gemini TTS to generate a sample greeting
+      const { GoogleGenAI } = await import('@google/genai');
+      const client = new GoogleGenAI({ apiKey });
+      
+      // Personalized greeting for each voice
+      const greetings: Record<string, string> = {
+        'Amanda': "Hi there! I'm Amanda, your health companion. I'm here to help you understand your health data and make sense of the patterns in your wellness journey.",
+        'Morgan': "Hello. I'm Morgan. I specialize in calm, thoughtful health guidance. Together we can explore what your body is telling you.",
+        'Izzy': "Hey! I'm Izzy! Super excited to help you crush your health goals! Let's dive into your data and find some awesome insights!",
+        'Ethan': "Hello, I'm Ethan. I'll provide you with clear, confident analysis of your health metrics. Let's get started.",
+        'Jon': "Hi, I'm Jon. I take a thoughtful, measured approach to analyzing your health data. I'm here to help you understand the bigger picture."
+      };
+      
+      const sampleText = greetings[voiceName] || `Hello, I'm ${voiceName}. I'm ready to help with your health insights.`;
+      
+      let response;
+      try {
+        response = await client.models.generateContent({
+          model: 'gemini-2.5-flash-preview-tts',
+          contents: [{ parts: [{ text: sampleText }] }],
+          config: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: geminiVoice
+                }
+              }
+            }
+          }
+        });
+      } catch (ttsError: any) {
+        logger.error('[VoiceSample] TTS API error', { voiceName, error: ttsError.message });
+        return res.status(502).json({ error: 'Voice generation service temporarily unavailable' });
+      }
+      
+      // Check for safety blocks or missing response
+      if (!response?.candidates?.length) {
+        logger.error('[VoiceSample] No candidates in response', { voiceName });
+        return res.status(502).json({ error: 'Voice generation failed - no response from service' });
+      }
+      
+      const candidate = response.candidates[0];
+      if (candidate.finishReason === 'SAFETY') {
+        logger.warn('[VoiceSample] Content blocked by safety filter', { voiceName });
+        return res.status(502).json({ error: 'Voice sample temporarily unavailable' });
+      }
+      
+      // Extract audio data
+      const audioData = candidate.content?.parts?.[0]?.inlineData?.data;
+      if (!audioData) {
+        logger.error('[VoiceSample] No audio data in response', { 
+          voiceName, 
+          finishReason: candidate.finishReason,
+          partsCount: candidate.content?.parts?.length 
+        });
+        return res.status(500).json({ error: 'Failed to generate voice sample' });
+      }
+      
+      // Convert base64 PCM to WAV
+      const pcmBuffer = Buffer.from(audioData, 'base64');
+      
+      // Create WAV header for 24kHz mono 16-bit PCM
+      const wavHeader = createWavHeader(pcmBuffer.length, 24000, 1, 16);
+      const wavBuffer = Buffer.concat([wavHeader, pcmBuffer]);
+      
+      logger.info('[VoiceSample] Sample generated successfully', { 
+        voiceName, 
+        geminiVoice,
+        audioBytes: wavBuffer.length 
+      });
+      
+      res.set({
+        'Content-Type': 'audio/wav',
+        'Content-Length': wavBuffer.length,
+        'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+      });
+      res.send(wavBuffer);
+      
+    } catch (error: any) {
+      logger.error('[VoiceSample] Error generating sample:', error);
+      res.status(500).json({ error: 'Failed to generate voice sample' });
+    }
+  });
+  
+  // Helper function to create WAV header
+  function createWavHeader(dataLength: number, sampleRate: number, numChannels: number, bitsPerSample: number): Buffer {
+    const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+    const blockAlign = numChannels * (bitsPerSample / 8);
+    const header = Buffer.alloc(44);
+    
+    // RIFF header
+    header.write('RIFF', 0);
+    header.writeUInt32LE(36 + dataLength, 4); // File size - 8
+    header.write('WAVE', 8);
+    
+    // fmt chunk
+    header.write('fmt ', 12);
+    header.writeUInt32LE(16, 16); // Subchunk1Size
+    header.writeUInt16LE(1, 20); // AudioFormat (PCM)
+    header.writeUInt16LE(numChannels, 22);
+    header.writeUInt32LE(sampleRate, 24);
+    header.writeUInt32LE(byteRate, 28);
+    header.writeUInt16LE(blockAlign, 32);
+    header.writeUInt16LE(bitsPerSample, 34);
+    
+    // data chunk
+    header.write('data', 36);
+    header.writeUInt32LE(dataLength, 40);
+    
+    return header;
+  }
 
   // Async brain update endpoint - receives transcripts from OpenAI Realtime and processes through Grok for brain extraction
   app.post("/api/voice/brain-update", isAuthenticated, async (req: any, res) => {

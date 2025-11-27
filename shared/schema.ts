@@ -44,6 +44,7 @@ export const smokingStatusEnum = pgEnum("smoking_status", ["Never", "Former", "C
 export const alcoholIntakeEnum = pgEnum("alcohol_intake", ["None", "Occasional", "Moderate", "Heavy"]);
 export const communicationToneEnum = pgEnum("communication_tone", ["Casual", "Professional", "Scientific"]);
 export const insightsFrequencyEnum = pgEnum("insights_frequency", ["Daily", "Weekly", "Bi-weekly", "Monthly"]);
+export const voicePreferenceEnum = pgEnum("voice_preference", ["Amanda", "Morgan", "Izzy", "Ethan", "Jon"]);
 
 // Biomarker enums
 export const decimalsPolicyEnum = pgEnum("decimals_policy", ["ceil", "floor", "round"]);
@@ -111,6 +112,18 @@ export const SmokingStatusEnum = z.enum(["Never", "Former", "Current"]);
 export const AlcoholIntakeEnum = z.enum(["None", "Occasional", "Moderate", "Heavy"]);
 export const CommunicationToneEnum = z.enum(["Casual", "Professional", "Scientific"]);
 export const InsightsFrequencyEnum = z.enum(["Daily", "Weekly", "Bi-weekly", "Monthly"]);
+export const VoicePreferenceEnum = z.enum(["Amanda", "Morgan", "Izzy", "Ethan", "Jon"]);
+
+// Voice preference to Gemini voice name mapping
+export const VOICE_NAME_TO_GEMINI: Record<string, string> = {
+  "Amanda": "Puck",     // Conversational, friendly (default)
+  "Morgan": "Kore",     // Calm & Reassuring
+  "Izzy": "Aoede",      // Energetic & Friendly
+  "Ethan": "Charon",    // Clear & Confident
+  "Jon": "Fenrir",      // Thoughtful & Steady
+};
+
+export const GEMINI_VOICES = ["Puck", "Charon", "Kore", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr"] as const;
 
 export const HealthGoalEnum = z.enum([
   "Longevity",
@@ -197,6 +210,9 @@ export const users = pgTable("users", {
   
   // Insights v2.0 - User timezone for local-time cron jobs
   timezone: varchar("timezone").default("America/Los_Angeles").notNull(), // IANA timezone for 06:00 local insights
+  
+  // Flō Oracle voice preference
+  voicePreference: voicePreferenceEnum("voice_preference").default("Amanda").notNull(),
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

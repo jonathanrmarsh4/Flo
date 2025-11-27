@@ -8,7 +8,7 @@ import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './gemi
 import { buildUserHealthContext } from './floOracleContextBuilder';
 import { logger } from '../logger';
 import { db } from '../db';
-import { floChatMessages, users } from '@shared/schema';
+import { floChatMessages, users, VOICE_NAME_TO_GEMINI } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
 const FLO_ORACLE_SYSTEM_PROMPT = `You are Flō Oracle — a curious, analytical health coach who speaks naturally in voice conversations.
@@ -72,9 +72,13 @@ class GeminiVoiceService {
     
     logger.info('[GeminiVoice] Starting session', { userId, sessionId });
 
-    // Get user's first name and health context
+    // Get user's first name, voice preference, and health context
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     const firstName = user?.firstName || undefined;
+    const voicePreference = user?.voicePreference || 'Amanda';
+    const geminiVoiceName = VOICE_NAME_TO_GEMINI[voicePreference] || 'Puck';
+    
+    logger.info('[GeminiVoice] User voice preference', { userId, voicePreference, geminiVoiceName });
     
     let healthContext = '';
     try {
@@ -110,6 +114,7 @@ Start the conversation warmly, using their name if you have it.`;
 
     const config: GeminiLiveConfig = {
       systemInstruction,
+      voiceName: geminiVoiceName,
     };
 
     // Create session state

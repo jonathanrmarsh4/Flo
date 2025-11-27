@@ -55,7 +55,7 @@ class GeminiLiveClient {
       await this.closeSession(sessionId);
     }
 
-    logger.info('[GeminiLive] Creating new session', { sessionId });
+    logger.info('[GeminiLive] Creating new session', { sessionId, voiceName: config.voiceName || 'Puck (default)' });
 
     // Create a promise that resolves when session is ready
     let sessionReady: () => void;
@@ -105,6 +105,14 @@ class GeminiLiveClient {
         // Native audio model requires AUDIO modality only
         responseModalities: [Modality.AUDIO],
         systemInstruction: config.systemInstruction,
+        // Voice configuration - use specified voice or default to Puck
+        speechConfig: config.voiceName ? {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: config.voiceName,
+            },
+          },
+        } : undefined,
       },
     };
 
