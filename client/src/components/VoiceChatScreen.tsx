@@ -436,6 +436,21 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const handleWebSocketMessage = async (data: any) => {
     console.log('[VoiceChat] Received:', data.type || 'unknown', 'voiceState:', voiceStateRef.current);
     
+    // Register conversation session when we receive the metadata
+    if (data.type === 'conversation_initiation_metadata') {
+      const conversationId = data.conversation_initiation_metadata_event?.conversation_id;
+      if (conversationId) {
+        console.log('[VoiceChat] Registering conversation session:', conversationId);
+        try {
+          // Register with our server so LLM bridge can identify the user
+          await apiRequest('POST', '/api/elevenlabs/register-session', { conversation_id: conversationId });
+          console.log('[VoiceChat] Session registered successfully');
+        } catch (error) {
+          console.error('[VoiceChat] Error registering session:', error);
+        }
+      }
+    }
+    
     if (data.type === 'audio' && data.audio_event?.audio_base_64) {
       // Audio from ElevenLabs TTS
       console.log('[VoiceChat] Received audio chunk, length:', data.audio_event.audio_base_64.length);

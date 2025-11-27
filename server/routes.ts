@@ -6301,6 +6301,29 @@ ${fullContext}`;
     }
   });
 
+  // ElevenLabs Register Conversation Session - called by client after WebSocket connects
+  app.post("/api/elevenlabs/register-session", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { conversation_id } = req.body;
+      
+      if (!conversation_id) {
+        return res.status(400).json({ error: "conversation_id is required" });
+      }
+      
+      const ELEVENLABS_AGENT_ID = process.env.ELEVENLABS_AGENT_ID || '';
+      const { conversationSessionStore } = await import('./services/conversationSessionStore');
+      
+      conversationSessionStore.create(conversation_id, userId, ELEVENLABS_AGENT_ID);
+      logger.info('[ElevenLabs] Registered conversation session', { conversationId: conversation_id, userId });
+      
+      res.json({ success: true, conversation_id });
+    } catch (error: any) {
+      logger.error('[ElevenLabs] Error registering session:', error);
+      res.status(500).json({ error: "Failed to register conversation session" });
+    }
+  });
+
   // ElevenLabs Custom LLM Bridge - OpenAI-compatible endpoint
   app.post("/api/elevenlabs/llm/chat/completions", async (req: any, res) => {
     try {
