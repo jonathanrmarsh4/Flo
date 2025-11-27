@@ -62,7 +62,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         // Enable inline media playback (required for getUserMedia)
         webView.configuration.allowsInlineMediaPlayback = true
-        if #available(iOS 14.5, *) {
+        if #available(iOS 15.4, *) {
             webView.configuration.preferences.isElementFullscreenEnabled = true
         }
         
