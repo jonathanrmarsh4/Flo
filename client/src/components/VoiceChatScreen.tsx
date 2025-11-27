@@ -29,7 +29,7 @@ const quickSuggestions = [
 ];
 
 const SILENCE_THRESHOLD = 8;
-const SILENCE_DURATION_MS = 1500;
+const SILENCE_DURATION_MS = 900; // Reduced from 1500ms for faster response
 const MIN_RECORDING_MS = 500;
 const AUTO_RESUME_DELAY_MS = 400;
 
@@ -243,6 +243,59 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     setAudioLevel(0);
   }, []);
 
+  // Audio queue for streaming playback
+  const audioQueueRef = useRef<string[]>([]);
+  const isPlayingQueueRef = useRef(false);
+  const floMessageIdRef = useRef<string>('');
+  
+  // Play queued audio chunks sequentially
+  const playNextInQueue = useCallback(() => {
+    if (audioQueueRef.current.length === 0) {
+      isPlayingQueueRef.current = false;
+      console.log('[VoiceChat] Audio queue empty, all chunks played');
+      isProcessingRef.current = false;
+      
+      if (shouldContinueRef.current) {
+        autoResumeTimeoutRef.current = setTimeout(() => {
+          if (shouldContinueRef.current) {
+            console.log('[VoiceChat] Auto-resuming recording after streaming...');
+            startRecordingInternal();
+          }
+        }, AUTO_RESUME_DELAY_MS);
+      } else {
+        setVoiceState('idle');
+        setIsConversationActive(false);
+      }
+      return;
+    }
+    
+    isPlayingQueueRef.current = true;
+    const audioBase64 = audioQueueRef.current.shift()!;
+    
+    const audioData = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
+    const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
+    const audioUrl = URL.createObjectURL(audioBlob);
+    
+    const audioEl = new Audio(audioUrl);
+    audioElementRef.current = audioEl;
+    
+    audioEl.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+      playNextInQueue();
+    };
+    
+    audioEl.onerror = () => {
+      console.error('[VoiceChat] Audio chunk playback error');
+      URL.revokeObjectURL(audioUrl);
+      playNextInQueue();
+    };
+    
+    audioEl.play().catch(() => {
+      console.error('[VoiceChat] Failed to play audio chunk');
+      playNextInQueue();
+    });
+  }, [startRecordingInternal]);
+
   const processRecordingInternal = useCallback(async () => {
     if (isProcessingRef.current) return;
     if (audioChunksRef.current.length === 0) {
@@ -291,85 +344,152 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
       );
       
-      console.log('[VoiceChat] Sending to speech relay...');
+      console.log('[VoiceChat] Sending to streaming speech relay...');
       
-      const response = await apiRequest('POST', '/api/voice/speech-relay', {
-        audioBase64: base64Audio,
-        audioMimeType: audioMimeTypeRef.current,
-        conversationHistory
+      // Reset audio queue
+      audioQueueRef.current = [];
+      isPlayingQueueRef.current = false;
+      
+      let transcript = '';
+      let accumulatedText = '';
+      floMessageIdRef.current = (Date.now() + 1).toString();
+      
+      // Use streaming endpoint
+      const response = await fetch('/api/voice/speech-relay-stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          audioBase64: base64Audio,
+          audioMimeType: audioMimeTypeRef.current,
+          conversationHistory
+        })
       });
       
-      const result = await response.json() as {
-        transcript: string;
-        response: string;
-        audioBase64: string;
-        audioFormat: string;
-      };
-      
-      console.log('[VoiceChat] Received response:', {
-        transcriptLength: result.transcript.length,
-        responseLength: result.response.length,
-        audioLength: result.audioBase64.length
-      });
-      
-      if (!result.transcript || result.transcript.length < 2) {
-        console.log('[VoiceChat] Empty transcript, continuing to listen...');
-        isProcessingRef.current = false;
-        if (shouldContinueRef.current) {
-          autoResumeTimeoutRef.current = setTimeout(() => {
-            if (shouldContinueRef.current) {
-              startRecordingInternal();
-            }
-          }, AUTO_RESUME_DELAY_MS);
-        } else {
-          setVoiceState('idle');
-          setIsConversationActive(false);
-        }
-        return;
+      if (!response.ok) {
+        throw new Error(`Streaming request failed: ${response.status}`);
       }
       
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        type: 'user',
-        content: result.transcript,
-        timestamp: new Date(),
-        isVoice: true,
-      };
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No response body');
+      }
       
-      const floMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'flo',
-        content: result.response,
-        timestamp: new Date(),
-        isVoice: true,
-      };
+      const decoder = new TextDecoder();
+      let buffer = '';
       
-      setMessages(prev => [...prev, userMessage, floMessage]);
-      
-      setConversationHistory(prev => [
-        ...prev,
-        { role: 'user' as const, content: result.transcript },
-        { role: 'assistant' as const, content: result.response }
-      ].slice(-20));
-      
-      setVoiceState('speaking');
-      
-      const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
-      const audioBlob2 = new Blob([audioData], { type: `audio/${result.audioFormat}` });
-      const audioUrl = URL.createObjectURL(audioBlob2);
-      
-      const audioEl = new Audio(audioUrl);
-      audioElementRef.current = audioEl;
-      
-      audioEl.onended = () => {
-        console.log('[VoiceChat] Audio playback ended, shouldContinue:', shouldContinueRef.current);
-        URL.revokeObjectURL(audioUrl);
-        isProcessingRef.current = false;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
         
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Parse SSE events from buffer
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ') && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (eventType === 'transcript' && data.transcript) {
+                transcript = data.transcript;
+                console.log('[VoiceChat] Received transcript:', transcript);
+                
+                // Add user message
+                const userMessage: Message = {
+                  id: Date.now().toString(),
+                  type: 'user',
+                  content: transcript,
+                  timestamp: new Date(),
+                  isVoice: true,
+                };
+                setMessages(prev => [...prev, userMessage]);
+                
+                // Check for empty transcript
+                if (transcript.length < 2) {
+                  console.log('[VoiceChat] Empty transcript, continuing to listen...');
+                  isProcessingRef.current = false;
+                  reader.cancel();
+                  if (shouldContinueRef.current) {
+                    autoResumeTimeoutRef.current = setTimeout(() => {
+                      if (shouldContinueRef.current) {
+                        startRecordingInternal();
+                      }
+                    }, AUTO_RESUME_DELAY_MS);
+                  }
+                  return;
+                }
+              } else if (eventType === 'text' && data.text) {
+                accumulatedText += data.text + ' ';
+                console.log('[VoiceChat] Text chunk:', data.text.substring(0, 30) + '...');
+                
+                // Update or add Flo message with accumulated text
+                setMessages(prev => {
+                  const existing = prev.find(m => m.id === floMessageIdRef.current);
+                  if (existing) {
+                    return prev.map(m => 
+                      m.id === floMessageIdRef.current 
+                        ? { ...m, content: accumulatedText.trim() }
+                        : m
+                    );
+                  } else {
+                    return [...prev, {
+                      id: floMessageIdRef.current,
+                      type: 'flo' as const,
+                      content: accumulatedText.trim(),
+                      timestamp: new Date(),
+                      isVoice: true,
+                    }];
+                  }
+                });
+              } else if (eventType === 'audio' && data.audio) {
+                console.log('[VoiceChat] Audio chunk received, length:', data.audio.length);
+                
+                // Queue audio chunk
+                audioQueueRef.current.push(data.audio);
+                
+                // Start playing if not already
+                if (!isPlayingQueueRef.current) {
+                  setVoiceState('speaking');
+                  playNextInQueue();
+                }
+              } else if (eventType === 'done') {
+                console.log('[VoiceChat] Stream complete');
+                
+                // Update conversation history
+                if (transcript && accumulatedText) {
+                  setConversationHistory(prev => [
+                    ...prev,
+                    { role: 'user' as const, content: transcript },
+                    { role: 'assistant' as const, content: accumulatedText.trim() }
+                  ].slice(-20));
+                }
+              } else if (eventType === 'error') {
+                console.error('[VoiceChat] Stream error:', data.error);
+                throw new Error(data.error);
+              }
+            } catch (parseError) {
+              console.error('[VoiceChat] Failed to parse SSE data:', parseError);
+            }
+            eventType = '';
+          }
+        }
+      }
+      
+      // If no audio was received or played, resume recording
+      if (audioQueueRef.current.length === 0 && !isPlayingQueueRef.current) {
+        console.log('[VoiceChat] No audio received from stream');
+        isProcessingRef.current = false;
         if (shouldContinueRef.current) {
           autoResumeTimeoutRef.current = setTimeout(() => {
             if (shouldContinueRef.current) {
-              console.log('[VoiceChat] Auto-resuming recording...');
               startRecordingInternal();
             }
           }, AUTO_RESUME_DELAY_MS);
@@ -377,29 +497,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           setVoiceState('idle');
           setIsConversationActive(false);
         }
-      };
-      
-      audioEl.onerror = () => {
-        console.error('[VoiceChat] Audio playback error');
-        URL.revokeObjectURL(audioUrl);
-        isProcessingRef.current = false;
-        
-        if (shouldContinueRef.current) {
-          autoResumeTimeoutRef.current = setTimeout(() => {
-            if (shouldContinueRef.current) {
-              startRecordingInternal();
-            }
-          }, AUTO_RESUME_DELAY_MS);
-        } else {
-          setVoiceState('idle');
-          setIsConversationActive(false);
-        }
-      };
-      
-      await audioEl.play();
+      }
       
     } catch (error: any) {
-      console.error('[VoiceChat] Processing failed:', error);
+      console.error('[VoiceChat] Streaming processing failed:', error);
       
       toast({
         title: "Voice processing failed",
@@ -412,7 +513,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       setVoiceState('idle');
       setIsConversationActive(false);
     }
-  }, [conversationHistory, toast, startRecordingInternal]);
+  }, [conversationHistory, toast, startRecordingInternal, playNextInQueue]);
 
   const startConversation = useCallback(async () => {
     console.log('[VoiceChat] Starting conversation with AI greeting...');

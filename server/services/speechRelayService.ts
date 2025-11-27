@@ -245,6 +245,120 @@ ${userContext}`;
     onAudioChunk(audioBase64);
   }
 
+  /**
+   * Stream audio processing - returns an async generator that yields audio chunks
+   * as soon as each sentence is ready (for lower latency)
+   */
+  async *processAudioStreaming(
+    audioBuffer: Buffer,
+    config: SpeechRelayConfig
+  ): AsyncGenerator<{
+    type: 'transcript' | 'text_chunk' | 'audio_chunk' | 'done';
+    data: string;
+    fullResponse?: string;
+  }> {
+    if (!this.openai) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const { userId, audioMimeType = 'audio/webm', conversationHistory = [] } = config;
+
+    logger.info('[SpeechRelay] Starting streaming audio processing', { userId });
+
+    // Step 1: Transcribe audio (still synchronous - it's fast)
+    const transcript = await this.transcribeAudio(audioBuffer, audioMimeType);
+    yield { type: 'transcript', data: transcript };
+
+    if (!transcript || transcript.length < 2) {
+      yield { type: 'done', data: '' };
+      return;
+    }
+
+    // Build context and messages
+    const userContext = await buildUserHealthContext(userId);
+    const inputGuardrails = applyGuardrails(transcript, '');
+    const sanitizedInput = inputGuardrails.sanitizedInput || transcript;
+
+    const SYSTEM_PROMPT = `You are Flō Oracle — a warm, curious, and insightful health coach who genuinely cares about understanding each person's unique health journey. You combine deep data analysis with genuine human connection.
+
+YOUR CONVERSATIONAL APPROACH:
+Every response should follow this natural flow:
+1. ACKNOWLEDGE - Reflect back what you heard to show you're listening
+2. CONNECT - Link their comment to something in their health data
+3. INSIGHT - Share a meaningful observation or pattern you've noticed
+4. CURIOSITY - End with a thoughtful follow-up question
+
+Your personality: Warm but intellectually rigorous. Think of a brilliant friend who happens to be a health scientist.
+
+VOICE CONVERSATION GUIDELINES:
+- Speak naturally and conversationally
+- Use about 4-6 sentences to allow for meaningful exchange
+- Avoid bullet points - speak like a friend
+- Round numbers for easier listening
+
+Core rules:
+1. Reference their actual Flō health data when available.
+2. Never guess or hallucinate values.
+3. Provide evidence-based insights with occasional healthcare provider disclaimer.
+4. ALWAYS end with a question to keep the conversation flowing.
+
+${userContext}`;
+
+    const grokMessages: GrokChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+    ];
+
+    conversationHistory.forEach((msg) => {
+      grokMessages.push({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+      });
+    });
+
+    grokMessages.push({
+      role: 'user',
+      content: sanitizedInput,
+    });
+
+    // Step 2: Stream Grok response and buffer into sentences
+    const { streamToSentences } = await import('./sentenceBuffer');
+    
+    const textStream = await grokClient.chatStream(grokMessages, {
+      model: 'grok-3-mini',
+      maxTokens: 700,
+      temperature: 0.8,
+    });
+
+    let fullResponse = '';
+
+    // Process sentences as they complete
+    for await (const sentence of streamToSentences(textStream)) {
+      fullResponse += sentence + ' ';
+      
+      // Yield the text chunk
+      yield { type: 'text_chunk', data: sentence };
+
+      // Generate TTS for this sentence
+      try {
+        const audioBase64 = await this.textToSpeech(sentence);
+        yield { type: 'audio_chunk', data: audioBase64 };
+      } catch (ttsError) {
+        logger.error('[SpeechRelay] TTS failed for sentence:', ttsError);
+        // Continue with other sentences even if one fails
+      }
+    }
+
+    // Apply output guardrails to full response (for logging/safety)
+    const outputGuardrails = applyGuardrails(transcript, fullResponse.trim());
+    
+    yield { type: 'done', data: '', fullResponse: fullResponse.trim() };
+    
+    logger.info('[SpeechRelay] Streaming complete', { 
+      userId, 
+      responseLength: fullResponse.length 
+    });
+  }
+
   async generateGreeting(userId: string, firstName?: string): Promise<{
     greeting: string;
     audioBase64: string;

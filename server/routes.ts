@@ -6999,6 +6999,110 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
+  // Streaming voice processing with SSE - lower latency by streaming audio chunks
+  app.post("/api/voice/speech-relay-stream", isAuthenticated, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
+    const userId = req.user.claims.sub;
+    
+    try {
+      const { audioBase64, audioMimeType, conversationHistory } = req.body;
+      
+      if (!audioBase64) {
+        return res.status(400).json({ error: 'Audio data is required' });
+      }
+      
+      logger.info('[SpeechRelay] Starting streaming voice request', { 
+        userId, 
+        audioLength: audioBase64.length,
+        audioMimeType: audioMimeType || 'audio/webm'
+      });
+      
+      const { speechRelayService } = await import('./services/speechRelayService');
+      
+      if (!speechRelayService.isAvailable()) {
+        return res.status(503).json({ error: 'Voice service not configured' });
+      }
+      
+      // Set up SSE headers
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders();
+      
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+      
+      let transcript = '';
+      let fullResponse = '';
+      
+      // Stream the response
+      const stream = speechRelayService.processAudioStreaming(audioBuffer, {
+        userId,
+        audioMimeType: audioMimeType || 'audio/webm',
+        conversationHistory: conversationHistory || []
+      });
+      
+      for await (const chunk of stream) {
+        if (chunk.type === 'transcript') {
+          transcript = chunk.data;
+          res.write(`event: transcript\ndata: ${JSON.stringify({ transcript: chunk.data })}\n\n`);
+        } else if (chunk.type === 'text_chunk') {
+          res.write(`event: text\ndata: ${JSON.stringify({ text: chunk.data })}\n\n`);
+        } else if (chunk.type === 'audio_chunk') {
+          res.write(`event: audio\ndata: ${JSON.stringify({ audio: chunk.data, format: 'mp3' })}\n\n`);
+        } else if (chunk.type === 'done') {
+          fullResponse = chunk.fullResponse || '';
+          res.write(`event: done\ndata: ${JSON.stringify({ complete: true })}\n\n`);
+        }
+      }
+      
+      res.end();
+      
+      // Store messages in chat history (fire-and-forget)
+      if (transcript && fullResponse) {
+        (async () => {
+          try {
+            const { floChatMessages } = await import('@shared/schema');
+            
+            await db.insert(floChatMessages).values({
+              userId,
+              sender: 'user',
+              message: transcript
+            });
+            
+            await db.insert(floChatMessages).values({
+              userId,
+              sender: 'flo',
+              message: fullResponse
+            });
+            
+            // Process brain updates
+            const { processAndPersistBrainUpdates } = await import('./services/brainUpdateParser');
+            await processAndPersistBrainUpdates(userId, fullResponse);
+            
+            logger.info('[SpeechRelay] Streaming messages persisted', { userId });
+          } catch (persistError) {
+            logger.error('[SpeechRelay] Failed to persist streaming messages:', persistError);
+          }
+        })();
+      }
+      
+    } catch (error: any) {
+      logger.error('[SpeechRelay] Streaming error:', error);
+      
+      // If headers not sent yet, send error as JSON
+      if (!res.headersSent) {
+        res.status(500).json({ 
+          error: 'Failed to process streaming voice request',
+          details: error.message
+        });
+      } else {
+        // If already streaming, send error event
+        res.write(`event: error\ndata: ${JSON.stringify({ error: error.message })}\n\n`);
+        res.end();
+      }
+    }
+  });
+
   // ────────────────────────────────────────────────────────────────
   // INSIGHTS ENDPOINTS - AI-powered health pattern detection
   // ────────────────────────────────────────────────────────────────
