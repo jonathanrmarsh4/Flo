@@ -9,13 +9,20 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "startCapture", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "stopCapture", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "isCapturing", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "isCapturing", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "playAudio", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "stopPlayback", returnType: CAPPluginReturnPromise)
     ]
     
     private var audioEngine: AVAudioEngine?
     private var audioConverter: AVAudioConverter?
     private var isCapturing = false
     private let targetSampleRate: Double = 16000.0
+    
+    // Playback components
+    private var playerNode: AVAudioPlayerNode?
+    private var playbackMixer: AVAudioMixerNode?
+    private var isPlaybackActive = false
     
     // Store previous audio session configuration to restore later
     private var previousCategory: AVAudioSession.Category?
@@ -36,8 +43,7 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
             guard let self = self else { return }
             
             // Clean up any stale state from previous sessions
-            self.audioEngine = nil
-            self.audioConverter = nil
+            self.cleanupAudioEngine()
             
             let session = AVAudioSession.sharedInstance()
             
@@ -60,6 +66,7 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             
+            // Create audio engine with both input (mic) and output (playback) support
             self.audioEngine = AVAudioEngine()
             guard let audioEngine = self.audioEngine else {
                 self.restoreAudioSession()
@@ -69,6 +76,30 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
             
+            // Setup playback node
+            self.playerNode = AVAudioPlayerNode()
+            self.playbackMixer = AVAudioMixerNode()
+            
+            guard let playerNode = self.playerNode, let playbackMixer = self.playbackMixer else {
+                self.audioEngine = nil
+                self.restoreAudioSession()
+                DispatchQueue.main.async {
+                    call.reject("Failed to create playback nodes")
+                }
+                return
+            }
+            
+            audioEngine.attach(playerNode)
+            audioEngine.attach(playbackMixer)
+            
+            // Connect playback chain: playerNode -> mixer -> mainMixer -> output
+            let outputFormat = audioEngine.outputNode.inputFormat(forBus: 0)
+            print("🔊 [NativeMic] Output format: \(outputFormat.sampleRate) Hz, \(outputFormat.channelCount) channels")
+            
+            audioEngine.connect(playerNode, to: playbackMixer, format: nil)
+            audioEngine.connect(playbackMixer, to: audioEngine.mainMixerNode, format: outputFormat)
+            
+            // Setup microphone input
             let inputNode = audioEngine.inputNode
             let inputFormat = inputNode.outputFormat(forBus: 0)
             print("🎤 [NativeMic] Input format: \(inputFormat.sampleRate) Hz, \(inputFormat.channelCount) channels")
@@ -79,7 +110,7 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                                               interleaved: true)!
             
             guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
-                self.audioEngine = nil
+                self.cleanupAudioEngine()
                 self.restoreAudioSession()
                 DispatchQueue.main.async {
                     call.reject("Failed to create audio converter")
@@ -152,7 +183,7 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
             do {
                 try audioEngine.start()
                 self.isCapturing = true
-                print("✅ [NativeMic] Audio capture started at \(self.targetSampleRate) Hz")
+                print("✅ [NativeMic] Audio engine started (capture + playback ready) at \(self.targetSampleRate) Hz")
                 
                 DispatchQueue.main.async {
                     call.resolve([
@@ -163,15 +194,173 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             } catch {
                 print("❌ [NativeMic] Failed to start audio engine: \(error)")
-                audioEngine.inputNode.removeTap(onBus: 0)
-                self.audioEngine = nil
-                self.audioConverter = nil
+                self.cleanupAudioEngine()
                 self.restoreAudioSession()
                 DispatchQueue.main.async {
                     call.reject("Failed to start microphone capture: \(error.localizedDescription)")
                 }
             }
         }
+    }
+    
+    // Play audio from base64-encoded 16-bit PCM at 16kHz
+    @objc func playAudio(_ call: CAPPluginCall) {
+        guard let base64Audio = call.getString("audio") else {
+            call.reject("Missing audio parameter")
+            return
+        }
+        
+        let sampleRate = call.getDouble("sampleRate") ?? 16000.0
+        
+        guard let audioData = Data(base64Encoded: base64Audio) else {
+            call.reject("Invalid base64 audio data")
+            return
+        }
+        
+        guard let audioEngine = self.audioEngine, let playerNode = self.playerNode else {
+            print("⚠️ [NativeMic] playAudio called but no audio engine - attempting standalone playback")
+            // Fallback: create temporary playback engine
+            playStandaloneAudio(data: audioData, sampleRate: sampleRate, call: call)
+            return
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Convert Int16 data to Float32 for playback
+            let sampleCount = audioData.count / 2
+            var floatSamples = [Float](repeating: 0, count: sampleCount)
+            
+            audioData.withUnsafeBytes { rawBuffer in
+                let int16Buffer = rawBuffer.bindMemory(to: Int16.self)
+                for i in 0..<sampleCount {
+                    floatSamples[i] = Float(int16Buffer[i]) / 32768.0
+                }
+            }
+            
+            // Create audio buffer at source sample rate
+            guard let sourceFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                                    sampleRate: sampleRate,
+                                                    channels: 1,
+                                                    interleaved: false),
+                  let audioBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: UInt32(sampleCount)) else {
+                DispatchQueue.main.async {
+                    call.reject("Failed to create audio buffer")
+                }
+                return
+            }
+            
+            audioBuffer.frameLength = UInt32(sampleCount)
+            if let channelData = audioBuffer.floatChannelData?[0] {
+                for i in 0..<sampleCount {
+                    channelData[i] = floatSamples[i]
+                }
+            }
+            
+            // Start player if not already playing
+            if !playerNode.isPlaying {
+                playerNode.play()
+            }
+            
+            // Schedule buffer for playback
+            playerNode.scheduleBuffer(audioBuffer, completionHandler: { [weak self] in
+                DispatchQueue.main.async {
+                    self?.notifyListeners("playbackComplete", data: [:])
+                }
+            })
+            
+            self.isPlaybackActive = true
+            let durationMs = Int(Double(sampleCount) / sampleRate * 1000)
+            print("🔊 [NativeMic] Playing \(sampleCount) samples (\(durationMs)ms) at \(sampleRate) Hz")
+            
+            DispatchQueue.main.async {
+                call.resolve([
+                    "success": true,
+                    "samplesPlayed": sampleCount,
+                    "durationMs": durationMs
+                ])
+            }
+        }
+    }
+    
+    // Fallback standalone playback when main engine isn't running
+    private func playStandaloneAudio(data: Data, sampleRate: Double, call: CAPPluginCall) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .default, options: [.defaultToSpeaker])
+                try session.setActive(true)
+                
+                // Create temporary engine for playback
+                let tempEngine = AVAudioEngine()
+                let tempPlayer = AVAudioPlayerNode()
+                tempEngine.attach(tempPlayer)
+                
+                let outputFormat = tempEngine.outputNode.inputFormat(forBus: 0)
+                tempEngine.connect(tempPlayer, to: tempEngine.mainMixerNode, format: outputFormat)
+                
+                // Convert data to float
+                let sampleCount = data.count / 2
+                var floatSamples = [Float](repeating: 0, count: sampleCount)
+                data.withUnsafeBytes { rawBuffer in
+                    let int16Buffer = rawBuffer.bindMemory(to: Int16.self)
+                    for i in 0..<sampleCount {
+                        floatSamples[i] = Float(int16Buffer[i]) / 32768.0
+                    }
+                }
+                
+                guard let sourceFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                                        sampleRate: sampleRate,
+                                                        channels: 1,
+                                                        interleaved: false),
+                      let audioBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: UInt32(sampleCount)) else {
+                    DispatchQueue.main.async {
+                        call.reject("Failed to create audio buffer")
+                    }
+                    return
+                }
+                
+                audioBuffer.frameLength = UInt32(sampleCount)
+                if let channelData = audioBuffer.floatChannelData?[0] {
+                    for i in 0..<sampleCount {
+                        channelData[i] = floatSamples[i]
+                    }
+                }
+                
+                try tempEngine.start()
+                tempPlayer.play()
+                tempPlayer.scheduleBuffer(audioBuffer) {
+                    tempPlayer.stop()
+                    tempEngine.stop()
+                    DispatchQueue.main.async {
+                        self?.notifyListeners("playbackComplete", data: [:])
+                    }
+                }
+                
+                let durationMs = Int(Double(sampleCount) / sampleRate * 1000)
+                print("🔊 [NativeMic] Standalone playback: \(sampleCount) samples (\(durationMs)ms)")
+                
+                DispatchQueue.main.async {
+                    call.resolve([
+                        "success": true,
+                        "samplesPlayed": sampleCount,
+                        "durationMs": durationMs
+                    ])
+                }
+            } catch {
+                print("❌ [NativeMic] Standalone playback failed: \(error)")
+                DispatchQueue.main.async {
+                    call.reject("Standalone playback failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    @objc func stopPlayback(_ call: CAPPluginCall) {
+        playerNode?.stop()
+        isPlaybackActive = false
+        print("🛑 [NativeMic] Playback stopped")
+        call.resolve(["success": true])
     }
     
     // Helper to restore audio session on failure
@@ -195,17 +384,35 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
         previousOptions = nil
     }
     
+    private func cleanupAudioEngine() {
+        if isCapturing {
+            audioEngine?.inputNode.removeTap(onBus: 0)
+        }
+        playerNode?.stop()
+        audioEngine?.stop()
+        
+        if let player = playerNode {
+            audioEngine?.detach(player)
+        }
+        if let mixer = playbackMixer {
+            audioEngine?.detach(mixer)
+        }
+        
+        audioEngine = nil
+        audioConverter = nil
+        playerNode = nil
+        playbackMixer = nil
+        isCapturing = false
+        isPlaybackActive = false
+    }
+    
     @objc func stopCapture(_ call: CAPPluginCall) {
-        guard isCapturing, let audioEngine = audioEngine else {
+        guard isCapturing else {
             call.resolve(["success": true, "message": "Not capturing"])
             return
         }
         
-        audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.stop()
-        isCapturing = false
-        self.audioEngine = nil
-        self.audioConverter = nil
+        cleanupAudioEngine()
         
         // Restore previous audio session configuration
         do {
@@ -240,13 +447,7 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
     }
     
     private func cleanupResources() {
-        if isCapturing {
-            audioEngine?.inputNode.removeTap(onBus: 0)
-            audioEngine?.stop()
-            isCapturing = false
-        }
-        audioEngine = nil
-        audioConverter = nil
+        cleanupAudioEngine()
         
         do {
             let session = AVAudioSession.sharedInstance()

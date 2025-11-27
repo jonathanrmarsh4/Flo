@@ -10,6 +10,8 @@ import {
   startNativeCapture, 
   stopNativeCapture, 
   addAudioDataListener,
+  playNativeAudio,
+  stopNativePlayback,
   type AudioDataEvent 
 } from '@/lib/nativeMicrophone';
 
@@ -417,13 +419,34 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     console.log('[VoiceChat] Received:', data.type || 'unknown', 'voiceState:', voiceStateRef.current);
     
     if (data.type === 'audio' && data.audio_event?.audio_base_64) {
-      // Audio from ElevenLabs TTS - decode and queue
+      // Audio from ElevenLabs TTS
       console.log('[VoiceChat] Queueing audio chunk, length:', data.audio_event.audio_base_64.length);
-      const pcmData = base64PcmToFloat32(data.audio_event.audio_base_64);
-      audioQueueRef.current.push(pcmData);
       
-      if (!isPlayingRef.current) {
-        playAudioQueue();
+      // Use native playback on iOS (WebAudio is blocked by AVAudioSession)
+      if (isUsingNativeMicRef.current) {
+        // Play directly via native AVAudioEngine
+        setVoiceState('speaking');
+        isPlayingRef.current = true;
+        try {
+          await playNativeAudio(data.audio_event.audio_base_64, 16000);
+          console.log('[VoiceChat] Native playback completed');
+          // Check for more audio or switch back to listening
+          if (!isPlayingRef.current) return;
+          isPlayingRef.current = false;
+          setVoiceState('listening');
+        } catch (error) {
+          console.error('[VoiceChat] Native playback error:', error);
+          isPlayingRef.current = false;
+          setVoiceState('listening');
+        }
+      } else {
+        // Web fallback: decode and queue for WebAudio
+        const pcmData = base64PcmToFloat32(data.audio_event.audio_base_64);
+        audioQueueRef.current.push(pcmData);
+        
+        if (!isPlayingRef.current) {
+          playAudioQueue();
+        }
       }
     } else if (data.type === 'user_transcript' && data.user_transcription_event?.user_transcript) {
       // User's transcribed speech
@@ -578,7 +601,17 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   };
 
   // Stop current playback
-  const stopPlayback = () => {
+  const stopPlayback = async () => {
+    // Stop native playback on iOS
+    if (isUsingNativeMicRef.current) {
+      try {
+        await stopNativePlayback();
+      } catch (e) {
+        console.warn('[VoiceChat] Error stopping native playback:', e);
+      }
+    }
+    
+    // Stop WebAudio playback
     if (currentSourceRef.current) {
       try {
         currentSourceRef.current.stop();
@@ -593,7 +626,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
 
   // Disconnect voice - properly async to ensure cleanup completes
   const disconnectVoice = useCallback(async () => {
-    stopPlayback();
+    await stopPlayback();
     
     if (wsRef.current) {
       wsRef.current.close();
