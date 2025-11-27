@@ -102,10 +102,10 @@ class GeminiLiveClient {
         },
       },
       config: {
-        // Debug: Minimal config like official SDK sample
-        responseModalities: [Modality.TEXT],
-        // Temporarily remove systemInstruction to debug "invalid argument" error
-        // systemInstruction: config.systemInstruction.substring(0, 2000),
+        // Enable both audio and text responses
+        responseModalities: [Modality.AUDIO, Modality.TEXT],
+        // Re-enable system instruction now that connection works
+        systemInstruction: config.systemInstruction,
       },
     };
 
