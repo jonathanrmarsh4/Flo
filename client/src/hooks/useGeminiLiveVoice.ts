@@ -5,6 +5,8 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { getAuthToken } from '@/lib/queryClient';
 
 interface GeminiLiveState {
   isConnected: boolean;
@@ -180,14 +182,22 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     setState(prev => ({ ...prev, error: null }));
 
     try {
-      // Get auth token from localStorage (same as queryClient)
-      const authToken = localStorage.getItem('auth_token');
+      // Get auth token from secure storage (iOS) or localStorage (web)
+      const authToken = await getAuthToken();
       if (!authToken) {
         throw new Error('Not authenticated');
       }
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/api/voice/gemini-live?token=${encodeURIComponent(authToken)}`;
+      // Determine WebSocket URL based on platform
+      let wsUrl: string;
+      if (Capacitor.isNativePlatform()) {
+        // iOS/Android: Connect to production server
+        wsUrl = `wss://get-flo.com/api/voice/gemini-live?token=${encodeURIComponent(authToken)}`;
+      } else {
+        // Web: Use current host
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}/api/voice/gemini-live?token=${encodeURIComponent(authToken)}`;
+      }
 
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

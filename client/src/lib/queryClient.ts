@@ -16,7 +16,7 @@ function getApiBaseUrl(): string {
 }
 
 // Get auth token from secure encrypted storage (mobile) or localStorage (web)
-async function getAuthToken(): Promise<string | null> {
+export async function getAuthToken(): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
     try {
       // Dynamic import to avoid loading plugin on web
