@@ -5,6 +5,13 @@ import { FloLogo } from './FloLogo';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import xaiLogo from '@assets/xai-logo.svg';
+import { 
+  isNativeMicrophoneAvailable, 
+  startNativeCapture, 
+  stopNativeCapture, 
+  addAudioDataListener,
+  type AudioDataEvent 
+} from '@/lib/nativeMicrophone';
 
 interface Message {
   id: string;
@@ -112,6 +119,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const isPlayingRef = useRef(false);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const voiceStateRef = useRef<VoiceState>('idle');
+  const nativeListenerRef = useRef<{ remove: () => void } | null>(null);
+  const isUsingNativeMicRef = useRef(false);
   
   const { toast } = useToast();
 
@@ -185,31 +194,47 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       // Initialize playback context
       await initPlaybackContext();
       
-      // Request microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        } 
-      });
-      mediaStreamRef.current = stream;
+      // Check if we should use native microphone capture (iOS only)
+      const useNativeMic = isNativeMicrophoneAvailable();
+      isUsingNativeMicRef.current = useNativeMic;
+      console.log('[VoiceChat] Using native microphone:', useNativeMic);
       
-      // Create capture audio context (use device's native sample rate)
-      audioContextRef.current = new AudioContext();
-      const nativeSampleRate = audioContextRef.current.sampleRate;
-      console.log('[VoiceChat] Native sample rate:', nativeSampleRate);
+      let nativeSampleRate = 16000; // Native plugin outputs 16kHz
+      
+      if (!useNativeMic) {
+        // Web fallback: Request microphone access via getUserMedia
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          } 
+        });
+        mediaStreamRef.current = stream;
+        
+        // Create capture audio context (use device's native sample rate)
+        audioContextRef.current = new AudioContext();
+        nativeSampleRate = audioContextRef.current.sampleRate;
+        console.log('[VoiceChat] Web audio sample rate:', nativeSampleRate);
+      }
       
       // Connect WebSocket
       const ws = new WebSocket(signed_url);
       wsRef.current = ws;
       
-      ws.onopen = () => {
+      ws.onopen = async () => {
         console.log('[VoiceChat] WebSocket connected');
         setConnectionState('connected');
         setVoiceState('listening');
-        startAudioCapture(stream, nativeSampleRate, ws);
+        
+        if (useNativeMic) {
+          // iOS: Start native microphone capture
+          await startNativeMicrophoneCapture(ws);
+        } else {
+          // Web: Start audio capture via ScriptProcessor
+          startAudioCapture(mediaStreamRef.current!, nativeSampleRate, ws);
+        }
       };
       
       ws.onmessage = (event) => {
@@ -257,6 +282,54 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         });
         setIsVoiceMode(false);
       }
+    }
+  };
+  
+  // iOS native microphone capture - bypasses WKWebView getUserMedia limitations
+  const startNativeMicrophoneCapture = async (ws: WebSocket) => {
+    try {
+      console.log('[VoiceChat] Starting native microphone capture for iOS...');
+      
+      // Start native capture
+      const result = await startNativeCapture();
+      console.log('[VoiceChat] Native capture started:', result);
+      
+      let chunksSent = 0;
+      let lastLogTime = Date.now();
+      
+      // Listen for audio data from native plugin
+      const listener = await addAudioDataListener((event: AudioDataEvent) => {
+        const now = Date.now();
+        
+        // Only send audio when listening (not when Flo is speaking)
+        if (ws.readyState === WebSocket.OPEN && voiceStateRef.current === 'listening') {
+          // Update audio level visualization
+          setAudioLevel(Math.min(100, event.rms * 500));
+          
+          // Send audio directly to ElevenLabs (already 16kHz PCM from native)
+          ws.send(JSON.stringify({
+            user_audio_chunk: event.audio
+          }));
+          
+          chunksSent++;
+          
+          // Log every 2 seconds
+          if (now - lastLogTime > 2000) {
+            console.log('[VoiceChat] Native audio chunks sent:', chunksSent, 'rms:', event.rms.toFixed(4));
+            lastLogTime = now;
+          }
+        } else if (now - lastLogTime > 2000) {
+          console.log('[VoiceChat] Not sending native audio - wsReady:', ws.readyState === WebSocket.OPEN, 'state:', voiceStateRef.current);
+          lastLogTime = now;
+        }
+      });
+      
+      nativeListenerRef.current = listener;
+      console.log('[VoiceChat] Native microphone listener registered');
+      
+    } catch (error) {
+      console.error('[VoiceChat] Error starting native microphone:', error);
+      throw error;
     }
   };
 
@@ -488,7 +561,19 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     setAudioLevel(0);
   }, []);
 
-  const stopAudioCapture = () => {
+  const stopAudioCapture = async () => {
+    // Stop native microphone capture if using iOS native
+    if (isUsingNativeMicRef.current) {
+      console.log('[VoiceChat] Stopping native microphone capture...');
+      if (nativeListenerRef.current) {
+        nativeListenerRef.current.remove();
+        nativeListenerRef.current = null;
+      }
+      await stopNativeCapture();
+      isUsingNativeMicRef.current = false;
+    }
+    
+    // Stop web-based capture
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;

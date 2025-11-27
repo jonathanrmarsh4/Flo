@@ -25,8 +25,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     // Register custom plugins
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
+                    bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
+                    print("✅ NativeMicrophonePlugin registered manually")
                 }
                 // Fallback: direct CAPBridgeViewController
                 else if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
@@ -34,8 +36,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     // Register custom plugins
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
+                    bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
+                    print("✅ NativeMicrophonePlugin registered manually")
                 }
             }
         }
