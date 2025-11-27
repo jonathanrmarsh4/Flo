@@ -192,7 +192,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         throw new Error(error.error || 'Failed to get voice connection');
       }
       
-      const { signed_url } = await response.json() as { signed_url: string };
+      const { signed_url, user_id } = await response.json() as { signed_url: string; user_id: string };
+      
+      // Store user_id for passing to ElevenLabs
+      const currentUserId = user_id;
+      console.log('[VoiceChat] Got signed URL for user:', currentUserId);
       
       // Initialize playback context
       await initPlaybackContext();
@@ -241,6 +245,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         // REQUIRED: Send conversation_initiation_client_data to start the conversation
         // This tells ElevenLabs the client is ready and triggers the agent's first greeting
         // Note: ElevenLabs default input format is 16kHz 16-bit PCM mono (what we send)
+        // IMPORTANT: Pass user_id as dynamic variable so ElevenLabs includes it in LLM requests
         ws.send(JSON.stringify({
           type: "conversation_initiation_client_data",
           conversation_config_override: {
@@ -250,9 +255,17 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 output_format: "pcm_16000"
               }
             }
+          },
+          // Dynamic variables that ElevenLabs will pass to our custom LLM endpoint
+          dynamic_variables: {
+            user_id: currentUserId
+          },
+          // Also try custom_llm_extra_body format
+          custom_llm_extra_body: {
+            user_id: currentUserId
           }
         }));
-        console.log('[VoiceChat] Sent conversation_initiation_client_data with PCM 16kHz output');
+        console.log('[VoiceChat] Sent conversation_initiation_client_data with user_id:', currentUserId);
         
         // Register audio data listener for native mic (engine already started above)
         if (useNativeMic) {

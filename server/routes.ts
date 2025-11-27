@@ -6375,8 +6375,23 @@ ${fullContext}`;
         userId = user_id || 
                  elevenlabs_extra_body?.user_id || 
                  req.body?.custom_llm_extra_body?.user_id ||
+                 req.body?.dynamic_variables?.user_id ||
                  req.headers['x-user-id'] as string;
       }
+      
+      // Log what we found for debugging
+      logger.info('[ElevenLabs-Bridge] User lookup result', {
+        foundUserId: !!userId,
+        userId,
+        sources: {
+          conversation_id: convId,
+          user_id_field: !!user_id,
+          extra_body: !!elevenlabs_extra_body?.user_id,
+          custom_llm: !!req.body?.custom_llm_extra_body?.user_id,
+          dynamic_vars: !!req.body?.dynamic_variables?.user_id,
+          header: !!req.headers['x-user-id']
+        }
+      });
       
       if (!userId) {
         logger.error('[ElevenLabs-Bridge] No user_id found', {
