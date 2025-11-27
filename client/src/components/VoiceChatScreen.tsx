@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Mic, Volume2, Activity, Heart, Moon, TrendingUp, Loader2, Send, Square } from 'lucide-react';
+import { X, Mic, Volume2, Activity, Heart, Moon, TrendingUp, Loader2, Send, Square, Phone, PhoneOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FloLogo } from './FloLogo';
 import { apiRequest } from '@/lib/queryClient';
@@ -31,13 +31,14 @@ const quickSuggestions = [
 const SILENCE_THRESHOLD = 8;
 const SILENCE_DURATION_MS = 1500;
 const MIN_RECORDING_MS = 500;
+const AUTO_RESUME_DELAY_MS = 400;
 
 export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'flo',
-      content: "Hi there! I'm Flō Oracle, your personal health AI powered by Grok. Just tap the mic and start talking - I'll listen and respond when you pause.",
+      content: "Hi there! I'm Flō Oracle, your personal health AI powered by Grok. Tap the mic to start a conversation - I'll keep listening after each response so we can chat naturally.",
       timestamp: new Date(),
       isVoice: false,
     },
@@ -46,6 +47,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [audioLevel, setAudioLevel] = useState(0);
   const [isVoiceMode, setIsVoiceMode] = useState(true);
+  const [isConversationActive, setIsConversationActive] = useState(false);
   
   const [inputValue, setInputValue] = useState('');
   const [isTextLoading, setIsTextLoading] = useState(false);
@@ -67,6 +69,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const recordingStartRef = useRef<number | null>(null);
   const hasSpokenRef = useRef<boolean>(false);
   const isProcessingRef = useRef<boolean>(false);
+  const shouldContinueRef = useRef<boolean>(false);
+  const autoResumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
 
@@ -76,6 +80,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
 
   useEffect(() => {
     return () => {
+      shouldContinueRef.current = false;
+      if (autoResumeTimeoutRef.current) {
+        clearTimeout(autoResumeTimeoutRef.current);
+      }
       cleanupRecording();
     };
   }, []);
@@ -104,129 +112,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     setAudioLevel(0);
   }, []);
 
-  const processRecordingInternal = useCallback(async () => {
-    if (isProcessingRef.current) return;
-    if (audioChunksRef.current.length === 0) {
-      console.log('[VoiceChat] No audio recorded');
-      setVoiceState('idle');
-      return;
-    }
-    
-    isProcessingRef.current = true;
-    setVoiceState('processing');
-    
-    try {
-      const audioBlob = new Blob(audioChunksRef.current, { 
-        type: audioMimeTypeRef.current 
-      });
-      
-      console.log('[VoiceChat] Processing audio:', audioBlob.size, 'bytes, type:', audioMimeTypeRef.current);
-      
-      if (audioBlob.size < 1000) {
-        console.log('[VoiceChat] Audio too short, skipping');
-        setVoiceState('idle');
-        isProcessingRef.current = false;
-        return;
-      }
-      
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const base64Audio = btoa(
-        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-      
-      console.log('[VoiceChat] Sending to speech relay...');
-      
-      const response = await apiRequest('POST', '/api/voice/speech-relay', {
-        audioBase64: base64Audio,
-        audioMimeType: audioMimeTypeRef.current,
-        conversationHistory
-      });
-      
-      const result = await response.json() as {
-        transcript: string;
-        response: string;
-        audioBase64: string;
-        audioFormat: string;
-      };
-      
-      console.log('[VoiceChat] Received response:', {
-        transcriptLength: result.transcript.length,
-        responseLength: result.response.length,
-        audioLength: result.audioBase64.length
-      });
-      
-      if (!result.transcript || result.transcript.length < 2) {
-        console.log('[VoiceChat] Empty transcript, skipping');
-        setVoiceState('idle');
-        isProcessingRef.current = false;
-        return;
-      }
-      
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        type: 'user',
-        content: result.transcript,
-        timestamp: new Date(),
-        isVoice: true,
-      };
-      
-      const floMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'flo',
-        content: result.response,
-        timestamp: new Date(),
-        isVoice: true,
-      };
-      
-      setMessages(prev => [...prev, userMessage, floMessage]);
-      
-      setConversationHistory(prev => [
-        ...prev,
-        { role: 'user' as const, content: result.transcript },
-        { role: 'assistant' as const, content: result.response }
-      ].slice(-20));
-      
-      setVoiceState('speaking');
-      
-      const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
-      const audioBlob2 = new Blob([audioData], { type: `audio/${result.audioFormat}` });
-      const audioUrl = URL.createObjectURL(audioBlob2);
-      
-      const audioEl = new Audio(audioUrl);
-      audioElementRef.current = audioEl;
-      
-      audioEl.onended = () => {
-        setVoiceState('idle');
-        URL.revokeObjectURL(audioUrl);
-        isProcessingRef.current = false;
-      };
-      
-      audioEl.onerror = () => {
-        console.error('[VoiceChat] Audio playback error');
-        setVoiceState('idle');
-        URL.revokeObjectURL(audioUrl);
-        isProcessingRef.current = false;
-      };
-      
-      await audioEl.play();
-      
-    } catch (error: any) {
-      console.error('[VoiceChat] Processing failed:', error);
-      
-      toast({
-        title: "Voice processing failed",
-        description: error.message || "Could not process your voice. Please try again.",
-        variant: "destructive",
-      });
-      
-      setVoiceState('idle');
-      isProcessingRef.current = false;
-    }
-  }, [conversationHistory, toast]);
-
-  const startRecording = useCallback(async () => {
-    if (voiceState !== 'idle') return;
-    
+  const startRecordingInternal = useCallback(async () => {
     try {
       console.log('[VoiceChat] Starting recording with VAD...');
       
@@ -298,7 +184,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             silenceStartRef.current = now;
           } else if (now - silenceStartRef.current > SILENCE_DURATION_MS) {
             console.log('[VoiceChat] Silence detected, auto-stopping...');
-            stopRecordingAndProcess();
+            stopRecordingInternal();
             return;
           }
         }
@@ -312,6 +198,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       
     } catch (error: any) {
       console.error('[VoiceChat] Failed to start recording:', error);
+      shouldContinueRef.current = false;
+      setIsConversationActive(false);
       
       if (error.name === 'NotAllowedError') {
         toast({
@@ -328,9 +216,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         });
       }
     }
-  }, [voiceState, processRecordingInternal, toast]);
+  }, [toast]);
 
-  const stopRecordingAndProcess = useCallback(() => {
+  const stopRecordingInternal = useCallback(() => {
     console.log('[VoiceChat] Stopping recording...');
     
     if (animationFrameRef.current) {
@@ -355,20 +243,211 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     setAudioLevel(0);
   }, []);
 
-  const handleMicPress = useCallback(() => {
-    if (voiceState === 'idle') {
-      startRecording();
-    } else if (voiceState === 'recording') {
-      stopRecordingAndProcess();
-    } else if (voiceState === 'speaking') {
-      if (audioElementRef.current) {
-        audioElementRef.current.pause();
-        audioElementRef.current = null;
+  const processRecordingInternal = useCallback(async () => {
+    if (isProcessingRef.current) return;
+    if (audioChunksRef.current.length === 0) {
+      console.log('[VoiceChat] No audio recorded');
+      if (shouldContinueRef.current) {
+        autoResumeTimeoutRef.current = setTimeout(() => {
+          if (shouldContinueRef.current) {
+            startRecordingInternal();
+          }
+        }, AUTO_RESUME_DELAY_MS);
+      } else {
+        setVoiceState('idle');
+        setIsConversationActive(false);
       }
-      setVoiceState('idle');
-      isProcessingRef.current = false;
+      return;
     }
-  }, [voiceState, startRecording, stopRecordingAndProcess]);
+    
+    isProcessingRef.current = true;
+    setVoiceState('processing');
+    
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { 
+        type: audioMimeTypeRef.current 
+      });
+      
+      console.log('[VoiceChat] Processing audio:', audioBlob.size, 'bytes, type:', audioMimeTypeRef.current);
+      
+      if (audioBlob.size < 1000) {
+        console.log('[VoiceChat] Audio too short, skipping');
+        isProcessingRef.current = false;
+        if (shouldContinueRef.current) {
+          autoResumeTimeoutRef.current = setTimeout(() => {
+            if (shouldContinueRef.current) {
+              startRecordingInternal();
+            }
+          }, AUTO_RESUME_DELAY_MS);
+        } else {
+          setVoiceState('idle');
+          setIsConversationActive(false);
+        }
+        return;
+      }
+      
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64Audio = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      
+      console.log('[VoiceChat] Sending to speech relay...');
+      
+      const response = await apiRequest('POST', '/api/voice/speech-relay', {
+        audioBase64: base64Audio,
+        audioMimeType: audioMimeTypeRef.current,
+        conversationHistory
+      });
+      
+      const result = await response.json() as {
+        transcript: string;
+        response: string;
+        audioBase64: string;
+        audioFormat: string;
+      };
+      
+      console.log('[VoiceChat] Received response:', {
+        transcriptLength: result.transcript.length,
+        responseLength: result.response.length,
+        audioLength: result.audioBase64.length
+      });
+      
+      if (!result.transcript || result.transcript.length < 2) {
+        console.log('[VoiceChat] Empty transcript, continuing to listen...');
+        isProcessingRef.current = false;
+        if (shouldContinueRef.current) {
+          autoResumeTimeoutRef.current = setTimeout(() => {
+            if (shouldContinueRef.current) {
+              startRecordingInternal();
+            }
+          }, AUTO_RESUME_DELAY_MS);
+        } else {
+          setVoiceState('idle');
+          setIsConversationActive(false);
+        }
+        return;
+      }
+      
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: result.transcript,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      
+      const floMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'flo',
+        content: result.response,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      
+      setMessages(prev => [...prev, userMessage, floMessage]);
+      
+      setConversationHistory(prev => [
+        ...prev,
+        { role: 'user' as const, content: result.transcript },
+        { role: 'assistant' as const, content: result.response }
+      ].slice(-20));
+      
+      setVoiceState('speaking');
+      
+      const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
+      const audioBlob2 = new Blob([audioData], { type: `audio/${result.audioFormat}` });
+      const audioUrl = URL.createObjectURL(audioBlob2);
+      
+      const audioEl = new Audio(audioUrl);
+      audioElementRef.current = audioEl;
+      
+      audioEl.onended = () => {
+        console.log('[VoiceChat] Audio playback ended, shouldContinue:', shouldContinueRef.current);
+        URL.revokeObjectURL(audioUrl);
+        isProcessingRef.current = false;
+        
+        if (shouldContinueRef.current) {
+          autoResumeTimeoutRef.current = setTimeout(() => {
+            if (shouldContinueRef.current) {
+              console.log('[VoiceChat] Auto-resuming recording...');
+              startRecordingInternal();
+            }
+          }, AUTO_RESUME_DELAY_MS);
+        } else {
+          setVoiceState('idle');
+          setIsConversationActive(false);
+        }
+      };
+      
+      audioEl.onerror = () => {
+        console.error('[VoiceChat] Audio playback error');
+        URL.revokeObjectURL(audioUrl);
+        isProcessingRef.current = false;
+        
+        if (shouldContinueRef.current) {
+          autoResumeTimeoutRef.current = setTimeout(() => {
+            if (shouldContinueRef.current) {
+              startRecordingInternal();
+            }
+          }, AUTO_RESUME_DELAY_MS);
+        } else {
+          setVoiceState('idle');
+          setIsConversationActive(false);
+        }
+      };
+      
+      await audioEl.play();
+      
+    } catch (error: any) {
+      console.error('[VoiceChat] Processing failed:', error);
+      
+      toast({
+        title: "Voice processing failed",
+        description: error.message || "Could not process your voice. Please try again.",
+        variant: "destructive",
+      });
+      
+      isProcessingRef.current = false;
+      shouldContinueRef.current = false;
+      setVoiceState('idle');
+      setIsConversationActive(false);
+    }
+  }, [conversationHistory, toast, startRecordingInternal]);
+
+  const startConversation = useCallback(async () => {
+    console.log('[VoiceChat] Starting conversation...');
+    shouldContinueRef.current = true;
+    setIsConversationActive(true);
+    await startRecordingInternal();
+  }, [startRecordingInternal]);
+
+  const endConversation = useCallback(() => {
+    console.log('[VoiceChat] Ending conversation...');
+    shouldContinueRef.current = false;
+    
+    if (autoResumeTimeoutRef.current) {
+      clearTimeout(autoResumeTimeoutRef.current);
+      autoResumeTimeoutRef.current = null;
+    }
+    
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current = null;
+    }
+    
+    cleanupRecording();
+    setVoiceState('idle');
+    setIsConversationActive(false);
+    isProcessingRef.current = false;
+  }, [cleanupRecording]);
+
+  const handleMicPress = useCallback(() => {
+    if (!isConversationActive) {
+      startConversation();
+    } else {
+      endConversation();
+    }
+  }, [isConversationActive, startConversation, endConversation]);
 
   const handleTextSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -434,6 +513,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     }, 100);
   }, []);
 
+  const handleSwitchToText = useCallback(() => {
+    endConversation();
+    setIsVoiceMode(false);
+  }, [endConversation]);
+
   const isRecording = voiceState === 'recording';
   const isProcessing = voiceState === 'processing';
   const isSpeaking = voiceState === 'speaking';
@@ -490,15 +574,29 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             </div>
           </div>
           
-          <button
-            onClick={onClose}
-            className={`p-2 rounded-full backdrop-blur-xl transition-colors ${
-              isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-black/5 hover:bg-black/10'
-            }`}
-            data-testid="button-close-chat"
-          >
-            <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-700'}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            {isConversationActive && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs ${
+                  isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                }`}
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Live
+              </motion.div>
+            )}
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-full backdrop-blur-xl transition-colors ${
+                isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-black/5 hover:bg-black/10'
+              }`}
+              data-testid="button-close-chat"
+            >
+              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-700'}`} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -568,7 +666,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             </motion.div>
           )}
           
-          {messages.length === 1 && (
+          {messages.length === 1 && !isConversationActive && (
             <div className="mt-4">
               <p className={`text-center text-xs mb-3 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
                 Quick suggestions:
@@ -614,24 +712,22 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                   onClick={handleMicPress}
                   disabled={isProcessing}
                   className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl disabled:opacity-70 ${
-                    isRecording
-                      ? 'bg-red-500 shadow-red-500/50'
-                      : isSpeaking
-                        ? 'bg-purple-500 shadow-purple-500/50'
-                        : isProcessing
-                          ? 'bg-gray-400 cursor-wait'
-                          : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 shadow-cyan-500/50'
+                    isConversationActive
+                      ? isRecording
+                        ? 'bg-red-500 shadow-red-500/50'
+                        : isSpeaking
+                          ? 'bg-purple-500 shadow-purple-500/50'
+                          : 'bg-orange-500 shadow-orange-500/50'
+                      : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 shadow-cyan-500/50'
                   }`}
                   data-testid="button-voice-toggle"
                 >
                   {isProcessing ? (
                     <Loader2 className="w-7 h-7 text-white animate-spin" />
-                  ) : isRecording ? (
-                    <Square className="w-6 h-6 text-white" />
-                  ) : isSpeaking ? (
-                    <Volume2 className="w-7 h-7 text-white" />
+                  ) : isConversationActive ? (
+                    <PhoneOff className="w-6 h-6 text-white" />
                   ) : (
-                    <Mic className="w-7 h-7 text-white" />
+                    <Phone className="w-7 h-7 text-white" />
                   )}
                   
                   {isRecording && (
@@ -677,29 +773,45 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                       }}
                     />
                   )}
+                  
+                  {isConversationActive && !isRecording && !isSpeaking && !isProcessing && (
+                    <motion.div
+                      className="absolute inset-0 rounded-full border-2 border-orange-400"
+                      animate={{
+                        opacity: [0.4, 0.8, 0.4],
+                      }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                    />
+                  )}
                 </motion.button>
                 
                 <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  {isRecording 
-                    ? 'Listening... (pause when done)' 
-                    : isSpeaking
-                      ? 'Tap to stop'
-                      : isProcessing
-                        ? 'Processing...'
-                        : 'Tap to speak'
+                  {isConversationActive
+                    ? isRecording 
+                      ? 'Listening...' 
+                      : isSpeaking
+                        ? 'Flō is speaking...'
+                        : isProcessing
+                          ? 'Processing...'
+                          : 'Tap to end call'
+                    : 'Tap to start call'
                   }
                 </p>
                 
                 <p className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-                  {isRecording 
-                    ? 'Auto-stops when you pause speaking'
-                    : 'Grok-powered voice conversation'
+                  {isConversationActive
+                    ? 'Conversation stays open until you hang up'
+                    : 'Have a natural conversation with Flō'
                   }
                 </p>
               </div>
               
               <button
-                onClick={() => setIsVoiceMode(false)}
+                onClick={handleSwitchToText}
                 className={`w-full mt-3 text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
                 data-testid="button-switch-to-text"
               >
@@ -751,7 +863,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 className={`w-full text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
                 data-testid="button-switch-to-voice"
               >
-                <Mic className="w-3 h-3" />
+                <Phone className="w-3 h-3" />
                 Switch to voice mode
               </button>
             </div>
