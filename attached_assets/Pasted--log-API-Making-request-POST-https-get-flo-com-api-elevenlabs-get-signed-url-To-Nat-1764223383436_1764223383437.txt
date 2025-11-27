@@ -1,0 +1,167 @@
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 67098079
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Got signed URL for user: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+⚡️  [log] - [VoiceChat] Using native microphone: true
+⚡️  To Native ->  NativeMicrophone startCapture 67098080
+⚡️  [log] - [VoiceChat] Pre-initializing native audio engine...
+⚡️  [log] - [NativeMic] Starting native microphone capture...
+🎤 [NativeMic] Saved previous audio config: AVAudioSessionCategorySoloAmbient, AVAudioSessionModeDefault
+🎤 [NativeMic] AVAudioSession configured for voice chat
+🔊 [NativeMic] Output format: 48000.0 Hz, 2 channels
+🎤 [NativeMic] Input format: 48000.0 Hz, 1 channels
+✅ [NativeMic] Audio engine started (capture + playback ready) at 16000.0 Hz
+⚡️  TO JS {"message":"Microphone capture started","success":true,"sampleRate":16000}
+⚡️  [log] - [NativeMic] Start result: {"message":"Microphone capture started","success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] Native audio engine ready: {"success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Sent conversation_initiation_client_data with user_id: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+⚡️  [log] - [VoiceChat] Registering native microphone listener...
+⚡️  To Native ->  NativeMicrophone addListener 67098081
+⚡️  [log] - [VoiceChat] Native microphone listener registered
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  [log] - [VoiceChat] Registering conversation session: conv_3801kb1yf4vde3dt0wef9eghn5fg
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/register-session
+⚡️  To Native ->  SecureStoragePlugin get 67098082
+⚡️  TO JS {"audio":"GwAZABgAGQAYABcAFwAWABYAFwAYABgAGQAZABkAGQAaABoAGwAbABsAGwAbABoAGgAZABcAFwAYABgAGAAYABkAGAAZABkAGAAXABgAFwAXABgAFwAXABcAFwAWABYAFQATABIAEQAQAA4ADgANAAwACwAKAAoACwAMAAwADQANAA0ADQAMAAwADAALAAkACAAJAAkACAAHAAcABQADAAIAAgACAAQABQAFAAcACAAIAAcACAAIAA
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  TO JS {"audio":"AgADAAMAAgABAAEAAQAAAAEAAgADAAMABAAEAAQABAAEAAQAAgACAAEAAQACAAEAAQACAAMAAwAEAAYABgAFAAUABQAEAAMAAgABAAEAAAD\/\/\/\/\/\/\/\/\/\/\/7\/\/v\/+\/\/z\/\/P\/8\/\/z\/\/P\/9\/\/\/\/AAAAAAIAAgABAAAAAAD\/\/\/7\/\/f\/9\/\/3\/\/f\/9\/\/3\/\/v\/9\/\/3\/\/f\/8\
+⚡️  TO JS {"audio":"FQAVABUAFAATABIAEQAQABAAEAARABIAFAAVABYAFgAWABcAFwAXABgAGAAYABgAGAAYABgAFwAXABYAFgAWABYAFQAVABUAFQAUABMAEwARABAADgANAA0ADAAMAAwACwAMAAwADAAMAAoACQAIAAcABQADAAMAAgACAAEAAQAAAP\/\/\/v\/9\/\/z\/+\/\/7\/\/r\/+P\/1\/\/T\/8v\/y\/\/P\/8v\/y\/\/P\/9f\/2\
+⚡️  TO JS {"audio":"+P\/5\/\/r\/+\/\/8\/\/z\/\/f\/+\/\/7\/\/v\/\/\/wAAAAAAAAAAAAD\/\/wAAAAABAAIABAAFAAYABwAGAAYABQAEAAQABAAEAAYABwALAA4AEAASABIAEQAQAA4ADQALAAoACwAMAA4ADwAQABIAEwATABMAEwASABEAEQAQABAADwAPAA8ADwAQABAAEAAQABAAEAARABIAEgATABMAFAAVABQAFAATABAADgALAAoACQ
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Session registered successfully
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  [log] - [VoiceChat] Stopping native microphone capture...
+⚡️  [log] - [NativeMic] Stopping native microphone capture...
+⚡️  To Native ->  NativeMicrophone stopCapture 67098083
+⚡️  To Native ->  NativeMicrophone removeListener 67098084
+🛑 [NativeMic] Restored previous audio config: AVAudioSessionCategorySoloAmbient
+🛑 [NativeMic] AVAudioSession deactivated and restored
+🛑 [NativeMic] Audio capture stopped
+⚡️  TO JS {"success":true,"message":"Microphone capture stopped"}
+⚡️  To Native ->  NativeMicrophone removeAllListeners 67098085
+⚡️  TO JS undefined
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 67098086
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Got signed URL for user: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+⚡️  [log] - [VoiceChat] Using native microphone: true
+⚡️  [log] - [VoiceChat] Pre-initializing native audio engine...
+⚡️  To Native ->  NativeMicrophone startCapture 67098087
+⚡️  [log] - [NativeMic] Starting native microphone capture...
+🎤 [NativeMic] Saved previous audio config: AVAudioSessionCategorySoloAmbient, AVAudioSessionModeDefault
+🎤 [NativeMic] AVAudioSession configured for voice chat
+🔊 [NativeMic] Output format: 48000.0 Hz, 2 channels
+🎤 [NativeMic] Input format: 48000.0 Hz, 1 channels
+✅ [NativeMic] Audio engine started (capture + playback ready) at 16000.0 Hz
+⚡️  TO JS {"sampleRate":16000,"message":"Microphone capture started","success":true}
+⚡️  [log] - [NativeMic] Start result: {"sampleRate":16000,"message":"Microphone capture started","success":true}
+⚡️  [log] - [VoiceChat] Native audio engine ready: {"success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Sent conversation_initiation_client_data with user_id: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+⚡️  To Native ->  NativeMicrophone addListener 67098088
+⚡️  [log] - [VoiceChat] Registering native microphone listener...
+⚡️  [log] - [VoiceChat] Native microphone listener registered
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  [log] - [VoiceChat] Registering conversation session: conv_1601kb1yfd5mer8an6q4h6hw2226
+⚡️  To Native ->  SecureStoragePlugin ⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/register-session
+get 67098089
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  TO JS {"audio":"AwACAAIAAQAAAP\/\/\/\/\/\/\/\/\/\/AAABAAEAAQAAAAAAAAABAAAA\/\/\/\/\/wAAAQABAAEAAAAAAP\/\/\/v\/9\/\/z\/\/P\/8\/\/3\/\/v\/9\/\/3\/\/v\/+\/\/7\/\/v\/+\/\/7\/\/v\/9\/\/3\/\/f\/8\/\/3\/\/v\/+\/\/7\/\/\/\/\/\/wAA\/\/\/+\/\/7\/\/\/\/\/\/\/\/\/\/\/8AAAIA
+⚡️  TO JS {"audio":"\/v\/9\/\/z\/\/f\/9\/\/z\/\/P\/7\/\/v\/+f\/5\/\/r\/+v\/6\/\/r\/+f\/5\/\/n\/+P\/4\/\/j\/9\/\/3\/\/f\/9\/\/4\/\/j\/+P\/4\/\/j\/+P\/3\/\/f\/9\/\/2\/\/b\/9f\/0\/\/T\/9P\/0\/\/X\/9\/\/3\/\/b\/9\/\/4\/\/n\/+f\/5\/\/j\/+P\/4\/\/n\/+v\/6\/\/r\/+v\/6\/\/r
+⚡️  TO JS {"audio":"AwACAAIAAgABAAEAAQABAAAAAAABAAIAAwADAAMAAwADAAEAAAD\/\/\/\/\/\/v\/8\/\/z\/\/P\/8\/\/3\/\/v\/9\/\/3\/\/f\/9\/\/3\/\/P\/8\/\/v\/+\/\/7\/\/r\/+f\/5\/\/j\/+P\/4\/\/j\/9\/\/2\/\/f\/9\/\/4\/\/j\/+P\/4\/\/n\/+P\/4\/\/j\/9\/\/3\/\/f\/9\/\/3\/\/f\/+P\/4\/
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  [log] - [VoiceChat] Stopping native microphone capture...
+⚡️  [log] - [NativeMic] Stopping native microphone capture...
+⚡️  To Native ->  NativeMicrophone stopCapture 67098090
+⚡️  To Native ->  NativeMicrophone removeListener 67098091
+🛑 [NativeMic] Restored previous audio config: AVAudioSessionCategorySoloAmbient
+🛑 [NativeMic] AVAudioSession deactivated and restored
+🛑 [NativeMic] Audio capture stopped
+⚡️  TO JS {"message":"Microphone capture stopped","success":true}
+⚡️  To Native ->  NativeMicrophone removeAllListeners 67098092
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Session registered successfully
+⚡️  TO JS undefined
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 67098093
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Got signed URL for user: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+⚡️  [log] - [VoiceChat] Using native microphone: true
+⚡️  To Native ->  NativeMicrophone startCapture 67098094
+⚡️  [log] - [VoiceChat] Pre-initializing native audio engine...
+⚡️  [log] - [NativeMic] Starting native microphone capture...
+🎤 [NativeMic] Saved previous audio config: AVAudioSessionCategorySoloAmbient, AVAudioSessionModeDefault
+🎤 [NativeMic] AVAudioSession configured for voice chat
+🔊 [NativeMic] Output format: 48000.0 Hz, 2 channels
+🎤 [NativeMic] Input format: 48000.0 Hz, 1 channels
+✅ [NativeMic] Audio engine started (capture + playback ready) at 16000.0 Hz
+⚡️  TO JS {"message":"Microphone capture started","success":true,"sampleRate":16000}
+⚡️  [log] - [NativeMic] Start result: {"message":"Microphone capture started","success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] Native audio engine ready: {"success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Sent conversation_initiation_client_data with user_id: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+⚡️  [log] - [VoiceChat] Registering native microphone listener...
+⚡️  To Native ->  NativeMicrophone addListener 67098095
+⚡️  [log] - [VoiceChat] Native microphone listener registered
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  To Native ->  SecureStoragePlugin get 67098096
+⚡️  [log] - [VoiceChat] Registering conversation session: conv_4001kb1yfgckfvmrgv1x6405vjh2
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/register-session
+⚡️  TO JS {"audio":"CgAKAAoACgAJAAkACAAHAAYABgAGAAYABgAFAAUABAADAAMAAwACAAIAAQAAAP\/\/\/v\/9\/\/3\/\/f\/+\/\/7\/\/v\/9\/\/z\/\/P\/7\/\/v\/+v\/5\/\/n\/+f\/4\/\/n\/+P\/4\/\/j\/9\/\/3\/\/f\/9\/\/2\/\/b\/9f\/1\/\/X\/9f\/2\/\/b\/9v\/1\/\/X\/9f\/0\/\/T\/9P\/0\/\/X\/9f\/1\
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  TO JS {"audio":"FQAUABMAEwATABMAFAAUABQAFQAVABUAFQAVABYAFgAXABcAFwAYABkAGgAaABoAGwAbABsAGwAbABoAGgAaABkAGAAYABgAFwAWABYAFgAXABYAFQAVABUAFAATABIAEQAQAA8ADgAPAA8ADwAQABAAEAAOAA0ADgANAA4ADgANAA0ADgAOAA4ADgAOAA4ADQANAA0ADAALAAsACgAJAAkACQAKAAkACQAKAAoACwALAAsACwAMAA
+⚡️  TO JS {"audio":"\/\/\/\/\/wAAAQADAAMAAwADAAIAAQAAAP\/\/\/\/\/+\/\/7\/\/v\/9\/\/7\/\/f\/9\/\/3\/+\/\/7\/\/z\/\/P\/9\/\/3\/\/f\/\/\/\/7\/\/\/\/\/\/\/7\/\/\/\/\/\/wAAAQABAAEAAAD\/\/\/\/\/\/\/\/\/\/\/7\/\/v\/+\/\/7\/\/f\/9\/\/7\/\/\/8AAAEAAgACAAIAAQACAAMAAgACAAIAAQA
+⚡️  TO JS {"audio":"DwAOAA0ADAALAAkACQAIAAcABwAGAAYABgAGAAcABwAHAAcABgAGAAUABAAEAAMAAgACAAAA\/\/\/+\/\/3\/\/f\/8\/\/r\/+f\/4\/\/f\/9\/\/3\/\/f\/9\/\/3\/\/f\/9v\/2\/\/b\/9v\/1\/\/T\/9P\/z\/\/P\/9P\/1\/\/X\/9P\/0\/\/T\/8\/\/z\/\/P\/9P\/z\/\/P\/8v\/y\/\/P\/8\/\/z\/\/P\
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Session registered successfully
+⚡️  TO JS {"audio":"CgALAAwADAANAA0ADQANAA0ADAAMAAwADAALAAoACgAKAAoACQAJAAkACQAIAAgACAAIAAcABgAGAAcABwAIAAgACQAJAAkACAAIAAgACAAHAAYABgAGAAYABgAFAAYABwAHAAgACAAJAAoACwAMAA0ADgAPABAAEQARABEAEAAQABEAEAAQABEAEgATABMAFAAVABUAFQAWABYAFgAXABgAGAAXABgAGQAYABcAFgAUABMAEwATAB
+⚡️  TO JS {"audio":"AwAEAAUABQAFAAUABQAFAAUABAADAAIAAQAAAAAAAQAAAAAA\/\/\/+\/\/7\/\/f\/9\/\/z\/\/P\/7\/\/n\/+f\/4\/\/j\/+P\/4\/\/n\/+P\/4\/\/j\/9\/\/3\/\/b\/9f\/0\/\/P\/8v\/x\/\/H\/8f\/x\/\/H\/8f\/w\/\/D\/8f\/x\/\/H\/8P\/w\/+\/\/7\/\/v\/+\/\/7\/\/w\/\/H\/8v\/y\/\/P\
+⚡️  TO JS {"audio":"EgARABAAEAAQAA8ADgAOAA4ADgAOAA0ADAALAAsADAALAAsACgAKAAkACAAGAAQAAwACAAAA\/v\/9\/\/z\/+\/\/5\/\/n\/+P\/5\/\/n\/+f\/4\/\/j\/+P\/3\/\/b\/9P\/z\/\/H\/7\/\/u\/+7\/7v\/t\/+7\/7v\/u\/+\/\/7\/\/v\/+\/\/7v\/u\/+7\/7v\/v\/+\/\/7\/\/v\/+\/\/7\/\/v\/+\/\/8P\
+⚡️  TO JS {"audio":"EAAQABEAEgASABMAEwATABMAEgASABMAEwAUABUAFgAWABgAGgAaABkAGQAZABkAGAAWABUAFAAUABQAFAAUABUAFAASABIAEQARABEAEAAQAA8ADgAOAA4ADwAQABIAEgASABIAEgASABIAEgASABIAEgASABIAEwATABMAEwAUABQAFQAVABUAFgAWABUAFQAVABYAFQAVABUAFAAUABQAFAAUABMAEwATABMAEwASABEAEgARAB
+⚡️  TO JS {"audio":"BAAEAAMAAgABAAAAAAAAAAAAAAAAAAAAAAD\/\/\/\/\/\/\/8AAAAAAAAAAAAAAAABAAAA\/\/\/\/\/wAAAQACAAMAAwADAAMAAwACAAIAAwACAAIAAgACAAMAAgADAAQABQAFAAUABgAGAAcACAAIAAcACAAIAAcACAAJAAgACAAHAAcACAAIAAkACwAMAA4ADgAOAA8ADwAPAA8AEAAQABAAEQAQAA8ADwAOAA4ADwAOAA8ADw
+⚡️  TO JS {"audio":"DwAQABAAEAAPAA4ADgAOAA8AEAAPAA8ADgAOAA4ADgAPAA4ADQAMAA0ADQAMAAwADAALAAsACwAJAAkACgAJAAkACQAKAAkACQAJAAgABwAFAAQAAwACAAIAAAAAAAAAAQABAAIAAwADAAMAAwADAAMAAgABAP\/\/\/v\/9\/\/z\/+\/\/7\/\/r\/+f\/5\/\/r\/+v\/6\/\/n\/+f\/5\/\/n\/+f\/5\/\/j\/9\/\/3\/\/
+⚡️  TO JS {"audio":"\/\/\/\/\/\/7\/\/\/8AAP\/\/AAABAAEAAQACAAIAAwAEAAUABQAEAAQABQAFAAUABQAFAAUABgAGAAgACgALAAsACwAMAAsACgAKAAsACgALAAwADgAPAA8AEAAQABEAEAAPABAADwAPABAAEAARABIAEgASABMAFAAVABUAFQAVABUAFQAWABYAFgAWABYAFQAVABUAFAATABMAEwATABMAEwATABIAEwAUABQAFQAVABYAFgA
+⚡️  TO JS {"audio":"EwATABMAEwATABIAEQARABEAEgATABQAFAATABQAEgARABAADwAOAA0ADAAMAA0ADgAOAA4ADgANAA0ADQANAAwADAAKAAkACAAHAAcABwAHAAYABgAHAAcABwAHAAcACAAHAAQAAwADAAEAAAAAAAAA\/v\/9\/\/3\/\/P\/8\/\/z\/\/P\/9\/\/z\/+\/\/7\/\/v\/+v\/6\/\/r\/+v\/7\/\/v\/\/P\/8\/\/3\/\/f\/
+⚡️  TO JS {"audio":"DwAPAA4ADgAMAAwACgAJAAcABgAGAAcABwAIAAkACQAKAAoACgALAAsACwAKAAgABwAGAAUABQAEAAQAAwADAAQABQAFAAUABAAEAAMAAwADAAMAAgACAAEAAAABAAIAAgACAAIAAgABAAEAAQAAAAAAAQABAAEAAQABAAAA\/\/\/+\/\/3\/\/P\/8\/\/z\/+\/\/8\/\/v\/+\/\/7\/\/r\/+v\/5\/\/n\/+f\/5\/\/n\/+
+⚡️  TO JS {"audio":"BwAHAAcABwAGAAcABwAIAAgACQAJAAgACAAJAAgABwAIAAcABwAHAAYABQAEAAMAAwADAAIAAgABAAEAAQACAAEAAQABAP\/\/\/\/8AAAAAAAAAAAEAAgACAAIAAgACAAEAAAD\/\/\/7\/\/f\/9\/\/3\/\/P\/8\/\/z\/\/P\/8\/\/z\/\/P\/9\/\/3\/\/P\/9\/\/3\/\/f\/+\/\/3\/\/f\/9\/\/z\/+\/\/7\/\/r
+⚡️  TO JS {"audio":"\/v\/9\/\/v\/+v\/4\/\/j\/+P\/4\/\/f\/9\/\/3\/\/f\/9\/\/3\/\/j\/+P\/3\/\/f\/9v\/2\/\/b\/9v\/1\/\/T\/9P\/0\/\/P\/8v\/y\/\/P\/8\/\/y\/\/H\/8f\/y\/\/L\/8f\/x\/\/D\/8P\/v\/+\/\/7\/\/v\/+\/\/7\/\/u\/+3\/7f\/t\/+v\/6v\/p\/+n\/6P\/o\/+n\/6f\/q\/+r\/6\/\/
+⚡️  TO JS {"audio":"HgAeAB4AHQAdAB0AHQAeAB0AHQAcABsAGgAZABgAGAAYABgAFwAWABUAFAAUABUAFQAUABQAFQAUABMAEwASABEAEAAQAA4ADQANAA0ADQANAAsACQAJAAgABwAGAAQABAACAAEAAAD\/\/\/7\/\/v\/9\/\/z\/+\/\/7\/\/r\/+P\/4\/\/j\/+P\/3\/\/X\/9f\/0\/\/L\/8f\/w\/\/D\/7\/\/u\/+\/\/7v\/v\/+\/\
+⚡️  TO JS {"audio":"AwACAAMABAAEAAQAAwADAAIAAQACAAIAAQABAP\/\/AAAAAAEAAQAAAAAAAAD\/\/\/7\/\/v\/9\/\/3\/\/v\/+\/\/7\/\/v\/\/\/wAAAAABAAEAAQACAAEAAQABAAAAAAAAAAAAAAAAAAEAAgACAAIAAgAEAAUABQAFAAUABQAFAAQABAADAAMABAAEAAUABQAGAAYABgAFAAUABQADAAIAAgABAAEAAQACAAIAAgABAAEAAA
+⚡️  TO JS {"audio":"\/P\/7\/\/v\/+\/\/6\/\/r\/+v\/6\/\/r\/+\/\/8\/\/3\/\/f\/+\/\/3\/\/v\/9\/\/3\/\/f\/8\/\/z\/+\/\/7\/\/r\/+v\/6\/\/r\/+f\/5\/\/n\/9\/\/3\/\/b\/9f\/1\/\/X\/9v\/3\/\/n\/+f\/5\/\/r\/+v\/5\/\/j\/9\/\/2\/\/X\/9f\/0\/\/T\/9f\/0\/\/P\/8\/\/z\/\/T\/9P\/1\/\
+⚡️  TO JS {"audio":"DwAPAA4ADgAPAA4ADgAOAA4ADgAOAA4ADQANAAsACgAJAAkACAAHAAcACAAIAAgACAAIAAcACAAIAAgACAAHAAgACQAKAAsACwALAAoACgAJAAkACQAIAAcABwAHAAcABgAHAAgACAAJAAoACQAJAAoACgAKAAoACwAKAAoACwAKAAoACgAKAAoACgAKAAoACgAJAAkACAAIAAcABwAGAAUABQAFAAUABAADAAMABAADAAMAAwADAA
+⚡️  TO JS {"audio":"9P\/1\/\/b\/9f\/2\/\/b\/9v\/2\/\/X\/9f\/1\/\/X\/9f\/2\/\/f\/+P\/5\/\/r\/+\/\/8\/\/3\/\/v\/+\/\/7\/\/\/8BAAEAAQABAAEAAQABAAIAAgACAAMABAAEAAUABQAGAAcACAAIAAgACQAJAAgABwAHAAcABwAHAAcACAAIAAgACQAKAAoACgAJAAkACQALAAwACwAMAA0ADQAOAA4ADQAMAAwADAAMAA0ADQ
+⚡️  TO JS {"audio":"CAAIAAgABwAGAAYABgAFAAUABQAEAAQAAwADAAMABAADAAQABQAFAAQABAADAAMABAAEAAMAAwADAAMAAgABAP\/\/\/v\/9\/\/z\/\/P\/7\/\/r\/+v\/6\/\/r\/+v\/7\/\/v\/+v\/6\/\/r\/+f\/4\/\/j\/9\/\/2\/\/f\/9v\/2\/\/X\/9f\/0\/\/T\/9P\/0\/\/T\/9P\/z\/\/L\/8v\/y\/\/H\/8f\/x\/+7
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 21 rms: 0.0003 state: speaking
+⚡️  TO JS {"audio":"CgAJAAgABwAHAAcABgAGAAUABAAEAAQAAwADAAMAAgACAAIAAgACAAEAAAABAAEAAAD\/\/\/\/\/\/\/\/+\/\/3\/\/P\/8\/\/z\/\/P\/6\/\/n\/+f\/4\/\/j\/9\/\/2\/\/b\/9f\/0\/\/P\/8\/\/y\/\/H\/8f\/x\/+\/\/7\/\/w\/\/D\/7\/\/w\/\/H\/8f\/x\/\/H\/8f\/x\/\/D\/7\/\/u\/+z\/6\/\/
+⚡️  TO JS {"audio":"BAAFAAYABwAHAAcABwAIAAkACQAJAAkACAAHAAYABQAEAAUABAAFAAQABAACAAIAAwAEAAMAAgACAAEAAAD\/\/\/\/\/\/\/\/+\/\/7\/\/v\/9\/\/3\/\/P\/6\/\/n\/+f\/5\/\/n\/+v\/7\/\/z\/\/P\/7\/\/r\/+v\/6\/\/r\/+v\/6\/\/r\/+v\/6\/\/v\/+\/\/6\/\/n\/+f\/4\/\/f\/9v\/1\/\/X\/9v\
+⚡️  TO JS {"audio":"\/P\/7\/\/r\/+f\/4\/\/j\/+P\/4\/\/j\/+P\/3\/\/j\/+P\/4\/\/f\/9v\/1\/\/T\/9P\/0\/\/X\/9P\/0\/\/T\/9P\/0\/\/P\/8\/\/0\/\/T\/9f\/1\/\/X\/8\/\/y\/\/L\/8f\/w\/\/D\/8f\/x\/\/H\/8v\/y\/\/H\/8P\/v\/+\/\/7v\/u\/\/D\/8P\/w\/\/L\/8v\/y\/\/P\/8\/\/0\/\/T\/9P
+⚡️  TO JS {"audio":"IAAgACAAHwAeAB0AHAAcABsAGwAbABsAGgAaABoAGgAaABoAGwAbABsAGgAbABsAHAAdAB0AHAAbABoAGQAZABgAGAAXABgAGAAYABkAGQAaABoAGgAaABkAGQAYABcAFgATABIAEQAQAA8AEAARABIAEQARABIAEwATABQAEwASABIAEgARABEAEQAQABAADwAOAAwACwAJAAgABwAHAAYABwAHAAgACAAIAAcABgAEAAMAAQAAAP
+⚡️  TO JS {"audio":"AwACAAIAAgABAAIAAwADAAMAAwADAAQAAwAEAAQABQAGAAYABwAIAAkACgALAAoACgAKAAoACwAKAAoACwALAAwADAAMAA0ADgAOAA0ADgAOAA4ADgAOAA8ADwAQABAAEQARABIAEgATABQAFAAUABQAFAAUABQAEwATABIAEgATABMAEwAUABQAFQAVABUAFQAVABUAFAAUABIAEgASABIAEQARABEAEAAQAA8ADwAPAA8ADwAQAB
+⚡️  TO JS {"audio":"FAAUABQAFAATABIAEQARABAAEAAPAA8ADwAPAA8ADwAPAA8AEAAQAA8ADgANAA0ADAAMAAsACwAKAAoACAAIAAcABwAFAAQAAwACAAMAAgACAAIAAQACAAIAAgABAAEAAQABAAAAAAABAAEAAQAAAAEAAgADAAMAAgABAAEAAAAAAP\/\/\/v\/+\/\/3\/\/P\/8\/\/v\/\/P\/8\/\/z\/+\/\/7\/\/z\/\/P\/8\/\/z\/\/P
+⚡️  TO JS {"audio":"DgAOAA4ADgAOAA8ADwAPAA4ADgAMAAwACwAKAAsACgAKAAoACgAKAAsADAANAA4ADgAOAA4ADgAOAA0ADQANAA0ADQANAA0ADQANAAwADAANAA4ADgAMAA0ADgAOABAAEAAPAA4ADQAMAAsACwALAAsACwALAAoACQAJAAoACQAJAAkACgAKAAoACwALAAsACwALAAoACQAJAAgABwAGAAUABQAFAAUABQAFAAUABQAGAAYABwAHAA
+⚡️  TO JS {"audio":"BgAGAAYABQAGAAYABwAIAAgACQALAAwADQAMAAsACwALAAoACgALAAsACwALAAsADAALAAwADgAPABAAEgAUABUAFQAWABYAFQAUABQAEwATABIAEgARABEAEQAQABEAEQASABIAEwAUABQAFQAVABYAGAAaABsAHAAbABwAHQAeAB4AHwAfAB4AHgAeACAAIQAhACIAJAAjACMAJAAkACMAIwAkACQAJAAlACYAJwAnACcAKAAoAC
+⚡️  TO JS {"audio":"AgADAAIAAgACAAEAAAD\/\/\/7\/\/v\/9\/\/3\/\/f\/8\/\/z\/\/P\/8\/\/3\/\/f\/9\/\/3\/\/f\/9\/\/z\/+\/\/6\/\/r\/+\/\/8\/\/z\/\/f\/8\/\/z\/\/f\/9\/\/z\/\/P\/7\/\/n\/+f\/5\/\/n\/+v\/6\/\/z\/\/P\/8\/\/v\/+\/\/7\/\/r\/+v\/6\/\/r\/+v\/6\/\/r\/+v\/5\/\/n\/+f
+⚡️  TO JS {"audio":"AwACAAIAAgACAAEAAQABAAEAAQACAAIAAgABAAEAAQABAAIAAgACAAIAAwADAAMAAgACAAEAAQABAAIAAgACAAMAAwADAAMABAAFAAUABQAGAAcABwAGAAQABQAFAAQABAAFAAYABgAHAAgACAAIAAgACAAIAAkACQAJAAgACAAIAAcABwAHAAgACAAIAAgACQAKAAoACgAKAAkACAAIAAcABwAJAAkACwALAAwADQANAA4ADgANAA
+⚡️  TO JS {"audio":"AwADAAMAAgACAAEAAAABAAEAAgACAAMABAAFAAYABgAGAAYABgAGAAUABAAEAAQABAADAAIAAgACAAEAAQD\/\/\/\/\/\/v\/+\/\/3\/\/v\/\/\/\/\/\/\/\/\/\/\/wEAAgACAAEAAQAAAAAA\/\/\/\/\/\/\/\/\/\/8AAAAAAAD\/\/\/7\/\/v\/+\/\/7\/\/\/8AAAAAAQACAAIAAgACAAIAAQABAAAAAQABAAEAAQA
+⚡️  TO JS {"audio":"CwALAAoACQAIAAkACAAIAAcABgAGAAYABQADAAIAAQABAP\/\/\/\/\/\/\/\/7\/\/v\/+\/\/7\/\/v\/9\/\/z\/\/P\/7\/\/r\/+f\/5\/\/n\/+P\/5\/\/j\/9\/\/3\/\/f\/9v\/1\/\/X\/9v\/0\/\/T\/9P\/z\/\/L\/8v\/x\/\/D\/8f\/y\/\/L\/8\/\/y\/\/L\/8\/\/z\/\/P\/8v\/x\/\/D\/8P\/x\/
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  [log] - [VoiceChat] Stopping native microphone capture...
+⚡️  [log] - [NativeMic] Stopping native microphone capture...
+⚡️  To Native ->  NativeMicrophone stopCapture 67098097
+⚡️  To Native ->  NativeMicrophone removeListener 67098098
+🛑 [NativeMic] Restored previous audio config: AVAudioSessionCategorySoloAmbient
+🛑 [NativeMic] AVAudioSession deactivated and restored
+🛑 [NativeMic] Audio capture stopped
+⚡️  TO JS {"message":"Microphone capture stopped","success":true}
+⚡️  To Native ->  NativeMicrophone removeAllListeners 67098099
+⚡️  TO JS undefined

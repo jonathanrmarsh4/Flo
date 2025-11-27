@@ -244,8 +244,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         
         // REQUIRED: Send conversation_initiation_client_data to start the conversation
         // This tells ElevenLabs the client is ready and triggers the agent's first greeting
-        // Note: ElevenLabs default input format is 16kHz 16-bit PCM mono (what we send)
-        // IMPORTANT: Pass user_id as dynamic variable so ElevenLabs includes it in LLM requests
+        // Note: We pass user_id through session registration (on conversation_initiation_metadata)
         ws.send(JSON.stringify({
           type: "conversation_initiation_client_data",
           conversation_config_override: {
@@ -255,17 +254,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 output_format: "pcm_16000"
               }
             }
-          },
-          // Dynamic variables that ElevenLabs will pass to our custom LLM endpoint
-          dynamic_variables: {
-            user_id: currentUserId
-          },
-          // Also try custom_llm_extra_body format
-          custom_llm_extra_body: {
-            user_id: currentUserId
           }
         }));
-        console.log('[VoiceChat] Sent conversation_initiation_client_data with user_id:', currentUserId);
+        console.log('[VoiceChat] Sent conversation_initiation_client_data');
         
         // Register audio data listener for native mic (engine already started above)
         if (useNativeMic) {
