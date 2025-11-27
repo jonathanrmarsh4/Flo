@@ -57,21 +57,43 @@ class GeminiLiveClient {
 
     logger.info('[GeminiLive] Creating new session', { sessionId });
 
+    // Create a promise that resolves when session is ready
+    let sessionReady: () => void;
+    let sessionFailed: (error: Error) => void;
+    const readyPromise = new Promise<void>((resolve, reject) => {
+      sessionReady = resolve;
+      sessionFailed = reject;
+    });
+
     const connectParams: LiveConnectParameters = {
       model: 'gemini-2.5-flash-native-audio-preview-09-2025',
       callbacks: {
         onopen: () => {
           logger.info('[GeminiLive] Session opened', { sessionId });
+          sessionReady();
         },
         onmessage: (message: LiveServerMessage) => {
+          // Log the raw message for debugging
+          logger.debug('[GeminiLive] Received message', { 
+            sessionId,
+            hasData: !!message.data,
+            hasServerContent: !!message.serverContent,
+            messageType: Object.keys(message).join(', ')
+          });
           this.processMessage(message, callbacks);
         },
         onerror: (error: ErrorEvent) => {
           logger.error('[GeminiLive] Session error', { sessionId, error: error.message });
+          sessionFailed(new Error(error.message || 'Gemini Live session error'));
           callbacks.onError(new Error(error.message || 'Gemini Live session error'));
         },
         onclose: (event: CloseEvent) => {
-          logger.info('[GeminiLive] Session closed', { sessionId, reason: event?.reason });
+          logger.info('[GeminiLive] Session closed', { 
+            sessionId, 
+            code: event?.code,
+            reason: event?.reason,
+            wasClean: event?.wasClean
+          });
           this.activeSessions.delete(sessionId);
           callbacks.onClose();
         },
@@ -83,11 +105,39 @@ class GeminiLiveClient {
     };
 
     try {
+      logger.info('[GeminiLive] Connecting to Gemini Live API...', { 
+        sessionId,
+        model: connectParams.model 
+      });
+      
       const session = await this.client.live.connect(connectParams);
+      
+      if (!session) {
+        throw new Error('Session returned as undefined');
+      }
+      
       this.activeSessions.set(sessionId, session);
-      logger.info('[GeminiLive] Session connected successfully', { sessionId });
+      
+      // Wait for session to be fully ready (onopen callback)
+      // Add a timeout to prevent hanging forever
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error('Session open timeout after 10s')), 10000);
+      });
+      
+      await Promise.race([readyPromise, timeoutPromise]);
+      
+      logger.info('[GeminiLive] Session connected and ready', { 
+        sessionId,
+        hasSession: !!session 
+      });
     } catch (error: any) {
-      logger.error('[GeminiLive] Failed to create session', { sessionId, error: error.message });
+      logger.error('[GeminiLive] Failed to create session', { 
+        sessionId, 
+        error: error.message,
+        stack: error.stack 
+      });
+      // Clean up if we stored the session
+      this.activeSessions.delete(sessionId);
       throw error;
     }
   }

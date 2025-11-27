@@ -75,7 +75,22 @@ class GeminiVoiceService {
     // Get user's first name and health context
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     const firstName = user?.firstName || undefined;
-    const healthContext = await buildUserHealthContext(userId);
+    
+    let healthContext = '';
+    try {
+      healthContext = await buildUserHealthContext(userId);
+      // Truncate if too large (Gemini Live may have limits on system instruction)
+      if (healthContext.length > 4000) {
+        logger.warn('[GeminiVoice] Health context truncated', { 
+          originalLength: healthContext.length,
+          truncatedTo: 4000 
+        });
+        healthContext = healthContext.substring(0, 4000) + '\n\n[Context truncated for voice session]';
+      }
+    } catch (contextError: any) {
+      logger.error('[GeminiVoice] Failed to build health context', { error: contextError.message });
+      healthContext = 'Health data is currently loading...';
+    }
 
     // Build the full system prompt
     const systemInstruction = `${FLO_ORACLE_SYSTEM_PROMPT}
@@ -87,6 +102,11 @@ CURRENT HEALTH CONTEXT:
 ${healthContext}
 
 Start the conversation warmly, using their name if you have it.`;
+
+    logger.info('[GeminiVoice] System instruction built', { 
+      userId, 
+      instructionLength: systemInstruction.length 
+    });
 
     const config: GeminiLiveConfig = {
       systemInstruction,
