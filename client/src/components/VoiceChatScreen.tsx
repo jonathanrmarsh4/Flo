@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Mic, MicOff, Volume2, Sparkles, Activity, Heart, Moon, TrendingUp, Loader2, Send, Square } from 'lucide-react';
+import { X, Mic, Volume2, Activity, Heart, Moon, TrendingUp, Loader2, Send, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FloLogo } from './FloLogo';
 import { apiRequest } from '@/lib/queryClient';
@@ -28,12 +28,16 @@ const quickSuggestions = [
   { icon: TrendingUp, text: "Show recent improvements", color: "from-green-500 to-emerald-500" },
 ];
 
+const SILENCE_THRESHOLD = 8;
+const SILENCE_DURATION_MS = 1500;
+const MIN_RECORDING_MS = 500;
+
 export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'flo',
-      content: "Hi there! I'm Flō Oracle, your personal health AI powered by Grok. Tap the mic to start talking - I'll listen until you tap again, then respond with my voice.",
+      content: "Hi there! I'm Flō Oracle, your personal health AI powered by Grok. Just tap the mic and start talking - I'll listen and respond when you pause.",
       timestamp: new Date(),
       isVoice: false,
     },
@@ -59,6 +63,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const animationFrameRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   
+  const silenceStartRef = useRef<number | null>(null);
+  const recordingStartRef = useRef<number | null>(null);
+  const hasSpokenRef = useRef<boolean>(false);
+  const isProcessingRef = useRef<boolean>(false);
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,111 +76,20 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
 
   useEffect(() => {
     return () => {
-      stopRecording();
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
-      }
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
+      cleanupRecording();
     };
   }, []);
 
-  const startAudioLevelMonitoring = useCallback((stream: MediaStream) => {
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-    }
-    
-    const audioContext = new AudioContext();
-    audioContextRef.current = audioContext;
-    
-    const source = audioContext.createMediaStreamSource(stream);
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyserRef.current = analyser;
-    
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    
-    const updateLevel = () => {
-      if (analyserRef.current) {
-        analyserRef.current.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-        setAudioLevel(Math.min(100, average * 1.5));
-      }
-      animationFrameRef.current = requestAnimationFrame(updateLevel);
-    };
-    
-    updateLevel();
-  }, []);
-
-  const stopAudioLevelMonitoring = useCallback(() => {
+  const cleanupRecording = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
-    setAudioLevel(0);
-  }, []);
-
-  const startRecording = useCallback(async () => {
-    try {
-      console.log('[VoiceChat] Starting recording...');
-      
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        }
-      });
-      
-      streamRef.current = stream;
-      audioChunksRef.current = [];
-      
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
-      audioMimeTypeRef.current = mimeType;
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
-      mediaRecorderRef.current = mediaRecorder;
-      
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-      
-      mediaRecorder.start(100);
-      setVoiceState('recording');
-      
-      startAudioLevelMonitoring(stream);
-      
-      console.log('[VoiceChat] Recording started');
-      
-    } catch (error: any) {
-      console.error('[VoiceChat] Failed to start recording:', error);
-      
-      if (error.name === 'NotAllowedError') {
-        toast({
-          title: "Microphone access denied",
-          description: "Please allow microphone access to use voice chat.",
-          variant: "destructive",
-        });
-        setIsVoiceMode(false);
-      } else {
-        toast({
-          title: "Recording failed",
-          description: "Could not start recording. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
-  }, [startAudioLevelMonitoring, toast]);
-
-  const stopRecording = useCallback(() => {
-    console.log('[VoiceChat] Stopping recording...');
     
-    stopAudioLevelMonitoring();
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
     
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -180,17 +98,21 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
-      mediaRecorderRef.current = null;
     }
-  }, [stopAudioLevelMonitoring]);
+    mediaRecorderRef.current = null;
+    
+    setAudioLevel(0);
+  }, []);
 
-  const processRecording = useCallback(async () => {
+  const processRecordingInternal = useCallback(async () => {
+    if (isProcessingRef.current) return;
     if (audioChunksRef.current.length === 0) {
       console.log('[VoiceChat] No audio recorded');
       setVoiceState('idle');
       return;
     }
     
+    isProcessingRef.current = true;
     setVoiceState('processing');
     
     try {
@@ -199,6 +121,13 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       });
       
       console.log('[VoiceChat] Processing audio:', audioBlob.size, 'bytes, type:', audioMimeTypeRef.current);
+      
+      if (audioBlob.size < 1000) {
+        console.log('[VoiceChat] Audio too short, skipping');
+        setVoiceState('idle');
+        isProcessingRef.current = false;
+        return;
+      }
       
       const arrayBuffer = await audioBlob.arrayBuffer();
       const base64Audio = btoa(
@@ -225,6 +154,13 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         responseLength: result.response.length,
         audioLength: result.audioBase64.length
       });
+      
+      if (!result.transcript || result.transcript.length < 2) {
+        console.log('[VoiceChat] Empty transcript, skipping');
+        setVoiceState('idle');
+        isProcessingRef.current = false;
+        return;
+      }
       
       const userMessage: Message = {
         id: Date.now().toString(),
@@ -262,12 +198,14 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       audioEl.onended = () => {
         setVoiceState('idle');
         URL.revokeObjectURL(audioUrl);
+        isProcessingRef.current = false;
       };
       
       audioEl.onerror = () => {
         console.error('[VoiceChat] Audio playback error');
         setVoiceState('idle');
         URL.revokeObjectURL(audioUrl);
+        isProcessingRef.current = false;
       };
       
       await audioEl.play();
@@ -282,25 +220,155 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       });
       
       setVoiceState('idle');
+      isProcessingRef.current = false;
     }
   }, [conversationHistory, toast]);
+
+  const startRecording = useCallback(async () => {
+    if (voiceState !== 'idle') return;
+    
+    try {
+      console.log('[VoiceChat] Starting recording with VAD...');
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+      
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+      silenceStartRef.current = null;
+      hasSpokenRef.current = false;
+      recordingStartRef.current = Date.now();
+      isProcessingRef.current = false;
+      
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      audioMimeTypeRef.current = mimeType;
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        console.log('[VoiceChat] MediaRecorder stopped, processing...');
+        processRecordingInternal();
+      };
+      
+      mediaRecorder.start(100);
+      setVoiceState('recording');
+      
+      const audioContext = new AudioContext();
+      audioContextRef.current = audioContext;
+      
+      const source = audioContext.createMediaStreamSource(stream);
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      const checkAudioLevel = () => {
+        if (!analyserRef.current || !mediaRecorderRef.current) {
+          return;
+        }
+        
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        const normalizedLevel = Math.min(100, average * 1.5);
+        setAudioLevel(normalizedLevel);
+        
+        const now = Date.now();
+        const recordingDuration = now - (recordingStartRef.current || now);
+        
+        if (average > SILENCE_THRESHOLD) {
+          hasSpokenRef.current = true;
+          silenceStartRef.current = null;
+        } else if (hasSpokenRef.current && recordingDuration > MIN_RECORDING_MS) {
+          if (!silenceStartRef.current) {
+            silenceStartRef.current = now;
+          } else if (now - silenceStartRef.current > SILENCE_DURATION_MS) {
+            console.log('[VoiceChat] Silence detected, auto-stopping...');
+            stopRecordingAndProcess();
+            return;
+          }
+        }
+        
+        animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+      };
+      
+      checkAudioLevel();
+      
+      console.log('[VoiceChat] Recording started with VAD');
+      
+    } catch (error: any) {
+      console.error('[VoiceChat] Failed to start recording:', error);
+      
+      if (error.name === 'NotAllowedError') {
+        toast({
+          title: "Microphone access denied",
+          description: "Please allow microphone access to use voice chat.",
+          variant: "destructive",
+        });
+        setIsVoiceMode(false);
+      } else {
+        toast({
+          title: "Recording failed",
+          description: "Could not start recording. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [voiceState, processRecordingInternal, toast]);
+
+  const stopRecordingAndProcess = useCallback(() => {
+    console.log('[VoiceChat] Stopping recording...');
+    
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    setAudioLevel(0);
+  }, []);
 
   const handleMicPress = useCallback(() => {
     if (voiceState === 'idle') {
       startRecording();
     } else if (voiceState === 'recording') {
-      stopRecording();
-      setTimeout(() => {
-        processRecording();
-      }, 100);
+      stopRecordingAndProcess();
     } else if (voiceState === 'speaking') {
       if (audioElementRef.current) {
         audioElementRef.current.pause();
         audioElementRef.current = null;
       }
       setVoiceState('idle');
+      isProcessingRef.current = false;
     }
-  }, [voiceState, startRecording, stopRecording, processRecording]);
+  }, [voiceState, startRecording, stopRecordingAndProcess]);
 
   const handleTextSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -359,17 +427,12 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   }, [inputValue, isTextLoading, conversationHistory, toast]);
 
   const handleQuickSuggestion = useCallback((text: string) => {
-    if (isVoiceMode && voiceState === 'idle') {
-      setInputValue(text);
-      setIsVoiceMode(false);
-      setTimeout(() => {
-        handleTextSubmit();
-      }, 100);
-    } else {
-      setInputValue(text);
+    setInputValue(text);
+    setIsVoiceMode(false);
+    setTimeout(() => {
       inputRef.current?.focus();
-    }
-  }, [isVoiceMode, voiceState, handleTextSubmit]);
+    }, 100);
+  }, []);
 
   const isRecording = voiceState === 'recording';
   const isProcessing = voiceState === 'processing';
@@ -618,17 +681,20 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 
                 <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                   {isRecording 
-                    ? 'Tap to stop recording' 
+                    ? 'Listening... (pause when done)' 
                     : isSpeaking
-                      ? 'Playing response...'
+                      ? 'Tap to stop'
                       : isProcessing
                         ? 'Processing...'
-                        : 'Tap to start talking'
+                        : 'Tap to speak'
                   }
                 </p>
                 
                 <p className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-                  Grok-powered voice conversation
+                  {isRecording 
+                    ? 'Auto-stops when you pause speaking'
+                    : 'Grok-powered voice conversation'
+                  }
                 </p>
               </div>
               
