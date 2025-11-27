@@ -183,7 +183,25 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
     try {
       // Get auth token from secure storage (iOS) or localStorage (web)
-      const authToken = await getAuthToken();
+      let authToken = await getAuthToken();
+      
+      // For web (session-based auth), fetch a short-lived WS token from server
+      if (!authToken && !Capacitor.isNativePlatform()) {
+        console.log('[GeminiLive] No JWT token, fetching WS token from server...');
+        try {
+          const response = await fetch('/api/auth/ws-token', { credentials: 'include' });
+          if (response.ok) {
+            const data = await response.json();
+            authToken = data.token;
+            console.log('[GeminiLive] Got WS token from server');
+          } else {
+            console.error('[GeminiLive] Failed to get WS token:', response.status);
+          }
+        } catch (e) {
+          console.error('[GeminiLive] Error fetching WS token:', e);
+        }
+      }
+      
       if (!authToken) {
         throw new Error('Not authenticated');
       }

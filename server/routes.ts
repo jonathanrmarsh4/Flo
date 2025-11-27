@@ -131,6 +131,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/auth/ws-token - Generate a short-lived JWT for WebSocket connections
+  // This allows session-authenticated users (Replit Auth) to use WebSocket features
+  app.get('/api/auth/ws-token', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const jwt = await import('jsonwebtoken');
+      const secret = process.env.SESSION_SECRET;
+      
+      if (!secret) {
+        logger.error('[WS Token] SESSION_SECRET not configured');
+        return res.status(500).json({ error: 'Server configuration error' });
+      }
+      
+      // Generate a short-lived token (5 minutes) for WebSocket auth
+      const token = jwt.default.sign(
+        { sub: userId },
+        secret,
+        { expiresIn: '5m' }
+      );
+      
+      logger.info('[WS Token] Generated token for user', { userId });
+      res.json({ token });
+    } catch (error: any) {
+      logger.error('[WS Token] Error generating token:', error);
+      res.status(500).json({ error: 'Failed to generate token' });
+    }
+  });
+
   // DELETE /api/user/data - Delete all user data (for testing/cleanup)
   app.delete('/api/user/data', isAuthenticated, async (req: any, res) => {
     try {
