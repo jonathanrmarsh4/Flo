@@ -203,7 +203,11 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 let rms = sqrt(sumSquares / Float(samples.count))
                 
-                let base64Data = Data(bytes: samples, count: samples.count * 2).base64EncodedString()
+                // Convert Int16 array to Data with proper byte representation (little-endian)
+                let samplesData = samples.withUnsafeBufferPointer { bufferPointer in
+                    Data(bytes: bufferPointer.baseAddress!, count: samples.count * MemoryLayout<Int16>.stride)
+                }
+                let base64Data = samplesData.base64EncodedString()
                 
                 DispatchQueue.main.async {
                     self.notifyListeners("audioData", data: [

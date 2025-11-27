@@ -240,6 +240,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         
         // REQUIRED: Send conversation_initiation_client_data to start the conversation
         // This tells ElevenLabs the client is ready and triggers the agent's first greeting
+        // Note: ElevenLabs default input format is 16kHz 16-bit PCM mono (what we send)
         ws.send(JSON.stringify({
           type: "conversation_initiation_client_data",
           conversation_config_override: {
@@ -248,17 +249,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 // Request PCM audio at 16kHz for easier native playback
                 output_format: "pcm_16000"
               }
-            },
-            // Specify input audio format - we're sending 16kHz 16-bit PCM mono
-            audio: {
-              input_audio_format: {
-                format: "pcm_s16le",
-                sample_rate: 16000
-              }
             }
           }
         }));
-        console.log('[VoiceChat] Sent conversation_initiation_client_data with PCM 16kHz input/output');
+        console.log('[VoiceChat] Sent conversation_initiation_client_data with PCM 16kHz output');
         
         // Register audio data listener for native mic (engine already started above)
         if (useNativeMic) {
