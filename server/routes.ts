@@ -6732,16 +6732,105 @@ ${userContext}`;
     const hasOpenAI = !!process.env.OPENAI_API_KEY;
     const hasElevenLabs = !!process.env.ELEVENLABS_AGENT_ID;
     
-    // Prefer OpenAI for secure user identification
-    const provider = hasOpenAI ? 'openai' : (hasElevenLabs ? 'elevenlabs' : 'none');
+    // Prefer Grok+OpenAI speech relay for secure user identification
+    const provider = hasOpenAI ? 'grok-openai' : (hasElevenLabs ? 'elevenlabs' : 'none');
     
     res.json({
       provider,
       available: {
+        grokOpenai: hasOpenAI,
         openai: hasOpenAI,
         elevenlabs: hasElevenLabs
       }
     });
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // SPEECH RELAY ENDPOINT - Grok Brain + OpenAI Voice (STT/TTS)
+  // ────────────────────────────────────────────────────────────────
+  
+  // Process voice input: Whisper STT → Grok → OpenAI TTS
+  app.post("/api/voice/speech-relay", isAuthenticated, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get audio from request body (base64 encoded)
+      const { audioBase64, conversationHistory } = req.body;
+      
+      if (!audioBase64) {
+        return res.status(400).json({ error: 'Audio data is required' });
+      }
+      
+      logger.info('[SpeechRelay] Processing voice request', { 
+        userId, 
+        audioLength: audioBase64.length,
+        historyLength: conversationHistory?.length || 0
+      });
+      
+      // Import and use speech relay service
+      const { speechRelayService } = await import('./services/speechRelayService');
+      
+      if (!speechRelayService.isAvailable()) {
+        return res.status(503).json({ error: 'Voice service not configured' });
+      }
+      
+      // Convert base64 to buffer
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+      
+      // Process audio through the relay
+      const result = await speechRelayService.processAudio(audioBuffer, {
+        userId,
+        conversationHistory: conversationHistory || []
+      });
+      
+      // Store messages in chat history for brain memory persistence
+      const { floChatMessages } = await import('@shared/schema');
+      
+      // Store user message
+      await db.insert(floChatMessages).values({
+        userId,
+        sender: 'user',
+        message: result.transcript
+      });
+      
+      // Store assistant response  
+      await db.insert(floChatMessages).values({
+        userId,
+        sender: 'flo',
+        message: result.response
+      });
+      
+      // Process brain updates from the response (async, fire-and-forget)
+      (async () => {
+        try {
+          const { processAndPersistBrainUpdates } = await import('./services/brainUpdateParser');
+          await processAndPersistBrainUpdates(userId, result.response);
+          logger.info('[SpeechRelay] Brain updates persisted', { userId });
+        } catch (brainError) {
+          logger.error('[SpeechRelay] Brain update failed:', brainError);
+        }
+      })();
+      
+      logger.info('[SpeechRelay] Voice request completed', { 
+        userId, 
+        transcriptLength: result.transcript.length,
+        responseLength: result.response.length 
+      });
+      
+      res.json({
+        transcript: result.transcript,
+        response: result.response,
+        audioBase64: result.audioBase64,
+        audioFormat: result.audioFormat
+      });
+      
+    } catch (error: any) {
+      logger.error('[SpeechRelay] Error processing voice:', error);
+      res.status(500).json({ 
+        error: 'Failed to process voice request',
+        details: error.message
+      });
+    }
   });
 
   // ────────────────────────────────────────────────────────────────

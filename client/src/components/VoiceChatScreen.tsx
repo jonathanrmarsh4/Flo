@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Mic, MicOff, Volume2, Sparkles, Activity, Heart, Moon, TrendingUp, Loader2, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FloLogo } from './FloLogo';
@@ -10,8 +10,6 @@ import {
   startNativeCapture, 
   stopNativeCapture, 
   addAudioDataListener,
-  playNativeAudio,
-  stopNativePlayback,
   type AudioDataEvent 
 } from '@/lib/nativeMicrophone';
 
@@ -28,8 +26,7 @@ interface VoiceChatScreenProps {
   onClose: () => void;
 }
 
-type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
-type VoiceState = 'idle' | 'listening' | 'speaking';
+type VoiceState = 'idle' | 'recording' | 'processing' | 'speaking';
 
 const quickSuggestions = [
   { icon: Activity, text: "What's my glucose trend?", color: "from-blue-500 to-cyan-500" },
@@ -38,67 +35,18 @@ const quickSuggestions = [
   { icon: TrendingUp, text: "Show recent improvements", color: "from-green-500 to-emerald-500" },
 ];
 
-// Helper to convert Float32Array to base64-encoded 16-bit PCM
-function float32ToBase64Pcm16(float32Array: Float32Array): string {
-  const int16Array = new Int16Array(float32Array.length);
-  for (let i = 0; i < float32Array.length; i++) {
-    const s = Math.max(-1, Math.min(1, float32Array[i]));
-    int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-  }
-  const bytes = new Uint8Array(int16Array.buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-
-// Helper to decode base64 PCM to Float32Array
-function base64PcmToFloat32(base64: string, sampleRate: number = 16000): Float32Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  const int16Array = new Int16Array(bytes.buffer);
-  const float32Array = new Float32Array(int16Array.length);
-  for (let i = 0; i < int16Array.length; i++) {
-    float32Array[i] = int16Array[i] / 32768;
-  }
-  return float32Array;
-}
-
-// Simple resampler for audio
-function resample(inputArray: Float32Array, inputSampleRate: number, outputSampleRate: number): Float32Array {
-  if (inputSampleRate === outputSampleRate) {
-    return inputArray;
-  }
-  const ratio = inputSampleRate / outputSampleRate;
-  const outputLength = Math.round(inputArray.length / ratio);
-  const output = new Float32Array(outputLength);
-  for (let i = 0; i < outputLength; i++) {
-    const srcIndex = i * ratio;
-    const srcIndexFloor = Math.floor(srcIndex);
-    const srcIndexCeil = Math.min(srcIndexFloor + 1, inputArray.length - 1);
-    const t = srcIndex - srcIndexFloor;
-    output[i] = inputArray[srcIndexFloor] * (1 - t) + inputArray[srcIndexCeil] * t;
-  }
-  return output;
-}
-
 export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'flo',
-      content: "Hi there! I'm Flō Oracle, your personal health AI. Tap the mic to start our conversation.",
+      content: "Hi there! I'm Flō Oracle, your personal health AI. Tap and hold the mic to speak, then release to get my response.",
       timestamp: new Date(),
       isVoice: false,
     },
   ]);
   
   // Voice state
-  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [audioLevel, setAudioLevel] = useState(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
@@ -108,29 +56,22 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [inputValue, setInputValue] = useState('');
   const [isTextLoading, setIsTextLoading] = useState(false);
   
+  // Conversation history for context
+  const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const playbackContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioQueueRef = useRef<Float32Array[]>([]);
-  const nativeAudioQueueRef = useRef<string[]>([]); // Queue for native iOS playback (base64 audio)
-  const isPlayingRef = useRef(false);
-  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
-  const voiceStateRef = useRef<VoiceState>('idle');
+  const nativeAudioDataRef = useRef<string[]>([]); // Stores base64 audio chunks from native mic
   const nativeListenerRef = useRef<{ remove: () => void } | null>(null);
   const isUsingNativeMicRef = useRef(false);
   
   const { toast } = useToast();
-
-  // Keep voiceStateRef in sync
-  useEffect(() => {
-    voiceStateRef.current = voiceState;
-  }, [voiceState]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -139,7 +80,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
 
   // Recording duration timer
   useEffect(() => {
-    if (voiceState === 'listening') {
+    if (voiceState === 'recording') {
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration((prev) => prev + 1);
       }, 1000);
@@ -159,7 +100,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      disconnectVoice();
+      stopRecording();
     };
   }, []);
 
@@ -169,7 +110,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Initialize playback audio context (separate from capture)
+  // Initialize playback audio context
   const initPlaybackContext = async () => {
     if (!playbackContextRef.current) {
       playbackContextRef.current = new AudioContext();
@@ -180,1117 +121,847 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     return playbackContextRef.current;
   };
 
-  // Connect to ElevenLabs via signed URL
-  const connectVoice = async () => {
+  // Start recording audio
+  const startRecording = async () => {
     try {
-      setConnectionState('connecting');
+      setVoiceState('recording');
+      setAudioLevel(0);
+      audioChunksRef.current = [];
+      nativeAudioDataRef.current = [];
       
-      // Get signed URL from backend
-      const response = await apiRequest('POST', '/api/elevenlabs/get-signed-url');
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to get voice connection');
-      }
-      
-      const { signed_url, user_id, session_token } = await response.json() as { 
-        signed_url: string; 
-        user_id: string; 
-        session_token: string;
-      };
-      
-      // Store user_id and session_token for passing to ElevenLabs
-      const currentUserId = user_id;
-      const currentSessionToken = session_token;
-      console.log('[VoiceChat] Got signed URL for user:', currentUserId, 'with session token');
-      
-      // Initialize playback context
-      await initPlaybackContext();
-      
-      // Check if we should use native microphone capture (iOS only)
+      // Check if we should use native microphone (iOS)
       const useNativeMic = isNativeMicrophoneAvailable();
       isUsingNativeMicRef.current = useNativeMic;
       console.log('[VoiceChat] Using native microphone:', useNativeMic);
       
-      let nativeSampleRate = 16000; // Native plugin outputs 16kHz
-      
       if (useNativeMic) {
-        // iOS: Start native capture FIRST to initialize audio engine BEFORE WebSocket
-        // This ensures the audio engine is ready when ElevenLabs sends audio
-        console.log('[VoiceChat] Pre-initializing native audio engine...');
-        const result = await startNativeCapture();
-        console.log('[VoiceChat] Native audio engine ready:', result);
+        // iOS: Start native capture
+        await startNativeCapture();
+        
+        // Register listener to collect audio data
+        const listener = await addAudioDataListener((event: AudioDataEvent) => {
+          if (event.audio && event.sampleCount > 0) {
+            nativeAudioDataRef.current.push(event.audio);
+            setAudioLevel(Math.min(100, event.rms * 500));
+          }
+        });
+        nativeListenerRef.current = listener;
       } else {
-        // Web fallback: Request microphone access via getUserMedia
+        // Web fallback: Use MediaRecorder
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             channelCount: 1,
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
+            sampleRate: 16000,
           } 
         });
         mediaStreamRef.current = stream;
         
-        // Create capture audio context (use device's native sample rate)
-        audioContextRef.current = new AudioContext();
-        nativeSampleRate = audioContextRef.current.sampleRate;
-        console.log('[VoiceChat] Web audio sample rate:', nativeSampleRate);
-      }
-      
-      // Connect WebSocket AFTER audio engine is ready
-      const ws = new WebSocket(signed_url);
-      wsRef.current = ws;
-      
-      ws.onopen = async () => {
-        console.log('[VoiceChat] WebSocket connected');
-        setConnectionState('connected');
-        // Start in 'speaking' state - wait for AI greeting before listening
-        setVoiceState('speaking');
-        
-        // REQUIRED: Send conversation_initiation_client_data to start the conversation
-        // This tells ElevenLabs the client is ready and triggers the agent's first greeting
-        // Pass session_token via custom_llm_extra_body - this gets forwarded in the request body
-        ws.send(JSON.stringify({
-          type: "conversation_initiation_client_data",
-          conversation_config_override: {
-            agent: {
-              tts: {
-                // Request PCM audio at 16kHz for easier native playback
-                output_format: "pcm_16000"
-              },
-              llm: {
-                // custom_llm_extra_body is merged into the LLM request body
-                custom_llm_extra_body: {
-                  session_token: currentSessionToken,
-                  flo_user_id: currentUserId
-                }
-              }
-            }
-          }
-        }));
-        console.log('[VoiceChat] Sent conversation_initiation_client_data with session token in extra_body');
-        
-        // Register audio data listener for native mic (engine already started above)
-        if (useNativeMic) {
-          // iOS: Just register the listener, capture already started
-          await registerNativeMicrophoneListener(ws);
-        } else {
-          // Web: Start audio capture via ScriptProcessor
-          startAudioCapture(mediaStreamRef.current!, nativeSampleRate, ws);
-        }
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          handleWebSocketMessage(data);
-        } catch (error) {
-          console.error('[VoiceChat] Error parsing message:', error);
-        }
-      };
-      
-      ws.onerror = (error) => {
-        console.error('[VoiceChat] WebSocket error:', error);
-        setConnectionState('error');
-        toast({
-          title: "Voice connection error",
-          description: "There was a problem with the voice connection. Try again or use text mode.",
-          variant: "destructive",
+        // Create MediaRecorder for capturing audio
+        const mediaRecorder = new MediaRecorder(stream, {
+          mimeType: 'audio/webm;codecs=opus',
         });
-      };
-      
-      ws.onclose = () => {
-        console.log('[VoiceChat] WebSocket closed');
-        setConnectionState('disconnected');
-        setVoiceState('idle');
-        stopAudioCapture();
-      };
-      
+        
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+        
+        mediaRecorderRef.current = mediaRecorder;
+        mediaRecorder.start(100); // Collect data every 100ms
+        
+        // Set up audio level monitoring
+        audioContextRef.current = new AudioContext();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        const analyser = audioContextRef.current.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const updateLevel = () => {
+          if (voiceState === 'recording') {
+            analyser.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            setAudioLevel(Math.min(100, average * 1.5));
+            requestAnimationFrame(updateLevel);
+          }
+        };
+        updateLevel();
+      }
     } catch (error: any) {
-      console.error('[VoiceChat] Connection error:', error);
-      setConnectionState('error');
+      console.error('[VoiceChat] Error starting recording:', error);
+      setVoiceState('idle');
       
       if (error.name === 'NotAllowedError') {
         toast({
           title: "Microphone access denied",
-          description: "Please allow microphone access to use voice chat, or switch to text mode.",
+          description: "Please allow microphone access to use voice chat.",
           variant: "destructive",
         });
         setIsVoiceMode(false);
       } else {
         toast({
-          title: "Voice unavailable",
-          description: error.message || "Could not connect to voice service. Using text mode.",
+          title: "Recording failed",
+          description: error.message || "Could not start recording.",
           variant: "destructive",
         });
-        setIsVoiceMode(false);
       }
     }
   };
-  
-  // Register native microphone listener - audio engine already started in connectVoice()
-  const registerNativeMicrophoneListener = async (ws: WebSocket) => {
-    try {
-      console.log('[VoiceChat] Registering native microphone listener...');
-      
-      let chunksSent = 0;
-      let lastLogTime = Date.now();
-      
-      // Listen for audio data from native plugin
-      // IMPORTANT: Send audio continuously - ElevenLabs uses VAD to detect speech
-      // and needs continuous audio to handle turn-taking and interruption detection
-      const listener = await addAudioDataListener((event: AudioDataEvent) => {
-        const now = Date.now();
-        
-        // Skip empty audio chunks (conversion issues)
-        if (!event.audio || event.sampleCount === 0) {
-          return;
-        }
-        
-        // Send audio continuously to ElevenLabs (they handle VAD and turn-taking)
-        if (ws.readyState === WebSocket.OPEN) {
-          // Update audio level visualization only when listening
-          if (voiceStateRef.current === 'listening') {
-            setAudioLevel(Math.min(100, event.rms * 500));
-          }
-          
-          // Send audio directly to ElevenLabs (already 16kHz PCM from native)
-          ws.send(JSON.stringify({
-            user_audio_chunk: event.audio
-          }));
-          
-          chunksSent++;
-          
-          // Log every 2 seconds
-          if (now - lastLogTime > 2000) {
-            console.log('[VoiceChat] Native audio chunks sent:', chunksSent, 'rms:', event.rms.toFixed(4), 'state:', voiceStateRef.current);
-            lastLogTime = now;
-          }
-        }
-      });
-      
-      nativeListenerRef.current = listener;
-      console.log('[VoiceChat] Native microphone listener registered');
-      
-    } catch (error) {
-      console.error('[VoiceChat] Error starting native microphone:', error);
-      // Reset native mode flag on failure
-      isUsingNativeMicRef.current = false;
-      throw error;
-    }
-  };
 
-  // Start capturing audio from microphone
-  const startAudioCapture = (stream: MediaStream, nativeSampleRate: number, ws: WebSocket) => {
+  // Stop recording and process audio
+  const stopRecording = async () => {
+    if (voiceState !== 'recording') return;
+    
+    console.log('[VoiceChat] Stopping recording...');
+    setVoiceState('processing');
+    
+    let audioBase64: string | null = null;
+    
     try {
-      const audioContext = audioContextRef.current;
-      if (!audioContext) return;
-      
-      const source = audioContext.createMediaStreamSource(stream);
-      
-      // Create ScriptProcessor for audio capture (NOT connected to destination to avoid echo)
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
-      
-      // Create a gain node with zero gain as a "sink" to keep processor alive
-      const silentNode = audioContext.createGain();
-      silentNode.gain.value = 0;
-      silentNode.connect(audioContext.destination);
-      
-      let audioChunksSent = 0;
-      let lastLogTime = 0;
-      
-      processor.onaudioprocess = (e) => {
-        const now = Date.now();
-        
-        // Send audio continuously - ElevenLabs uses VAD to detect speech
-        // and needs continuous audio to handle turn-taking and interruption detection
-        if (ws.readyState === WebSocket.OPEN) {
-          const inputData = e.inputBuffer.getChannelData(0);
-          
-          // Calculate RMS for audio level visualization
-          let sum = 0;
-          for (let i = 0; i < inputData.length; i++) {
-            sum += inputData[i] * inputData[i];
-          }
-          const rms = Math.sqrt(sum / inputData.length);
-          
-          // Update audio level only when listening
-          if (voiceStateRef.current === 'listening') {
-            setAudioLevel(Math.min(100, rms * 500));
-          }
-          
-          // Resample to 16kHz if needed
-          const resampled = resample(inputData, nativeSampleRate, 16000);
-          
-          // Convert to base64-encoded 16-bit PCM
-          const base64Audio = float32ToBase64Pcm16(resampled);
-          
-          // Send in ElevenLabs format
-          ws.send(JSON.stringify({
-            user_audio_chunk: base64Audio
-          }));
-          
-          audioChunksSent++;
-          // Log every 2 seconds
-          if (now - lastLogTime > 2000) {
-            console.log('[VoiceChat] Sending audio chunks, count:', audioChunksSent, 'rms:', rms.toFixed(4), 'state:', voiceStateRef.current);
-            lastLogTime = now;
-          }
-        }
-      };
-      
-      source.connect(processor);
-      processor.connect(silentNode);
-      
-      processorRef.current = processor;
-    } catch (error) {
-      console.error('[VoiceChat] Error starting audio capture:', error);
-    }
-  };
-
-  // Handle WebSocket JSON messages from ElevenLabs
-  const handleWebSocketMessage = async (data: any) => {
-    console.log('[VoiceChat] Received:', data.type || 'unknown', 'voiceState:', voiceStateRef.current);
-    
-    // Register conversation session when we receive the metadata
-    if (data.type === 'conversation_initiation_metadata') {
-      const conversationId = data.conversation_initiation_metadata_event?.conversation_id;
-      if (conversationId) {
-        console.log('[VoiceChat] Registering conversation session:', conversationId);
-        try {
-          // Register with our server so LLM bridge can identify the user
-          await apiRequest('POST', '/api/elevenlabs/register-session', { conversation_id: conversationId });
-          console.log('[VoiceChat] Session registered successfully');
-        } catch (error) {
-          console.error('[VoiceChat] Error registering session:', error);
-        }
-      }
-    }
-    
-    if (data.type === 'audio' && data.audio_event?.audio_base_64) {
-      // Audio from ElevenLabs TTS
-      console.log('[VoiceChat] Received audio chunk, length:', data.audio_event.audio_base_64.length);
-      
-      // Use native playback on iOS (WebAudio is blocked by AVAudioSession)
       if (isUsingNativeMicRef.current) {
-        // Queue the base64 audio for native playback
-        nativeAudioQueueRef.current.push(data.audio_event.audio_base_64);
-        setVoiceState('speaking');
-        
-        // Start playing if not already playing
-        if (!isPlayingRef.current) {
-          playNativeAudioQueue();
-        }
-      } else {
-        // Web fallback: decode and queue for WebAudio
-        const pcmData = base64PcmToFloat32(data.audio_event.audio_base_64);
-        audioQueueRef.current.push(pcmData);
-        setVoiceState('speaking');
-        
-        if (!isPlayingRef.current) {
-          playAudioQueue();
-        }
-      }
-    } else if (data.type === 'user_transcript' && data.user_transcription_event?.user_transcript) {
-      // User's transcribed speech
-      const transcript = data.user_transcription_event.user_transcript;
-      if (transcript.trim()) {
-        const userMessage: Message = {
-          id: Date.now().toString(),
-          type: 'user',
-          content: transcript,
-          timestamp: new Date(),
-          isVoice: true,
-        };
-        setMessages((prev) => [...prev, userMessage]);
-      }
-    } else if (data.type === 'agent_response' && data.agent_response_event?.agent_response) {
-      // Flo's text response
-      const response = data.agent_response_event.agent_response;
-      if (response.trim()) {
-        const floMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'flo',
-          content: response,
-          timestamp: new Date(),
-          isVoice: true,
-        };
-        setMessages((prev) => [...prev, floMessage]);
-      }
-    } else if (data.type === 'ping' && data.ping_event?.event_id) {
-      // Keepalive - respond with pong
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'pong',
-          event_id: data.ping_event.event_id
-        }));
-      }
-    } else if (data.type === 'interruption') {
-      // User interrupted - stop current playback
-      stopPlayback();
-      setVoiceState('listening');
-    }
-  };
-
-  // Play audio queue
-  const playAudioQueue = async () => {
-    console.log('[VoiceChat] playAudioQueue called, queue length:', audioQueueRef.current.length);
-    
-    if (audioQueueRef.current.length === 0) {
-      console.log('[VoiceChat] Queue empty, switching to listening');
-      isPlayingRef.current = false;
-      setVoiceState('listening');
-      return;
-    }
-    
-    isPlayingRef.current = true;
-    setVoiceState('speaking');
-    
-    let playbackContext = playbackContextRef.current;
-    if (!playbackContext) {
-      console.error('[VoiceChat] No playback context!');
-      return;
-    }
-    
-    // CRITICAL: Resume AudioContext before each playback on iOS
-    if (playbackContext.state === 'suspended') {
-      console.log('[VoiceChat] Resuming suspended AudioContext...');
-      try {
-        await playbackContext.resume();
-        console.log('[VoiceChat] AudioContext resumed, state:', playbackContext.state);
-      } catch (e) {
-        console.error('[VoiceChat] Failed to resume AudioContext:', e);
-      }
-    }
-    
-    // Concatenate all queued audio
-    const totalLength = audioQueueRef.current.reduce((sum, arr) => sum + arr.length, 0);
-    const combined = new Float32Array(totalLength);
-    let offset = 0;
-    while (audioQueueRef.current.length > 0) {
-      const chunk = audioQueueRef.current.shift()!;
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-    
-    // Calculate expected duration for fallback timeout
-    const durationSec = combined.length / 16000;
-    console.log('[VoiceChat] Playing audio, samples:', combined.length, 'duration:', durationSec.toFixed(2), 's', 'context state:', playbackContext.state);
-    
-    try {
-      // Create audio buffer at native sample rate for better iOS compatibility
-      // Then resample from 16kHz to context's sample rate
-      const contextSampleRate = playbackContext.sampleRate;
-      const resampleRatio = contextSampleRate / 16000;
-      const resampledLength = Math.ceil(combined.length * resampleRatio);
-      
-      console.log('[VoiceChat] Resampling from 16kHz to', contextSampleRate, 'Hz, ratio:', resampleRatio.toFixed(2));
-      
-      const audioBuffer = playbackContext.createBuffer(1, resampledLength, contextSampleRate);
-      const channelData = audioBuffer.getChannelData(0);
-      
-      // Linear interpolation resampling
-      for (let i = 0; i < resampledLength; i++) {
-        const srcIndex = i / resampleRatio;
-        const srcIndexFloor = Math.floor(srcIndex);
-        const srcIndexCeil = Math.min(srcIndexFloor + 1, combined.length - 1);
-        const fraction = srcIndex - srcIndexFloor;
-        channelData[i] = combined[srcIndexFloor] * (1 - fraction) + combined[srcIndexCeil] * fraction;
-      }
-      
-      const source = playbackContext.createBufferSource();
-      source.buffer = audioBuffer;
-      
-      // Add gain node to ensure proper routing on iOS
-      const gainNode = playbackContext.createGain();
-      gainNode.gain.value = 1.0;
-      source.connect(gainNode);
-      gainNode.connect(playbackContext.destination);
-      
-      currentSourceRef.current = source;
-      
-      // Fallback timeout in case onended doesn't fire (iOS issue)
-      const fallbackTimeout = setTimeout(() => {
-        console.log('[VoiceChat] Fallback timeout fired, checking state');
-        if (isPlayingRef.current && audioQueueRef.current.length === 0) {
-          console.log('[VoiceChat] Fallback: switching to listening');
-          isPlayingRef.current = false;
-          currentSourceRef.current = null;
-          setVoiceState('listening');
-        }
-      }, (durationSec + 0.5) * 1000); // Add 500ms buffer
-      
-      source.onended = () => {
-        console.log('[VoiceChat] Audio playback ended via onended');
-        clearTimeout(fallbackTimeout);
-        currentSourceRef.current = null;
-        // Check if more audio arrived while playing
-        if (audioQueueRef.current.length > 0) {
-          playAudioQueue();
-        } else {
-          console.log('[VoiceChat] No more audio, switching to listening');
-          isPlayingRef.current = false;
-          setVoiceState('listening');
-        }
-      };
-      
-      source.start();
-      console.log('[VoiceChat] Audio source started at', contextSampleRate, 'Hz');
-    } catch (error) {
-      console.error('[VoiceChat] Error playing audio:', error);
-      isPlayingRef.current = false;
-      setVoiceState('listening');
-    }
-  };
-
-  // Play native audio queue (iOS) - plays queued base64 audio chunks sequentially
-  const playNativeAudioQueue = async () => {
-    console.log('[VoiceChat] playNativeAudioQueue called, queue length:', nativeAudioQueueRef.current.length);
-    
-    if (nativeAudioQueueRef.current.length === 0) {
-      console.log('[VoiceChat] Native queue empty, switching to listening');
-      isPlayingRef.current = false;
-      setVoiceState('listening');
-      return;
-    }
-    
-    isPlayingRef.current = true;
-    setVoiceState('speaking');
-    
-    // Get next chunk from queue
-    const audioChunk = nativeAudioQueueRef.current.shift()!;
-    
-    try {
-      console.log('[VoiceChat] Playing native audio chunk, length:', audioChunk.length);
-      await playNativeAudio(audioChunk, 16000);
-      console.log('[VoiceChat] Native audio chunk completed');
-      
-      // Check for more audio in queue
-      if (nativeAudioQueueRef.current.length > 0) {
-        // Play next chunk
-        playNativeAudioQueue();
-      } else {
-        console.log('[VoiceChat] No more native audio, switching to listening');
-        isPlayingRef.current = false;
-        setVoiceState('listening');
-      }
-    } catch (error) {
-      console.error('[VoiceChat] Native playback error:', error);
-      isPlayingRef.current = false;
-      setVoiceState('listening');
-    }
-  };
-
-  // Stop current playback
-  const stopPlayback = async () => {
-    // Stop native playback on iOS
-    if (isUsingNativeMicRef.current) {
-      try {
-        await stopNativePlayback();
-      } catch (e) {
-        console.warn('[VoiceChat] Error stopping native playback:', e);
-      }
-      nativeAudioQueueRef.current = [];
-    }
-    
-    // Stop WebAudio playback
-    if (currentSourceRef.current) {
-      try {
-        currentSourceRef.current.stop();
-      } catch (e) {
-        // Already stopped
-      }
-      currentSourceRef.current = null;
-    }
-    audioQueueRef.current = [];
-    isPlayingRef.current = false;
-  };
-
-  // Disconnect voice - properly async to ensure cleanup completes
-  const disconnectVoice = useCallback(async () => {
-    await stopPlayback();
-    
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    await stopAudioCapture();
-    setConnectionState('disconnected');
-    setVoiceState('idle');
-    setAudioLevel(0);
-  }, []);
-
-  const stopAudioCapture = async () => {
-    // Stop native microphone capture if using iOS native
-    if (isUsingNativeMicRef.current) {
-      console.log('[VoiceChat] Stopping native microphone capture...');
-      try {
+        // iOS: Stop native capture and get collected audio
+        await stopNativeCapture();
         if (nativeListenerRef.current) {
           nativeListenerRef.current.remove();
           nativeListenerRef.current = null;
         }
-        await stopNativeCapture();
-      } catch (error) {
-        console.error('[VoiceChat] Error stopping native capture:', error);
-      } finally {
-        // Always reset the flag, even on error
-        isUsingNativeMicRef.current = false;
+        
+        // Combine all collected audio chunks
+        if (nativeAudioDataRef.current.length > 0) {
+          // For native, audio is already base64 PCM - combine it
+          audioBase64 = combineBase64PcmChunks(nativeAudioDataRef.current);
+          console.log('[VoiceChat] Combined native audio, length:', audioBase64.length);
+        }
+      } else {
+        // Web: Stop MediaRecorder and get blob
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          await new Promise<void>((resolve) => {
+            mediaRecorderRef.current!.onstop = () => resolve();
+            mediaRecorderRef.current!.stop();
+          });
+        }
+        
+        // Stop media stream
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(track => track.stop());
+          mediaStreamRef.current = null;
+        }
+        
+        // Close audio context
+        if (audioContextRef.current) {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        }
+        
+        // Convert blob to base64
+        if (audioChunksRef.current.length > 0) {
+          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          audioBase64 = await blobToBase64(blob);
+          console.log('[VoiceChat] Converted web audio to base64, length:', audioBase64.length);
+        }
+      }
+      
+      // Check if we have audio to process
+      if (!audioBase64 || audioBase64.length < 100) {
+        console.log('[VoiceChat] No audio recorded or audio too short');
+        setVoiceState('idle');
+        toast({
+          title: "No audio detected",
+          description: "Please try speaking louder or longer.",
+          variant: "default",
+        });
+        return;
+      }
+      
+      // Send to speech relay endpoint
+      await processAudioWithSpeechRelay(audioBase64);
+      
+    } catch (error: any) {
+      console.error('[VoiceChat] Error stopping recording:', error);
+      setVoiceState('idle');
+      toast({
+        title: "Processing failed",
+        description: error.message || "Could not process your voice message.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Process audio through the speech relay
+  const processAudioWithSpeechRelay = async (audioBase64: string) => {
+    try {
+      console.log('[VoiceChat] Sending audio to speech relay...');
+      
+      const response = await apiRequest('POST', '/api/voice/speech-relay', {
+        audioBase64,
+        conversationHistory,
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to process voice');
+      }
+      
+      const result = await response.json() as {
+        transcript: string;
+        response: string;
+        audioBase64: string;
+        audioFormat: string;
+      };
+      
+      console.log('[VoiceChat] Received response:', {
+        transcriptLength: result.transcript.length,
+        responseLength: result.response.length,
+        audioLength: result.audioBase64.length,
+      });
+      
+      // Add user message to UI
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: result.transcript,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      
+      // Add Flo's response to UI
+      const floMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'flo',
+        content: result.response,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      setMessages((prev) => [...prev, floMessage]);
+      
+      // Update conversation history
+      setConversationHistory((prev) => [
+        ...prev,
+        { role: 'user', content: result.transcript },
+        { role: 'assistant', content: result.response },
+      ]);
+      
+      // Play audio response
+      await playAudioResponse(result.audioBase64);
+      
+    } catch (error: any) {
+      console.error('[VoiceChat] Speech relay error:', error);
+      setVoiceState('idle');
+      throw error;
+    }
+  };
+
+  // Play audio response (MP3 from OpenAI TTS)
+  const playAudioResponse = async (audioBase64: string) => {
+    try {
+      setVoiceState('speaking');
+      
+      // Use HTML5 Audio for MP3 playback (works on both iOS and web)
+      console.log('[VoiceChat] Playing MP3 audio via HTML5 Audio...');
+      
+      // Create data URL from base64
+      const audioDataUrl = `data:audio/mp3;base64,${audioBase64}`;
+      const audio = new Audio(audioDataUrl);
+      
+      audio.onended = () => {
+        console.log('[VoiceChat] Audio playback ended');
+        setVoiceState('idle');
+      };
+      
+      audio.onerror = (e) => {
+        console.error('[VoiceChat] Audio playback error:', e);
+        setVoiceState('idle');
+      };
+      
+      await audio.play();
+      
+    } catch (error: any) {
+      console.error('[VoiceChat] Error playing audio:', error);
+      setVoiceState('idle');
+    }
+  };
+
+  // Helper to convert Blob to base64
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        // Remove data URL prefix (e.g., "data:audio/webm;base64,")
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  // Helper to combine base64 PCM chunks
+  const combineBase64PcmChunks = (chunks: string[]): string => {
+    // Decode all chunks to binary
+    const binaryChunks = chunks.map(chunk => atob(chunk));
+    
+    // Calculate total length
+    const totalLength = binaryChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    
+    // Combine into single array
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of binaryChunks) {
+      for (let i = 0; i < chunk.length; i++) {
+        combined[offset++] = chunk.charCodeAt(i);
       }
     }
     
-    // Stop web-based capture
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      mediaStreamRef.current = null;
+    // Convert back to base64
+    let binary = '';
+    for (let i = 0; i < combined.length; i++) {
+      binary += String.fromCharCode(combined[i]);
     }
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
-    }
-    if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
+    return btoa(binary);
   };
 
-  // Toggle recording
-  const handleVoiceToggle = async () => {
-    if (connectionState === 'disconnected' || connectionState === 'error') {
-      await connectVoice();
-    } else if (connectionState === 'connected') {
-      disconnectVoice();
+  // Handle voice toggle button
+  const handleVoiceToggle = () => {
+    if (voiceState === 'idle') {
+      startRecording();
+    } else if (voiceState === 'recording') {
+      stopRecording();
     }
+    // Ignore if processing or speaking
   };
 
-  // Text fallback - send message via API
-  const sendTextMessage = async (text: string) => {
-    if (!text.trim() || isTextLoading) return;
-
+  // Handle text submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = inputValue.trim();
+    if (!text || isTextLoading) return;
+    
+    setInputValue('');
+    setIsTextLoading(true);
+    
+    // Add user message immediately
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
-      content: text.trim(),
+      content: text,
       timestamp: new Date(),
       isVoice: false,
     };
     setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
-    setIsTextLoading(true);
-
+    
     try {
+      // Use text chat endpoint (existing Flo Oracle)
       const response = await apiRequest('POST', '/api/flo-oracle/chat', {
-        message: text.trim(),
+        message: text,
+        history: conversationHistory.map(msg => ({
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content,
+        })),
       });
-
+      
       if (!response.ok) {
-        throw new Error('Failed to get response from Flō Oracle');
+        throw new Error('Failed to get response');
       }
-
-      const data = await response.json() as { response: string | { sanitizedOutput?: string } };
-
-      let responseText: string;
-      if (typeof data.response === 'string') {
-        responseText = data.response;
-      } else if (data.response && typeof data.response === 'object') {
-        responseText = (data.response as any).sanitizedOutput || 'No response received';
-      } else {
-        responseText = 'No response received';
-      }
-
+      
+      const result = await response.json();
+      
+      // Add Flo's response
       const floMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'flo',
-        content: responseText,
+        content: result.response,
         timestamp: new Date(),
         isVoice: false,
       };
       setMessages((prev) => [...prev, floMessage]);
+      
+      // Update conversation history
+      setConversationHistory((prev) => [
+        ...prev,
+        { role: 'user', content: text },
+        { role: 'assistant', content: result.response },
+      ]);
+      
     } catch (error: any) {
-      console.error('[FloOracle] Chat error:', error);
+      console.error('[VoiceChat] Text chat error:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to get response. Please try again.",
+        title: "Message failed",
+        description: "Could not send your message. Please try again.",
         variant: "destructive",
       });
-      
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'flo',
-        content: "I'm having trouble connecting right now. Please try again in a moment.",
-        timestamp: new Date(),
-        isVoice: false,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsTextLoading(false);
+    }
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = (text: string) => {
+    if (isVoiceMode) {
+      // In voice mode, switch to text and send the suggestion
+      setIsVoiceMode(false);
+      setInputValue(text);
+      // Auto-submit after a short delay
+      setTimeout(() => {
+        handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+      }, 100);
+    } else {
+      setInputValue(text);
       inputRef.current?.focus();
     }
   };
 
-  const handleSuggestionClick = (text: string) => {
-    if (isVoiceMode && connectionState === 'connected') {
-      // In voice mode, we could trigger TTS to speak this
-      // For now, fall back to text
-      sendTextMessage(text);
-    } else {
-      sendTextMessage(text);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendTextMessage(inputValue);
-  };
-
-  const isRecording = voiceState === 'listening' && connectionState === 'connected';
+  const isRecording = voiceState === 'recording';
   const isSpeaking = voiceState === 'speaking';
-  const isConnecting = connectionState === 'connecting';
+  const isProcessing = voiceState === 'processing';
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 flex items-center justify-center p-4 z-50 bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
-      data-testid="voice-chat-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex flex-col"
+      style={{
+        background: isDark
+          ? 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0f0f1a 100%)'
+          : 'linear-gradient(135deg, #f0f4f8 0%, #e8eef5 50%, #f5f7fa 100%)',
+      }}
     >
-      <motion.div
-        initial={{ y: 20 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-        onClick={(e) => e.stopPropagation()}
-        className={`w-full max-w-lg max-h-[85vh] flex flex-col rounded-3xl backdrop-blur-2xl border shadow-2xl overflow-hidden ${
-          isDark 
-            ? 'bg-slate-900/95 border-white/20 shadow-cyan-500/20' 
-            : 'bg-white/95 border-white/40 shadow-gray-500/20'
-        }`}
-        data-testid="voice-chat-modal"
-      >
-        {/* Header */}
-        <div className={`px-5 py-4 border-b ${
-          isDark ? 'border-white/10' : 'border-black/10'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <FloLogo size={32} />
-                <motion.div
-                  className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-                    isSpeaking ? 'bg-cyan-500' : isRecording ? 'bg-red-500' : 'bg-gradient-to-r from-teal-500 to-cyan-500'
-                  }`}
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [1, 0.7, 1],
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                />
-              </div>
-              <div>
-                <h1 className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Flō Oracle
-                </h1>
-                <div className="flex items-center gap-1">
-                  <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                    {isSpeaking ? 'Speaking...' : isRecording ? 'Listening...' : isConnecting ? 'Connecting...' : 'powered by'}
-                  </p>
-                  {!isSpeaking && !isRecording && !isConnecting && (
-                    <img 
-                      src={xaiLogo} 
-                      alt="xAI" 
-                      className={`h-3 ${isDark ? 'brightness-[3] invert' : 'brightness-50'}`}
-                    />
-                  )}
-                </div>
-              </div>
+      {/* Header */}
+      <div className={`flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 ${
+        isDark ? 'border-b border-white/10' : 'border-b border-black/10'
+      }`}>
+        <div className="flex items-center gap-3">
+          <FloLogo size={28} />
+          <div>
+            <h1 className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Flō Oracle
+            </h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <img src={xaiLogo} alt="Grok" className="w-3 h-3 opacity-60" />
+              <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                Powered by Grok
+              </span>
             </div>
-            <button
-              onClick={onClose}
-              className={`p-2 rounded-full transition-colors ${
-                isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
-              }`}
-              data-testid="button-close-chat"
-            >
-              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-            </button>
           </div>
         </div>
+        
+        <button
+          onClick={onClose}
+          className={`p-2 rounded-full backdrop-blur-xl transition-colors ${
+            isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-black/5 hover:bg-black/10'
+          }`}
+          data-testid="button-close-chat"
+        >
+          <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-700'}`} />
+        </button>
+      </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          <AnimatePresence>
-            {messages.map((message) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                data-testid={`message-${message.type}`}
-              >
-                <div className={`max-w-[85%] ${message.type === 'user' ? 'order-2' : 'order-1'}`}>
-                  {message.type === 'flo' && (
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <FloLogo size={16} />
-                      <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                        Flō Oracle
-                      </span>
-                      {message.isVoice && (
-                        <Volume2 className={`w-3 h-3 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-                      )}
-                    </div>
-                  )}
-                  <div
-                    className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
-                      message.type === 'user'
-                        ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25'
-                        : isDark
-                          ? 'bg-white/10 border border-white/10 text-white'
-                          : 'bg-white/70 border border-white/20 text-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      {message.type === 'user' && message.isVoice && (
-                        <Mic className="w-3 h-3 mt-0.5 flex-shrink-0 text-white/70" />
-                      )}
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                    <p className={`text-[10px] mt-1.5 ${
-                      message.type === 'user' 
-                        ? 'text-white/70' 
-                        : isDark ? 'text-white/50' : 'text-gray-500'
-                    }`}>
-                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {/* Flo Speaking Indicator */}
-          {isSpeaking && (
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <AnimatePresence initial={false}>
+          {messages.map((message) => (
             <motion.div
+              key={message.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="flex justify-start"
+              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className="max-w-[85%]">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <FloLogo size={16} />
-                  <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                    Flō Oracle
+              <div className={`max-w-[85%] ${message.type === 'user' ? 'order-1' : ''}`}>
+                {message.type === 'flo' && (
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <FloLogo size={16} />
+                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      Flō Oracle
+                    </span>
+                    {message.isVoice && (
+                      <Volume2 className={`w-3 h-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+                    )}
+                  </div>
+                )}
+                {message.type === 'user' && (
+                  <div className="flex items-center gap-2 mb-1.5 justify-end">
+                    {message.isVoice && (
+                      <Mic className={`w-3 h-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+                    )}
+                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      You
+                    </span>
+                  </div>
+                )}
+                <div
+                  className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
+                    message.type === 'user'
+                      ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white'
+                      : isDark
+                        ? 'bg-white/10 border border-white/10'
+                        : 'bg-white/70 border border-white/20'
+                  }`}
+                >
+                  <p className={`text-sm leading-relaxed ${
+                    message.type === 'user' 
+                      ? 'text-white' 
+                      : isDark ? 'text-white/90' : 'text-gray-800'
+                  }`}>
+                    {message.content}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Flo Speaking Indicator */}
+        {isSpeaking && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="flex justify-start"
+          >
+            <div className="max-w-[85%]">
+              <div className="flex items-center gap-2 mb-1.5">
+                <FloLogo size={16} />
+                <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Flō Oracle
+                </span>
+              </div>
+              <div className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
+                isDark ? 'bg-white/10 border border-white/10' : 'bg-white/70 border border-white/20'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Volume2 className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className={`w-1 h-3 rounded-full ${isDark ? 'bg-cyan-400' : 'bg-cyan-600'}`}
+                        animate={{
+                          scaleY: [1, 1.8, 1],
+                        }}
+                        transition={{
+                          duration: 0.8,
+                          repeat: Infinity,
+                          delay: i * 0.1,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    Speaking...
                   </span>
                 </div>
-                <div className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
-                  isDark ? 'bg-white/10 border border-white/10' : 'bg-white/70 border border-white/20'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <Volume2 className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-                    <div className="flex items-center gap-1">
-                      {[...Array(5)].map((_, i) => (
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Processing Indicator */}
+        {isProcessing && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-start"
+            data-testid="flo-processing-indicator"
+          >
+            <div className="max-w-[85%]">
+              <div className="flex items-center gap-2 mb-1.5">
+                <FloLogo size={16} />
+                <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Flō Oracle
+                </span>
+              </div>
+              <div className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
+                isDark ? 'bg-white/10 border border-white/10' : 'bg-white/70 border border-white/20'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                  <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    Processing your voice...
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Text mode loading indicator */}
+        {isTextLoading && !isVoiceMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-start"
+            data-testid="flo-loading-indicator"
+          >
+            <div className="max-w-[85%]">
+              <div className="flex items-center gap-2 mb-1.5">
+                <FloLogo size={16} />
+                <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Flō Oracle
+                </span>
+              </div>
+              <div className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
+                isDark ? 'bg-white/10 border border-white/10' : 'bg-white/70 border border-white/20'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                  <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    Thinking...
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+        
+        {/* Quick Suggestions */}
+        {messages.length === 1 && !isSpeaking && !isRecording && !isProcessing && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-2 pt-2"
+          >
+            <p className={`text-xs text-center ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              Quick suggestions:
+            </p>
+            <div className="grid grid-cols-1 gap-2">
+              {quickSuggestions.map((suggestion, index) => {
+                const Icon = suggestion.icon;
+                return (
+                  <motion.button
+                    key={index}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 + index * 0.08 }}
+                    onClick={() => handleSuggestionClick(suggestion.text)}
+                    disabled={isTextLoading}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl backdrop-blur-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isDark
+                        ? 'bg-white/5 hover:bg-white/10 border border-white/10'
+                        : 'bg-white/60 hover:bg-white/80 border border-white/20'
+                    }`}
+                    data-testid={`suggestion-${index}`}
+                  >
+                    <div className={`w-7 h-7 rounded-lg bg-gradient-to-r ${suggestion.color} flex items-center justify-center shadow-lg`}>
+                      <Icon className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                      {suggestion.text}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Voice/Input Control Area */}
+      <div className={`px-5 py-5 border-t ${
+        isDark ? 'border-white/10' : 'border-black/10'
+      }`}>
+        {isVoiceMode ? (
+          <>
+            {/* Recording Waveform Visualization */}
+            <AnimatePresence>
+              {isRecording && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="mb-4"
+                >
+                  <div className={`rounded-2xl p-4 backdrop-blur-xl ${
+                    isDark ? 'bg-white/5 border border-white/10' : 'bg-white/60 border border-white/20'
+                  }`}>
+                    <div className="flex items-center justify-center gap-0.5 h-16 mb-3">
+                      {[...Array(30)].map((_, i) => (
                         <motion.div
                           key={i}
-                          className={`w-1 h-3 rounded-full ${isDark ? 'bg-cyan-400' : 'bg-cyan-600'}`}
+                          className="w-1 bg-gradient-to-t from-teal-500 via-cyan-500 to-blue-500 rounded-full"
                           animate={{
-                            scaleY: [1, 1.8, 1],
+                            height: [
+                              '20%',
+                              `${Math.min(90, 20 + (audioLevel * Math.random()))}%`,
+                              '20%',
+                            ],
                           }}
                           transition={{
-                            duration: 0.8,
+                            duration: 0.5,
                             repeat: Infinity,
-                            delay: i * 0.1,
+                            ease: 'easeInOut',
+                            delay: i * 0.03,
                           }}
                         />
                       ))}
                     </div>
-                    <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                      Speaking...
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Text mode loading indicator */}
-          {isTextLoading && !isVoiceMode && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex justify-start"
-              data-testid="flo-loading-indicator"
-            >
-              <div className="max-w-[85%]">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <FloLogo size={16} />
-                  <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                    Flō Oracle
-                  </span>
-                </div>
-                <div className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
-                  isDark ? 'bg-white/10 border border-white/10' : 'bg-white/70 border border-white/20'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-                    <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                      Thinking...
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-          
-          {/* Quick Suggestions */}
-          {messages.length === 1 && !isSpeaking && !isRecording && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="space-y-2 pt-2"
-            >
-              <p className={`text-xs text-center ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                Quick suggestions:
-              </p>
-              <div className="grid grid-cols-1 gap-2">
-                {quickSuggestions.map((suggestion, index) => {
-                  const Icon = suggestion.icon;
-                  return (
-                    <motion.button
-                      key={index}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + index * 0.08 }}
-                      onClick={() => handleSuggestionClick(suggestion.text)}
-                      disabled={isTextLoading}
-                      className={`flex items-center gap-3 p-2.5 rounded-xl backdrop-blur-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isDark
-                          ? 'bg-white/5 hover:bg-white/10 border border-white/10'
-                          : 'bg-white/60 hover:bg-white/80 border border-white/20'
-                      }`}
-                      data-testid={`suggestion-${index}`}
-                    >
-                      <div className={`w-7 h-7 rounded-lg bg-gradient-to-r ${suggestion.color} flex items-center justify-center shadow-lg`}>
-                        <Icon className="w-3.5 h-3.5 text-white" />
-                      </div>
-                      <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                        {suggestion.text}
-                      </span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Voice/Input Control Area */}
-        <div className={`px-5 py-5 border-t ${
-          isDark ? 'border-white/10' : 'border-black/10'
-        }`}>
-          {isVoiceMode ? (
-            <>
-              {/* Recording Waveform Visualization */}
-              <AnimatePresence>
-                {isRecording && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="mb-4"
-                  >
-                    <div className={`rounded-2xl p-4 backdrop-blur-xl ${
-                      isDark ? 'bg-white/5 border border-white/10' : 'bg-white/60 border border-white/20'
-                    }`}>
-                      <div className="flex items-center justify-center gap-0.5 h-16 mb-3">
-                        {[...Array(30)].map((_, i) => (
-                          <motion.div
-                            key={i}
-                            className="w-1 bg-gradient-to-t from-teal-500 via-cyan-500 to-blue-500 rounded-full"
-                            animate={{
-                              height: [
-                                '20%',
-                                `${Math.min(90, 20 + (audioLevel * Math.random()))}%`,
-                                '20%',
-                              ],
-                            }}
-                            transition={{
-                              duration: 0.5,
-                              repeat: Infinity,
-                              ease: 'easeInOut',
-                              delay: i * 0.03,
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <div className="text-center space-y-1">
-                        <p className={`text-base ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                          {formatDuration(recordingDuration)}
-                        </p>
-                        <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                          Listening to your voice...
-                        </p>
-                      </div>
+                    <div className="text-center space-y-1">
+                      <p className={`text-base ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                        {formatDuration(recordingDuration)}
+                      </p>
+                      <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        Tap the mic again to send
+                      </p>
                     </div>
-                  </motion.div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Central Voice Button */}
+            <div className="flex flex-col items-center gap-3">
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={handleVoiceToggle}
+                disabled={isSpeaking || isProcessing}
+                className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl disabled:opacity-70 ${
+                  isSpeaking || isProcessing
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : isRecording
+                      ? 'bg-red-500 shadow-red-500/50'
+                      : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 shadow-cyan-500/50'
+                }`}
+                data-testid="button-voice-toggle"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-7 h-7 text-white animate-spin" />
+                ) : isRecording ? (
+                  <MicOff className="w-7 h-7 text-white" />
+                ) : (
+                  <Mic className="w-7 h-7 text-white" />
                 )}
-              </AnimatePresence>
-
-              {/* Central Voice Button */}
-              <div className="flex flex-col items-center gap-3">
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleVoiceToggle}
-                  disabled={isSpeaking || isConnecting}
-                  className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl disabled:opacity-70 ${
-                    isSpeaking || isConnecting
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : isRecording
-                        ? 'bg-red-500 shadow-red-500/50'
-                        : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 shadow-cyan-500/50'
-                  }`}
-                  data-testid="button-voice-toggle"
-                >
-                  {isConnecting ? (
-                    <Loader2 className="w-7 h-7 text-white animate-spin" />
-                  ) : isRecording ? (
-                    <MicOff className="w-7 h-7 text-white" />
-                  ) : (
-                    <Mic className="w-7 h-7 text-white" />
-                  )}
-                  
-                  {/* Pulsing rings when idle */}
-                  {!isRecording && !isSpeaking && !isConnecting && (
-                    <>
-                      <motion.div
-                        className="absolute inset-0 rounded-full border-2 border-cyan-500"
-                        animate={{
-                          scale: [1, 1.4, 1],
-                          opacity: [0.5, 0, 0.5],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: 'easeOut',
-                        }}
-                      />
-                      <motion.div
-                        className="absolute inset-0 rounded-full border-2 border-cyan-500"
-                        animate={{
-                          scale: [1, 1.4, 1],
-                          opacity: [0.5, 0, 0.5],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: 'easeOut',
-                          delay: 0.5,
-                        }}
-                      />
-                    </>
-                  )}
-
-                  {/* Recording pulse effect */}
-                  {isRecording && (
+                
+                {/* Pulsing rings when idle */}
+                {!isRecording && !isSpeaking && !isProcessing && (
+                  <>
                     <motion.div
-                      className="absolute inset-0 rounded-full border-2 border-red-500"
+                      className="absolute inset-0 rounded-full border-2 border-cyan-500"
                       animate={{
-                        scale: [1, 1.3],
-                        opacity: [0.5, 0],
+                        scale: [1, 1.4, 1],
+                        opacity: [0.5, 0, 0.5],
                       }}
                       transition={{
-                        duration: 1,
+                        duration: 2,
                         repeat: Infinity,
                         ease: 'easeOut',
                       }}
                     />
-                  )}
-                </motion.button>
+                    <motion.div
+                      className="absolute inset-0 rounded-full border-2 border-cyan-500"
+                      animate={{
+                        scale: [1, 1.4, 1],
+                        opacity: [0.5, 0, 0.5],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: 'easeOut',
+                        delay: 0.5,
+                      }}
+                    />
+                  </>
+                )}
 
-                <div className="text-center">
-                  <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    {isConnecting ? 'Connecting...' : isSpeaking ? 'Flō is speaking' : isRecording ? 'Tap to stop' : 'Tap to speak'}
-                  </p>
-                  <p className={`text-xs mt-0.5 flex items-center justify-center gap-1 ${
-                    isDark ? 'text-white/40' : 'text-gray-400'
-                  }`}>
-                    <Sparkles className="w-3 h-3" />
-                    Voice-powered health insights
-                  </p>
-                </div>
+                {/* Recording pulse effect */}
+                {isRecording && (
+                  <motion.div
+                    className="absolute inset-0 rounded-full border-2 border-red-500"
+                    animate={{
+                      scale: [1, 1.3],
+                      opacity: [0.5, 0],
+                    }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: 'easeOut',
+                    }}
+                  />
+                )}
+              </motion.button>
 
-                {/* Switch to text mode */}
-                <button
-                  onClick={() => setIsVoiceMode(false)}
-                  className={`text-xs underline ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
-                  data-testid="button-switch-to-text"
-                >
-                  Switch to text mode
-                </button>
+              <div className="text-center">
+                <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {isProcessing ? 'Processing...' : isSpeaking ? 'Flō is speaking' : isRecording ? 'Tap to send' : 'Tap to speak'}
+                </p>
+                <p className={`text-xs mt-0.5 flex items-center justify-center gap-1 ${
+                  isDark ? 'text-white/40' : 'text-gray-400'
+                }`}>
+                  <Sparkles className="w-3 h-3" />
+                  Voice-powered health insights
+                </p>
               </div>
-            </>
-          ) : (
-            /* Text Input Fallback */
-            <div className="space-y-3">
-              <form onSubmit={handleSubmit} className="flex items-center gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  disabled={isTextLoading}
-                  placeholder="Ask about your health..."
-                  className={`flex-1 px-4 py-2.5 rounded-xl backdrop-blur-xl transition-colors disabled:opacity-50 ${
-                    isDark
-                      ? 'bg-white/10 border border-white/10 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/20'
-                      : 'bg-white/70 border border-white/20 text-gray-900 placeholder:text-gray-500 focus:bg-white/90 focus:border-white/30'
-                  } outline-none`}
-                  data-testid="input-chat-message"
-                />
-                <button
-                  type="submit"
-                  disabled={!inputValue.trim() || isTextLoading}
-                  className={`p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                    inputValue.trim() && !isTextLoading
-                      ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/25'
-                      : isDark
-                        ? 'bg-white/10'
-                        : 'bg-white/70'
-                  }`}
-                  data-testid="button-send-message"
-                >
-                  {isTextLoading ? (
-                    <Loader2 className="w-5 h-5 text-white animate-spin" />
-                  ) : (
-                    <Send className={`w-5 h-5 ${
-                      inputValue.trim() ? 'text-white' : isDark ? 'text-white/50' : 'text-gray-500'
-                    }`} />
-                  )}
-                </button>
-              </form>
-              
-              {/* Switch to voice mode */}
+
+              {/* Switch to text mode */}
               <button
-                onClick={() => setIsVoiceMode(true)}
-                className={`w-full text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
-                data-testid="button-switch-to-voice"
+                onClick={() => setIsVoiceMode(false)}
+                className={`text-xs underline ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
+                data-testid="button-switch-to-text"
               >
-                <Mic className="w-3 h-3" />
-                Switch to voice mode
+                Switch to text mode
               </button>
             </div>
-          )}
-        </div>
-      </motion.div>
+          </>
+        ) : (
+          /* Text Input Fallback */
+          <div className="space-y-3">
+            <form onSubmit={handleSubmit} className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                disabled={isTextLoading}
+                placeholder="Ask about your health..."
+                className={`flex-1 px-4 py-2.5 rounded-xl backdrop-blur-xl transition-colors disabled:opacity-50 ${
+                  isDark
+                    ? 'bg-white/10 border border-white/10 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/20'
+                    : 'bg-white/70 border border-white/20 text-gray-900 placeholder:text-gray-500 focus:bg-white/90 focus:border-white/30'
+                } outline-none`}
+                data-testid="input-chat-message"
+              />
+              <button
+                type="submit"
+                disabled={!inputValue.trim() || isTextLoading}
+                className={`p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  inputValue.trim() && !isTextLoading
+                    ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/25'
+                    : isDark
+                      ? 'bg-white/10'
+                      : 'bg-white/70'
+                }`}
+                data-testid="button-send-message"
+              >
+                {isTextLoading ? (
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                ) : (
+                  <Send className={`w-5 h-5 ${
+                    inputValue.trim() ? 'text-white' : isDark ? 'text-white/50' : 'text-gray-500'
+                  }`} />
+                )}
+              </button>
+            </form>
+            
+            {/* Switch to voice mode */}
+            <button
+              onClick={() => setIsVoiceMode(true)}
+              className={`w-full text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
+              data-testid="button-switch-to-voice"
+            >
+              <Mic className="w-3 h-3" />
+              Switch to voice mode
+            </button>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }
