@@ -6379,6 +6379,24 @@ ${fullContext}`;
                  req.headers['x-user-id'] as string;
       }
       
+      // CRITICAL FALLBACK: If no conversation_id was provided by ElevenLabs,
+      // use the most recently registered session. This works because ElevenLabs
+      // doesn't include conversation_id in LLM requests, but we register sessions
+      // when the WebSocket connection is established (before LLM calls).
+      let usedFallback = false;
+      if (!userId) {
+        const recentSession = conversationSessionStore.getMostRecentSession();
+        if (recentSession) {
+          userId = recentSession.userId;
+          usedFallback = true;
+          logger.info('[ElevenLabs-Bridge] Using most recent session fallback', {
+            conversationId: recentSession.conversationId,
+            userId,
+            method: 'most_recent_session'
+          });
+        }
+      }
+      
       // Log what we found for debugging
       logger.info('[ElevenLabs-Bridge] User lookup result', {
         foundUserId: !!userId,
@@ -6389,7 +6407,8 @@ ${fullContext}`;
           extra_body: !!elevenlabs_extra_body?.user_id,
           custom_llm: !!req.body?.custom_llm_extra_body?.user_id,
           dynamic_vars: !!req.body?.dynamic_variables?.user_id,
-          header: !!req.headers['x-user-id']
+          header: !!req.headers['x-user-id'],
+          most_recent_session: usedFallback
         }
       });
       

@@ -85,6 +85,28 @@ class ConversationSessionStore {
       activeSessions: Array.from(this.sessions.values()).filter(s => new Date() <= s.expiresAt).length,
     };
   }
+
+  getMostRecentSession(): ConversationSession | null {
+    const now = new Date();
+    const activeSessions = Array.from(this.sessions.values()).filter(s => now <= s.expiresAt);
+    
+    if (activeSessions.length === 0) {
+      return null;
+    }
+    
+    // Sort by createdAt descending and get the most recent
+    activeSessions.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const mostRecent = activeSessions[0];
+    
+    logger.info('[ConversationStore] Found most recent session', { 
+      conversationId: mostRecent.conversationId, 
+      userId: mostRecent.userId,
+      ageMs: now.getTime() - mostRecent.createdAt.getTime(),
+      totalActiveSessions: activeSessions.length
+    });
+
+    return mostRecent;
+  }
 }
 
 export const conversationSessionStore = new ConversationSessionStore();
