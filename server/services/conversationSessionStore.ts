@@ -1,4 +1,5 @@
 import { logger } from '../logger';
+import { randomBytes } from 'crypto';
 
 interface ConversationSession {
   conversationId: string;
@@ -8,15 +9,73 @@ interface ConversationSession {
   expiresAt: Date;
 }
 
+interface TokenSession {
+  token: string;
+  userId: string;
+  agentId: string;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
 class ConversationSessionStore {
   private sessions: Map<string, ConversationSession>;
+  private tokenSessions: Map<string, TokenSession>; // token → session
   private readonly TTL_MS = 30 * 60 * 1000; // 30 minutes
 
   constructor() {
     this.sessions = new Map();
+    this.tokenSessions = new Map();
     
     // Clean up expired sessions every 5 minutes
     setInterval(() => this.cleanup(), 5 * 60 * 1000);
+  }
+
+  generateSessionToken(userId: string, agentId: string): string {
+    const token = `flo_${randomBytes(32).toString('hex')}`;
+    const now = new Date();
+    
+    const session: TokenSession = {
+      token,
+      userId,
+      agentId,
+      createdAt: now,
+      expiresAt: new Date(now.getTime() + this.TTL_MS),
+    };
+    
+    this.tokenSessions.set(token, session);
+    logger.info('[ConversationStore] Generated session token', { 
+      tokenPrefix: token.substring(0, 12) + '...', 
+      userId, 
+      agentId 
+    });
+    
+    return token;
+  }
+
+  getUserIdFromToken(token: string): string | null {
+    const session = this.tokenSessions.get(token);
+    
+    if (!session) {
+      logger.warn('[ConversationStore] Token not found', { 
+        tokenPrefix: token?.substring(0, 12) + '...' 
+      });
+      return null;
+    }
+
+    if (new Date() > session.expiresAt) {
+      logger.warn('[ConversationStore] Token expired', { 
+        tokenPrefix: token.substring(0, 12) + '...', 
+        userId: session.userId 
+      });
+      this.tokenSessions.delete(token);
+      return null;
+    }
+
+    logger.info('[ConversationStore] Token validated', { 
+      tokenPrefix: token.substring(0, 12) + '...', 
+      userId: session.userId 
+    });
+    return session.userId;
   }
 
   create(conversationId: string, userId: string, agentId: string): void {
@@ -60,8 +119,10 @@ class ConversationSessionStore {
 
   private cleanup(): void {
     const now = new Date();
-    let cleaned = 0;
+    let cleanedSessions = 0;
+    let cleanedTokens = 0;
 
+    // Clean up conversation sessions
     const expiredIds: string[] = [];
     this.sessions.forEach((session, conversationId) => {
       if (now > session.expiresAt) {
@@ -71,11 +132,27 @@ class ConversationSessionStore {
 
     expiredIds.forEach(id => {
       this.sessions.delete(id);
-      cleaned++;
+      cleanedSessions++;
     });
 
-    if (cleaned > 0) {
-      logger.info('[ConversationStore] Cleaned up expired sessions', { count: cleaned });
+    // Clean up token sessions
+    const expiredTokens: string[] = [];
+    this.tokenSessions.forEach((session, token) => {
+      if (now > session.expiresAt) {
+        expiredTokens.push(token);
+      }
+    });
+
+    expiredTokens.forEach(token => {
+      this.tokenSessions.delete(token);
+      cleanedTokens++;
+    });
+
+    if (cleanedSessions > 0 || cleanedTokens > 0) {
+      logger.info('[ConversationStore] Cleaned up expired sessions', { 
+        conversationSessions: cleanedSessions,
+        tokenSessions: cleanedTokens
+      });
     }
   }
 
