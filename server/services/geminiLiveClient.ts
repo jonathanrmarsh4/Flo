@@ -102,10 +102,10 @@ class GeminiLiveClient {
         },
       },
       config: {
-        // Start with TEXT only to debug - AUDIO may require different model
+        // Debug: Minimal config like official SDK sample
         responseModalities: [Modality.TEXT],
-        // Limit system instruction length to avoid issues
-        systemInstruction: config.systemInstruction.substring(0, 2000),
+        // Temporarily remove systemInstruction to debug "invalid argument" error
+        // systemInstruction: config.systemInstruction.substring(0, 2000),
       },
     };
 
