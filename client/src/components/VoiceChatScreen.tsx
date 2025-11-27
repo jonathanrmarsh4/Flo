@@ -538,41 +538,65 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex flex-col"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{
-        background: isDark
-          ? 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0f0f1a 100%)'
-          : 'linear-gradient(135deg, #f0f4f8 0%, #e8eef5 50%, #f5f7fa 100%)',
+        paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
       }}
     >
-      {/* Header */}
-      <div className={`flex items-center justify-between px-5 pt-[calc(env(safe-area-inset-top)+12px)] pb-3 ${
-        isDark ? 'border-b border-white/10' : 'border-b border-black/10'
-      }`}>
-        <div className="flex items-center gap-3">
-          <FloLogo size={28} />
-          <div>
-            <h1 className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Flō Oracle
-            </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                {isConnected ? '🟢 Connected' : isConnecting ? '🟡 Connecting...' : '⚪ Ready'}
-              </span>
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      {/* Liquid Glass Window */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className={`relative w-full max-w-lg h-[85vh] max-h-[700px] flex flex-col rounded-3xl overflow-hidden ${
+          isDark 
+            ? 'bg-white/5 border border-white/10' 
+            : 'bg-white/70 border border-white/50'
+        }`}
+        style={{
+          backdropFilter: 'blur(40px)',
+          WebkitBackdropFilter: 'blur(40px)',
+          boxShadow: isDark
+            ? '0 25px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1)'
+            : '0 25px 50px -12px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.8)',
+        }}
+      >
+        {/* Header */}
+        <div className={`flex items-center justify-between px-5 py-4 ${
+          isDark ? 'border-b border-white/10' : 'border-b border-black/5'
+        }`}>
+          <div className="flex items-center gap-3">
+            <FloLogo size={28} />
+            <div>
+              <h1 className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Flō Oracle
+              </h1>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                  {isConnected ? '🟢 Connected' : isConnecting ? '🟡 Connecting...' : '⚪ Ready'}
+                </span>
+              </div>
             </div>
           </div>
+          
+          <button
+            onClick={onClose}
+            className={`p-2 rounded-full backdrop-blur-xl transition-colors ${
+              isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-black/5 hover:bg-black/10'
+            }`}
+            data-testid="button-close-chat"
+          >
+            <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-700'}`} />
+          </button>
         </div>
-        
-        <button
-          onClick={onClose}
-          className={`p-2 rounded-full backdrop-blur-xl transition-colors ${
-            isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-black/5 hover:bg-black/10'
-          }`}
-          data-testid="button-close-chat"
-        >
-          <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-700'}`} />
-        </button>
-      </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
@@ -949,6 +973,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           </div>
         )}
       </div>
+      </motion.div>
     </motion.div>
   );
 }
