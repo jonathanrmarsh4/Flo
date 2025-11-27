@@ -225,7 +225,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       
       // Get ephemeral token from our backend
       const tokenResponse = await apiRequest('POST', '/api/openai-realtime/token');
-      const tokenData = tokenResponse as unknown as { client_secret: string; error?: string };
+      const tokenData = await tokenResponse.json() as { client_secret: string; error?: string };
+      
+      console.log('[VoiceChat] Token response parsed:', { hasSecret: !!tokenData.client_secret });
       
       if (tokenData.error) {
         throw new Error(tokenData.error);
