@@ -8137,10 +8137,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const url = new URL(req.url || '', `http://${req.headers.host}`);
       const token = url.searchParams.get('token');
       
-      // Require JWT_SECRET to be set for production
-      const jwtSecret = process.env.JWT_SECRET;
+      // Use SESSION_SECRET for JWT verification (same secret used to sign mobile tokens)
+      const jwtSecret = process.env.SESSION_SECRET;
       if (!jwtSecret) {
-        logger.error('[GeminiLive WS] JWT_SECRET not configured');
+        logger.error('[GeminiLive WS] SESSION_SECRET not configured');
         ws.close(4003, 'Server configuration error');
         return;
       }
@@ -8149,8 +8149,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         // Verify JWT token with actual secret
         const jwt = await import('jsonwebtoken');
         try {
-          const decoded = jwt.default.verify(token, jwtSecret) as { userId: string };
-          userId = decoded.userId;
+          const decoded = jwt.default.verify(token, jwtSecret) as { sub: string };
+          userId = decoded.sub; // Mobile tokens use 'sub' for user ID
         } catch (jwtError: any) {
           logger.error('[GeminiLive WS] JWT verification failed', { error: jwtError.message });
           ws.close(4001, 'Invalid token');
