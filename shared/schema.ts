@@ -116,11 +116,11 @@ export const VoicePreferenceEnum = z.enum(["Amanda", "Morgan", "Izzy", "Ethan", 
 
 // Voice preference to Gemini voice name mapping
 export const VOICE_NAME_TO_GEMINI: Record<string, string> = {
-  "Amanda": "Puck",     // Conversational, friendly (default)
-  "Morgan": "Kore",     // Calm & Reassuring
-  "Izzy": "Aoede",      // Energetic & Friendly
-  "Ethan": "Charon",    // Clear & Confident
-  "Jon": "Fenrir",      // Thoughtful & Steady
+  "Amanda": "Leda",     // Warm & Professional (Female)
+  "Morgan": "Kore",     // Calm & Reassuring (Female)
+  "Izzy": "Aoede",      // Energetic & Friendly (Female)
+  "Ethan": "Charon",    // Clear & Confident (Male)
+  "Jon": "Fenrir",      // Thoughtful & Steady (Male)
 };
 
 export const GEMINI_VOICES = ["Puck", "Charon", "Kore", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr"] as const;
