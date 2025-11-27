@@ -272,11 +272,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             <FloLogo size={28} />
             <div>
               <h1 className={`text-base font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Flō Oracle
+                Flō
               </h1>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                  Powered by Gemini
+                  Powered by Flō AI
                 </span>
               </div>
             </div>
@@ -322,7 +322,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                     <div className="flex items-center gap-2 mb-1.5">
                       <FloLogo size={16} />
                       <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                        Flō Oracle
+                        Flō
                       </span>
                       {message.isVoice && (
                         <Volume2 className={`w-3 h-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />

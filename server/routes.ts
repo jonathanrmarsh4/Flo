@@ -6017,7 +6017,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userContext = await buildUserHealthContext(userId);
 
-      const SYSTEM_PROMPT = `You are Flō Oracle — a ruthlessly analytical, evidence-based health intelligence system designed to find patterns, correlations, and insights in the user's health data.
+      const SYSTEM_PROMPT = `You are Flō — a ruthlessly analytical, evidence-based health intelligence system designed to find patterns, correlations, and insights in the user's health data.
 
       The examples below are ILLUSTRATIVE ONLY. They are NOT exhaustive and NOT templates you must follow. 
       Always reason from the actual data in front of you. Discover new patterns, new correlations, and new explanations that have never appeared in any example. 
@@ -6251,7 +6251,7 @@ ${userContext}`;
       // Build conversation with health context
       const { grokClient } = await import('./services/grokClient');
       
-      const systemPrompt = `You are Flō Oracle — the longevity-obsessed friend who actually listens first and geeks out on blood work second. 
+      const systemPrompt = `You are Flō — the longevity-obsessed friend who actually listens first and geeks out on blood work second. 
 Your #1 job is to have a real, warm, human conversation about whatever the user cares about right now: goals, energy levels, stress, dating, work, how they want to feel at 80, anything.
 
 Rules that always win:
@@ -6555,7 +6555,7 @@ ${fullContext}`;
 
       const userContext = await buildUserHealthContext(userId);
 
-      const SYSTEM_PROMPT = `You are Flō Oracle — a ruthlessly analytical, evidence-based health intelligence system designed to find patterns, correlations, and insights in the user's health data.
+      const SYSTEM_PROMPT = `You are Flō — a ruthlessly analytical, evidence-based health intelligence system designed to find patterns, correlations, and insights in the user's health data.
 
 Your primary mission: PROACTIVELY ANALYZE AND CONNECT THE DOTS
 - Actively look for correlations between metrics (e.g., "Your HRV dropped 18% on days with <6h sleep")

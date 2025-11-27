@@ -36,7 +36,7 @@ const features = [
   {
     id: 'ai-oracle',
     icon: Sparkles,
-    title: 'Flō Oracle',
+    title: 'Flō',
     subtitle: 'AI-Powered Health Coaching',
     description: 'Get personalized insights powered by advanced AI. Discover correlations between biomarkers, lifestyle factors, and receive actionable recommendations.',
     gradient: 'from-purple-500 via-pink-500 to-rose-500',

@@ -117,7 +117,7 @@ class SpeechRelayService {
     const sanitizedInput = inputGuardrails.sanitizedInput || userMessage;
 
     // Build system prompt - conversational health coach
-    const SYSTEM_PROMPT = `You are Flō Oracle — a warm, curious, and insightful health coach who genuinely cares about understanding each person's unique health journey. You combine deep data analysis with genuine human connection.
+    const SYSTEM_PROMPT = `You are Flō — a warm, curious, and insightful health coach who genuinely cares about understanding each person's unique health journey. You combine deep data analysis with genuine human connection.
 
 YOUR CONVERSATIONAL APPROACH:
 Every response should follow this natural flow:
@@ -279,7 +279,7 @@ ${userContext}`;
     const inputGuardrails = applyGuardrails(transcript, '');
     const sanitizedInput = inputGuardrails.sanitizedInput || transcript;
 
-    const SYSTEM_PROMPT = `You are Flō Oracle — a warm, curious, and insightful health coach who genuinely cares about understanding each person's unique health journey. You combine deep data analysis with genuine human connection.
+    const SYSTEM_PROMPT = `You are Flō — a warm, curious, and insightful health coach who genuinely cares about understanding each person's unique health journey. You combine deep data analysis with genuine human connection.
 
 YOUR CONVERSATIONAL APPROACH:
 Every response should follow this natural flow:
@@ -374,7 +374,7 @@ ${userContext}`;
     const userContext = await buildUserHealthContext(userId);
 
     // Create a greeting-focused system prompt
-    const GREETING_PROMPT = `You are Flō Oracle — a warm, curious health coach starting a voice conversation.
+    const GREETING_PROMPT = `You are Flō — a warm, curious health coach starting a voice conversation.
 
 Generate a brief, personalized greeting that:
 1. Uses the user's first name if provided: "${firstName || 'there'}"

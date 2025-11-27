@@ -126,7 +126,7 @@ async function extractInsightsFromTranscript(
   const startTime = Date.now();
   
   try {
-    const systemPrompt = `You are an expert health analyst reviewing a conversation between a user and their AI health assistant (Flō Oracle). Your task is to extract valuable insights that should be remembered for future conversations.
+    const systemPrompt = `You are an expert health analyst reviewing a conversation between a user and their AI health assistant (Flō). Your task is to extract valuable insights that should be remembered for future conversations.
 
 Extract 0-5 insights from this conversation. Only extract insights that are:
 1. Specific to this user (not generic health advice)

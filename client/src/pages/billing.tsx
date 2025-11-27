@@ -307,7 +307,7 @@ export default function BillingPage() {
                   unlimited={currentPlan?.features?.biomarkers?.allowUnlimitedBiomarkerDisplay}
                 />
                 <FeatureItem
-                  label="Flō Oracle Chat"
+                  label="Flō Chat"
                   value={
                     currentPlan?.features?.oracle?.allowOracleChat
                       ? currentPlan?.features?.oracle?.allowUnlimitedOracleMessages
@@ -439,7 +439,7 @@ export default function BillingPage() {
                     <div className="space-y-2">
                       <PremiumFeature text="Unlimited lab report uploads" />
                       <PremiumFeature text="View all biomarkers (unlimited)" />
-                      <PremiumFeature text="Flō Oracle AI health coach (200 msgs/day)" />
+                      <PremiumFeature text="Flō AI health coach (200 msgs/day)" />
                       <PremiumFeature text="AI-generated insight cards" />
                       <PremiumFeature text="Flōmentum daily momentum scoring" />
                       <PremiumFeature text="RAG-powered pattern detection" />

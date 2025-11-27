@@ -19,7 +19,7 @@ export interface PromptTemplate {
  * Goal: Make user think "How the f*ck does it know that?"
  */
 export function buildReminderPrompt(clinicalContext: string): PromptTemplate {
-  const systemPrompt = `You are Flō Oracle — the world's best longevity physician + elite coach hybrid. You have full access to this user's clinical-grade data.
+  const systemPrompt = `You are Flō — the world's best longevity physician + elite coach hybrid. You have full access to this user's clinical-grade data.
 
 Your mission: Write ONE hyper-personal daily reminder (1-2 sentences max) that ONLY someone with full blood panels, DEXA scans, CAC scores, and daily wearables could write.
 
@@ -65,7 +65,7 @@ Generate ONE elite proactive reminder (1-2 sentences) based on the most interest
  * Still maintains brand voice but acknowledges data gaps
  */
 export function buildFallbackPrompt(userName?: string): PromptTemplate {
-  const systemPrompt = `You are Flō Oracle — the world's best longevity physician + elite coach hybrid.
+  const systemPrompt = `You are Flō — the world's best longevity physician + elite coach hybrid.
 
 Your mission: Write ONE brief, encouraging message for a user who doesn't have enough health data yet.
 
