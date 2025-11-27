@@ -1,0 +1,48 @@
+Y0ODQ1ODkxfQ.sXa1MW3_xyNM0G
+<0x14061a580> Touch: System gesture gate timed out.
+<0x14061a440> Gesture: System gesture gate timed out.
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  To Native ->  SecureStoragePlugin get 57446052
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [API] Making request: GET https://get-flo.com/api/profile/voice-preference
+⚡️  To Native ->  SecureStoragePlugin get 57446053
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDI0MTA5MSwiZXhwIjoxNzY0ODQ1ODkxfQ.sXa1MW3_xyNM0G
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDI0MTA5MSwiZXhwIjoxNzY0ODQ1ODkxfQ.sXa1MW3_xyNM0G
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [error] - [VoiceSample] Playback failed: {}
+⚡️  [log] - [API] Making request: PATCH https://get-flo.com/api/profile/voice-preference
+⚡️  To Native ->  SecureStoragePlugin get 57446054
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDI0MTA5MSwiZXhwIjoxNzY0ODQ1ODkxfQ.sXa1MW3_xyNM0G
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [error] - [VoiceSample] Playback failed: {}
+⚡️  [error] - [VoiceSample] Playback failed: {}
+⚡️  [error] - [VoiceSample] Playback failed: {}
+⚡️  [log] - [API] Making request: PATCH https://get-flo.com/api/profile/voice-preference
+⚡️  To Native ->  SecureStoragePlugin get 57446055
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDI0MTA5MSwiZXhwIjoxNzY0ODQ1ODkxfQ.sXa1MW3_xyNM0G
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [API] Making request: PATCH https://get-flo.com/api/profile/voice-preference
+⚡️  To Native ->  SecureStoragePlugin get 57446056
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDI0MTA5MSwiZXhwIjoxNzY0ODQ1ODkxfQ.sXa1MW3_xyNM0G
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [error] - [VoiceSample] Playback failed: {}
+⚡️  [error] - [VoiceSample] Playback failed: {}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 57446057
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 57446058
+⚡️  TO JS {"value":"1764251461197"}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 57446059
+⚡️  TO JS undefined
+⚡️  To Native ->  Preferences set 57446060
+⚡️  TO JS undefined

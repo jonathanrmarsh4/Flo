@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button';
 import { format, setMonth, setYear, getMonth, getYear } from 'date-fns';
 import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
 
@@ -213,15 +213,25 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
     setPlayingVoice(voiceName);
     
     try {
-      const response = await fetch(`/api/voice/sample/${voiceName}`, {
+      // Get auth headers for JWT token (required for iOS app)
+      const headers = await getAuthHeaders();
+      const baseUrl = getApiBaseUrl();
+      
+      console.log('[VoiceSample] Fetching sample for:', voiceName);
+      
+      const response = await fetch(`${baseUrl}/api/voice/sample/${voiceName}`, {
+        headers,
         credentials: 'include'
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch voice sample');
+        console.error('[VoiceSample] Response not ok:', response.status, response.statusText);
+        throw new Error(`Failed to fetch voice sample: ${response.status}`);
       }
       
       const audioBlob = await response.blob();
+      console.log('[VoiceSample] Audio blob received:', audioBlob.size, 'bytes');
+      
       const audioUrl = URL.createObjectURL(audioBlob);
       
       const audio = new Audio(audioUrl);
@@ -232,7 +242,8 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         URL.revokeObjectURL(audioUrl);
       };
       
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.error('[VoiceSample] Audio playback error:', e);
         setPlayingVoice(null);
         URL.revokeObjectURL(audioUrl);
         toast({
