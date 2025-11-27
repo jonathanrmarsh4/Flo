@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Mic, MicOff, Volume2, Sparkles, Activity, Heart, Moon, TrendingUp, Loader2, Send, PhoneOff } from 'lucide-react';
+import { X, Mic, MicOff, Volume2, Sparkles, Activity, Heart, Moon, TrendingUp, Loader2, Send, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FloLogo } from './FloLogo';
 import { apiRequest } from '@/lib/queryClient';
@@ -19,8 +19,7 @@ interface VoiceChatScreenProps {
   onClose: () => void;
 }
 
-type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
-type VoiceState = 'idle' | 'listening' | 'speaking';
+type VoiceState = 'idle' | 'recording' | 'processing' | 'speaking';
 
 const quickSuggestions = [
   { icon: Activity, text: "What's my glucose trend?", color: "from-blue-500 to-cyan-500" },
@@ -34,53 +33,49 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     {
       id: '1',
       type: 'flo',
-      content: "Hi there! I'm Flō Oracle, your personal health AI. Start talking and I'll respond naturally.",
+      content: "Hi there! I'm Flō Oracle, your personal health AI powered by Grok. Tap the mic to start talking - I'll listen until you tap again, then respond with my voice.",
       timestamp: new Date(),
       isVoice: false,
     },
   ]);
   
-  // Voice state
-  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [audioLevel, setAudioLevel] = useState(0);
   const [isVoiceMode, setIsVoiceMode] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
   
-  // Text fallback state
   const [inputValue, setInputValue] = useState('');
   const [isTextLoading, setIsTextLoading] = useState(false);
   
-  // Transcript accumulator for brain updates
-  const currentUserTranscript = useRef('');
-  const currentAssistantTranscript = useRef('');
+  const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   
-  // Refs for WebRTC
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   
   const { toast } = useToast();
 
-  // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      disconnectVoice();
+      stopRecording();
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
   }, []);
 
-  // Audio level monitoring
   const startAudioLevelMonitoring = useCallback((stream: MediaStream) => {
     if (audioContextRef.current) {
       audioContextRef.current.close();
@@ -98,7 +93,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     
     const updateLevel = () => {
-      if (analyserRef.current && voiceState === 'listening') {
+      if (analyserRef.current) {
         analyserRef.current.getByteFrequencyData(dataArray);
         const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
         setAudioLevel(Math.min(100, average * 1.5));
@@ -107,156 +102,20 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     };
     
     updateLevel();
-  }, [voiceState]);
-
-  // Send brain update to backend (async, fire-and-forget)
-  const sendBrainUpdate = useCallback(async (userMessage?: string, assistantMessage?: string) => {
-    if (!userMessage && !assistantMessage) return;
-    
-    try {
-      await apiRequest('POST', '/api/voice/brain-update', {
-        userMessage,
-        assistantMessage
-      });
-      console.log('[VoiceChat] Brain update sent');
-    } catch (error) {
-      console.error('[VoiceChat] Brain update failed:', error);
-    }
   }, []);
 
-  // Handle data channel messages from OpenAI
-  const handleDataChannelMessage = useCallback((event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data);
-      console.log('[VoiceChat] Received event:', data.type);
-      
-      switch (data.type) {
-        case 'session.created':
-          console.log('[VoiceChat] Session created, ready for conversation');
-          setVoiceState('listening');
-          break;
-          
-        case 'input_audio_buffer.speech_started':
-          console.log('[VoiceChat] Speech started');
-          setVoiceState('listening');
-          break;
-          
-        case 'input_audio_buffer.speech_stopped':
-          console.log('[VoiceChat] Speech stopped');
-          break;
-          
-        case 'conversation.item.input_audio_transcription.completed':
-          // User's speech transcription
-          const userTranscript = data.transcript?.trim();
-          if (userTranscript) {
-            console.log('[VoiceChat] User said:', userTranscript);
-            currentUserTranscript.current = userTranscript;
-            
-            const userMessage: Message = {
-              id: Date.now().toString(),
-              type: 'user',
-              content: userTranscript,
-              timestamp: new Date(),
-              isVoice: true,
-            };
-            setMessages((prev) => [...prev, userMessage]);
-          }
-          break;
-          
-        case 'response.audio_transcript.delta':
-          // Streaming assistant transcript
-          if (data.delta) {
-            currentAssistantTranscript.current += data.delta;
-          }
-          break;
-          
-        case 'response.audio_transcript.done':
-          // Full assistant transcript complete
-          const assistantTranscript = data.transcript?.trim() || currentAssistantTranscript.current.trim();
-          if (assistantTranscript) {
-            console.log('[VoiceChat] Flo said:', assistantTranscript);
-            
-            const floMessage: Message = {
-              id: (Date.now() + 1).toString(),
-              type: 'flo',
-              content: assistantTranscript,
-              timestamp: new Date(),
-              isVoice: true,
-            };
-            setMessages((prev) => [...prev, floMessage]);
-            
-            // Send brain update with both messages
-            sendBrainUpdate(currentUserTranscript.current, assistantTranscript);
-            
-            // Reset accumulators
-            currentUserTranscript.current = '';
-            currentAssistantTranscript.current = '';
-          }
-          break;
-          
-        case 'response.audio.started':
-        case 'response.created':
-          setVoiceState('speaking');
-          break;
-          
-        case 'response.audio.done':
-        case 'response.done':
-          setVoiceState('listening');
-          break;
-          
-        case 'error':
-          console.error('[VoiceChat] Error from OpenAI:', data.error);
-          toast({
-            title: "Voice error",
-            description: data.error?.message || "An error occurred during the conversation.",
-            variant: "destructive",
-          });
-          break;
-      }
-    } catch (error) {
-      console.error('[VoiceChat] Error parsing message:', error);
+  const stopAudioLevelMonitoring = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
-  }, [sendBrainUpdate, toast]);
+    setAudioLevel(0);
+  }, []);
 
-  // Connect to OpenAI Realtime via WebRTC
-  const connectVoice = useCallback(async () => {
+  const startRecording = useCallback(async () => {
     try {
-      setConnectionState('connecting');
+      console.log('[VoiceChat] Starting recording...');
       
-      // Get ephemeral token from our backend
-      const tokenResponse = await apiRequest('POST', '/api/openai-realtime/token');
-      const tokenData = await tokenResponse.json() as { client_secret: string; error?: string };
-      
-      console.log('[VoiceChat] Token response parsed:', { hasSecret: !!tokenData.client_secret });
-      
-      if (tokenData.error) {
-        throw new Error(tokenData.error);
-      }
-      
-      const { client_secret } = tokenData;
-      if (!client_secret) {
-        throw new Error('No client secret received');
-      }
-      console.log('[VoiceChat] Got ephemeral token');
-      
-      // Create peer connection
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-      });
-      peerConnectionRef.current = pc;
-      
-      // Set up audio element for playback
-      const audioEl = document.createElement('audio');
-      audioEl.autoplay = true;
-      audioElementRef.current = audioEl;
-      
-      // Handle incoming audio track
-      pc.ontrack = (event) => {
-        console.log('[VoiceChat] Received audio track');
-        audioEl.srcObject = event.streams[0];
-      };
-      
-      // Get microphone access
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -265,191 +124,191 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           autoGainControl: true,
         }
       });
-      localStreamRef.current = stream;
       
-      // Add microphone track to peer connection
-      stream.getTracks().forEach(track => {
-        pc.addTrack(track, stream);
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+      
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
       });
       
-      // Start audio level monitoring
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorder.start(100);
+      setVoiceState('recording');
+      
       startAudioLevelMonitoring(stream);
       
-      // Create data channel for events
-      const dc = pc.createDataChannel('oai-events');
-      dataChannelRef.current = dc;
-      
-      dc.onopen = () => {
-        console.log('[VoiceChat] Data channel opened');
-      };
-      
-      dc.onmessage = handleDataChannelMessage;
-      
-      // Create offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      
-      // Wait for ICE gathering
-      await new Promise<void>((resolve) => {
-        if (pc.iceGatheringState === 'complete') {
-          resolve();
-        } else {
-          pc.onicegatheringstatechange = () => {
-            if (pc.iceGatheringState === 'complete') {
-              resolve();
-            }
-          };
-        }
-      });
-      
-      // Send offer to OpenAI
-      console.log('[VoiceChat] Sending SDP offer to OpenAI...');
-      const sdpResponse = await fetch('https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${client_secret}`,
-          'Content-Type': 'application/sdp'
-        },
-        body: pc.localDescription?.sdp
-      });
-      
-      console.log('[VoiceChat] OpenAI response status:', sdpResponse.status);
-      
-      if (!sdpResponse.ok) {
-        const errorText = await sdpResponse.text();
-        console.error('[VoiceChat] OpenAI error response:', errorText);
-        throw new Error(`OpenAI Realtime connection failed: ${sdpResponse.status} - ${errorText}`);
-      }
-      
-      // Set remote description
-      const answerSdp = await sdpResponse.text();
-      console.log('[VoiceChat] Received SDP answer, setting remote description...');
-      await pc.setRemoteDescription({
-        type: 'answer',
-        sdp: answerSdp
-      });
-      
-      console.log('[VoiceChat] WebRTC connection established');
-      setConnectionState('connected');
-      setVoiceState('listening');
-      
-      // Handle connection state changes
-      pc.onconnectionstatechange = () => {
-        console.log('[VoiceChat] Connection state:', pc.connectionState);
-        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-          setConnectionState('error');
-          setVoiceState('idle');
-        }
-      };
+      console.log('[VoiceChat] Recording started');
       
     } catch (error: any) {
-      // Log detailed error info for debugging (some errors have non-enumerable properties)
-      console.error('[VoiceChat] Connection error:', {
-        message: error?.message,
-        name: error?.name,
-        stack: error?.stack,
-        code: error?.code,
-        toString: String(error)
-      });
-      setConnectionState('error');
+      console.error('[VoiceChat] Failed to start recording:', error);
       
       if (error.name === 'NotAllowedError') {
         toast({
           title: "Microphone access denied",
-          description: "Please allow microphone access to use voice chat, or switch to text mode.",
+          description: "Please allow microphone access to use voice chat.",
           variant: "destructive",
         });
         setIsVoiceMode(false);
       } else {
         toast({
-          title: "Voice unavailable",
-          description: error.message || "Could not connect to voice service. Using text mode.",
+          title: "Recording failed",
+          description: "Could not start recording. Please try again.",
           variant: "destructive",
         });
       }
     }
-  }, [handleDataChannelMessage, startAudioLevelMonitoring, toast]);
+  }, [startAudioLevelMonitoring, toast]);
 
-  // Disconnect voice
-  const disconnectVoice = useCallback(() => {
-    console.log('[VoiceChat] Disconnecting...');
+  const stopRecording = useCallback(() => {
+    console.log('[VoiceChat] Stopping recording...');
     
-    // Cancel animation frame
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
+    stopAudioLevelMonitoring();
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
     
-    // Close audio context
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
     }
-    
-    // Close data channel
-    if (dataChannelRef.current) {
-      dataChannelRef.current.close();
-      dataChannelRef.current = null;
-    }
-    
-    // Close peer connection
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    
-    // Stop local stream
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => track.stop());
-      localStreamRef.current = null;
-    }
-    
-    // Clear audio element
-    if (audioElementRef.current) {
-      audioElementRef.current.srcObject = null;
-      audioElementRef.current = null;
-    }
-    
-    setConnectionState('disconnected');
-    setVoiceState('idle');
-    setAudioLevel(0);
-  }, []);
+  }, [stopAudioLevelMonitoring]);
 
-  // Toggle mute
-  const toggleMute = useCallback(() => {
-    if (localStreamRef.current) {
-      const audioTrack = localStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
+  const processRecording = useCallback(async () => {
+    if (audioChunksRef.current.length === 0) {
+      console.log('[VoiceChat] No audio recorded');
+      setVoiceState('idle');
+      return;
+    }
+    
+    setVoiceState('processing');
+    
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { 
+        type: mediaRecorderRef.current?.mimeType || 'audio/webm' 
+      });
+      
+      console.log('[VoiceChat] Processing audio:', audioBlob.size, 'bytes');
+      
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64Audio = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+      );
+      
+      console.log('[VoiceChat] Sending to speech relay...');
+      
+      const response = await apiRequest('POST', '/api/voice/speech-relay', {
+        audioBase64: base64Audio,
+        conversationHistory
+      });
+      
+      const result = await response.json() as {
+        transcript: string;
+        response: string;
+        audioBase64: string;
+        audioFormat: string;
+      };
+      
+      console.log('[VoiceChat] Received response:', {
+        transcriptLength: result.transcript.length,
+        responseLength: result.response.length,
+        audioLength: result.audioBase64.length
+      });
+      
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        type: 'user',
+        content: result.transcript,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      
+      const floMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'flo',
+        content: result.response,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      
+      setMessages(prev => [...prev, userMessage, floMessage]);
+      
+      setConversationHistory(prev => [
+        ...prev,
+        { role: 'user' as const, content: result.transcript },
+        { role: 'assistant' as const, content: result.response }
+      ].slice(-20));
+      
+      setVoiceState('speaking');
+      
+      const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
+      const audioBlob2 = new Blob([audioData], { type: `audio/${result.audioFormat}` });
+      const audioUrl = URL.createObjectURL(audioBlob2);
+      
+      const audioEl = new Audio(audioUrl);
+      audioElementRef.current = audioEl;
+      
+      audioEl.onended = () => {
+        setVoiceState('idle');
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      audioEl.onerror = () => {
+        console.error('[VoiceChat] Audio playback error');
+        setVoiceState('idle');
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      await audioEl.play();
+      
+    } catch (error: any) {
+      console.error('[VoiceChat] Processing failed:', error);
+      
+      toast({
+        title: "Voice processing failed",
+        description: error.message || "Could not process your voice. Please try again.",
+        variant: "destructive",
+      });
+      
+      setVoiceState('idle');
+    }
+  }, [conversationHistory, toast]);
+
+  const handleMicPress = useCallback(() => {
+    if (voiceState === 'idle') {
+      startRecording();
+    } else if (voiceState === 'recording') {
+      stopRecording();
+      setTimeout(() => {
+        processRecording();
+      }, 100);
+    } else if (voiceState === 'speaking') {
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current = null;
       }
+      setVoiceState('idle');
     }
-  }, []);
+  }, [voiceState, startRecording, stopRecording, processRecording]);
 
-  // Handle voice toggle button
-  const handleVoiceToggle = useCallback(() => {
-    if (connectionState === 'disconnected' || connectionState === 'error') {
-      connectVoice();
-    } else if (connectionState === 'connected') {
-      toggleMute();
-    }
-  }, [connectionState, connectVoice, toggleMute]);
-
-  // Handle end call
-  const handleEndCall = useCallback(() => {
-    disconnectVoice();
-  }, [disconnectVoice]);
-
-  // Handle text submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = inputValue.trim();
-    if (!text || isTextLoading) return;
+  const handleTextSubmit = useCallback(async (e?: React.FormEvent) => {
+    e?.preventDefault();
     
+    if (!inputValue.trim() || isTextLoading) return;
+    
+    const text = inputValue.trim();
     setInputValue('');
     setIsTextLoading(true);
     
-    // Add user message immediately
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -457,80 +316,61 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       timestamp: new Date(),
       isVoice: false,
     };
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     
     try {
-      // Use text chat endpoint (existing Flo Oracle)
       const response = await apiRequest('POST', '/api/flo-oracle/chat', {
         message: text,
-        history: messages.slice(1).map(msg => ({
-          role: msg.type === 'user' ? 'user' : 'assistant',
-          content: msg.content,
-        })),
+        conversationHistory
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to get response');
-      }
+      const result = await response.json() as { reply: string };
       
-      const result = await response.json();
-      
-      // Add Flo's response
       const floMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'flo',
-        content: result.response,
+        content: result.reply,
         timestamp: new Date(),
         isVoice: false,
       };
-      setMessages((prev) => [...prev, floMessage]);
+      
+      setMessages(prev => [...prev, floMessage]);
+      
+      setConversationHistory(prev => [
+        ...prev,
+        { role: 'user', content: text },
+        { role: 'assistant', content: result.reply }
+      ].slice(-20));
       
     } catch (error: any) {
-      console.error('[VoiceChat] Text chat error:', error);
+      console.error('[VoiceChat] Text chat failed:', error);
+      
       toast({
         title: "Message failed",
-        description: "Could not send your message. Please try again.",
+        description: "Could not send message. Please try again.",
         variant: "destructive",
       });
+      
     } finally {
       setIsTextLoading(false);
     }
-  };
+  }, [inputValue, isTextLoading, conversationHistory, toast]);
 
-  // Handle suggestion click
-  const handleSuggestionClick = (text: string) => {
-    if (isVoiceMode && connectionState === 'connected' && dataChannelRef.current) {
-      // Send as text input to OpenAI Realtime
-      dataChannelRef.current.send(JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text }]
-        }
-      }));
-      dataChannelRef.current.send(JSON.stringify({
-        type: 'response.create'
-      }));
-      
-      // Add to UI
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        type: 'user',
-        content: text,
-        timestamp: new Date(),
-        isVoice: false,
-      };
-      setMessages((prev) => [...prev, userMessage]);
+  const handleQuickSuggestion = useCallback((text: string) => {
+    if (isVoiceMode && voiceState === 'idle') {
+      setInputValue(text);
+      setIsVoiceMode(false);
+      setTimeout(() => {
+        handleTextSubmit();
+      }, 100);
     } else {
       setInputValue(text);
       inputRef.current?.focus();
     }
-  };
+  }, [isVoiceMode, voiceState, handleTextSubmit]);
 
-  const isConnected = connectionState === 'connected';
-  const isConnecting = connectionState === 'connecting';
-  const isListening = voiceState === 'listening' && isConnected;
+  const isRecording = voiceState === 'recording';
+  const isProcessing = voiceState === 'processing';
   const isSpeaking = voiceState === 'speaking';
 
   return (
@@ -544,13 +384,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
       }}
     >
-      {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
       
-      {/* Liquid Glass Window */}
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -569,7 +407,6 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             : '0 25px 50px -12px rgba(0, 0, 0, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.8)',
         }}
       >
-        {/* Header */}
         <div className={`flex items-center justify-between px-5 py-4 ${
           isDark ? 'border-b border-white/10' : 'border-b border-black/5'
         }`}>
@@ -580,8 +417,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 Flō Oracle
               </h1>
               <div className="flex items-center gap-1.5 mt-0.5">
+                <img src={xaiLogo} alt="xAI" className="w-3 h-3 opacity-50" />
                 <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                  {isConnected ? '🟢 Connected' : isConnecting ? '🟡 Connecting...' : '⚪ Ready'}
+                  Powered by Grok
                 </span>
               </div>
             </div>
@@ -598,381 +436,259 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           </button>
         </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-        <AnimatePresence initial={false}>
-          {messages.map((message) => (
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <AnimatePresence initial={false}>
+            {messages.map((message) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`max-w-[85%] ${message.type === 'user' ? 'order-1' : ''}`}>
+                  {message.type === 'flo' && (
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <FloLogo size={16} />
+                      <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        Flō Oracle
+                      </span>
+                      {message.isVoice && (
+                        <Volume2 className={`w-3 h-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+                      )}
+                    </div>
+                  )}
+                  {message.type === 'user' && (
+                    <div className="flex items-center gap-2 mb-1.5 justify-end">
+                      {message.isVoice && (
+                        <Mic className={`w-3 h-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+                      )}
+                      <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        You
+                      </span>
+                    </div>
+                  )}
+                  <div
+                    className={`px-4 py-3 rounded-2xl ${
+                      message.type === 'user'
+                        ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white'
+                        : isDark
+                          ? 'bg-white/10 text-white/90'
+                          : 'bg-white text-gray-900 shadow-sm'
+                    }`}
+                  >
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          
+          {isProcessing && (
             <motion.div
-              key={message.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              className="flex justify-start"
             >
-              <div className={`max-w-[85%] ${message.type === 'user' ? 'order-1' : ''}`}>
-                {message.type === 'flo' && (
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <FloLogo size={16} />
-                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                      Flō Oracle
-                    </span>
-                    {message.isVoice && (
-                      <Volume2 className={`w-3 h-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
-                    )}
-                  </div>
-                )}
-                {message.type === 'user' && (
-                  <div className="flex items-center gap-2 mb-1.5 justify-end">
-                    {message.isVoice && (
-                      <Mic className={`w-3 h-3 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
-                    )}
-                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                      You
-                    </span>
-                  </div>
-                )}
-                <div
-                  className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
-                    message.type === 'user'
-                      ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white'
-                      : isDark
-                        ? 'bg-white/10 border border-white/10'
-                        : 'bg-white/70 border border-white/20'
-                  }`}
-                >
-                  <p className={`text-sm leading-relaxed ${
-                    message.type === 'user' 
-                      ? 'text-white' 
-                      : isDark ? 'text-white/90' : 'text-gray-800'
-                  }`}>
-                    {message.content}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {/* Listening Indicator */}
-        {isListening && !isMuted && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-center"
-          >
-            <div className={`rounded-2xl px-4 py-2 backdrop-blur-xl ${
-              isDark ? 'bg-white/5 border border-white/10' : 'bg-white/60 border border-white/20'
-            }`}>
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-0.5 h-4">
-                  {[...Array(5)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className={`w-1 rounded-full ${isDark ? 'bg-cyan-400' : 'bg-cyan-600'}`}
-                      animate={{
-                        height: [4, Math.min(16, 4 + (audioLevel * 0.15)), 4],
-                      }}
-                      transition={{
-                        duration: 0.3,
-                        repeat: Infinity,
-                        delay: i * 0.05,
-                      }}
-                    />
-                  ))}
-                </div>
-                <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                  Listening...
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Flo Speaking Indicator */}
-        {isSpeaking && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="flex justify-start"
-          >
-            <div className="max-w-[85%]">
-              <div className="flex items-center gap-2 mb-1.5">
-                <FloLogo size={16} />
-                <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                  Flō Oracle
-                </span>
-              </div>
-              <div className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
-                isDark ? 'bg-white/10 border border-white/10' : 'bg-white/70 border border-white/20'
-              }`}>
-                <div className="flex items-center gap-2">
-                  <Volume2 className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-                  <div className="flex items-center gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className={`w-1 h-3 rounded-full ${isDark ? 'bg-cyan-400' : 'bg-cyan-600'}`}
-                        animate={{
-                          scaleY: [1, 1.8, 1],
-                        }}
-                        transition={{
-                          duration: 0.8,
-                          repeat: Infinity,
-                          delay: i * 0.1,
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                    Speaking...
-                  </span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Text mode loading indicator */}
-        {isTextLoading && !isVoiceMode && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-start"
-            data-testid="flo-loading-indicator"
-          >
-            <div className="max-w-[85%]">
-              <div className="flex items-center gap-2 mb-1.5">
-                <FloLogo size={16} />
-                <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                  Flō Oracle
-                </span>
-              </div>
-              <div className={`rounded-2xl px-4 py-3 backdrop-blur-xl ${
-                isDark ? 'bg-white/10 border border-white/10' : 'bg-white/70 border border-white/20'
+              <div className={`px-4 py-3 rounded-2xl ${
+                isDark ? 'bg-white/10' : 'bg-white shadow-sm'
               }`}>
                 <div className="flex items-center gap-2">
                   <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-                  <span className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
                     Thinking...
                   </span>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        )}
-        
-        {/* Quick Suggestions */}
-        {messages.length === 1 && !isSpeaking && !isListening && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="space-y-2 pt-2"
-          >
-            <p className={`text-xs text-center ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-              Quick suggestions:
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              {quickSuggestions.map((suggestion, index) => {
-                const Icon = suggestion.icon;
-                return (
+            </motion.div>
+          )}
+          
+          {messages.length === 1 && (
+            <div className="mt-4">
+              <p className={`text-center text-xs mb-3 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                Quick suggestions:
+              </p>
+              <div className="space-y-2">
+                {quickSuggestions.map((suggestion, index) => (
                   <motion.button
                     key={index}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + index * 0.08 }}
-                    onClick={() => handleSuggestionClick(suggestion.text)}
-                    disabled={isTextLoading}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl backdrop-blur-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={() => handleQuickSuggestion(suggestion.text)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                       isDark
                         ? 'bg-white/5 hover:bg-white/10 border border-white/10'
-                        : 'bg-white/60 hover:bg-white/80 border border-white/20'
+                        : 'bg-white/50 hover:bg-white/80 border border-white/20'
                     }`}
-                    data-testid={`suggestion-${index}`}
+                    data-testid={`button-suggestion-${index}`}
                   >
-                    <div className={`w-7 h-7 rounded-lg bg-gradient-to-r ${suggestion.color} flex items-center justify-center shadow-lg`}>
-                      <Icon className="w-3.5 h-3.5 text-white" />
+                    <div className={`w-8 h-8 rounded-full bg-gradient-to-r ${suggestion.color} flex items-center justify-center`}>
+                      <suggestion.icon className="w-4 h-4 text-white" />
                     </div>
-                    <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                    <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
                       {suggestion.text}
                     </span>
                   </motion.button>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </motion.div>
-        )}
-        
-        <div ref={messagesEndRef} />
-      </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Voice/Input Control Area */}
-      <div className={`px-5 py-5 border-t ${
-        isDark ? 'border-white/10' : 'border-black/10'
-      }`}>
-        {isVoiceMode ? (
-          <>
-            {/* Voice Control Buttons */}
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex items-center gap-4">
-                {/* End Call Button (only when connected) */}
-                {isConnected && (
-                  <motion.button
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={handleEndCall}
-                    className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center shadow-lg"
-                    data-testid="button-end-call"
-                  >
-                    <PhoneOff className="w-5 h-5 text-white" />
-                  </motion.button>
-                )}
-
-                {/* Main Mic Button */}
+        <div className={`px-5 py-5 border-t ${
+          isDark ? 'border-white/10' : 'border-black/10'
+        }`}>
+          {isVoiceMode ? (
+            <>
+              <div className="flex flex-col items-center gap-3">
                 <motion.button
                   whileTap={{ scale: 0.9 }}
-                  onClick={handleVoiceToggle}
-                  disabled={isConnecting}
+                  onClick={handleMicPress}
+                  disabled={isProcessing}
                   className={`relative w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-2xl disabled:opacity-70 ${
-                    isConnecting
-                      ? 'bg-gray-400 cursor-wait'
-                      : isConnected && isMuted
-                        ? 'bg-orange-500 shadow-orange-500/50'
-                        : isConnected
-                          ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 shadow-cyan-500/50'
+                    isRecording
+                      ? 'bg-red-500 shadow-red-500/50'
+                      : isSpeaking
+                        ? 'bg-purple-500 shadow-purple-500/50'
+                        : isProcessing
+                          ? 'bg-gray-400 cursor-wait'
                           : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 shadow-cyan-500/50'
                   }`}
                   data-testid="button-voice-toggle"
                 >
-                  {isConnecting ? (
+                  {isProcessing ? (
                     <Loader2 className="w-7 h-7 text-white animate-spin" />
-                  ) : isMuted ? (
-                    <MicOff className="w-7 h-7 text-white" />
+                  ) : isRecording ? (
+                    <Square className="w-6 h-6 text-white" />
+                  ) : isSpeaking ? (
+                    <Volume2 className="w-7 h-7 text-white" />
                   ) : (
                     <Mic className="w-7 h-7 text-white" />
                   )}
                   
-                  {/* Pulsing rings when listening */}
-                  {isListening && !isMuted && (
+                  {isRecording && (
                     <>
                       <motion.div
-                        className="absolute inset-0 rounded-full border-2 border-cyan-500"
+                        className="absolute inset-0 rounded-full border-2 border-red-400"
                         animate={{
-                          scale: [1, 1.4, 1],
-                          opacity: [0.5, 0, 0.5],
+                          scale: [1, 1.3 + (audioLevel / 100) * 0.3, 1],
+                          opacity: [0.6, 0.2, 0.6],
                         }}
                         transition={{
-                          duration: 2,
+                          duration: 1,
                           repeat: Infinity,
-                          ease: 'easeOut',
+                          ease: "easeInOut",
                         }}
                       />
                       <motion.div
-                        className="absolute inset-0 rounded-full border-2 border-cyan-500"
+                        className="absolute inset-0 rounded-full border-2 border-red-300"
                         animate={{
-                          scale: [1, 1.4, 1],
-                          opacity: [0.5, 0, 0.5],
+                          scale: [1, 1.5 + (audioLevel / 100) * 0.5, 1],
+                          opacity: [0.4, 0.1, 0.4],
                         }}
                         transition={{
-                          duration: 2,
+                          duration: 1.5,
                           repeat: Infinity,
-                          ease: 'easeOut',
-                          delay: 0.5,
+                          ease: "easeInOut",
                         }}
                       />
                     </>
                   )}
+                  
+                  {isSpeaking && (
+                    <motion.div
+                      className="absolute inset-0 rounded-full border-2 border-purple-400"
+                      animate={{
+                        scale: [1, 1.2, 1],
+                        opacity: [0.6, 0.2, 0.6],
+                      }}
+                      transition={{
+                        duration: 0.8,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                    />
+                  )}
                 </motion.button>
-              </div>
-
-              <div className="text-center">
-                <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {isConnecting 
-                    ? 'Connecting...' 
-                    : isConnected && isMuted 
-                      ? 'Muted - tap to unmute'
-                      : isConnected
-                        ? isSpeaking 
-                          ? 'Flō is speaking'
-                          : 'Just start talking'
-                        : 'Tap to start conversation'
+                
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  {isRecording 
+                    ? 'Tap to stop recording' 
+                    : isSpeaking
+                      ? 'Playing response...'
+                      : isProcessing
+                        ? 'Processing...'
+                        : 'Tap to start talking'
                   }
                 </p>
-                <p className={`text-xs mt-0.5 flex items-center justify-center gap-1 ${
-                  isDark ? 'text-white/40' : 'text-gray-400'
-                }`}>
-                  <Sparkles className="w-3 h-3" />
-                  Natural voice conversation
+                
+                <p className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
+                  Grok-powered voice conversation
                 </p>
               </div>
-
-              {/* Switch to text mode */}
+              
               <button
-                onClick={() => {
-                  disconnectVoice();
-                  setIsVoiceMode(false);
-                }}
-                className={`text-xs underline ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => setIsVoiceMode(false)}
+                className={`w-full mt-3 text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
                 data-testid="button-switch-to-text"
               >
+                <Send className="w-3 h-3" />
                 Switch to text mode
               </button>
-            </div>
-          </>
-        ) : (
-          /* Text Input Fallback */
-          <div className="space-y-3">
-            <form onSubmit={handleSubmit} className="flex items-center gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                disabled={isTextLoading}
-                placeholder="Ask about your health..."
-                className={`flex-1 px-4 py-2.5 rounded-xl backdrop-blur-xl transition-colors disabled:opacity-50 ${
-                  isDark
-                    ? 'bg-white/10 border border-white/10 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/20'
-                    : 'bg-white/70 border border-white/20 text-gray-900 placeholder:text-gray-500 focus:bg-white/90 focus:border-white/30'
-                } outline-none`}
-                data-testid="input-chat-message"
-              />
+            </>
+          ) : (
+            <div className="space-y-3">
+              <form onSubmit={handleTextSubmit} className="flex gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Type your message..."
+                  disabled={isTextLoading}
+                  className={`flex-1 px-4 py-2.5 rounded-xl backdrop-blur-xl transition-colors disabled:opacity-50 ${
+                    isDark
+                      ? 'bg-white/10 border border-white/10 text-white placeholder:text-white/50 focus:bg-white/15 focus:border-white/20'
+                      : 'bg-white/70 border border-white/20 text-gray-900 placeholder:text-gray-500 focus:bg-white/90 focus:border-white/30'
+                  } outline-none`}
+                  data-testid="input-chat-message"
+                />
+                <button
+                  type="submit"
+                  disabled={!inputValue.trim() || isTextLoading}
+                  className={`p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    inputValue.trim() && !isTextLoading
+                      ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/25'
+                      : isDark
+                        ? 'bg-white/10'
+                        : 'bg-white/70'
+                  }`}
+                  data-testid="button-send-message"
+                >
+                  {isTextLoading ? (
+                    <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  ) : (
+                    <Send className={`w-5 h-5 ${
+                      inputValue.trim() ? 'text-white' : isDark ? 'text-white/50' : 'text-gray-500'
+                    }`} />
+                  )}
+                </button>
+              </form>
+              
               <button
-                type="submit"
-                disabled={!inputValue.trim() || isTextLoading}
-                className={`p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                  inputValue.trim() && !isTextLoading
-                    ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/25'
-                    : isDark
-                      ? 'bg-white/10'
-                      : 'bg-white/70'
-                }`}
-                data-testid="button-send-message"
+                onClick={() => setIsVoiceMode(true)}
+                className={`w-full text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
+                data-testid="button-switch-to-voice"
               >
-                {isTextLoading ? (
-                  <Loader2 className="w-5 h-5 text-white animate-spin" />
-                ) : (
-                  <Send className={`w-5 h-5 ${
-                    inputValue.trim() ? 'text-white' : isDark ? 'text-white/50' : 'text-gray-500'
-                  }`} />
-                )}
+                <Mic className="w-3 h-3" />
+                Switch to voice mode
               </button>
-            </form>
-            
-            {/* Switch to voice mode */}
-            <button
-              onClick={() => setIsVoiceMode(true)}
-              className={`w-full text-xs flex items-center justify-center gap-1 ${isDark ? 'text-white/50 hover:text-white/70' : 'text-gray-500 hover:text-gray-700'}`}
-              data-testid="button-switch-to-voice"
-            >
-              <Mic className="w-3 h-3" />
-              Switch to voice mode
-            </button>
-          </div>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
       </motion.div>
     </motion.div>
   );
