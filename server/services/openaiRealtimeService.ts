@@ -24,23 +24,19 @@ export class OpenAIRealtimeService {
 
     const systemInstructions = this.buildSystemPrompt(config);
 
+    // The ephemeral token API uses flat session parameters, not nested under 'session'
     const sessionConfig = {
-      session: {
-        type: 'realtime',
-        model: REALTIME_MODEL,
-        instructions: systemInstructions,
-        voice: 'alloy',
-        input_audio_format: 'pcm16',
-        output_audio_format: 'pcm16',
-        input_audio_transcription: {
-          model: 'whisper-1'
-        },
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 500
-        }
+      model: REALTIME_MODEL,
+      voice: 'alloy',
+      instructions: systemInstructions,
+      input_audio_transcription: {
+        model: 'whisper-1'
+      },
+      turn_detection: {
+        type: 'server_vad',
+        threshold: 0.5,
+        prefix_padding_ms: 300,
+        silence_duration_ms: 500
       }
     };
 
@@ -49,7 +45,7 @@ export class OpenAIRealtimeService {
       model: REALTIME_MODEL
     });
 
-    const response = await fetch(`${this.baseUrl}/realtime/client_secrets`, {
+    const response = await fetch(`${this.baseUrl}/realtime/sessions`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
@@ -67,14 +63,20 @@ export class OpenAIRealtimeService {
       throw new Error(`Failed to create ephemeral key: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json() as EphemeralKeyResponse;
+    const data = await response.json();
+    
+    // The sessions endpoint returns client_secret object
+    const result: EphemeralKeyResponse = {
+      value: data.client_secret?.value || data.value,
+      expires_at: data.client_secret?.expires_at || data.expires_at
+    };
     
     logger.info('[OpenAI-Realtime] Ephemeral key created successfully', { 
       userId: config.userId,
-      expiresAt: data.expires_at
+      expiresAt: result.expires_at
     });
 
-    return data;
+    return result;
   }
 
   async createUnifiedSession(sdpOffer: string, config: SessionConfig): Promise<string> {
