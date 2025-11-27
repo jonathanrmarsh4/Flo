@@ -118,6 +118,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioQueueRef = useRef<Float32Array[]>([]);
+  const nativeAudioQueueRef = useRef<string[]>([]); // Queue for native iOS playback (base64 audio)
   const isPlayingRef = useRef(false);
   const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const voiceStateRef = useRef<VoiceState>('idle');
@@ -228,8 +229,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       ws.onopen = async () => {
         console.log('[VoiceChat] WebSocket connected');
         setConnectionState('connected');
-        setVoiceState('listening');
+        // Start in 'speaking' state - wait for AI greeting before listening
+        setVoiceState('speaking');
         
+        // Start microphone capture but don't send audio yet (voiceState is 'speaking')
+        // Audio will only be sent when voiceState becomes 'listening'
         if (useNativeMic) {
           // iOS: Start native microphone capture
           await startNativeMicrophoneCapture(ws);
@@ -420,29 +424,23 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     
     if (data.type === 'audio' && data.audio_event?.audio_base_64) {
       // Audio from ElevenLabs TTS
-      console.log('[VoiceChat] Queueing audio chunk, length:', data.audio_event.audio_base_64.length);
+      console.log('[VoiceChat] Received audio chunk, length:', data.audio_event.audio_base_64.length);
       
       // Use native playback on iOS (WebAudio is blocked by AVAudioSession)
       if (isUsingNativeMicRef.current) {
-        // Play directly via native AVAudioEngine
+        // Queue the base64 audio for native playback
+        nativeAudioQueueRef.current.push(data.audio_event.audio_base_64);
         setVoiceState('speaking');
-        isPlayingRef.current = true;
-        try {
-          await playNativeAudio(data.audio_event.audio_base_64, 16000);
-          console.log('[VoiceChat] Native playback completed');
-          // Check for more audio or switch back to listening
-          if (!isPlayingRef.current) return;
-          isPlayingRef.current = false;
-          setVoiceState('listening');
-        } catch (error) {
-          console.error('[VoiceChat] Native playback error:', error);
-          isPlayingRef.current = false;
-          setVoiceState('listening');
+        
+        // Start playing if not already playing
+        if (!isPlayingRef.current) {
+          playNativeAudioQueue();
         }
       } else {
         // Web fallback: decode and queue for WebAudio
         const pcmData = base64PcmToFloat32(data.audio_event.audio_base_64);
         audioQueueRef.current.push(pcmData);
+        setVoiceState('speaking');
         
         if (!isPlayingRef.current) {
           playAudioQueue();
@@ -600,6 +598,44 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     }
   };
 
+  // Play native audio queue (iOS) - plays queued base64 audio chunks sequentially
+  const playNativeAudioQueue = async () => {
+    console.log('[VoiceChat] playNativeAudioQueue called, queue length:', nativeAudioQueueRef.current.length);
+    
+    if (nativeAudioQueueRef.current.length === 0) {
+      console.log('[VoiceChat] Native queue empty, switching to listening');
+      isPlayingRef.current = false;
+      setVoiceState('listening');
+      return;
+    }
+    
+    isPlayingRef.current = true;
+    setVoiceState('speaking');
+    
+    // Get next chunk from queue
+    const audioChunk = nativeAudioQueueRef.current.shift()!;
+    
+    try {
+      console.log('[VoiceChat] Playing native audio chunk, length:', audioChunk.length);
+      await playNativeAudio(audioChunk, 16000);
+      console.log('[VoiceChat] Native audio chunk completed');
+      
+      // Check for more audio in queue
+      if (nativeAudioQueueRef.current.length > 0) {
+        // Play next chunk
+        playNativeAudioQueue();
+      } else {
+        console.log('[VoiceChat] No more native audio, switching to listening');
+        isPlayingRef.current = false;
+        setVoiceState('listening');
+      }
+    } catch (error) {
+      console.error('[VoiceChat] Native playback error:', error);
+      isPlayingRef.current = false;
+      setVoiceState('listening');
+    }
+  };
+
   // Stop current playback
   const stopPlayback = async () => {
     // Stop native playback on iOS
@@ -609,6 +645,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       } catch (e) {
         console.warn('[VoiceChat] Error stopping native playback:', e);
       }
+      nativeAudioQueueRef.current = [];
     }
     
     // Stop WebAudio playback

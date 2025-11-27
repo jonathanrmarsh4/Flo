@@ -210,7 +210,7 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         
-        let sampleRate = call.getDouble("sampleRate") ?? 16000.0
+        let sourceSampleRate = call.getDouble("sampleRate") ?? 16000.0
         
         guard let audioData = Data(base64Encoded: base64Audio) else {
             call.reject("Invalid base64 audio data")
@@ -220,42 +220,72 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
         guard let audioEngine = self.audioEngine, let playerNode = self.playerNode else {
             print("⚠️ [NativeMic] playAudio called but no audio engine - attempting standalone playback")
             // Fallback: create temporary playback engine
-            playStandaloneAudio(data: audioData, sampleRate: sampleRate, call: call)
+            playStandaloneAudio(data: audioData, sampleRate: sourceSampleRate, call: call)
             return
         }
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             
-            // Convert Int16 data to Float32 for playback
-            let sampleCount = audioData.count / 2
-            var floatSamples = [Float](repeating: 0, count: sampleCount)
+            // Get output format from the engine (typically 48kHz stereo)
+            let outputFormat = audioEngine.outputNode.inputFormat(forBus: 0)
+            let outputSampleRate = outputFormat.sampleRate
+            let outputChannels = outputFormat.channelCount
+            
+            // Convert Int16 data to Float32
+            let sourceSampleCount = audioData.count / 2
+            var monoSamples = [Float](repeating: 0, count: sourceSampleCount)
             
             audioData.withUnsafeBytes { rawBuffer in
                 let int16Buffer = rawBuffer.bindMemory(to: Int16.self)
-                for i in 0..<sampleCount {
-                    floatSamples[i] = Float(int16Buffer[i]) / 32768.0
+                for i in 0..<sourceSampleCount {
+                    monoSamples[i] = Float(int16Buffer[i]) / 32768.0
                 }
             }
             
-            // Create audio buffer at source sample rate
-            guard let sourceFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
-                                                    sampleRate: sampleRate,
-                                                    channels: 1,
+            // Resample from source rate (16kHz) to output rate (48kHz)
+            let resampleRatio = outputSampleRate / sourceSampleRate
+            let resampledCount = Int(Double(sourceSampleCount) * resampleRatio)
+            var resampledSamples = [Float](repeating: 0, count: resampledCount)
+            
+            for i in 0..<resampledCount {
+                let srcIndex = Double(i) / resampleRatio
+                let srcIndexInt = Int(srcIndex)
+                let frac = Float(srcIndex - Double(srcIndexInt))
+                
+                if srcIndexInt + 1 < sourceSampleCount {
+                    // Linear interpolation
+                    resampledSamples[i] = monoSamples[srcIndexInt] * (1 - frac) + monoSamples[srcIndexInt + 1] * frac
+                } else if srcIndexInt < sourceSampleCount {
+                    resampledSamples[i] = monoSamples[srcIndexInt]
+                }
+            }
+            
+            // Create stereo buffer matching output format (duplicate mono to both channels)
+            guard let stereoFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                                    sampleRate: outputSampleRate,
+                                                    channels: outputChannels,
                                                     interleaved: false),
-                  let audioBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: UInt32(sampleCount)) else {
+                  let audioBuffer = AVAudioPCMBuffer(pcmFormat: stereoFormat, frameCapacity: UInt32(resampledCount)) else {
+                print("❌ [NativeMic] Failed to create stereo buffer")
                 DispatchQueue.main.async {
                     call.reject("Failed to create audio buffer")
                 }
                 return
             }
             
-            audioBuffer.frameLength = UInt32(sampleCount)
-            if let channelData = audioBuffer.floatChannelData?[0] {
-                for i in 0..<sampleCount {
-                    channelData[i] = floatSamples[i]
+            audioBuffer.frameLength = UInt32(resampledCount)
+            
+            // Fill all channels with the same mono data (upmix mono to stereo)
+            if let channelData = audioBuffer.floatChannelData {
+                for ch in 0..<Int(outputChannels) {
+                    for i in 0..<resampledCount {
+                        channelData[ch][i] = resampledSamples[i]
+                    }
                 }
             }
+            
+            print("🔊 [NativeMic] Playing \(resampledCount) samples at \(outputSampleRate) Hz, \(outputChannels) channels (from \(sourceSampleCount) mono @ \(sourceSampleRate))")
             
             // Start player if not already playing
             if !playerNode.isPlaying {
@@ -270,13 +300,12 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
             })
             
             self.isPlaybackActive = true
-            let durationMs = Int(Double(sampleCount) / sampleRate * 1000)
-            print("🔊 [NativeMic] Playing \(sampleCount) samples (\(durationMs)ms) at \(sampleRate) Hz")
+            let durationMs = Int(Double(sourceSampleCount) / sourceSampleRate * 1000)
             
             DispatchQueue.main.async {
                 call.resolve([
                     "success": true,
-                    "samplesPlayed": sampleCount,
+                    "samplesPlayed": sourceSampleCount,
                     "durationMs": durationMs
                 ])
             }
@@ -297,33 +326,58 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                 tempEngine.attach(tempPlayer)
                 
                 let outputFormat = tempEngine.outputNode.inputFormat(forBus: 0)
+                let outputSampleRate = outputFormat.sampleRate
+                let outputChannels = outputFormat.channelCount
+                
                 tempEngine.connect(tempPlayer, to: tempEngine.mainMixerNode, format: outputFormat)
                 
-                // Convert data to float
-                let sampleCount = data.count / 2
-                var floatSamples = [Float](repeating: 0, count: sampleCount)
+                // Convert data to float (mono)
+                let sourceSampleCount = data.count / 2
+                var monoSamples = [Float](repeating: 0, count: sourceSampleCount)
                 data.withUnsafeBytes { rawBuffer in
                     let int16Buffer = rawBuffer.bindMemory(to: Int16.self)
-                    for i in 0..<sampleCount {
-                        floatSamples[i] = Float(int16Buffer[i]) / 32768.0
+                    for i in 0..<sourceSampleCount {
+                        monoSamples[i] = Float(int16Buffer[i]) / 32768.0
                     }
                 }
                 
-                guard let sourceFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
-                                                        sampleRate: sampleRate,
-                                                        channels: 1,
+                // Resample to output sample rate
+                let resampleRatio = outputSampleRate / sampleRate
+                let resampledCount = Int(Double(sourceSampleCount) * resampleRatio)
+                var resampledSamples = [Float](repeating: 0, count: resampledCount)
+                
+                for i in 0..<resampledCount {
+                    let srcIndex = Double(i) / resampleRatio
+                    let srcIndexInt = Int(srcIndex)
+                    let frac = Float(srcIndex - Double(srcIndexInt))
+                    
+                    if srcIndexInt + 1 < sourceSampleCount {
+                        resampledSamples[i] = monoSamples[srcIndexInt] * (1 - frac) + monoSamples[srcIndexInt + 1] * frac
+                    } else if srcIndexInt < sourceSampleCount {
+                        resampledSamples[i] = monoSamples[srcIndexInt]
+                    }
+                }
+                
+                // Create stereo buffer matching output format
+                guard let stereoFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                                        sampleRate: outputSampleRate,
+                                                        channels: outputChannels,
                                                         interleaved: false),
-                      let audioBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: UInt32(sampleCount)) else {
+                      let audioBuffer = AVAudioPCMBuffer(pcmFormat: stereoFormat, frameCapacity: UInt32(resampledCount)) else {
                     DispatchQueue.main.async {
                         call.reject("Failed to create audio buffer")
                     }
                     return
                 }
                 
-                audioBuffer.frameLength = UInt32(sampleCount)
-                if let channelData = audioBuffer.floatChannelData?[0] {
-                    for i in 0..<sampleCount {
-                        channelData[i] = floatSamples[i]
+                audioBuffer.frameLength = UInt32(resampledCount)
+                
+                // Fill all channels with mono data (upmix to stereo)
+                if let channelData = audioBuffer.floatChannelData {
+                    for ch in 0..<Int(outputChannels) {
+                        for i in 0..<resampledCount {
+                            channelData[ch][i] = resampledSamples[i]
+                        }
                     }
                 }
                 
@@ -337,13 +391,13 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                     }
                 }
                 
-                let durationMs = Int(Double(sampleCount) / sampleRate * 1000)
-                print("🔊 [NativeMic] Standalone playback: \(sampleCount) samples (\(durationMs)ms)")
+                let durationMs = Int(Double(sourceSampleCount) / sampleRate * 1000)
+                print("🔊 [NativeMic] Standalone playback: \(resampledCount) samples at \(outputSampleRate)Hz stereo (\(durationMs)ms)")
                 
                 DispatchQueue.main.async {
                     call.resolve([
                         "success": true,
-                        "samplesPlayed": sampleCount,
+                        "samplesPlayed": sourceSampleCount,
                         "durationMs": durationMs
                     ])
                 }
