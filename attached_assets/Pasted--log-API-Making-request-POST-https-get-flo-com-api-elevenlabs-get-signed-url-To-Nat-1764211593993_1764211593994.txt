@@ -1,0 +1,111 @@
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 87538442
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Native sample rate: 48000
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 1 rms: 0.0003
+⚡️  [log] - [VoiceChat] Received: audio voiceState: listening
+⚡️  [log] - [VoiceChat] Queueing audio chunk, length: 128752
+⚡️  [log] - [VoiceChat] playAudioQueue called, queue length: 1
+⚡️  [log] - [VoiceChat] Playing audio, samples: 48281 duration: 3.02 s
+⚡️  [log] - [VoiceChat] Audio source started
+⚡️  [log] - [VoiceChat] Received: agent_response voiceState: listening
+⚡️  [log] - [VoiceChat] Received: ping voiceState: speaking
+⚡️  [log] - [VoiceChat] Not sending audio - wsReady: true state: speaking
+⚡️  [log] - [VoiceChat] Received: ping voiceState: speaking
+⚡️  [log] - [VoiceChat] Audio playback ended via onended
+⚡️  [log] - [VoiceChat] No more audio, switching to listening
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 14 rms: 0.0001
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 38 rms: 0.0003
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 87538443
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Native sample rate: 48000
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 1 rms: 0.0013
+⚡️  [log] - [VoiceChat] Received: audio voiceState: listening
+⚡️  [log] - [VoiceChat] Queueing audio chunk, length: 124788
+⚡️  [log] - [VoiceChat] playAudioQueue called, queue length: 1
+⚡️  [log] - [VoiceChat] Playing audio, samples: 46795 duration: 2.92 s
+⚡️  [log] - [VoiceChat] Audio source started
+⚡️  [log] - [VoiceChat] Received: agent_response voiceState: listening
+⚡️  [log] - [VoiceChat] Received: ping voiceState: speaking
+⚡️  [log] - [VoiceChat] Not sending audio - wsReady: true state: speaking
+⚡️  [log] - [VoiceChat] Audio playback ended via onended
+⚡️  [log] - [VoiceChat] No more audio, switching to listening
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 14 rms: 0.0012
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 38 rms: 0.0006
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 87538444
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Native sample rate: 48000
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 1 rms: 0.0009
+⚡️  [log] - [VoiceChat] Received: audio voiceState: listening
+⚡️  [log] - [VoiceChat] Queueing audio chunk, length: 134696
+⚡️  [log] - [VoiceChat] playAudioQueue called, queue length: 1
+⚡️  [log] - [VoiceChat] Playing audio, samples: 50510 duration: 3.16 s
+⚡️  [log] - [VoiceChat] Audio source started
+⚡️  [log] - [VoiceChat] Received: agent_response voiceState: listening
+⚡️  [log] - [VoiceChat] Received: ping voiceState: speaking
+⚡️  [log] - [VoiceChat] Not sending audio - wsReady: true state: speaking
+⚡️  [log] - [VoiceChat] Received: ping voiceState: speaking
+⚡️  [log] - [VoiceChat] Audio playback ended via onended
+⚡️  [log] - [VoiceChat] No more audio, switching to listening
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 12 rms: 0.0000
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 36 rms: 0.0000
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 87538445
+⚡️  TO JS undefined
+⚡️  To Native ->  Preferences set 87538446
+⚡️  TO JS undefined
+⚡️  To Native ->  Preferences get 87538447
+⚡️  TO JS {"value":"1764211478408"}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 87538448
+⚡️  TO JS {"value":"1764211478408"}
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 87538449
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [VoiceChat] Native sample rate: 48000
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 1 rms: 0.0000
+⚡️  [log] - [VoiceChat] Received: audio voiceState: listening
+⚡️  [log] - [VoiceChat] Queueing audio chunk, length: 126768
+⚡️  [log] - [VoiceChat] playAudioQueue called, queue length: 1
+⚡️  [log] - [VoiceChat] Playing audio, samples: 47538 duration: 2.97 s
+⚡️  [log] - [VoiceChat] Audio source started
+⚡️  [log] - [VoiceChat] Received: agent_response voiceState: listening
+⚡️  [log] - [VoiceChat] Received: ping voiceState: speaking
+⚡️  [log] - [VoiceChat] Not sending audio - wsReady: true state: speaking
+⚡️  [log] - [VoiceChat] Audio playback ended via onended
+⚡️  [log] - [VoiceChat] No more audio, switching to listening
+⚡️  [log] - [VoiceChat] Received: ping voiceState: speaking
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 14 rms: 0.0000
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  [log] - [VoiceChat] Sending audio chunks, count: 38 rms: 0.0130
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 87538450
+⚡️  TO JS undefined

@@ -1,5 +1,7 @@
 import UIKit
 import Capacitor
+import WebKit
+import AVFoundation
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,6 +10,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        
+        // Configure AVAudioSession for voice chat (microphone + speaker)
+        configureAudioSession()
         
         // Disable WKWebView rubber band bounce to prevent white strip during overscroll
         // This must run after the window is set up, so we dispatch it to the next run loop
@@ -38,7 +43,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
-    // Configure WKWebView to disable bounce and set dark background
+    // Configure AVAudioSession for voice chat functionality
+    private func configureAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            // Use playAndRecord for microphone + speaker, voiceChat mode optimizes for voice
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers])
+            try session.setActive(true)
+            print("✅ AVAudioSession configured for voice chat")
+        } catch {
+            print("❌ Failed to configure AVAudioSession: \(error)")
+        }
+    }
+    
+    // Configure WKWebView to disable bounce, set dark background, and enable media permissions
     private func configureWebView(_ bridgeVC: CAPBridgeViewController) {
         guard let webView = bridgeVC.webView else { return }
         
@@ -51,6 +69,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView.scrollView.backgroundColor = darkBackground
         webView.isOpaque = false
         webView.backgroundColor = darkBackground
+        
+        // Enable inline media playback (required for getUserMedia)
+        webView.configuration.allowsInlineMediaPlayback = true
+        if #available(iOS 14.5, *) {
+            webView.configuration.preferences.isElementFullscreenEnabled = true
+        }
+        
+        // Set UI delegate for media capture permissions (iOS 15+)
+        if #available(iOS 15.0, *) {
+            webView.uiDelegate = WebViewUIDelegate.shared
+            print("✅ WKUIDelegate configured for media capture permissions")
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -88,4 +118,42 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+}
+
+// MARK: - WKUIDelegate for Media Capture Permissions
+// Auto-grants microphone/camera permissions for getUserMedia on iOS 15+
+@available(iOS 15.0, *)
+class WebViewUIDelegate: NSObject, WKUIDelegate {
+    static let shared = WebViewUIDelegate()
+    
+    private override init() {
+        super.init()
+    }
+    
+    // Auto-grant microphone and camera permissions for the app's WebView
+    func webView(_ webView: WKWebView,
+                 requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                 initiatedByFrame frame: WKFrameInfo,
+                 type: WKMediaCaptureType,
+                 decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+        
+        // Grant permission for both microphone and camera requests
+        // This prevents the repeated permission dialogs and ensures getUserMedia works
+        print("🎤 Media capture permission requested - type: \(type)")
+        
+        switch type {
+        case .microphone:
+            print("✅ Granting microphone permission")
+            decisionHandler(.grant)
+        case .camera:
+            print("✅ Granting camera permission")
+            decisionHandler(.grant)
+        case .cameraAndMicrophone:
+            print("✅ Granting camera + microphone permission")
+            decisionHandler(.grant)
+        @unknown default:
+            print("⚠️ Unknown media type, granting permission")
+            decisionHandler(.grant)
+        }
+    }
 }
