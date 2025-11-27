@@ -192,11 +192,16 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         throw new Error(error.error || 'Failed to get voice connection');
       }
       
-      const { signed_url, user_id } = await response.json() as { signed_url: string; user_id: string };
+      const { signed_url, user_id, session_token } = await response.json() as { 
+        signed_url: string; 
+        user_id: string; 
+        session_token: string;
+      };
       
-      // Store user_id for passing to ElevenLabs
+      // Store user_id and session_token for passing to ElevenLabs
       const currentUserId = user_id;
-      console.log('[VoiceChat] Got signed URL for user:', currentUserId);
+      const currentSessionToken = session_token;
+      console.log('[VoiceChat] Got signed URL for user:', currentUserId, 'with session token');
       
       // Initialize playback context
       await initPlaybackContext();
@@ -244,7 +249,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         
         // REQUIRED: Send conversation_initiation_client_data to start the conversation
         // This tells ElevenLabs the client is ready and triggers the agent's first greeting
-        // Note: We pass user_id through session registration (on conversation_initiation_metadata)
+        // CRITICAL: Pass session_token as LLM api_key - ElevenLabs will forward this in 
+        // the Authorization header when calling our custom LLM endpoint
         ws.send(JSON.stringify({
           type: "conversation_initiation_client_data",
           conversation_config_override: {
@@ -252,11 +258,15 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
               tts: {
                 // Request PCM audio at 16kHz for easier native playback
                 output_format: "pcm_16000"
+              },
+              llm: {
+                // This api_key will be sent in the Authorization header to our LLM endpoint
+                api_key: currentSessionToken
               }
             }
           }
         }));
-        console.log('[VoiceChat] Sent conversation_initiation_client_data');
+        console.log('[VoiceChat] Sent conversation_initiation_client_data with session token');
         
         // Register audio data listener for native mic (engine already started above)
         if (useNativeMic) {

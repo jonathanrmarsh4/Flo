@@ -6272,25 +6272,20 @@ ${fullContext}`;
 
       const signedUrl = await elevenlabsClient.getSignedUrl(ELEVENLABS_AGENT_ID, userId);
 
-      // Extract conversation_id from signed URL and create session mapping
+      // Generate a session token that maps to the user - this will be passed to ElevenLabs
+      // and forwarded in the Authorization header when ElevenLabs calls our LLM endpoint
       const { conversationSessionStore } = await import('./services/conversationSessionStore');
-      try {
-        const urlObj = new URL(signedUrl);
-        const conversationId = urlObj.searchParams.get('conversation_id');
-        
-        if (conversationId) {
-          conversationSessionStore.create(conversationId, userId, ELEVENLABS_AGENT_ID);
-          logger.info('[ElevenLabs] Created conversation session', { conversationId, userId });
-        } else {
-          logger.warn('[ElevenLabs] No conversation_id found in signed URL');
-        }
-      } catch (error) {
-        logger.error('[ElevenLabs] Failed to parse signed URL', error);
-      }
+      const sessionToken = conversationSessionStore.generateSessionToken(userId, ELEVENLABS_AGENT_ID);
+      
+      logger.info('[ElevenLabs] Generated session token for voice chat', { 
+        userId, 
+        tokenPrefix: sessionToken.substring(0, 12) + '...' 
+      });
 
       res.json({ 
         signed_url: signedUrl,
         user_id: userId,
+        session_token: sessionToken,  // Client will pass this to ElevenLabs as LLM API key
       });
 
     } catch (error: any) {
@@ -6353,47 +6348,51 @@ ${fullContext}`;
         });
       }
 
-      // Look up user_id from conversation session store
+      // Look up user_id from session token in Authorization header
+      // ElevenLabs forwards our custom LLM api_key in the Authorization header
       const { conversationSessionStore } = await import('./services/conversationSessionStore');
       
-      // Try to get conversation_id from multiple possible locations
-      const convId = conversation_id || req.body?.conversation_id || req.headers['x-conversation-id'] as string;
-      
       let userId: string | null = null;
+      let authMethod: string = 'none';
       
-      if (convId) {
-        userId = conversationSessionStore.getUserId(convId);
-        if (userId) {
-          logger.info('[ElevenLabs-Bridge] Found user via conversation session', { conversationId: convId, userId });
-        } else {
-          logger.warn('[ElevenLabs-Bridge] Conversation ID not found in session store', { conversationId: convId });
+      // PRIMARY METHOD: Extract session token from Authorization header
+      // ElevenLabs sends: "Authorization: Bearer <api_key>" where api_key is our session token
+      const authHeader = req.headers['authorization'] as string;
+      if (authHeader) {
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+        if (token && token.startsWith('flo_')) {
+          userId = conversationSessionStore.getUserIdFromToken(token);
+          if (userId) {
+            authMethod = 'session_token';
+            logger.info('[ElevenLabs-Bridge] Found user via session token', { 
+              tokenPrefix: token.substring(0, 12) + '...', 
+              userId 
+            });
+          }
         }
       }
       
-      // Fallback to legacy methods if session lookup fails
+      // FALLBACK: Try conversation_id lookup (in case ElevenLabs ever adds it)
+      if (!userId) {
+        const convId = conversation_id || req.body?.conversation_id || req.headers['x-conversation-id'] as string;
+        if (convId) {
+          userId = conversationSessionStore.getUserId(convId);
+          if (userId) {
+            authMethod = 'conversation_id';
+            logger.info('[ElevenLabs-Bridge] Found user via conversation session', { conversationId: convId, userId });
+          }
+        }
+      }
+      
+      // FALLBACK: Legacy methods from request body
       if (!userId) {
         userId = user_id || 
                  elevenlabs_extra_body?.user_id || 
                  req.body?.custom_llm_extra_body?.user_id ||
                  req.body?.dynamic_variables?.user_id ||
                  req.headers['x-user-id'] as string;
-      }
-      
-      // CRITICAL FALLBACK: If no conversation_id was provided by ElevenLabs,
-      // use the most recently registered session. This works because ElevenLabs
-      // doesn't include conversation_id in LLM requests, but we register sessions
-      // when the WebSocket connection is established (before LLM calls).
-      let usedFallback = false;
-      if (!userId) {
-        const recentSession = conversationSessionStore.getMostRecentSession();
-        if (recentSession) {
-          userId = recentSession.userId;
-          usedFallback = true;
-          logger.info('[ElevenLabs-Bridge] Using most recent session fallback', {
-            conversationId: recentSession.conversationId,
-            userId,
-            method: 'most_recent_session'
-          });
+        if (userId) {
+          authMethod = 'legacy_body';
         }
       }
       
@@ -6401,29 +6400,23 @@ ${fullContext}`;
       logger.info('[ElevenLabs-Bridge] User lookup result', {
         foundUserId: !!userId,
         userId,
-        sources: {
-          conversation_id: convId,
-          user_id_field: !!user_id,
-          extra_body: !!elevenlabs_extra_body?.user_id,
-          custom_llm: !!req.body?.custom_llm_extra_body?.user_id,
-          dynamic_vars: !!req.body?.dynamic_variables?.user_id,
-          header: !!req.headers['x-user-id'],
-          most_recent_session: usedFallback
-        }
+        authMethod,
+        hasAuthHeader: !!authHeader,
+        authHeaderPrefix: authHeader?.substring(0, 20) + '...'
       });
       
       if (!userId) {
-        logger.error('[ElevenLabs-Bridge] No user_id found', {
-          conversationId: convId,
+        logger.error('[ElevenLabs-Bridge] No user_id found - session token missing or invalid', {
+          hasAuthHeader: !!authHeader,
           bodyKeys: Object.keys(req.body || {}),
           headerKeys: Object.keys(req.headers || {})
         });
-        return res.status(400).json({ 
-          error: { message: "Unable to identify user for this conversation. Please restart the voice chat.", type: "invalid_request_error" }
+        return res.status(401).json({ 
+          error: { message: "Session expired or invalid. Please restart the voice chat.", type: "authentication_error" }
         });
       }
       
-      logger.info('[ElevenLabs-Bridge] Processing request for user', { userId, conversationId: convId });
+      logger.info('[ElevenLabs-Bridge] Processing request for user', { userId, authMethod });
 
       const { grokClient } = await import('./services/grokClient');
       const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
