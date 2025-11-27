@@ -38,7 +38,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     {
       id: '1',
       type: 'flo',
-      content: "Hey! I'm Flō Oracle - think of me as your curious health detective who loves digging into your data. Tap the phone to start our conversation, and we'll explore what your body's telling us together. What's been on your mind lately?",
+      content: "Tap the phone icon to start - I'll greet you and we can explore your health data together.",
       timestamp: new Date(),
       isVoice: false,
     },
@@ -415,11 +415,87 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   }, [conversationHistory, toast, startRecordingInternal]);
 
   const startConversation = useCallback(async () => {
-    console.log('[VoiceChat] Starting conversation...');
+    console.log('[VoiceChat] Starting conversation with AI greeting...');
     shouldContinueRef.current = true;
     setIsConversationActive(true);
-    await startRecordingInternal();
-  }, [startRecordingInternal]);
+    setVoiceState('processing');
+    
+    try {
+      // First, get AI greeting
+      const response = await apiRequest('POST', '/api/voice/greeting', {});
+      const result = await response.json() as {
+        greeting: string;
+        audioBase64: string;
+        audioFormat: string;
+      };
+      
+      console.log('[VoiceChat] Received greeting:', result.greeting.substring(0, 50) + '...');
+      
+      // Add greeting to messages
+      const greetingMessage: Message = {
+        id: Date.now().toString(),
+        type: 'flo',
+        content: result.greeting,
+        timestamp: new Date(),
+        isVoice: true,
+      };
+      setMessages(prev => [...prev, greetingMessage]);
+      
+      // Add to conversation history
+      setConversationHistory(prev => [
+        ...prev,
+        { role: 'assistant' as const, content: result.greeting }
+      ]);
+      
+      // Play greeting audio
+      setVoiceState('speaking');
+      
+      const audioData = Uint8Array.from(atob(result.audioBase64), c => c.charCodeAt(0));
+      const audioBlob = new Blob([audioData], { type: `audio/${result.audioFormat}` });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      const audioEl = new Audio(audioUrl);
+      audioElementRef.current = audioEl;
+      
+      audioEl.onended = () => {
+        console.log('[VoiceChat] Greeting playback ended, starting to listen...');
+        URL.revokeObjectURL(audioUrl);
+        
+        // After greeting ends, start listening for user's response
+        if (shouldContinueRef.current) {
+          autoResumeTimeoutRef.current = setTimeout(() => {
+            if (shouldContinueRef.current) {
+              startRecordingInternal();
+            }
+          }, AUTO_RESUME_DELAY_MS);
+        }
+      };
+      
+      audioEl.onerror = () => {
+        console.error('[VoiceChat] Greeting audio error');
+        URL.revokeObjectURL(audioUrl);
+        
+        // Still start listening even if audio failed
+        if (shouldContinueRef.current) {
+          startRecordingInternal();
+        }
+      };
+      
+      await audioEl.play();
+      
+    } catch (error: any) {
+      console.error('[VoiceChat] Failed to get greeting:', error);
+      
+      // Fallback: just start listening without greeting
+      toast({
+        title: "Couldn't start with greeting",
+        description: "Starting to listen now...",
+        variant: "destructive",
+      });
+      
+      await startRecordingInternal();
+    }
+  }, [startRecordingInternal, toast]);
 
   const endConversation = useCallback(() => {
     console.log('[VoiceChat] Ending conversation...');

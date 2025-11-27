@@ -6947,6 +6947,58 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
+  // Generate personalized greeting to start conversation (AI speaks first)
+  app.post("/api/voice/greeting", isAuthenticated, canAccessOracle, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = req.user.claims;
+      
+      // Get user's first name from profile
+      const profile = await db.query.users.findFirst({
+        where: eq(users.id, userId)
+      });
+      
+      const firstName = profile?.firstName || user.first_name || undefined;
+      
+      logger.info('[SpeechRelay] Generating greeting', { userId, firstName });
+      
+      const { speechRelayService } = await import('./services/speechRelayService');
+      
+      if (!speechRelayService.isAvailable()) {
+        return res.status(503).json({ error: 'Voice service not configured' });
+      }
+      
+      const result = await speechRelayService.generateGreeting(userId, firstName);
+      
+      // Store the greeting in chat history
+      const { floChatMessages } = await import('@shared/schema');
+      
+      await db.insert(floChatMessages).values({
+        userId,
+        sender: 'flo',
+        message: result.greeting
+      });
+      
+      logger.info('[SpeechRelay] Greeting generated', { 
+        userId, 
+        greetingLength: result.greeting.length 
+      });
+      
+      res.json({
+        greeting: result.greeting,
+        audioBase64: result.audioBase64,
+        audioFormat: result.audioFormat
+      });
+      
+    } catch (error: any) {
+      logger.error('[SpeechRelay] Error generating greeting:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate greeting',
+        details: error.message
+      });
+    }
+  });
+
   // ────────────────────────────────────────────────────────────────
   // INSIGHTS ENDPOINTS - AI-powered health pattern detection
   // ────────────────────────────────────────────────────────────────

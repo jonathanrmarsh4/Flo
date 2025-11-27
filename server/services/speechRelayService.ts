@@ -244,6 +244,60 @@ ${userContext}`;
     const audioBase64 = await this.textToSpeech(response);
     onAudioChunk(audioBase64);
   }
+
+  async generateGreeting(userId: string, firstName?: string): Promise<{
+    greeting: string;
+    audioBase64: string;
+    audioFormat: 'mp3';
+  }> {
+    if (!this.openai) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    logger.info('[SpeechRelay] Generating greeting', { userId, firstName });
+
+    // Build user health context
+    const userContext = await buildUserHealthContext(userId);
+
+    // Create a greeting-focused system prompt
+    const GREETING_PROMPT = `You are Flō Oracle — a warm, curious health coach starting a voice conversation.
+
+Generate a brief, personalized greeting that:
+1. Uses the user's first name if provided: "${firstName || 'there'}"
+2. References something specific from their recent health data to show you know them
+3. Asks an engaging opening question to start the conversation
+
+Keep it to 2-3 sentences. Be warm and genuinely curious. Examples of good openers:
+- "Hey [Name]! I noticed your HRV has been trending up this week - that's exciting. What do you think has been helping?"
+- "Hi [Name]! I see you logged a great workout yesterday. How are you feeling today?"
+- "Hey [Name]! Your sleep data caught my eye - looks like some interesting patterns. Want to dig into that together?"
+
+If there's no recent data to reference, ask about their current health focus or how they're feeling.
+
+${userContext}`;
+
+    const grokMessages: GrokChatMessage[] = [
+      { role: 'system', content: GREETING_PROMPT },
+      { role: 'user', content: 'Start the conversation with a personalized greeting.' },
+    ];
+
+    const greeting = await grokClient.chat(grokMessages, {
+      model: 'grok-3-mini',
+      maxTokens: 200,
+      temperature: 0.9,
+    });
+
+    logger.info('[SpeechRelay] Greeting generated', { userId, greetingLength: greeting.length });
+
+    // Convert greeting to speech
+    const audioBase64 = await this.textToSpeech(greeting);
+
+    return {
+      greeting,
+      audioBase64,
+      audioFormat: 'mp3',
+    };
+  }
 }
 
 export const speechRelayService = new SpeechRelayService();
