@@ -144,6 +144,13 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     disconnect();
   }, [stopListening, disconnect]);
 
+  // Handle close button - ensure we disconnect first
+  const handleClose = useCallback(() => {
+    console.log('[VoiceChat] Closing chat window...');
+    disconnect();
+    onClose();
+  }, [disconnect, onClose]);
+
   const handleMicPress = useCallback(() => {
     if (isConnected) {
       // End conversation
@@ -237,7 +244,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     >
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       <motion.div
@@ -289,7 +296,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
               </motion.div>
             )}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className={`p-2 rounded-full backdrop-blur-xl transition-colors ${
                 isDark ? 'bg-white/10 hover:bg-white/20' : 'bg-black/5 hover:bg-black/10'
               }`}

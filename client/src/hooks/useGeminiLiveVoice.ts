@@ -101,36 +101,79 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const playbackContextRef = useRef<AudioContext | null>(null);
   const captureContextRef = useRef<AudioContext | null>(null);
   
-  const audioQueueRef = useRef<AudioBuffer[]>([]);
+  const audioQueueRef = useRef<Float32Array[]>([]);
   const isPlayingRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const playbackStartTimeRef = useRef<number>(0);
+  const scheduledEndTimeRef = useRef<number>(0);
+  
+  // Pre-buffer settings - wait for enough audio before starting playback
+  // Reduced to 100ms for lower latency while maintaining smooth playback
+  const PRE_BUFFER_SAMPLES = 24000 * 0.1; // 100ms of audio at 24kHz
+  const pendingSamplesRef = useRef<Float32Array[]>([]);
+  const totalPendingSamplesRef = useRef(0);
+  const hasStartedPlaybackRef = useRef(false);
+  const flushTimeoutRef = useRef<number | null>(null);
 
-  // Play queued audio buffers sequentially using playback context
-  const playNextAudio = useCallback(() => {
-    if (audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false;
-      setState(prev => ({ ...prev, isSpeaking: false }));
-      return;
-    }
-
-    isPlayingRef.current = true;
-    setState(prev => ({ ...prev, isSpeaking: true }));
-
-    const buffer = audioQueueRef.current.shift()!;
+  // Schedule audio for gapless playback
+  const scheduleAudio = useCallback((samples: Float32Array) => {
     const ctx = playbackContextRef.current;
-    if (!ctx) {
-      console.error('[GeminiLive] No playback context available');
-      return;
-    }
+    if (!ctx || samples.length === 0) return;
+
+    const audioBuffer = ctx.createBuffer(1, samples.length, 24000);
+    audioBuffer.copyToChannel(samples, 0);
 
     const source = ctx.createBufferSource();
-    source.buffer = buffer;
+    source.buffer = audioBuffer;
     source.connect(ctx.destination);
-    source.onended = playNextAudio;
-    source.start();
+
+    const now = ctx.currentTime;
+    const bufferDuration = samples.length / 24000;
+
+    // Schedule seamlessly after the last scheduled audio
+    if (scheduledEndTimeRef.current <= now) {
+      // No audio playing, start immediately with tiny delay for safety
+      const startTime = now + 0.01;
+      source.start(startTime);
+      scheduledEndTimeRef.current = startTime + bufferDuration;
+      playbackStartTimeRef.current = startTime;
+    } else {
+      // Schedule right after the last audio ends
+      source.start(scheduledEndTimeRef.current);
+      scheduledEndTimeRef.current += bufferDuration;
+    }
+
+    source.onended = () => {
+      // Check if this was the last scheduled audio
+      if (ctx.currentTime >= scheduledEndTimeRef.current - 0.01) {
+        isPlayingRef.current = false;
+        setState(prev => ({ ...prev, isSpeaking: false }));
+      }
+    };
   }, []);
+
+  // Flush pending audio when we have enough buffered
+  const flushPendingAudio = useCallback(() => {
+    if (pendingSamplesRef.current.length === 0) return;
+
+    // Merge all pending samples into one buffer
+    const totalLength = pendingSamplesRef.current.reduce((sum, arr) => sum + arr.length, 0);
+    const merged = new Float32Array(totalLength);
+    let offset = 0;
+    for (const samples of pendingSamplesRef.current) {
+      merged.set(samples, offset);
+      offset += samples.length;
+    }
+
+    pendingSamplesRef.current = [];
+    totalPendingSamplesRef.current = 0;
+
+    scheduleAudio(merged);
+    isPlayingRef.current = true;
+    setState(prev => ({ ...prev, isSpeaking: true }));
+  }, [scheduleAudio]);
 
   // Decode and queue incoming audio (24kHz PCM from Gemini)
   const handleAudioData = useCallback(async (base64Audio: string) => {
@@ -160,18 +203,39 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
         floatSamples[i] = samples[i] / 32768.0;
       }
 
-      const audioBuffer = ctx.createBuffer(1, floatSamples.length, 24000);
-      audioBuffer.copyToChannel(floatSamples, 0);
-
-      audioQueueRef.current.push(audioBuffer);
-
-      if (!isPlayingRef.current) {
-        playNextAudio();
+      // Clear any pending flush timeout since we got new audio
+      if (flushTimeoutRef.current) {
+        window.clearTimeout(flushTimeoutRef.current);
+        flushTimeoutRef.current = null;
       }
+
+      // Pre-buffer: collect audio until we have enough, then start playing
+      if (!hasStartedPlaybackRef.current) {
+        pendingSamplesRef.current.push(floatSamples);
+        totalPendingSamplesRef.current += floatSamples.length;
+        
+        if (totalPendingSamplesRef.current >= PRE_BUFFER_SAMPLES) {
+          hasStartedPlaybackRef.current = true;
+          flushPendingAudio();
+        }
+      } else {
+        // Already playing - schedule immediately for gapless playback
+        scheduleAudio(floatSamples);
+      }
+      
+      // Set a timeout to flush any remaining audio if no new audio arrives
+      // This handles the case where model finishes speaking
+      flushTimeoutRef.current = window.setTimeout(() => {
+        if (pendingSamplesRef.current.length > 0 && !hasStartedPlaybackRef.current) {
+          console.log('[GeminiLive] Flush timeout - playing remaining buffered audio');
+          hasStartedPlaybackRef.current = true;
+          flushPendingAudio();
+        }
+      }, 200); // 200ms timeout
     } catch (error) {
       console.error('[GeminiLive] Failed to decode audio:', error);
     }
-  }, [playNextAudio]);
+  }, [flushPendingAudio, scheduleAudio]);
 
   // Connect to WebSocket
   const connect = useCallback(async () => {
@@ -402,18 +466,39 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     console.log('[GeminiLive] Stopped listening');
   }, []);
 
-  // Disconnect
+  // Disconnect - fully reset all state
   const disconnect = useCallback(() => {
+    console.log('[GeminiLive] Disconnecting...');
+    
     stopListening();
 
+    // Close WebSocket
     if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: 'end' }));
-      wsRef.current.close();
+      try {
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'end' }));
+        }
+        wsRef.current.close();
+      } catch (e) {
+        // Ignore errors when closing
+      }
       wsRef.current = null;
     }
 
+    // Clear any pending flush timeout
+    if (flushTimeoutRef.current) {
+      window.clearTimeout(flushTimeoutRef.current);
+      flushTimeoutRef.current = null;
+    }
+
+    // Reset all audio state
     audioQueueRef.current = [];
     isPlayingRef.current = false;
+    pendingSamplesRef.current = [];
+    totalPendingSamplesRef.current = 0;
+    hasStartedPlaybackRef.current = false;
+    scheduledEndTimeRef.current = 0;
+    playbackStartTimeRef.current = 0;
 
     // Close playback context
     if (playbackContextRef.current) {
@@ -421,6 +506,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       playbackContextRef.current = null;
     }
 
+    // Reset state immediately
     setState({
       isConnected: false,
       isListening: false,
@@ -428,7 +514,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       error: null,
     });
 
-    console.log('[GeminiLive] Disconnected');
+    console.log('[GeminiLive] Disconnected and reset');
   }, [stopListening]);
 
   // Send text message
