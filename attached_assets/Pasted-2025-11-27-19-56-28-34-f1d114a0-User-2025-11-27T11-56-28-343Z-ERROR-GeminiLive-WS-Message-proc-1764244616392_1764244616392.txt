@@ -1,0 +1,80 @@
+2025-11-27 19:56:28.34
+f1d114a0
+User
+[2025-11-27T11:56:28.343Z] [ERROR] [GeminiLive WS] Message processing error {"error":{"error":"Session not active"}}
+2025-11-27 19:56:28.36
+f1d114a0
+User
+[2025-11-27T11:56:28.365Z] [ERROR] [GeminiLive WS] Message processing error {"error":{"error":"Session not active"}}
+2025-11-27 19:56:28.42
+f1d114a0
+User
+[2025-11-27T11:56:28.424Z] [ERROR] [GeminiLive WS] Message processing error {"error":{"error":"Session not active"}}
+2025-11-27 19:56:28.42
+f1d114a0
+User
+[2025-11-27T11:56:28.428Z] [INFO] [GeminiLive WS] Connection closed {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244588070"}
+2025-11-27 19:56:31.45
+f1d114a0
+User
+[2025-11-27T11:56:31.451Z] [INFO] [GeminiLive WS] New connection attempt
+2025-11-27 19:56:31.45
+f1d114a0
+User
+[2025-11-27T11:56:31.452Z] [INFO] [GeminiVoice] Starting session {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452"}
+2025-11-27 19:56:31.45
+f1d114a0
+User
+[2025-11-27T11:56:31.452Z] [INFO] [GeminiLive WS] Authenticated user {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78"}
+2025-11-27 19:56:31.48
+f1d114a0
+User
+[2025-11-27T11:56:31.487Z] [INFO] [GeminiLive] Creating new session {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452"}
+2025-11-27 19:56:31.48
+f1d114a0
+User
+[2025-11-27T11:56:31.487Z] [INFO] [GeminiVoice] System instruction built {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","instructionLength":5263}
+2025-11-27 19:56:31.48
+f1d114a0
+User
+[2025-11-27T11:56:31.487Z] [INFO] [GeminiLive] Connecting to Gemini Live API... {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452","model":"gemini-2.0-flash-live-001"}
+2025-11-27 19:56:31.48
+f1d114a0
+User
+[2025-11-27T11:56:31.486Z] [INFO] [FloOracle] Using cached health context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-11-27 19:56:31.50
+f1d114a0
+User
+[2025-11-27T11:56:31.506Z] [INFO] [GeminiLive] Session opened {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452"}
+2025-11-27 19:56:31.50
+f1d114a0
+User
+[2025-11-27T11:56:31.507Z] [INFO] [GeminiLive] Session connected and ready {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452","hasSession":true}
+2025-11-27 19:56:31.50
+f1d114a0
+User
+[2025-11-27T11:56:31.507Z] [INFO] [GeminiLive WS] Session started {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452"}
+2025-11-27 19:56:31.55
+f1d114a0
+User
+[2025-11-27T11:56:31.557Z] [INFO] [GeminiLive] Session closed {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452","code":1007,"reason":"Request contains an invalid argument.","wasClean":true}
+2025-11-27 19:56:31.55
+f1d114a0
+User
+[2025-11-27T11:56:31.557Z] [INFO] [GeminiVoice] Session closed {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452"}
+2025-11-27 19:56:31.75
+f1d114a0
+User
+[2025-11-27T11:56:31.753Z] [ERROR] [GeminiLive WS] Message processing error {"error":{"error":"Session not active"}}
+2025-11-27 19:56:31.75
+f1d114a0
+User
+[2025-11-27T11:56:31.754Z] [ERROR] [GeminiLive WS] Message processing error {"error":{"error":"Session not active"}}
+2025-11-27 19:56:31.78
+f1d114a0
+User
+[2025-11-27T11:56:31.785Z] [ERROR] [GeminiLive WS] Message processing error {"error":{"error":"Session not active"}}
+2025-11-27 19:56:31.80
+f1d114a0
+User
+[2025-11-27T11:56:31.802Z] [INFO] [GeminiLive WS] Connection closed {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764244591452"}

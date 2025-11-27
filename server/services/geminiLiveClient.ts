@@ -102,8 +102,10 @@ class GeminiLiveClient {
         },
       },
       config: {
-        responseModalities: [Modality.AUDIO, Modality.TEXT],
-        systemInstruction: config.systemInstruction,
+        // Start with TEXT only to debug - AUDIO may require different model
+        responseModalities: [Modality.TEXT],
+        // Limit system instruction length to avoid issues
+        systemInstruction: config.systemInstruction.substring(0, 2000),
       },
     };
 
