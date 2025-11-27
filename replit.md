@@ -17,7 +17,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 **iOS Safe Area Support:** All headers on Profile, Admin Dashboard, Actions, and Diagnostics screens use `pt-[env(safe-area-inset-top)]` to position content below the Dynamic Island/notch. The `client/index.html` viewport meta tag includes `viewport-fit=cover` to enable safe area CSS variables in Capacitor's iOS WebView. **IMPORTANT:** Changes to the viewport configuration require rebuilding the iOS app in Xcode, as these are native WebView settings. Once rebuilt, all future CSS changes (including safe area adjustments) work without app rebuilds.
 
 ### Technical Implementations
-**Frontend:** Built with React, TypeScript, and Vite, using TanStack Query for server state and Wouter for routing. It includes biomarker insights, AI-powered health reports, PDF upload for blood work parsing, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, and **Flō Oracle voice chat** using ElevenLabs via WebSockets. The dashboard also features a **Flōmentum tile** for daily health momentum scores.
+**Frontend:** Built with React, TypeScript, and Vite, using TanStack Query for server state and Wouter for routing. It includes biomarker insights, AI-powered health reports, PDF upload for blood work parsing, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, and **Flō Oracle voice chat** using OpenAI Realtime API with WebRTC for natural conversational voice (with Grok brain memory extraction). The dashboard also features a **Flōmentum tile** for daily health momentum scores.
 
 **Backend:** Developed with Express.js and TypeScript, providing a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT), file storage via pre-signed GCS URLs, and implements the PhenoAge biological age calculation. The backend includes a blood work extraction pipeline using GPT-4o, AI integration for insights, admin endpoints, **Flō Oracle integration** (Grok-powered chat using xAI's grok-3-mini model with health context and safety guardrails), **ElevenLabs integration** for natural voice conversations, a HealthKit Readiness System, a Comprehensive Sleep Tracking System, **Workout Session Tracking**, and the **Flōmentum Momentum Scoring System**. Production code uses structured error logging and **Apple Push Notifications (APNs)**. **Stripe Billing Integration** handles subscription management, webhook processing, plan enforcement, and automated feature gating. **Password Reset Security:** Reset tokens are hashed with SHA-256 before storage and enforced single-use by clearing on successful password change, with 1-hour expiry.
 
@@ -53,7 +53,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 **iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events instantly, including pre-built templates with dosage support and a frontend settings page for API key management.
 
 ### Feature Specifications
-- **Flō Oracle:** Grok-powered voice chat coach with natural voice interactions via ElevenLabs.
+- **Flō Oracle:** Natural conversational voice chat using OpenAI Realtime API with WebRTC for sub-300ms turn-taking, built-in VAD (no push-to-talk), and async Grok brain memory extraction for persistent learning.
 - **HealthKit Integration:** Background syncing for 26+ data types and workout sessions, including extended daily metrics (blood pressure, blood glucose, VO2 max, distance, flights climbed, stand hours, average heart rate, height).
 - **Flōmentum:** Daily health momentum scores with stand hours integration.
 - **Stripe Billing:** Comprehensive subscription management and feature gating.
@@ -77,6 +77,5 @@ The following 14 extended health metrics are now tracked from iOS HealthKit:
 - **Supabase:** PostgreSQL with pgvector extension.
 - **Google Cloud Storage:** For object storage.
 - **Stripe:** Payment processing.
-- **OpenAI:** GPT-4o and GPT-5 models for health insights, text-embedding-3-small for RAG.
-- **xAI (Grok):** grok-3-mini model for Flō Oracle.
-- **ElevenLabs:** Conversational AI platform for natural voice interactions.
+- **OpenAI:** GPT-4o and GPT-5 models for health insights, text-embedding-3-small for RAG, and **Realtime API** (gpt-4o-realtime-preview) for natural conversational voice via WebRTC.
+- **xAI (Grok):** grok-3-mini model for Flō Oracle text chat and async brain memory extraction from voice transcripts.
