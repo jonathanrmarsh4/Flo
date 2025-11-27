@@ -321,6 +321,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       let lastLogTime = Date.now();
       
       // Listen for audio data from native plugin
+      // IMPORTANT: Send audio continuously - ElevenLabs uses VAD to detect speech
+      // and needs continuous audio to handle turn-taking and interruption detection
       const listener = await addAudioDataListener((event: AudioDataEvent) => {
         const now = Date.now();
         
@@ -329,10 +331,12 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           return;
         }
         
-        // Only send audio when listening (not when Flo is speaking)
-        if (ws.readyState === WebSocket.OPEN && voiceStateRef.current === 'listening') {
-          // Update audio level visualization
-          setAudioLevel(Math.min(100, event.rms * 500));
+        // Send audio continuously to ElevenLabs (they handle VAD and turn-taking)
+        if (ws.readyState === WebSocket.OPEN) {
+          // Update audio level visualization only when listening
+          if (voiceStateRef.current === 'listening') {
+            setAudioLevel(Math.min(100, event.rms * 500));
+          }
           
           // Send audio directly to ElevenLabs (already 16kHz PCM from native)
           ws.send(JSON.stringify({
@@ -343,12 +347,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           
           // Log every 2 seconds
           if (now - lastLogTime > 2000) {
-            console.log('[VoiceChat] Native audio chunks sent:', chunksSent, 'rms:', event.rms.toFixed(4));
+            console.log('[VoiceChat] Native audio chunks sent:', chunksSent, 'rms:', event.rms.toFixed(4), 'state:', voiceStateRef.current);
             lastLogTime = now;
           }
-        } else if (now - lastLogTime > 2000) {
-          console.log('[VoiceChat] Not sending native audio - wsReady:', ws.readyState === WebSocket.OPEN, 'state:', voiceStateRef.current);
-          lastLogTime = now;
         }
       });
       
@@ -385,8 +386,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       processor.onaudioprocess = (e) => {
         const now = Date.now();
         
-        // Only send audio when listening (not when Flo is speaking)
-        if (ws.readyState === WebSocket.OPEN && voiceStateRef.current === 'listening') {
+        // Send audio continuously - ElevenLabs uses VAD to detect speech
+        // and needs continuous audio to handle turn-taking and interruption detection
+        if (ws.readyState === WebSocket.OPEN) {
           const inputData = e.inputBuffer.getChannelData(0);
           
           // Calculate RMS for audio level visualization
@@ -395,7 +397,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
             sum += inputData[i] * inputData[i];
           }
           const rms = Math.sqrt(sum / inputData.length);
-          setAudioLevel(Math.min(100, rms * 500));
+          
+          // Update audio level only when listening
+          if (voiceStateRef.current === 'listening') {
+            setAudioLevel(Math.min(100, rms * 500));
+          }
           
           // Resample to 16kHz if needed
           const resampled = resample(inputData, nativeSampleRate, 16000);
@@ -411,13 +417,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           audioChunksSent++;
           // Log every 2 seconds
           if (now - lastLogTime > 2000) {
-            console.log('[VoiceChat] Sending audio chunks, count:', audioChunksSent, 'rms:', rms.toFixed(4));
+            console.log('[VoiceChat] Sending audio chunks, count:', audioChunksSent, 'rms:', rms.toFixed(4), 'state:', voiceStateRef.current);
             lastLogTime = now;
           }
-        } else if (now - lastLogTime > 2000) {
-          // Log why we're not sending
-          console.log('[VoiceChat] Not sending audio - wsReady:', ws.readyState === WebSocket.OPEN, 'state:', voiceStateRef.current);
-          lastLogTime = now;
         }
       };
       
