@@ -93,15 +93,50 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
             audioEngine.attach(playbackMixer)
             
             // Connect playback chain: playerNode -> mixer -> mainMixer -> output
-            let outputFormat = audioEngine.outputNode.inputFormat(forBus: 0)
+            var outputFormat = audioEngine.outputNode.inputFormat(forBus: 0)
+            
+            // Validate output format - use fallback if invalid
+            if outputFormat.sampleRate <= 0 || outputFormat.channelCount == 0 {
+                print("⚠️ [NativeMic] Invalid output format from hardware, using standard 48kHz stereo")
+                outputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                             sampleRate: 48000.0,
+                                             channels: 2,
+                                             interleaved: false)!
+            }
             print("🔊 [NativeMic] Output format: \(outputFormat.sampleRate) Hz, \(outputFormat.channelCount) channels")
             
             audioEngine.connect(playerNode, to: playbackMixer, format: nil)
             audioEngine.connect(playbackMixer, to: audioEngine.mainMixerNode, format: outputFormat)
             
-            // Setup microphone input
+            // Setup microphone input - access inputNode AFTER audio session is configured
             let inputNode = audioEngine.inputNode
-            let inputFormat = inputNode.outputFormat(forBus: 0)
+            
+            // Force the audio engine to prepare - this initializes hardware formats
+            audioEngine.prepare()
+            
+            var inputFormat = inputNode.outputFormat(forBus: 0)
+            
+            // Validate input format - hardware format must be valid after prepare()
+            if inputFormat.sampleRate <= 0 || inputFormat.channelCount == 0 {
+                // Try using hardware sample rate from audio session
+                let hwSampleRate = session.sampleRate
+                let hwChannels: AVAudioChannelCount = 1 // Mono mic
+                
+                if hwSampleRate > 0 {
+                    print("⚠️ [NativeMic] Using audio session sample rate: \(hwSampleRate) Hz")
+                    inputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                               sampleRate: hwSampleRate,
+                                               channels: hwChannels,
+                                               interleaved: false)!
+                } else {
+                    // Last resort fallback
+                    print("⚠️ [NativeMic] Using fallback input format: 48000 Hz mono")
+                    inputFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                               sampleRate: 48000.0,
+                                               channels: 1,
+                                               interleaved: false)!
+                }
+            }
             print("🎤 [NativeMic] Input format: \(inputFormat.sampleRate) Hz, \(inputFormat.channelCount) channels")
             
             let targetFormat = AVAudioFormat(commonFormat: .pcmFormatInt16,
@@ -317,7 +352,8 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
                 let session = AVAudioSession.sharedInstance()
-                try session.setCategory(.playback, mode: .default, options: [.defaultToSpeaker])
+                // Use playAndRecord with defaultToSpeaker for voice chat compatibility
+                try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth])
                 try session.setActive(true)
                 
                 // Create temporary engine for playback
@@ -325,9 +361,24 @@ public class NativeMicrophonePlugin: CAPPlugin, CAPBridgedPlugin {
                 let tempPlayer = AVAudioPlayerNode()
                 tempEngine.attach(tempPlayer)
                 
-                let outputFormat = tempEngine.outputNode.inputFormat(forBus: 0)
-                let outputSampleRate = outputFormat.sampleRate
-                let outputChannels = outputFormat.channelCount
+                // Get hardware output format - may need fallback if invalid
+                var outputFormat = tempEngine.outputNode.inputFormat(forBus: 0)
+                var outputSampleRate = outputFormat.sampleRate
+                var outputChannels = outputFormat.channelCount
+                
+                // Validate format - hardware format might be invalid before engine starts
+                if outputSampleRate <= 0 || outputChannels == 0 {
+                    print("⚠️ [NativeMic] Invalid hardware format, using standard 48kHz stereo")
+                    outputSampleRate = 48000.0
+                    outputChannels = 2
+                    guard let fallbackFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                                              sampleRate: outputSampleRate,
+                                                              channels: outputChannels,
+                                                              interleaved: false) else {
+                        throw NSError(domain: "NativeMic", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to create fallback format"])
+                    }
+                    outputFormat = fallbackFormat
+                }
                 
                 tempEngine.connect(tempPlayer, to: tempEngine.mainMixerNode, format: outputFormat)
                 
