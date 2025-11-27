@@ -1,0 +1,299 @@
+⚡️  To Native ->  SecureStoragePlugin get 35193033
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 OK
+⚡️  [log] - [VoiceChat] Using native microphone: true
+⚡️  To Native ->  NativeMicrophone startCapture 35193034
+⚡️  [log] - [VoiceChat] Pre-initializing native audio engine...
+⚡️  [log] - [NativeMic] Starting native microphone capture...
+🎤 [NativeMic] Saved previous audio config: AVAudioSessionCategorySoloAmbient, AVAudioSessionModeDefault
+🎤 [NativeMic] AVAudioSession configured for voice chat
+🔊 [NativeMic] Output format: 48000.0 Hz, 2 channels
+🎤 [NativeMic] Input format: 48000.0 Hz, 1 channels
+✅ [NativeMic] Audio engine started (capture + playback ready) at 16000.0 Hz
+⚡️  TO JS {"message":"Microphone capture started","success":true,"sampleRate":16000}
+⚡️  [log] - [NativeMic] Start result: {"message":"Microphone capture started","success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] Native audio engine ready: {"success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Sent conversation_initiation_client_data with PCM format
+⚡️  [log] - [VoiceChat] Registering native microphone listener...
+⚡️  To Native ->  NativeMicrophone addListener 35193035
+⚡️  [log] - [VoiceChat] Native microphone listener registered
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00038079087971709669,"audio":"7\/\/v\/+7\/7v\/v\/+\/\/8P\/w\/+\/\/7v\/v\/+\/\/7\/\/w\/\/H\/8v\/z\/\/T\/9P\/1\/\/f\/+f\/7\/\/r\/+\/\/8\/\/3\/\/P\/9\/\/3\/\/\/\/+\/\/3\/\/P\/6\/\/v\/+\/\/8\/\/3\/\/P\/8\/\/z\/\/P
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00028712383937090635,"audio":"\/\/\/\/\/\/7\/\/v\/+\/\/\/\/\/\/8AAAAAAQACAAIAAgADAAMAAgABAAEAAAD\/\/wAAAAABAAEAAQAAAAEAAQACAAMAAgACAAIAAgACAAIAAgABAAIAAQABAAIAAwADAAMAAwACAAEAAAD\/\/\/\/\/\/\/\/9\/\/3\/\/f\/8\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0003773427742999047,"audio":"\/\/\/\/\/wAAAgAEAAQABAAGAAcABgAHAAcACAAJAAkACAAIAAgACAAJAAoACQAJAAkACQAJAAkACQAJAAkACgAKAAsADAAMAAwADAAMAAwADQANAA0ADQANAA4ADgAPABAAEQARABEAEAARABEADwAPAA4ADAAMAA0ADQANAA8ADwAQABE
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00050362845649942756,"audio":"9P\/z\/\/L\/8v\/x\/\/D\/8P\/w\/+\/\/7\/\/v\/+7\/7\/\/x\/\/L\/8\/\/0\/\/X\/9v\/3\/\/j\/+f\/7\/\/z\/\/f\/+\/wAAAQAAAP\/\/\/v\/9\/\/3\/\/f\/8\/\/z\/\/P\/8\/\/r\/+v\/7\/\/r\/+v\/8\/\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00039684222429059446,"audio":"BQAEAAQABAAEAAMAAwADAAIAAgACAAIAAQABAAAAAAAAAAAAAAAAAAAAAQACAAIAAQABAAEAAQABAAEAAQABAAAAAAD\/\/\/7\/\/v\/9\/\/3\/\/P\/8\/\/3\/\/v\/9\/\/z\/\/P\/7\/\/v\/\/P\/8\/\/z\/\/f\/9\/\/3\/\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0012325848219916224,"audio":"CAAHAAcACAAHAAcABwAHAAkACwANAA8AEgATABIAEQATABQAEgASABQAFQAVABQAGAAYABYAGQAZABgAGwAbAB8AHwAeACEAJAAkACYAIgAaABoAGAAkADIALAAoAB8AGwAZACIALgAjACwALQAgAC0AGAAaACcAHQAeACQAIQArACUAGwAW
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0003556664742063731,"audio":"3\/\/g\/9\/\/3f\/e\/9\/\/4P\/h\/+L\/4\/\/k\/+T\/5f\/k\/+P\/4v\/h\/+H\/4P\/f\/97\/3v\/e\/9\/\/3v\/d\/97\/3v\/e\/97\/3f\/c\/93\/3v\/e\/9\/\/4f\/i\/+T\/5P\/j\/+T\/5P\/l\/+T\/5f\/o\/+j
+⚡️  [log] - [VoiceChat] Received: audio voiceState: speaking
+⚡️  [log] - [VoiceChat] Received audio chunk, length: 142624
+⚡️  [log] - [VoiceChat] playNativeAudioQueue called, queue length: 1
+⚡️  [log] - [VoiceChat] Playing native audio chunk, length: 142624
+⚡️  [log] - [NativeMic] Playing audio via native AVAudioEngine...
+⚡️  To Native ->  NativeMicrophone playAudio 35193036
+⚡️  [log] - [VoiceChat] Received: agent_response voiceState: speaking
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00047358448500744998,"audio":"CQAIAAgACAAJAAkACAAGAAUAAwACAAEA\/\/8AAP\/\/AAACAAIAAwADAAIAAAAAAP\/\/\/v\/9\/\/3\/+v\/6\/\/r\/+f\/4\/\/f\/9\/\/3\/\/f\/9v\/3\/\/f\/9\/\/3\/\/n\/+v\/5\/\/j\/+P\/4\/\/j\/9\/\/3\/\/
+🔊 [NativeMic] Playing 160449 samples at 48000.0 Hz, 2 channels (from 53483 mono @ 16000.0)
+⚡️  TO JS {"samplesPlayed":53483,"success":true,"durationMs":3342}
+⚡️  [log] - [NativeMic] Playback result: {"samplesPlayed":53483,"success":true,"durationMs":3342}
+⚡️  [log] - [VoiceChat] Native audio chunk completed
+⚡️  [log] - [VoiceChat] No more native audio, switching to listening
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00060089415637776256,"audio":"EwASABIAEgAQAA8ADwAPAA8AEAAPAA0ADAALAAoACgAJAAgABwAGAAUABAADAAMAAQABAAEAAQACAAIAAwAEAAUABQAFAAQAAwAEAAMAAgADAAMABQAFAAYABQAFAAQABQAGAAUABAAEAAQABQAHAAYABQAEAAMAAwAEAAQAAgAAAAAAAAD
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00039057657704688609,"audio":"8f\/y\/\/b\/9\/\/4\/\/j\/+f\/4\/\/f\/+P\/5\/\/n\/+P\/4\/\/n\/+f\/4\/\/j\/9\/\/2\/\/T\/9f\/0\/\/L\/8\/\/z\/\/P\/8v\/y\/\/L\/8P\/w\/+\/\/7f\/s\/+v\/6f\/n\/+j\/6v\/r\/+v\/6v\/q\/+n\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00053968839347362518,"audio":"GwAbABwAHQAcABsAHAAeAB8AHwAeAB0AHAAbABoAGgAZABoAGgAaABoAGgAaABoAGgAaABkAGQAXABcAFgAWABYAFgAWABYAFAATABMAEgASABMAFAAUABUAFgAXABYAFgAWABcAGAAXABgAGAAZABkAGgAaABoAGQAYABgAFwAWABYAFQA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0011730216210708022,"audio":"CgAJAAsADQAMAAgABQAFAAUABwAHAAYABAACAAAAAAABAAAA\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/AAAAAAIAAQAAAAIABQAEAAEAAQAEAAQAAQD+\/\/3\/\/\/8CAAUAAwACAAIABQAJAAYAAgD\/\/\/3\/\/f\/\/\/wAA\/\/\/6
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0010237320093438029,"audio":"jf8jAHgABQCo\/+H\/IQDx\/+T\/KgAtANL\/qv8BAEYAFwDg\/\/b\/EgD\/\/wAALQAyAO7\/q\/8OAIsAVQC0\/3n\/DgCDAB8AxP\/x\/ywA4\/++\/zoAgAAOAJf\/3P9RACQA5P8XAC4A3\/+x\/wsAUgAQAMv\/6v8PAPD\/8P8gA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0011719899484887719,"audio":"CwAKAAgABwAHAAcABgAFAAQABgAHAAUABAAEAAMAAwAEAAQABQAFAAcACAAJAAkACAAHAAgACgALAAoACgAKAAoACgAKAAsADAAKAAgABwALAA0ADQAMAAsADAAMAA0ADQAMAAoACQAJAAkACQAIAAcABgAHAAcABQAGAAcABgAFAAUABQAG
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0009489550138823688,"audio":"1v\/G\/ykAdgASAHv\/ov8lABMAx\/8SAIcAMACK\/6L\/LwBhAC8ADAAHAPj\/+P\/w\/\/H\/EAAkAOn\/sv\/o\/yUAAADG\/+D\/CgD8\/\/j\/FwAcAP7\/8\/8CABIAMABGACQA9\/\/\/\/xwAEQD+\/xYAJgD+\/9H\/3\/8LAAw
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0010178412776440382,"audio":"9f\/\/\/\/f\/6v\/t\/\/X\/AAD\/\/wEABgAEAPz\/+v\/5\/wYADgAUABcAEAAWAAkABgAAAAEACwAEAAUABAAGAAkA\/f\/\/\/wMACgAGAAEACwASAA8ADQAUACEAGQAMABYAHwAjABIAGAAiABoACgALAB0AIgARAAoAIQATAAQA7v
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00059412315022200346,"audio":"DAAMAAkACAAIAAoADAANAA0ADQAMAAoABwAHAAcACAAHAAYABQAFAAUABQAGAAYABQAEAAQAAwABAP\/\/\/\/\/\/\/\/7\/\/f\/8\/\/3\/\/f\/7\/\/z\/\/f\/+\/\/3\/\/P\/7\/\/n\/9\/\/3\/\/j\/+v\/7\/\/z\/\/f\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00043603443191386759,"audio":"HAAbABoAGAAWABUAFAATABIAEQASABMAFQAVABUAFQAWABQAEgASABEADwAPAA8ADgAPAA4ADQANAA0ADAAMAA0ADAAMAAwACwALAAsACwALAAoACQAJAAoACwALAAwADQAOAA4ADgANAA4ADQAKAAoACwAJAAgACAAIAAcABgAFAAQAAQD
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0013038367033004761,"audio":"AwACAAEAAQABAAIAAQACAAMAAwADAAMAAwAEAAMAAwADAAMAAQAAAAAAAAD+\/\/3\/\/v\/+\/wAAAQABAAIAAgADAAMAAwAEAAIAAQADAAIAAAACAAIAAgACAAIAAQABAAAA\/v\/9\/\/v\/+\/\/7\/\/v\/\/P\/9\/\/z\/\/P\/8\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0024179015308618546,"audio":"awBiAEEALwAVAOX\/8P9LAGAA4v84\/\/D\/6gCWABD\/sv5AAOwA4P9U\/1AAjABO\/0T\/7ABTAcL\/QP+UAPIAnv9h\/8cAFwECAHb\/HgA5ALD\/9\/+sAGcAcf9S\/+P\/CgDi\/wgAKQC9\/2H\/r\/8rADUAGgAwAAsAsf+\/\/1c
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0015088919317349792,"audio":"\/\/\/2\/\/n\/\/f\/y\/\/z\/+\/\/x\/wcA9\/8BAO\/\/8\/8IAPD\/7f\/7\/wAA+P\/s\/\/\/\/9v8BAOf\/BQABAPP\/8\/\/4\/wUA7v\/3\/\/D\/+f8BAOD\/\/P\/6\/\/H\/7v\/x\/\/z\/9P\/6\/\/b\/8f\/1\/\/7\
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 13 rms: 0.0015
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00088185863569378853,"audio":"5P8CAPP\/2v\/j\/\/L\/9\/\/n\/+r\/6f\/j\/+f\/7P\/o\/+T\/8P\/y\/+H\/5v\/z\/\/L\/4\/\/g\/\/L\/+P\/q\/+L\/9P\/8\/+7\/5\/\/y\/wYA9f\/u\/\/3\/AwAAAO\/\/\/P8QAAcA9f\/w\/xAAEQDv\/\/P\/AQA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0028144898824393749,"audio":"EgAVABcAHgArADsARAAzACIAMQA3AAEA7P\/4\/\/j\/tv+K\/+\/\/GACz\/5j\/9v9MAPX\/jv8AAE8A3f+U\/\/3\/ZAAGALv\/SgCwAEYA8f9cAKYAIgC3\/\/T\/FACr\/1b\/j\/\/J\/4f\/Z\/+3\/\/v\/4f+\/\/\/f\/NgAVA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0010727653279900551,"audio":"+v\/4\/y8AKwDm\/+P\/HQD4\/9b\/3P\/m\/\/r\/BwAGAPH\/5v\/p\/9H\/r\/+X\/37\/ff+d\/9z\/DgAnADIARQBLAFQAZgA+APb\/sP\/E\/wUA8v+l\/4P\/yP8UABkA\/f8AADEAUQBGACoALwAoAA8A4f\/T\/+z\/5f\/I\/7
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0010558539070188999,"audio":"7f8AAPD\/4P\/g\/+b\/6P\/o\/+X\/5v\/l\/9z\/5P\/s\/+T\/4P\/s\/\/L\/5P\/b\/+D\/5\/\/m\/+f\/4\/\/c\/9n\/3f\/h\/+n\/9f\/Z\/8D\/5P8FAO3\/1P\/o\/+v\/1\/\/g\/\/P\/8v\/h\/9z\/7P\/1\/+7\/6\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0016297003021463752,"audio":"DABFAB4Auv+l\/+H\/HQA5ACUA+f\/0\/wQA7f\/b\/x4AZwA\/AOz\/5\/8NAAwABQAdACsAIgADAN7\/0f\/y\/xUAAgDq\/\/H\/6\/\/A\/7P\/5\/8LAPr\/2f\/J\/8j\/z\/\/g\/\/T\/AgD1\/9D\/w\/\/f\/wAABAAAAAsABA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00087106472346931696,"audio":"9v\/y\/\/D\/+v8IAAYA+P8IABgAHgANAAwAHQASAAUA+v8JABEA+P\/7\/\/v\/9f\/Q\/7X\/9\/8fABkADgAhACkAzP+U\/8r\/CgAkACMAdwChAGEAAgDb\/\/H\/1f+0\/+P\/MABFAPv\/1v\/U\/7r\/gv+D\/9z\/GgAdAB0ALQ
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00047057782649062574,"audio":"8\/\/1\/\/n\/+v\/3\/\/j\/\/P\/9\/\/z\/\/P\/\/\/wAA\/v\/9\/\/3\/+\/\/6\/\/n\/9v\/1\/\/T\/9P\/w\/+3\/7\/\/v\/+3\/7f\/u\/+7\/6v\/o\/+j\/6P\/m\/+P\/4\/\/k\/+T\/5f\/m\/+f\/5\/\/m\/+b\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00045784251415170729,"audio":"DAAMAAwADAANAAwACgAJAAkACAAIAAgABgAFAAQABAAEAAMABAAEAAYACQALAAwADgAPAA8ADgAOAA8ADwAPAA8AEAAQABAAEAAQABEAEAAPAA8ADgAOAA0ADAALAAkACQAIAAcABwAGAAcACAAJAAkACgALAAwACwALAAsADAAMAA0ADQA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00039858967647887766,"audio":"BAAEAAQAAwABAAAAAQABAAEAAgACAAQABAADAAEAAAABAAIAAgACAAMABQAFAAYABwAHAAUABAADAAEAAQABAAEAAQADAAUABQAGAAcACAAJAAoACQAIAAgACAAJAAkACQAKAAsACwAMAAwADAANAA0ADAANAA4ADwAQABEAEgASABIAEwA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00031263765413314104,"audio":"7v\/s\/+v\/6v\/p\/+j\/6P\/o\/+f\/5\/\/n\/+b\/5v\/m\/+X\/5P\/h\/+D\/3\/\/g\/9\/\/3\/\/h\/+L\/4\/\/k\/+T\/5v\/n\/+b\/5v\/m\/+X\/5\/\/o\/+f\/6P\/p\/+r\/7P\/t\/+\/\/7v\/u\/+3\/6\/\/r\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00043966036173515022,"audio":"DQANAA0ADAANAAwACwAKAAkACAAGAAYABwAIAAgABwAGAAYABQAEAAIAAAD\/\/\/7\/\/f\/+\/\/3\/+\/\/6\/\/v\/+\/\/6\/\/n\/+f\/5\/\/n\/+f\/4\/\/f\/9v\/2\/\/b\/9v\/2\/\/b\/9f\/1\/\/b\/9\/\/2\/\/X\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00047490760334767401,"audio":"6f\/o\/+j\/6f\/q\/+r\/6\/\/r\/+r\/6\/\/t\/+7\/7f\/q\/+n\/6P\/o\/+j\/6f\/p\/+n\/6P\/p\/+n\/6f\/q\/+r\/6P\/n\/+j\/6f\/q\/+v\/6v\/q\/+v\/7P\/s\/+z\/6\/\/r\/+z\/7f\/t\/+3\/7f\/v\/\/D\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00068589020520448685,"audio":"+f\/4\/\/j\/+v\/5\/\/f\/+P\/5\/\/j\/9v\/2\/\/b\/9\/\/2\/\/j\/+P\/2\/\/f\/+P\/4\/\/n\/+P\/2\/\/T\/8v\/y\/\/H\/8P\/w\/\/D\/8f\/w\/+7\/7v\/v\/+7\/7f\/t\/+3\/6\/\/r\/\/D\/7\/\/r\/+z\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0042105368338525295,"audio":"OgAfACYAMwAQAOL\/4P\/+\/wQA3v\/R\/\/T\/GAATAPz\/BgAqADIAGAABAA0AIQAJAN\/\/1P\/o\/+f\/vf+f\/6v\/xf\/E\/7H\/u\/\/b\/\/b\/\/v8GABoAMQBCAEMAOwA+AEgASQA0ACIAJAAjAA0A9f\/1\/wMA\/P\/p\/+3
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0019006906077265739,"audio":"9\/\/1\/\/j\/AAALABUAHAAhACIAHwAbABgAEgALAAQAAAD\/\/wIABgAGAAAA+P\/1\/\/L\/6\/\/l\/+f\/7f\/0\/\/r\/\/\/8FAAoACwAJAAYAAwABAP3\/+P\/7\/\/\/\/AwADAAQACgAOAAcA\/f\/3\/\/r\/+\/\/1\/+3\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0031538004986941814,"audio":"4\/8hABUAmf+J\/zgAhwAzAMD\/EgB5APn\/ev+6\/\/z\/mP99\/1sA8gCmAGwA0QAUAYkAAgDd\/6D\/Vv9J\/3T\/ef9c\/3z\/u\/\/M\/6n\/sf\/P\/8X\/0f8EACMAGgAkAF4AdwBKACQAGAAIAN\/\/xv+5\/7L\/t\/+9\/7z\/
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0016700868727639318,"audio":"FAAWACAAHQASABQAJgAdAAoADAAXABUA\/f8AAA0ABgD6\/\/v\/DwAQAAkAHgAvADEAJgA1AEIAMgAlACUAIwASAAgAEwANAPb\/6\/\/3\/\/z\/6\/\/Y\/9v\/4f\/T\/8b\/y\/\/S\/8r\/yP\/Z\/+b\/4v\/e\/+n\/9f\/w\/+\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0020912252366542816,"audio":"uP\/Q\/9z\/3\/\/b\/9D\/u\/+f\/5L\/nP+1\/9n\/AQAsAFIAbAB1AG4AZgBWADoAHwAHAPf\/6f\/o\/\/L\/AQAVACYALAAiAA0A9P\/V\/7H\/k\/+M\/5H\/nf+u\/8b\/4P\/s\/\/b\/CAAgACsAJgAeABIA\/\/\/i\/9L\/3f
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0023051637690514326,"audio":"BQAFAAYA6f+5\/6f\/xv\/1\/xMAIQAnADoAVABNABEA1P\/P\/+j\/4v\/D\/7P\/pv+9\/yQAhwB3APP\/q\/8IAFUA2v81\/2T\/FAB1AGIAZQC2AN4AnABUACkAwP8t\/+j+D\/9H\/0D\/MP94\/wkAcQB8AFAALgA2AEIAGwDG\/5X
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0031315938103944063,"audio":"+f8zAD0ACgDb\/9j\/EgBGADsA\/P\/A\/+3\/IQD+\/5j\/if\/y\/1EAagBKAFwAcABjADoADwDh\/7n\/s\/\/O\/+X\/y\/+g\/6f\/x\/\/d\/8\/\/xv\/j\/yAAPwAqAAYA+\/8bABwA5f+5\/8j\/6P\/5\/\/v\/9v\/+\/wsAG
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 33 rms: 0.0031
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0024656811729073524,"audio":"egFZ\/3D+l\/+aAH8AWABPAMD\/Af81\/x8AmwBNAMT\/bP9W\/53\/GQBWACEAz\/\/E\/8f\/z\/\/2\/0wAaQAiAN3\/1f\/4\/xYAPABqAFYA7\/+U\/7f\/NwB1ADwA5\/+3\/6T\/sP8HAFsAOQDJ\/5P\/tv\/f\/\/L\/FQAqAPb
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0028741920832544565,"audio":"RwDIAeb\/c\/4yAJUBuv+s\/ooA\/gCL\/1z\/kgBNAIr\/MgBOAKv\/8f9XABEAvf9CADsAxP\/T\/2sAUgBg\/+r\/7gDW\/xT\/MQD4ANz\/Gf\/4\/94ARgAo\/53\/6QBvABD\/mv\/eAE0AQf\/U\/7YA6v8q\/1kA6wBD\/wP\/KQ
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00020558210962917656,"audio":"BQAFAAgACgAHAAUABQAHAAgABAADAAgACgAHAAUACgALAAgABgAKAA0ACwAJAAkACwALAAoACgAJAAoACQAFAAYACgAKAAYAAgAGAAoABQABAAMABgAFAAMABQAHAAUAAwACAAMAAwABAP\/\/AAABAAAA\/v\/\/\/wIAAQACAAEAAQABA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00031238712836056948,"audio":"DAAPAA4ADgAPAAsACQAMAA0ADwANAAkADQAOAAwACQAHAAkACgAFAAMABQAGAAUAAwAGAAoACQAFAAMAAwAEAAQABQAGAAQA\/v8BAAMA\/\/8CAAQABQADAAAA\/f8BAAQAAAD6\/\/3\/\/P\/3\/\/f\/\/f\/9\/\/v\/+f\/6\/\/j
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0003233081370126456,"audio":"BgAHAAUAAwAAAAIABgAGAAAA\/v8AAAEA\/\/8AAAQABAACAAYACQAKAAYAAgADAAMAAgD\/\/wEABQAEAAQABwAIAAUAAQACAAIAAQD+\/\/f\/+P\/6\/\/r\/+f\/3\/\/T\/9f\/1\/\/b\/9v\/0\/\/T\/9P\/1\/\/b\/8v\/z\/\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00027898975531570613,"audio":"DwAMAA0AEAASABEADwAPAA8ADgAOAA0ACwAMAAsABwAHAAcACgALAAcABgAKAAoADAAJAAYABwAHAAcABwAFAAQABQAGAAYABgAFAAQABQAGAAcABgAEAAQABgAFAAQABQAFAAUABQAFAAUAAgABAAIAAwABAP\/\/AAAAAP3\/+v\/6\/\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00029871685546822846,"audio":"+\/\/7\/\/3\/\/\/8AAAEAAQABAAEAAgACAAEA\/\/\/+\/\/3\/\/f\/8\/\/z\/\/P\/9\/\/z\/\/f\/9\/\/3\/\/f\/9\/\/3\/\/v\/+\/\/\/\/AAAAAAAAAAABAP\/\/\/v\/9\/\/3\/\/\/\/\/\/\/\/\/\/v\/+\/\/3\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00031465495703741908,"audio":"\/f\/+\/\/7\/\/v8AAAEAAAAAAAEAAAACAAMAAwADAAMAAgACAAMAAwADAAMAAwACAAIAAwADAAMAAwAEAAQAAwACAAIAAgACAAEAAQAAAAAAAAAAAP\/\/\/\/\/\/\/\/7\/\/v\/+\/\/7\/\/\/\/\/\/wAAAgACAAMAAwADAAIAAg
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00029660787549801171,"audio":"FgAXABcAFwAWABYAFgAXABcAFwAXABYAFgAWABgAGQAZABkAGgAaABoAGQAZABkAGAAXABcAGAAYABgAFwAYABgAFwAXABYAFgAWABUAFAAVABUAFQAUABQAFAAVABQAEgASABEAEAAPAA4ADgAOAA0ADQAOAA4ADwAPABAADwARABIAEQA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0004231735656503588,"audio":"8\/\/0\/\/b\/9\/\/3\/\/f\/+f\/7\/\/v\/+v\/5\/\/n\/+f\/3\/\/f\/9\/\/3\/\/f\/+P\/3\/\/j\/+f\/4\/\/j\/+P\/4\/\/j\/+P\/5\/\/r\/+v\/6\/\/v\/+v\/5\/\/n\/+v\/5\/\/b\/9f\/0\/\/X\/9v\/1\/\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00040424778126180172,"audio":"BQADAAIAAQABAAAAAAAAAAEAAwADAAEAAQABAP\/\/\/\/\/9\/\/v\/+v\/5\/\/j\/9\/\/4\/\/f\/9v\/2\/\/X\/9v\/3\/\/j\/+P\/4\/\/j\/+P\/5\/\/j\/9\/\/2\/\/b\/9f\/z\/\/P\/8v\/y\/\/L\/8v\/y\/\/P\/8
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0004306311602704227,"audio":"DAANAA4AEQATABIAEgASABMAEgATABMAFAAUABUAFQAWABgAGAAYABgAGAAXABUAFQAXABYAFQAVABMAEwATABEAEQAQABAAEQARABAAEAAPAA4ACwALAAsACQAIAAkACQAIAAoACgAJAAkACQAIAAkACgAJAAoADAANAAwADAANAA0ADAAL
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0014473015908151865,"audio":"9P\/1\/\/X\/9v\/2\/\/f\/+P\/5\/\/n\/+f\/4\/\/f\/9\/\/2\/\/f\/9\/\/5\/\/z\/\/P\/9\/\/7\/\/f\/9\/\/3\/\/P\/9\/\/3\/\/f\/+\/\/7\/\/\/\/\/\/\/7\/\/v\/9\/\/z\/+\/\/7\/\/r\/+v\/6\/\/r\/+
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.013590012677013874,"audio":"rP+N\/3b\/bP9o\/2z\/e\/+N\/5r\/ov+m\/6T\/mP+E\/23\/W\/9M\/z7\/PP89\/zr\/QP9H\/0X\/O\/8z\/yX\/Ff8K\/\/3+7v7e\/tX+2P7g\/vL+Fv86\/1n\/hf+r\/8D\/2f\/t\/+\/\/+\/8ZAEEAfQDOACwBkQHzAUkChwK
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.002945820102468133,"audio":"5QEnAlYCXAJNAksC+gGUAWUBKQHkALMAkwB9AIEAgwBoADkABQDm\/9f\/2P\/3\/xkAPwBtAHcAjQC6ANwA8gD8ABsBIwFCAYwBrAG7AbEBmgFiARkB9ADdAL8AnwCAAE0AQQBNAEwATgBBADoAMwAtAEoAcQCTALgAuwCeAIAAZQBGABwA+
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0055396752431988716,"audio":"5f\/h\/+b\/3f\/e\/+L\/5f\/c\/+j\/6P\/m\/\/n\/7v\/8\/\/b\/AQAEAP3\/CgAEAPv\/+P\/s\/+\/\/6v\/x\/wQABAADABgADgARAAUA+v\/s\/+b\/8f\/4\/wIADwAlAB4AKwA1ABwAHwAPABwAHwApADoAKgBCADoAPwAzAC
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0079894252121448517,"audio":"Xf6Z\/t7+LP+C\/63\/4P+8\/3z\/nP90\/4D\/xP+s\/77\/u\/+E\/3D\/Ff+d\/lP+Df4m\/o7+If\/o\/7wAiAEZAowCyAKcAkkCzQEyAdAAlAB4AJAAoAC6AMUApwCAACsAs\/9D\/9n+j\/6M\/sP+Lf\/D\/2MA7gBlAa4BrAF9AR
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0072672166861593723,"audio":"MAA3ADwARwBNAFgAdwCEAIIAiwCEAGEAVwA\/ABwACADx\/+f\/1f\/N\/9X\/y\/\/K\/9j\/2\/\/g\/\/P\/\/f8IABQAJQAtACQAJwAmACAAJgAuACkAGgARAAMA6\/\/Z\/8T\/rP+M\/37\/eP9T\/1f\/W\/8p\/y\/\/MP8M\/xv
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.010063064284622669,"audio":"6\/69\/qr+uP7m\/kv\/xP9EAMEAFgFOAWwBcwF3AX8BkQGoAb8B0gHPAa0BYwHvAGEA4\/9h\/wT\/6P7S\/uT+8f7q\/uT+w\/63\/tP+8\/46\/57\/9v9XALgAAAE2AVYBXgFbAVYBXAFiAUsBJQHiAHUAFgDC\/3L\/NP8I\/93+w\/7
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0086383353918790817,"audio":"Bv\/t\/s3+rv6a\/pj+pP7B\/ur+Bf8s\/0\/\/b\/+v\/+T\/GABOAGQAggCoAMIA3wD1AP0A8gDpAOoA8ADyAOAA0ACyAIUAawBOAC8AHAAMAPz\/6v\/n\/+X\/1P\/H\/7\/\/tP+j\/5v\/oP+d\/5\/\/p\/+m\/53\/lf+T\/5X\/
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 53 rms: 0.0086
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.007666892372071743,"audio":"QwAMAPH\/5P\/K\/6v\/m\/+C\/27\/bf92\/3j\/cf9y\/3z\/hf+h\/8P\/2\/\/p\/\/f\/AQAFAA0AGgAeACIAIwAdABYADAADAPj\/5\/\/Y\/8X\/p\/+W\/3j\/Wf9V\/0H\/SP9P\/zz\/S\/9G\/zP\/UP9T\/0\/\/Yf9p\/3f\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0015962115721777081,"audio":"Uf9X\/1X\/Vf9c\/23\/gf+M\/5H\/kf+T\/5n\/o\/+3\/8f\/0f\/U\/9P\/0\/\/W\/9v\/2v\/Y\/9j\/0v\/M\/8X\/vf+t\/6D\/mv+T\/5T\/k\/+O\/4z\/j\/+Z\/6D\/pP+0\/7j\/uf\/J\/9v\/7f8HABwAKwA5AEsAWQBfA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0007028486579656601,"audio":"CQAMABAAEAAPAA8ADAAJAAkABQACAP7\/+\/\/2\/\/T\/8\/\/y\/+\/\/7f\/o\/+f\/5f\/k\/+L\/4v\/h\/+L\/4\/\/h\/+L\/4\/\/k\/+X\/5v\/m\/+X\/5f\/o\/+r\/6\/\/s\/\/D\/7\/\/y\/\/T\/+\/\/9\/\/\/\/Ag
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00041804555803537369,"audio":"BgAHAAkACQAJAAoACgAJAAoADAAMAAsACQAIAAgACAAJAAkABwAIAAgABwAIAAgABwAGAAUABAAFAAYABgAHAAkADAAMAAwADAALAAsACgAJAAkACgAKAAsACgAKAAoACgALAAwACgAHAAUABQAGAAUABQAFAAQABAADAAQABAAFAAcACAA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00027083061286248267,"audio":"7v\/v\/+7\/7v\/v\/+7\/7f\/v\/\/D\/8f\/x\/\/D\/7\/\/v\/+\/\/7\/\/u\/+7\/7\/\/u\/+3\/7f\/u\/+7\/7v\/v\/\/H\/8f\/x\/\/P\/8\/\/0\/\/X\/9v\/3\/\/f\/9v\/4\/\/r\/+v\/5\/\/r\/+\/\/7\/\/v\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.0003332360356580466,"audio":"\/\/8BAAIAAgACAAMABAACAAMABAAEAAUABQAFAAYABwAHAAcACAAHAAcABwAHAAYABgAGAAcABgAEAAQABAADAAEA\/\/\/+\/\/7\/\/v\/+\/\/7\/\/f\/+\/\/\/\/\/\/\/\/\/\/7\/\/v\/8\/\/z\/\/P\/9\/\/3\/\/v\/\/\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00041754121775738895,"audio":"EAAQABAAEgASABIAEgASABIAEgASABEAEQASABMAFAATABMAFAATABQAFQAVABQAFAAUABQAFQAVABYAFwAWABYAFQAVABYAFQAVABUAFgAYABkAGgAbABoAGwAcABwAHAAcAB0AHQAdAB0AHQAdAB0AHAAbABsAGgAaABkAGQAYABkAGgA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00040333456126973033,"audio":"8f\/y\/\/H\/8P\/x\/\/P\/9P\/z\/\/L\/8\/\/z\/\/P\/8\/\/z\/\/P\/9f\/2\/\/f\/+P\/5\/\/v\/\/P\/7\/\/v\/+v\/6\/\/r\/+f\/6\/\/v\/+\/\/9\/\/7\/\/\/8AAAAAAAAAAP\/\/\/v\/9\/\/3\/\/P\/7\/\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00032733214902691543,"audio":"AgACAAMAAwADAAIAAAAAAAEA\/\/\/+\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/wAAAAABAAEAAQACAAIAAQACAAMAAgACAAAA\/\/\/+\/\/3\/\/f\/+\/\/7\/\/v\/9\/\/v\/+\/\/7\/\/n\/9\/\/2\/\/X\/9P\/0\/\/T\/8
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00030265530222095549,"audio":"AQACAAIAAQABAAAA\/\/8AAAEAAAD\/\/wAAAgABAAEAAQABAAIAAgACAAIABAAFAAQABwAIAAcACQAJAAoACwANAA4ADgAPABAADwAOAA4ADgAOAA0ADQANAA0ADQAOAA8ADgAMAAsADAANAA0ADAAMAAwACgAJAAoACgAKAAoACQAJAAo
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00027096597477793694,"audio":"+P\/5\/\/r\/+f\/3\/\/f\/+P\/2\/\/f\/9\/\/3\/\/f\/9\/\/4\/\/j\/+P\/5\/\/j\/+f\/5\/\/r\/\/P\/9\/\/7\/\/\/8AAAAAAAAAAP\/\/\/f\/9\/\/z\/+\/\/7\/\/v\/+\/\/7\/\/r\/+v\/6\/\/n\/+P\/3\/\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00033100496511906385,"audio":"EAAQABEAEAAQABIAEgARABEADwAPAA8ADgANAAsACwANAA0ADgAPAA4ADgAOAA4ADQANAA4ADwAPAA8ADwAQABEAEwAUABQAFQAVABUAFQAUABMAEwATABIAEgATABMAEwAUABIAEgARABAAEQASABEADwAQABAADwAPAA8ADwAOAA4ADgA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00035871542058885098,"audio":"\/v\/\/\/wAA\/v\/+\/\/7\/\/v\/9\/\/3\/\/f\/9\/\/z\/+\/\/7\/\/v\/+\/\/7\/\/3\/\/v\/+\/\/\/\/AAAAAAEAAgACAAIAAgADAAIAAgADAAMAAwAFAAUABAADAAMAAgACAAEAAQAAAP\/\/\/\/\/\/\/wAAAAAAAP\/\
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  [log] - [VoiceChat] Stopping native microphone capture...
+⚡️  [log] - [NativeMic] Stopping native microphone capture...
+⚡️  To Native ->  NativeMicrophone stopCapture 35193037
+⚡️  To Native ->  NativeMicrophone removeListener 35193038
+🛑 [NativeMic] Restored previous audio config: AVAudioSessionCategorySoloAmbient
+🛑 [NativeMic] AVAudioSession deactivated and restored
+🛑 [NativeMic] Audio capture stopped
+⚡️  TO JS {"message":"Microphone capture stopped","success":true}
+⚡️  To Native ->  NativeMicrophone removeAllListeners 35193039
+⚡️  TO JS undefined
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/elevenlabs/get-signed-url
+⚡️  To Native ->  SecureStoragePlugin get 35193040
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsImlhdCI6MTc2NDE2MTAyNSwiZXhwIjoxNzY0NzY1ODI1fQ.B2TOr2h-HhAPRR
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  [log] - [API] Response received: 200 OK
+⚡️  [log] - [VoiceChat] Using native microphone: true
+⚡️  To Native ->  NativeMicrophone startCapture 35193041
+⚡️  [log] - [VoiceChat] Pre-initializing native audio engine...
+⚡️  [log] - [NativeMic] Starting native microphone capture...
+🎤 [NativeMic] Saved previous audio config: AVAudioSessionCategorySoloAmbient, AVAudioSessionModeDefault
+🎤 [NativeMic] AVAudioSession configured for voice chat
+🔊 [NativeMic] Output format: 48000.0 Hz, 2 channels
+🎤 [NativeMic] Input format: 48000.0 Hz, 1 channels
+✅ [NativeMic] Audio engine started (capture + playback ready) at 16000.0 Hz
+⚡️  TO JS {"success":true,"sampleRate":16000,"message":"Microphone capture started"}
+⚡️  [log] - [NativeMic] Start result: {"success":true,"sampleRate":16000,"message":"Microphone capture started"}
+⚡️  [log] - [VoiceChat] Native audio engine ready: {"success":true,"sampleRate":16000}
+⚡️  [log] - [VoiceChat] WebSocket connected
+⚡️  [log] - [VoiceChat] Sent conversation_initiation_client_data with PCM format
+⚡️  [log] - [VoiceChat] Registering native microphone listener...
+⚡️  To Native ->  NativeMicrophone addListener 35193042
+⚡️  [log] - [VoiceChat] Native microphone listener registered
+⚡️  [log] - [VoiceChat] Received: conversation_initiation_metadata voiceState: idle
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00025832006940618157,"audio":"BAAEAAQAAwACAAIAAgADAAIAAgACAAIAAgABAAAAAAAAAAAAAAAAAAAA\/\/\/\/\/\/\/\/AAABAAEAAQABAAEAAgACAAMAAwADAAIAAgABAAEAAAAAAAEAAgADAAMAAwADAAMAAwADAAUABgAIAAgACQAKAAgABwAHAAYABQAFAAUABgA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00032990053296089172,"audio":"AwABAAAA\/\/\/+\/\/3\/\/P\/7\/\/r\/+f\/5\/\/j\/+P\/4\/\/n\/+f\/5\/\/f\/9\/\/4\/\/j\/+P\/3\/\/j\/9\/\/3\/\/f\/9\/\/3\/\/f\/9\/\/3\/\/j\/9\/\/3\/\/f\/+P\/5\/\/r\/+v\/5\/\/r\/+\/\/7\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00042362380190752447,"audio":"AwADAAQABAAGAAgABwAGAAgACQAKAAsADAANAA8AEAARABEAEQASABIAEgASABIAEAAPAA8ADwARABIAEgATABMAFAAUABQAFAATABIAEQATABMAEwATABMAEwAUABQAEwATABMAEwAUABQAFQAVABcAFwAYABkAGwAcABsAGwAbABoAGQA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00030055941897444427,"audio":"AQAAAP\/\/AAAAAAAAAAD\/\/\/7\/\/\/8AAP\/\/\/v\/8\/\/z\/\/f\/9\/\/3\/\/P\/9\/\/3\/\/P\/8\/\/3\/\/P\/7\/\/n\/+f\/5\/\/n\/+P\/4\/\/j\/+P\/5\/\/n\/+v\/6\/\/v\/+\/\/8\/\/7\/\/\/\/\/\/\
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00045592509559355676,"audio":"\/f\/8\/\/3\/\/P\/8\/\/z\/\/P\/8\/\/z\/+v\/6\/\/v\/+v\/5\/\/f\/9v\/1\/\/X\/9v\/0\/\/P\/9P\/z\/\/L\/8f\/w\/+\/\/7v\/u\/+3\/7v\/u\/+\/\/7v\/t\/+z\/6\/\/r\/+r\/6f\/q\/+r\/6P\/o\/+j\/
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00047963231918402016,"audio":"EAAPABAAEQARABIAEgAUABQAFAAWABgAGQAaABsAHAAcABsAGgAZABkAGgAaABoAGQAYABgAGAAXABYAFgAUABMAEwATABMAFAAVABYAFwAXABkAGwAcAB0AHgAeAB4AHwAfACAAIAAeAB8AIAAfAB4AHQAdABwAGwAaABkAGQAZABgAGAA
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00046039017615839839,"audio":"3v\/f\/93\/3P\/b\/9v\/2\/\/b\/9r\/2v\/Z\/9n\/2f\/Y\/9j\/1\/\/X\/9f\/2P\/Y\/9f\/1\/\/Z\/9n\/1\/\/Y\/9j\/1v\/W\/9b\/1v\/W\/9f\/1\/\/X\/9j\/2v\/a\/9v\/3P\/d\/9z\/3\/\/g\/+L\/4\/\/k\/
+⚡️  [log] - [VoiceChat] Received: audio voiceState: speaking
+⚡️  [log] - [VoiceChat] Received audio chunk, length: 150548
+⚡️  [log] - [VoiceChat] playNativeAudioQueue called, queue length: 1
+⚡️  [log] - [VoiceChat] Playing native audio chunk, length: 150548
+⚡️  [log] - [NativeMic] Playing audio via native AVAudioEngine...
+⚡️  To Native ->  NativeMicrophone playAudio 35193043
+⚡️  [log] - [VoiceChat] Received: agent_response voiceState: speaking
+⚡️  TO JS {"sampleCount":1600,"sampleRate":16000,"rms":0.00030360580421984196,"audio":"DAAMAAwACwALAAsACgAJAAkACAAHAAkABwAGAAYABAADAAMAAwACAAIAAgAAAP\/\/AAD\/\/\/3\/\/f\/+\/\/7\/\/v\/9\/\/7\/\/\/\/+\/\/7\/\/v\/\/\/wEAAgACAAEAAgAEAAUABQAEAAQABQADAAIAAAD\/\/\/7\/\/v\/
+🔊 [NativeMic] Playing 169365 samples at 48000.0 Hz, 2 channels (from 56455 mono @ 16000.0)
+⚡️  TO JS {"success":true,"samplesPlayed":56455,"durationMs":3528}
+⚡️  [log] - [NativeMic] Playback result: {"success":true,"samplesPlayed":56455,"durationMs":3528}
+⚡️  [log] - [VoiceChat] Native audio chunk completed
+⚡️  [log] - [VoiceChat] No more native audio, switching to listening
+⚡️  TO JS {"sampleCount":1600,"audio":"CwAJAAgACAAHAAgABwAFAAYABgAHAAkACQAJAAkACQAKAAoACgAJAAkACQAJAAkACwALAAsADAAOAA8ADwAPAA4ADgAOAA8ADgAOAA0ADAAMAAwADQAMAAsADAALAAsADAAMAAwACwALAA0ADgANAA0ADgAOAA4ADgAPAA4ADwAQAA8ADwAQAA8ADgAOAA4ADQALAAsACgAJAAkACQAIAAYABgAFAAQABAA
+⚡️  TO JS {"sampleCount":1600,"audio":"0QDPANAAzwDNAM0A0ADRANMA1QDXANkA2ADWANMA0ADQANAAzQDMAMoAxwDFAMQAxADCAMAAvgC8ALoAtwC0ALEAsACxALAArQCoAKIAnwCdAJoAmACVAJIAjgCKAIcAhACAAH0AegB3AHQAcQBwAHEAcQBuAGkAZQBiAF8AWwBXAFYAVgBTAFAATQBJAEcARABAAD0AOgA2ADIALwAtACoAJgAiAB0AGQA
+⚡️  TO JS {"sampleCount":1600,"audio":"+P\/3\/\/f\/9\/\/4\/\/n\/+P\/3\/\/f\/9f\/y\/\/D\/7\/\/w\/+\/\/7v\/u\/\/D\/8f\/w\/+\/\/7v\/u\/+3\/7P\/r\/+3\/7\/\/v\/+\/\/7v\/t\/+v\/6v\/o\/+X\/5f\/l\/+X\/5P\/j\/+P\/5f\/m\/+X\/5P\/l\/+X\/5f\/l\/+X\/5\/\/o\/+n\/6v\/s\/+3\/7\/\/w
+⚡️  TO JS {"sampleCount":1600,"audio":"6P\/y\/\/X\/8\/\/t\/+7\/\/P8GAAAA7f\/5\/wQA+v\/v\/wwAJAAAAN\/\/6\/8YABgABQD6\/\/r\/AQAHABIAFgAQAAQAAgATABgAGQAOABAAFgAXABgAGwAfABwAGgAVABkAHwAhACIAJgAjABQACgAXADQAOwAnAAgABQAXADAAQwBDACUA+P\/z\/yQAWQBOAAcA9f88AGkAOwAJADkAXwAkAA
+⚡️  TO JS {"sampleCount":1600,"audio":"eQBn\/3P\/bwCyACAAHQBQALL\/jP6oAJ4CAAG6\/Tv99gArApP\/9P5hAGAA7v3m\/sEC\/AKp\/tP8aAClAlYA2P6wAFsB2\/7o\/cgAeQIYABv+Yv\/ZAAoAa\/9yAMEA9\/5M\/gkATwFVACv\/nv9EAPX\/6\/+uANMAAwCV\/yUAbQBSAF4AjQC\/\/9z+mABRAv8AGP6x\/coAuAGS\/w\/\/hwA
+⚡️  TO JS {"sampleCount":1600,"audio":"AwAcACAADAD\/\/w0AIQAdAAoABgADAPD\/5\/\/7\/xYAFAD8\/\/r\/CwALAAEABQAQAAMA9f8AABIABwDr\/\/L\/AgD2\/+j\/+P8KAPv\/6f8AABcA\/\/\/j\/\/X\/EgD+\/+L\/8f8NAAwA9P8EABwACwDt\/+7\/FAAaAAoA9v8FAA0AAwADABIABQDR\/9L\/IwBYACYA2\/\/q\/wMA5\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"6P9sACYARQCBAGUADgCG\/\/X+bf9+AFUATf9s\/2kAPQBn\/6r\/dwBlAPL\/GQBdAFcAWABUABkAHwCEAIUAIQAfAGoANQCn\/4v\/9v9FACcA3P\/E\/+b\/zv9+\/5\/\/QQCIACMA9f9CAFcACgAEAHMAoABaABUAJgBKADMACQAZAEMAHADJ\/8j\/\/f\/2\/7v\/xP\/w\/+v\/z\/\/n\/xUAI
+⚡️  TO JS {"sampleCount":1600,"audio":"+v\/p\/+T\/3\/\/Z\/9f\/2\/\/2\/\/r\/AAACAAoAEgAHABIAGgAYAB4AGgArAA8AAgACAAEA7\/\/n\/\/f\/BQDh\/7\/\/5P\/Z\/7L\/eP\/0\/4sAdgAdABsAVgDZ\/xb\/a\/9RAHgAIABcAAcBlgCC\/1b\/1f\/1\/4b\/rP9mAGkA0\/9e\/43\/tv+A\/4f\/BgCFAH4ALQAsAEgAIwDb\
+⚡️  TO JS {"sampleCount":1600,"audio":"+f8AAAEAAQAEAAIA+v\/0\/\/f\/\/f8AAP7\/\/f\/9\/\/j\/8v\/w\/\/T\/+f\/2\/\/D\/7P\/p\/+b\/5\/\/r\/+\/\/9P\/0\/\/L\/8P\/w\/+7\/7P\/u\/\/P\/8\/\/z\/\/X\/9v\/z\/+3\/6P\/p\/+v\/7v\/x\/\/L\/8f\/s\/+j\/6f\/q\/+r\/6\/\/s\/+z\/6\/\/s\/+3\/
+⚡️  TO JS {"sampleCount":1600,"audio":"DAAKAAkACgALAAkABwAKAAoACAAIAAgACAAIAAkACgAMAA4ADAALAAsACQAIAAgABwAIAAgABgAFAAUABAAEAAQABgAIAAgABwAHAAYABAAFAAYACAALAA4ADwAPAA8AEAARABIAEgASABMAFAAUABMAEQAQABAAEAAQAA8ADwAOAA0ACwAKAAsACgAIAAkACAAHAAgACQAJAAkACQAIAAcACAAHAAYABQA
+⚡️  TO JS {"sampleCount":1600,"audio":"4\/\/j\/+T\/5f\/l\/+b\/5\/\/o\/+n\/6v\/r\/+z\/7P\/s\/+3\/7f\/s\/+7\/7\/\/v\/\/D\/7\/\/u\/+\/\/7\/\/u\/+7\/8P\/y\/\/H\/8f\/x\/\/H\/8P\/w\/\/L\/8\/\/z\/\/T\/9P\/1\/\/b\/9v\/1\/\/b\/9f\/0\/\/T\/9f\/2\/\/b\/9v\/3\/\/r\/+v\/6\/\/z\/
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"audio":"BQAFAAQABgAFAAYABgAFAAUABQAFAAQABAAFAAQABAAEAAQAAwACAAIAAgABAAEAAgACAAMABAAEAAUABgAIAAgACQAJAAkACQAKAAwACwALAAsACwALAAkACAAIAAkACQAJAAgACAAIAAkACQAJAAoACgALAAsACgAJAAYABAADAAEA\/\/\/+\/\/7\/\/f\/9\/\/\/\/\/v\/7\/\/v\/+\/\/6\/\/
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 12 rms: 0.0002
+⚡️  TO JS {"sampleCount":1600,"audio":"BwAHAAYABgAGAAYABgAHAAcABgAGAAUABQAFAAYABgAFAAUABwAHAAcACAAJAAsADAANAA0ADgAOAA0ADQAMAAwADAAKAAkACAAIAAkACQAKAAoACQAIAAcABwAIAAgACAAIAAgABwAIAAkACgALAAoACQAJAAcABQAEAAMAAgABAAEAAAAAAP\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/v\/9\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"hwBOAEoAjACOAC4A8f8rACQA6\/\/i\/yYA\/\/99\/1L\/qv\/p\/6L\/j\/+0\/8r\/cf9e\/97\/6P9q\/1n\/eQBKATcAE\/9J\/1cAgwAGAI8A8QBgANP\/QADvAEAAnf83AN0AawBz\/3n\/7f\/A\/3f\/of\/j\/6\/\/TP9v\/6f\/dv8l\/1H\/0v\/0\/7n\/mf+v\/73\/wP8RAFYAPAAiA
+⚡️  TO JS {"sampleCount":1600,"audio":"4f9HABQAv\/+kAKX\/HwA3AOT\/XADy\/wEAYAC3\/yoAUQCj\/0sAHQD0\/wMA2\/9TABkAvf8uACgAxP8gAC8Atf9GAB0Ajv+PAN7\/CwAdAPj\/TgC\/\/xYA2f+JAMv\/iv\/dAKX\/8P8zAML\/dgDE\/77\/fADM\/\/v\/VQDa\/8\/\/SQAyAIb\/KQChAHv\/9P+WAKv\/DQBSAIr\/JgBrAK\
+⚡️  TO JS {"sampleCount":1600,"audio":"CgAOAPz\/+f8NAA0A+\/\/z\/\/3\/EwAMAPr\/AAAMAAQA9\/\/9\/wQAAQD4\/\/j\/AgABAAMA\/v8IABAA+f\/v\/\/r\/DAASAPf\/+v8MAAAA+P\/8\/w8AEQD9\/wIABwAIAAAA9v8AAPv\/AQD\/\/wAAAwACABAA\/f8BAAkAAwAFAP\/\/BQACAPn\/\/f8FAAoABgAHAAQACgAMAAoACQAQA
+⚡️  TO JS {"sampleCount":1600,"audio":"8v9rAAAAmP9aAAkBWQCJ\/yoAGwF8AFD\/0f\/nAFsAZP\/7\/w8BpwDB\/00AQQHAAMr\/\/\/+LABMANP8W\/3L\/W\/\/l\/t\/+Tv+N\/3j\/lv8NAEcAFgAUAG8AhwAwAAAALwBQADUAHAArAFQAkACvAI4AcACGAIsAKgDB\/7f\/o\/86\/+7+I\/9s\/0X\/F\/+B\/ycANQDq\/xcAkABOAMz\
+⚡️  TO JS {"sampleCount":1600,"audio":"KQCS\/2r\/CgBRAMT\/Qv+q\/1YAPADK\/+v\/bABpAPr\/CgCJAI4A7f+C\/8\/\/KwDf\/07\/Nf+b\/+L\/1f\/T\/wMAMwApABcAIAAeANf\/jv+b\/+n\/GwAVABUAKQApADUAegCAABEAfv+H\/xEAFgCB\/y\/\/k\/8IAPb\/1P8iAIcAcQAmAD0AiwBrANf\/df+V\/8X\/jv8z\/zv\/jf+9\
+⚡️  TO JS {"sampleCount":1600,"audio":"JwAfAAIADwAzADkAFQD8\/xAANwAtAA0AGwAzACMABgASAD0AQwAQAPP\/HQA9ACMAAAAKACkAIQADAA0ANAAzAAgA\/v8nAEIAIgD+\/xQANQAoAAsAGQA8AC8AEgAbADwANgAdABwAKAAwACkAIgAhACcANAA0ACwAKQA8AEEANAA3ADwANwAtACwALwAxAC0AIQAgACYALAAsACMAGwAaABQAGwAvACA
+⚡️  TO JS {"sampleCount":1600,"audio":"y\/+Y\/7f\/7v8cACMA9\/\/i\/wwAEwDg\/+\/\/RgBWAA4A7v8HAAsA\/P8IACEAJgAVAOz\/yf\/c\/wMA+f\/e\/+3\/9P\/D\/6P\/0v8GAPj\/1f\/Z\/+P\/0v\/O\/\/D\/EgAGAOb\/4P\/5\/wgAAgAJABoADwDt\/+b\/CQAfAA8A\/f8GAAkA7\/\/f\/\/j\/FwANAOX\/0P\/c\/\/L\/
+⚡️  TO JS {"sampleCount":1600,"audio":"KAAnACMAHgAWABIAFgAaAB4AHgAVAAYA9v\/t\/+T\/4f\/l\/+f\/5f\/d\/9X\/zv\/M\/9H\/3P\/r\/\/n\/BAAKAAsADAAOAA8AEwAeACoALwAuACoAIgAVAAgAAAD+\/\/\/\/\/f\/5\/\/X\/8v\/r\/+L\/3v\/f\/+L\/5\/\/v\/\/r\/\/f\/9\/\/3\/\/v\/9\/wAABwAMAA4AEQAQAAo
+⚡️  TO JS {"sampleCount":1600,"audio":"BwAIAAcABQAEAAIABgAIAAkACAAJAAkABwAEAAQABAAEAAMABQAGAAYABAADAAQABQAEAAMABAAGAAUAAwACAAIAAgADAAUABwAIAAkACgAJAAcABwAHAAgACgANABEAEgARABAADwANAAsACgANABEAEgASABQAEwASABMAFQAXABcAFgAXABcAFgAVABYAGAAYABkAGgAZABgAGAAZABcAGAAYABgAGAA
+⚡️  TO JS {"sampleCount":1600,"audio":"+P\/5\/\/j\/+P\/4\/\/j\/+P\/4\/\/n\/+v\/6\/\/n\/+f\/4\/\/n\/+v\/5\/\/j\/+f\/4\/\/f\/9v\/2\/\/X\/9f\/2\/\/b\/9v\/2\/\/X\/9f\/0\/\/L\/8P\/w\/+7\/7v\/v\/+3\/7f\/u\/+\/\/7\/\/w\/\/H\/8f\/x\/\/D\/8P\/v\/+\/\/7\/\/w\/\/D\/8P\/w\/+7\/
+⚡️  TO JS {"sampleCount":1600,"audio":"AgACAAEAAAD\/\/\/\/\/AAD\/\/\/7\/\/f\/9\/\/3\/\/f\/9\/\/7\/\/\/8AAAEAAQABAAAA\/\/\/\/\/\/\/\/AAABAAMABQAIAAgACQALAA0ADgAPABAAEAASABMAEwASABEAEAAQABAADwAPAA4ADgAOAA0ADAAMAAoACwAMAAsADAANAAwADAAMAAsACAAHAAYABQAFAAUABQAFAAUABQAEAA
+⚡️  TO JS {"sampleCount":1600,"audio":"AQABAAEAAgADAAIAAgADAAIAAwADAAQABAAEAAQAAwADAAMAAgADAAMAAwAEAAQAAwADAAQABQAHAAcACAAKAAwADQANAA4ADgAQABEAEwAUABUAFgAWABUAFAAUABQAFAAUABQAFAATABIAEQARABEAEgASABMAEwATABQAFgAVABUAFQAWABUAFQAVABYAFwAXABcAFwAYABkAGAAXABcAFQAUABMAEwA
+⚡️  TO JS {"sampleCount":1600,"audio":"\/f\/7\/\/r\/+f\/3\/\/X\/9P\/y\/\/D\/7\/\/v\/+7\/7v\/u\/+z\/6v\/r\/+r\/5\/\/n\/+j\/5\/\/n\/+b\/5f\/l\/+b\/5P\/j\/+L\/4f\/g\/+L\/4v\/h\/+L\/4v\/i\/+P\/5f\/l\/+X\/5P\/k\/+X\/5v\/l\/+X\/5v\/o\/+n\/6f\/p\/+j\/6P\/n\/+j\/6P\/o\/+r\/
+⚡️  TO JS {"sampleCount":1600,"audio":"CwAMAAsADAANAA4ADgAOAA4ADwAPABAADwAPAA8ADwAPAA8ADgAMAAsACwALAAwADAAMAAsACwALAAsACgAJAAcABgAFAAQABAAEAAQAAgABAAEAAQABAAIAAQABAAAAAQABAAEAAQAAAP\/\/\/\/\/\/\/\/\/\/\/v\/9\/\/7\/\/f\/8\/\/v\/+\/\/5\/\/f\/9v\/1\/\/P\/8\/\/y\/\/H\/8
+⚡️  TO JS {"sampleCount":1600,"audio":"CgAJAAcABwAGAAUABAADAAMAAwACAAIAAwAEAAQABAAEAAQABAAEAAQABAAFAAQABQAGAAcABwAJAAoACgAJAAkACQAIAAkACQAJAAoACQAIAAgACAAIAAgACQAKAAoACwAMAAwADAAMAAwADAAMAAsACwAMAA0ADAALAAoACQAIAAYABQAFAAUABQAFAAUABQAFAAQAAwADAAIAAQABAAEAAQACAAMABAA
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"audio":"LgAmABEA9f\/q\/+7\/5f\/S\/8\/\/3f\/p\/+j\/5f\/t\/\/n\/AQABAPf\/6f\/l\/+n\/4\/\/R\/8X\/y\/\/W\/9j\/2v\/q\/\/3\/CAAXAC8AQAA6ADMAPAA7ACEACQAJAAYA7f\/V\/9H\/xv+3\/9f\/CQD8\/73\/w\/8fADgA3f+k\/+v\/PgAoAO\/\/AwBBAE0AMAAjACYAFwD5\/97\
+⚡️  TO JS {"sampleCount":1600,"audio":"EQAPAAsACAAIAAsADQAMAAoACQAIAAUAAQD\/\/\/3\/\/P\/8\/\/\/\/AgAFAAUABAAEAAQAAQD+\/\/7\/\/v8AAAIABAAFAAQAAwAAAP7\/\/f\/9\/\/z\/\/f8BAAQABgAEAAIA\/\/\/9\/\/r\/+P\/3\/\/f\/+f\/9\/\/\/\/\/\/\/7\/\/j\/9v\/0\/\/D\/6\/\/o\/+b\/6f\/u\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"3\/\/m\/yoAXABGABEAAQATAAUA1f+z\/7T\/sP+n\/8P\/9v\/6\/9j\/3\/8IABUAEwAMABgAIgAHAM3\/8P92AIUAGwD7\/10AOACs\/6D\/AAD6\/6z\/\/\/+yAN8AnQB8AIYAUwDd\/33\/Sv8q\/xn\/Lv9q\/5\/\/0f\/6\/xYAHgAxAEUAJQD4\/xEARQA3ABIAKwBhAGUAOAAnACEAAgDf\/
+⚡️  TO JS {"sampleCount":1600,"audio":"BAAIAAcAAQD5\/\/H\/7v\/v\/\/D\/6v\/l\/+n\/7P\/k\/97\/4v\/m\/+P\/4P\/k\/+\/\/6\/\/g\/+L\/6\/\/r\/+X\/6P\/y\/\/D\/7f\/2\/\/\/\/+\/\/2\/wQAEAAHAPf\/9f\/8\/\/b\/7v\/s\/+H\/1v\/T\/9z\/2f\/M\/8b\/x\/\/J\/8T\/wP+\/\/73\/wf\/M\/9r\/2v\
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 32 rms: 0.0018
+⚡️  TO JS {"sampleCount":1600,"audio":"DgAKAAkACwAPABUAGwAbABYADwALAAUA+\/\/2\/\/b\/9v\/y\/\/D\/8\/\/6\/\/j\/+P\/9\/wYADAAOABUAGAASAAkACgAUABkAHgAlACwALwArACQAHwAaABYADAD9\/\/T\/9P\/0\/+7\/7f\/3\/\/\/\/\/P\/0\/+7\/7\/\/o\/97\/2v\/a\/9r\/2v\/Z\/+H\/6v\/z\/\/7\/AQAIAA
+⚡️  TO JS {"sampleCount":1600,"audio":"BgAjACsA7v+8\/8j\/0\/\/e\/xkAXgBTAPv\/9\/9jAGkAxP9m\/9j\/VQA7AAIAVgDJAKQAPgAxACwAr\/8c\/w3\/Uv9W\/zT\/dP8MAGIAXwBdAH8AjQBfACUACAD9\/\/b\/\/P8BAOv\/3f\/t\/\/j\/5f\/R\/9v\/\/P8QAA4AJgBFAD8AEQD6\/xAAEgDi\/8H\/yv\/A\/9L\/IQBqAEkA6v
+⚡️  TO JS {"sampleCount":1600,"audio":"kQCmAIkAawAyAOT\/q\/+n\/7f\/tf+p\/6L\/rf+q\/4z\/e\/+b\/97\/EQA8AFgAXQBJACkAEQD8\/9\/\/zf\/h\/xEAIQD8\/93\/8f8PAAMA3\/\/j\/xcARQBEACYAFAADAPD\/3\/\/K\/7z\/zv\/8\/xAA\/P\/g\/83\/yv\/c\/\/\/\/CwAGAA8AKAAoAOf\/kf+8\/3MA1gBNAHD\/Zf\
+⚡️  TO JS {"sampleCount":1600,"audio":"FwAdABkAEAAOAA0ADAANABEAEQAIAAMADQAUAA8ACgAPABcAFQAIAAAABQAIAAEABwAOAAIA7P\/p\/\/z\/AQD1\/+n\/9\/8OAAMA6P\/r\/wUAAwD3\/wwAKgAjAPj\/7f8RACsAHwARAB0AGwD9\/\/P\/DwAlABEA8\/\/u\/\/r\/+\/\/1\/\/v\/AwD4\/+T\/5\/\/+\/wgA+\/\/t\/\/b\/B
+⚡️  TO JS {"sampleCount":1600,"audio":"sf\/R\/1sASwDv\/+v\/\/\/8MAFIAOACs\/8D\/awBtALL\/oP9kAGsArf+r\/1gAUwDH\/8f\/FgAiAB8ADADH\/9L\/WQBlAKb\/kf9zAIAAhP+I\/5kAlACE\/2n\/YACnANT\/c\/8XAIMABQCh\/\/n\/UQAJAKj\/7P9ZACwAu\/\/M\/zUAPwD1\/9j\/\/\/8iABYACQARAAsACAAZABsACQAJ
+⚡️  TO JS {"sampleCount":1600,"audio":"5f\/l\/+L\/4v\/j\/+L\/4P\/j\/+T\/4\/\/h\/+L\/4\/\/i\/+D\/4f\/i\/+L\/4f\/h\/+L\/4\/\/j\/+L\/4\/\/l\/+b\/5v\/m\/+f\/6P\/o\/+j\/6v\/t\/+\/\/7v\/v\/\/H\/8P\/v\/+\/\/7v\/t\/+v\/6f\/r\/+3\/6\/\/q\/+z\/7f\/t\/+z\/7P\/q\/+r\/6f\/o\/+v\
+⚡️  TO JS {"sampleCount":1600,"audio":"9f\/0\/\/P\/8v\/x\/\/D\/8P\/v\/+\/\/8P\/w\/+7\/7f\/t\/+7\/7v\/t\/+7\/7f\/u\/+\/\/7v\/u\/+3\/7f\/u\/+7\/7v\/t\/+7\/7v\/u\/\/D\/7\/\/v\/\/D\/8P\/x\/\/H\/8v\/x\/\/L\/8v\/y\/\/X\/9f\/2\/\/j\/9\/\/3\/\/b\/+P\/4\/\/j\/+f\/8\/\/7\/\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"9\/\/2\/\/b\/9v\/1\/\/b\/9\/\/3\/\/f\/9\/\/2\/\/b\/9f\/0\/\/T\/9P\/1\/\/T\/9P\/1\/\/T\/8\/\/y\/\/L\/8P\/w\/\/D\/8f\/x\/\/L\/8\/\/1\/\/X\/9v\/3\/\/j\/+P\/4\/\/f\/9\/\/4\/\/j\/+f\/6\/\/r\/+\/\/9\/\/7\/\/\/\/\/\/wAA\/\/\/+\/\/7\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"+v\/5\/\/n\/9\/\/3\/\/j\/+f\/5\/\/n\/+v\/5\/\/j\/9v\/1\/\/P\/8v\/x\/\/D\/7\/\/v\/+\/\/8P\/v\/\/D\/8P\/w\/\/D\/8P\/x\/+7\/7v\/t\/+z\/6\/\/q\/+v\/6\/\/s\/+z\/6\/\/p\/+n\/6f\/p\/+n\/6f\/p\/+j\/6f\/q\/+v\/7P\/u\/+7\/7v\/v\/\/D\/8f\
+⚡️  TO JS {"sampleCount":1600,"audio":"CwAPABYAFwAXABcAEQAKAAUA\/\/\/6\/\/j\/9v\/z\/\/f\/\/f\/+\/wAAAQD8\/\/j\/9\/\/w\/+v\/6f\/m\/+b\/6f\/u\/\/D\/9v\/7\/\/v\/\/P\/8\/\/n\/9P\/u\/+f\/5f\/k\/+b\/6\/\/v\/\/P\/+P\/8\/\/r\/9f\/u\/+b\/2\/\/V\/8\/\/zf\/S\/9b\/3f\/o\/\/H\/+
+⚡️  TO JS {"sampleCount":1600,"audio":"mv+m\/7D\/tv+4\/73\/v\/+7\/7b\/o\/+A\/2r\/O\/8D\/\/T+3P7E\/sT+v\/6x\/qT+nP6F\/mz+W\/5Z\/o3+zf4G\/yn\/Mv8w\/+f+lP5I\/ur91f0a\/qD+Vf8KANEAiAHuASYCTQJEAhwCFQIlAiECLQJHAkgCHwLYAYwBMQHSAI4AbABaAFUAXQBdAEkAKQARAPn\/6f\/t\/\/r\/DQAlAE
+⚡️  TO JS {"sampleCount":1600,"audio":"JQAVAAIA5P\/w\/\/7\/\/f8AAPj\/9\/8NABUAFQAWAAkA\/v\/7\/\/f\/6P\/g\/+3\/8P\/7\/\/z\/9v\/2\/+7\/zP\/Z\/9\/\/zP\/b\/97\/5\/8AAPz\/BAD\/\/\/D\/9\/\/z\/\/X\/DQD+\/wsAAQD8\/w0A8f\/t\/\/r\/6v\/e\/+X\/1\/\/o\/+j\/3P\/2\/+3\/6f\/t\/+v\/
+⚡️  TO JS {"sampleCount":1600,"audio":"YwBiAGkAYgBrAH4AjwCyANMA7wAOASUBJwEgAQ0B6wDCAJMAYAAqAPL\/yf+o\/4z\/gP9s\/1T\/Tf9A\/yP\/H\/8Z\/\/j+\/P75\/u\/+\/v4J\/xL\/B\/8U\/w7\/+v4T\/+H+0v7m\/qL+u\/7B\/oH+yv6n\/mz+wv5y\/l3+pP5W\/mj+tf6m\/uP+Qf9X\/5n\/3P\/3\/xwATABgAHsA1AAJ
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"audio":"vQD2AC0BfwHiAUgCpQLmAucCnAIkAoQB5QB5ADEABgDn\/7L\/X\/\/5\/o3+O\/4E\/uf9JP5y\/tL+Zv+\/\/\/\/\/JAAoAFMAiQDkAG8B6QFQAowCgwJTAgECnQE6AecApgBxAEMA\/f+q\/0P\/1f6A\/jv+LP4\/\/mb+r\/7u\/iD\/Wf+B\/6T\/1P8KAE0AggC2AOEAxgCjAHQABQC5\/3r\/R
+⚡️  TO JS {"sampleCount":1600,"audio":"lABwAEkATgBcAGMAYACJALsAkACWAKkAiQCNAHoAgQCQAHAAdgBlADEAPwBCACYAMgAvADMAOQAyAEIAJQAFAP\/\/8f\/l\/\/L\/9f\/u\/+P\/y\/\/B\/6T\/nP+m\/5P\/mP+t\/7T\/qf+Q\/3z\/Y\/9N\/1b\/av9f\/1v\/XP9Q\/1H\/Uf9a\/2r\/av92\/4f\/kv+m\/7L\/tf+o\/6j\/1
+⚡️  TO JS {"sampleCount":1600,"audio":"NP9F\/1n\/e\/+a\/6\/\/sf+w\/6H\/ZP8h\/+r+p\/55\/oH+tv4l\/83\/iABDAdwBPgJrAloCGgLVAZIBVQFGAVUBaQGOAakBoAFnAfoAcQDW\/zP\/rf5Z\/in+Lf5e\/qX++\/5U\/53\/z\/\/l\/+H\/0v+7\/6z\/uf\/i\/yQAggDwAE8BlAG4AbIBewEbAawANQC\/\/3L\/Vv9X\/3T\/p\
+⚡️  TO JS {"sampleCount":1600,"audio":"RwD\/\/+T\/6v+d\/0f\/Vf9K\/w7\/Bf8W\/\/L+4v4I\/yX\/Hf8f\/0X\/YP9g\/5n\/y\/+5\/8r\/\/v8HACsATABNAF8AawBiAHcAdABmAH0AZQBOAGYANgAaAC4A8v+n\/6b\/df83\/zb\/EP\/I\/sn+mP5j\/lj+\/f3U\/dj9ov21\/d\/9w\/3a\/RT+Jv5t\/s3+\/f5Z\/9D\/GwCZAA0
+⚡️  TO JS {"sampleCount":1600,"audio":"oP2K\/Y79vf0j\/pf+8f4v\/2j\/pP\/u\/1MAzQBFAakB6QECAvYB6wHvAdkBpwFfAR8B8wDHAKYAWQAPAO7\/nP9b\/3P\/Zf9V\/3v\/gv93\/6D\/AQB0ALAA8ABlAZABnAHpAfEBtgGjAZIBVAESAfcAywByABgAx\/9x\/yj\/DP\/w\/sL+yf7R\/tH+8v4C\/wX\/Hf8r\/07\/bP+R\/9f\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"XABoAHQAgACPAJkAmQCVAJEAiwB6AGoAXABVAFIATgBVAFUASgA6ACoALAA2AEQAXQByAH4AfgB7AIAAiQCZAKUAsQC+AMAAwQC5ALEAnwCEAHIAagBsAGYAXABJADAAFwD\/\/\/b\/9f\/2\/\/n\/9P\/u\/+r\/5f\/l\/+n\/7P\/y\/\/n\/AAAQACAAKgAwADkAQQBIAFIAVwBVAE8AQAAwACIAF
+⚡️  TO JS {"sampleCount":1600,"audio":"4P\/i\/+H\/4f\/i\/+L\/4\/\/m\/+z\/8\/\/5\/\/r\/+v\/6\/\/j\/9\/\/6\/\/\/\/AwAFAAUAAQD+\/\/v\/+v\/5\/\/f\/9v\/0\/\/L\/8P\/t\/+r\/6P\/k\/+P\/5f\/p\/+3\/8P\/x\/\/L\/8P\/v\/\/L\/9v\/5\/\/r\/+v\/5\/\/j\/9v\/0\/\/T\/8\/\/z\/\/P\/9P\/0
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 52 rms: 0.0005
+⚡️  TO JS {"sampleCount":1600,"audio":"8P\/w\/\/H\/8f\/x\/\/P\/9f\/3\/\/r\/+\/\/7\/\/r\/+f\/6\/\/v\/+\/\/8\/\/z\/\/f\/+\/\/\/\/\/\/\/+\/\/7\/\/P\/6\/\/f\/9v\/1\/\/T\/8\/\/x\/+\/\/7v\/t\/+3\/7f\/t\/+3\/7P\/t\/+3\/7f\/v\/+\/\/8P\/y\/\/P\/9P\/1\/\/b\/9f\/1\/\/T\/9f\/1\
+⚡️  TO JS {"sampleCount":1600,"audio":"EAASABQAFAAVABYAFwAYABkAGQAXABcAFwAXABUAEwASABAADQAMAAwACwAKAAkACAAJAAgABwAGAAYABQAEAAQABAAGAAgACAAIAAcABwAGAAUABgAHAAgABwAGAAYABQAFAAMAAQAAAP7\/\/v\/+\/\/\/\/\/\/\/+\/\/z\/+\/\/6\/\/r\/\/P\/8\/\/z\/\/f\/+\/\/7\/\/v\/+\/\/7\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"\/v\/+\/\/7\/AAACAAMABAAEAAMAAwAEAAUABwAHAAcABwAGAAUABQAEAAQAAwAEAAQABQAHAAgACAAIAAgACQAKAAwADQANAA4ADgAPABAAEQARAA8ADQANAA0ADQAMAAwACgAJAAkACQAIAAYABgAHAAYABgAFAAUABAADAAIAAAD\/\/\/7\/\/v\/+\/wAAAQADAAMAAwADAAQABQAFAAYABgAIAAk
+⚡️  TO JS {"sampleCount":1600,"audio":"\/f\/8\/\/v\/+v\/5\/\/j\/+P\/2\/\/T\/9f\/1\/\/X\/9P\/0\/\/P\/8v\/x\/\/H\/8\/\/z\/\/T\/8\/\/z\/\/L\/8f\/v\/+7\/7f\/s\/+v\/6\/\/r\/+7\/7\/\/x\/\/L\/8v\/y\/\/L\/8v\/y\/\/H\/8v\/z\/\/P\/9f\/1\/\/T\/9P\/z\/\/P\/8\/\/z\/\/L\/8\/\/0\/
+⚡️  TO JS {"sampleCount":1600,"audio":"BwAIAAkACwALAAkACAAGAAYABwAHAAgACAAJAAsACwAKAAkACQAJAAoACgALAA0ADgAPAA8ADwAPAA8ADgANAA0ADQANAA0ADQAOAA8ADwANAAwADQANAA4ADwAOAA8AEAAQAA8ADwAOAA4ADgANAA0ADgAPAA4ADgAOAA0ACwALAAwADAAMAA0ADgAPABAADgANAA0ADQAMAAsACgAKAAkACQAJAAcABgA
+⚡️  TO JS {"sampleCount":1600,"audio":"AwAFAAYABQAFAAYABgAGAAYABgAGAAUAAwADAAMAAgADAAQABAAFAAUABQAFAAYABgAGAAYABwAIAAoADAANAA0ADQAOAA4ADgAOAA4ADwAQABEAEQASABMAEgARABIAEwAUABMAEwAUABUAFwAXABcAFwAWABYAFAAUABQAFAATABQAFAAUABUAFgAXABgAGAAXABcAGAAXABcAGAAYABgAGQAZABkAGgA
+⚡️  TO JS {"sampleCount":1600,"audio":"+f\/5\/\/n\/+f\/6\/\/r\/+v\/6\/\/r\/+v\/7\/\/v\/\/P\/+\/\/\/\/\/\/\/\/\/wAAAAD\/\/\/\/\/\/\/\/\/\/wAA\/\/\/\/\/\/\/\/\/v\/9\/\/z\/\/P\/7\/\/r\/+f\/4\/\/f\/9\/\/4\/\/f\/9\/\/5\/\/r\/+\/\/6\/\/r\/+v\/6\/\/v\/\/P\/8\/\/z\/+\/\/7\/
+⚡️  TO JS {"sampleCount":1600,"audio":"AAABAAIAAgACAAMAAwAEAAQAAwADAAMAAwADAAIAAgACAAIAAwADAAQABQAGAAcABgAGAAYABAADAAEAAAD\/\/\/\/\/\/v\/9\/\/3\/\/f\/7\/\/r\/+P\/3\/\/b\/9v\/3\/\/f\/9v\/1\/\/T\/9P\/1\/\/b\/9f\/1\/\/b\/9v\/2\/\/f\/+P\/5\/\/n\/+v\/6\/\/r\/+f\/4\/\/b\/
+⚡️  TO JS {"sampleCount":1600,"audio":"\/v\/+\/\/7\/\/f\/9\/\/3\/\/f\/+\/\/7\/AAABAAIAAwAEAAUABgAFAAQABAAEAAMAAwADAAQABAAEAAMAAgADAAUABwAIAAkACgAKAAsADAAMAAsADAAMAAsADAAMAAwADAALAAsACwALAAsADAAMAA0ADAANAA0ADQANAA0ADgANAA0ADQANAA0ADgAOAA8ADwAPAA8ADgAOAA0ADQALAAkACQAI
+⚡️  TO JS {"sampleCount":1600,"audio":"9\/\/3\/\/b\/9\/\/4\/\/n\/+f\/4\/\/j\/9\/\/2\/\/X\/8\/\/y\/\/L\/8f\/x\/\/L\/8v\/y\/\/P\/9P\/0\/\/P\/8\/\/z\/\/L\/8v\/x\/+\/\/8P\/w\/\/D\/8P\/w\/\/D\/8P\/w\/\/D\/7\/\/u\/+3\/7f\/s\/+r\/6f\/p\/+n\/6f\/o\/+j\/5\/\/m\/+b\/5f\/l\/+T
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"audio":"\/\/\/\/\/wAAAAABAAIAAwAFAAYABwAHAAYABQAFAAUABAAEAAUABQAGAAcABwAIAAkACgALAAwADQAPABAAEAAQABAADwAOAA8ADgAOAA4ADgANAA0ACwAJAAkABwAFAAQAAwADAAMAAgACAAEAAQABAAAA\/\/\/+\/\/\/\/\/\/8AAAAA\/\/\/+\/\/7\/\/v\/9\/\/z\/+\/\/8\/\/z\/\/P\/
+⚡️  TO JS {"sampleCount":1600,"audio":"9P\/1\/\/b\/9\/\/3\/\/j\/+P\/4\/\/f\/9v\/0\/\/L\/8f\/w\/\/H\/8f\/x\/\/H\/8v\/z\/\/P\/8\/\/z\/\/T\/9f\/2\/\/f\/+f\/6\/\/r\/+v\/7\/\/3\/\/v\/\/\/wEAAgAEAAUABQAFAAUABgAHAAcACAAJAAkACQAJAAgACAAIAAkACgAMAAwADAAMAAwACwAKAAoACgALAAsAC
+⚡️  TO JS {"sampleCount":1600,"audio":"+\/\/6\/\/n\/+f\/4\/\/f\/9v\/1\/\/P\/8\/\/z\/\/T\/9P\/z\/\/P\/8\/\/y\/\/L\/8v\/x\/\/H\/8f\/w\/+\/\/7\/\/w\/\/D\/7\/\/w\/\/D\/8v\/z\/\/L\/8v\/y\/\/L\/8f\/v\/+7\/7f\/s\/+3\/7v\/u\/+\/\/8P\/w\/\/H\/8f\/x\/\/P\/9P\/0\/\/X\/9f\/1\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"\/P\/7\/\/v\/+\/\/7\/\/r\/+v\/5\/\/n\/+P\/4\/\/j\/+P\/6\/\/v\/\/v8BAAIAAwAFAAcACAAJAAoACgAMAA4ADwARABMAFAAWABcAGAAZABoAGgAZABgAFwAXABcAFwAXABYAFgAXABYAFgAVABUAFQAVABYAFwAZABkAGgAaABoAGgAaABoAGgAZABoAGgAaABsAGwAbABsAGgAZABgAFwAV
+⚡️  TO JS {"sampleCount":1600,"audio":"9f\/1\/\/X\/9P\/0\/\/T\/9f\/1\/\/X\/9v\/2\/\/f\/9\/\/3\/\/j\/9\/\/2\/\/b\/9f\/1\/\/T\/8v\/x\/\/L\/8v\/y\/\/P\/8\/\/0\/\/b\/+f\/5\/\/n\/+v\/6\/\/r\/+f\/5\/\/n\/+f\/4\/\/f\/9v\/0\/\/L\/8f\/w\/+\/\/7v\/u\/+\/\/8f\/y\/\/T\/9f\/2\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"9f\/1\/\/X\/9f\/3\/\/f\/9\/\/3\/\/f\/9v\/2\/\/X\/9f\/0\/\/P\/8\/\/z\/\/H\/8f\/y\/\/L\/8\/\/0\/\/T\/9P\/0\/\/T\/8\/\/y\/\/L\/8f\/w\/+\/\/7\/\/u\/+z\/6\/\/q\/+n\/5\/\/l\/+T\/5f\/m\/+b\/5\/\/n\/+b\/5f\/m\/+b\/5\/\/n\/+j\/6v\/s\/+7
+⚡️  TO JS {"sampleCount":1600,"audio":"CAAIAAgABwAGAAUAAwADAAQABAADAAMAAgABAP\/\/\/v\/9\/\/3\/\/f\/8\/\/z\/\/f\/+\/\/7\/\/\/\/\/\/\/3\/\/f\/9\/\/z\/\/f\/9\/\/7\/\/v\/\/\/wAAAQABAAEAAAD\/\/\/7\/\/v\/+\/\/7\/\/v\/+\/\/\/\/\/v\/\/\/\/\/\/\/\/\/\/\/\/7\/\/v\/+\/\/\/\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"+\/\/8\/\/\/\/AQADAAMAAwAEAAQABQAGAAcABwAHAAgACQAJAAkACQAJAAkACQAKAAoACgAKAAkACQAKAAkACQAKAAsACwALAAsACwALAAkACAAIAAcABwAIAAgACAAJAAoADAANAA4ADwAQABAAEQATABQAFAAUABQAFQAVABQAFQAVABUAFgAXABcAFwAZABoAGQAYABcAFgAUABMAEgAQABAADwAOA
+⚡️  TO JS {"sampleCount":1600,"audio":"6P\/p\/+j\/5\/\/n\/+j\/6P\/p\/+r\/6v\/r\/+z\/7P\/s\/+3\/7\/\/v\/\/D\/8P\/w\/\/D\/8f\/x\/\/D\/7v\/t\/+3\/7v\/u\/+3\/7P\/t\/+3\/6\/\/q\/+z\/6\/\/s\/+z\/7P\/v\/\/D\/8v\/0\/\/b\/9\/\/4\/\/j\/+f\/6\/\/v\/+\/\/5\/\/j\/+P\/3\/\/f\/9v\
+⚡️  TO JS {"sampleCount":1600,"audio":"CgAMAA4ADgAOAA8AEAAQABEAEgASABEAEQARABIAEwASABEAEAAPAA8ADgAMAAsACQAIAAcABgAGAAYABgAFAAQAAwAEAAUABwAJAAoACwALAAwADQANAA0ADQANAA4ADwAPAA4ADgAPABAAEgASABEAEQARABAADQALAAoACQAJAAgACAAHAAgACQAJAAoACwAMAAsACwAMAA0ADAAMAAsACQAHAAYABgA
+⚡️  TO JS {"sampleCount":1600,"audio":"GwAaABkAGgAYABYAFQAUABQAFAATABMAFAAWABYAFgAXABcAFwAYABcAFgAWABUAFQAUABQAFAAUABQAFAAUABUAFQAVABUAFAAUABQAEwATABMAEgASABIAEgARABAADwAOAAwACwALAAsACwALAAoACwANAA0ADgAOAA4ADQAOAA4ADgAOAA8ADwAPAA8AEAAQABEAEQARABIAEgATABIAEQARABEAEQA
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 73 rms: 0.0004
+⚡️  TO JS {"sampleCount":1600,"audio":"+f\/5\/\/n\/+f\/6\/\/n\/+P\/3\/\/f\/9\/\/2\/\/X\/9f\/1\/\/f\/+P\/4\/\/j\/+f\/6\/\/r\/+\/\/6\/\/r\/+v\/6\/\/r\/+v\/5\/\/j\/9\/\/2\/\/b\/9v\/1\/\/X\/9P\/0\/\/P\/8\/\/x\/\/D\/7\/\/u\/+7\/7v\/u\/+7\/7\/\/w\/\/H\/8f\/y\/\/P\/8\/\/2\
+⚡️  TO JS {"sampleCount":1600,"audio":"GQAZABkAGQAYABcAFQASABEAEgASABMAFQAVABYAFwAXABUAFQAVABYAFwAZABoAGQAaABoAGwAbABwAGQAYABcAFgAWABUAFAARABAADwAOAA0ADQAMAAsADAANAA4ADwASABMAEgASABMAEwATABQAFAATABMAEwASABAAEAAPAA0ADAALAAsACQAKAAoABwAHAAYABQAEAAUABQAFAAYACAAGAAcABwA
+⚡️  TO JS {"sampleCount":1600,"audio":"qgCsALEAtgC1ALEArQCnAJwAkQCKAIAAdABuAFkARwA8ACgAFQAIAPX\/6P\/g\/9X\/zf\/I\/8T\/xv\/K\/83\/2P\/d\/+P\/8f\/8\/wcAFwAZACMALQAwADgAPAA7ADoAOwAvAC8AKgAcABUAEgD\/\/\/r\/8\/\/j\/93\/2P\/H\/8b\/vv+2\/7L\/qf+k\/6H\/nf+d\/6H\/pf+a\/7P\/q
+⚡️  TO JS {"sampleCount":1600,"audio":"CQCl\/zv\/3v6h\/n7+a\/5k\/nf+hv6T\/s7+\/v4s\/5P\/0f8IAFgAaQCFAKQAmQCQAKUAggBdAGwAPwDd\/9\/\/kf8q\/zH\/\/v5n\/pH+YP72\/U\/+Ef6o\/d\/9jv1\/\/b39mv3n\/TP+Jf58\/rb+1\/4f\/zn\/of8XAHoAQgHBAR8CkwKsAt4CDAPvAuMC3AK3An0CPALhAWoB5gBUANb\
+⚡️  TO JS {"sampleCount":1600,"audio":"HwAtAFkAlgDLAP0AOwFmAXsBZQFlAXMBbQF6AZoBnwGCAW4BWwEhAdQAnwCBAGoAaABcAEoACADN\/6v\/iP93\/1b\/aP9W\/yr\/Dv\/b\/rf+m\/6Q\/pb+m\/6F\/mv+gv5r\/jz+Fv5F\/mH+pv49\/0b\/M\/8F\/7n+XP4g\/gf+J\/6S\/gT\/kP8aALIAHgFxAd8BMwKTAvkCSwNQA\/cClQJB
+⚡️  TO JS {"sampleCount":1600,"audio":"zP\/L\/87\/1f\/d\/+v\/9f\/8\/wQABQABAAQACgAQABUAHQAjACYAKgAmACMAJwAuADQANQAzAC4AKwAoAB8AHgAgACEAJAAoACMAGQAQAA0ADAALAAkACQAKAAsACwAOABEAEQAUABYAFQATABUAFQAWABoAHgAjACYAKAAlAB4AHAAfAB4AGgAXAA0ABAABAAEA\/P\/1\/\/H\/7\/\/x\/+7\/6\
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"audio":"3P\/m\/+H\/4P\/o\/+j\/2v\/T\/9z\/2f\/Y\/+D\/3f\/X\/+X\/8P\/u\/+3\/8v\/3\/\/X\/9P\/2\/\/n\/\/f\/\/\/wAA+P\/1\/\/\/\/\/\/\/+\/\/z\/6\/\/i\/+v\/8f\/e\/9n\/1\/\/N\/8z\/1\/\/m\/+b\/2P\/W\/9r\/4P\/p\/\/v\/9\/\/1\/\/\/\/CQARABYAEgASAB
+⚡️  TO JS {"sampleCount":1600,"audio":"CwANAAsACwAKAAcADgAXABQAHwAjADEAPABGAE0AXwBvAH0AggCNAJ4AqACiAKsAsQCwAKsAqACiAJoAlgCPAIMAfwB4AG4AZgBkAF4AUABLAEMAPAAxACwAKAAcAA4ADAD\/\/\/X\/6f\/c\/8r\/uP+o\/5T\/gP9p\/1L\/Nv8W\/wT\/7\/7V\/rv+mv58\/nr+f\/59\/mb+VP5b\/mb+bv5+\/oT
+⚡️  TO JS {"sampleCount":1600,"audio":"5wAbAV4BfQGOAYgBkAGzAaABiQGtAY4BQQEsAS0BBAHTALYAhwBWADgAFQDu\/9X\/yf+p\/37\/f\/92\/3j\/of+S\/4r\/mf+q\/8j\/1P\/8\/\/r\/HwAzADAAYACEAIEAkwCuAMcAtwC0AL0AwgC9ALcAnQCBAHcAcQBLADcAJQADAOv\/4P\/H\/7H\/qP+b\/4T\/gf+E\/3v\/cv98\/3z\/fv
+⚡️  TO JS {"sampleCount":1600,"audio":"T\/8f\/w7\/Ef8V\/wz\/6P7B\/qf+mP6W\/pX+nP6c\/oP+av5x\/ov+rP7D\/tj+3f7T\/sj+sv6r\/sH+4v72\/hv\/T\/9z\/5f\/wv\/m\/wIAIABIAHAAoQDTAPMAAwEeATkBOwEgAQAB7ADjANEAtgCSAHUAUAAfAPr\/5P\/I\/6f\/kv+C\/2f\/X\/9t\/3P\/df+C\/4r\/kP+b\/7X\/3\/
+⚡️  TO JS {"sampleCount":1600,"audio":"Gf\/3\/un+9f7t\/uH+5\/4C\/xT\/FP8x\/3H\/tv\/r\/yIAcwC3AOkAMQGIAdMB\/AE1AoECqQKkAqYCwQLKArQClAJqAi0C4wGdAWEBHAHSAIYAPwDq\/5f\/YP89\/xb\/6P7F\/qb+g\/5p\/mX+ef6K\/pb+pf67\/tb+8f4c\/1r\/iv+n\/7n\/1f\/1\/xIAMQBQAHAAeABvAHIAfAB8AHsAe
+⚡️  TO JS {"sampleCount":1600,"audio":"tf+w\/6\/\/p\/+l\/6n\/p\/+h\/6H\/of+b\/5j\/l\/+V\/5n\/m\/+e\/6X\/qv+s\/7H\/uv\/C\/8j\/0v\/a\/+T\/6\/\/w\/\/n\/AwACAAAABAAFAAIAAQD6\/\/f\/9f\/w\/+r\/5P\/Y\/9H\/0f\/K\/8r\/x\/\/A\/73\/vP+3\/7n\/vP+6\/7v\/vf\/A\/8P\/yP\/Q\/9X\/2v\
+⚡️  TO JS {"sampleCount":1600,"audio":"+v\/9\/\/3\/\/P\/8\/\/7\/\/\/8AAAEAAgAAAP7\/\/P\/7\/\/n\/9\/\/1\/\/T\/8v\/x\/\/D\/7v\/t\/+z\/6v\/o\/+X\/4f\/c\/9r\/2v\/a\/9n\/2P\/Y\/9n\/2f\/a\/97\/4f\/i\/+T\/5v\/o\/+v\/7v\/v\/+\/\/8f\/0\/\/f\/+P\/5\/\/n\/+v\/8\/\/r\/+v\/6\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"9v\/4\/\/n\/+f\/8\/\/7\/\/\/\/\/\/wAAAAABAAEAAAD\/\/\/7\/\/f\/9\/\/3\/\/f\/+\/\/3\/\/P\/7\/\/r\/+\/\/7\/\/r\/+v\/4\/\/f\/9\/\/4\/\/j\/+f\/6\/\/r\/+f\/6\/\/v\/\/P\/7\/\/z\/\/P\/6\/\/r\/+v\/7\/\/v\/+v\/4\/\/b\/9f\/1\/\/X\/9P\/0\/
+⚡️  TO JS {"sampleCount":1600,"audio":"+v\/6\/\/n\/+P\/4\/\/j\/+P\/4\/\/j\/+P\/3\/\/j\/9\/\/4\/\/j\/+f\/5\/\/n\/+f\/5\/\/r\/+\/\/7\/\/z\/\/P\/8\/\/v\/+\/\/7\/\/r\/+v\/6\/\/j\/+f\/5\/\/r\/+\/\/8\/\/3\/\/f\/8\/\/z\/+\/\/7\/\/v\/+v\/5\/\/j\/+P\/3\/\/j\/9\/\/3\/\/j\/+P\
+⚡️  TO JS {"sampleCount":1600,"audio":"8P\/w\/\/D\/8P\/v\/+7\/7P\/r\/+v\/7f\/u\/+3\/7v\/v\/+\/\/7\/\/v\/+7\/7f\/s\/+v\/6\/\/p\/+j\/6P\/o\/+n\/6v\/p\/+j\/6P\/o\/+j\/5\/\/n\/+f\/6P\/q\/+v\/6\/\/r\/+r\/6v\/p\/+f\/5\/\/n\/+f\/5\/\/o\/+r\/6\/\/r\/+3\/7v\/u\/+\/\/8P\/w\/+
+⚡️  TO JS {"sampleCount":1600,"audio":"EAAPAA8ADwAOAA4ADQAMAAwADAAOAA4ADgAPABAADwAOAAwACwAJAAgABwAGAAMAAgADAAQABAAEAAQAAwADAAMAAgABAAAAAQAAAAAAAQAAAP7\/\/v\/9\/\/z\/+\/\/8\/\/z\/\/P\/8\/\/3\/\/f\/8\/\/v\/+\/\/7\/\/v\/\/P\/8\/\/z\/\/v\/\/\/\/\/\/\/v\/+\/\/z\/+v\/5\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"+f\/5\/\/n\/+f\/6\/\/r\/\/P\/9\/\/z\/\/P\/8\/\/v\/+\/\/6\/\/n\/+v\/6\/\/v\/\/P\/8\/\/3\/\/f\/+\/\/\/\/\/\/\/\/\/\/\/\/AAACAAMABAAEAAQABQAFAAUABgAHAAkACQAKAA0ADwAQABIAFAAUABMAFAAVABYAFgAWABcAFgAVABQAFAAUABUAFAATABMAFQAVABQAFAAVA
+⚡️  TO JS {"sampleCount":1600,"audio":"zf\/O\/8z\/x\/\/J\/87\/0\/\/d\/+z\/+\/8HABUAHAAdAB8AHAASAA0ADAAJAAYACQAKAAoADgAPAA4ACwAGAAMA\/P\/2\/\/T\/8P\/u\/+3\/7v\/u\/\/f\/\/f\/\/\/wYACwANAAwADAANAAwACwALAAwACwALAAgAAwACAAIAAQD\/\/\/3\/+\/\/6\/\/r\/9\/\/3\/\/b\/9v\/3\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"CgAKAAoABwAGAAcABwAIAAcABgAEAAQABAAFAAUABQAFAAUABQAGAAcABwAGAAYABgAEAAQABQAGAAYABQAFAAYABgAGAAYABgAFAAQABAAEAAMABAAGAAQAAwADAAQABAAEAAUABAAEAAUABAAEAAMAAgABAAEAAQABAAIABAAEAAYABwAHAAYABgAHAAcABQAFAAQAAwACAAMABAAEAAUABgAHAAkACgA
+⚡️  TO JS {"sampleCount":1600,"audio":"7v\/v\/\/D\/8P\/w\/\/H\/8f\/x\/\/L\/8\/\/0\/\/T\/9P\/2\/\/f\/+P\/5\/\/r\/+\/\/7\/\/v\/+\/\/6\/\/r\/+\/\/8\/\/z\/\/v8AAAAAAgAEAAQABgAJAAsADAAPABEAEgASABMAFAAVABUAFQAVABYAFwAXABkAGwAeAB8AIQAiACMAIwAkACQAIwAjACEAIQAhACEAIgAhACEAIA
+⚡️  [log] - [VoiceChat] Native audio chunks sent: 94 rms: 0.0004
+⚡️  TO JS {"sampleCount":1600,"audio":"AwADAAQABAADAAMAAwADAAMAAwACAAAA\/\/\/9\/\/v\/+\/\/6\/\/r\/+v\/4\/\/j\/+P\/4\/\/j\/+P\/4\/\/j\/9\/\/3\/\/f\/9v\/1\/\/T\/9P\/0\/\/T\/9P\/z\/\/T\/8\/\/z\/\/T\/8\/\/y\/\/L\/8f\/x\/\/L\/8f\/x\/\/H\/8f\/y\/\/P\/8\/\/z\/\/T\/9P\/2\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"BAAGAAcACQAKAAkACgAJAAgACAAHAAYABQAFAAUABgAIAAkACAAIAAgABwAHAAcABgAFAAUABAAEAAQAAwABAAEAAgAEAAQAAwAHAAkACQAKAAwADQAOAA8ADwAPAA4ADQANAA0ADAALAAwADgANAA8ADwAOAA4ADgAOAA4ADgAOAA4ADwAQABEAEgASABIAEgASABIAEwAUABQAFAAVABQAEgAQAA0ADAA
+⚡️  [log] - [VoiceChat] Received: ping voiceState: listening
+⚡️  TO JS {"sampleCount":1600,"audio":"9v\/1\/\/X\/9P\/z\/\/T\/8\/\/0\/\/T\/9f\/2\/\/f\/+P\/5\/\/r\/\/P\/8\/\/v\/+\/\/7\/\/r\/+\/\/6\/\/r\/+\/\/9\/\/3\/\/f\/9\/\/3\/\/v\/+\/\/z\/+\/\/7\/\/r\/+f\/5\/\/r\/+v\/7\/\/z\/+\/\/7\/\/n\/9\/\/2\/\/f\/+f\/5\/\/n\/+\/\/8\/\/3\/
+⚡️  TO JS {"sampleCount":1600,"audio":"7v\/u\/+\/\/8f\/z\/\/T\/9P\/0\/\/T\/8\/\/z\/\/P\/8v\/z\/\/L\/8f\/x\/\/H\/8P\/w\/+3\/7P\/t\/+z\/7P\/t\/+3\/7f\/u\/+7\/7\/\/w\/\/H\/8P\/v\/+7\/7v\/s\/+z\/7P\/s\/+v\/7P\/u\/+\/\/7\/\/v\/+\/\/7\/\/v\/+7\/7v\/t\/+3\/7P\/r\/+z\/7v\/w
+⚡️  TO JS {"sampleCount":1600,"audio":"BgAHAAgACgAKAAkACAAIAAgABwAHAAYABgAGAAUAAwADAAMAAgACAAIAAQACAAIAAwAFAAUABgAGAAcABwAHAAkACwAMAA0ADQAOAA8ADgAMAAsACwAKAAsACwALAAsADAAMAAsACgAKAAkACQAIAAgACAAIAAkACQAKAAkACQAIAAgACAAGAAUABQAEAAIAAgAFAAYACAAIAAgACQAJAAkACAAHAAYABAA
+⚡️  TO JS {"sampleCount":1600,"audio":"8f\/x\/+\/\/7\/\/v\/\/D\/7\/\/u\/+z\/6v\/p\/+n\/6P\/p\/+v\/7\/\/v\/\/H\/8v\/y\/\/L\/8v\/x\/\/H\/8P\/v\/+\/\/8P\/x\/\/L\/8\/\/z\/\/T\/8\/\/y\/\/L\/8v\/w\/+\/\/8f\/x\/\/H\/8v\/y\/\/L\/8v\/z\/\/T\/9v\/3\/\/f\/+f\/6\/\/z\/\/P\/8\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"FAATABMAFAAVABYAFgAVABUAFAAUABMAEQAPAA4ADgANAA8ADwAOAA8ADQAMAAsACwAKAAkABwAGAAYABgAHAAcABgAGAAUABQAGAAUABQADAAIAAgABAAAAAAAAAP\/\/\/\/\/\/\/\/3\/\/f\/9\/\/7\/\/v\/+\/\/\/\/\/\/\/+\/\/7\/\/P\/9\/\/3\/\/P\/7\/\/v\/+\/\/6\/\/v\/+\
+⚡️  TO JS {"sampleCount":1600,"audio":"CgAKAAkACAAGAAUABAAEAAQABAAEAAUABQAFAAUABgAGAAUABQAFAAQABAACAAEAAQABAAEAAAAAAAEAAQACAAQABAADAAQABAAEAAQABQAFAAYABgAIAAkACgAMAAwADQAOAA4ADwAPABAAEQASABEAEgASABEAEAAOAA0ADAAKAAgABwAGAAYABwAGAAYABQAFAAUABQAFAAUABQAEAAQABAADAAMAAgA
+⚡️  TO JS {"sampleCount":1600,"audio":"+v\/5\/\/j\/+P\/4\/\/j\/+f\/5\/\/n\/+f\/6\/\/r\/+\/\/8\/\/z\/\/f\/9\/\/z\/+\/\/6\/\/j\/9\/\/3\/\/f\/9\/\/4\/\/j\/+f\/4\/\/j\/+P\/3\/\/j\/+P\/4\/\/n\/+f\/6\/\/r\/+v\/7\/\/n\/+P\/4\/\/n\/+f\/5\/\/n\/+P\/4\/\/n\/+f\/5\/\/n\/+f\/4\
+⚡️  TO JS {"sampleCount":1600,"audio":"+v\/6\/\/v\/+\/\/7\/\/v\/\/P\/8\/\/z\/\/f\/8\/\/v\/+\/\/7\/\/v\/+\/\/8\/\/z\/\/P\/8\/\/z\/+\/\/6\/\/r\/+P\/4\/\/f\/9\/\/2\/\/f\/+P\/5\/\/r\/+\/\/8\/\/z\/\/f\/9\/\/3\/\/\/8BAAEAAwAFAAYABgAHAAkABwAGAAYABQAFAAUABQAFAAQABAAEAAQABAA
+⚡️  TO JS {"sampleCount":1600,"audio":"\/v\/\/\/wAAAAABAAAA\/\/\/+\/\/7\/\/v\/+\/\/\/\/AAABAAIAAQABAP\/\/\/v\/9\/\/z\/+\/\/7\/\/z\/\/f\/9\/\/z\/\/f\/8\/\/r\/+\/\/8\/\/3\/\/v\/+\/\/7\/\/v\/+\/\/3\/\/f\/9\/\/3\/\/f\/9\/\/7\/\/\/\/\/\/wAAAAAAAAAA\/\/\/+\/\/3\/\/P\/8\/\
+⚡️  TO JS {"sampleCount":1600,"audio":"+P\/3\/\/j\/+P\/4\/\/j\/+P\/4\/\/n\/+f\/5\/\/f\/9f\/z\/\/L\/8f\/x\/\/H\/8v\/y\/\/P\/9P\/1\/\/b\/9v\/2\/\/b\/9\/\/4\/\/j\/+f\/5\/\/j\/+f\/5\/\/n\/+P\/3\/\/j\/+P\/4\/\/f\/9v\/2\/\/X\/9P\/0\/\/T\/9P\/z\/\/P\/8\/\/z\/\/T\/9f\/1\/\/
+⚡️  TO JS {"sampleCount":1600,"audio":"9P\/0\/\/X\/9f\/2\/\/f\/9\/\/3\/\/f\/9\/\/3\/\/b\/9v\/3\/\/f\/9\/\/3\/\/b\/9f\/1\/\/b\/9f\/1\/\/f\/9\/\/3\/\/f\/9v\/3\/\/f\/9\/\/3\/\/j\/+P\/4\/\/n\/+v\/6\/\/r\/+v\/8\/\/3\/\/\/8AAP\/\/\/v\/9\/\/3\/\/P\/7\/\/z\/\/P\/7\/\/r\/+f\
+⚡️  [log] - [VoiceChat] WebSocket closed
+⚡️  [log] - [VoiceChat] Stopping native microphone capture...
+⚡️  [log] - [NativeMic] Stopping native microphone capture...
+⚡️  To Native ->  NativeMicrophone stopCapture 35193044
+⚡️  To Native ->  NativeMicrophone removeListener 35193045
+🛑 [NativeMic] Restored previous audio config: AVAudioSessionCategorySoloAmbient
+🛑 [NativeMic] AVAudioSession deactivated and restored
+🛑 [NativeMic] Audio capture stopped
+⚡️  TO JS {"success":true,"message":"Microphone capture stopped"}
+⚡️  To Native ->  NativeMicrophone removeAllListeners 35193046
+⚡️  TO JS undefined
