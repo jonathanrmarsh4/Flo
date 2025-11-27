@@ -6348,31 +6348,44 @@ ${fullContext}`;
         });
       }
 
-      // Look up user_id from session token in Authorization header
-      // ElevenLabs forwards our custom LLM api_key in the Authorization header
+      // Look up user_id from session token passed via custom_llm_extra_body
       const { conversationSessionStore } = await import('./services/conversationSessionStore');
       
       let userId: string | null = null;
       let authMethod: string = 'none';
       
-      // PRIMARY METHOD: Extract session token from Authorization header
-      // ElevenLabs sends: "Authorization: Bearer <api_key>" where api_key is our session token
-      const authHeader = req.headers['authorization'] as string;
-      if (authHeader) {
-        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-        if (token && token.startsWith('flo_')) {
-          userId = conversationSessionStore.getUserIdFromToken(token);
-          if (userId) {
-            authMethod = 'session_token';
-            logger.info('[ElevenLabs-Bridge] Found user via session token', { 
-              tokenPrefix: token.substring(0, 12) + '...', 
-              userId 
-            });
-          }
+      // Extract custom_llm_extra_body from request - ElevenLabs merges this into the request body
+      const customExtraBody = req.body?.custom_llm_extra_body || {};
+      const sessionToken = customExtraBody?.session_token;
+      const floUserId = customExtraBody?.flo_user_id;
+      
+      logger.info('[ElevenLabs-Bridge] Checking custom_llm_extra_body', {
+        hasCustomExtraBody: !!req.body?.custom_llm_extra_body,
+        hasSessionToken: !!sessionToken,
+        hasFloUserId: !!floUserId,
+        tokenPrefix: sessionToken ? sessionToken.substring(0, 12) + '...' : 'none'
+      });
+      
+      // PRIMARY METHOD: Validate session token from custom_llm_extra_body
+      if (sessionToken && sessionToken.startsWith('flo_')) {
+        userId = conversationSessionStore.getUserIdFromToken(sessionToken);
+        if (userId) {
+          authMethod = 'session_token';
+          logger.info('[ElevenLabs-Bridge] Found user via session token', { 
+            tokenPrefix: sessionToken.substring(0, 12) + '...', 
+            userId 
+          });
         }
       }
       
-      // FALLBACK: Try conversation_id lookup (in case ElevenLabs ever adds it)
+      // FALLBACK: Try direct user_id from custom_llm_extra_body (less secure but works)
+      if (!userId && floUserId) {
+        userId = floUserId;
+        authMethod = 'flo_user_id';
+        logger.info('[ElevenLabs-Bridge] Using flo_user_id from extra_body', { userId });
+      }
+      
+      // FALLBACK: Try conversation_id lookup
       if (!userId) {
         const convId = conversation_id || req.body?.conversation_id || req.headers['x-conversation-id'] as string;
         if (convId) {
@@ -6388,7 +6401,6 @@ ${fullContext}`;
       if (!userId) {
         userId = user_id || 
                  elevenlabs_extra_body?.user_id || 
-                 req.body?.custom_llm_extra_body?.user_id ||
                  req.body?.dynamic_variables?.user_id ||
                  req.headers['x-user-id'] as string;
         if (userId) {
@@ -6401,13 +6413,12 @@ ${fullContext}`;
         foundUserId: !!userId,
         userId,
         authMethod,
-        hasAuthHeader: !!authHeader,
-        authHeaderPrefix: authHeader?.substring(0, 20) + '...'
+        bodyKeys: Object.keys(req.body || {})
       });
       
       if (!userId) {
         logger.error('[ElevenLabs-Bridge] No user_id found - session token missing or invalid', {
-          hasAuthHeader: !!authHeader,
+          hasCustomExtraBody: !!req.body?.custom_llm_extra_body,
           bodyKeys: Object.keys(req.body || {}),
           headerKeys: Object.keys(req.headers || {})
         });

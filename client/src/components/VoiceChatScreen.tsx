@@ -249,8 +249,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         
         // REQUIRED: Send conversation_initiation_client_data to start the conversation
         // This tells ElevenLabs the client is ready and triggers the agent's first greeting
-        // CRITICAL: Pass session_token as LLM api_key - ElevenLabs will forward this in 
-        // the Authorization header when calling our custom LLM endpoint
+        // Pass session_token via custom_llm_extra_body - this gets forwarded in the request body
         ws.send(JSON.stringify({
           type: "conversation_initiation_client_data",
           conversation_config_override: {
@@ -260,13 +259,16 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
                 output_format: "pcm_16000"
               },
               llm: {
-                // This api_key will be sent in the Authorization header to our LLM endpoint
-                api_key: currentSessionToken
+                // custom_llm_extra_body is merged into the LLM request body
+                custom_llm_extra_body: {
+                  session_token: currentSessionToken,
+                  flo_user_id: currentUserId
+                }
               }
             }
           }
         }));
-        console.log('[VoiceChat] Sent conversation_initiation_client_data with session token');
+        console.log('[VoiceChat] Sent conversation_initiation_client_data with session token in extra_body');
         
         // Register audio data listener for native mic (engine already started above)
         if (useNativeMic) {
