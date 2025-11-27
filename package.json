@@ -26,6 +26,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@google-cloud/storage": "^7.17.3",
+    "@google/genai": "^1.30.0",
     "@healthpilot/healthkit": "github:jonathanrmarsh4/healthpilot-healthkit",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
