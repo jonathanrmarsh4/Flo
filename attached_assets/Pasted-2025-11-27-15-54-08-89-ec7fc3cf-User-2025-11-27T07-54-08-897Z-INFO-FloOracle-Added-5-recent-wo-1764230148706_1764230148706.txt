@@ -1,0 +1,48 @@
+2025-11-27 15:54:08.89
+ec7fc3cf
+User
+[2025-11-27T07:54:08.897Z] [INFO] [FloOracle] Added 5 recent workouts to context
+2025-11-27 15:54:08.89
+ec7fc3cf
+User
+[2025-11-27T07:54:08.898Z] [INFO] [FloOracle] Context built successfully (3722 chars)
+2025-11-27 15:54:08.93
+ec7fc3cf
+User
+[2025-11-27T07:54:08.936Z] [INFO] [OpenAI-Realtime] Creating ephemeral key for user {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","model":"gpt-4o-realtime-preview"}
+2025-11-27 15:54:09.14
+ec7fc3cf
+User
+[2025-11-27T07:54:09.147Z] [INFO] [OpenAI-Realtime] Ephemeral key generated successfully {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","expiresAt":1764230649}
+2025-11-27 15:54:09.14
+ec7fc3cf
+User
+[2025-11-27T07:54:09.147Z] [INFO] [OpenAI-Realtime] Ephemeral key created successfully {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","expiresAt":1764230649}
+2025-11-27 15:54:09.15
+ec7fc3cf
+User
+7:54:09 AM [express] POST /api/openai-realtime/token 200 in 2071ms :: {"client_secret":"ek_692803a1f…
+2025-11-27 15:55:26.56
+ec7fc3cf
+User
+[2025-11-27T07:55:26.567Z] [INFO] [FloOracle] Using cached health context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-11-27 15:55:26.56
+ec7fc3cf
+User
+[2025-11-27T07:55:26.567Z] [INFO] [OpenAI-Realtime] Generating ephemeral key for user {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78"}
+2025-11-27 15:55:26.60
+ec7fc3cf
+User
+[2025-11-27T07:55:26.602Z] [INFO] [OpenAI-Realtime] Creating ephemeral key for user {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","model":"gpt-4o-realtime-preview"}
+2025-11-27 15:55:27.32
+ec7fc3cf
+User
+[2025-11-27T07:55:27.321Z] [INFO] [OpenAI-Realtime] Ephemeral key created successfully {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","expiresAt":1764230727}
+2025-11-27 15:55:27.32
+ec7fc3cf
+User
+[2025-11-27T07:55:27.321Z] [INFO] [OpenAI-Realtime] Ephemeral key generated successfully {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","expiresAt":1764230727}
+2025-11-27 15:55:27.32
+ec7fc3cf
+User
+7:55:27 AM [express] POST /api/openai-realtime/token 200 in 922ms :: {"client_secret":"ek_692803ef30…

@@ -301,6 +301,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       });
       
       // Send offer to OpenAI
+      console.log('[VoiceChat] Sending SDP offer to OpenAI...');
       const sdpResponse = await fetch('https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
         method: 'POST',
         headers: {
@@ -310,12 +311,17 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         body: pc.localDescription?.sdp
       });
       
+      console.log('[VoiceChat] OpenAI response status:', sdpResponse.status);
+      
       if (!sdpResponse.ok) {
-        throw new Error(`OpenAI Realtime connection failed: ${sdpResponse.status}`);
+        const errorText = await sdpResponse.text();
+        console.error('[VoiceChat] OpenAI error response:', errorText);
+        throw new Error(`OpenAI Realtime connection failed: ${sdpResponse.status} - ${errorText}`);
       }
       
       // Set remote description
       const answerSdp = await sdpResponse.text();
+      console.log('[VoiceChat] Received SDP answer, setting remote description...');
       await pc.setRemoteDescription({
         type: 'answer',
         sdp: answerSdp
@@ -335,7 +341,14 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       };
       
     } catch (error: any) {
-      console.error('[VoiceChat] Connection error:', error);
+      // Log detailed error info for debugging (some errors have non-enumerable properties)
+      console.error('[VoiceChat] Connection error:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack,
+        code: error?.code,
+        toString: String(error)
+      });
       setConnectionState('error');
       
       if (error.name === 'NotAllowedError') {
