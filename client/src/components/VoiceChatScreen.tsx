@@ -204,7 +204,13 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       
       let nativeSampleRate = 16000; // Native plugin outputs 16kHz
       
-      if (!useNativeMic) {
+      if (useNativeMic) {
+        // iOS: Start native capture FIRST to initialize audio engine BEFORE WebSocket
+        // This ensures the audio engine is ready when ElevenLabs sends audio
+        console.log('[VoiceChat] Pre-initializing native audio engine...');
+        const result = await startNativeCapture();
+        console.log('[VoiceChat] Native audio engine ready:', result);
+      } else {
         // Web fallback: Request microphone access via getUserMedia
         const stream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
@@ -222,7 +228,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         console.log('[VoiceChat] Web audio sample rate:', nativeSampleRate);
       }
       
-      // Connect WebSocket
+      // Connect WebSocket AFTER audio engine is ready
       const ws = new WebSocket(signed_url);
       wsRef.current = ws;
       
@@ -247,11 +253,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
         }));
         console.log('[VoiceChat] Sent conversation_initiation_client_data with PCM format');
         
-        // Start microphone capture but don't send audio yet (voiceState is 'speaking')
-        // Audio will only be sent when voiceState becomes 'listening'
+        // Register audio data listener for native mic (engine already started above)
         if (useNativeMic) {
-          // iOS: Start native microphone capture
-          await startNativeMicrophoneCapture(ws);
+          // iOS: Just register the listener, capture already started
+          await registerNativeMicrophoneListener(ws);
         } else {
           // Web: Start audio capture via ScriptProcessor
           startAudioCapture(mediaStreamRef.current!, nativeSampleRate, ws);
@@ -306,19 +311,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     }
   };
   
-  // iOS native microphone capture - bypasses WKWebView getUserMedia limitations
-  const startNativeMicrophoneCapture = async (ws: WebSocket) => {
+  // Register native microphone listener - audio engine already started in connectVoice()
+  const registerNativeMicrophoneListener = async (ws: WebSocket) => {
     try {
-      console.log('[VoiceChat] Starting native microphone capture for iOS...');
-      
-      // Start native capture
-      const result = await startNativeCapture();
-      console.log('[VoiceChat] Native capture started:', result);
-      
-      // Verify we got a valid result
-      if (!result.success || typeof result.sampleRate !== 'number') {
-        throw new Error('Native capture failed to start properly');
-      }
+      console.log('[VoiceChat] Registering native microphone listener...');
       
       let chunksSent = 0;
       let lastLogTime = Date.now();
