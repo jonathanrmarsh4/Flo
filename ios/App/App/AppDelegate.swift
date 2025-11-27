@@ -10,9 +10,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
-        
-        // Configure AVAudioSession for voice chat (microphone + speaker)
-        configureAudioSession()
+        // Note: AVAudioSession is NOT configured on launch - it's configured on-demand 
+        // by NativeMicrophonePlugin when voice chat starts, to avoid affecting other audio features.
         
         // Disable WKWebView rubber band bounce to prevent white strip during overscroll
         // This must run after the window is set up, so we dispatch it to the next run loop
@@ -45,19 +44,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         
         return true
-    }
-    
-    // Configure AVAudioSession for voice chat functionality
-    private func configureAudioSession() {
-        do {
-            let session = AVAudioSession.sharedInstance()
-            // Use playAndRecord for microphone + speaker, voiceChat mode optimizes for voice
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker, .allowBluetooth, .mixWithOthers])
-            try session.setActive(true)
-            print("✅ AVAudioSession configured for voice chat")
-        } catch {
-            print("❌ Failed to configure AVAudioSession: \(error)")
-        }
     }
     
     // Configure WKWebView to disable bounce, set dark background, and enable media permissions

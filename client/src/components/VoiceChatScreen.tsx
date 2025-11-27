@@ -294,12 +294,22 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       const result = await startNativeCapture();
       console.log('[VoiceChat] Native capture started:', result);
       
+      // Verify we got a valid result
+      if (!result.success || typeof result.sampleRate !== 'number') {
+        throw new Error('Native capture failed to start properly');
+      }
+      
       let chunksSent = 0;
       let lastLogTime = Date.now();
       
       // Listen for audio data from native plugin
       const listener = await addAudioDataListener((event: AudioDataEvent) => {
         const now = Date.now();
+        
+        // Skip empty audio chunks (conversion issues)
+        if (!event.audio || event.sampleCount === 0) {
+          return;
+        }
         
         // Only send audio when listening (not when Flo is speaking)
         if (ws.readyState === WebSocket.OPEN && voiceStateRef.current === 'listening') {
@@ -329,6 +339,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       
     } catch (error) {
       console.error('[VoiceChat] Error starting native microphone:', error);
+      // Reset native mode flag on failure
+      isUsingNativeMicRef.current = false;
       throw error;
     }
   };
@@ -547,15 +559,15 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     isPlayingRef.current = false;
   };
 
-  // Disconnect voice
-  const disconnectVoice = useCallback(() => {
+  // Disconnect voice - properly async to ensure cleanup completes
+  const disconnectVoice = useCallback(async () => {
     stopPlayback();
     
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-    stopAudioCapture();
+    await stopAudioCapture();
     setConnectionState('disconnected');
     setVoiceState('idle');
     setAudioLevel(0);
@@ -565,12 +577,18 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     // Stop native microphone capture if using iOS native
     if (isUsingNativeMicRef.current) {
       console.log('[VoiceChat] Stopping native microphone capture...');
-      if (nativeListenerRef.current) {
-        nativeListenerRef.current.remove();
-        nativeListenerRef.current = null;
+      try {
+        if (nativeListenerRef.current) {
+          nativeListenerRef.current.remove();
+          nativeListenerRef.current = null;
+        }
+        await stopNativeCapture();
+      } catch (error) {
+        console.error('[VoiceChat] Error stopping native capture:', error);
+      } finally {
+        // Always reset the flag, even on error
+        isUsingNativeMicRef.current = false;
       }
-      await stopNativeCapture();
-      isUsingNativeMicRef.current = false;
     }
     
     // Stop web-based capture
