@@ -1,7 +1,7 @@
 /**
  * AI-Powered Insight Generator - Daily Insights Engine v3.0
  * 
- * Replaces template-based NLG with GPT-4o contextual generation.
+ * Uses Gemini 2.5 Pro for contextual health insight generation.
  * Uses user profile, baselines, and trend data to create safe, personalized insights.
  * 
  * Key improvements:
@@ -11,19 +11,13 @@
  * - Personalized to user's profile and current state
  */
 
-import OpenAI from 'openai';
+import { geminiInsightsClient } from './geminiInsightsClient';
 import { logger } from '../logger';
 import { db } from '../db';
 import { profiles, healthDailyMetrics } from '../../shared/schema';
 import { eq, desc, and, gte } from 'drizzle-orm';
 import type { InsightCandidate } from './insightsEngineV2';
 import type { EvidenceTier } from './evidenceHierarchy';
-
-// Use Replit's AI Integrations service for OpenAI access
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-});
 
 // ============================================================================
 // User Context for AI
@@ -291,25 +285,17 @@ Do NOT include progress tracking for:
 - Behavioral insights without biomarkers`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a health insights AI. Generate personalized, evidence-based, safe recommendations in JSON format.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-    });
+    const systemPrompt = 'You are a health insights AI. Generate personalized, evidence-based, safe recommendations in JSON format.';
+    
+    const response = await geminiInsightsClient.generateInsights(
+      systemPrompt,
+      prompt,
+      true // JSON mode
+    );
 
-    const content = response.choices[0].message.content;
+    const content = response.text;
     if (!content) {
-      throw new Error('Empty response from OpenAI');
+      throw new Error('Empty response from Gemini');
     }
 
     const parsed = JSON.parse(content);

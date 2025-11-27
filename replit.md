@@ -25,11 +25,11 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, workouts, daily metrics, Flōmentum data, RAG Insights, life events, push notification management, billing, and audit logs.
 
-**Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights daily using a 2-layer architecture: **RAG Layer** (holistic cross-domain pattern discovery via vector search + GPT-4o) and **Layer D** (out-of-range biomarker safety net). It uses evidence-based confidence scoring, insight ranking, domain diversity limits, and natural language generation. The system incorporates weighted domain scoring to ensure diverse category insights, particularly for sleep and recovery, by prioritizing these metrics and relaxing HealthKit requirements for sparse data.
+**Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights daily using a 2-layer architecture: **RAG Layer** (holistic cross-domain pattern discovery via vector search + **Gemini 2.5 Pro**) and **Layer D** (out-of-range biomarker safety net). It uses evidence-based confidence scoring, insight ranking, domain diversity limits, and natural language generation. The system incorporates weighted domain scoring to ensure diverse category insights, particularly for sleep and recovery, by prioritizing these metrics and relaxing HealthKit requirements for sparse data.
 
 **Conversational Life Event Logging System:** Automatically tracks comprehensive health narratives from Flō Oracle conversations, including dosage, symptoms, and health goals, by parsing events into structured JSONB logged to the `life_events` table. These events integrate into Flō Oracle's context.
 
-**Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (GPT-based) for bidirectional AI learning. Key components:
+**Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (Gemini-based) for bidirectional AI learning. Key components:
 - **user_insights table:** Vector-embedded insights with source tracking (`gpt_insights`, `grok_chat`, `chat_summary`), importance levels (1-5), status management, and tags
 - **flo_chat_messages table:** Conversation transcript storage for nightly summarization
 - **Hybrid Retrieval:** Combines recency-based (top 10 most recent) and semantic search (top 5 by vector similarity) with deduplication
@@ -82,6 +82,6 @@ The following 14 extended health metrics are now tracked from iOS HealthKit:
 - **Supabase:** PostgreSQL with pgvector extension.
 - **Google Cloud Storage:** For object storage.
 - **Stripe:** Payment processing.
-- **OpenAI:** GPT-4o and GPT-5 models for health insights, text-embedding-3-small for RAG.
+- **OpenAI:** GPT-4o for blood work PDF extraction, text-embedding-3-small for RAG embeddings.
 - **xAI (Grok):** grok-3-mini model for Flō Oracle text chat and async brain memory extraction from voice transcripts.
-- **Google AI (Gemini):** Gemini Live API (gemini-2.0-flash) for real-time bidirectional voice streaming in Flō Oracle voice conversations.
+- **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights generation, Gemini Live API (gemini-2.5-flash-native-audio) for real-time bidirectional voice streaming in Flō Oracle voice conversations.

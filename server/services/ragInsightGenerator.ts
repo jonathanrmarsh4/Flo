@@ -8,14 +8,8 @@
 import { logger } from '../logger';
 import { searchSimilarContent } from './embeddingService';
 import { getUserContext, type UserContext } from './aiInsightGenerator';
-import OpenAI from 'openai';
+import { geminiInsightsClient } from './geminiInsightsClient';
 import { differenceInDays, format } from 'date-fns';
-
-// Use Replit's AI Integrations service for OpenAI access
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
-});
 
 export interface DataChange {
   metric: string;
@@ -574,7 +568,7 @@ DO NOT use abbreviations or variations. Match these names EXACTLY.`
   // Build activity summary for AI
   const activitySummary = buildActivitySummary(dailyMetrics, workouts);
   
-  // Generate insights using GPT-4o with retrieved context
+  // Generate insights using Gemini 2.5 Pro with retrieved context
   const prompt = `You are a health insights AI analyzing a user's recent health data changes.
 
 ## User Profile
@@ -668,29 +662,21 @@ For activity insights (steps, workouts), you can set:
 For other non-biomarker insights (sleep, HRV patterns), set these to null.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a health insights AI. Generate personalized, evidence-based, safe recommendations in JSON format.',
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-    });
+    const systemPrompt = 'You are a health insights AI. Generate personalized, evidence-based, safe recommendations in JSON format. Your response MUST be a valid JSON object with an "insights" array.';
+    
+    const response = await geminiInsightsClient.generateInsights(
+      systemPrompt,
+      prompt,
+      true // JSON mode
+    );
 
-    const content = response.choices[0].message.content;
+    const content = response.text;
     if (!content) {
-      throw new Error('Empty response from OpenAI');
+      throw new Error('Empty response from Gemini');
     }
 
     const parsed = JSON.parse(content);
-    const insights: RAGInsight[] = Array.isArray(parsed.insights) ? parsed.insights : [parsed];
+    const insights: RAGInsight[] = Array.isArray(parsed.insights) ? parsed.insights : Array.isArray(parsed) ? parsed : [parsed];
     
     logger.info(`[RAG] Generated ${insights.length} holistic insights`);
     
@@ -705,7 +691,7 @@ For other non-biomarker insights (sleep, HRV patterns), set these to null.`;
     return enhancedInsights;
     
   } catch (error: any) {
-    logger.error('[RAG] Failed to generate insights:', error);
+    logger.error('[RAG] Failed to generate insights with Gemini:', error);
     return [];
   }
 }
