@@ -6617,6 +6617,134 @@ ${userContext}`;
   });
 
   // ────────────────────────────────────────────────────────────────
+  // OPENAI REALTIME API ENDPOINTS - Secure voice chat with GPT-4o
+  // ────────────────────────────────────────────────────────────────
+
+  // OpenAI Realtime: Get ephemeral key for WebRTC connection
+  app.post("/api/openai-realtime/token", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Check if OpenAI API key is configured
+      if (!process.env.OPENAI_API_KEY) {
+        logger.warn('[OpenAI-Realtime] OPENAI_API_KEY not configured');
+        return res.status(503).json({ 
+          error: "OpenAI Realtime API is not configured. Please add OPENAI_API_KEY to environment." 
+        });
+      }
+
+      logger.info('[OpenAI-Realtime] Generating ephemeral key for user', { userId });
+
+      // Build user health context
+      const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
+      const healthContext = await buildUserHealthContext(userId);
+
+      // Get user name if available
+      const user = await storage.getUser(userId);
+      const userName = user?.firstName || 'there';
+
+      // Create ephemeral key with user context
+      const { openaiRealtimeService } = await import('./services/openaiRealtimeService');
+      const ephemeralKey = await openaiRealtimeService.createEphemeralKey({
+        userId,
+        healthContext,
+        userName
+      });
+
+      logger.info('[OpenAI-Realtime] Ephemeral key generated successfully', { 
+        userId,
+        expiresAt: ephemeralKey.expires_at
+      });
+
+      res.json({
+        client_secret: ephemeralKey.value,
+        expires_at: ephemeralKey.expires_at,
+        user_id: userId
+      });
+
+    } catch (error: any) {
+      logger.error('[OpenAI-Realtime] Error generating ephemeral key:', error);
+      res.status(500).json({ 
+        error: "Failed to initialize voice session. Please try again." 
+      });
+    }
+  });
+
+  // OpenAI Realtime: Unified interface for WebRTC session (server proxies SDP exchange)
+  app.post("/api/openai-realtime/session", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const contentType = req.headers['content-type'] || '';
+      
+      // Check if OpenAI API key is configured
+      if (!process.env.OPENAI_API_KEY) {
+        logger.warn('[OpenAI-Realtime] OPENAI_API_KEY not configured');
+        return res.status(503).json({ 
+          error: "OpenAI Realtime API is not configured. Please add OPENAI_API_KEY to environment." 
+        });
+      }
+
+      // Get SDP offer from request body (can be text/plain or application/sdp)
+      let sdpOffer: string;
+      if (contentType.includes('application/sdp') || contentType.includes('text/plain')) {
+        sdpOffer = req.body;
+      } else if (typeof req.body === 'string') {
+        sdpOffer = req.body;
+      } else if (req.body?.sdp) {
+        sdpOffer = req.body.sdp;
+      } else {
+        return res.status(400).json({ error: "SDP offer is required" });
+      }
+
+      logger.info('[OpenAI-Realtime] Creating unified session for user', { userId });
+
+      // Build user health context
+      const { buildUserHealthContext } = await import('./services/floOracleContextBuilder');
+      const healthContext = await buildUserHealthContext(userId);
+
+      // Get user name if available
+      const user = await storage.getUser(userId);
+      const userName = user?.firstName || 'there';
+
+      // Create session via unified interface
+      const { openaiRealtimeService } = await import('./services/openaiRealtimeService');
+      const sdpAnswer = await openaiRealtimeService.createUnifiedSession(sdpOffer, {
+        userId,
+        healthContext,
+        userName
+      });
+
+      logger.info('[OpenAI-Realtime] Unified session created successfully', { userId });
+
+      // Return SDP answer
+      res.type('application/sdp').send(sdpAnswer);
+
+    } catch (error: any) {
+      logger.error('[OpenAI-Realtime] Error creating unified session:', error);
+      res.status(500).json({ 
+        error: "Failed to create voice session. Please try again." 
+      });
+    }
+  });
+
+  // Voice provider configuration endpoint
+  app.get("/api/voice/config", isAuthenticated, async (req: any, res) => {
+    const hasOpenAI = !!process.env.OPENAI_API_KEY;
+    const hasElevenLabs = !!process.env.ELEVENLABS_AGENT_ID;
+    
+    // Prefer OpenAI for secure user identification
+    const provider = hasOpenAI ? 'openai' : (hasElevenLabs ? 'elevenlabs' : 'none');
+    
+    res.json({
+      provider,
+      available: {
+        openai: hasOpenAI,
+        elevenlabs: hasElevenLabs
+      }
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────
   // INSIGHTS ENDPOINTS - AI-powered health pattern detection
   // ────────────────────────────────────────────────────────────────
 
