@@ -276,7 +276,12 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       silentNode.gain.value = 0;
       silentNode.connect(audioContext.destination);
       
+      let audioChunksSent = 0;
+      let lastLogTime = 0;
+      
       processor.onaudioprocess = (e) => {
+        const now = Date.now();
+        
         // Only send audio when listening (not when Flo is speaking)
         if (ws.readyState === WebSocket.OPEN && voiceStateRef.current === 'listening') {
           const inputData = e.inputBuffer.getChannelData(0);
@@ -299,6 +304,17 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
           ws.send(JSON.stringify({
             user_audio_chunk: base64Audio
           }));
+          
+          audioChunksSent++;
+          // Log every 2 seconds
+          if (now - lastLogTime > 2000) {
+            console.log('[VoiceChat] Sending audio chunks, count:', audioChunksSent, 'rms:', rms.toFixed(4));
+            lastLogTime = now;
+          }
+        } else if (now - lastLogTime > 2000) {
+          // Log why we're not sending
+          console.log('[VoiceChat] Not sending audio - wsReady:', ws.readyState === WebSocket.OPEN, 'state:', voiceStateRef.current);
+          lastLogTime = now;
         }
       };
       
@@ -313,10 +329,11 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
 
   // Handle WebSocket JSON messages from ElevenLabs
   const handleWebSocketMessage = async (data: any) => {
-    console.log('[VoiceChat] Received:', data.type || 'audio chunk');
+    console.log('[VoiceChat] Received:', data.type || 'unknown', 'voiceState:', voiceStateRef.current);
     
     if (data.type === 'audio' && data.audio_event?.audio_base_64) {
       // Audio from ElevenLabs TTS - decode and queue
+      console.log('[VoiceChat] Queueing audio chunk, length:', data.audio_event.audio_base_64.length);
       const pcmData = base64PcmToFloat32(data.audio_event.audio_base_64);
       audioQueueRef.current.push(pcmData);
       
@@ -366,7 +383,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
 
   // Play audio queue
   const playAudioQueue = async () => {
+    console.log('[VoiceChat] playAudioQueue called, queue length:', audioQueueRef.current.length);
+    
     if (audioQueueRef.current.length === 0) {
+      console.log('[VoiceChat] Queue empty, switching to listening');
       isPlayingRef.current = false;
       setVoiceState('listening');
       return;
@@ -376,7 +396,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     setVoiceState('speaking');
     
     const playbackContext = playbackContextRef.current;
-    if (!playbackContext) return;
+    if (!playbackContext) {
+      console.error('[VoiceChat] No playback context!');
+      return;
+    }
     
     // Concatenate all queued audio
     const totalLength = audioQueueRef.current.reduce((sum, arr) => sum + arr.length, 0);
@@ -387,6 +410,10 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       combined.set(chunk, offset);
       offset += chunk.length;
     }
+    
+    // Calculate expected duration for fallback timeout
+    const durationSec = combined.length / 16000;
+    console.log('[VoiceChat] Playing audio, samples:', combined.length, 'duration:', durationSec.toFixed(2), 's');
     
     try {
       // Create audio buffer at 16kHz
@@ -399,18 +426,33 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
       
       currentSourceRef.current = source;
       
+      // Fallback timeout in case onended doesn't fire (iOS issue)
+      const fallbackTimeout = setTimeout(() => {
+        console.log('[VoiceChat] Fallback timeout fired, checking state');
+        if (isPlayingRef.current && audioQueueRef.current.length === 0) {
+          console.log('[VoiceChat] Fallback: switching to listening');
+          isPlayingRef.current = false;
+          currentSourceRef.current = null;
+          setVoiceState('listening');
+        }
+      }, (durationSec + 0.5) * 1000); // Add 500ms buffer
+      
       source.onended = () => {
+        console.log('[VoiceChat] Audio playback ended via onended');
+        clearTimeout(fallbackTimeout);
         currentSourceRef.current = null;
         // Check if more audio arrived while playing
         if (audioQueueRef.current.length > 0) {
           playAudioQueue();
         } else {
+          console.log('[VoiceChat] No more audio, switching to listening');
           isPlayingRef.current = false;
           setVoiceState('listening');
         }
       };
       
       source.start();
+      console.log('[VoiceChat] Audio source started');
     } catch (error) {
       console.error('[VoiceChat] Error playing audio:', error);
       isPlayingRef.current = false;
