@@ -6925,7 +6925,9 @@ ${userContext}`;
       res.set({
         'Content-Type': 'audio/wav',
         'Content-Length': wavBuffer.length,
-        'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       });
       res.send(wavBuffer);
       
