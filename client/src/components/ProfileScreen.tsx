@@ -1,8 +1,9 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check, Crown, Zap, LineChart, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
 import { ReminderSettings } from '@/components/ReminderSettings';
+import { usePlan } from '@/hooks/usePlan';
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen';
 import { TermsOfServiceScreen } from '@/components/TermsOfServiceScreen';
 import { MedicalDisclaimerScreen } from '@/components/MedicalDisclaimerScreen';
@@ -54,6 +55,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   
   // Fetch profile data from backend
   const { data: profile, isLoading, error } = useProfile();
+  
+  // Get user plan to determine if premium
+  const { data: planData } = usePlan();
+  const isPremium = planData?.plan?.id === 'premium';
   
   // Mutation hooks
   const updateDemographics = useUpdateDemographics();
@@ -1172,95 +1177,135 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
         </div>
 
-        {/* Payment Method */}
-        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
-          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
-        }`} data-testid="card-payment-method">
-          <div className="flex items-center gap-2 mb-4">
-            <Wallet className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-            <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Payment Method
-            </h2>
-          </div>
+        {/* Subscription / Upgrade Section - Conditional based on plan */}
+        {isPremium ? (
+          /* Premium users see subscription management */
+          <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+          }`} data-testid="card-subscription">
+            <div className="flex items-center gap-2 mb-4">
+              <Crown className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+              <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Premium Subscription
+              </h2>
+            </div>
 
-          <div className="space-y-3">
-            {/* Apple Pay Card */}
-            <div 
-              className={`p-4 rounded-2xl border ${
-                isDark 
-                  ? 'bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10' 
-                  : 'bg-gradient-to-br from-white to-gray-50 border-gray-200'
-              }`}
-              style={{
-                boxShadow: isDark 
-                  ? '0 10px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-                  : '0 10px 30px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
-              }}
-              data-testid="payment-apple-pay"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {/* Apple Pay Logo */}
-                  <div 
-                    className="w-12 h-12 rounded-xl bg-black flex items-center justify-center"
-                    style={{
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-                    }}
-                  >
-                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                      <path d="M20.5 8.5c-.8 0-1.5-.3-2.1-.8-.5-.5-.9-1.3-.9-2.2 0-.1 0-.2.1-.2.1 0 .2 0 .2.1 1.1.4 2 1.5 2 2.8 0 .1 0 .2-.1.2-.1.1-.1.1-.2.1zm3.9 1.8c-1.2 0-2.1.6-2.8.6-.7 0-1.8-.6-3-.6-1.5 0-2.9.9-3.7 2.3-1.5 2.7-.4 6.6 1.1 8.8.7 1.1 1.6 2.3 2.7 2.3 1.1 0 1.5-.7 2.8-.7 1.3 0 1.7.7 2.9.7 1.2 0 1.9-1.1 2.6-2.2.8-1.3 1.1-2.5 1.1-2.6 0 0-2.2-.8-2.2-3.2 0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3.1-1.6l-.2-.6z" fill="white"/>
-                      <text x="16" y="27" fill="white" fontSize="8" fontWeight="600" textAnchor="middle" fontFamily="system-ui, -apple-system">Pay</text>
-                    </svg>
-                  </div>
-                  
-                  <div>
-                    <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Apple Pay
+            <div className="space-y-3">
+              {/* Premium Status */}
+              <div 
+                className={`p-4 rounded-2xl border ${
+                  isDark 
+                    ? 'bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20' 
+                    : 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      isDark 
+                        ? 'bg-gradient-to-br from-amber-500/30 to-orange-500/30' 
+                        : 'bg-gradient-to-br from-amber-100 to-orange-100'
+                    }`}>
+                      <Sparkles className={`w-6 h-6 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                     </div>
-                    <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                      Visa •••• 4242
+                    
+                    <div>
+                      <div className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Premium Active
+                      </div>
+                      <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        Full access to all features
+                      </div>
                     </div>
                   </div>
                 </div>
-                
-                <button 
-                  onClick={() => setLocation('/billing')}
-                  className={`px-4 py-2 rounded-lg text-sm transition-all ${
-                    isDark 
-                      ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/30' 
-                      : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100 border border-cyan-200'
-                  }`}
-                  data-testid="button-manage-payment"
-                >
-                  Manage
-                </button>
               </div>
-            </div>
 
-            {/* Add Payment Method Button */}
-            <button 
-              onClick={() => setLocation('/billing')}
-              className={`w-full p-4 rounded-2xl border-2 border-dashed transition-all ${
-                isDark 
-                  ? 'border-white/20 hover:border-cyan-500/50 hover:bg-cyan-500/5' 
-                  : 'border-gray-300 hover:border-cyan-400 hover:bg-cyan-50/50'
-              }`}
-              data-testid="button-add-payment"
-            >
-              <div className="flex items-center justify-center gap-2">
-                <CreditCard className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
-                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                  Add Payment Method
-                </span>
-              </div>
-            </button>
-
-            {/* Payment Info */}
-            <div className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'} px-2`}>
-              <p>Payments are processed securely through Apple Pay. Your card information is never stored on our servers.</p>
+              {/* Manage Subscription Button */}
+              <Button
+                onClick={() => setLocation('/billing')}
+                variant="outline"
+                className={`w-full ${
+                  isDark 
+                    ? 'border-white/20 text-white/80 hover:bg-white/10' 
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+                data-testid="button-manage-subscription"
+              >
+                <Wallet className="w-4 h-4 mr-2" />
+                <span>Manage Subscription</span>
+              </Button>
             </div>
           </div>
-        </div>
+        ) : (
+          /* Free users see upgrade tile */
+          <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+          }`} data-testid="card-upgrade-premium">
+            <div className="flex items-center gap-2 mb-4">
+              <Crown className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+              <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Upgrade to Premium
+              </h2>
+            </div>
+
+            {/* Main Content */}
+            <div className="text-center mb-4">
+              <div className="flex justify-center mb-3">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                  isDark 
+                    ? 'bg-gradient-to-br from-amber-500/30 to-orange-500/30' 
+                    : 'bg-gradient-to-br from-amber-100 to-orange-100'
+                }`}>
+                  <Sparkles className={`w-7 h-7 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                </div>
+              </div>
+              
+              <h4 className={`text-lg font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Unlock Full Potential
+              </h4>
+              <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+                Get personalized AI insights and advanced health tracking
+              </p>
+            </div>
+
+            {/* Feature Pills */}
+            <div className="flex flex-wrap justify-center gap-2 mb-5">
+              {[
+                { icon: Brain, label: 'AI Insights' },
+                { icon: LineChart, label: 'Flōmentum' },
+                { icon: Zap, label: 'Voice Chat' },
+                { icon: Shield, label: 'Full Access' },
+              ].map(({ icon: Icon, label }) => (
+                <div 
+                  key={label}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs ${
+                    isDark 
+                      ? 'bg-white/10 text-white/80' 
+                      : 'bg-black/5 text-gray-700'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA Button */}
+            <Button
+              onClick={() => setLocation('/billing')}
+              className={`w-full group ${
+                isDark
+                  ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white border-0'
+                  : 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white border-0'
+              }`}
+              data-testid="button-upgrade-premium"
+            >
+              <span>Upgrade Now</span>
+              <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-0.5" />
+            </Button>
+          </div>
+        )}
 
         {/* Passkeys & Security */}
         <PasskeyManagement isDark={isDark} />
