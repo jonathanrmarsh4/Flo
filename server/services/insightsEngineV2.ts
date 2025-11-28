@@ -15,7 +15,7 @@ import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTop
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
 import { type EvidenceTier, EVIDENCE_TIERS } from './evidenceHierarchy';
 import { differenceInDays, subDays, format } from 'date-fns';
-import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation, buildStaleBiomarker } from './anomalyDetectionEngine';
+import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, type MetricDeviation, buildStaleBiomarker, detectOutOfRangeBiomarkers } from './anomalyDetectionEngine';
 import { getFreshnessCategory, SLOW_MOVING_BIOMARKERS } from './dataClassification';
 import { logger } from '../logger';
 import { getUserContext, generateContextualInsight, type UserContext, type BaselineData } from './aiInsightGenerator';
@@ -280,7 +280,6 @@ export function generateLayerDInsights(
   try {
     // CRITICAL PATH 1: Detect out-of-range biomarkers FIRST (flagged labs)
     // This is independent of stale-lab analysis and should always run
-    const { detectOutOfRangeBiomarkers } = require('./anomalyDetectionEngine');
     const outOfRangeBiomarkers = detectOutOfRangeBiomarkers(healthData.biomarkers);
     
     for (const abnormalBiomarker of outOfRangeBiomarkers) {
@@ -814,7 +813,7 @@ function classifyRAGInsight(relatedMetrics: string[]): string {
     } else {
       // Unknown metric - treat as biomarker and try to infer domain
       const canonical = biomarkerNameToCanonicalKey(metric);
-      const { determineHealthDomain } = require('./insightRanking');
+      // determineHealthDomain is already imported at top of file
       const inferredDomain = determineHealthDomain([canonical]);
       
       if (inferredDomain && domainScores.hasOwnProperty(inferredDomain)) {

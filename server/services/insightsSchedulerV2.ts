@@ -6,16 +6,17 @@
  * Implementation:
  * - Checks every hour which users should get insights now
  * - Uses users.timezone column to determine local time
+ * - CATCH-UP MODE: Also generates for users who haven't had insights today and it's past 6 AM
  * - Generates insights using the full 4-layer analytical system
  * - Logs all generated insights to daily_insights table
  */
 
 import cron from 'node-cron';
 import { db } from '../db';
-import { users } from '../../shared/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { users, dailyInsights, userDailyMetrics } from '../../shared/schema';
+import { eq, and, isNotNull, sql } from 'drizzle-orm';
 import { logger } from '../logger';
-import { formatInTimeZone } from 'date-fns-tz';
+import { formatInTimeZone, format } from 'date-fns-tz';
 import { generateDailyInsights } from './insightsEngineV2';
 
 let cronTask: ReturnType<typeof cron.schedule> | null = null;
@@ -39,15 +40,48 @@ function is6AMInTimezone(timezone: string, currentTime: Date = new Date()): bool
 }
 
 /**
+ * Determine if it's past 06:00 in the user's timezone (for catch-up mode)
+ */
+function isPast6AMInTimezone(timezone: string, currentTime: Date = new Date()): boolean {
+  try {
+    const localHour = parseInt(formatInTimeZone(currentTime, timezone, 'HH'));
+    return localHour >= 6;
+  } catch (error) {
+    logger.error(`[InsightsV2Scheduler] Invalid timezone for catch-up: ${timezone}`, error);
+    return false;
+  }
+}
+
+/**
+ * Get today's date in user's local timezone (YYYY-MM-DD format)
+ */
+function getTodayInTimezone(timezone: string, currentTime: Date = new Date()): string {
+  try {
+    return formatInTimeZone(currentTime, timezone, 'yyyy-MM-dd');
+  } catch (error) {
+    logger.error(`[InsightsV2Scheduler] Invalid timezone for date: ${timezone}`, error);
+    return format(currentTime, 'yyyy-MM-dd');
+  }
+}
+
+/**
  * Process insights generation for all eligible users
  * 
  * Runs at the top of every hour to check which users need insights
+ * Includes CATCH-UP mode for users who missed their 6 AM generation
  */
-async function processInsightsGeneration() {
+async function processInsightsGeneration(catchUpMode: boolean = false) {
   const startTime = Date.now();
-  logger.info('[InsightsV2Scheduler] Starting hourly check for users needing insights');
+  logger.info(`[InsightsV2Scheduler] Starting hourly check for users needing insights (catchUp: ${catchUpMode})`);
   
   try {
+    // Get all active users with timezone data who have health data
+    const usersWithData = await db
+      .selectDistinct({ userId: userDailyMetrics.userId })
+      .from(userDailyMetrics);
+    
+    const userIdsWithData = new Set(usersWithData.map(u => u.userId));
+    
     // Get all active users with timezone data
     const allUsers = await db
       .select({
@@ -63,15 +97,50 @@ async function processInsightsGeneration() {
         )
       );
     
-    logger.info(`[InsightsV2Scheduler] Checking ${allUsers.length} users for 06:00 local time`);
+    // Filter to users who actually have health data
+    const usersWithHealthData = allUsers.filter(u => userIdsWithData.has(u.id));
     
-    // Filter to users where it's currently 06:00 local time
+    logger.info(`[InsightsV2Scheduler] Found ${allUsers.length} active users, ${usersWithHealthData.length} have health data`);
+    
     const now = new Date();
-    const eligibleUsers = allUsers.filter(user => 
-      user.timezone && is6AMInTimezone(user.timezone, now)
-    );
+    let eligibleUsers: typeof usersWithHealthData = [];
     
-    logger.info(`[InsightsV2Scheduler] Found ${eligibleUsers.length} users at 06:00 local time`);
+    if (catchUpMode) {
+      // CATCH-UP MODE: Find users who haven't had insights today and it's past 6 AM for them
+      for (const user of usersWithHealthData) {
+        if (!user.timezone) continue;
+        
+        // Check if it's past 6 AM in their timezone
+        if (!isPast6AMInTimezone(user.timezone, now)) continue;
+        
+        // Check if they already have insights for today (in their local timezone)
+        const todayLocal = getTodayInTimezone(user.timezone, now);
+        const existingInsights = await db
+          .select({ id: dailyInsights.id })
+          .from(dailyInsights)
+          .where(
+            and(
+              eq(dailyInsights.userId, user.id),
+              eq(dailyInsights.generatedDate, todayLocal)
+            )
+          )
+          .limit(1);
+        
+        if (existingInsights.length === 0) {
+          eligibleUsers.push(user);
+          logger.info(`[InsightsV2Scheduler] CATCH-UP: User ${user.id} (${user.firstName || 'Unknown'}) missing insights for ${todayLocal}`);
+        }
+      }
+      
+      logger.info(`[InsightsV2Scheduler] CATCH-UP mode found ${eligibleUsers.length} users needing insights`);
+    } else {
+      // NORMAL MODE: Check for exact 06:00 local time match
+      eligibleUsers = usersWithHealthData.filter(user => 
+        user.timezone && is6AMInTimezone(user.timezone, now)
+      );
+      
+      logger.info(`[InsightsV2Scheduler] Found ${eligibleUsers.length} users at exactly 06:00 local time`);
+    }
     
     if (eligibleUsers.length === 0) {
       const elapsed = Date.now() - startTime;
@@ -81,7 +150,7 @@ async function processInsightsGeneration() {
     
     // Generate insights for eligible users
     for (const user of eligibleUsers) {
-      const userId = user.id; // User IDs are UUIDs (strings)
+      const userId = user.id;
       
       // Check if already running for this user (idempotency lock)
       if (runningGenerations.has(userId)) {
@@ -123,6 +192,7 @@ async function processInsightsGeneration() {
  * Start the timezone-aware insights scheduler
  * 
  * Runs at the top of every hour (e.g., 00:00, 01:00, 02:00, etc.)
+ * Also runs catch-up mode on startup to generate missing insights
  */
 export function startInsightsSchedulerV2() {
   if (cronTask) {
@@ -130,10 +200,18 @@ export function startInsightsSchedulerV2() {
     return;
   }
   
-  // Run at the top of every hour
-  cronTask = cron.schedule('0 * * * *', processInsightsGeneration);
+  // Run at the top of every hour (normal 6 AM check)
+  cronTask = cron.schedule('0 * * * *', () => processInsightsGeneration(false));
   
   logger.info('[InsightsV2Scheduler] Timezone-aware insights scheduler initialized (runs hourly)');
+  
+  // Run catch-up mode on startup after a short delay (give server time to initialize)
+  setTimeout(() => {
+    logger.info('[InsightsV2Scheduler] Running startup catch-up check for missed insights');
+    processInsightsGeneration(true).catch(error => {
+      logger.error('[InsightsV2Scheduler] Startup catch-up failed:', error);
+    });
+  }, 10000); // 10 second delay after startup
 }
 
 /**
@@ -149,8 +227,17 @@ export function stopInsightsSchedulerV2() {
 
 /**
  * Manually trigger insights generation check (for testing)
+ * @param catchUp - If true, generates for all users missing today's insights
  */
-export async function triggerInsightsGenerationCheck() {
-  logger.info('[InsightsV2Scheduler] Manual trigger requested');
-  await processInsightsGeneration();
+export async function triggerInsightsGenerationCheck(catchUp: boolean = false) {
+  logger.info(`[InsightsV2Scheduler] Manual trigger requested (catchUp: ${catchUp})`);
+  await processInsightsGeneration(catchUp);
+}
+
+/**
+ * Trigger catch-up mode to generate insights for users who missed their 6 AM generation
+ */
+export async function triggerCatchUpGeneration() {
+  logger.info('[InsightsV2Scheduler] Catch-up generation triggered');
+  await processInsightsGeneration(true);
 }
