@@ -536,10 +536,16 @@ export default function MobileAuth() {
                       <FormLabel className="text-white/80 text-sm">Email</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
                           <Input
                             {...field}
                             type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            autoCapitalize="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            enterKeyHint="next"
                             className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                             placeholder="you@example.com"
                             disabled={isLoginLoading}
@@ -560,10 +566,15 @@ export default function MobileAuth() {
                       <FormLabel className="text-white/80 text-sm">Password</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
                           <Input
                             {...field}
                             type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            autoCapitalize="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            enterKeyHint="done"
                             className="h-11 pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                             placeholder="Enter password"
                             disabled={isLoginLoading}
@@ -652,10 +663,16 @@ export default function MobileAuth() {
                           <FormLabel className="text-white/80 text-sm">Email</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
                               <Input
                                 {...field}
                                 type="email"
+                                inputMode="email"
+                                autoComplete="email"
+                                autoCapitalize="off"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                enterKeyHint="done"
                                 className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                                 placeholder="you@example.com"
                                 disabled={isForgotPasswordLoading}
@@ -718,6 +735,11 @@ export default function MobileAuth() {
                           <Input
                             {...field}
                             type="text"
+                            autoComplete="given-name"
+                            autoCapitalize="words"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            enterKeyHint="next"
                             className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                             placeholder="John"
                             disabled={isRegisterLoading}
@@ -739,6 +761,11 @@ export default function MobileAuth() {
                           <Input
                             {...field}
                             type="text"
+                            autoComplete="family-name"
+                            autoCapitalize="words"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            enterKeyHint="next"
                             className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                             placeholder="Doe"
                             disabled={isRegisterLoading}
@@ -759,10 +786,16 @@ export default function MobileAuth() {
                       <FormLabel className="text-white/80 text-sm">Email</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
                           <Input
                             {...field}
                             type="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            autoCapitalize="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            enterKeyHint="next"
                             className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                             placeholder="you@example.com"
                             disabled={isRegisterLoading}
@@ -783,10 +816,15 @@ export default function MobileAuth() {
                       <FormLabel className="text-white/80 text-sm">Password</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
                           <Input
                             {...field}
                             type={showPassword ? 'text' : 'password'}
+                            autoComplete="new-password"
+                            autoCapitalize="off"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            enterKeyHint="done"
                             className="h-11 pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                             placeholder="Min. 8 characters"
                             disabled={isRegisterLoading}
