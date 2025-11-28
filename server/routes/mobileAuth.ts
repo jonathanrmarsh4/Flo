@@ -918,18 +918,9 @@ router.post("/api/mobile/auth/passkey/register", isAuthenticated, async (req, re
     
     // Store the passkey credential
     // Note: In SimpleWebAuthn v10+, credential.id is already a Base64URLString
-    const storedCredentialId = credential.id; // Already base64url encoded string
-    
-    logger.info('Passkey registration: Storing credential', {
-      userId,
-      credentialId: storedCredentialId,
-      credentialIdLength: storedCredentialId?.length,
-      credentialIdType: typeof storedCredentialId,
-    });
-    
     await storage.createPasskeyCredential({
       userId,
-      credentialId: storedCredentialId,
+      credentialId: credential.id, // Already base64url encoded string
       publicKey: Buffer.from(credential.publicKey).toString('base64'),
       counter: credential.counter,
       deviceType: credentialDeviceType,
@@ -940,10 +931,7 @@ router.post("/api/mobile/auth/passkey/register", isAuthenticated, async (req, re
     
     // Challenge already deleted by getAndDeleteChallenge
     
-    logger.info(`Passkey registered successfully for user ${userId}`, { 
-      deviceType: credentialDeviceType,
-      credentialId: storedCredentialId,
-    });
+    logger.info(`Passkey registered for user ${userId}`, { deviceType: credentialDeviceType });
     
     res.json({ 
       success: true, 
@@ -1024,26 +1012,10 @@ router.post("/api/mobile/auth/passkey/login", async (req, res) => {
     
     // Find the passkey by credential ID
     const credentialId = response.id; // Already base64url encoded from browser
-    logger.info('Passkey login: Looking up credential', { 
-      credentialId,
-      credentialIdLength: credentialId?.length,
-    });
-    
     const passkey = await storage.getPasskeyByCredentialId(credentialId);
     
     if (!passkey) {
-      // Debug: List all passkeys to compare
-      const allPasskeys = await storage.getAllPasskeys();
-      logger.error('Passkey login: Credential not found', {
-        searchedFor: credentialId,
-        searchedForLength: credentialId?.length,
-        storedCount: allPasskeys.length,
-        storedCredentialIds: allPasskeys.map(p => ({ 
-          id: p.credentialId, 
-          length: p.credentialId?.length,
-          userId: p.userId,
-        })),
-      });
+      logger.warn('Passkey login: Credential not found', { credentialId });
       return res.status(404).json({ error: "Passkey not found" });
     }
     
