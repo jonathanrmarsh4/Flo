@@ -2,20 +2,59 @@ import { Capacitor } from '@capacitor/core';
 
 let Subscriptions: any = null;
 let pluginLoaded = false;
+let pluginLoadPromise: Promise<any> | null = null;
 
 async function loadPlugin() {
-  if (pluginLoaded) return Subscriptions;
-  
-  try {
-    const module = await import('@squareetlabs/capacitor-subscriptions');
-    Subscriptions = module.Subscriptions;
-    pluginLoaded = true;
+  if (pluginLoaded) {
+    console.log('[StoreKit] Plugin already loaded, returning cached:', Subscriptions !== null);
     return Subscriptions;
-  } catch (error) {
-    console.warn('[StoreKit] Plugin not available:', error);
-    pluginLoaded = true;
-    return null;
   }
+  
+  // Prevent multiple concurrent loads
+  if (pluginLoadPromise) {
+    console.log('[StoreKit] Plugin load already in progress, waiting...');
+    return pluginLoadPromise;
+  }
+  
+  pluginLoadPromise = (async () => {
+    try {
+      console.log('[StoreKit] Starting dynamic import of capacitor-subscriptions...');
+      
+      // Add timeout to prevent hanging forever
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => {
+          console.error('[StoreKit] Plugin import timed out after 10s');
+          resolve(null);
+        }, 10000);
+      });
+      
+      const importPromise = import('@squareetlabs/capacitor-subscriptions').then(module => {
+        console.log('[StoreKit] Dynamic import succeeded, module:', Object.keys(module));
+        return module;
+      });
+      
+      const module = await Promise.race([importPromise, timeoutPromise]);
+      
+      if (module && 'Subscriptions' in module) {
+        Subscriptions = module.Subscriptions;
+        console.log('[StoreKit] Plugin loaded successfully:', typeof Subscriptions);
+      } else {
+        console.warn('[StoreKit] Module loaded but Subscriptions not found');
+        Subscriptions = null;
+      }
+      
+      pluginLoaded = true;
+      return Subscriptions;
+    } catch (error) {
+      console.warn('[StoreKit] Plugin import failed:', error);
+      pluginLoaded = true;
+      return null;
+    } finally {
+      pluginLoadPromise = null;
+    }
+  })();
+  
+  return pluginLoadPromise;
 }
 
 export interface StoreKitProduct {
@@ -72,8 +111,9 @@ export async function isStoreKitAvailable(): Promise<boolean> {
     return false;
   }
   
+  console.log('[StoreKit] Platform check passed, loading plugin...');
   const plugin = await loadPlugin();
-  console.log('[StoreKit] Plugin loaded:', plugin !== null);
+  console.log('[StoreKit] Plugin load complete, available:', plugin !== null);
   return plugin !== null;
 }
 
