@@ -1,19 +1,20 @@
 import { useState, useRef } from 'react';
-import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2 } from 'lucide-react';
+import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { HealthKitService } from '@/services/healthkit';
 import type { HealthDataType } from '@/types/healthkit';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateDemographics } from '@/hooks/useProfile';
+import { startRegistration } from '@simplewebauthn/browser';
 
 interface SetupStepsProps {
   isDark: boolean;
   onComplete: () => void;
 }
 
-type SetupStep = 'notifications' | 'profile' | 'bloodwork' | 'optional' | 'complete';
+type SetupStep = 'notifications' | 'profile' | 'bloodwork' | 'optional' | 'security' | 'complete';
 
 // Generate year options (100 years back from current year)
 const currentYear = new Date().getFullYear();
@@ -98,12 +99,17 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
     cac: false,
     dexa: false
   });
+  
+  // Passkey/Security state
+  const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
+  const [passkeyRegistered, setPasskeyRegistered] = useState(false);
 
   const steps = [
     { id: 'notifications' as const, title: 'Enable Notifications', icon: Bell, required: true },
     { id: 'profile' as const, title: 'Configure Profile', icon: User, required: true },
     { id: 'bloodwork' as const, title: 'Upload Blood Work', icon: Upload, required: true },
     { id: 'optional' as const, title: 'Optional Scans', icon: Bone, required: false },
+    { id: 'security' as const, title: 'Secure Your Account', icon: Shield, required: false },
   ];
 
   const currentStepIndex = steps.findIndex(step => step.id === currentStep);
@@ -396,10 +402,120 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
   const handleOptionalNext = () => {
     setCompletedSteps([...completedSteps, 'optional']);
-    onComplete();
+    setCurrentStep('security');
   };
 
   const handleSkipOptional = () => {
+    setCompletedSteps([...completedSteps, 'optional']);
+    setCurrentStep('security');
+  };
+
+  // Detect device name for passkey
+  const detectDeviceName = (): string => {
+    const ua = navigator.userAgent;
+    if (/iPhone/.test(ua)) return 'iPhone';
+    if (/iPad/.test(ua)) return 'iPad';
+    if (/Mac/.test(ua)) return 'Mac';
+    if (/Android/.test(ua)) return 'Android Device';
+    if (/Windows/.test(ua)) return 'Windows PC';
+    return 'Unknown Device';
+  };
+
+  // Handle passkey registration
+  const handleRegisterPasskey = async () => {
+    setIsRegisteringPasskey(true);
+    try {
+      const headers = await getAuthHeaders();
+      const baseUrl = getApiBaseUrl();
+      
+      const optionsRes = await fetch(`${baseUrl}/api/mobile/auth/passkey/register-options`, {
+        headers,
+        credentials: 'include'
+      });
+      
+      if (!optionsRes.ok) {
+        throw new Error('Failed to get registration options');
+      }
+      
+      const options = await optionsRes.json();
+      
+      console.log('[Onboarding] Passkey registration options received');
+      
+      const credential = await startRegistration({ optionsJSON: options });
+      
+      const deviceName = detectDeviceName();
+      
+      const verifyRes = await fetch(`${baseUrl}/api/mobile/auth/passkey/register`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          response: credential,
+          deviceName,
+        }),
+      });
+      
+      if (!verifyRes.ok) {
+        const error = await verifyRes.json();
+        throw new Error(error.error || 'Registration failed');
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/mobile/auth/passkeys'] });
+      
+      setPasskeyRegistered(true);
+      toast({
+        title: "Face ID Enabled",
+        description: "You can now sign in instantly with Face ID or Touch ID.",
+      });
+    } catch (error: any) {
+      const errorName = error?.name || 'UnknownError';
+      const errorMessage = error?.message || '';
+      
+      console.error('[Onboarding] Passkey registration error:', {
+        name: errorName,
+        message: errorMessage,
+        error: String(error),
+      });
+      
+      if (errorName === 'NotAllowedError') {
+        toast({
+          title: "Cancelled",
+          description: "You can set this up later in your profile.",
+        });
+      } else if (errorName === 'InvalidStateError') {
+        setPasskeyRegistered(true);
+        toast({
+          title: "Already Set Up",
+          description: "Face ID is already configured for your account.",
+        });
+      } else if (errorName === 'NotSupportedError') {
+        toast({
+          title: "Not Available",
+          description: "Face ID/Touch ID is not available on this device.",
+        });
+      } else {
+        toast({
+          title: "Setup Failed",
+          description: "You can try again later in your profile settings.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsRegisteringPasskey(false);
+    }
+  };
+
+  const handleSecurityNext = () => {
+    setCompletedSteps([...completedSteps, 'security']);
+    onComplete();
+  };
+
+  const handleSkipSecurity = () => {
+    // Mark as complete even when skipping so progress tracking works
+    setCompletedSteps([...completedSteps, 'security']);
     onComplete();
   };
 
@@ -975,6 +1091,125 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 <button
                   onClick={handleOptionalNext}
                   className="flex-1 py-4 rounded-xl font-medium transition-all bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white shadow-lg hover:shadow-xl"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span>Continue</span>
+                    <ChevronRight className="w-5 h-5" />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Security Step - Passkey Registration */}
+          {currentStep === 'security' && (
+            <div 
+              className="space-y-6"
+              style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex p-4 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-500 mb-4 shadow-2xl">
+                  <Shield className="w-10 h-10 text-white" />
+                </div>
+                <h3 className={`text-xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Secure Your Account
+                </h3>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Enable Face ID or Touch ID for fast, secure sign-in
+                </p>
+              </div>
+
+              {/* Security Explanation */}
+              <div className={`p-5 rounded-2xl ${
+                isDark ? 'bg-white/5' : 'bg-gray-50'
+              }`}>
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500">
+                    <Fingerprint className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Why use Face ID?
+                    </h4>
+                    <ul className={`space-y-2 text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <span>Sign in instantly without passwords</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <span>Your biometrics never leave your device</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                        <span>More secure than passwords alone</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Registration Button */}
+              {!passkeyRegistered ? (
+                <button
+                  onClick={handleRegisterPasskey}
+                  disabled={isRegisteringPasskey}
+                  className={`w-full p-4 rounded-2xl font-medium transition-all ${
+                    isRegisteringPasskey
+                      ? 'opacity-70 cursor-wait'
+                      : ''
+                  } bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-lg hover:shadow-xl`}
+                >
+                  <div className="flex items-center justify-center gap-3">
+                    {isRegisteringPasskey ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Setting up...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Fingerprint className="w-5 h-5" />
+                        <span>Enable Face ID / Touch ID</span>
+                      </>
+                    )}
+                  </div>
+                </button>
+              ) : (
+                <div className={`p-4 rounded-2xl border ${
+                  isDark 
+                    ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-500/10 to-teal-500/10'
+                    : 'border-emerald-500/50 bg-emerald-50'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                      <Check className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className={`font-medium ${isDark ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                        Face ID Enabled
+                      </h4>
+                      <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                        You're all set for secure sign-in
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSkipSecurity}
+                  className={`flex-1 py-4 rounded-xl font-medium transition-all ${
+                    isDark 
+                      ? 'bg-white/10 text-white hover:bg-white/20' 
+                      : 'bg-black/5 text-gray-900 hover:bg-black/10'
+                  }`}
+                >
+                  {passkeyRegistered ? 'Skip' : 'Maybe Later'}
+                </button>
+                <button
+                  onClick={handleSecurityNext}
+                  className="flex-1 py-4 rounded-xl font-medium transition-all bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-lg hover:shadow-xl"
                 >
                   <div className="flex items-center justify-center gap-2">
                     <span>Finish Setup</span>
