@@ -4,6 +4,7 @@ import { BodyCompositionTile } from './dashboard/BodyCompositionTile';
 import { ReadinessTile } from './dashboard/ReadinessTile';
 import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
+import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical } from 'lucide-react';
@@ -265,16 +266,13 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
                   }} 
                 />
               ) : (
-                <LockedTile
-                  title="Flōmentum"
-                  description="Track your daily health momentum with AI-powered scoring"
-                  icon={TrendingUp}
+                <UpgradePremiumTile
+                  isDark={isDark}
                   onUpgrade={() => {
                     if (!isDragging) {
                       setPaywallModalId('upgrade_on_locked_flomentum_tile');
                     }
                   }}
-                  isDark={isDark}
                 />
               )}
             </SortableItem>
