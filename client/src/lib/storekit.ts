@@ -44,7 +44,7 @@ export interface PurchaseResult {
 }
 
 export const PRODUCT_IDS = {
-  PREMIUM_MONTHLY: 'flo_premium_monthly',
+  PREMIUM_MONTHLY: 'premium_monthly',
   PREMIUM_YEARLY: 'flo_premium_yearly',
 };
 

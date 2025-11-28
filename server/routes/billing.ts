@@ -22,7 +22,7 @@ const APP_STORE_ISSUER_ID = process.env.APP_STORE_ISSUER_ID || '';
 const APP_STORE_KEY_ID = process.env.APP_STORE_KEY_ID || '';
 const APP_STORE_PRIVATE_KEY = process.env.APP_STORE_PRIVATE_KEY || '';
 const APP_STORE_APP_APPLE_ID = process.env.APP_STORE_APP_APPLE_ID ? Number(process.env.APP_STORE_APP_APPLE_ID) : undefined;
-const VALID_PRODUCT_IDS = ['flo_premium_monthly', 'flo_premium_yearly'];
+const VALID_PRODUCT_IDS = ['premium_monthly', 'flo_premium_yearly'];
 
 // Determine environment based on NODE_ENV
 const isProduction = process.env.NODE_ENV === 'production';
