@@ -88,7 +88,7 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
     if (!result.products || result.products.length === 0) {
       console.warn('[StoreKit] No products returned. Checklist:');
       console.warn('1. Sign "Paid Applications Agreement" in App Store Connect → Agreements');
-      console.warn('2. Bundle ID must match: com.getflo.app');
+      console.warn('2. Bundle ID must match: com.flo.healthapp');
       console.warn('3. Products need at least one localization');
       console.warn('4. Products must be in "Ready to Submit" or approved status');
       console.warn('5. Use Sandbox Apple ID for testing, not regular account');

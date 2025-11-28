@@ -17,7 +17,7 @@ import { PAYWALL_MODALS } from '../config/paywallModals';
 import { getAppleRootCertificates } from '../config/appleRootCerts';
 
 // App Store configuration
-const APP_STORE_BUNDLE_ID = process.env.APP_STORE_BUNDLE_ID || 'com.getflo.app';
+const APP_STORE_BUNDLE_ID = process.env.APP_STORE_BUNDLE_ID || 'com.flo.healthapp';
 const APP_STORE_ISSUER_ID = process.env.APP_STORE_ISSUER_ID || '';
 const APP_STORE_KEY_ID = process.env.APP_STORE_KEY_ID || '';
 const APP_STORE_PRIVATE_KEY = process.env.APP_STORE_PRIVATE_KEY || '';
