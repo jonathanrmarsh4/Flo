@@ -57,11 +57,23 @@ export async function getPlatform(): Promise<string> {
 }
 
 export async function isStoreKitAvailable(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
+  const isNative = Capacitor.isNativePlatform();
+  const platform = Capacitor.getPlatform();
+  
+  console.log('[StoreKit] Checking availability:', { isNative, platform });
+  
+  if (!isNative) {
+    console.log('[StoreKit] Not native platform - StoreKit unavailable');
+    return false;
+  }
+  
+  if (platform !== 'ios') {
+    console.log('[StoreKit] Not iOS platform - StoreKit unavailable');
     return false;
   }
   
   const plugin = await loadPlugin();
+  console.log('[StoreKit] Plugin loaded:', plugin !== null);
   return plugin !== null;
 }
 
