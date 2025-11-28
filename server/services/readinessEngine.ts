@@ -126,6 +126,16 @@ function calculateLoadScore(
     return null;
   }
 
+  // BUGFIX: Treat 0 or very low active energy as "no data"
+  // Even light sedentary activity burns ~100+ kcal/day in active energy
+  // A value of 0 or near-0 indicates missing/incomplete data, not true inactivity
+  // Without this check, 0 vs baseline ~600 yields -100% deviation = max score of 100
+  const MIN_VALID_ACTIVE_ENERGY = 50; // kcal threshold for valid data
+  if (yesterdayActiveEnergy < MIN_VALID_ACTIVE_ENERGY) {
+    logger.debug(`[Readiness] Ignoring low active energy ${yesterdayActiveEnergy} kcal (below ${MIN_VALID_ACTIVE_ENERGY} threshold)`);
+    return null;
+  }
+
   if (!baseline || baseline.mean === 0) {
     return null; // Can't assess load without baseline
   }
