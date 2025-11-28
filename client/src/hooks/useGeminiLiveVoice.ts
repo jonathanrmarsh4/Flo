@@ -96,6 +96,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   });
 
   const wsRef = useRef<WebSocket | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   
   // Separate contexts for capture and playback
   const playbackContextRef = useRef<AudioContext | null>(null);
@@ -116,6 +117,33 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const totalPendingSamplesRef = useRef(0);
   const hasStartedPlaybackRef = useRef(false);
   const flushTimeoutRef = useRef<number | null>(null);
+
+  // Wake lock management - keeps screen awake during voice chat
+  const acquireWakeLock = useCallback(async () => {
+    if ('wakeLock' in navigator) {
+      try {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+        console.log('[GeminiLive] Wake lock acquired - screen will stay awake');
+        
+        // Re-acquire if released (e.g., when tab becomes visible again)
+        wakeLockRef.current.addEventListener('release', () => {
+          console.log('[GeminiLive] Wake lock released');
+        });
+      } catch (err) {
+        console.warn('[GeminiLive] Wake lock not available:', err);
+      }
+    } else {
+      console.log('[GeminiLive] Wake Lock API not supported');
+    }
+  }, []);
+
+  const releaseWakeLock = useCallback(() => {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release().catch(() => {});
+      wakeLockRef.current = null;
+      console.log('[GeminiLive] Wake lock released');
+    }
+  }, []);
 
   // Schedule audio for gapless playback
   const scheduleAudio = useCallback((samples: Float32Array) => {
@@ -296,6 +324,8 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
             case 'connected':
               console.log('[GeminiLive] Session started:', message.sessionId);
               setState(prev => ({ ...prev, isConnected: true }));
+              // Acquire wake lock to keep screen on during voice chat
+              acquireWakeLock();
               options.onConnected?.();
               break;
 
@@ -470,6 +500,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const disconnect = useCallback(() => {
     console.log('[GeminiLive] Disconnecting...');
     
+    // Release wake lock immediately
+    releaseWakeLock();
+    
     stopListening();
 
     // Close WebSocket
@@ -515,7 +548,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     });
 
     console.log('[GeminiLive] Disconnected and reset');
-  }, [stopListening]);
+  }, [stopListening, releaseWakeLock]);
 
   // Send text message
   const sendText = useCallback((text: string) => {

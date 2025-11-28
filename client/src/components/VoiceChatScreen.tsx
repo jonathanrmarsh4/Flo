@@ -42,6 +42,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [isTextLoading, setIsTextLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false); // Explicit connecting state
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +86,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     },
     onError: (error) => {
       console.error('[VoiceChat] Gemini error:', error);
+      setIsConnecting(false); // Reset connecting state on any error
       toast({
         title: "Voice error",
         description: error,
@@ -93,6 +95,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     },
     onConnected: () => {
       console.log('[VoiceChat] Connected to Gemini Live');
+      setIsConnecting(false); // Connection established
       // Send initial greeting request
       sendText("Hello! Please greet me and let me know you're ready to help with my health data.");
       // Start listening for user speech
@@ -100,6 +103,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     },
     onDisconnected: () => {
       console.log('[VoiceChat] Disconnected from Gemini Live');
+      setIsConnecting(false); // Reset connecting state on disconnect
     },
     onFloResponse: (text) => {
       // Add Flo's response as a message
@@ -120,7 +124,8 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     },
   });
 
-  const isProcessing = !isConnected && messages.length > 1;
+  // isProcessing should only be true when actively trying to connect
+  const isProcessing = isConnecting;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -135,11 +140,15 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
 
   const startConversation = useCallback(async () => {
     console.log('[VoiceChat] Starting Gemini Live conversation...');
+    setIsConnecting(true); // Set connecting state
+    // Connect will call onError callback on failure (which resets isConnecting)
+    // and onConnected on success (which also resets isConnecting)
     await connect();
   }, [connect]);
 
   const endConversation = useCallback(() => {
     console.log('[VoiceChat] Ending conversation...');
+    setIsConnecting(false); // Clear any connecting state
     stopListening();
     disconnect();
   }, [stopListening, disconnect]);
@@ -147,6 +156,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   // Handle close button - ensure we disconnect first
   const handleClose = useCallback(() => {
     console.log('[VoiceChat] Closing chat window...');
+    setIsConnecting(false); // Clear any connecting state
     disconnect();
     onClose();
   }, [disconnect, onClose]);

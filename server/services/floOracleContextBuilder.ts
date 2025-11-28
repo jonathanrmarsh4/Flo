@@ -1,6 +1,7 @@
 import { db } from '../db';
 import { 
-  profiles, 
+  profiles,
+  users,
   biomarkerTestSessions,
   biomarkerMeasurements,
   biomarkers,
@@ -246,15 +247,22 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       bodyCompositionExplanation: null,
     };
 
+    // Fetch user's timezone from users table
+    const [user] = await db
+      .select({ timezone: users.timezone })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    // Get user's timezone for proper date formatting (default to America/Los_Angeles)
+    const userTimezone = user?.timezone || 'America/Los_Angeles';
+    logger.info(`[FloOracle] Using timezone: ${userTimezone} for user ${userId}`);
+    
     const [userProfile] = await db
       .select()
       .from(profiles)
       .where(eq(profiles.userId, userId))
       .limit(1);
-
-    // Get user's timezone for proper date formatting (default to America/Los_Angeles)
-    const userTimezone = userProfile?.timezone || 'America/Los_Angeles';
-    logger.info(`[FloOracle] Using timezone: ${userTimezone} for user ${userId}`);
 
     if (userProfile) {
       context.age = calculateAge(userProfile.dateOfBirth);
@@ -303,7 +311,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         // Store this panel in history
         if (Object.keys(biomarkerMap).length > 0) {
           bloodPanelHistory.push({
-            date: session.testDate.toISOString().split('T')[0],
+            date: formatDateInTimezone(session.testDate, userTimezone),
             biomarkers: biomarkerMap,
           });
         }
@@ -340,7 +348,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       const payload = cac.aiPayload as Record<string, any> || {};
       context.latestCAC.score = cac.totalScoreNumeric ?? payload.cacScore ?? null;
       context.latestCAC.percentile = cac.agePercentile?.toString() ?? payload.percentile ?? null;
-      context.latestCAC.date = cac.studyDate.toISOString().split('T')[0];
+      context.latestCAC.date = formatDateInTimezone(cac.studyDate, userTimezone);
     }
 
     const latestDEXA = await db
@@ -361,12 +369,12 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.latestDEXA.visceralFat = payload.visceralFatMass ?? null;
       context.latestDEXA.leanMass = payload.totalLeanMass ?? null;
       context.latestDEXA.bodyFat = payload.totalBodyFat ?? null;
-      context.latestDEXA.date = dexa.studyDate.toISOString().split('T')[0];
+      context.latestDEXA.date = formatDateInTimezone(dexa.studyDate, userTimezone);
     }
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+    const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
 
     const wearableData = await db
       .select({
@@ -555,9 +563,12 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         .limit(20);
       
       recentWorkouts.forEach(w => {
+        // Use relative date labels for better AI understanding
+        const dateLabel = getRelativeDateLabel(w.date, userTimezone);
         workoutHistory.push({
           type: w.workoutType,
-          date: w.date.toISOString().split('T')[0],
+          date: dateLabel, // e.g., "today", "yesterday", "Friday", "3 days ago"
+          dateFormatted: formatDateInTimezone(w.date, userTimezone),
           duration: w.duration ? Math.round(w.duration) : null,
           distance: w.distance ? (w.distance / 1000).toFixed(1) : null, // Convert to km
           calories: w.energyBurned ? Math.round(w.energyBurned) : null,
@@ -570,36 +581,36 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         logger.info(`[FloOracle] Fetched ${workoutHistory.length} recent workouts for context`);
       }
     } catch (error) {
-      logger.warn('[FloOracle] Failed to fetch workout history:', error);
+      logger.warn('[FloOracle] Failed to fetch workout history');
     }
 
-    // Fetch body composition data from HealthKit (no more DEXA fallback)
+    // Fetch body composition data from userDailyMetrics
     try {
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-      const ninetyDaysAgoStr = ninetyDaysAgo.toISOString().split('T')[0];
+      const ninetyDaysAgoStr = formatDateInTimezone(ninetyDaysAgo, userTimezone);
 
       const healthData = await db
         .select()
-        .from(healthDailyMetrics)
+        .from(userDailyMetrics)
         .where(
           and(
-            eq(healthDailyMetrics.userId, userId),
-            gte(healthDailyMetrics.date, ninetyDaysAgoStr)
+            eq(userDailyMetrics.userId, userId),
+            gte(userDailyMetrics.localDate, ninetyDaysAgoStr)
           )
         )
-        .orderBy(desc(healthDailyMetrics.date))
+        .orderBy(desc(userDailyMetrics.localDate))
         .limit(30);
 
       const mostRecentWeight = healthData.find(d => d.weightKg !== null);
-      const mostRecentBodyFat = healthData.find(d => d.bodyFatPct !== null);
-      const mostRecentLeanMass = healthData.find(d => d.leanMassKg !== null);
+      const mostRecentBodyFat = healthData.find(d => d.bodyFatPercent !== null);
+      const mostRecentLeanMass = healthData.find(d => d.leanBodyMassKg !== null);
 
       if (mostRecentWeight || mostRecentBodyFat || mostRecentLeanMass) {
         const parts: string[] = [];
         if (mostRecentWeight?.weightKg) parts.push(`Weight: ${mostRecentWeight.weightKg.toFixed(1)} kg`);
-        if (mostRecentBodyFat?.bodyFatPct) parts.push(`Body fat: ${mostRecentBodyFat.bodyFatPct.toFixed(1)}%`);
-        if (mostRecentLeanMass?.leanMassKg) parts.push(`Lean mass: ${mostRecentLeanMass.leanMassKg.toFixed(1)} kg`);
+        if (mostRecentBodyFat?.bodyFatPercent) parts.push(`Body fat: ${mostRecentBodyFat.bodyFatPercent.toFixed(1)}%`);
+        if (mostRecentLeanMass?.leanBodyMassKg) parts.push(`Lean mass: ${mostRecentLeanMass.leanBodyMassKg.toFixed(1)} kg`);
         context.bodyCompositionExplanation = `HealthKit data: ${parts.join(', ')}`;
       } else {
         context.bodyCompositionExplanation = null;
