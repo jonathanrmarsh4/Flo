@@ -41,12 +41,14 @@ async function loadPlugin() {
       if (module && 'Subscriptions' in module) {
         Subscriptions = module.Subscriptions;
         console.log('[StoreKit] Plugin loaded successfully:', typeof Subscriptions);
+        console.log('[StoreKit] Subscriptions methods:', Subscriptions ? Object.keys(Subscriptions) : 'none');
       } else {
         console.warn('[StoreKit] Module loaded but Subscriptions not found');
         Subscriptions = null;
       }
       
       pluginLoaded = true;
+      console.log('[StoreKit] loadPlugin() returning, Subscriptions exists:', Subscriptions !== null);
       return Subscriptions;
     } catch (error) {
       console.warn('[StoreKit] Plugin import failed:', error);

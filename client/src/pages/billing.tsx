@@ -39,9 +39,11 @@ export default function BillingPage() {
   });
 
   const loadProducts = async () => {
+    console.log('[Billing] loadProducts() starting...');
     setPricing(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
+      console.log('[Billing] Calling isStoreKitAvailable()...');
       const available = await isStoreKitAvailable();
       console.log('[Billing] StoreKit available:', available);
       setStoreKitReady(available);
