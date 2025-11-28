@@ -23,7 +23,7 @@ export function FloBottomNav() {
     },
     {
       id: 'add',
-      label: 'Flo',
+      label: 'Flō',
       icon: null,
       path: null,
       isCenter: true,
