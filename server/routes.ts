@@ -6188,6 +6188,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           eq(healthDailyMetrics.date, today)
         ))
         .limit(1);
+      
+      // Query sleep_nights for reliable sleep data (same as Flōmentum score calculation)
+      const [sleepNight] = await db
+        .select({ totalSleepMin: sleepNights.totalSleepMin })
+        .from(sleepNights)
+        .where(and(
+          eq(sleepNights.userId, userId),
+          eq(sleepNights.sleepDate, today)
+        ))
+        .limit(1);
+      
+      // Query workout sessions for today's exercise as additional fallback
+      const todayWorkouts = await db
+        .select({ durationMinutes: workoutSessions.durationMinutes })
+        .from(workoutSessions)
+        .where(and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.workoutDate, today)
+        ));
+      
+      const workoutMinutes = todayWorkouts.reduce((sum, w) => sum + (w.durationMinutes || 0), 0);
 
       // Activity goals - prioritize userDailyMetrics (stepsRawSum for actual count, not normalized score)
       // Then fall back to healthDailyMetrics if available
@@ -6201,19 +6222,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stepsValue = healthMetrics.steps;
       }
       
+      // Exercise minutes: check userDailyMetrics, healthDailyMetrics, then workout sessions
       let activeMinutesValue = 0;
-      if (dailyMetrics?.exerciseMinutes != null) {
+      if (dailyMetrics?.exerciseMinutes != null && dailyMetrics.exerciseMinutes > 0) {
         activeMinutesValue = Math.round(dailyMetrics.exerciseMinutes);
-      } else if (healthMetrics?.exerciseMinutes != null) {
+      } else if (healthMetrics?.exerciseMinutes != null && healthMetrics.exerciseMinutes > 0) {
         activeMinutesValue = Math.round(healthMetrics.exerciseMinutes);
+      } else if (workoutMinutes > 0) {
+        activeMinutesValue = Math.round(workoutMinutes);
       }
       
+      // Sleep hours: prioritize sleep_nights (more reliable), then userDailyMetrics, then healthDailyMetrics
       let sleepHoursValue = 0;
-      if (dailyMetrics?.sleepHours != null) {
+      if (sleepNight?.totalSleepMin != null && sleepNight.totalSleepMin > 0) {
+        sleepHoursValue = Math.round((sleepNight.totalSleepMin / 60) * 10) / 10;
+      } else if (dailyMetrics?.sleepHours != null && dailyMetrics.sleepHours > 0) {
         sleepHoursValue = Math.round(dailyMetrics.sleepHours * 10) / 10;
-      } else if (healthMetrics?.sleepTotalMinutes != null) {
+      } else if (healthMetrics?.sleepTotalMinutes != null && healthMetrics.sleepTotalMinutes > 0) {
         sleepHoursValue = Math.round((healthMetrics.sleepTotalMinutes / 60) * 10) / 10;
       }
+      
+      // Auto-detect if user has insights/actions today to mark checklist
+      // Check if insights were generated today (via dailyInsights or ragInsights tables)
+      const { ragInsights, actionItems } = await import("@shared/schema");
+      
+      // Check for today's insights
+      const [hasInsightsToday] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(ragInsights)
+        .where(and(
+          eq(ragInsights.userId, userId),
+          sql`DATE(${ragInsights.generatedAt}) = ${today}`
+        ));
+      const hasInsights = (hasInsightsToday?.count || 0) > 0;
+      
+      // Check for any active action items
+      const [hasActionsToday] = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
+        .from(actionItems)
+        .where(and(
+          eq(actionItems.userId, userId),
+          eq(actionItems.status, 'active')
+        ));
+      const hasActions = (hasActionsToday?.count || 0) > 0;
+      
+      // Use auto-detection OR manual marking (whichever is true)
+      const insightsViewed = engagement.insightsViewed || hasInsights;
+      const actionsChecked = engagement.actionsChecked || hasActions;
       
       const activityGoals = {
         steps: { current: stepsValue, goal: 10000 },
