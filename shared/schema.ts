@@ -264,6 +264,27 @@ export const apiKeys = pgTable("api_keys", {
   index("api_keys_user_idx").on(table.userId),
 ]);
 
+// Passkey credentials table - for WebAuthn/FIDO2 biometric authentication
+export const passkeyCredentials = pgTable("passkey_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  credentialId: text("credential_id").notNull().unique(), // Base64URL-encoded credential ID
+  publicKey: text("public_key").notNull(), // Base64-encoded public key
+  counter: integer("counter").notNull().default(0), // Signature counter for replay protection
+  deviceType: varchar("device_type"), // 'singleDevice' or 'multiDevice'
+  backedUp: boolean("backed_up").default(false), // Whether credential is backed up to cloud
+  transports: jsonb("transports").$type<string[]>(), // Authenticator transports (usb, nfc, ble, internal, hybrid)
+  deviceName: varchar("device_name"), // User-friendly name (e.g., "iPhone 15 Pro")
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("passkey_credentials_user_idx").on(table.userId),
+  index("passkey_credentials_credential_idx").on(table.credentialId),
+]);
+
+export type PasskeyCredential = typeof passkeyCredentials.$inferSelect;
+export type InsertPasskeyCredential = typeof passkeyCredentials.$inferInsert;
+
 // User health profiles table (1:1 with users)
 export const profiles = pgTable("profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

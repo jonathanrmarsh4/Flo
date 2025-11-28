@@ -66,6 +66,9 @@ import {
   type InsertUserSettings,
   type ActionPlanItem,
   type InsertActionPlanItem,
+  passkeyCredentials,
+  type PasskeyCredential,
+  type InsertPasskeyCredential,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, or, ilike, and, sql, lt, gt } from "drizzle-orm";
@@ -163,6 +166,13 @@ export interface IStorage {
   getUserByVerificationToken(token: string): Promise<User | undefined>;
   clearVerificationToken(userId: string): Promise<void>;
   updateLastLoginAt(userId: string): Promise<void>;
+  
+  // Passkey operations (WebAuthn/FIDO2)
+  createPasskeyCredential(data: InsertPasskeyCredential): Promise<PasskeyCredential>;
+  getPasskeysByUserId(userId: string): Promise<PasskeyCredential[]>;
+  getPasskeyByCredentialId(credentialId: string): Promise<PasskeyCredential | undefined>;
+  updatePasskeyCounter(credentialId: string, counter: number): Promise<void>;
+  deletePasskey(id: string, userId: string): Promise<boolean>;
   
   // Biomarker operations
   getBiomarkers(): Promise<Biomarker[]>;
@@ -802,6 +812,53 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(userCredentials.userId, userId));
+  }
+
+  // Passkey operations (WebAuthn/FIDO2)
+  async createPasskeyCredential(data: InsertPasskeyCredential): Promise<PasskeyCredential> {
+    const [credential] = await db
+      .insert(passkeyCredentials)
+      .values(data)
+      .returning();
+    return credential;
+  }
+
+  async getPasskeysByUserId(userId: string): Promise<PasskeyCredential[]> {
+    return await db
+      .select()
+      .from(passkeyCredentials)
+      .where(eq(passkeyCredentials.userId, userId))
+      .orderBy(desc(passkeyCredentials.createdAt));
+  }
+
+  async getPasskeyByCredentialId(credentialId: string): Promise<PasskeyCredential | undefined> {
+    const [credential] = await db
+      .select()
+      .from(passkeyCredentials)
+      .where(eq(passkeyCredentials.credentialId, credentialId))
+      .limit(1);
+    return credential;
+  }
+
+  async updatePasskeyCounter(credentialId: string, counter: number): Promise<void> {
+    await db
+      .update(passkeyCredentials)
+      .set({ 
+        counter,
+        lastUsedAt: new Date(),
+      })
+      .where(eq(passkeyCredentials.credentialId, credentialId));
+  }
+
+  async deletePasskey(id: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(passkeyCredentials)
+      .where(and(
+        eq(passkeyCredentials.id, id),
+        eq(passkeyCredentials.userId, userId)
+      ))
+      .returning();
+    return result.length > 0;
   }
 
   // Admin analytics operations
