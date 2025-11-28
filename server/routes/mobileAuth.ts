@@ -1011,9 +1011,17 @@ router.post("/api/mobile/auth/passkey/login", async (req, res) => {
     
     // Find the passkey by credential ID
     const credentialId = response.id; // Already base64url encoded from browser
+    logger.debug('Passkey login: Looking up credential', { credentialId });
+    
     const passkey = await storage.getPasskeyByCredentialId(credentialId);
     
     if (!passkey) {
+      // Debug: List all passkeys to compare
+      const allPasskeys = await storage.getAllPasskeys();
+      logger.debug('Passkey login: Credential not found. Stored passkeys:', {
+        searchedFor: credentialId,
+        storedCredentialIds: allPasskeys.map(p => p.credentialId),
+      });
       return res.status(404).json({ error: "Passkey not found" });
     }
     

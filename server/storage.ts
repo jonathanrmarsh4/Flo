@@ -171,6 +171,7 @@ export interface IStorage {
   createPasskeyCredential(data: InsertPasskeyCredential): Promise<PasskeyCredential>;
   getPasskeysByUserId(userId: string): Promise<PasskeyCredential[]>;
   getPasskeyByCredentialId(credentialId: string): Promise<PasskeyCredential | undefined>;
+  getAllPasskeys(): Promise<PasskeyCredential[]>;
   updatePasskeyCounter(credentialId: string, counter: number): Promise<void>;
   deletePasskey(id: string, userId: string): Promise<boolean>;
   
@@ -838,6 +839,13 @@ export class DatabaseStorage implements IStorage {
       .where(eq(passkeyCredentials.credentialId, credentialId))
       .limit(1);
     return credential;
+  }
+
+  async getAllPasskeys(): Promise<PasskeyCredential[]> {
+    return await db
+      .select()
+      .from(passkeyCredentials)
+      .orderBy(desc(passkeyCredentials.createdAt));
   }
 
   async updatePasskeyCounter(credentialId: string, counter: number): Promise<void> {
