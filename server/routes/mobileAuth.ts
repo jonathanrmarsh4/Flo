@@ -917,9 +917,10 @@ router.post("/api/mobile/auth/passkey/register", isAuthenticated, async (req, re
     const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
     
     // Store the passkey credential
+    // Note: In SimpleWebAuthn v10+, credential.id is already a Base64URLString
     await storage.createPasskeyCredential({
       userId,
-      credentialId: Buffer.from(credential.id).toString('base64url'),
+      credentialId: credential.id, // Already base64url encoded string
       publicKey: Buffer.from(credential.publicKey).toString('base64'),
       counter: credential.counter,
       deviceType: credentialDeviceType,
