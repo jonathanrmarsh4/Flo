@@ -110,6 +110,59 @@ function calculateAge(dateOfBirth: Date | string | null): number | null {
   return age;
 }
 
+// Format a date in the user's local timezone as YYYY-MM-DD
+function formatDateInTimezone(date: Date, timezone: string): string {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(date); // Returns YYYY-MM-DD format
+  } catch (error) {
+    // Fallback to UTC if timezone is invalid
+    logger.warn(`[FloOracle] Invalid timezone "${timezone}", falling back to UTC`);
+    return date.toISOString().split('T')[0];
+  }
+}
+
+// Get "today", "yesterday", or day of week for recent dates in user's timezone
+function getRelativeDateLabel(date: Date, timezone: string): string {
+  try {
+    const now = new Date();
+    
+    // Get today's date in the user's timezone
+    const todayFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const todayStr = todayFormatter.format(now);
+    const dateStr = todayFormatter.format(date);
+    
+    // Calculate days difference based on calendar dates
+    const todayDate = new Date(todayStr);
+    const targetDate = new Date(dateStr);
+    const diffDays = Math.floor((todayDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays <= 6) {
+      // Get day of week
+      const dayFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        weekday: 'long',
+      });
+      return dayFormatter.format(date);
+    }
+    return `${diffDays} days ago`;
+  } catch (error) {
+    return formatDateInTimezone(date, timezone);
+  }
+}
+
 function formatBiomarkerValue(value: number | null, unit: string = ''): string {
   if (value === null || value === undefined) return 'not recorded';
   return `${value}${unit ? ' ' + unit : ''}`;
@@ -199,6 +252,10 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       .where(eq(profiles.userId, userId))
       .limit(1);
 
+    // Get user's timezone for proper date formatting (default to America/Los_Angeles)
+    const userTimezone = userProfile?.timezone || 'America/Los_Angeles';
+    logger.info(`[FloOracle] Using timezone: ${userTimezone} for user ${userId}`);
+
     if (userProfile) {
       context.age = calculateAge(userProfile.dateOfBirth);
       context.sex = userProfile.sex || 'unknown';
@@ -225,7 +282,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     if (allSessions.length > 0) {
       // Process latest panel for backward compatibility
       const latestSession = allSessions[0];
-      context.latestBloodPanel.date = latestSession.testDate.toISOString().split('T')[0];
+      context.latestBloodPanel.date = formatDateInTimezone(latestSession.testDate, userTimezone);
       
       // Fetch biomarkers for ALL sessions
       for (const session of allSessions) {
