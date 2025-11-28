@@ -1,7 +1,7 @@
 import { db } from '../db';
-import { sql, eq, desc } from 'drizzle-orm';
+import { sql, eq, desc, and } from 'drizzle-orm';
 import { logger } from '../logger';
-import { insightCards } from '@shared/schema';
+import { insightCards, actionPlanItems } from '@shared/schema';
 
 export interface ReminderContext {
   userId: string;
@@ -12,6 +12,18 @@ export interface ReminderContext {
   training: TrainingMetrics | null;
   goals: string[];
   insights: InsightSummary[];
+  actionPlan: ActionPlanItem[];
+}
+
+export interface ActionPlanItem {
+  title: string;
+  action: string;
+  category: string;
+  targetBiomarker?: string;
+  currentValue?: number;
+  targetValue?: number;
+  unit?: string;
+  daysSinceAdded: number;
 }
 
 export interface InsightSummary {
@@ -82,8 +94,8 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
   try {
     logger.info(`[ReminderContext] Building context for user ${userId}`);
 
-    // Query all 5 views + insight cards in parallel for efficiency
-    const [biomarkersRaw, dexaRaw, wearablesRaw, behaviorsRaw, trainingRaw, goalsRaw, insightsRaw] = await Promise.all([
+    // Query all 5 views + insight cards + action plan in parallel for efficiency
+    const [biomarkersRaw, dexaRaw, wearablesRaw, behaviorsRaw, trainingRaw, goalsRaw, insightsRaw, actionPlanRaw] = await Promise.all([
       // View 1: Top 6 most interesting biomarker trends (filtered by significance)
       db.execute(sql`
         SELECT 
@@ -185,7 +197,27 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
         .from(insightCards)
         .where(eq(insightCards.userId, userId))
         .orderBy(desc(insightCards.isNew), desc(insightCards.confidence))
-        .limit(3)
+        .limit(3),
+
+      // User's active action plan items (up to 5 most recent)
+      db
+        .select({
+          title: actionPlanItems.snapshotTitle,
+          action: actionPlanItems.snapshotAction,
+          category: actionPlanItems.category,
+          targetBiomarker: actionPlanItems.targetBiomarker,
+          currentValue: actionPlanItems.currentValue,
+          targetValue: actionPlanItems.targetValue,
+          unit: actionPlanItems.unit,
+          addedAt: actionPlanItems.addedAt,
+        })
+        .from(actionPlanItems)
+        .where(and(
+          eq(actionPlanItems.userId, userId),
+          eq(actionPlanItems.status, 'active')
+        ))
+        .orderBy(desc(actionPlanItems.addedAt))
+        .limit(5)
     ]);
 
     // Parse biomarker trends
@@ -262,7 +294,24 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
       isNew: Boolean(row.isNew),
     }));
 
-    logger.info(`[ReminderContext] Context built successfully for user ${userId}: ${biomarkers.length} biomarker trends, DEXA: ${dexa ? 'yes' : 'no'}, wearables: ${wearables ? 'yes' : 'no'}, insights: ${insights.length} (${insights.filter(i => i.isNew).length} new)`);
+    // Parse action plan items
+    const now = new Date();
+    const actionPlan: ActionPlanItem[] = (actionPlanRaw || []).map((row: any) => {
+      const addedAt = row.addedAt ? new Date(row.addedAt) : now;
+      const daysSinceAdded = Math.floor((now.getTime() - addedAt.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        title: String(row.title || ''),
+        action: String(row.action || ''),
+        category: String(row.category || ''),
+        targetBiomarker: row.targetBiomarker ? String(row.targetBiomarker) : undefined,
+        currentValue: row.currentValue ? parseFloat(String(row.currentValue)) : undefined,
+        targetValue: row.targetValue ? parseFloat(String(row.targetValue)) : undefined,
+        unit: row.unit ? String(row.unit) : undefined,
+        daysSinceAdded,
+      };
+    });
+
+    logger.info(`[ReminderContext] Context built successfully for user ${userId}: ${biomarkers.length} biomarker trends, DEXA: ${dexa ? 'yes' : 'no'}, wearables: ${wearables ? 'yes' : 'no'}, insights: ${insights.length} (${insights.filter(i => i.isNew).length} new), actions: ${actionPlan.length}`);
 
     return {
       userId,
@@ -273,6 +322,7 @@ export async function buildReminderContext(userId: string): Promise<ReminderCont
       training,
       goals,
       insights,
+      actionPlan,
     };
   } catch (error: any) {
     logger.error(`[ReminderContext] Failed to build context for user ${userId}:`, error);
@@ -292,22 +342,35 @@ export function formatContextForGrok(context: ReminderContext): string {
     const insightLines = context.insights.map(i => {
       const badge = i.isNew ? ' [NEW]' : '';
       const confidencePercent = Math.round(i.confidence * 100);
-      return `• ${i.pattern}${badge} (${confidencePercent}% confidence)`;
+      return `- ${i.pattern}${badge} (${confidencePercent}% confidence)`;
     });
-    sections.push(`🔍 Proactive Insights (AI-discovered patterns):\n${insightLines.join('\n')}`);
+    sections.push(`Proactive Insights (AI-discovered patterns):\n${insightLines.join('\n')}`);
   }
 
   // Section 2: Active Goals
   if (context.goals.length > 0) {
-    sections.push(`Active goals:\n${context.goals.map(g => `• ${g}`).join('\n')}`);
+    sections.push(`Active goals:\n${context.goals.map(g => `- ${g}`).join('\n')}`);
+  }
+
+  // Section 2.5: Action Plan Items (user's active health actions)
+  if (context.actionPlan && context.actionPlan.length > 0) {
+    const actionLines = context.actionPlan.map(a => {
+      let line = `- [${a.category}] ${a.title}`;
+      if (a.targetBiomarker && a.currentValue !== undefined && a.targetValue !== undefined) {
+        line += ` - Current: ${a.currentValue} ${a.unit || ''}, Target: ${a.targetValue} ${a.unit || ''}`;
+      }
+      line += ` (${a.daysSinceAdded}d ago)`;
+      return line;
+    });
+    sections.push(`Action Plan (user's active health goals):\n${actionLines.join('\n')}`);
   }
 
   // Section 3: Biomarker Trends (only significant changes)
   if (context.biomarkers.length > 0) {
     const biomarkerLines = context.biomarkers.map(b => {
-      const trend = b.percentChange! >= 0 ? '↑' : '↓';
+      const trend = b.percentChange! >= 0 ? 'up' : 'down';
       const prevStr = b.previousValue ? ` (was ${b.previousValue} ${b.unit})` : '';
-      return `• ${b.name}: ${b.currentValue} ${b.unit}${prevStr} ${trend} ${Math.abs(b.percentChange!)}%`;
+      return `- ${b.name}: ${b.currentValue} ${b.unit}${prevStr} ${trend} ${Math.abs(b.percentChange!)}%`;
     });
     sections.push(`Clinically relevant changes last 90 days:\n${biomarkerLines.join('\n')}`);
   }
@@ -317,12 +380,12 @@ export function formatContextForGrok(context: ReminderContext): string {
     const dexaLines: string[] = [];
     if (context.dexa.visceralFatChangeCm2 !== undefined) {
       const sign = context.dexa.visceralFatChangeCm2 > 0 ? '+' : '';
-      dexaLines.push(`• Visceral fat: ${sign}${context.dexa.visceralFatChangeCm2} cm²`);
+      dexaLines.push(`- Visceral fat: ${sign}${context.dexa.visceralFatChangeCm2} cm2`);
     }
     if (context.dexa.leanMassKg && context.dexa.prevLeanMassKg) {
       const change = context.dexa.leanMassKg - context.dexa.prevLeanMassKg;
       const sign = change > 0 ? '+' : '';
-      dexaLines.push(`• Lean mass: ${sign}${change.toFixed(1)} kg`);
+      dexaLines.push(`- Lean mass: ${sign}${change.toFixed(1)} kg`);
     }
     if (dexaLines.length > 0) {
       sections.push(`DEXA changes:\n${dexaLines.join('\n')}`);
@@ -334,14 +397,14 @@ export function formatContextForGrok(context: ReminderContext): string {
     const w = context.wearables;
     const wearableLines: string[] = [];
     if (w.hrv7dAvg && w.hrv30dAvg) {
-      const trend = w.hrvTrendPercent! >= 0 ? '↑' : '↓';
-      wearableLines.push(`• HRV: ${w.hrv7dAvg} ms (7d avg) vs ${w.hrv30dAvg} ms (30d baseline) ${trend} ${Math.abs(w.hrvTrendPercent!)}%`);
+      const trend = w.hrvTrendPercent! >= 0 ? 'up' : 'down';
+      wearableLines.push(`- HRV: ${w.hrv7dAvg} ms (7d avg) vs ${w.hrv30dAvg} ms (30d baseline) ${trend} ${Math.abs(w.hrvTrendPercent!)}%`);
     }
     if (w.rhr7dAvg) {
-      wearableLines.push(`• RHR: ${w.rhr7dAvg} bpm (7d avg)`);
+      wearableLines.push(`- RHR: ${w.rhr7dAvg} bpm (7d avg)`);
     }
     if (w.sleep7dAvgHours) {
-      wearableLines.push(`• Sleep: ${w.sleep7dAvgHours} hrs/night (7d avg)`);
+      wearableLines.push(`- Sleep: ${w.sleep7dAvgHours} hrs/night (7d avg)`);
     }
     if (wearableLines.length > 0) {
       sections.push(`Wearables (7-day trends):\n${wearableLines.join('\n')}`);
@@ -353,19 +416,19 @@ export function formatContextForGrok(context: ReminderContext): string {
     const b = context.behaviors;
     const behaviorLines: string[] = [];
     if (b.zeroDrinkStreakDays > 0) {
-      behaviorLines.push(`• Alcohol: ${b.zeroDrinkStreakDays}-day zero-drink streak (${b.totalDrinks14d} drinks in last 14d)`);
+      behaviorLines.push(`- Alcohol: ${b.zeroDrinkStreakDays}-day zero-drink streak (${b.totalDrinks14d} drinks in last 14d)`);
     }
     if (b.saunaSessions14d > 0) {
-      behaviorLines.push(`• Sauna: ${b.saunaSessions14d} sessions (14d)`);
+      behaviorLines.push(`- Sauna: ${b.saunaSessions14d} sessions (14d)`);
     }
     if (b.iceBathSessions14d > 0) {
-      behaviorLines.push(`• Ice bath: ${b.iceBathSessions14d} sessions (14d)`);
+      behaviorLines.push(`- Ice bath: ${b.iceBathSessions14d} sessions (14d)`);
     }
     if (b.avgStressLevel14d !== undefined && b.avgStressLevel14d > 0) {
-      behaviorLines.push(`• Avg stress level: ${b.avgStressLevel14d.toFixed(1)}/10 (14d)`);
+      behaviorLines.push(`- Avg stress level: ${b.avgStressLevel14d.toFixed(1)}/10 (14d)`);
     }
     if (b.supplementEvents14d > 0) {
-      behaviorLines.push(`• Supplement adherence: ${b.supplementEvents14d} logged (14d)`);
+      behaviorLines.push(`- Supplement adherence: ${b.supplementEvents14d} logged (14d)`);
     }
     if (behaviorLines.length > 0) {
       sections.push(`Behaviors (14-day window):\n${behaviorLines.join('\n')}`);
@@ -377,13 +440,13 @@ export function formatContextForGrok(context: ReminderContext): string {
     const t = context.training;
     const trainingLines: string[] = [];
     if (t.zone2Minutes7d) {
-      trainingLines.push(`• Zone 2: ${Math.round(t.zone2Minutes7d)} min (7d)`);
+      trainingLines.push(`- Zone 2: ${Math.round(t.zone2Minutes7d)} min (7d)`);
     }
     if (t.zone5Minutes7d) {
-      trainingLines.push(`• Zone 5: ${Math.round(t.zone5Minutes7d)} min (7d)`);
+      trainingLines.push(`- Zone 5: ${Math.round(t.zone5Minutes7d)} min (7d)`);
     }
     if (t.strengthSessions7d > 0) {
-      trainingLines.push(`• Strength: ${t.strengthSessions7d} sessions (7d)`);
+      trainingLines.push(`- Strength: ${t.strengthSessions7d} sessions (7d)`);
     }
     if (trainingLines.length > 0) {
       sections.push(`Training load (7-day):\n${trainingLines.join('\n')}`);

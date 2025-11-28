@@ -2,91 +2,96 @@ import { buildReminderContext, formatContextForGrok } from './reminderContextBui
 import { buildReminderPrompt, buildFallbackPrompt, validateReminderQuality } from './reminderPromptTemplate';
 import { getSupabaseClient } from './supabaseClient';
 import { logger } from '../logger';
-import { trackOpenAICompletion } from './aiUsageTracker';
+import { trackGeminiUsage } from './aiUsageTracker';
 import { Temporal } from '@js-temporal/polyfill';
+import { GoogleGenAI } from '@google/genai';
+
+// Lazy-initialized Gemini client to avoid module-load errors
+let geminiClient: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (!geminiClient) {
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GOOGLE_AI_API_KEY not configured - cannot generate AI reminders');
+    }
+    geminiClient = new GoogleGenAI({ apiKey });
+  }
+  return geminiClient;
+}
 
 /**
- * Call Grok API to generate elite proactive daily reminder
- * Uses grok-beta model (latest from xAI)
+ * Call Gemini API to generate proactive daily reminder
+ * Uses gemini-2.5-flash for speed and cost efficiency
  */
-async function callGrokForReminder(systemPrompt: string, userPrompt: string, userId: string): Promise<string> {
-  const xaiApiKey = process.env.XAI_API_KEY;
-  if (!xaiApiKey) {
-    throw new Error('XAI_API_KEY not configured');
-  }
+async function callGeminiForReminder(systemPrompt: string, userPrompt: string, userId: string): Promise<string> {
+  const client = getGeminiClient();
 
   const startTime = Date.now();
+  const modelName = 'gemini-2.5-flash';
 
   try {
-    const response = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${xaiApiKey}`,
+    const result = await client.models.generateContent({
+      model: modelName,
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.7,
+        maxOutputTokens: 300,
       },
-      body: JSON.stringify({
-        model: 'grok-beta', // Use latest Grok model
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.65, // Balance between creativity and consistency
-        max_tokens: 200, // Enforce brevity
-      }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Grok API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
     const latencyMs = Date.now() - startTime;
-
+    const reminderText = result.text?.trim() || '';
+    
     // Track usage
-    if (data.usage) {
-      await trackOpenAICompletion(
-        'chat',
-        'grok-beta' as any,
+    const usage = result.usageMetadata;
+    if (usage) {
+      await trackGeminiUsage(
+        'daily_reminder',
+        'gemini-2.5-flash',
         {
-          promptTokens: data.usage.prompt_tokens,
-          completionTokens: data.usage.completion_tokens,
-          totalTokens: data.usage.total_tokens,
+          promptTokens: usage.promptTokenCount || 0,
+          completionTokens: usage.candidatesTokenCount || 0,
+          totalTokens: usage.totalTokenCount || 0,
         },
         {
           userId,
           latencyMs,
           status: 'success',
-          metadata: { provider: 'grok' },
+          metadata: { provider: 'gemini' },
         }
       );
     }
 
-    const reminderText = data.choices[0]?.message?.content?.trim() || '';
-    
     if (!reminderText) {
-      throw new Error('Grok returned empty response');
+      throw new Error('Gemini returned empty response');
     }
+
+    logger.info(`[DailyReminder] Gemini generated reminder for user ${userId}`, {
+      latencyMs,
+      responseLength: reminderText.length,
+    });
 
     return reminderText;
   } catch (error: any) {
     const latencyMs = Date.now() - startTime;
     
     // Track error
-    await trackOpenAICompletion(
-      'chat',
-      'grok-beta' as any,
+    await trackGeminiUsage(
+      'daily_reminder',
+      'gemini-2.5-flash',
       { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
       {
         userId,
         latencyMs,
         status: 'error',
         errorMessage: error.message,
-        metadata: { provider: 'grok' },
+        metadata: { provider: 'gemini' },
       }
     ).catch(() => {});
 
-    logger.error(`[DailyReminder] Grok API call failed for user ${userId}:`, error);
+    logger.error(`[DailyReminder] Gemini API call failed for user ${userId}:`, error);
     throw error;
   }
 }
@@ -138,9 +143,9 @@ function calculateScheduleAtMs(reminderTime: string, reminderTimezone: string): 
  * Generate and queue daily reminder for a single user
  * 
  * Flow:
- * 1. Build clinical context from Neon views
- * 2. Format context into Grok prompt
- * 3. Call Grok API to generate reminder
+ * 1. Build clinical context from Neon views (biomarkers, wearables, action plan, etc.)
+ * 2. Format context into AI prompt
+ * 3. Call Gemini 2.5 Flash to generate proactive reminder
  * 4. Validate reminder quality
  * 5. Insert into Supabase daily_reminders table
  * 6. Client listens via Realtime and schedules local notification
@@ -193,8 +198,8 @@ export async function generateDailyReminder(
       prompt = buildFallbackPrompt();
     }
 
-    // Step 4: Call Grok API
-    const reminderText = await callGrokForReminder(prompt.systemPrompt, prompt.userPrompt, userId);
+    // Step 4: Call Gemini API
+    const reminderText = await callGeminiForReminder(prompt.systemPrompt, prompt.userPrompt, userId);
 
     // Step 5: Validate quality
     const validation = validateReminderQuality(reminderText);
