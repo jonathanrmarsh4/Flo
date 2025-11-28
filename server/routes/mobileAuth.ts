@@ -839,12 +839,8 @@ function deleteChallenge(key: string): void {
 }
 
 // Generate passkey registration options (authenticated users only)
-router.get("/api/mobile/auth/passkey/register-options", async (req, res) => {
+router.get("/api/mobile/auth/passkey/register-options", isAuthenticated, async (req, res) => {
   try {
-    if (!req.user || !(req.user as any).id) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
     const userId = (req.user as any).id;
     const user = await storage.getUser(userId);
     
@@ -887,12 +883,8 @@ router.get("/api/mobile/auth/passkey/register-options", async (req, res) => {
 });
 
 // Verify passkey registration response
-router.post("/api/mobile/auth/passkey/register", async (req, res) => {
+router.post("/api/mobile/auth/passkey/register", isAuthenticated, async (req, res) => {
   try {
-    if (!req.user || !(req.user as any).id) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
     const userId = (req.user as any).id;
     
     // Get and delete challenge in one atomic operation (one-time use)
