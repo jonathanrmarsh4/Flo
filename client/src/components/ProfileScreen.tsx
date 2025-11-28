@@ -521,7 +521,8 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               {isEditing ? (
                 <div className="flex gap-2">
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="70"
                     value={localWeight}
                     onChange={(e) => setLocalWeight(e.target.value)}
@@ -533,6 +534,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                     }}
                     disabled={updateDemographics.isPending}
                     className="w-20"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     data-testid="input-weight"
                   />
                   <Select
@@ -564,7 +569,8 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               {isEditing ? (
                 <div className="flex gap-2">
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="170"
                     value={localHeight}
                     onChange={(e) => setLocalHeight(e.target.value)}
@@ -576,6 +582,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                     }}
                     disabled={updateDemographics.isPending}
                     className="w-20"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     data-testid="input-height"
                   />
                   <Select
@@ -652,11 +662,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               {isEditing ? (
                 <div className="flex items-center gap-2">
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="7"
-                    min="0"
-                    max="24"
-                    step="0.5"
                     value={localSleep}
                     onChange={(e) => setLocalSleep(e.target.value)}
                     onBlur={() => {
@@ -672,6 +680,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                     }}
                     disabled={updateHealthBaseline.isPending}
                     className="w-20"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
                     data-testid="input-sleep"
                   />
                   <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>hrs/night</span>
@@ -836,6 +848,12 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                   }
                 }}
                 className="flex-1"
+                inputMode="text"
+                autoComplete="off"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                enterKeyHint="done"
                 data-testid="input-new-goal"
               />
               <Button
@@ -1014,6 +1032,12 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                       }
                     }}
                     className="flex-1"
+                    inputMode="text"
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    enterKeyHint="done"
                     data-testid="input-new-focus-area"
                   />
                   <Button
