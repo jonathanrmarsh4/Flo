@@ -6275,19 +6275,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       // Fix stale workout factors: If we have workout data now but factors show "No workout",
-      // update the exercise factor to reflect current data
+      // update the intensity factor to reflect current data
+      // Note: The scoring engine uses componentKey 'intensity' for exercise/workout factors
       let factors = dailyScore.factors as any[];
       if (activeMinutesValue > 0 && factors) {
         factors = factors.map((factor: any) => {
-          if (factor.componentKey === 'exercise' && factor.title === 'No workout data today') {
+          if (factor.componentKey === 'intensity' && factor.title === 'No workout data today') {
             // Update the factor with current workout data
             const isGood = activeMinutesValue >= 30;
             const isModerate = activeMinutesValue >= 10;
             return {
               ...factor,
               status: isGood ? 'positive' : isModerate ? 'neutral' : 'negative',
-              title: isGood ? 'Great workout today' : isModerate ? 'Some movement today' : 'Low activity today',
-              detail: `${activeMinutesValue}m of exercise${isGood ? ' (Target: 30m)' : isModerate ? ' (Target: 30m)' : ''}`,
+              title: isGood ? 'Good workout / activity today' : isModerate ? 'Light activity today' : 'Low exercise intensity',
+              detail: `${activeMinutesValue} min of exercise`,
             };
           }
           return factor;
