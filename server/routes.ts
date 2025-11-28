@@ -6,7 +6,8 @@ import { db } from "./db";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import type { GrokChatMessage } from "./services/grokClient";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { analyzeBloodWork, generateBiomarkerInsights } from "./openai";
+import { analyzeBloodWork } from "./openai";
+import { generateBiomarkerInsightsGemini } from "./services/geminiInsightsClient";
 import { enrichBiomarkerData } from "./utils/biomarker-enrichment";
 import { registerAdminRoutes } from "./routes/admin";
 import mobileAuthRouter from "./routes/mobileAuth";
@@ -2568,8 +2569,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
            : measurement.valueCanonical < (referenceLow || 0) ? 'low' as const : 'high' as const)
         : enrichedData.status as 'optimal' | 'low' | 'high';
 
-      // Generate insights using OpenAI with the correct reference range
-      const insights = await generateBiomarkerInsights({
+      // Generate insights using Gemini 2.5 Pro
+      const insights = await generateBiomarkerInsightsGemini({
         biomarkerName: biomarker.name,
         latestValue: measurement.valueCanonical,
         unit: measurement.unitCanonical,
@@ -2612,7 +2613,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         supplementation: insights.supplementation,
         medicalReferral: insights.medicalReferral,
         medicalUrgency: insights.medicalUrgency,
-        model: "gpt-4o",
+        model: "gemini-2.5-pro",
         expiresAt,
       });
 
@@ -2631,7 +2632,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         insights,
         metadata: {
           generatedAt: new Date(),
-          model: "gpt-4o",
+          model: "gemini-2.5-pro",
           expiresAt,
         },
       });
