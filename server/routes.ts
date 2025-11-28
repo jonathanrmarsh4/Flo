@@ -3130,6 +3130,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           try {
             await storage.updateLabUploadJob(job.id, finalJobUpdate);
             await storage.updateBloodWorkRecordStatus(bloodWorkRecord.id, finalStatus);
+            
+            // Clean up: Delete the PDF from object storage after extraction
+            // We only store the extracted biomarker data, not the original files
+            // This reduces storage costs and privacy risks
+            try {
+              const deleted = await objectStorageService.deleteObjectEntity(objectPath);
+              if (deleted) {
+                logger.info(`[LabUpload] Cleaned up PDF after extraction: ${objectPath}`);
+              }
+            } catch (cleanupError: any) {
+              logger.warn('[LabUpload] Failed to clean up PDF (non-critical)', { error: cleanupError?.message });
+              // Don't fail the job if cleanup fails - the data is already extracted
+            }
           } catch (updateError) {
             logger.error('Critical error updating job status:', updateError);
           }

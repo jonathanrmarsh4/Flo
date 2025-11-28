@@ -194,6 +194,29 @@ export class ObjectStorageService {
     return contents;
   }
 
+  // Deletes an object entity from storage.
+  // Used to clean up uploaded files after processing (e.g., lab PDFs after extraction)
+  async deleteObjectEntity(objectPath: string): Promise<boolean> {
+    try {
+      if (!objectPath.startsWith("/objects/")) {
+        logger.warn(`[ObjectStorage] Invalid object path for deletion: ${objectPath}`);
+        return false;
+      }
+
+      const objectFile = await this.getObjectEntityFile(objectPath);
+      await objectFile.delete();
+      logger.info(`[ObjectStorage] Successfully deleted object: ${objectPath}`);
+      return true;
+    } catch (error: any) {
+      if (error instanceof ObjectNotFoundError) {
+        logger.warn(`[ObjectStorage] Object not found for deletion: ${objectPath}`);
+        return false;
+      }
+      logger.error(`[ObjectStorage] Failed to delete object: ${objectPath}`, error);
+      return false;
+    }
+  }
+
   normalizeObjectEntityPath(
     rawPath: string,
   ): string {
