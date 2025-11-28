@@ -1097,6 +1097,25 @@ export const flomentumWeekly = pgTable("flomentum_weekly", {
   index("idx_flomentum_weekly_user_week").on(table.userId, table.weekStartDate),
 ]);
 
+// User Daily Engagement - Tracks daily app engagement for gamification
+export const userDailyEngagement = pgTable("user_daily_engagement", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  date: text("date").notNull(), // YYYY-MM-DD
+  insightsViewed: boolean("insights_viewed").notNull().default(false),
+  actionsChecked: boolean("actions_checked").notNull().default(false),
+  aiChatUsed: boolean("ai_chat_used").notNull().default(false),
+  currentStreak: integer("current_streak").notNull().default(1),
+  longestStreak: integer("longest_streak").notNull().default(1),
+  totalXP: integer("total_xp").notNull().default(0),
+  level: integer("level").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_user_daily_engagement_unique").on(table.userId, table.date),
+  index("idx_user_daily_engagement_user_date").on(table.userId, table.date),
+]);
+
 // Health baselines for recovery metrics (30-day rolling)
 export const healthBaselines = pgTable("health_baselines", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -1974,6 +1993,15 @@ export const insertFlomentumWeeklySchema = createInsertSchema(flomentumWeekly).o
 
 export type InsertFlomentumWeekly = z.infer<typeof insertFlomentumWeeklySchema>;
 export type FlomentumWeekly = typeof flomentumWeekly.$inferSelect;
+
+export const insertUserDailyEngagementSchema = createInsertSchema(userDailyEngagement).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUserDailyEngagement = z.infer<typeof insertUserDailyEngagementSchema>;
+export type UserDailyEngagement = typeof userDailyEngagement.$inferSelect;
 
 export const insertHealthBaselinesSchema = createInsertSchema(healthBaselines).omit({
   id: true,
