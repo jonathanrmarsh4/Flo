@@ -25,7 +25,7 @@ export function BottomNav({ isDark, onAddClick }: BottomNavProps) {
     },
     {
       id: 'add',
-      label: 'Flō',
+      label: 'Add',
       icon: null,
       path: null,
       isCenter: true,
