@@ -89,9 +89,6 @@ export function FloBottomNav() {
                   }`}>
                     <FloIcon size={36} />
                   </div>
-                  <span className={`text-[10px] mt-1 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                    {tab.label}
-                  </span>
                 </button>
               );
             }
