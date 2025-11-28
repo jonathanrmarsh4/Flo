@@ -1036,6 +1036,93 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update user timezone (auto-sync from device)
+  app.patch("/api/user/timezone", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { timezone, source = 'device_auto' } = req.body;
+      
+      // Validate timezone is a valid IANA timezone identifier
+      if (!timezone || typeof timezone !== 'string') {
+        return res.status(400).json({ error: 'Timezone is required' });
+      }
+      
+      // Validate it's a valid IANA timezone by trying to use it
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone });
+      } catch {
+        return res.status(400).json({ error: 'Invalid timezone identifier' });
+      }
+      
+      // Get current timezone to check if it actually changed
+      const [currentUser] = await db.select({ timezone: users.timezone })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (currentUser?.timezone === timezone) {
+        // No change needed
+        return res.json({ 
+          timezone, 
+          changed: false,
+          message: 'Timezone already up to date'
+        });
+      }
+      
+      // Update timezone
+      await db.update(users)
+        .set({ 
+          timezone, 
+          timezoneSource: source,
+          timezoneUpdatedAt: new Date(),
+          updatedAt: new Date() 
+        })
+        .where(eq(users.id, userId));
+      
+      logger.info('[Timezone] Updated', { 
+        userId, 
+        timezone, 
+        previousTimezone: currentUser?.timezone,
+        source 
+      });
+      
+      res.json({ 
+        timezone, 
+        changed: true,
+        previousTimezone: currentUser?.timezone,
+        source
+      });
+    } catch (error) {
+      logger.error('Error updating timezone:', error);
+      res.status(500).json({ error: "Failed to update timezone" });
+    }
+  });
+
+  // Get user timezone
+  app.get("/api/user/timezone", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const [user] = await db.select({ 
+        timezone: users.timezone,
+        timezoneSource: users.timezoneSource,
+        timezoneUpdatedAt: users.timezoneUpdatedAt
+      })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      res.json({
+        timezone: user?.timezone || null,
+        source: user?.timezoneSource || null,
+        lastUpdated: user?.timezoneUpdatedAt || null
+      });
+    } catch (error) {
+      logger.error('Error fetching timezone:', error);
+      res.status(500).json({ error: "Failed to fetch timezone" });
+    }
+  });
+
   // Biomarker normalization routes
   // Single measurement normalization
   app.post("/api/normalize", isAuthenticated, async (req: any, res) => {

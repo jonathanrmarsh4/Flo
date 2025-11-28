@@ -210,6 +210,8 @@ export const users = pgTable("users", {
   
   // Insights v2.0 - User timezone for local-time cron jobs
   timezone: varchar("timezone").default("America/Los_Angeles").notNull(), // IANA timezone for 06:00 local insights
+  timezoneSource: varchar("timezone_source").default("manual"), // 'device_auto' or 'manual'
+  timezoneUpdatedAt: timestamp("timezone_updated_at"), // When timezone was last synced
   
   // Flō Oracle voice preference
   voicePreference: voicePreferenceEnum("voice_preference").default("Amanda").notNull(),
