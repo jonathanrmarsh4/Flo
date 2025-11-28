@@ -79,6 +79,14 @@ export function PasskeyManagement({ isDark }: PasskeyManagementProps) {
       
       const options = await optionsRes.json();
       
+      console.log('[Passkey] Registration options received:', {
+        rpId: options.rp?.id,
+        rpName: options.rp?.name,
+        challenge: options.challenge?.substring(0, 20) + '...',
+        userVerification: options.authenticatorSelection?.userVerification,
+        authenticatorAttachment: options.authenticatorSelection?.authenticatorAttachment,
+      });
+      
       const credential = await startRegistration({ optionsJSON: options });
       
       const deviceName = detectDeviceName();
@@ -108,22 +116,44 @@ export function PasskeyManagement({ isDark }: PasskeyManagementProps) {
         description: "You can now sign in with Face ID or Touch ID.",
       });
     } catch (error: any) {
-      console.error('[Passkey] Registration error:', error);
+      // WebAuthn errors don't serialize well - extract useful info
+      const errorName = error?.name || 'UnknownError';
+      const errorMessage = error?.message || '';
+      const errorCode = error?.code;
       
-      if (error.name === 'NotAllowedError') {
+      console.error('[Passkey] Registration error:', {
+        name: errorName,
+        message: errorMessage,
+        code: errorCode,
+        error: String(error),
+      });
+      
+      if (errorName === 'NotAllowedError') {
         toast({
           title: "Cancelled",
           description: "Passkey registration was cancelled.",
         });
-      } else if (error.name === 'InvalidStateError') {
+      } else if (errorName === 'InvalidStateError') {
         toast({
           title: "Already Registered",
           description: "This device already has a passkey for your account.",
         });
+      } else if (errorName === 'NotSupportedError') {
+        toast({
+          title: "Not Supported",
+          description: "Passkeys are not supported on this device or browser.",
+          variant: "destructive",
+        });
+      } else if (errorName === 'SecurityError') {
+        toast({
+          title: "Security Error",
+          description: "Domain configuration issue. Please contact support.",
+          variant: "destructive",
+        });
       } else {
         toast({
           title: "Registration Failed",
-          description: error.message || "Could not register passkey. Please try again.",
+          description: errorMessage || `Error: ${errorName}. Please try again.`,
           variant: "destructive",
         });
       }
