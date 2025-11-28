@@ -4285,10 +4285,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // SAFE PATH: Cached readiness is fresh, metrics exist
           logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
           
+          // Fetch yesterday's metrics for Activity Load context
+          const yesterday = new Date(today);
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toISOString().split('T')[0];
+          
+          const yesterdayMetricsData = await db
+            .select({ activeEnergyKcal: userDailyMetrics.activeEnergyKcal })
+            .from(userDailyMetrics)
+            .where(
+              and(
+                eq(userDailyMetrics.userId, userId),
+                eq(userDailyMetrics.localDate, yesterdayStr)
+              )
+            )
+            .limit(1);
+          
           const displayMetrics = {
             avgSleepHours: todayMetricsData[0].sleepHours ?? undefined,
             avgHRV: todayMetricsData[0].hrvMs ?? undefined,
             stepCount: todayMetricsData[0].stepsNormalized ?? undefined,
+            // Include yesterday's active energy for Activity Load context
+            yesterdayActiveKcal: yesterdayMetricsData.length > 0 ? yesterdayMetricsData[0].activeEnergyKcal ?? undefined : undefined,
           };
 
           return res.json({

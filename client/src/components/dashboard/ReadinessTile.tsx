@@ -26,6 +26,8 @@ interface ReadinessData {
     avgSleepHours?: number;
     avgHRV?: number;
     stepCount?: number;
+    yesterdayActiveKcal?: number;
+    activityBaseline?: number;
   };
   keyFactors?: string[];
   timestamp?: string;
@@ -296,21 +298,21 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
           </div>
         )}
 
-        {/* Load Bar */}
+        {/* Load Bar - shows recovery from YESTERDAY's activity */}
         {loadScore !== null && (
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <Activity className={`w-3 h-3 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                <span className={isDark ? 'text-white/80' : 'text-gray-700'}>Activity Load</span>
+                <span className={isDark ? 'text-white/80' : 'text-gray-700'}>Recovery</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   {loadScore}/100
                 </span>
-                {metrics.stepCount && (
+                {metrics.yesterdayActiveKcal !== undefined && (
                   <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
-                    {metrics.stepCount.toLocaleString()} steps
+                    {Math.round(metrics.yesterdayActiveKcal)} kcal yesterday
                   </span>
                 )}
               </div>

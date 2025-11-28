@@ -319,10 +319,14 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
     };
 
     // Prepare metrics for frontend display
+    // Note: Activity Load uses YESTERDAY's energy, so include that for consistency
     const displayMetrics = {
       avgSleepHours: sleepBaseline?.mean ?? todayMetrics.sleepHours ?? undefined,
       avgHRV: hrvBaseline?.mean ?? todayMetrics.hrvMs ?? undefined,
       stepCount: todayMetrics.stepsNormalized ?? undefined,
+      // Include yesterday's active energy for Activity Load context
+      yesterdayActiveKcal: yesterdayActiveEnergy ?? undefined,
+      activityBaseline: activityBaseline?.mean ?? undefined,
     };
 
     // Generate key factors (insights)
