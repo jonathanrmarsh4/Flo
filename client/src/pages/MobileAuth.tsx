@@ -135,16 +135,13 @@ export default function MobileAuth() {
           }
         }
         
-        // Refetch user data for the new session
-        await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
-        
         toast({
           title: "Welcome!",
           description: "Successfully signed in with Apple",
         });
         
-        // Navigate to home (which will redirect to dashboard for authenticated users)
-        setLocation('/');
+        // Force full page reload to properly initialize auth state
+        window.location.href = '/';
       }
     } catch (error: any) {
       // Log full error details for debugging
@@ -223,15 +220,13 @@ export default function MobileAuth() {
         }
       }
       
-      // Refetch user data
-      await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
-      
       toast({
         title: "Welcome Back!",
         description: "Signed in with Face ID",
       });
       
-      setLocation('/');
+      // Force full page reload to properly initialize auth state
+      window.location.href = '/';
     } catch (err: any) {
       const errorName = err?.name || 'UnknownError';
       const errorMessage = err?.message || '';
@@ -278,13 +273,15 @@ export default function MobileAuth() {
           }
         }
         
-        // Refetch user data for the new session
-        await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
         toast({
           title: "Welcome Back!",
           description: "Successfully signed in",
         });
-        setLocation('/');
+        
+        // Force full page reload to properly initialize auth state
+        // This ensures the app picks up the new token from secure storage
+        window.location.href = '/';
+        return;
       }
     } catch (error: any) {
       logger.error('Login error', error);
