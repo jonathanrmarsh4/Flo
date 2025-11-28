@@ -1,36 +1,10 @@
 import { Capacitor } from '@capacitor/core';
+import { Subscriptions as SubscriptionsPlugin } from '@squareetlabs/capacitor-subscriptions';
 
-let Subscriptions: any = null;
-let pluginLoaded = false;
+// Cast as any to avoid TypeScript type mismatches with native bridge
+const Subscriptions = SubscriptionsPlugin as any;
 
-async function loadPlugin(): Promise<any> {
-  if (pluginLoaded) {
-    console.log('[StoreKit] Plugin already loaded, returning cached:', Subscriptions !== null);
-    return Subscriptions;
-  }
-  
-  console.log('[StoreKit] Starting dynamic import of capacitor-subscriptions...');
-  
-  try {
-    const module = await import('@squareetlabs/capacitor-subscriptions');
-    console.log('[StoreKit] Dynamic import succeeded, module:', Object.keys(module));
-    
-    if (module && 'Subscriptions' in module) {
-      Subscriptions = module.Subscriptions;
-      console.log('[StoreKit] Plugin loaded successfully');
-    } else {
-      console.warn('[StoreKit] Module loaded but Subscriptions not found');
-      Subscriptions = null;
-    }
-  } catch (error) {
-    console.warn('[StoreKit] Plugin import failed:', error);
-    Subscriptions = null;
-  }
-  
-  pluginLoaded = true;
-  console.log('[StoreKit] loadPlugin() complete, Subscriptions exists:', Subscriptions !== null);
-  return Subscriptions;
-}
+console.log('[StoreKit] Module loaded, Subscriptions:', typeof Subscriptions);
 
 export interface StoreKitProduct {
   productId: string;
@@ -81,15 +55,12 @@ export async function isStoreKitAvailable(): Promise<boolean> {
     return false;
   }
   
-  console.log('[StoreKit] iOS detected, loading plugin...');
-  const plugin = await loadPlugin();
-  console.log('[StoreKit] Plugin available:', plugin !== null);
-  return plugin !== null;
+  console.log('[StoreKit] iOS detected, Subscriptions available:', !!Subscriptions);
+  return !!Subscriptions;
 }
 
 export async function getProducts(productIds: string[]): Promise<StoreKitProduct[]> {
-  const plugin = await loadPlugin();
-  if (!plugin) {
+  if (!Subscriptions) {
     console.warn('[StoreKit] Plugin not available');
     return [];
   }
@@ -102,7 +73,7 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
       setTimeout(() => reject(new Error('Product fetch timed out after 15s. Check: 1) Paid Apps Agreement signed in App Store Connect, 2) Bundle ID matches, 3) Products have localizations')), 15000);
     });
     
-    const fetchPromise = plugin.getProductDetails({ productIds });
+    const fetchPromise = Subscriptions.getProductDetails({ productIds });
     const result = await Promise.race([fetchPromise, timeoutPromise]);
     
     console.log('[StoreKit] Raw result from App Store:', JSON.stringify(result));
@@ -140,15 +111,14 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
 }
 
 export async function purchaseSubscription(productId: string): Promise<PurchaseResult> {
-  const plugin = await loadPlugin();
-  if (!plugin) {
+  if (!Subscriptions) {
     return { success: false, error: 'StoreKit not available' };
   }
   
   try {
     console.log('[StoreKit] Starting purchase for:', productId);
     
-    const result = await plugin.purchaseProduct({ productId });
+    const result = await Subscriptions.purchaseProduct({ productId });
     console.log('[StoreKit] Purchase result:', result);
     
     if (result.transactionId) {
@@ -183,15 +153,14 @@ export async function purchaseSubscription(productId: string): Promise<PurchaseR
 }
 
 export async function restorePurchases(): Promise<StoreKitTransaction[]> {
-  const plugin = await loadPlugin();
-  if (!plugin) {
+  if (!Subscriptions) {
     console.warn('[StoreKit] Plugin not available for restore');
     return [];
   }
   
   try {
     console.log('[StoreKit] Restoring purchases...');
-    const result = await plugin.restorePurchases();
+    const result = await Subscriptions.restorePurchases();
     console.log('[StoreKit] Restore result:', result);
     
     const transactions: StoreKitTransaction[] = (result.transactions || []).map((t: any) => ({
@@ -215,13 +184,12 @@ export async function restorePurchases(): Promise<StoreKitTransaction[]> {
 }
 
 export async function getCurrentSubscription(): Promise<StoreKitTransaction | null> {
-  const plugin = await loadPlugin();
-  if (!plugin) {
+  if (!Subscriptions) {
     return null;
   }
   
   try {
-    const monthlyResult = await plugin.getLatestTransaction({ 
+    const monthlyResult = await Subscriptions.getLatestTransaction({ 
       productId: PRODUCT_IDS.PREMIUM_MONTHLY 
     });
     
@@ -236,7 +204,7 @@ export async function getCurrentSubscription(): Promise<StoreKitTransaction | nu
       };
     }
     
-    const yearlyResult = await plugin.getLatestTransaction({ 
+    const yearlyResult = await Subscriptions.getLatestTransaction({ 
       productId: PRODUCT_IDS.PREMIUM_YEARLY 
     });
     
