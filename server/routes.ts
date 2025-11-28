@@ -6199,16 +6199,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
       
-      // Query workout sessions for today's exercise as additional fallback
+      // Query healthkit workouts for today's exercise as additional fallback
+      // Note: startDate is a timestamp, so we compare the date portion
       const todayWorkouts = await db
-        .select({ durationMinutes: workoutSessions.durationMinutes })
-        .from(workoutSessions)
+        .select({ duration: healthkitWorkouts.duration })
+        .from(healthkitWorkouts)
         .where(and(
-          eq(workoutSessions.userId, userId),
-          eq(workoutSessions.workoutDate, today)
+          eq(healthkitWorkouts.userId, userId),
+          sql`DATE(${healthkitWorkouts.startDate}) = ${today}`
         ));
       
-      const workoutMinutes = todayWorkouts.reduce((sum, w) => sum + (w.durationMinutes || 0), 0);
+      const workoutMinutes = todayWorkouts.reduce((sum, w) => sum + (w.duration || 0), 0);
 
       // Activity goals - prioritize userDailyMetrics (stepsRawSum for actual count, not normalized score)
       // Then fall back to healthDailyMetrics if available
@@ -6243,26 +6244,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Auto-detect if user has insights/actions today to mark checklist
-      // Check if insights were generated today (via dailyInsights or ragInsights tables)
-      const { ragInsights, actionItems } = await import("@shared/schema");
-      
-      // Check for today's insights
+      // Check for today's insights (dailyInsights table uses generatedDate as YYYY-MM-DD text)
       const [hasInsightsToday] = await db
         .select({ count: sql<number>`COUNT(*)::int` })
-        .from(ragInsights)
+        .from(dailyInsights)
         .where(and(
-          eq(ragInsights.userId, userId),
-          sql`DATE(${ragInsights.generatedAt}) = ${today}`
+          eq(dailyInsights.userId, userId),
+          eq(dailyInsights.generatedDate, today)
         ));
       const hasInsights = (hasInsightsToday?.count || 0) > 0;
       
-      // Check for any active action items
+      // Check for any active action items (actionPlanItems table already imported)
       const [hasActionsToday] = await db
         .select({ count: sql<number>`COUNT(*)::int` })
-        .from(actionItems)
+        .from(actionPlanItems)
         .where(and(
-          eq(actionItems.userId, userId),
-          eq(actionItems.status, 'active')
+          eq(actionPlanItems.userId, userId),
+          eq(actionPlanItems.status, 'active')
         ));
       const hasActions = (hasActionsToday?.count || 0) > 0;
       
