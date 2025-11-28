@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
+import { useTimezoneAutoSync } from "@/hooks/useTimezoneAutoSync";
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { useEffect, useState } from 'react';
@@ -82,6 +83,9 @@ function Router() {
   
   // Automatically sync HealthKit data in background on app launch
   useHealthKitAutoSync();
+  
+  // Automatically sync device timezone for accurate insights scheduling
+  useTimezoneAutoSync(user?.id);
 
   // Handle deep links from Universal Links (native only)
   useEffect(() => {
