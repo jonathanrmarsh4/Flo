@@ -4023,13 +4023,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
       // Also populate health_daily_metrics for Flōmentum consistency and body composition tracking
+      // Use stepsRawSum for actual step count (stepsNormalized may be 0-1 score or lower)
       const healthMetricsData = {
         userId,
         date: metrics.localDate,
         sleepTotalMinutes: metrics.sleepHours ? Math.round(metrics.sleepHours * 60) : null,
         hrvSdnnMs: metrics.hrvMs ? Math.round(metrics.hrvMs) : null,
         restingHr: metrics.restingHrBpm ? Math.round(metrics.restingHrBpm) : null,
-        steps: metrics.stepsNormalized ?? null,
+        steps: metrics.stepsRawSum ?? metrics.stepsNormalized ?? null,
         activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
         exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
         weightKg: extendedMetrics.weightKg,
@@ -6168,6 +6169,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
 
       // Get today's health metrics for activity bars
+      // Use userDailyMetrics as primary source (where iOS HealthKit sync stores data)
+      // Also check healthDailyMetrics as fallback
+      const [dailyMetrics] = await db
+        .select()
+        .from(userDailyMetrics)
+        .where(and(
+          eq(userDailyMetrics.userId, userId),
+          eq(userDailyMetrics.localDate, today)
+        ))
+        .limit(1);
+      
       const [healthMetrics] = await db
         .select()
         .from(healthDailyMetrics)
@@ -6177,11 +6189,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
 
-      // Activity goals (hardcoded for now)
+      // Activity goals - prioritize userDailyMetrics (stepsRawSum for actual count, not normalized score)
+      // Then fall back to healthDailyMetrics if available
+      // Use explicit null checks to ensure fallback works correctly
+      let stepsValue = 0;
+      if (dailyMetrics?.stepsRawSum != null) {
+        stepsValue = dailyMetrics.stepsRawSum;
+      } else if (dailyMetrics?.stepsNormalized != null) {
+        stepsValue = dailyMetrics.stepsNormalized;
+      } else if (healthMetrics?.steps != null) {
+        stepsValue = healthMetrics.steps;
+      }
+      
+      let activeMinutesValue = 0;
+      if (dailyMetrics?.exerciseMinutes != null) {
+        activeMinutesValue = Math.round(dailyMetrics.exerciseMinutes);
+      } else if (healthMetrics?.exerciseMinutes != null) {
+        activeMinutesValue = Math.round(healthMetrics.exerciseMinutes);
+      }
+      
+      let sleepHoursValue = 0;
+      if (dailyMetrics?.sleepHours != null) {
+        sleepHoursValue = Math.round(dailyMetrics.sleepHours * 10) / 10;
+      } else if (healthMetrics?.sleepTotalMinutes != null) {
+        sleepHoursValue = Math.round((healthMetrics.sleepTotalMinutes / 60) * 10) / 10;
+      }
+      
       const activityGoals = {
-        steps: { current: healthMetrics?.steps || 0, goal: 10000 },
-        activeMinutes: { current: healthMetrics?.exerciseMinutes || 0, goal: 60 },
-        sleepHours: { current: healthMetrics?.sleepTotalMinutes ? Math.round(healthMetrics.sleepTotalMinutes / 60 * 10) / 10 : 0, goal: 8 },
+        steps: { current: stepsValue, goal: 10000 },
+        activeMinutes: { current: activeMinutesValue, goal: 60 },
+        sleepHours: { current: sleepHoursValue, goal: 8 },
       };
 
       res.json({
