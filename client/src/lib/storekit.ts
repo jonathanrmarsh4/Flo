@@ -117,9 +117,14 @@ export async function isStoreKitAvailable(): Promise<boolean> {
   }
   
   console.log('[StoreKit] Platform check passed, loading plugin...');
-  const plugin = await loadPlugin();
-  console.log('[StoreKit] Plugin load complete, available:', plugin !== null);
-  return plugin !== null;
+  try {
+    const plugin = await loadPlugin();
+    console.log('[StoreKit] Plugin load complete, available:', plugin !== null);
+    return plugin !== null;
+  } catch (error: any) {
+    console.error('[StoreKit] isStoreKitAvailable caught error:', error?.message || error);
+    return false;
+  }
 }
 
 export async function getProducts(productIds: string[]): Promise<StoreKitProduct[]> {
