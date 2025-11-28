@@ -5,9 +5,13 @@ import { cn } from "@/lib/utils"
 const Textarea = React.forwardRef<
   HTMLTextAreaElement,
   React.ComponentProps<"textarea">
->(({ className, ...props }, ref) => {
+>(({ className, autoComplete, autoCapitalize, autoCorrect, ...props }, ref) => {
+  // iOS WebView keyboard fix: Default to safer attributes to prevent keyboard freeze
   return (
     <textarea
+      autoComplete={autoComplete ?? "off"}
+      autoCapitalize={autoCapitalize ?? "off"}
+      autoCorrect={autoCorrect ?? "off"}
       className={cn(
         "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
         className

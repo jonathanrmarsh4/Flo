@@ -1085,6 +1085,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                       ? 'bg-white/10 border-white/20 text-white placeholder:text-white/40' 
                       : 'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400'
                   }`}
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   data-testid="textarea-medical-context"
                 />
               ) : (
