@@ -1,0 +1,519 @@
+# Flō Gamification System - Developer Specification
+
+## Overview
+The Flō gamification system is designed to encourage daily engagement and healthy behaviors between infrequent lab tests (6-12 months). The system combines HealthKit data with app engagement metrics to create a comprehensive daily scoring and progression system.
+
+---
+
+## Core Components
+
+### 1. Flōmentum Score (0-100)
+**Primary health metric based on Apple HealthKit data**
+
+**Data Source:** Apple Health (HealthKit)
+- Sleep quality and duration
+- Movement/steps
+- Heart rate recovery
+- Active minutes
+
+**Current Implementation:**
+- Displayed as a circular gauge with color-coded zones
+- Updates daily based on previous 24 hours of HealthKit data
+- Drives the base score for XP calculation
+
+**Zones:**
+- **Building (Green):** Score 75-100 → Teal to Green gradient
+- **Maintaining (Blue):** Score 50-74 → Blue to Indigo gradient  
+- **Draining (Amber/Red):** Score 0-49 → Amber to Red gradient
+
+**Trend Indicator:**
+- Compares today's score vs yesterday
+- Shows delta (+/- points)
+- Visual indicator (TrendingUp/TrendingDown icon)
+
+---
+
+### 2. Level & XP System
+**Progression system that rewards consistency**
+
+**XP Calculation:**
+```javascript
+totalXP = currentStreak × dailyFlōmentumScore
+```
+
+**Example:**
+- 12-day streak × 73 Flōmentum score = 876 XP
+
+**Level Calculation:**
+```javascript
+level = Math.floor(totalXP / 500) + 1
+xpForNextLevel = (level × 500) - totalXP
+```
+
+**Example:**
+- 876 XP ÷ 500 = Level 1 (level 2 starts at 1000 XP)
+- 1000 - 876 = 124 XP needed for Level 2
+
+**Why this matters:**
+- Encourages both consistency (streak) AND quality health behaviors (high Flōmentum score)
+- Prevents gaming the system by just opening the app daily
+- Rewards sustained healthy habits
+
+---
+
+### 3. Streak System
+**Daily engagement tracker**
+
+**Streak Increments When:**
+1. User opens the app on a given day
+2. Completes at least one engagement action:
+   - Reviews an insight
+   - Checks an action item
+   - Uses AI chat
+
+**Streak Breaks When:**
+- 24+ hours pass without app engagement
+
+**Display:**
+- Current streak (e.g., "12 days")
+- Best/longest streak (e.g., "Best: 28 days")
+- Prominent 🔥 fire emoji for visual appeal
+
+---
+
+### 4. HealthKit Activity Metrics
+**Three core daily activity goals with progress bars**
+
+#### Steps
+- **Goal:** 10,000 steps/day (user configurable in future)
+- **Data Source:** HealthKit `HKQuantityTypeIdentifierStepCount`
+- **Display:** Cyan to Blue gradient progress bar
+
+#### Active Minutes
+- **Goal:** 60 minutes/day (user configurable in future)
+- **Data Source:** HealthKit `HKQuantityTypeIdentifierAppleExerciseTime`
+- **Display:** Pink to Rose gradient progress bar
+
+#### Sleep Hours
+- **Goal:** 8 hours/night (user configurable in future)
+- **Data Source:** HealthKit `HKCategoryTypeIdentifierSleepAnalysis`
+- **Display:** Purple to Indigo gradient progress bar
+
+**Progress Calculation:**
+```javascript
+const stepsPercent = Math.min(100, (actualSteps / goalSteps) × 100);
+```
+
+**Animation:**
+- Progress bars animate on mount
+- Staggered delays (0.2s, 0.3s, 0.4s) for visual polish
+
+---
+
+### 5. Daily Engagement Checklist
+**Three app-specific actions that contribute to gamification**
+
+#### ✅ Insights Reviewed
+**Triggers when:**
+- User navigates to Actions screen
+- User taps on an insight card
+- User views insight details
+
+**Visual State:**
+- Uncompleted: Gray background, gray icon
+- Completed: Green background, green icon + checkmark
+
+#### ✅ Actions Checked
+**Triggers when:**
+- User marks an action item as complete
+- User reviews their action plan
+
+**Visual State:**
+- Same as Insights Reviewed
+
+#### ✅ AI Chat Used
+**Triggers when:**
+- User sends a message in voice chat
+- User opens AI chat modal and interacts
+
+**Visual State:**
+- Same as Insights Reviewed
+
+**Implementation Note:**
+Currently using mock data. Need to implement:
+```javascript
+// Store in local state or context
+interface DailyEngagement {
+  date: string; // ISO date
+  insightsReviewed: number;
+  actionItemsChecked: number;
+  aiChatsToday: number;
+}
+```
+
+---
+
+### 6. Achievement System
+**Progressive milestones that unlock with streaks**
+
+**Achievement Tiers:**
+
+| Achievement | Requirement | Emoji |
+|-------------|-------------|-------|
+| Week Warrior | 7-day streak | 🎯 |
+| Consistency Master | 14-day streak | ⭐ |
+| 21-Day Champion | 21-day streak | 🏆 |
+| Monthly Legend | 30-day streak | 💎 |
+| Centurion | 100-day streak | 👑 |
+
+**Display Logic:**
+```javascript
+const nextAchievement = 
+  currentStreak >= 14 ? '7 days to "21-Day Champion" 🏆'
+  : currentStreak >= 7 ? '7 days to "Consistency Master" ⭐'
+  : `${7 - currentStreak} days to "Week Warrior" 🎯`;
+```
+
+**Footer Display:**
+- Shows NEXT achievable milestone
+- Shows days remaining
+- Encourages continued engagement
+
+---
+
+## Data Architecture
+
+### Mock Data (Current - Lines 10-27 in FlomentumGamifiedTile.tsx)
+
+```javascript
+const DEFAULT_DATA = {
+  score: 73,
+  zone: 'Building',
+  trend: 'up',
+  delta: 9,
+  hasData: true,
+  isFirstDay: false
+};
+
+const HEALTHKIT_DATA = {
+  steps: 8547,
+  stepsGoal: 10000,
+  activeMinutes: 42,
+  activeGoal: 60,
+  sleepHours: 7.2,
+  sleepGoal: 8,
+};
+
+const APP_ENGAGEMENT = {
+  currentStreak: 12,
+  longestStreak: 28,
+  insightsReviewed: 3,
+  actionItemsChecked: 1,
+  aiChatsToday: 2
+};
+```
+
+### Production Data Structure (To Implement)
+
+```typescript
+interface UserGamificationData {
+  // Flōmentum
+  flomentum: {
+    score: number; // 0-100
+    zone: 'Building' | 'Maintaining' | 'Draining';
+    trend: 'up' | 'down' | 'stable';
+    delta: number;
+    lastUpdated: Date;
+    history: Array<{
+      date: string;
+      score: number;
+    }>;
+  };
+  
+  // HealthKit
+  healthKit: {
+    steps: {
+      actual: number;
+      goal: number;
+      lastSynced: Date;
+    };
+    activeMinutes: {
+      actual: number;
+      goal: number;
+      lastSynced: Date;
+    };
+    sleep: {
+      hours: number;
+      goal: number;
+      lastSynced: Date;
+    };
+  };
+  
+  // Engagement
+  engagement: {
+    currentStreak: number;
+    longestStreak: number;
+    streakStartDate: Date;
+    lastActiveDate: Date;
+    todayEngagement: {
+      date: string; // ISO date
+      insightsReviewed: number;
+      actionItemsChecked: number;
+      aiChatsToday: number;
+    };
+  };
+  
+  // Progression
+  progression: {
+    totalXP: number;
+    level: number;
+    achievements: Array<{
+      id: string;
+      name: string;
+      unlockedAt: Date;
+    }>;
+  };
+}
+```
+
+---
+
+## Integration Points
+
+### 1. HealthKit Integration (iOS/React Native)
+**Required Permissions:**
+- `HKQuantityTypeIdentifierStepCount`
+- `HKQuantityTypeIdentifierAppleExerciseTime`
+- `HKCategoryTypeIdentifierSleepAnalysis`
+- `HKQuantityTypeIdentifierHeartRate`
+- `HKQuantityTypeIdentifierHeartRateVariabilitySDNN`
+
+**Sync Frequency:**
+- Background sync every 4 hours
+- Foreground sync when app opens
+- Calculate Flōmentum score daily at midnight local time
+
+**Fallback:**
+- If HealthKit unavailable: Show "Connect Apple Health" CTA
+- Display `hasData: false` state
+
+### 2. App Engagement Tracking
+
+**Insights Reviewed:**
+```javascript
+// When user views insight
+trackEngagement('insight_reviewed', {
+  insightId: string,
+  timestamp: Date
+});
+```
+
+**Actions Checked:**
+```javascript
+// When user completes action
+trackEngagement('action_checked', {
+  actionId: string,
+  timestamp: Date
+});
+```
+
+**AI Chat Used:**
+```javascript
+// When user sends message
+trackEngagement('ai_chat_used', {
+  messageCount: number,
+  timestamp: Date
+});
+```
+
+### 3. Streak Management
+
+**Daily Check Logic:**
+```javascript
+function updateStreak(lastActiveDate: Date, today: Date) {
+  const hoursSinceActive = (today - lastActiveDate) / (1000 * 60 * 60);
+  
+  if (hoursSinceActive < 24) {
+    // Same day, no change
+    return currentStreak;
+  } else if (hoursSinceActive < 48) {
+    // Next day, increment streak
+    return currentStreak + 1;
+  } else {
+    // Streak broken, reset to 1
+    return 1;
+  }
+}
+```
+
+### 4. Local Storage / State Management
+
+**Suggested Implementation:**
+- Use React Context for gamification state
+- Persist to AsyncStorage/localStorage daily
+- Sync to backend (Supabase) for multi-device support
+
+**Storage Keys:**
+```javascript
+const STORAGE_KEYS = {
+  FLOMENTUM_DATA: '@flo/flomentum',
+  HEALTHKIT_DATA: '@flo/healthkit',
+  ENGAGEMENT_DATA: '@flo/engagement',
+  PROGRESSION_DATA: '@flo/progression',
+};
+```
+
+---
+
+## UI Components Location
+
+**Main Component:**
+- `/components/dashboard/FlomentumGamifiedTile.tsx`
+
+**Used In:**
+- `/components/DashboardScreen.tsx` (line ~77)
+
+**Dependencies:**
+- `motion/react` - Animations
+- `lucide-react` - Icons
+
+---
+
+## Visual Design Specifications
+
+### Colors (Zone-Based)
+
+**Building Zone:**
+```css
+gradient: linear-gradient(to bottom right, #14b8a6, #10b981)
+text: teal-400 (dark) / teal-600 (light)
+badge-bg: teal-500/20 (dark) / teal-100 (light)
+```
+
+**Maintaining Zone:**
+```css
+gradient: linear-gradient(to bottom right, #3b82f6, #6366f1)
+text: blue-400 (dark) / blue-600 (light)
+badge-bg: blue-500/20 (dark) / blue-100 (light)
+```
+
+**Draining Zone:**
+```css
+gradient: linear-gradient(to bottom right, #f59e0b, #ef4444)
+text: amber-400 (dark) / amber-600 (light)
+badge-bg: amber-500/20 (dark) / amber-100 (light)
+```
+
+### Animations
+
+**Progress Bars:**
+- Initial width: 0%
+- Animate to: calculated percentage
+- Duration: 1000ms
+- Easing: ease-out
+- Stagger: 100ms per bar
+
+**Tile Mount:**
+- Initial: opacity 0, translateY 20px
+- Animate: opacity 1, translateY 0px
+- Duration: 400ms
+
+---
+
+## Testing Scenarios
+
+### 1. First Time User
+- `hasData: false`
+- Shows "Connect Apple Health" CTA
+- No streak, no engagement data
+
+### 2. Daily Active User
+- Streak increments daily
+- All engagement checkmarks green
+- Progress bars filled
+- Level increases over time
+
+### 3. Missed Day
+- Streak resets to 1
+- Previous longest streak preserved
+- Encourages re-engagement
+
+### 4. High Performer
+- Flōmentum score 80+
+- All HealthKit goals met
+- All engagement complete
+- Fast level progression
+
+### 5. Low Performer
+- Flōmentum score <50
+- HealthKit goals partially met
+- Shows areas for improvement
+- Still earns XP (encourages continued use)
+
+---
+
+## Future Enhancements
+
+### Phase 2 - Customization
+- User-configurable HealthKit goals
+- Custom achievement badges
+- Social features (friend streaks)
+
+### Phase 3 - Advanced Gamification
+- Weekly challenges
+- Seasonal events
+- Rewards/unlockables
+- Leaderboards (optional, privacy-first)
+
+### Phase 4 - Analytics
+- Correlation engine: HealthKit metrics ↔ Biomarker improvements
+- "Your Flōmentum score correlates with a 12% improvement in HbA1c"
+- Personalized recommendations based on patterns
+
+---
+
+## Privacy & Data Considerations
+
+**IMPORTANT:**
+- All HealthKit data stays on device by default
+- User must explicitly opt-in to cloud sync
+- Gamification data is NOT medical data
+- Achievement sharing is opt-in only
+- No PII required for gamification features
+
+**Compliance:**
+- HIPAA: Not applicable (wellness data, not diagnostic)
+- GDPR: User can export/delete all gamification data
+- Apple Health Kit: Follow all HK data handling guidelines
+
+---
+
+## Questions for Product Team
+
+1. Should we cap XP gain per day to prevent exploitation?
+2. What happens to streak when user travels across timezones?
+3. Should we offer "streak freeze" (1 free missed day per week)?
+4. How do we handle users who can't meet HealthKit goals due to disability/health conditions?
+5. Should achievements unlock cosmetic rewards (themes, badges)?
+
+---
+
+## Implementation Checklist
+
+- [ ] Replace mock data with HealthKit integration
+- [ ] Implement streak tracking logic with AsyncStorage
+- [ ] Add engagement event tracking
+- [ ] Create gamification context/state management
+- [ ] Add Supabase sync for multi-device support
+- [ ] Implement achievement unlock notifications
+- [ ] Add user settings for goal customization
+- [ ] Create analytics dashboard for correlation engine
+- [ ] Add celebration animations for level-ups
+- [ ] Implement streak freeze feature (optional)
+
+---
+
+**Document Version:** 1.0  
+**Last Updated:** November 28, 2025  
+**Author:** Flō Product Team  
+**Component Location:** `/components/dashboard/FlomentumGamifiedTile.tsx`
