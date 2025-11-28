@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { logger } from '../logger';
 import { grokClient, GrokChatMessage } from './grokClient';
-import { buildUserHealthContext } from './floOracleContextBuilder';
+import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
 import { storage } from '../storage';
 import { processAndPersistBrainUpdates } from './brainUpdateParser';
 
@@ -33,6 +33,13 @@ VOICE CONVERSATION GUIDELINES:
 - Ask clarifying questions when helpful
 - Reference specific data when available
 
+ACTION PLAN AWARENESS:
+- The user has active health goals in their Action Plan - reference these when relevant
+- Provide accountability by asking about progress on their action items
+- Connect their current health data to their stated goals
+- Celebrate progress and offer encouragement on their journey
+- Suggest adjustments to action items based on their latest metrics
+
 SAFETY GUARDRAILS:
 - Never prescribe specific medications or dosages
 - Always encourage consulting healthcare providers for medical decisions
@@ -61,24 +68,37 @@ class VoiceOrchestrator {
     let session = activeSessions.get(userId);
     
     if (!session) {
-      const healthContext = await buildUserHealthContext(userId);
-      const user = await storage.getUser(userId);
+      const [healthContext, actionPlanContext, insightsContext, lifeEventsContext, user] = await Promise.all([
+        buildUserHealthContext(userId),
+        getActiveActionPlanItems(userId),
+        getRelevantInsights(userId),
+        getRecentLifeEvents(userId),
+        storage.getUser(userId),
+      ]);
+      
       const userName = user?.firstName || 'there';
+      
+      const fullContext = [
+        healthContext,
+        actionPlanContext,
+        insightsContext,
+        lifeEventsContext,
+      ].filter(Boolean).join('\n');
       
       session = {
         userId,
         messages: [{
           role: 'system',
-          content: `${FLO_ORACLE_SYSTEM_PROMPT}\n\n[USER HEALTH CONTEXT]\n${healthContext}`
+          content: `${FLO_ORACLE_SYSTEM_PROMPT}\n\n[USER HEALTH CONTEXT]\n${fullContext}`
         }],
-        healthContext,
+        healthContext: fullContext,
         userName,
         createdAt: new Date(),
         lastActivity: new Date(),
       };
       
       activeSessions.set(userId, session);
-      logger.info('[VoiceOrchestrator] Created new session for user', { userId });
+      logger.info('[VoiceOrchestrator] Created new session for user with action plan context', { userId });
     }
     
     session.lastActivity = new Date();

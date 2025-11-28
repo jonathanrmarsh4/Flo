@@ -5,7 +5,7 @@
  */
 
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
-import { buildUserHealthContext } from './floOracleContextBuilder';
+import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
 import { logger } from '../logger';
 import { db } from '../db';
 import { floChatMessages, users, VOICE_NAME_TO_GEMINI } from '@shared/schema';
@@ -30,6 +30,12 @@ HEALTH INSIGHTS:
 - Spot patterns: "I noticed your HRV tends to be higher on days after you walk more..."
 - Be evidence-based but accessible - explain the "so what" of any metric.
 - For concerning patterns, be honest but not alarmist. Suggest they discuss with their doctor.
+
+ACTION PLAN AWARENESS:
+- The user has active health goals in their Action Plan - reference these when relevant.
+- Provide accountability by asking about progress on their action items.
+- Connect their current health data to their stated goals.
+- Celebrate progress and offer encouragement on their journey.
 
 SAFETY GUARDRAILS:
 - Never prescribe medications or specific dosages.
@@ -82,15 +88,34 @@ class GeminiVoiceService {
     
     let healthContext = '';
     try {
-      healthContext = await buildUserHealthContext(userId);
+      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext] = await Promise.all([
+        buildUserHealthContext(userId),
+        getActiveActionPlanItems(userId),
+        getRelevantInsights(userId),
+        getRecentLifeEvents(userId),
+      ]);
+      
+      healthContext = [
+        baseHealthContext,
+        actionPlanContext,
+        insightsContext,
+        lifeEventsContext,
+      ].filter(Boolean).join('\n');
+      
       // Truncate if too large (Gemini Live may have limits on system instruction)
-      if (healthContext.length > 4000) {
+      if (healthContext.length > 6000) {
         logger.warn('[GeminiVoice] Health context truncated', { 
           originalLength: healthContext.length,
-          truncatedTo: 4000 
+          truncatedTo: 6000 
         });
-        healthContext = healthContext.substring(0, 4000) + '\n\n[Context truncated for voice session]';
+        healthContext = healthContext.substring(0, 6000) + '\n\n[Context truncated for voice session]';
       }
+      
+      logger.info('[GeminiVoice] Built full health context with action plan', { 
+        userId, 
+        contextLength: healthContext.length,
+        hasActionPlan: actionPlanContext.length > 0 
+      });
     } catch (contextError: any) {
       logger.error('[GeminiVoice] Failed to build health context', { error: contextError.message });
       healthContext = 'Health data is currently loading...';

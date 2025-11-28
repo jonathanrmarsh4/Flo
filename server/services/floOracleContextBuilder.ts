@@ -11,7 +11,8 @@ import {
   insightCards,
   lifeEvents,
   healthkitSamples,
-  healthkitWorkouts
+  healthkitWorkouts,
+  actionPlanItems
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
@@ -833,6 +834,84 @@ export async function getRecentLifeEvents(userId: string, days: number = 14): Pr
     return lines.join('\n');
   } catch (error) {
     logger.error('[FloOracle] Error retrieving life events:', error);
+    return '';
+  }
+}
+
+/**
+ * Get user's active action plan items
+ * Returns personalized health goals and actions the user is working on
+ */
+export async function getActiveActionPlanItems(userId: string): Promise<string> {
+  try {
+    const items = await db
+      .select({
+        title: actionPlanItems.snapshotTitle,
+        insight: actionPlanItems.snapshotInsight,
+        action: actionPlanItems.snapshotAction,
+        category: actionPlanItems.category,
+        targetBiomarker: actionPlanItems.targetBiomarker,
+        currentValue: actionPlanItems.currentValue,
+        targetValue: actionPlanItems.targetValue,
+        unit: actionPlanItems.unit,
+        status: actionPlanItems.status,
+        addedAt: actionPlanItems.addedAt,
+      })
+      .from(actionPlanItems)
+      .where(
+        and(
+          eq(actionPlanItems.userId, userId),
+          eq(actionPlanItems.status, 'active')
+        )
+      )
+      .orderBy(desc(actionPlanItems.addedAt))
+      .limit(10);
+
+    if (items.length === 0) {
+      return '';
+    }
+
+    const lines = [
+      '',
+      'ACTION PLAN (user\'s active health goals - reference these to provide accountability and progress tracking):',
+    ];
+
+    items.forEach((item, index) => {
+      const parts: string[] = [];
+      
+      if (item.title) {
+        parts.push(`**${item.title}**`);
+      }
+      
+      if (item.action) {
+        parts.push(`Action: ${item.action}`);
+      }
+      
+      if (item.targetBiomarker && item.currentValue !== null && item.targetValue !== null) {
+        parts.push(`Target: ${item.targetBiomarker} from ${item.currentValue} → ${item.targetValue}${item.unit ? ' ' + item.unit : ''}`);
+      }
+      
+      if (item.category) {
+        parts.push(`Category: ${item.category}`);
+      }
+      
+      const daysAgo = item.addedAt ? Math.floor((Date.now() - new Date(item.addedAt).getTime()) / (1000 * 60 * 60 * 24)) : null;
+      if (daysAgo !== null) {
+        const timeRef = daysAgo === 0 ? 'added today' : daysAgo === 1 ? 'added yesterday' : `added ${daysAgo} days ago`;
+        parts.push(`(${timeRef})`);
+      }
+      
+      lines.push(`${index + 1}. ${parts.join(' | ')}`);
+      
+      if (item.insight) {
+        lines.push(`   Why: ${item.insight}`);
+      }
+    });
+
+    logger.info(`[FloOracle] Retrieved ${items.length} active action plan items for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving action plan items:', error);
     return '';
   }
 }
