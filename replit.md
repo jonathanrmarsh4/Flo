@@ -48,7 +48,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Stripe (Web fallback):** Standard Stripe integration for web-based purchases, checkout, and webhooks.
 - **Security:** App Store transactions require JWS signature verification in production (`APP_STORE_REQUIRE_VERIFICATION=true` by default). Unverified transactions are rejected. Development mode allows decode-only with explicit warnings.
 
-**Daily Reminder Notifications:** Implements programmatic notification permission flows for iOS and Android.
+**Daily Reminder Notifications:** Implements programmatic notification permission flows for iOS and Android. Uses **Gemini 2.5 Flash** for AI-driven personalized reminders, incorporating biomarkers, HealthKit data, DEXA changes, wearables, behaviors, training load, and **Action Plan items** to generate contextual health nudges for premium users.
 
 **iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events instantly, including pre-built templates with dosage support and a frontend settings page for API key management.
 
@@ -84,4 +84,4 @@ The following 14 extended health metrics are now tracked from iOS HealthKit:
 - **Stripe:** Payment processing.
 - **OpenAI:** GPT-4o for blood work PDF extraction, text-embedding-3-small for RAG embeddings.
 - **xAI (Grok):** grok-3-mini model for Flō Oracle text chat and async brain memory extraction from voice transcripts.
-- **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights generation, Gemini Live API (gemini-2.5-flash-native-audio) for real-time bidirectional voice streaming in Flō Oracle voice conversations.
+- **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights generation, Gemini 2.5 Flash for daily reminder notifications, Gemini Live API (gemini-2.5-flash-native-audio) for real-time bidirectional voice streaming in Flō Oracle voice conversations.
