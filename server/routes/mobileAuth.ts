@@ -6,6 +6,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 import { storage } from "../storage";
 import { logger } from "../logger";
+import { isAuthenticated } from "../replitAuth";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -1094,12 +1095,8 @@ router.post("/api/mobile/auth/passkey/login", async (req, res) => {
 });
 
 // List user's passkeys (authenticated)
-router.get("/api/mobile/auth/passkeys", async (req, res) => {
+router.get("/api/mobile/auth/passkeys", isAuthenticated, async (req, res) => {
   try {
-    if (!req.user || !(req.user as any).id) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
     const userId = (req.user as any).id;
     const passkeys = await storage.getPasskeysByUserId(userId);
     
@@ -1121,12 +1118,8 @@ router.get("/api/mobile/auth/passkeys", async (req, res) => {
 });
 
 // Delete a passkey (authenticated)
-router.delete("/api/mobile/auth/passkeys/:id", async (req, res) => {
+router.delete("/api/mobile/auth/passkeys/:id", isAuthenticated, async (req, res) => {
   try {
-    if (!req.user || !(req.user as any).id) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
     const userId = (req.user as any).id;
     const passkeyId = req.params.id;
     
