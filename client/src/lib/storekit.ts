@@ -118,7 +118,11 @@ export async function isStoreKitAvailable(): Promise<boolean> {
   
   console.log('[StoreKit] Platform check passed, loading plugin...');
   try {
-    const plugin = await loadPlugin();
+    console.log('[StoreKit] About to await loadPlugin()...');
+    const pluginPromise = loadPlugin();
+    console.log('[StoreKit] Got promise from loadPlugin:', typeof pluginPromise);
+    const plugin = await pluginPromise;
+    console.log('[StoreKit] Await completed, plugin:', plugin !== null ? 'exists' : 'null');
     console.log('[StoreKit] Plugin load complete, available:', plugin !== null);
     return plugin !== null;
   } catch (error: any) {
