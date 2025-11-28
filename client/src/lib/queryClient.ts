@@ -2,6 +2,22 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { Capacitor } from '@capacitor/core';
 import { logger } from './logger';
 
+// Pre-load SecureStoragePlugin at module level to avoid JIT freeze on first API call
+// This is imported statically but only used on native platforms
+let SecureStoragePluginInstance: any = null;
+let secureStorageLoaded = false;
+
+// Eagerly load the plugin on native platforms to avoid freeze on first interaction
+if (Capacitor.isNativePlatform()) {
+  import('capacitor-secure-storage-plugin').then(module => {
+    SecureStoragePluginInstance = module.SecureStoragePlugin;
+    secureStorageLoaded = true;
+    console.log('[QueryClient] SecureStoragePlugin pre-loaded');
+  }).catch(err => {
+    console.warn('[QueryClient] Failed to pre-load SecureStoragePlugin:', err);
+  });
+}
+
 // Get API base URL - use production URL for iOS/Android, relative for web
 function getApiBaseUrl(): string {
   // Check if running in native app (iOS/Android)
@@ -19,25 +35,24 @@ function getApiBaseUrl(): string {
 export async function getAuthToken(): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
     try {
-      // Dynamic import to avoid loading plugin on web
-      const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
-      const { value } = await SecureStoragePlugin.get({ key: 'auth_token' });
-      logger.debug('Retrieved auth token from secure storage', { hasToken: !!value });
+      // Use pre-loaded plugin if available, otherwise load synchronously
+      if (!secureStorageLoaded || !SecureStoragePluginInstance) {
+        const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+        SecureStoragePluginInstance = SecureStoragePlugin;
+        secureStorageLoaded = true;
+      }
+      const { value } = await SecureStoragePluginInstance.get({ key: 'auth_token' });
       return value;
     } catch (error) {
       // Token not found or error reading secure storage
-      logger.debug('Failed to retrieve auth token', { error });
       return null;
     }
   }
   // For web, check localStorage for JWT token (from email/password login)
   const webToken = localStorage.getItem('auth_token');
   if (webToken) {
-    console.log('[QueryClient] Found JWT token in localStorage');
-    logger.debug('Retrieved auth token from localStorage', { hasToken: true });
     return webToken;
   }
-  console.log('[QueryClient] No JWT token in localStorage, will use session cookies');
   // Fall back to session cookies automatically sent by the browser
   return null;
 }

@@ -189,14 +189,25 @@ export function useHealthKitAutoSync() {
   };
 
   // FIRST useEffect: Initial sync logic with persistent storage check
+  // CRITICAL: Use requestIdleCallback to defer heavy initialization and prevent UI freeze
   useEffect(() => {
     // Only run on native platforms
     if (!isNative) {
       return;
     }
     
-    // Check if we need to force sync based on persistent storage
-    (async () => {
+    // Defer all initialization to after first paint to prevent cold-start freeze
+    const scheduleInit = (callback: () => void) => {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(callback, { timeout: 3000 });
+      } else {
+        // Fallback: use longer delay to ensure UI is responsive first
+        setTimeout(callback, 2000);
+      }
+    };
+    
+    scheduleInit(async () => {
+      // Check if we need to force sync based on persistent storage
       try {
         const { value: lastBackgroundAtStr } = await Preferences.get({ key: PREF_LAST_BACKGROUND_AT });
         const { value: lastSyncAtStr } = await Preferences.get({ key: PREF_LAST_SYNC_AT });
@@ -238,14 +249,14 @@ export function useHealthKitAutoSync() {
       // Mark as run before executing to prevent duplicate calls
       hasRun.current = true;
 
-      // PERFORMANCE FIX: Reduce delay to 500ms for faster sync after first paint
-      setTimeout(() => syncHealthData(true), 500);
+      // Start sync after UI is interactive
+      setTimeout(() => syncHealthData(true), 1000);
 
       // Setup periodic sync every 15 minutes (900000ms)
       periodicIntervalRef.current = setInterval(() => {
         syncHealthData(false, false); // Periodic sync, no notification
       }, 15 * 60 * 1000); // 15 minutes
-    })();
+    });
 
     // Cleanup interval on unmount
     return () => {

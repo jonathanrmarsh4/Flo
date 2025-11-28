@@ -126,29 +126,47 @@ function Router() {
   }, [isNative, setLocation]);
 
   // Initialize notifications on app start (native only)
+  // Deferred to avoid blocking first interaction
   useEffect(() => {
     if (isNative && isAuthenticated) {
-      initializeNotifications();
-      // Also initialize Flōmentum notifications
-      import('@/lib/flomentumNotifications').then(({ initializeFlomentumNotifications, getNotificationConfig }) => {
-        const config = getNotificationConfig();
-        initializeFlomentumNotifications(config);
+      // Defer initialization to after first paint to prevent UI freeze
+      const scheduleInit = (callback: () => void) => {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(callback, { timeout: 5000 });
+        } else {
+          setTimeout(callback, 3000);
+        }
+      };
+      
+      scheduleInit(() => {
+        initializeNotifications();
+        // Also initialize Flōmentum notifications
+        import('@/lib/flomentumNotifications').then(({ initializeFlomentumNotifications, getNotificationConfig }) => {
+          const config = getNotificationConfig();
+          initializeFlomentumNotifications(config);
+        });
       });
     }
   }, [isNative, isAuthenticated]);
 
   // Initialize Stripe native plugin for Apple Pay (native only)
+  // Deferred to avoid blocking first interaction
   useEffect(() => {
     if (isNative) {
-      initializeStripeNative().then(success => {
-        if (success) {
-          console.log('[App] Stripe native plugin initialized');
-        }
-      });
+      // Defer Stripe init to after first paint
+      const timer = setTimeout(() => {
+        initializeStripeNative().then(success => {
+          if (success) {
+            console.log('[App] Stripe native plugin initialized');
+          }
+        });
+      }, 2000);
+      return () => clearTimeout(timer);
     }
   }, [isNative]);
 
   // Auto-clear cache on version update (native only)
+  // Deferred to avoid blocking first interaction
   useEffect(() => {
     if (!isNative) return;
 
@@ -177,15 +195,15 @@ function Router() {
           // First launch - just store the version
           await Preferences.set({ key: VERSION_KEY, value: APP_VERSION });
           console.log('[App] ✅ First launch - version stored:', APP_VERSION);
-        } else {
-          console.log('[App] Version unchanged:', APP_VERSION);
         }
       } catch (error) {
         console.error('[App] ❌ Error checking/clearing cache on version update:', error);
       }
     }
 
-    checkAndClearCacheOnUpdate();
+    // Defer version check to after first paint
+    const timer = setTimeout(checkAndClearCacheOnUpdate, 3000);
+    return () => clearTimeout(timer);
   }, [isNative]);
 
   if (isLoading || !onboardingChecked) {
