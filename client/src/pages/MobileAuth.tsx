@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
 import { SignInWithApple } from '@capacitor-community/apple-sign-in';
-import { Mail, Lock, Eye, EyeOff, User, ArrowRight, Sparkles, ArrowLeft, CheckCircle } from 'lucide-react';
+import { startAuthentication } from '@simplewebauthn/browser';
+import { Mail, Lock, Eye, EyeOff, User, ArrowRight, Sparkles, ArrowLeft, CheckCircle, Fingerprint, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,6 +28,7 @@ export default function MobileAuth() {
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [isRegisterLoading, setIsRegisterLoading] = useState(false);
   const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -160,6 +162,91 @@ export default function MobileAuth() {
       });
     } finally {
       setIsAppleLoading(false);
+    }
+  };
+
+  // Face ID / Passkey login handler
+  const handlePasskeyLogin = async () => {
+    setGeneralError(null);
+    setIsPasskeyLoading(true);
+    
+    try {
+      logger.debug('Passkey login: Getting authentication options');
+      const optionsRes = await fetch('/api/mobile/auth/passkey/login-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      
+      if (!optionsRes.ok) {
+        const errData = await optionsRes.json();
+        throw new Error(errData.error || 'Failed to get authentication options');
+      }
+      
+      const options = await optionsRes.json();
+      logger.debug('Passkey login: Options received, starting authentication');
+      
+      const credential = await startAuthentication({ optionsJSON: options });
+      logger.debug('Passkey login: Credential obtained, verifying');
+      
+      const verifyRes = await fetch('/api/mobile/auth/passkey/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          response: credential,
+          challenge: options.challenge,
+        }),
+      });
+      
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json();
+        throw new Error(errData.error || 'Passkey authentication failed');
+      }
+      
+      const data = await verifyRes.json();
+      logger.info('Passkey login: Authentication successful');
+      
+      // Clear previous session data
+      queryClient.clear();
+      
+      // Store JWT token securely
+      if (data.token && isNative) {
+        try {
+          const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+          await SecureStoragePlugin.set({
+            key: 'auth_token',
+            value: data.token,
+          });
+          logger.info('Passkey login: Token stored securely');
+        } catch (error) {
+          logger.error('Passkey login: Failed to store token securely', error);
+        }
+      }
+      
+      // Refetch user data
+      await queryClient.refetchQueries({ queryKey: ['/api/auth/user'] });
+      
+      toast({
+        title: "Welcome Back!",
+        description: "Signed in with Face ID",
+      });
+      
+      setLocation('/');
+    } catch (err: any) {
+      const errorName = err?.name || 'UnknownError';
+      const errorMessage = err?.message || '';
+      
+      logger.error('Passkey login error:', { name: errorName, message: errorMessage });
+      
+      if (errorName === 'NotAllowedError') {
+        // User cancelled - don't show error
+      } else if (errorMessage?.includes('No passkeys found')) {
+        setGeneralError('No passkeys registered. Sign in with email first, then add a passkey in Profile settings.');
+      } else {
+        setGeneralError(errorMessage || 'Passkey authentication failed');
+      }
+    } finally {
+      setIsPasskeyLoading(false);
     }
   };
 
@@ -373,7 +460,7 @@ export default function MobileAuth() {
             <div className="space-y-3">
               <Button
                 onClick={handleAppleSignIn}
-                disabled={isAppleLoading}
+                disabled={isAppleLoading || isPasskeyLoading}
                 className="w-full h-12 bg-white text-black hover:bg-gray-100 flex items-center justify-center gap-2"
                 data-testid="button-apple-signin"
               >
@@ -391,6 +478,29 @@ export default function MobileAuth() {
                   </>
                 )}
               </Button>
+
+              {/* Face ID / Passkey Login - only show on login mode */}
+              {mode === 'login' && (
+                <Button
+                  onClick={handlePasskeyLogin}
+                  disabled={isPasskeyLoading || isAppleLoading}
+                  variant="outline"
+                  className="w-full h-12 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 flex items-center justify-center gap-2"
+                  data-testid="button-passkey-login"
+                >
+                  {isPasskeyLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Authenticating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Fingerprint className="w-5 h-5" />
+                      <span>Sign in with Face ID</span>
+                    </>
+                  )}
+                </Button>
+              )}
 
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
