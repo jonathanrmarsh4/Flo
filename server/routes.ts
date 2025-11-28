@@ -6186,6 +6186,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to update AI chat usage in engagement record
+  async function markAiChatUsed(userId: string): Promise<void> {
+    try {
+      // Get user timezone
+      const [recentMetric] = await db
+        .select({ timezone: userDailyMetrics.timezone })
+        .from(userDailyMetrics)
+        .where(eq(userDailyMetrics.userId, userId))
+        .orderBy(desc(userDailyMetrics.localDate))
+        .limit(1);
+      
+      const userTimezone = recentMetric?.timezone || 'UTC';
+      const today = new Date().toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0];
+
+      // Upsert engagement record with aiChatUsed = true
+      await db.insert(userDailyEngagement).values({
+        userId,
+        date: today,
+        aiChatUsed: true,
+      }).onConflictDoUpdate({
+        target: [userDailyEngagement.userId, userDailyEngagement.date],
+        set: {
+          aiChatUsed: true,
+          updatedAt: new Date(),
+        }
+      });
+      
+      logger.info('[Engagement] Marked AI chat used', { userId, date: today });
+    } catch (error) {
+      logger.error('[Engagement] Failed to mark AI chat used:', error);
+      // Don't throw - this is a non-critical operation
+    }
+  }
+
   // Flō Oracle Chat Routes
   app.post("/api/chat/grok", isAuthenticated, async (req: any, res) => {
     try {
@@ -6331,6 +6370,9 @@ ${userContext}`;
           violation: true,
         });
       }
+
+      // Fire-and-forget: mark AI chat used for gamification
+      markAiChatUsed(userId).catch(() => {});
 
       res.json({
         response: outputGuardrails.sanitizedOutput,
@@ -6522,6 +6564,9 @@ ${fullContext}`;
       saveChatMessage(userId, 'flo', finalResponse).catch(err => {
         logger.error('[FloOracle] Failed to store Flo response:', err);
       });
+      
+      // Fire-and-forget: mark AI chat used for gamification
+      markAiChatUsed(userId).catch(() => {});
       
       res.json({ response: finalResponse });
 
@@ -7352,6 +7397,9 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         responseLength: result.response.length 
       });
       
+      // Fire-and-forget: mark AI chat used for gamification
+      markAiChatUsed(userId).catch(() => {});
+      
       res.json({
         transcript: result.transcript,
         response: result.response,
@@ -7499,6 +7547,9 @@ If there's nothing worth remembering, just respond with "No brain updates needed
             // Process brain updates
             const { processAndPersistBrainUpdates } = await import('./services/brainUpdateParser');
             await processAndPersistBrainUpdates(userId, fullResponse);
+            
+            // Mark AI chat used for gamification
+            await markAiChatUsed(userId);
             
             logger.info('[SpeechRelay] Streaming messages persisted', { userId });
           } catch (persistError) {
@@ -8679,6 +8730,11 @@ If there's nothing worth remembering, just respond with "No brain updates needed
           try {
             await geminiVoiceService.endSession(sessionId);
             sessionId = null; // Prevent double cleanup
+            
+            // Mark AI chat used for gamification (voice counts as AI chat)
+            if (userId) {
+              markAiChatUsed(userId).catch(() => {});
+            }
           } catch (cleanupError: any) {
             logger.error('[GeminiLive WS] Session cleanup error', { error: cleanupError.message });
           }
