@@ -72,21 +72,33 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
     return [];
   }
   
+  console.log('[StoreKit] Requesting products with IDs:', productIds);
+  
   try {
     // Add timeout to prevent hanging if App Store is slow/unavailable
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Product fetch timed out - check App Store Connect setup')), 15000);
+      setTimeout(() => reject(new Error('Product fetch timed out after 15s. Check: 1) Paid Apps Agreement signed in App Store Connect, 2) Bundle ID matches, 3) Products have localizations')), 15000);
     });
     
     const fetchPromise = plugin.getProductDetails({ productIds });
     const result = await Promise.race([fetchPromise, timeoutPromise]);
     
-    console.log('[StoreKit] Products fetched:', result);
+    console.log('[StoreKit] Raw result from App Store:', JSON.stringify(result));
     
     if (!result.products || result.products.length === 0) {
-      console.warn('[StoreKit] No products returned - check App Store Connect configuration');
+      console.warn('[StoreKit] No products returned. Checklist:');
+      console.warn('1. Sign "Paid Applications Agreement" in App Store Connect → Agreements');
+      console.warn('2. Bundle ID must match: com.getflo.app');
+      console.warn('3. Products need at least one localization');
+      console.warn('4. Products must be in "Ready to Submit" or approved status');
+      console.warn('5. Use Sandbox Apple ID for testing, not regular account');
+      console.warn('Requested IDs:', productIds);
+      
+      // Return empty but don't throw - let the UI show the error state
       return [];
     }
+    
+    console.log('[StoreKit] Successfully fetched', result.products.length, 'products');
     
     return (result.products || []).map((product: any) => ({
       productId: product.productId,
@@ -99,8 +111,9 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
     }));
   } catch (error: any) {
     console.error('[StoreKit] Failed to fetch products:', error);
+    console.error('[StoreKit] Error details:', JSON.stringify(error));
     // Rethrow with helpful message
-    throw new Error(error.message || 'Failed to load products from App Store');
+    throw new Error(error.message || 'Failed to load products from App Store. Please check App Store Connect configuration.');
   }
 }
 
