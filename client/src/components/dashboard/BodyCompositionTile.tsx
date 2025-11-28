@@ -37,8 +37,10 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
 
   const { data: response, isLoading } = useQuery<ApiResponse>({
     queryKey: ['/api/body-composition'],
-    staleTime: 0,
-    gcTime: 0,
+    // PERFORMANCE FIX: Cache data to reduce cold-start fetch load
+    // Body composition changes rarely - safe to cache for longer
+    staleTime: 5 * 60 * 1000, // 5 minutes - use cached on navigation
+    gcTime: 15 * 60 * 1000, // 15 minutes - keep in cache for quick resume
   });
 
   if (isLoading) {

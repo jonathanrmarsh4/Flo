@@ -50,6 +50,9 @@ export function FlomentumGamifiedTile({ isDark, onClick }: FlomentumGamifiedTile
   const { data: flomentumData, isLoading, error } = useQuery<FlomentumData>({
     queryKey: ['/api/flomentum/today'],
     retry: false,
+    // PERFORMANCE FIX: Cache data to reduce cold-start fetch load
+    staleTime: 2 * 60 * 1000, // 2 minutes - use cached on navigation
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache for quick resume
   });
 
   const updateEngagementMutation = useMutation({

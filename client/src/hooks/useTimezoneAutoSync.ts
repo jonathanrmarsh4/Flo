@@ -110,8 +110,22 @@ export function useTimezoneAutoSync(userId?: string) {
     
     if (!hasRun.current) {
       hasRun.current = true;
-      console.log('🌍 [Timezone] Hook initialized - checking timezone on launch');
-      checkAndSyncTimezone(false, true); // isInitialSync = true to verify against backend
+      // PERFORMANCE FIX: Defer timezone check to avoid competing with first navigation
+      // Timezone sync is not critical for immediate UI rendering
+      const scheduleCheck = (callback: () => void) => {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(callback, { timeout: 5000 });
+        } else {
+          setTimeout(callback, 3000);
+        }
+      };
+      
+      scheduleCheck(() => {
+        if (isMountedRef.current) {
+          console.log('🌍 [Timezone] Hook initialized - checking timezone on launch');
+          checkAndSyncTimezone(false, true); // isInitialSync = true to verify against backend
+        }
+      });
     }
 
     if (isNative) {

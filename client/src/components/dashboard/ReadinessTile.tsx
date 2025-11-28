@@ -34,6 +34,9 @@ interface ReadinessData {
 export function ReadinessTile({ isDark }: ReadinessTileProps) {
   const { data: readinessData, isLoading, error } = useQuery<ReadinessData>({
     queryKey: ['/api/readiness/today'],
+    // PERFORMANCE FIX: Cache data to reduce cold-start fetch load
+    staleTime: 2 * 60 * 1000, // 2 minutes - use cached on navigation
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache for quick resume
   });
 
   // Loading state

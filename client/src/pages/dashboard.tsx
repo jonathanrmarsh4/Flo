@@ -109,12 +109,18 @@ export default function Dashboard() {
   const { data: sessionsData, isLoading: isLoadingSessions } = useQuery<any>({
     queryKey: ['/api/biomarker-sessions'],
     enabled: !!user,
+    // PERFORMANCE FIX: Cache data to reduce cold-start fetch load
+    staleTime: 5 * 60 * 1000, // 5 minutes - biomarker data changes rarely
+    gcTime: 15 * 60 * 1000, // 15 minutes - keep in cache for quick resume
   });
 
   // Fetch all biomarkers catalog
   const { data: biomarkersData, isLoading: isLoadingBiomarkers } = useQuery<any>({
     queryKey: ['/api/biomarkers'],
     enabled: !!user,
+    // PERFORMANCE FIX: Catalog data is static - cache aggressively
+    staleTime: 30 * 60 * 1000, // 30 minutes - catalog rarely changes
+    gcTime: 60 * 60 * 1000, // 60 minutes - keep in cache for session
   });
 
   const sessions = sessionsData?.sessions || [];

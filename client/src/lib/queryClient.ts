@@ -5,13 +5,13 @@ import { logger } from './logger';
 // Pre-load SecureStoragePlugin at module level to avoid JIT freeze on first API call
 // This is imported statically but only used on native platforms
 let SecureStoragePluginInstance: any = null;
-let secureStorageLoaded = false;
+let secureStorageLoadPromise: Promise<void> | null = null;
 
 // Eagerly load the plugin on native platforms to avoid freeze on first interaction
+// CRITICAL: Store the promise so getAuthToken() can await it instead of re-importing
 if (Capacitor.isNativePlatform()) {
-  import('capacitor-secure-storage-plugin').then(module => {
+  secureStorageLoadPromise = import('capacitor-secure-storage-plugin').then(module => {
     SecureStoragePluginInstance = module.SecureStoragePlugin;
-    secureStorageLoaded = true;
     console.log('[QueryClient] SecureStoragePlugin pre-loaded');
   }).catch(err => {
     console.warn('[QueryClient] Failed to pre-load SecureStoragePlugin:', err);
@@ -35,12 +35,18 @@ function getApiBaseUrl(): string {
 export async function getAuthToken(): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
     try {
-      // Use pre-loaded plugin if available, otherwise load synchronously
-      if (!secureStorageLoaded || !SecureStoragePluginInstance) {
+      // PERFORMANCE FIX: Wait for the preload promise instead of triggering a new import
+      // This prevents the JIT freeze on first API call
+      if (secureStorageLoadPromise) {
+        await secureStorageLoadPromise;
+      }
+      
+      // If preload failed or plugin not available, do a fresh import as fallback
+      if (!SecureStoragePluginInstance) {
         const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
         SecureStoragePluginInstance = SecureStoragePlugin;
-        secureStorageLoaded = true;
       }
+      
       const { value } = await SecureStoragePluginInstance.get({ key: 'auth_token' });
       return value;
     } catch (error) {
