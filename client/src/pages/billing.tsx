@@ -504,7 +504,7 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent className="text-sm text-white/70 space-y-2">
             <p>
-              Questions about billing? Contact us at support@get-flo.com
+              Questions about billing? Contact us at support@nuvitaelabs.com
             </p>
             <p className="text-xs text-white/50">
               Subscriptions are billed through the App Store and auto-renew. 
