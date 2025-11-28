@@ -82,6 +82,10 @@ export default function Dashboard() {
         logger.error('Logout: Failed to clear token', error);
       }
       
+      // Clear in-memory token cache to prevent stale auth
+      const { clearCachedAuthToken } = await import('@/lib/queryClient');
+      clearCachedAuthToken();
+      
       // Clear all cached queries
       queryClient.clear();
       

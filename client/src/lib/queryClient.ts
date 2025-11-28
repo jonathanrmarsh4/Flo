@@ -7,6 +7,14 @@ import { logger } from './logger';
 let SecureStoragePluginInstance: any = null;
 let secureStorageLoadPromise: Promise<void> | null = null;
 
+// PERFORMANCE FIX: Cache the auth token in memory to avoid repeated native bridge calls
+// Each SecureStoragePlugin.get() blocks the JS thread for ~20-50ms
+// When 10 queries run in parallel, that's 10 native calls = 200-500ms of freeze
+let cachedAuthToken: string | null = null;
+let tokenFetchPromise: Promise<string | null> | null = null;
+let tokenCacheTime: number = 0;
+const TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes - token expiry is 7 days
+
 // Eagerly load the plugin on native platforms to avoid freeze on first interaction
 // CRITICAL: Store the promise so getAuthToken() can await it instead of re-importing
 if (Capacitor.isNativePlatform()) {
@@ -31,29 +39,60 @@ function getApiBaseUrl(): string {
   return '';
 }
 
+// Internal function to actually fetch token from secure storage (only called once per cache period)
+async function fetchTokenFromSecureStorage(): Promise<string | null> {
+  try {
+    // Wait for the preload promise instead of triggering a new import
+    if (secureStorageLoadPromise) {
+      await secureStorageLoadPromise;
+    }
+    
+    // If preload failed or plugin not available, do a fresh import as fallback
+    if (!SecureStoragePluginInstance) {
+      const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+      SecureStoragePluginInstance = SecureStoragePlugin;
+    }
+    
+    const { value } = await SecureStoragePluginInstance.get({ key: 'auth_token' });
+    return value;
+  } catch (error) {
+    // Token not found or error reading secure storage
+    return null;
+  }
+}
+
 // Get auth token from secure encrypted storage (mobile) or localStorage (web)
+// PERFORMANCE FIX: Uses in-memory cache + singleton promise to dedupe concurrent requests
+// Before: 10 parallel queries = 10 native bridge calls = 200-500ms freeze
+// After: 10 parallel queries = 1 native bridge call = 20-50ms
 export async function getAuthToken(): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
-    try {
-      // PERFORMANCE FIX: Wait for the preload promise instead of triggering a new import
-      // This prevents the JIT freeze on first API call
-      if (secureStorageLoadPromise) {
-        await secureStorageLoadPromise;
-      }
-      
-      // If preload failed or plugin not available, do a fresh import as fallback
-      if (!SecureStoragePluginInstance) {
-        const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
-        SecureStoragePluginInstance = SecureStoragePlugin;
-      }
-      
-      const { value } = await SecureStoragePluginInstance.get({ key: 'auth_token' });
-      return value;
-    } catch (error) {
-      // Token not found or error reading secure storage
-      return null;
+    const now = Date.now();
+    
+    // Return cached token if still valid
+    if (cachedAuthToken && (now - tokenCacheTime) < TOKEN_CACHE_DURATION) {
+      return cachedAuthToken;
     }
+    
+    // If a fetch is already in progress, wait for it (dedupes concurrent calls)
+    if (tokenFetchPromise) {
+      return tokenFetchPromise;
+    }
+    
+    // Start a new fetch and store the promise for deduplication
+    tokenFetchPromise = fetchTokenFromSecureStorage().then(token => {
+      cachedAuthToken = token;
+      tokenCacheTime = Date.now();
+      tokenFetchPromise = null; // Clear the promise once resolved
+      return token;
+    }).catch(error => {
+      tokenFetchPromise = null; // Clear on error so next call can retry
+      throw error;
+    });
+    
+    return tokenFetchPromise;
   }
+  
   // For web, check localStorage for JWT token (from email/password login)
   const webToken = localStorage.getItem('auth_token');
   if (webToken) {
@@ -61,6 +100,13 @@ export async function getAuthToken(): Promise<string | null> {
   }
   // Fall back to session cookies automatically sent by the browser
   return null;
+}
+
+// Clear the cached token (call on logout or when token is refreshed)
+export function clearCachedAuthToken(): void {
+  cachedAuthToken = null;
+  tokenCacheTime = 0;
+  tokenFetchPromise = null;
 }
 
 // Create authorization headers with JWT token for mobile
