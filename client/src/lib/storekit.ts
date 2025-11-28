@@ -21,8 +21,9 @@ async function loadPlugin() {
       console.log('[StoreKit] Starting dynamic import of capacitor-subscriptions...');
       
       // Add timeout to prevent hanging forever
+      let timeoutId: ReturnType<typeof setTimeout>;
       const timeoutPromise = new Promise<null>((resolve) => {
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
           console.error('[StoreKit] Plugin import timed out after 10s');
           resolve(null);
         }, 10000);
@@ -30,10 +31,12 @@ async function loadPlugin() {
       
       const importPromise = import('@squareetlabs/capacitor-subscriptions').then(module => {
         console.log('[StoreKit] Dynamic import succeeded, module:', Object.keys(module));
+        clearTimeout(timeoutId); // Cancel timeout on success
         return module;
       });
       
       const module = await Promise.race([importPromise, timeoutPromise]);
+      clearTimeout(timeoutId!); // Ensure timeout is cleared
       
       if (module && 'Subscriptions' in module) {
         Subscriptions = module.Subscriptions;
