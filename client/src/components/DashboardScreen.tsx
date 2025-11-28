@@ -3,7 +3,7 @@ import { HeartMetabolicTile } from './dashboard/HeartMetabolicTile';
 import { BodyCompositionTile } from './dashboard/BodyCompositionTile';
 import { ReadinessTile } from './dashboard/ReadinessTile';
 import { SleepTile } from './dashboard/SleepTile';
-import { FlomentumTile } from './dashboard/FlomentumTile';
+import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical } from 'lucide-react';
@@ -256,7 +256,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
               {canAccessFlomentum ? (
-                <FlomentumTile 
+                <FlomentumGamifiedTile 
                   isDark={isDark} 
                   onClick={() => {
                     if (!isDragging) {

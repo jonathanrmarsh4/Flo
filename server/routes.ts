@@ -65,6 +65,7 @@ import {
   insertActionPlanItemSchema,
   ActionPlanStatusEnum,
   users,
+  userDailyEngagement,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -5971,6 +5972,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
         score: s.score,
       }));
 
+      // Always calculate streak from consecutive Flomentum scores
+      const allScores = await db
+        .select({ date: flomentumDaily.date })
+        .from(flomentumDaily)
+        .where(eq(flomentumDaily.userId, userId))
+        .orderBy(sql`${flomentumDaily.date} DESC`)
+        .limit(90);
+
+      // If no scores exist, no gamification data
+      if (allScores.length === 0) {
+        return res.json({
+          date: dailyScore.date,
+          score: dailyScore.score,
+          zone: dailyScore.zone,
+          factors: dailyScore.factors,
+          dailyFocus: dailyScore.dailyFocus,
+          quickSnapshot,
+          gamification: null,
+        });
+      }
+      
+      // Check for consecutive days to calculate streak
+      let currentStreak = 0;
+      let prevDate: Date | null = null;
+      for (const s of allScores) {
+        const date = new Date(s.date);
+        if (!prevDate) {
+          currentStreak = 1;
+        } else {
+          const diffDays = Math.round((prevDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays === 1) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+        prevDate = date;
+      }
+      
+      // Get longest streak from user's historical max
+      const [prevEngagement] = await db
+        .select({ longestStreak: userDailyEngagement.longestStreak })
+        .from(userDailyEngagement)
+        .where(eq(userDailyEngagement.userId, userId))
+        .orderBy(sql`${userDailyEngagement.date} DESC`)
+        .limit(1);
+      
+      const longestStreak = Math.max(currentStreak, prevEngagement?.longestStreak || 1);
+      
+      // Calculate XP: streak * daily score
+      const totalXP = currentStreak * dailyScore.score;
+      const level = Math.floor(totalXP / 500) + 1;
+      
+      // Get or create today's engagement record
+      let [engagement] = await db
+        .select()
+        .from(userDailyEngagement)
+        .where(and(
+          eq(userDailyEngagement.userId, userId),
+          eq(userDailyEngagement.date, today)
+        ))
+        .limit(1);
+
+      // Always update streak/XP values to keep them current
+      await db.insert(userDailyEngagement).values({
+        userId,
+        date: today,
+        currentStreak,
+        longestStreak,
+        totalXP,
+        level,
+        insightsViewed: engagement?.insightsViewed ?? false,
+        actionsChecked: engagement?.actionsChecked ?? false,
+        aiChatUsed: engagement?.aiChatUsed ?? false,
+      }).onConflictDoUpdate({
+        target: [userDailyEngagement.userId, userDailyEngagement.date],
+        set: {
+          currentStreak,
+          longestStreak,
+          totalXP,
+          level,
+          updatedAt: new Date(),
+        }
+      });
+      
+      // Refresh engagement data after update
+      [engagement] = await db
+        .select()
+        .from(userDailyEngagement)
+        .where(and(
+          eq(userDailyEngagement.userId, userId),
+          eq(userDailyEngagement.date, today)
+        ))
+        .limit(1);
+
+      // Get today's health metrics for activity bars
+      const [healthMetrics] = await db
+        .select()
+        .from(healthDailyMetrics)
+        .where(and(
+          eq(healthDailyMetrics.userId, userId),
+          eq(healthDailyMetrics.date, today)
+        ))
+        .limit(1);
+
+      // Activity goals (hardcoded for now)
+      const activityGoals = {
+        steps: { current: healthMetrics?.steps || 0, goal: 10000 },
+        activeMinutes: { current: healthMetrics?.exerciseMinutes || 0, goal: 60 },
+        sleepHours: { current: healthMetrics?.sleepTotalMinutes ? Math.round(healthMetrics.sleepTotalMinutes / 60 * 10) / 10 : 0, goal: 8 },
+      };
+
       res.json({
         date: dailyScore.date,
         score: dailyScore.score,
@@ -5978,10 +6091,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
         factors: dailyScore.factors,
         dailyFocus: dailyScore.dailyFocus,
         quickSnapshot,
+        // Gamification data
+        gamification: {
+          level: engagement.level,
+          currentStreak: engagement.currentStreak,
+          longestStreak: engagement.longestStreak,
+          totalXP: engagement.totalXP,
+          xpToNextLevel: 500 - (engagement.totalXP % 500),
+          xpProgress: (engagement.totalXP % 500) / 500,
+          checklist: {
+            insightsViewed: engagement.insightsViewed,
+            actionsChecked: engagement.actionsChecked,
+            aiChatUsed: engagement.aiChatUsed,
+          },
+          activity: activityGoals,
+        },
       });
     } catch (error) {
       logger.error('Error fetching Flōmentum today:', error);
       res.status(500).json({ error: "Failed to fetch Flōmentum data" });
+    }
+  });
+
+  // Update engagement checklist for gamification
+  const engagementFieldSchema = z.object({
+    field: z.enum(['insightsViewed', 'actionsChecked', 'aiChatUsed']),
+    value: z.boolean(),
+  });
+
+  app.patch("/api/flomentum/engagement", isAuthenticated, canAccessFlomentum, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate request body
+      const parseResult = engagementFieldSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid request: field must be one of insightsViewed, actionsChecked, aiChatUsed" });
+      }
+      
+      const { field, value } = parseResult.data;
+
+      // Get user timezone
+      const [recentMetric] = await db
+        .select({ timezone: userDailyMetrics.timezone })
+        .from(userDailyMetrics)
+        .where(eq(userDailyMetrics.userId, userId))
+        .orderBy(desc(userDailyMetrics.localDate))
+        .limit(1);
+      
+      const userTimezone = recentMetric?.timezone || 'UTC';
+      const today = new Date().toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0];
+
+      // Check if engagement record exists
+      const [existing] = await db
+        .select()
+        .from(userDailyEngagement)
+        .where(and(
+          eq(userDailyEngagement.userId, userId),
+          eq(userDailyEngagement.date, today)
+        ))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "No engagement record for today. View your Flomentum score first." });
+      }
+
+      // Map field to database column name
+      const dbFieldMap: Record<string, keyof typeof userDailyEngagement> = {
+        insightsViewed: 'insightsViewed' as any,
+        actionsChecked: 'actionsChecked' as any,
+        aiChatUsed: 'aiChatUsed' as any,
+      };
+
+      // Update the specific field
+      await db.update(userDailyEngagement)
+        .set({
+          [dbFieldMap[field]]: value,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(userDailyEngagement.userId, userId),
+          eq(userDailyEngagement.date, today)
+        ));
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error updating engagement:', error);
+      res.status(500).json({ error: "Failed to update engagement" });
     }
   });
 
