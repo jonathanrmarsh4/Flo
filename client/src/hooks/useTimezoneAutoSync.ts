@@ -7,13 +7,13 @@ import { apiRequest } from '@/lib/queryClient';
 
 const PREF_LAST_TZ_SYNC_AT = 'timezone_last_sync_at';
 const PREF_LAST_TIMEZONE = 'timezone_last_value';
-const THROTTLE_MS = 12 * 60 * 60 * 1000; // 12 hours throttle
+const THROTTLE_MS = 1 * 60 * 60 * 1000; // 1 hour throttle - short for travelers
 
 /**
  * Hook to automatically detect and sync device timezone to the backend
- * - Syncs on app launch if timezone changed
- * - Uses system timezone notification on iOS (via NSSystemTimeZoneDidChangeNotification)
- * - Throttles updates to avoid excessive API calls (12 hour minimum between syncs)
+ * - Syncs on app launch if timezone changed (compares to both local cache AND backend)
+ * - Uses Capacitor App lifecycle events to detect timezone changes on resume
+ * - Throttles updates to 1 hour to accommodate rapid travel
  * 
  * This ensures travelers get their Daily Insights at 6 AM local time regardless of location
  */
@@ -24,6 +24,19 @@ export function useTimezoneAutoSync(userId?: string) {
 
   const getDeviceTimezone = (): string => {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  };
+
+  const fetchBackendTimezone = async (): Promise<string | null> => {
+    try {
+      const response = await apiRequest('GET', '/api/user/timezone');
+      if (response.ok) {
+        const data = await response.json();
+        return data.timezone;
+      }
+    } catch (error) {
+      console.log('🌍 [Timezone] Could not fetch backend timezone:', error);
+    }
+    return null;
   };
 
   const syncTimezoneToBackend = async (timezone: string) => {
@@ -55,7 +68,7 @@ export function useTimezoneAutoSync(userId?: string) {
     return null;
   };
 
-  const checkAndSyncTimezone = async (force = false) => {
+  const checkAndSyncTimezone = async (force = false, isInitialSync = false) => {
     if (!isMountedRef.current || !userId) return;
 
     const currentTz = getDeviceTimezone();
@@ -66,17 +79,27 @@ export function useTimezoneAutoSync(userId?: string) {
     ]);
     
     const lastSyncAt = lastSyncResult.value ? parseInt(lastSyncResult.value, 10) : 0;
-    const lastTz = lastTzResult.value || '';
+    const cachedTz = lastTzResult.value || '';
     const now = Date.now();
     
-    const timezoneChanged = currentTz !== lastTz;
+    const cacheTimezoneChanged = currentTz !== cachedTz;
     const throttleExpired = now - lastSyncAt > THROTTLE_MS;
     
-    if (force || timezoneChanged || throttleExpired) {
-      console.log(`🌍 [Timezone] Checking sync: current=${currentTz}, last=${lastTz}, changed=${timezoneChanged}, force=${force}`);
+    // On initial sync, also verify against backend to handle cache clears
+    if (isInitialSync && !cacheTimezoneChanged) {
+      const backendTz = await fetchBackendTimezone();
+      if (backendTz && backendTz !== currentTz) {
+        console.log(`🌍 [Timezone] Backend mismatch detected: backend=${backendTz}, device=${currentTz}`);
+        await syncTimezoneToBackend(currentTz);
+        return;
+      }
+    }
+    
+    if (force || cacheTimezoneChanged || throttleExpired) {
+      console.log(`🌍 [Timezone] Syncing: current=${currentTz}, cached=${cachedTz}, changed=${cacheTimezoneChanged}, throttleExpired=${throttleExpired}`);
       await syncTimezoneToBackend(currentTz);
     } else {
-      console.log(`🌍 [Timezone] Skipping sync (throttled): ${currentTz}`);
+      console.log(`🌍 [Timezone] Skipping sync (no change, within throttle): ${currentTz}`);
     }
   };
 
@@ -88,7 +111,7 @@ export function useTimezoneAutoSync(userId?: string) {
     if (!hasRun.current) {
       hasRun.current = true;
       console.log('🌍 [Timezone] Hook initialized - checking timezone on launch');
-      checkAndSyncTimezone();
+      checkAndSyncTimezone(false, true); // isInitialSync = true to verify against backend
     }
 
     if (isNative) {
