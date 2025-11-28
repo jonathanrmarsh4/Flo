@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ArrowRight, Sparkles, Mail, Lock, AlertCircle } from 'lucide-react';
+import { ArrowRight, Sparkles, Mail, Lock, AlertCircle, Fingerprint, Loader2 } from 'lucide-react';
 import { FloLogo } from './FloLogo';
 import { useLocation } from 'wouter';
 import { logger } from '@/lib/logger';
 import { queryClient } from '@/lib/queryClient';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -17,9 +18,68 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
 
   const handleReplitLogin = () => {
     window.location.href = '/api/login';
+  };
+
+  const handlePasskeyLogin = async () => {
+    setError('');
+    setIsPasskeyLoading(true);
+    
+    try {
+      const optionsRes = await fetch('/api/mobile/auth/passkey/login-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      
+      if (!optionsRes.ok) {
+        const errData = await optionsRes.json();
+        throw new Error(errData.error || 'Failed to get authentication options');
+      }
+      
+      const options = await optionsRes.json();
+      
+      const credential = await startAuthentication({ optionsJSON: options });
+      
+      // Include the challenge in the login request for verification
+      const verifyRes = await fetch('/api/mobile/auth/passkey/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          response: credential,
+          challenge: options.challenge, // Pass challenge for server-side lookup
+        }),
+      });
+      
+      if (!verifyRes.ok) {
+        const errData = await verifyRes.json();
+        throw new Error(errData.error || 'Passkey authentication failed');
+      }
+      
+      const data = await verifyRes.json();
+      
+      queryClient.clear();
+      
+      localStorage.setItem('auth_token', data.token);
+      logger.info('Passkey login successful, redirecting to dashboard');
+      
+      window.location.href = '/dashboard';
+    } catch (err: any) {
+      console.error('[Passkey] Login error:', err);
+      
+      if (err.name === 'NotAllowedError') {
+        setError('');
+      } else if (err.message?.includes('No passkeys found')) {
+        setError('No passkeys registered for this device');
+      } else {
+        setError(err.message || 'Passkey authentication failed');
+      }
+    } finally {
+      setIsPasskeyLoading(false);
+    }
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -117,6 +177,16 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
 
           {!showEmailLogin ? (
             <>
+              {/* Error Display for Passkey */}
+              {error && (
+                <div className={`flex items-center gap-2 p-3 rounded-lg text-sm mb-4 ${
+                  isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'
+                }`}>
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               {/* Replit Auth Button */}
               <button
                 onClick={handleReplitLogin}
@@ -147,6 +217,32 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
                   </span>
                 </div>
               </div>
+
+              {/* Passkey Login Button */}
+              <button
+                onClick={handlePasskeyLogin}
+                disabled={isPasskeyLoading}
+                className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all text-sm border ${
+                  isPasskeyLoading 
+                    ? 'opacity-50 cursor-not-allowed'
+                    : isDark
+                      ? 'border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10'
+                      : 'border-cyan-500/50 text-cyan-600 hover:bg-cyan-50'
+                }`}
+                data-testid="button-passkey-login"
+              >
+                {isPasskeyLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Authenticating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="w-4 h-4" />
+                    <span>Sign in with Face ID</span>
+                  </>
+                )}
+              </button>
 
               {/* Email Login Toggle */}
               <button

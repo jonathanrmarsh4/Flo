@@ -6,6 +6,14 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { z } from "zod";
 import { storage } from "../storage";
 import { logger } from "../logger";
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+  type VerifiedRegistrationResponse,
+  type VerifiedAuthenticationResponse,
+} from "@simplewebauthn/server";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../services/emailService";
 import {
   appleSignInSchema,
@@ -781,6 +789,359 @@ router.post("/api/mobile/auth/set-password", async (req, res) => {
     }
     logger.error('Set password error', error);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ====== WebAuthn Passkey Routes ======
+
+// WebAuthn Relying Party configuration
+const rpName = "Flō";
+const rpID = process.env.NODE_ENV === "production" ? "get-flo.com" : "localhost";
+const origin = process.env.NODE_ENV === "production" 
+  ? "https://get-flo.com" 
+  : `http://localhost:5000`;
+
+// In-memory challenge store (for a production app, use Redis or database)
+// Challenges are keyed by a unique identifier (userId for registration, email for login)
+const challengeStore = new Map<string, { challenge: string; expiresAt: number; type: 'registration' | 'authentication' }>();
+
+function storeChallenge(key: string, challenge: string, type: 'registration' | 'authentication'): void {
+  challengeStore.set(key, {
+    challenge,
+    expiresAt: Date.now() + 2 * 60 * 1000, // 2 minute expiry (shorter for security)
+    type,
+  });
+}
+
+function getAndDeleteChallenge(key: string, type: 'registration' | 'authentication'): string | null {
+  const entry = challengeStore.get(key);
+  if (!entry) return null;
+  
+  // Always delete after retrieval (one-time use)
+  challengeStore.delete(key);
+  
+  // Validate expiry
+  if (Date.now() > entry.expiresAt) {
+    return null;
+  }
+  
+  // Validate type matches
+  if (entry.type !== type) {
+    return null;
+  }
+  
+  return entry.challenge;
+}
+
+function deleteChallenge(key: string): void {
+  challengeStore.delete(key);
+}
+
+// Generate passkey registration options (authenticated users only)
+router.get("/api/mobile/auth/passkey/register-options", async (req, res) => {
+  try {
+    if (!req.user || !(req.user as any).id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const userId = (req.user as any).id;
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Get existing passkeys to exclude from registration
+    const existingPasskeys = await storage.getPasskeysByUserId(userId);
+    const excludeCredentials = existingPasskeys.map(pk => ({
+      id: pk.credentialId, // Already base64url encoded string
+      transports: pk.transports as ("ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb")[] | undefined,
+    }));
+    
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID,
+      userID: Buffer.from(userId),
+      userName: user.email || `user-${userId}`,
+      userDisplayName: user.firstName 
+        ? `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}` 
+        : (user.email || 'Flō User'),
+      attestationType: 'none',
+      excludeCredentials,
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+        authenticatorAttachment: 'platform', // Use platform authenticator (Face ID, Touch ID)
+      },
+    });
+    
+    // Store challenge for verification (keyed by userId for registration)
+    storeChallenge(`reg:${userId}`, options.challenge, 'registration');
+    
+    res.json(options);
+  } catch (error) {
+    logger.error('Passkey registration options error', error);
+    res.status(500).json({ error: "Failed to generate registration options" });
+  }
+});
+
+// Verify passkey registration response
+router.post("/api/mobile/auth/passkey/register", async (req, res) => {
+  try {
+    if (!req.user || !(req.user as any).id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const userId = (req.user as any).id;
+    
+    // Get and delete challenge in one atomic operation (one-time use)
+    const expectedChallenge = getAndDeleteChallenge(`reg:${userId}`, 'registration');
+    
+    if (!expectedChallenge) {
+      return res.status(400).json({ error: "Challenge expired or not found. Please try again." });
+    }
+    
+    // Validate request body schema
+    const bodySchema = z.object({
+      response: z.any(),
+      deviceName: z.string().optional(),
+    });
+    
+    const { response, deviceName } = bodySchema.parse(req.body);
+    
+    const verification = await verifyRegistrationResponse({
+      response,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+    });
+    
+    if (!verification.verified || !verification.registrationInfo) {
+      // Challenge already deleted by getAndDeleteChallenge
+      return res.status(400).json({ error: "Passkey registration failed" });
+    }
+    
+    const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+    
+    // Store the passkey credential
+    await storage.createPasskeyCredential({
+      userId,
+      credentialId: Buffer.from(credential.id).toString('base64url'),
+      publicKey: Buffer.from(credential.publicKey).toString('base64'),
+      counter: credential.counter,
+      deviceType: credentialDeviceType,
+      backedUp: credentialBackedUp,
+      transports: response.response?.transports || null,
+      deviceName: deviceName || null,
+    });
+    
+    // Challenge already deleted by getAndDeleteChallenge
+    
+    logger.info(`Passkey registered for user ${userId}`, { deviceType: credentialDeviceType });
+    
+    res.json({ 
+      success: true, 
+      message: "Passkey registered successfully",
+      deviceType: credentialDeviceType,
+    });
+  } catch (error) {
+    logger.error('Passkey registration error', error);
+    res.status(500).json({ error: "Failed to register passkey" });
+  }
+});
+
+// Generate passkey authentication options (for login)
+// This endpoint supports discoverable credentials (passkeys stored on device)
+router.post("/api/mobile/auth/passkey/login-options", async (req, res) => {
+  try {
+    const bodySchema = z.object({
+      email: z.string().email().optional(),
+    });
+    
+    const { email } = bodySchema.parse(req.body);
+    
+    let allowCredentials: { id: string; transports?: ("ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb")[] }[] = [];
+    let userId: string | null = null;
+    
+    // If email provided, get user's passkeys to filter allowCredentials
+    if (email) {
+      const user = await storage.getUserByEmail(email);
+      if (user) {
+        userId = user.id;
+        const passkeys = await storage.getPasskeysByUserId(user.id);
+        allowCredentials = passkeys.map(pk => ({
+          id: pk.credentialId, // Already base64url encoded string
+          transports: pk.transports as ("ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb")[] | undefined,
+        }));
+        
+        if (passkeys.length === 0) {
+          return res.status(404).json({ error: "No passkeys found for this account" });
+        }
+      } else {
+        return res.status(404).json({ error: "Account not found" });
+      }
+    }
+    
+    const options = await generateAuthenticationOptions({
+      rpID,
+      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      userVerification: 'preferred',
+    });
+    
+    // Store challenge keyed by challenge itself (since we don't know user yet for discoverable credentials)
+    // The challenge is a cryptographically random value that we'll look up during verification
+    storeChallenge(`auth:${options.challenge}`, options.challenge, 'authentication');
+    
+    res.json({ ...options, userId });
+  } catch (error) {
+    logger.error('Passkey login options error', error);
+    res.status(500).json({ error: "Failed to generate authentication options" });
+  }
+});
+
+// Verify passkey authentication and login
+router.post("/api/mobile/auth/passkey/login", async (req, res) => {
+  try {
+    const bodySchema = z.object({
+      response: z.any(),
+      challenge: z.string(), // The challenge from login-options response
+    });
+    
+    const { response, challenge } = bodySchema.parse(req.body);
+    
+    // Get and delete challenge in one atomic operation (one-time use)
+    const expectedChallenge = getAndDeleteChallenge(`auth:${challenge}`, 'authentication');
+    
+    if (!expectedChallenge) {
+      return res.status(400).json({ error: "Challenge expired or invalid. Please try again." });
+    }
+    
+    // Find the passkey by credential ID
+    const credentialId = response.id; // Already base64url encoded from browser
+    const passkey = await storage.getPasskeyByCredentialId(credentialId);
+    
+    if (!passkey) {
+      return res.status(404).json({ error: "Passkey not found" });
+    }
+    
+    const user = await storage.getUser(passkey.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Verify the authentication response
+    const verification = await verifyAuthenticationResponse({
+      response,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      credential: {
+        id: passkey.credentialId, // Already base64url encoded string
+        publicKey: Buffer.from(passkey.publicKey, 'base64'),
+        counter: passkey.counter,
+        transports: passkey.transports as ("ble" | "cable" | "hybrid" | "internal" | "nfc" | "smart-card" | "usb")[] | undefined,
+      },
+    });
+    
+    if (!verification.verified) {
+      // Challenge already deleted by getAndDeleteChallenge
+      return res.status(401).json({ error: "Passkey authentication failed" });
+    }
+    
+    // Verify counter monotonicity (prevent cloned authenticator attacks)
+    const newCounter = verification.authenticationInfo.newCounter;
+    if (newCounter <= passkey.counter && passkey.counter !== 0) {
+      logger.warn(`Possible cloned authenticator detected for user ${user.id}: stored counter ${passkey.counter}, received ${newCounter}`);
+      return res.status(401).json({ error: "Security violation detected. Please re-register your passkey." });
+    }
+    
+    // Update the counter
+    await storage.updatePasskeyCounter(passkey.credentialId, newCounter);
+    
+    // Check user status
+    if (user.status === "suspended") {
+      return res.status(403).json({ error: "Account suspended" });
+    }
+    if (user.status === "pending_approval") {
+      return res.status(403).json({ 
+        error: "Account pending approval",
+        message: "Your account is awaiting approval.",
+        status: "pending_approval"
+      });
+    }
+    
+    // Generate JWT token
+    const token = generateMobileAuthToken(user.id);
+    
+    logger.info(`Passkey login successful for user ${user.id}`);
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+      },
+    });
+  } catch (error) {
+    logger.error('Passkey login error', error);
+    res.status(500).json({ error: "Failed to authenticate with passkey" });
+  }
+});
+
+// List user's passkeys (authenticated)
+router.get("/api/mobile/auth/passkeys", async (req, res) => {
+  try {
+    if (!req.user || !(req.user as any).id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const userId = (req.user as any).id;
+    const passkeys = await storage.getPasskeysByUserId(userId);
+    
+    // Return safe passkey data (without public key)
+    const safePasskeys = passkeys.map(pk => ({
+      id: pk.id,
+      deviceName: pk.deviceName,
+      deviceType: pk.deviceType,
+      backedUp: pk.backedUp,
+      createdAt: pk.createdAt,
+      lastUsedAt: pk.lastUsedAt,
+    }));
+    
+    res.json(safePasskeys);
+  } catch (error) {
+    logger.error('List passkeys error', error);
+    res.status(500).json({ error: "Failed to list passkeys" });
+  }
+});
+
+// Delete a passkey (authenticated)
+router.delete("/api/mobile/auth/passkeys/:id", async (req, res) => {
+  try {
+    if (!req.user || !(req.user as any).id) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const userId = (req.user as any).id;
+    const passkeyId = req.params.id;
+    
+    const deleted = await storage.deletePasskey(passkeyId, userId);
+    
+    if (!deleted) {
+      return res.status(404).json({ error: "Passkey not found" });
+    }
+    
+    logger.info(`Passkey ${passkeyId} deleted for user ${userId}`);
+    
+    res.json({ success: true, message: "Passkey deleted" });
+  } catch (error) {
+    logger.error('Delete passkey error', error);
+    res.status(500).json({ error: "Failed to delete passkey" });
   }
 });
 

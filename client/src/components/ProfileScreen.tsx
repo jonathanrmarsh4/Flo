@@ -9,6 +9,7 @@ import { MedicalDisclaimerScreen } from '@/components/MedicalDisclaimerScreen';
 import { ExportDataScreen } from '@/components/ExportDataScreen';
 import { DeleteDataConfirmation } from '@/components/DeleteDataConfirmation';
 import { HelpSupportScreen } from '@/components/HelpSupportScreen';
+import { PasskeyManagement } from '@/components/PasskeyManagement';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1260,6 +1261,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
             </div>
           </div>
         </div>
+
+        {/* Passkeys & Security */}
+        <PasskeyManagement isDark={isDark} />
 
         {/* Data & Privacy */}
         <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
