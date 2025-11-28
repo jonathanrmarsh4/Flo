@@ -283,8 +283,8 @@ export function TermsOfServiceScreen({ isDark, onClose }: TermsOfServiceScreenPr
                 </div>
                 <p>If you have privacy-related questions, you can contact us at:</p>
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                  <a href="mailto:privacy@nuvitaelabs.com" className={`underline ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                    privacy@nuvitaelabs.com
+                  <a href="mailto:support@nuvitaelabs.com" className={`underline ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    support@nuvitaelabs.com
                   </a>
                 </div>
               </div>
@@ -538,7 +538,7 @@ export function TermsOfServiceScreen({ isDark, onClose }: TermsOfServiceScreenPr
                 <p>If you have questions or concerns about these Terms, please contact us:</p>
                 <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
                   <p className="font-medium mb-2">Nuvitae Labs Pty Ltd</p>
-                  <p>Email: <a href="mailto:hello@nuvitaelabs.com" className={`underline ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>hello@nuvitaelabs.com</a></p>
+                  <p>Email: <a href="mailto:support@nuvitaelabs.com" className={`underline ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>support@nuvitaelabs.com</a></p>
                   <p>Website: <a href="https://nuvitaelabs.com" target="_blank" rel="noopener noreferrer" className={`underline ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>nuvitaelabs.com</a></p>
                 </div>
               </div>
