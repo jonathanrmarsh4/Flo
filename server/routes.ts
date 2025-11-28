@@ -6273,12 +6273,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activeMinutes: { current: activeMinutesValue, goal: 60 },
         sleepHours: { current: sleepHoursValue, goal: 8 },
       };
+      
+      // Fix stale workout factors: If we have workout data now but factors show "No workout",
+      // update the exercise factor to reflect current data
+      let factors = dailyScore.factors as any[];
+      if (activeMinutesValue > 0 && factors) {
+        factors = factors.map((factor: any) => {
+          if (factor.componentKey === 'exercise' && factor.title === 'No workout data today') {
+            // Update the factor with current workout data
+            const isGood = activeMinutesValue >= 30;
+            const isModerate = activeMinutesValue >= 10;
+            return {
+              ...factor,
+              status: isGood ? 'positive' : isModerate ? 'neutral' : 'negative',
+              title: isGood ? 'Great workout today' : isModerate ? 'Some movement today' : 'Low activity today',
+              detail: `${activeMinutesValue}m of exercise${isGood ? ' (Target: 30m)' : isModerate ? ' (Target: 30m)' : ''}`,
+            };
+          }
+          return factor;
+        });
+      }
 
       res.json({
         date: dailyScore.date,
         score: dailyScore.score,
         zone: dailyScore.zone,
-        factors: dailyScore.factors,
+        factors,
         dailyFocus: dailyScore.dailyFocus,
         quickSnapshot,
         // Gamification data
@@ -6290,8 +6310,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           xpToNextLevel: 500 - (engagement.totalXP % 500),
           xpProgress: (engagement.totalXP % 500) / 500,
           checklist: {
-            insightsViewed: engagement.insightsViewed,
-            actionsChecked: engagement.actionsChecked,
+            insightsViewed: insightsViewed,
+            actionsChecked: actionsChecked,
             aiChatUsed: engagement.aiChatUsed,
           },
           activity: activityGoals,
