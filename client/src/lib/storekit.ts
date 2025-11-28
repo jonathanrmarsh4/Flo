@@ -67,47 +67,48 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
   
   console.log('[StoreKit] Requesting products with IDs:', productIds);
   
-  try {
-    // Add timeout to prevent hanging if App Store is slow/unavailable
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Product fetch timed out after 15s. Check: 1) Paid Apps Agreement signed in App Store Connect, 2) Bundle ID matches, 3) Products have localizations')), 15000);
-    });
-    
-    const fetchPromise = Subscriptions.getProductDetails({ productIds });
-    const result = await Promise.race([fetchPromise, timeoutPromise]);
-    
-    console.log('[StoreKit] Raw result from App Store:', JSON.stringify(result));
-    
-    if (!result.products || result.products.length === 0) {
-      console.warn('[StoreKit] No products returned. Checklist:');
-      console.warn('1. Sign "Paid Applications Agreement" in App Store Connect → Agreements');
-      console.warn('2. Bundle ID must match: com.flo.healthapp');
-      console.warn('3. Products need at least one localization');
-      console.warn('4. Products must be in "Ready to Submit" or approved status');
-      console.warn('5. Use Sandbox Apple ID for testing, not regular account');
-      console.warn('Requested IDs:', productIds);
+  const products: StoreKitProduct[] = [];
+  
+  for (const productId of productIds) {
+    try {
+      console.log('[StoreKit] Fetching product:', productId);
       
-      // Return empty but don't throw - let the UI show the error state
-      return [];
+      const result = await Subscriptions.getProductDetails({ productIdentifier: productId });
+      console.log('[StoreKit] Result for', productId, ':', JSON.stringify(result));
+      
+      // responseCode 0 = success
+      if (result.responseCode === 0 && result.data) {
+        const product = result.data;
+        products.push({
+          productId: product.productIdentifier,
+          displayName: product.displayName || product.productIdentifier,
+          description: product.description || '',
+          price: parseFloat(product.price?.replace(/[^0-9.]/g, '') || '0'),
+          priceLocale: 'AUD',
+          displayPrice: product.price || '$0',
+          subscriptionPeriod: undefined,
+        });
+        console.log('[StoreKit] Added product:', product.displayName);
+      } else {
+        console.warn('[StoreKit] Product not found:', productId, 'responseCode:', result.responseCode);
+      }
+    } catch (error: any) {
+      console.error('[StoreKit] Error fetching product', productId, ':', error?.message || error);
     }
-    
-    console.log('[StoreKit] Successfully fetched', result.products.length, 'products');
-    
-    return (result.products || []).map((product: any) => ({
-      productId: product.productId,
-      displayName: product.displayName || product.title || product.productId,
-      description: product.description || '',
-      price: product.price,
-      priceLocale: product.currencyCode || 'AUD',
-      displayPrice: product.localizedPrice || `$${product.price}`,
-      subscriptionPeriod: product.subscriptionPeriod,
-    }));
-  } catch (error: any) {
-    console.error('[StoreKit] Failed to fetch products:', error);
-    console.error('[StoreKit] Error details:', JSON.stringify(error));
-    // Rethrow with helpful message
-    throw new Error(error.message || 'Failed to load products from App Store. Please check App Store Connect configuration.');
   }
+  
+  if (products.length === 0) {
+    console.warn('[StoreKit] No products returned. Checklist:');
+    console.warn('1. Sign "Paid Applications Agreement" in App Store Connect → Agreements');
+    console.warn('2. Bundle ID must match: com.flo.healthapp');
+    console.warn('3. Products need at least one localization');
+    console.warn('4. Products must be in "Ready to Submit" or approved status');
+    console.warn('5. Use Sandbox Apple ID for testing');
+  } else {
+    console.log('[StoreKit] Successfully fetched', products.length, 'products');
+  }
+  
+  return products;
 }
 
 export async function purchaseSubscription(productId: string): Promise<PurchaseResult> {
@@ -118,29 +119,44 @@ export async function purchaseSubscription(productId: string): Promise<PurchaseR
   try {
     console.log('[StoreKit] Starting purchase for:', productId);
     
-    const result = await Subscriptions.purchaseProduct({ productId });
-    console.log('[StoreKit] Purchase result:', result);
+    const result = await Subscriptions.purchaseProduct({ productIdentifier: productId });
+    console.log('[StoreKit] Purchase result:', JSON.stringify(result));
     
-    if (result.transactionId) {
-      const transaction: StoreKitTransaction = {
-        transactionId: result.transactionId,
-        productId: result.productId || productId,
-        purchaseDate: result.purchaseDate || new Date().toISOString(),
-        expiresDate: result.expiresDate,
-        originalTransactionId: result.originalTransactionId || result.transactionId,
-        jwsRepresentation: result.jwsRepresentation,
-      };
+    // responseCode 0 = success
+    if (result.responseCode === 0) {
+      // After successful purchase, get the transaction details
+      const txResult = await Subscriptions.getLatestTransaction({ productIdentifier: productId });
+      console.log('[StoreKit] Transaction result:', JSON.stringify(txResult));
       
-      const verified = await verifyAndSyncTransaction(transaction);
-      
-      if (verified) {
-        return { success: true, transaction };
-      } else {
-        return { success: false, error: 'Transaction verification failed' };
+      if (txResult.responseCode === 0 && txResult.data) {
+        const tx = txResult.data;
+        const transaction: StoreKitTransaction = {
+          transactionId: tx.transactionId,
+          productId: tx.productIdentifier || productId,
+          purchaseDate: tx.originalStartDate || new Date().toISOString(),
+          expiresDate: tx.expiryDate,
+          originalTransactionId: tx.originalId || tx.transactionId,
+          jwsRepresentation: undefined, // Plugin doesn't return JWS directly
+        };
+        
+        const verified = await verifyAndSyncTransaction(transaction);
+        
+        if (verified) {
+          return { success: true, transaction };
+        } else {
+          return { success: false, error: 'Transaction verification failed' };
+        }
       }
+      
+      return { success: true };
     }
     
-    return { success: false, error: 'Purchase was cancelled or failed' };
+    // responseCode 3 = user cancelled
+    if (result.responseCode === 3) {
+      return { success: false, error: 'Purchase was cancelled' };
+    }
+    
+    return { success: false, error: result.responseMessage || 'Purchase failed' };
   } catch (error: any) {
     console.error('[StoreKit] Purchase error:', error);
     
@@ -159,17 +175,22 @@ export async function restorePurchases(): Promise<StoreKitTransaction[]> {
   }
   
   try {
-    console.log('[StoreKit] Restoring purchases...');
-    const result = await Subscriptions.restorePurchases();
-    console.log('[StoreKit] Restore result:', result);
+    console.log('[StoreKit] Restoring purchases via getCurrentEntitlements...');
+    const result = await Subscriptions.getCurrentEntitlements();
+    console.log('[StoreKit] Entitlements result:', JSON.stringify(result));
     
-    const transactions: StoreKitTransaction[] = (result.transactions || []).map((t: any) => ({
+    if (result.responseCode !== 0 || !result.data) {
+      console.warn('[StoreKit] No entitlements found');
+      return [];
+    }
+    
+    const transactions: StoreKitTransaction[] = result.data.map((t: any) => ({
       transactionId: t.transactionId,
-      productId: t.productId,
-      purchaseDate: t.purchaseDate,
-      expiresDate: t.expiresDate,
-      originalTransactionId: t.originalTransactionId || t.transactionId,
-      jwsRepresentation: t.jwsRepresentation,
+      productId: t.productIdentifier,
+      purchaseDate: t.originalStartDate,
+      expiresDate: t.expiryDate,
+      originalTransactionId: t.originalId || t.transactionId,
+      jwsRepresentation: undefined,
     }));
     
     for (const transaction of transactions) {
@@ -189,33 +210,37 @@ export async function getCurrentSubscription(): Promise<StoreKitTransaction | nu
   }
   
   try {
+    // Check monthly subscription
     const monthlyResult = await Subscriptions.getLatestTransaction({ 
-      productId: PRODUCT_IDS.PREMIUM_MONTHLY 
+      productIdentifier: PRODUCT_IDS.PREMIUM_MONTHLY 
     });
     
-    if (monthlyResult?.transactionId) {
+    if (monthlyResult.responseCode === 0 && monthlyResult.data) {
+      const tx = monthlyResult.data;
       return {
-        transactionId: monthlyResult.transactionId,
-        productId: monthlyResult.productId || PRODUCT_IDS.PREMIUM_MONTHLY,
-        purchaseDate: monthlyResult.purchaseDate,
-        expiresDate: monthlyResult.expiresDate,
-        originalTransactionId: monthlyResult.originalTransactionId || monthlyResult.transactionId,
-        jwsRepresentation: monthlyResult.jwsRepresentation,
+        transactionId: tx.transactionId,
+        productId: tx.productIdentifier || PRODUCT_IDS.PREMIUM_MONTHLY,
+        purchaseDate: tx.originalStartDate,
+        expiresDate: tx.expiryDate,
+        originalTransactionId: tx.originalId || tx.transactionId,
+        jwsRepresentation: undefined,
       };
     }
     
+    // Check yearly subscription
     const yearlyResult = await Subscriptions.getLatestTransaction({ 
-      productId: PRODUCT_IDS.PREMIUM_YEARLY 
+      productIdentifier: PRODUCT_IDS.PREMIUM_YEARLY 
     });
     
-    if (yearlyResult?.transactionId) {
+    if (yearlyResult.responseCode === 0 && yearlyResult.data) {
+      const tx = yearlyResult.data;
       return {
-        transactionId: yearlyResult.transactionId,
-        productId: yearlyResult.productId || PRODUCT_IDS.PREMIUM_YEARLY,
-        purchaseDate: yearlyResult.purchaseDate,
-        expiresDate: yearlyResult.expiresDate,
-        originalTransactionId: yearlyResult.originalTransactionId || yearlyResult.transactionId,
-        jwsRepresentation: yearlyResult.jwsRepresentation,
+        transactionId: tx.transactionId,
+        productId: tx.productIdentifier || PRODUCT_IDS.PREMIUM_YEARLY,
+        purchaseDate: tx.originalStartDate,
+        expiresDate: tx.expiryDate,
+        originalTransactionId: tx.originalId || tx.transactionId,
+        jwsRepresentation: undefined,
       };
     }
     
