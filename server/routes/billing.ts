@@ -1118,7 +1118,9 @@ router.post('/verify-app-store', async (req: any, res) => {
       : expiresDate ? new Date(expiresDate) : null;
 
     // Map StoreKit product IDs to plan intervals
+    // Note: premium_monthly is the actual App Store product ID, flo_premium_monthly is legacy
     const productMapping: Record<string, 'month' | 'year'> = {
+      'premium_monthly': 'month',
       'flo_premium_monthly': 'month',
       'flo_premium_yearly': 'year',
     };
