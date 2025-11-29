@@ -105,16 +105,20 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Start the daily baseline update scheduler
-    startBaselineScheduler();
-    
-    // Start the weekly Flōmentum aggregation scheduler
-    startFlomentumWeeklyScheduler();
-    
-    // Start the nightly insights generation scheduler (v2.0)
-    startInsightsSchedulerV2();
-    
-    // Start the daily reminder scheduler (10am UTC)
-    initializeDailyReminderScheduler();
+    // Defer scheduler initialization to ensure fast server startup for deployments
+    // This allows the health check to pass before background tasks are initialized
+    setTimeout(() => {
+      // Start the daily baseline update scheduler
+      startBaselineScheduler();
+      
+      // Start the weekly Flōmentum aggregation scheduler
+      startFlomentumWeeklyScheduler();
+      
+      // Start the nightly insights generation scheduler (v2.0)
+      startInsightsSchedulerV2();
+      
+      // Start the daily reminder scheduler (10am UTC)
+      initializeDailyReminderScheduler();
+    }, 5000);
   });
 })();
