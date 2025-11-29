@@ -349,9 +349,23 @@ Start the conversation warmly, using their name if you have it.`;
     
     logger.info('[GeminiVoice] Starting admin sandbox session with full context', { userId, sessionId });
 
-    // Get user's first name for personalization
+    // Get user's first name, timezone for personalization
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     const firstName = user?.firstName || 'Admin';
+    const userTimezone = user?.timezone || 'America/Los_Angeles';
+    
+    // Get current local time in user's timezone
+    const now = new Date();
+    const localTimeStr = now.toLocaleString('en-US', { 
+      timeZone: userTimezone, 
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
 
     // Use female voice "Kore" (firm, confident) for admin sandbox
     const sandboxVoice = 'Kore';
@@ -392,12 +406,14 @@ Start the conversation warmly, using their name if you have it.`;
       healthContext = 'Health data is currently loading...';
     }
 
-    // Build the unrestricted admin system prompt WITH full health context
+    // Build the unrestricted admin system prompt WITH full health context and timezone
     const systemInstruction = `${ADMIN_SANDBOX_SYSTEM_PROMPT}
 
 USER PROFILE:
 - Name: ${firstName}
 - Role: Admin (full access to all AI capabilities)
+- Timezone: ${userTimezone}
+- Current Local Time: ${localTimeStr}
 
 CURRENT HEALTH CONTEXT:
 ${healthContext}
@@ -405,7 +421,7 @@ ${healthContext}
 You are speaking with an admin user. You have full access to their health data above.
 Be helpful, engaging, and demonstrate the full potential of the AI.
 You can discuss their health data, provide analysis, and offer insights without restrictions.
-Start by greeting them warmly using their name.`;
+IMPORTANT: When the session starts, immediately greet ${firstName} warmly by name and mention that you're ready to help.`;
 
     logger.info('[GeminiVoice] Admin sandbox instruction built with health context', { 
       userId, 
@@ -468,6 +484,18 @@ Start by greeting them warmly using their name.`;
     };
 
     await geminiLiveClient.createSession(sessionId, config, wrappedCallbacks);
+
+    // Trigger auto-greeting by sending an initial prompt
+    // This makes the AI speak first without waiting for user input
+    try {
+      await geminiLiveClient.sendText(sessionId, `[Session started - please greet ${firstName} warmly and let them know you're ready to help with anything.]`);
+      logger.info('[GeminiVoice] Admin sandbox auto-greeting triggered', { sessionId });
+    } catch (greetError: any) {
+      logger.warn('[GeminiVoice] Failed to trigger auto-greeting, user will need to speak first', { 
+        sessionId, 
+        error: greetError.message 
+      });
+    }
 
     return sessionId;
   }
