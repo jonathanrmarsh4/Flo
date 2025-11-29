@@ -1,0 +1,55 @@
+2025-11-29 08:48:51.44
+8255362d
+User
+12:48:51 AM [express] GET /api/readiness/today 200 in 570ms :: {"userId":"4ca1a77d-33d7-4eea-a4d0-ac9…
+2025-11-29 08:49:15.98
+8255362d
+User
+[2025-11-29T00:49:15.989Z] [WARN] [Billing] No JWS provided, using client-supplied data (less secure)
+2025-11-29 08:49:15.98
+8255362d
+User
+[2025-11-29T00:49:15.988Z] [INFO] [Billing] App Store verification for user 4ca1a77d-33d7-4eea-a4d0-ac920943c784 {"transactionId":2000001068286440,"productId":"premium_monthly","hasJWS":false}
+2025-11-29 08:49:16.11
+8255362d
+User
+[2025-11-29T00:49:16.116Z] [ERROR] [Billing] App Store verification error: {"error":{"message":"column \"billing_customer_id\" does not exist","stack":"error: column \"billing_customer_id\" does not exist\n at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async NeonPreparedQuery.execute (file:///home/runner/workspace/node_modules/drizzle-orm/neon-serverless/session.js:76:20)\n at async file:///home/runner/workspace/dist/index.js:5495:31"}}
+2025-11-29 08:49:16.11
+8255362d
+User
+12:49:16 AM [express] POST /api/billing/verify-app-store 500 in 316ms :: {"error":"column \"billing_c…
+2025-11-29 08:49:20.53
+8255362d
+User
+[2025-11-29T00:49:20.532Z] [INFO] [AppStore] Loaded Apple Root Certificates {"count":3}
+2025-11-29 08:49:20.53
+8255362d
+User
+[2025-11-29T00:49:20.533Z] [INFO] [AppStore] SignedDataVerifier initialized successfully {"environment":"Production","bundleId":"com.flo.healthapp","appAppleId":6755718285,"rootCertsLoaded":3,"onlineChecks":true}
+2025-11-29 08:49:20.68
+8255362d
+User
+[2025-11-29T00:49:20.684Z] [ERROR] [AppStore] Notification verification failed: {"error":{"message":"","stack":"Error\n at SignedDataVerifier.verifyNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:138:19)\n at SignedDataVerifier.verifyAndDecodeNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:130:14)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async verifyAndDecodeNotification (file:///home/runner/workspace/dist/index.js:4794:35)\n at async file:///home/runner/workspace/dist/index.js:5546:25"}}
+2025-11-29 08:49:20.68
+8255362d
+User
+[2025-11-29T00:49:20.684Z] [ERROR] [Billing] App Store webhook JWS verification failed {}
+2025-11-29 08:49:20.68
+8255362d
+User
+12:49:20 AM [express] POST /api/billing/app-store-webhook 400 in 155ms :: {"error":"Invalid notificat…
+2025-11-29 08:49:20.68
+8255362d
+User
+12:49:20 AM [express] POST /api/billing/app-store-webhook 400 in 155ms :: {"error":"Invalid notificat…
+2025-11-29 08:49:20.68
+8255362d
+User
+12:49:20 AM [express] POST /api/billing/app-store-webhook 400 in 155ms :: {"error":"Invalid notificat…
+
+Collapse
+
+Wrap
+
+Colors
+
