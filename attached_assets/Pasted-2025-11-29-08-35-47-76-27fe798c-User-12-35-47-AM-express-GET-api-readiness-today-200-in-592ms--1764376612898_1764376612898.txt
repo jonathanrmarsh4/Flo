@@ -1,0 +1,57 @@
+2025-11-29 08:35:47.76
+27fe798c
+User
+12:35:47 AM [express] GET /api/readiness/today 200 in 592ms :: {"userId":"4ca1a77d-33d7-4eea-a4d0-ac9…
+2025-11-29 08:36:17.93
+27fe798c
+User
+[2025-11-29T00:36:17.933Z] [INFO] [Billing] App Store verification for user 4ca1a77d-33d7-4eea-a4d0-ac920943c784 {"transactionId":2000001068282892,"productId":"premium_monthly","hasJWS":false}
+2025-11-29 08:36:17.93
+27fe798c
+User
+[2025-11-29T00:36:17.933Z] [WARN] [Billing] No JWS provided, using client-supplied data (less secure)
+2025-11-29 08:36:18.02
+27fe798c
+User
+[2025-11-29T00:36:18.024Z] [ERROR] [Billing] App Store verification error: {"error":{"message":"invalid input value for enum billing_provider: \"app_store\"","stack":"error: invalid input value for enum billing_provider: \"app_store\"\n at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async NeonPreparedQuery.execute (file:///home/runner/workspace/node_modules/drizzle-orm/neon-serverless/session.js:76:20)\n at async file:///home/runner/workspace/dist/index.js:5488:33"}}
+2025-11-29 08:36:18.02
+27fe798c
+User
+12:36:18 AM [express] POST /api/billing/verify-app-store 500 in 276ms :: {"error":"invalid input valu…
+2025-11-29 08:36:19.95
+27fe798c
+User
+[2025-11-29T00:36:19.954Z] [ERROR] [AppStore] Notification verification failed: {"error":{"message":"","stack":"Error\n at SignedDataVerifier.verifyNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:138:19)\n at SignedDataVerifier.verifyAndDecodeNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:130:14)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async verifyAndDecodeNotification (file:///home/runner/workspace/dist/index.js:4794:35)\n at async file:///home/runner/workspace/dist/index.js:5546:25"}}
+2025-11-29 08:36:19.95
+27fe798c
+User
+[2025-11-29T00:36:19.954Z] [ERROR] [Billing] App Store webhook JWS verification failed {}
+2025-11-29 08:36:19.95
+27fe798c
+User
+12:36:19 AM [express] POST /api/billing/app-store-webhook 400 in 4ms :: {"error":"Invalid notificatio…
+2025-11-29 08:36:19.95
+27fe798c
+User
+12:36:19 AM [express] POST /api/billing/app-store-webhook 400 in 4ms :: {"error":"Invalid notificatio…
+2025-11-29 08:36:19.95
+27fe798c
+User
+12:36:19 AM [express] POST /api/billing/app-store-webhook 400 in 4ms :: {"error":"Invalid notificatio…
+2025-11-29 08:36:19.95
+27fe798c
+User
+12:36:19 AM [express] POST /api/billing/app-store-webhook 400 in 4ms :: {"error":"Invalid notificatio…
+
+2025-11-29 08:36:19.95
+27fe798c
+User
+12:36:19 AM [express] POST /api/billing/app-store-webhook 400 in 4ms :: {"error":"Invalid notificatio…
+2025-11-29 08:36:19.95
+27fe798c
+User
+12:36:19 AM [express] POST /api/billing/app-store-webhook 400 in 4ms :: {"error":"Invalid notificatio…
+2025-11-29 08:36:19.95
+27fe798c
+User
+12:36:19 AM [express] POST /api/billing/app-store-webhook 400 in 4ms :: {"error":"Invalid notificatio…

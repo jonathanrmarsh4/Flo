@@ -1,0 +1,84 @@
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [Billing] loadProducts() starting...
+⚡️  [log] - [Billing] Calling isStoreKitAvailable()...
+⚡️  [log] - [StoreKit] Checking availability: {"isNative":true,"platform":"ios"}
+⚡️  [log] - [StoreKit] iOS detected, Subscriptions available: true
+⚡️  [log] - [Billing] StoreKit available: true
+⚡️  [log] - [StoreKit] Requesting products with IDs: ["premium_monthly","flo_premium_yearly"]
+⚡️  [log] - [StoreKit] Fetching product: premium_monthly
+⚡️  To Native ->  Subscriptions getProductDetails 15939184
+[Subscriptions] getProductDetails llamado para: premium_monthly
+[Subscriptions] Intentando obtener producto 'premium_monthly' (intento 1/3)
+[Subscriptions] Product.products(for:) devolvió 1 producto(s)
+[Subscriptions] Producto encontrado: premium_monthly, tipo: autoRenewable, precio: $12.99
+[Subscriptions] Producto obtenido exitosamente: premium_monthly
+[Subscriptions] Detalles del producto - Nombre: Flō Premium, Precio: $12.99, Tipo: ProductType(rawValue: "Auto-Renewable Subscription")
+⚡️  TO JS {"responseMessage":"Successfully found the product details for given productIdentifier","data":{"displayName":"Flō Premium","productIdentifier":"premium_monthly","price":"$12.99","type":"ProductType(rawValue: \"Auto-Renewable Subscription\")","description"
+⚡️  [log] - [StoreKit] Result for premium_monthly : {"responseMessage":"Successfully found the product details for given productIdentifier","data":{"displayName":"Flō Premium","productIdentifier":"premium_monthly","price":"$12.99","type":"ProductType(rawValue: \"Auto-Renewable Subscription\")","description":"Full access to our AI and premium features"},"responseCode":0}
+⚡️  To Native ->  Subscriptions getProductDetails 15939185
+⚡️  [log] - [StoreKit] Added product: Flō Premium
+⚡️  [log] - [StoreKit] Fetching product: flo_premium_yearly
+[Subscriptions] getProductDetails llamado para: flo_premium_yearly
+[Subscriptions] Intentando obtener producto 'flo_premium_yearly' (intento 1/3)
+[Subscriptions] Product.products(for:) devolvió 1 producto(s)
+[Subscriptions] Producto encontrado: flo_premium_yearly, tipo: autoRenewable, precio: $129.99
+[Subscriptions] Producto obtenido exitosamente: flo_premium_yearly
+[Subscriptions] Detalles del producto - Nombre: Flō Premium, Precio: $129.99, Tipo: ProductType(rawValue: "Auto-Renewable Subscription")
+⚡️  TO JS {"responseMessage":"Successfully found the product details for given productIdentifier","data":{"displayName":"Flō Premium","productIdentifier":"flo_premium_yearly","price":"$129.99","type":"ProductType(rawValue: \"Auto-Renewable Subscription\")","descript
+⚡️  [log] - [StoreKit] Result for flo_premium_yearly : {"responseMessage":"Successfully found the product details for given productIdentifier","data":{"displayName":"Flō Premium","productIdentifier":"flo_premium_yearly","price":"$129.99","type":"ProductType(rawValue: \"Auto-Renewable Subscription\")","description":"Full access to our AI and premium features"},"responseCode":0}
+⚡️  [log] - [StoreKit] Added product: Flō Premium
+⚡️  [log] - [StoreKit] Successfully fetched 2 products
+⚡️  [log] - [Billing] Products fetched: [{"productId":"premium_monthly","displayName":"Flō Premium","description":"Full access to our AI and premium features","price":12.99,"priceLocale":"AUD","displayPrice":"$12.99"},{"productId":"flo_premium_yearly","displayName":"Flō Premium","description":"Full access to our AI and premium features","price":129.99,"priceLocale":"AUD","displayPrice":"$129.99"}]
+⚡️  [log] - [Billing] Starting purchase for: premium_monthly
+⚡️  [log] - [StoreKit] Starting purchase for: premium_monthly
+⚡️  To Native ->  Subscriptions purchaseProduct 15939186
+[Subscriptions] Intentando obtener producto 'premium_monthly' (intento 1/3)
+[Subscriptions] Product.products(for:) devolvió 1 producto(s)
+[Subscriptions] Producto encontrado: premium_monthly, tipo: autoRenewable, precio: $12.99
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 15939187
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 15939188
+⚡️  TO JS {"value":"1764376567843"}
+⚡️  To Native ->  Preferences get 15939189
+⚡️  To Native ->  Preferences get 15939190
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  TO JS {"value":"1764374761706"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 15939191
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 15939192
+⚡️  To Native ->  Preferences get 15939193
+⚡️  TO JS {"value":"1764376573119"}
+⚡️  To Native ->  Preferences get 15939194
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  TO JS {"value":"1764374761706"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  TO JS {"responseCode":0,"responseMessage":"Successfully purchased product"}
+⚡️  [log] - [StoreKit] Purchase result: {"responseCode":0,"responseMessage":"Successfully purchased product"}
+⚡️  To Native ->  Subscriptions getLatestTransaction 15939195
+[Subscriptions] Intentando obtener producto 'premium_monthly' (intento 1/3)
+[Subscriptions] Product.products(for:) devolvió 1 producto(s)
+[Subscriptions] Producto encontrado: premium_monthly, tipo: autoRenewable, precio: $12.99
+expiration2025-11-29T08:39:12.000+0800
+transaction.expirationDate 2025-11-29 00:39:12 +0000
+transaction.originalID 2000001068269565
+⚡️  TO JS {"data":{"originalId":2000001068269565,"productIdentifier":"premium_monthly","originalStartDate":"2025-11-28T23:53:20Z","transactionId":2000001068282892,"expiryDate":"2025-11-29T00:39:12Z","purchaseToken":""},"responseMessage":"Latest transaction found","r
+⚡️  [log] - [StoreKit] Transaction result: {"data":{"originalId":2000001068269565,"productIdentifier":"premium_monthly","originalStartDate":"2025-11-28T23:53:20Z","transactionId":2000001068282892,"expiryDate":"2025-11-29T00:39:12Z","purchaseToken":""},"responseMessage":"Latest transaction found","responseCode":0}
+⚡️  [log] - [StoreKit] Verifying transaction with backend: 2000001068282892
+⚡️  [log] - [StoreKit] Using auth headers: ["Content-Type","Authorization"]
+⚡️  [error] - [StoreKit] Verification failed: {"error":"invalid input value for enum billing_provider: \"app_store\""}
