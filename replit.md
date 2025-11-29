@@ -23,12 +23,15 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Neon (Primary):** Identity data (users, sessions, email, credentials, billing, audit logs). Uses Drizzle ORM.
 - **Supabase (Health):** Sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events). Linked via pseudonymous `health_id` UUID.
 
-**Data Segregation Architecture (In Progress):**
+**Data Segregation Architecture (Completed):**
 - `users.health_id` column added to Neon for pseudonymous linking
-- Health tables ready in `server/db/supabase-health-tables.sql` (12 tables with RLS)
-- Service layer at `server/services/supabaseHealthStorage.ts`
-- Migration script at `server/scripts/migrate-health-data-to-supabase.ts`
-- **Status:** SQL needs manual execution in Supabase SQL Editor, then run migration script
+- 12 health tables created in Supabase with Row-Level Security (RLS)
+- Data migration completed: 11 profiles, 47 biomarker sessions, 17 daily metrics, 8 sleep nights migrated
+- Feature-flagged routing via `server/services/healthStorageRouter.ts` with `SUPABASE_HEALTH_ENABLED` flag
+- Service layer at `server/services/supabaseHealthStorage.ts` for Supabase operations
+- Logger utility at `server/utils/logger.ts` for consistent logging
+- **Current Status:** Router infrastructure complete. 122 storage layer calls in routes.ts (routed correctly), 39 direct db calls need future refactoring for full segregation
+- **Activation:** Set `SUPABASE_HEALTH_ENABLED=true` environment variable to enable Supabase routing
 
 Production database schema changes require manual verification and careful migration to avoid data loss.
 
