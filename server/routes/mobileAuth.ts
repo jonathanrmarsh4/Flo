@@ -148,13 +148,13 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
         },
       });
     } else {
-      // New user - create account with pending_approval status
+      // New user - create account with active status (Apple has verified identity)
       isNewUser = true;
       user = await storage.upsertUser({
         email: appleEmail,
         firstName: body.givenName,
         lastName: body.familyName,
-        status: "pending_approval",
+        status: "active", // Apple OAuth users are pre-verified by Apple
       });
       
       // Create auth provider record with complete token data
@@ -182,24 +182,7 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
       }
     }
     
-    // For new users with pending_approval, return success but no token
-    if (isNewUser) {
-      return res.json({ 
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          status: user.status,
-        },
-        authenticated: false,
-        message: "Registration successful! Your account is pending approval. You'll receive an email once approved.",
-        status: "pending_approval"
-      });
-    }
-    
-    // Generate JWT token for mobile authentication (existing approved users only)
+    // Generate JWT token for mobile authentication (Apple users are pre-verified by Apple)
     const token = generateMobileAuthToken(user.id);
     
     res.json({ 
@@ -213,6 +196,7 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
       },
       token, // JWT token for mobile apps
       authenticated: true,
+      isNewUser, // Let client know if this is a new registration
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
@@ -308,13 +292,13 @@ router.post("/api/mobile/auth/google", async (req, res) => {
         },
       });
     } else {
-      // New user - create account with pending_approval status
+      // New user - create account with active status (Google has verified identity)
       isNewUser = true;
       user = await storage.upsertUser({
         email: googleEmail,
         firstName: body.givenName,
         lastName: body.familyName,
-        status: "pending_approval",
+        status: "active", // Google OAuth users are pre-verified by Google
       });
       
       // Create auth provider record
@@ -337,24 +321,7 @@ router.post("/api/mobile/auth/google", async (req, res) => {
       }
     }
     
-    // For new users with pending_approval, return success but no token
-    if (isNewUser) {
-      return res.json({ 
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          status: user.status,
-        },
-        authenticated: false,
-        message: "Registration successful! Your account is pending approval. You'll receive an email once approved.",
-        status: "pending_approval"
-      });
-    }
-    
-    // Generate JWT token for mobile authentication (existing approved users only)
+    // Generate JWT token for mobile authentication (Google users are pre-verified by Google)
     const token = generateMobileAuthToken(user.id);
     
     res.json({ 
@@ -368,6 +335,7 @@ router.post("/api/mobile/auth/google", async (req, res) => {
       },
       token, // JWT token for mobile apps
       authenticated: true,
+      isNewUser, // Let client know if this is a new registration
     });
   } catch (error) {
     if (error instanceof Error && error.name === "ZodError") {
