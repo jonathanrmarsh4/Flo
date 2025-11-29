@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Subscriptions as SubscriptionsPlugin } from '@squareetlabs/capacitor-subscriptions';
+import { getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 
 // Cast as any to avoid TypeScript type mismatches with native bridge
 const Subscriptions = SubscriptionsPlugin as any;
@@ -255,9 +256,15 @@ async function verifyAndSyncTransaction(transaction: StoreKitTransaction): Promi
   try {
     console.log('[StoreKit] Verifying transaction with backend:', transaction.transactionId);
     
-    const response = await fetch('/api/billing/verify-app-store', {
+    // Get auth headers (includes JWT for mobile or session for web)
+    const authHeaders = await getAuthHeaders({ 'Content-Type': 'application/json' });
+    const baseUrl = getApiBaseUrl();
+    
+    console.log('[StoreKit] Using auth headers:', Object.keys(authHeaders));
+    
+    const response = await fetch(`${baseUrl}/api/billing/verify-app-store`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       credentials: 'include',
       body: JSON.stringify({
         transactionId: transaction.transactionId,
