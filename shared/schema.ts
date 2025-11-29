@@ -366,6 +366,7 @@ export const billingCustomers = pgTable("billing_customers", {
 // Subscriptions table
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id"), // Legacy column - kept for backwards compatibility (nullable)
   billingCustomerId: varchar("billing_customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
   stripeSubscriptionId: varchar("stripe_subscription_id").unique(),
   stripePriceId: varchar("stripe_price_id"),
@@ -385,6 +386,7 @@ export const subscriptions = pgTable("subscriptions", {
 // Payments table (for App Store and Stripe transactions)
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id"), // Legacy column - kept for backwards compatibility (nullable)
   billingCustomerId: varchar("billing_customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
   stripePaymentIntentId: varchar("stripe_payment_intent_id").unique(),
   provider: billingProviderEnum("provider").default("stripe"),
