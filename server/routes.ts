@@ -8831,9 +8831,33 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ────────────────────────────────────────────────────────────────
   
   const WebSocket = await import('ws');
-  const wss = new WebSocket.WebSocketServer({ server: httpServer, path: '/api/voice/gemini-live' });
+  // Single WebSocket server that handles all voice endpoints
+  const wss = new WebSocket.WebSocketServer({ server: httpServer, noServer: false });
+  
+  // Upgrade handler to route based on path
+  httpServer.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
+    
+    if (pathname === '/api/voice/gemini-live' || pathname === '/api/voice/admin-sandbox') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  });
   
   wss.on('connection', async (ws: any, req: any) => {
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const pathname = url.pathname;
+    
+    // Route to admin sandbox handler if that's the path
+    if (pathname === '/api/voice/admin-sandbox') {
+      handleAdminSandboxConnection(ws, req, WebSocket);
+      return;
+    }
+    
+    // Regular Gemini Live handler
     logger.info('[GeminiLive WS] New connection attempt');
     
     let userId: string | null = null;
@@ -8841,7 +8865,6 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     
     try {
       // Parse auth from URL params (mobile app passes JWT)
-      const url = new URL(req.url || '', `http://${req.headers.host}`);
       const token = url.searchParams.get('token');
       
       // Use SESSION_SECRET for JWT verification (same secret used to sign mobile tokens)
@@ -8995,20 +9018,14 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
-  // ────────────────────────────────────────────────────────────────
-  // ADMIN SANDBOX VOICE - Unrestricted AI testing for admins only
-  // ────────────────────────────────────────────────────────────────
-  
-  const adminSandboxWss = new WebSocket.WebSocketServer({ server: httpServer, path: '/api/voice/admin-sandbox' });
-  
-  adminSandboxWss.on('connection', async (ws: any, req: any) => {
+  // Admin sandbox connection handler function
+  async function handleAdminSandboxConnection(ws: any, req: any, WebSocket: any) {
     logger.info('[AdminSandbox WS] New connection attempt');
     
     let userId: string | null = null;
     let sessionId: string | null = null;
     
     try {
-      // Parse auth from URL params (mobile app passes JWT)
       const url = new URL(req.url || '', `http://${req.headers.host}`);
       const token = url.searchParams.get('token');
       
@@ -9168,7 +9185,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       logger.error('[AdminSandbox WS] Connection error', { error: error.message });
       ws.close(4002, 'Server error');
     }
-  });
+  }
   
   return httpServer;
 }
