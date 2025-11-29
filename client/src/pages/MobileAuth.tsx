@@ -3,7 +3,7 @@ import { useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
 import { SignInWithApple } from '@capacitor-community/apple-sign-in';
 import { startAuthentication } from '@simplewebauthn/browser';
-import { Mail, Lock, Eye, EyeOff, User, ArrowRight, Sparkles, ArrowLeft, CheckCircle, Fingerprint, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, ArrowRight, ArrowLeft, CheckCircle, Fingerprint, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ type ForgotPasswordFormData = z.infer<typeof passwordResetRequestSchema>;
 export default function MobileAuth() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot-password'>('login');
+  const [mode, setMode] = useState<'main' | 'email-login' | 'register' | 'forgot-password'>('main');
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const [isLoginLoading, setIsLoginLoading] = useState(false);
   const [isRegisterLoading, setIsRegisterLoading] = useState(false);
@@ -35,14 +35,7 @@ export default function MobileAuth() {
 
   const isNative = Capacitor.isNativePlatform();
 
-  // Design Decision: Names are optional in registration to match OAuth provider behavior
-  // (Apple/Google don't always provide names). Users can update names later in profile settings.
-
-  // Google Sign-In will be added via web OAuth flow when Capacitor-compatible SDK is available.
-  // Backend endpoint /api/mobile/auth/google is ready but native SDK is incompatible with Capacitor 7.
-  // Removed from UI to prevent user confusion about disabled button.
-
-  // Login form
+  // Login form (for fallback email login)
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(emailLoginSchema),
     defaultValues: {
@@ -118,7 +111,6 @@ export default function MobileAuth() {
         });
         
         // CRITICAL: Clear ALL cached data from any previous user session
-        // This prevents data leakage between accounts
         queryClient.clear();
         
         // Store JWT token in secure encrypted storage (always native for Apple Sign-In)
@@ -144,7 +136,6 @@ export default function MobileAuth() {
         window.location.href = '/';
       }
     } catch (error: any) {
-      // Log full error details for debugging
       logger.error('Apple Sign-In: Error occurred', error, {
         errorName: error?.name,
         errorMessage: error?.message
@@ -236,17 +227,17 @@ export default function MobileAuth() {
       if (errorName === 'NotAllowedError') {
         // User cancelled - don't show error
       } else if (errorMessage?.includes('No passkeys found')) {
-        setGeneralError('No passkeys registered. Sign in with email first, then add a passkey in Profile settings.');
+        setGeneralError('No Face ID credentials found. Use email login or sign up to create an account.');
       } else {
-        setGeneralError(errorMessage || 'Passkey authentication failed');
+        setGeneralError(errorMessage || 'Face ID authentication failed');
       }
     } finally {
       setIsPasskeyLoading(false);
     }
   };
 
-  // Login handler
-  const handleLogin = async (data: LoginFormData) => {
+  // Email login handler (fallback for users without Face ID set up)
+  const handleEmailLogin = async (data: LoginFormData) => {
     setIsLoginLoading(true);
     setGeneralError(null);
 
@@ -257,7 +248,6 @@ export default function MobileAuth() {
         const responseData = await response.json();
         
         // CRITICAL: Clear ALL cached data from any previous user session
-        // This prevents data leakage between accounts
         queryClient.clear();
         
         // Store JWT token in secure encrypted storage (mobile only)
@@ -279,7 +269,6 @@ export default function MobileAuth() {
         });
         
         // Force full page reload to properly initialize auth state
-        // This ensures the app picks up the new token from secure storage
         window.location.href = '/';
         return;
       }
@@ -309,17 +298,18 @@ export default function MobileAuth() {
       if (response.ok) {
         const responseData = await response.json();
         
-        // Check if account needs approval
+        // Check if account needs email verification
         if (responseData.status === 'pending_approval') {
           toast({
             title: "Account Created!",
-            description: "Please check your email. You'll be notified once your account is approved.",
+            description: "Please check your email to verify your account, then you can sign in.",
           });
+          // Go back to main login screen
+          setMode('main');
           return;
         }
         
         // CRITICAL: Clear ALL cached data from any previous user session
-        // This prevents data leakage between accounts
         queryClient.clear();
         
         // Store JWT token in secure encrypted storage (mobile only)
@@ -335,11 +325,13 @@ export default function MobileAuth() {
           }
         }
         
-        // Show verification email message (don't navigate - user needs to verify first)
         toast({
           title: "Account Created!",
-          description: "Please check your email to verify your account. If you can't find it, check your spam folder.",
+          description: "Please check your email to verify your account.",
         });
+        
+        // Go back to main screen after registration
+        setMode('main');
       }
     } catch (error: any) {
       logger.error('Registration error', error);
@@ -386,29 +378,13 @@ export default function MobileAuth() {
     }
   };
 
-  // Toggle between login and register
-  const handleToggleMode = () => {
-    setMode(mode === 'login' ? 'register' : 'login');
+  // Back to main screen
+  const handleBackToMain = () => {
+    setMode('main');
     setGeneralError(null);
     setForgotPasswordSent(false);
     loginForm.reset();
     registerForm.reset();
-    forgotPasswordForm.reset();
-  };
-
-  // Go to forgot password
-  const handleGoToForgotPassword = () => {
-    setMode('forgot-password');
-    setGeneralError(null);
-    setForgotPasswordSent(false);
-    forgotPasswordForm.reset();
-  };
-
-  // Back to login from forgot password
-  const handleBackToLogin = () => {
-    setMode('login');
-    setGeneralError(null);
-    setForgotPasswordSent(false);
     forgotPasswordForm.reset();
   };
 
@@ -427,57 +403,67 @@ export default function MobileAuth() {
         {/* Logo and Welcome */}
         <div className="text-center mb-6">
           <FloLogo size={60} showText={false} className="mb-3 justify-center" />
-          <h1 className="text-3xl font-light mb-1 text-white">Flō</h1>
+          <h1 className="text-3xl font-light mb-1 text-white">Flo</h1>
           <p className="text-sm text-white/60">Track. Improve. Evolve.</p>
         </div>
 
         {/* Auth Card */}
         <div className="w-full max-w-sm backdrop-blur-xl rounded-3xl border border-white/10 bg-white/5 p-6 space-y-4">
-          <div className="text-center mb-4">
-            {mode === 'forgot-password' && (
-              <button
-                onClick={handleBackToLogin}
-                className="absolute left-6 top-6 text-white/60 hover:text-white/80 transition-colors flex items-center gap-1"
-                data-testid="button-back-to-login"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm">Back</span>
-              </button>
-            )}
-            <h2 className="text-xl text-white mb-1">
-              {mode === 'login' ? 'Welcome Back' : mode === 'register' ? 'Create Account' : 'Reset Password'}
-            </h2>
-            <p className="text-sm text-white/60">
-              {mode === 'login' ? 'Sign in to continue' : mode === 'register' ? 'Start your evolution' : 'Enter your email to reset'}
-            </p>
-          </div>
+          
+          {/* Main Login Screen - 3 primary buttons */}
+          {mode === 'main' && (
+            <>
+              <div className="text-center mb-4">
+                <h2 className="text-xl text-white mb-1">Welcome to Flo</h2>
+                <p className="text-sm text-white/60">Sign in to start your evolution</p>
+              </div>
 
-          {/* Social Auth Buttons (iOS only) - only show on login/register */}
-          {isNative && mode !== 'forgot-password' && (
-            <div className="space-y-3">
-              <Button
-                onClick={handleAppleSignIn}
-                disabled={isAppleLoading || isPasskeyLoading}
-                className="w-full h-12 bg-white text-black hover:bg-gray-100 flex items-center justify-center gap-2"
-                data-testid="button-apple-signin"
-              >
-                {isAppleLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-black rounded-full animate-spin" />
-                    <span>Signing in...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                    </svg>
-                    <span>Continue with Apple</span>
-                  </>
-                )}
-              </Button>
+              {/* General Error Message */}
+              {generalError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3" data-testid="text-error-message">
+                  <p className="text-sm text-red-400">{generalError}</p>
+                </div>
+              )}
 
-              {/* Face ID / Passkey Login - only show on login mode */}
-              {mode === 'login' && (
+              {/* Continue with Apple */}
+              <div className="space-y-2">
+                <Button
+                  onClick={handleAppleSignIn}
+                  disabled={isAppleLoading || isPasskeyLoading}
+                  className="w-full h-12 bg-white text-black hover:bg-gray-100 flex items-center justify-center gap-2"
+                  data-testid="button-apple-signin"
+                >
+                  {isAppleLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-black rounded-full animate-spin" />
+                      <span>Signing in...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                      </svg>
+                      <span>Continue with Apple</span>
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-center text-white/40">
+                  For new users or those with Apple ID linked
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-transparent text-white/50">or</span>
+                </div>
+              </div>
+
+              {/* Sign in with Face ID */}
+              <div className="space-y-2">
                 <Button
                   onClick={handlePasskeyLogin}
                   disabled={isPasskeyLoading || isAppleLoading}
@@ -497,159 +483,392 @@ export default function MobileAuth() {
                     </>
                   )}
                 </Button>
-              )}
+                <p className="text-xs text-center text-white/40">
+                  For existing Flo accounts with Face ID set up
+                </p>
+              </div>
 
+              {/* Divider */}
               <div className="relative my-4">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-white/10"></div>
                 </div>
                 <div className="relative flex justify-center text-xs">
-                  <span className="px-2 bg-transparent text-white/50">or</span>
+                  <span className="px-2 bg-transparent text-white/50">new here?</span>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* General Error Message */}
-          {generalError && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3" data-testid="text-error-message">
-              <p className="text-sm text-red-400">{generalError}</p>
-            </div>
-          )}
+              {/* Sign Up Button */}
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setMode('register')}
+                  variant="outline"
+                  className="w-full h-12 border-white/20 text-white/80 hover:bg-white/5 flex items-center justify-center gap-2"
+                  data-testid="button-signup"
+                >
+                  <User className="w-5 h-5" />
+                  <span>Sign Up</span>
+                </Button>
+                <p className="text-xs text-center text-white/40">
+                  Create a new account with email
+                </p>
+              </div>
 
-          {/* Loading State */}
-          {(isAppleLoading || isLoginLoading || isRegisterLoading) && (
-            <div className="text-center" data-testid="text-loading">
-              <p className="text-sm text-white/60">Please wait...</p>
-            </div>
-          )}
-
-          {/* Login Form */}
-          {mode === 'login' && (
-            <Form {...loginForm}>
-              <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
-                <FormField
-                  control={loginForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white/80 text-sm">Email</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
-                          <Input
-                            {...field}
-                            type="email"
-                            inputMode="email"
-                            autoComplete="email"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            enterKeyHint="next"
-                            className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-                            placeholder="you@example.com"
-                            disabled={isLoginLoading}
-                            data-testid="input-email"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={loginForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white/80 text-sm">Password</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
-                          <Input
-                            {...field}
-                            type={showPassword ? 'text' : 'password'}
-                            autoComplete="current-password"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            enterKeyHint="done"
-                            className="h-11 pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-                            placeholder="Enter password"
-                            disabled={isLoginLoading}
-                            data-testid="input-password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
-                            tabIndex={-1}
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex justify-end">
+              {/* Fallback links for existing users without Face ID */}
+              <div className="pt-4 border-t border-white/10 mt-4">
+                <p className="text-xs text-center text-white/40 mb-2">
+                  Already have an account without Face ID?
+                </p>
+                <div className="flex justify-center gap-4">
                   <button
-                    type="button"
-                    onClick={handleGoToForgotPassword}
-                    className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors"
-                    data-testid="button-forgot-password"
+                    onClick={() => setMode('email-login')}
+                    className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                    data-testid="link-email-login"
+                  >
+                    Use email instead
+                  </button>
+                  <span className="text-white/20">|</span>
+                  <button
+                    onClick={() => setMode('forgot-password')}
+                    className="text-xs text-white/50 hover:text-white/70 transition-colors"
+                    data-testid="link-forgot-password"
                   >
                     Forgot password?
                   </button>
                 </div>
+              </div>
+            </>
+          )}
 
-                <Button
-                  type="submit"
-                  disabled={isLoginLoading}
-                  className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30 text-white flex items-center justify-center gap-2"
-                  data-testid="button-submit-login"
+          {/* Email Login Form (fallback) */}
+          {mode === 'email-login' && (
+            <>
+              <div className="text-center mb-4 relative">
+                <button
+                  onClick={handleBackToMain}
+                  className="absolute left-0 top-0 text-white/60 hover:text-white/80 transition-colors flex items-center gap-1"
+                  data-testid="button-back-to-main"
                 >
-                  {isLoginLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Signing in...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Sign In</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </Button>
-              </form>
-            </Form>
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <h2 className="text-xl text-white mb-1">Sign In</h2>
+                <p className="text-sm text-white/60">Use your email and password</p>
+              </div>
+
+              {/* General Error Message */}
+              {generalError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3" data-testid="text-error-message">
+                  <p className="text-sm text-red-400">{generalError}</p>
+                </div>
+              )}
+
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(handleEmailLogin)} className="space-y-4">
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/80 text-sm">Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                            <Input
+                              {...field}
+                              type="email"
+                              inputMode="email"
+                              autoComplete="email"
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                              spellCheck={false}
+                              enterKeyHint="next"
+                              className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                              placeholder="you@example.com"
+                              disabled={isLoginLoading}
+                              data-testid="input-email"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/80 text-sm">Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                            <Input
+                              {...field}
+                              type={showPassword ? 'text' : 'password'}
+                              autoComplete="current-password"
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                              spellCheck={false}
+                              enterKeyHint="done"
+                              className="h-11 pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                              placeholder="Enter password"
+                              disabled={isLoginLoading}
+                              data-testid="input-password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
+                              tabIndex={-1}
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    disabled={isLoginLoading}
+                    className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30"
+                    data-testid="button-submit-login"
+                  >
+                    {isLoginLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        <span>Signing in...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Sign In</span>
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Form>
+
+              <div className="text-center pt-2">
+                <button
+                  onClick={() => setMode('forgot-password')}
+                  className="text-xs text-white/50 hover:text-white/70 transition-colors"
+                  data-testid="link-forgot-password"
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              <p className="text-xs text-center text-white/40 mt-4">
+                After signing in, set up Face ID in your profile for faster access next time.
+              </p>
+            </>
+          )}
+
+          {/* Register Form */}
+          {mode === 'register' && (
+            <>
+              <div className="text-center mb-4 relative">
+                <button
+                  onClick={handleBackToMain}
+                  className="absolute left-0 top-0 text-white/60 hover:text-white/80 transition-colors flex items-center gap-1"
+                  data-testid="button-back-to-main"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <h2 className="text-xl text-white mb-1">Create Account</h2>
+                <p className="text-sm text-white/60">Start your evolution</p>
+              </div>
+
+              {/* General Error Message */}
+              {generalError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3" data-testid="text-error-message">
+                  <p className="text-sm text-red-400">{generalError}</p>
+                </div>
+              )}
+
+              <Form {...registerForm}>
+                <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={registerForm.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/80 text-sm">First Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="text"
+                              autoComplete="given-name"
+                              autoCapitalize="words"
+                              enterKeyHint="next"
+                              className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                              placeholder="John"
+                              disabled={isRegisterLoading}
+                              data-testid="input-firstname"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-red-400" />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={registerForm.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-white/80 text-sm">Last Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="text"
+                              autoComplete="family-name"
+                              autoCapitalize="words"
+                              enterKeyHint="next"
+                              className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                              placeholder="Doe"
+                              disabled={isRegisterLoading}
+                              data-testid="input-lastname"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-red-400" />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={registerForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/80 text-sm">Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                            <Input
+                              {...field}
+                              type="email"
+                              inputMode="email"
+                              autoComplete="email"
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                              spellCheck={false}
+                              enterKeyHint="next"
+                              className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                              placeholder="you@example.com"
+                              disabled={isRegisterLoading}
+                              data-testid="input-email"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={registerForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-white/80 text-sm">Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+                            <Input
+                              {...field}
+                              type={showPassword ? 'text' : 'password'}
+                              autoComplete="new-password"
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                              spellCheck={false}
+                              enterKeyHint="done"
+                              className="h-11 pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
+                              placeholder="Create a strong password"
+                              disabled={isRegisterLoading}
+                              data-testid="input-password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
+                              tabIndex={-1}
+                            >
+                              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage className="text-red-400" />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button
+                    type="submit"
+                    disabled={isRegisterLoading}
+                    className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30"
+                    data-testid="button-submit-register"
+                  >
+                    {isRegisterLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        <span>Creating account...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Create Account</span>
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </Form>
+
+              <p className="text-xs text-center text-white/40 mt-4">
+                After signing up, you'll verify your email then set up Face ID for quick, secure access.
+              </p>
+            </>
           )}
 
           {/* Forgot Password Form */}
           {mode === 'forgot-password' && (
             <>
+              <div className="text-center mb-4 relative">
+                <button
+                  onClick={handleBackToMain}
+                  className="absolute left-0 top-0 text-white/60 hover:text-white/80 transition-colors flex items-center gap-1"
+                  data-testid="button-back-to-main"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <h2 className="text-xl text-white mb-1">Reset Password</h2>
+                <p className="text-sm text-white/60">Enter your email to reset</p>
+              </div>
+
+              {/* General Error Message */}
+              {generalError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3" data-testid="text-error-message">
+                  <p className="text-sm text-red-400">{generalError}</p>
+                </div>
+              )}
+
               {forgotPasswordSent ? (
                 <div className="text-center space-y-4">
-                  <div className="w-16 h-16 mx-auto rounded-full bg-teal-500/20 flex items-center justify-center">
-                    <CheckCircle className="w-8 h-8 text-teal-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg text-white mb-2">Check Your Email</h3>
-                    <p className="text-sm text-white/60">
-                      If an account exists with that email, we've sent password reset instructions.
-                    </p>
-                  </div>
+                  <CheckCircle className="w-12 h-12 text-green-400 mx-auto" />
+                  <p className="text-white/80">Check your email for reset instructions.</p>
                   <Button
-                    onClick={handleBackToLogin}
-                    className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30 text-white flex items-center justify-center gap-2"
+                    onClick={handleBackToMain}
+                    variant="outline"
+                    className="border-white/20 text-white/80 hover:bg-white/5"
                     data-testid="button-back-to-signin"
                   >
-                    <ArrowLeft className="w-4 h-4" />
-                    <span>Back to Sign In</span>
+                    Back to Sign In
                   </Button>
                 </div>
               ) : (
@@ -676,7 +895,7 @@ export default function MobileAuth() {
                                 className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                                 placeholder="you@example.com"
                                 disabled={isForgotPasswordLoading}
-                                data-testid="input-reset-email"
+                                data-testid="input-email"
                               />
                             </div>
                           </FormControl>
@@ -688,214 +907,33 @@ export default function MobileAuth() {
                     <Button
                       type="submit"
                       disabled={isForgotPasswordLoading}
-                      className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30 text-white flex items-center justify-center gap-2"
+                      className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30"
                       data-testid="button-submit-reset"
                     >
                       {isForgotPasswordLoading ? (
                         <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
                           <span>Sending...</span>
                         </>
                       ) : (
-                        <>
-                          <Mail className="w-4 h-4" />
-                          <span>Send Reset Link</span>
-                        </>
+                        <span>Send Reset Link</span>
                       )}
                     </Button>
-
-                    <div className="text-center">
-                      <button
-                        type="button"
-                        onClick={handleBackToLogin}
-                        className="text-sm text-white/60 hover:text-white/80 transition-colors"
-                        data-testid="button-cancel-reset"
-                      >
-                        Cancel
-                      </button>
-                    </div>
                   </form>
                 </Form>
               )}
             </>
           )}
-
-          {/* Registration Form */}
-          {mode === 'register' && (
-            <Form {...registerForm}>
-              <form onSubmit={registerForm.handleSubmit(handleRegister)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={registerForm.control}
-                    name="firstName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white/80 text-sm">First Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="text"
-                            autoComplete="given-name"
-                            autoCapitalize="words"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            enterKeyHint="next"
-                            className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-                            placeholder="John"
-                            disabled={isRegisterLoading}
-                            data-testid="input-firstname"
-                          />
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={registerForm.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-white/80 text-sm">Last Name</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="text"
-                            autoComplete="family-name"
-                            autoCapitalize="words"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            enterKeyHint="next"
-                            className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-                            placeholder="Doe"
-                            disabled={isRegisterLoading}
-                            data-testid="input-lastname"
-                          />
-                        </FormControl>
-                        <FormMessage className="text-red-400" />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={registerForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white/80 text-sm">Email</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
-                          <Input
-                            {...field}
-                            type="email"
-                            inputMode="email"
-                            autoComplete="email"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            enterKeyHint="next"
-                            className="h-11 pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-                            placeholder="you@example.com"
-                            disabled={isRegisterLoading}
-                            data-testid="input-email"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={registerForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-white/80 text-sm">Password</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
-                          <Input
-                            {...field}
-                            type={showPassword ? 'text' : 'password'}
-                            autoComplete="new-password"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            enterKeyHint="done"
-                            className="h-11 pl-10 pr-10 bg-white/10 border-white/20 text-white placeholder:text-white/40"
-                            placeholder="Min. 8 characters"
-                            disabled={isRegisterLoading}
-                            data-testid="input-password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60"
-                            tabIndex={-1}
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage className="text-red-400" />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  disabled={isRegisterLoading}
-                  className="w-full h-12 bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30 text-white flex items-center justify-center gap-2"
-                  data-testid="button-submit-register"
-                >
-                  {isRegisterLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Creating account...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      <span>Create Account</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </Button>
-              </form>
-            </Form>
-          )}
-
-          {/* Toggle Mode - only show on login/register */}
-          {mode !== 'forgot-password' && (
-            <div className="text-center pt-2">
-              <button
-                onClick={handleToggleMode}
-                className="text-sm text-white/60 hover:text-white/80 transition-colors"
-                data-testid="button-toggle-register"
-              >
-                {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-                <span className="text-cyan-400 font-medium">
-                  {mode === 'login' ? 'Sign Up' : 'Sign In'}
-                </span>
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* Disclaimer */}
-        <p className="text-[10px] text-center mt-6 max-w-md leading-relaxed text-white/40">
-          By continuing, you agree to our{' '}
-          <button className="text-[9px] underline text-white/60">Terms</button>
-          {' & '}
-          <button className="text-[9px] underline text-white/60">Privacy Policy</button>
-          . Not a substitute for medical advice.
+        {/* Footer */}
+        <p className="text-xs text-center text-white/40 mt-6 max-w-xs leading-relaxed">
+          By continuing, you agree to our Terms of Service and Privacy Policy. 
+          Flo is not a substitute for medical advice.
         </p>
       </div>
 
-      {/* Floating animation */}
+      {/* Floating animation keyframes */}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translate(0, 0) scale(1); }
