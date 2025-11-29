@@ -29,14 +29,25 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   'Hematocrit': { unit: '%', min: 36, max: 50, category: 'Basic Panels' },
   'MCV': { unit: 'fL', min: 80, max: 100, category: 'Basic Panels' },
   'MCH': { unit: 'pg', min: 27, max: 33, category: 'Basic Panels' },
+  'MCHC': { unit: 'g/dL', min: 32, max: 36, category: 'Basic Panels' },
   'Platelets': { unit: 'K/μL', min: 150, max: 400, category: 'Basic Panels' },
+  'MPV': { unit: 'fL', min: 7.5, max: 11.5, category: 'Basic Panels' },
+  'RDW': { unit: '%', min: 11.5, max: 14.5, category: 'Basic Panels' },
+  'Neutrophils': { unit: 'K/μL', min: 1.5, max: 8.0, category: 'Basic Panels' },
+  'Lymphocytes': { unit: 'K/μL', min: 1.0, max: 4.8, category: 'Basic Panels' },
+  'Monocytes': { unit: 'K/μL', min: 0.2, max: 0.8, category: 'Basic Panels' },
+  'Eosinophils': { unit: 'K/μL', min: 0.0, max: 0.5, category: 'Basic Panels' },
+  'Basophils': { unit: 'K/μL', min: 0.0, max: 0.2, category: 'Basic Panels' },
   'Glucose': { unit: 'mg/dL', min: 70, max: 100, category: 'Basic Panels' },
   'Glucose (Fasting)': { unit: 'mg/dL', min: 70, max: 100, category: 'Basic Panels' },
   'Calcium': { unit: 'mg/dL', min: 8.5, max: 10.5, category: 'Basic Panels' },
+  'Adjusted Calcium': { unit: 'mg/dL', min: 8.5, max: 10.5, category: 'Basic Panels' },
+  'Phosphate': { unit: 'mg/dL', min: 2.5, max: 4.5, category: 'Basic Panels' },
   'Sodium': { unit: 'mEq/L', min: 135, max: 145, category: 'Basic Panels' },
   'Potassium': { unit: 'mEq/L', min: 3.5, max: 5.0, category: 'Basic Panels' },
   'CO2': { unit: 'mEq/L', min: 23, max: 29, category: 'Basic Panels' },
   'Chloride': { unit: 'mEq/L', min: 96, max: 106, category: 'Basic Panels' },
+  'Anion Gap': { unit: 'mEq/L', min: 8, max: 12, category: 'Basic Panels' },
   'BUN': { unit: 'mg/dL', min: 7, max: 20, category: 'Basic Panels' },
   'Creatinine': { unit: 'mg/dL', min: 0.7, max: 1.3, category: 'Basic Panels' },
   'ALT': { unit: 'U/L', min: 7, max: 56, category: 'Basic Panels' },
@@ -45,6 +56,8 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   'Bilirubin': { unit: 'mg/dL', min: 0.1, max: 1.2, category: 'Basic Panels' },
   'Total Protein': { unit: 'g/dL', min: 6.0, max: 8.3, category: 'Basic Panels' },
   'Albumin': { unit: 'g/dL', min: 3.5, max: 5.5, category: 'Basic Panels' },
+  'Globulin': { unit: 'g/dL', min: 2.0, max: 3.5, category: 'Basic Panels' },
+  'Transferrin': { unit: 'mg/dL', min: 200, max: 360, category: 'Basic Panels' },
   
   // Lipid & Cardiovascular Health
   'Total Cholesterol': { unit: 'mg/dL', min: 125, max: 200, category: 'Lipid & Cardiovascular Health' },
@@ -82,6 +95,12 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   'IGF-1': { unit: 'ng/mL', min: 115, max: 307, category: 'Hormonal & Endocrine' },
   'PSA': { unit: 'ng/mL', min: 0, max: 4.0, category: 'Hormonal & Endocrine' },
   'Prostate-Specific Antigen': { unit: 'ng/mL', min: 0, max: 4.0, category: 'Hormonal & Endocrine' },
+  'Free PSA': { unit: 'ng/mL', min: 0, max: 1.0, category: 'Hormonal & Endocrine' },
+  'Free PSA Ratio': { unit: '%', min: 15, max: 100, category: 'Hormonal & Endocrine' },
+  'AFP': { unit: 'ng/mL', min: 0, max: 10, category: 'Hormonal & Endocrine' },
+  'Growth Hormone': { unit: 'ng/mL', min: 0, max: 10, category: 'Hormonal & Endocrine' },
+  'Testosterone': { unit: 'ng/dL', min: 300, max: 1000, category: 'Hormonal & Endocrine' },
+  'Progesterone': { unit: 'ng/mL', min: 0.1, max: 25, category: 'Hormonal & Endocrine' },
   
   // Metabolic & Diabetes
   'Fasting Glucose': { unit: 'mg/dL', min: 70, max: 100, category: 'Metabolic & Diabetes' },
@@ -96,6 +115,7 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   
   // Nutritional & Vitamin Status
   'Vitamin D (25-OH)': { unit: 'ng/mL', min: 30, max: 100, category: 'Nutritional & Vitamin Status' },
+  'Vitamin D': { unit: 'ng/mL', min: 30, max: 100, category: 'Nutritional & Vitamin Status' },
   'Vitamin B12': { unit: 'pg/mL', min: 200, max: 900, category: 'Nutritional & Vitamin Status' },
   'Folate (B9)': { unit: 'ng/mL', min: 2.7, max: 17, category: 'Nutritional & Vitamin Status' },
   'Ferritin': { unit: 'ng/mL', min: 30, max: 200, category: 'Nutritional & Vitamin Status' },
@@ -110,6 +130,7 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   
   // Inflammation & Immune Markers
   'CRP': { unit: 'mg/L', min: 0, max: 3, category: 'Inflammation & Immune Markers' },
+  'C-Reactive Protein (hs)': { unit: 'mg/L', min: 0, max: 3, category: 'Inflammation & Immune Markers' },
   'ESR': { unit: 'mm/hr', min: 0, max: 20, category: 'Inflammation & Immune Markers' },
   'IL-6': { unit: 'pg/mL', min: 0, max: 5, category: 'Inflammation & Immune Markers' },
   'TNF-alpha': { unit: 'pg/mL', min: 0, max: 8.1, category: 'Inflammation & Immune Markers' },
