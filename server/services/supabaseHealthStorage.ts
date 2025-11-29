@@ -592,27 +592,34 @@ export async function getFlomentumDaily(userId: string, days = 7): Promise<Flome
 export interface SleepNight {
   id?: string;
   health_id: string;
-  night_date: string;
-  bedtime?: Date | null;
-  wake_time?: Date | null;
-  time_in_bed_hours?: number | null;
-  time_asleep_hours?: number | null;
-  sleep_efficiency?: number | null;
-  awakenings?: number | null;
-  rem_hours?: number | null;
-  deep_hours?: number | null;
-  core_hours?: number | null;
-  awake_hours?: number | null;
-  sleep_score?: number | null;
-  hr_lowest?: number | null;
-  hr_average?: number | null;
-  hrv_average?: number | null;
+  sleep_date: string;
+  timezone: string;
+  night_start?: Date | null;
+  final_wake?: Date | null;
+  sleep_onset?: Date | null;
+  time_in_bed_min?: number | null;
+  total_sleep_min?: number | null;
+  sleep_efficiency_pct?: number | null;
+  sleep_latency_min?: number | null;
+  waso_min?: number | null;
+  num_awakenings?: number | null;
+  core_sleep_min?: number | null;
+  deep_sleep_min?: number | null;
+  rem_sleep_min?: number | null;
+  unspecified_sleep_min?: number | null;
+  awake_in_bed_min?: number | null;
+  mid_sleep_time_local?: number | null;
+  fragmentation_index?: number | null;
+  deep_pct?: number | null;
+  rem_pct?: number | null;
+  core_pct?: number | null;
+  bedtime_local?: string | null;
+  waketime_local?: string | null;
+  resting_hr_bpm?: number | null;
+  hrv_ms?: number | null;
   respiratory_rate?: number | null;
-  spo2_average?: number | null;
-  spo2_lowest?: number | null;
-  source_name?: string | null;
-  source_bundle_id?: string | null;
-  metadata?: Record<string, any> | null;
+  wrist_temperature?: number | null;
+  oxygen_saturation?: number | null;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -627,7 +634,7 @@ export async function upsertSleepNight(userId: string, sleep: Omit<SleepNight, '
       health_id: healthId,
       updated_at: new Date().toISOString(),
     }, {
-      onConflict: 'health_id,night_date',
+      onConflict: 'health_id,sleep_date',
     })
     .select()
     .single();
@@ -647,7 +654,7 @@ export async function getSleepNights(userId: string, days = 7): Promise<SleepNig
     .from('sleep_nights')
     .select('*')
     .eq('health_id', healthId)
-    .order('night_date', { ascending: false })
+    .order('sleep_date', { ascending: false })
     .limit(days);
 
   if (error) {

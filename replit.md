@@ -19,7 +19,18 @@ The platform features a mobile-first, content-focused minimalist design inspired
 
 **Backend:** Developed with Express.js and TypeScript, providing a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, **Flō Oracle integration** (Grok-powered chat via xAI's grok-3-mini), **ElevenLabs integration** for voice, a HealthKit Readiness System, Comprehensive Sleep Tracking, Workout Session Tracking, **Flōmentum Momentum Scoring System**, **Apple Push Notifications (APNs)**, and **Stripe Billing Integration** for subscriptions and feature gating. Password reset tokens are hashed and single-use. Uploaded lab PDFs are deleted after biomarker extraction for privacy. WebAuthn Passkey authentication is implemented with `@simplewebauthn/server`. Session data is isolated on login by clearing the React Query cache.
 
-**Data Storage:** Uses PostgreSQL (Neon serverless) with Drizzle ORM. The schema includes tables for users, blood work, AI analysis results, HealthKit samples, workouts, daily metrics, Flōmentum data, RAG Insights, life events, push notifications, billing, and audit logs. Production database schema changes require manual verification and careful migration to avoid data loss.
+**Data Storage:** Dual-database architecture for enhanced security:
+- **Neon (Primary):** Identity data (users, sessions, email, credentials, billing, audit logs). Uses Drizzle ORM.
+- **Supabase (Health):** Sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events). Linked via pseudonymous `health_id` UUID.
+
+**Data Segregation Architecture (In Progress):**
+- `users.health_id` column added to Neon for pseudonymous linking
+- Health tables ready in `server/db/supabase-health-tables.sql` (12 tables with RLS)
+- Service layer at `server/services/supabaseHealthStorage.ts`
+- Migration script at `server/scripts/migrate-health-data-to-supabase.ts`
+- **Status:** SQL needs manual execution in Supabase SQL Editor, then run migration script
+
+Production database schema changes require manual verification and careful migration to avoid data loss.
 
 **Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights daily using a 2-layer architecture: **RAG Layer** (vector search + **Gemini 2.5 Pro**) and **Layer D** (out-of-range biomarker safety net). It incorporates confidence scoring, insight ranking, domain diversity limits, and natural language generation. Insights are generated at 6 AM local time, with automatic timezone syncing from the frontend.
 

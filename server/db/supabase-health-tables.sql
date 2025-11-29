@@ -213,37 +213,44 @@ CREATE TABLE IF NOT EXISTS flomentum_daily (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_flomentum_daily_unique ON flomentum_daily(health_id, date);
 CREATE INDEX IF NOT EXISTS idx_flomentum_daily_health_date ON flomentum_daily(health_id, date);
 
--- Sleep nights
+-- Sleep nights (matches Neon schema exactly)
 CREATE TABLE IF NOT EXISTS sleep_nights (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   health_id UUID NOT NULL,
-  night_date TEXT NOT NULL,
-  bedtime TIMESTAMP,
-  wake_time TIMESTAMP,
-  time_in_bed_hours REAL,
-  time_asleep_hours REAL,
-  sleep_efficiency REAL,
-  awakenings INTEGER,
-  rem_hours REAL,
-  deep_hours REAL,
-  core_hours REAL,
-  awake_hours REAL,
-  sleep_score INTEGER,
-  hr_lowest REAL,
-  hr_average REAL,
-  hrv_average REAL,
+  sleep_date TEXT NOT NULL,
+  timezone TEXT NOT NULL,
+  night_start TIMESTAMP,
+  final_wake TIMESTAMP,
+  sleep_onset TIMESTAMP,
+  time_in_bed_min REAL,
+  total_sleep_min REAL,
+  sleep_efficiency_pct REAL,
+  sleep_latency_min REAL,
+  waso_min REAL,
+  num_awakenings INTEGER,
+  core_sleep_min REAL,
+  deep_sleep_min REAL,
+  rem_sleep_min REAL,
+  unspecified_sleep_min REAL,
+  awake_in_bed_min REAL,
+  mid_sleep_time_local REAL,
+  fragmentation_index REAL,
+  deep_pct REAL,
+  rem_pct REAL,
+  core_pct REAL,
+  bedtime_local TEXT,
+  waketime_local TEXT,
+  resting_hr_bpm REAL,
+  hrv_ms REAL,
   respiratory_rate REAL,
-  spo2_average REAL,
-  spo2_lowest REAL,
-  source_name TEXT,
-  source_bundle_id TEXT,
-  metadata JSONB,
+  wrist_temperature REAL,
+  oxygen_saturation REAL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_nights_unique ON sleep_nights(health_id, night_date);
-CREATE INDEX IF NOT EXISTS idx_sleep_nights_health_date ON sleep_nights(health_id, night_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_nights_unique ON sleep_nights(health_id, sleep_date);
+CREATE INDEX IF NOT EXISTS idx_sleep_nights_health_date ON sleep_nights(health_id, sleep_date);
 
 -- Action plan items (health goals/interventions)
 CREATE TABLE IF NOT EXISTS action_plan_items (
