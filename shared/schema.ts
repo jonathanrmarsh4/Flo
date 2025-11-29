@@ -203,6 +203,10 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").default("free").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
   
+  // Pseudonymous health data link - UUID that connects to Supabase health records
+  // This ID is used instead of user ID in Supabase to maintain data segregation
+  healthId: varchar("health_id").unique().default(sql`gen_random_uuid()`),
+  
   // JWT token version - increment to invalidate all sessions
   tokenVersion: integer("token_version").default(0).notNull(),
   
