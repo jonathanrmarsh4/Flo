@@ -1,0 +1,38 @@
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 117178080
+⚡️  To Native ->  Preferences get 117178081
+⚡️  To Native ->  Preferences get 117178082
+⚡️  TO JS {"value":"1764379700043"}
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  TO JS {"value":"1764378458519"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 117178083
+⚡️  TO JS undefined
+⚡️  TO JS {"responseCode":0,"responseMessage":"Successfully purchased product"}
+⚡️  [log] - [StoreKit] Purchase result: {"responseCode":0,"responseMessage":"Successfully purchased product"}
+⚡️  To Native ->  Subscriptions getLatestTransaction 117178084
+[Subscriptions] Intentando obtener producto 'premium_monthly' (intento 1/3)
+[Subscriptions] Product.products(for:) devolvió 1 producto(s)
+[Subscriptions] Producto encontrado: premium_monthly, tipo: autoRenewable, precio: $12.99
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 117178085
+⚡️  TO JS {"value":"1764379706113"}
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  To Native ->  Preferences get 117178086
+⚡️  TO JS {"value":"1764378458519"}
+⚡️  To Native ->  Preferences get 117178087
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+expiration2025-11-29T09:29:45.000+0800
+transaction.expirationDate 2025-11-29 01:29:45 +0000
+transaction.originalID 2000001068269565
+⚡️  TO JS {"responseCode":0,"responseMessage":"Latest transaction found","data":{"originalStartDate":"2025-11-28T23:53:20Z","expiryDate":"2025-11-29T01:29:45Z","transactionId":2000001068293616,"originalId":2000001068269565,"purchaseToken":"","productIdentifier":"pre
+⚡️  [log] - [StoreKit] Transaction result: {"responseCode":0,"responseMessage":"Latest transaction found","data":{"originalStartDate":"2025-11-28T23:53:20Z","expiryDate":"2025-11-29T01:29:45Z","transactionId":2000001068293616,"originalId":2000001068269565,"purchaseToken":"","productIdentifier":"premium_monthly"}}
+⚡️  [log] - [StoreKit] Verifying transaction with backend: 2000001068293616
+⚡️  [log] - [StoreKit] Using auth headers: ["Content-Type","Authorization"]
+⚡️  [error] - [StoreKit] Verification failed: {"error":"column \"app_store_product_id\" does not exist"}
