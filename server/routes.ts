@@ -8994,6 +8994,168 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       ws.close(4002, 'Server error');
     }
   });
+
+  // ────────────────────────────────────────────────────────────────
+  // ADMIN SANDBOX VOICE - Unrestricted AI testing for admins only
+  // ────────────────────────────────────────────────────────────────
+  
+  const adminSandboxWss = new WebSocket.WebSocketServer({ server: httpServer, path: '/api/voice/admin-sandbox' });
+  
+  adminSandboxWss.on('connection', async (ws: any, req: any) => {
+    logger.info('[AdminSandbox WS] New connection attempt');
+    
+    let userId: string | null = null;
+    let sessionId: string | null = null;
+    
+    try {
+      // Parse auth from URL params (mobile app passes JWT)
+      const url = new URL(req.url || '', `http://${req.headers.host}`);
+      const token = url.searchParams.get('token');
+      
+      const jwtSecret = process.env.SESSION_SECRET;
+      if (!jwtSecret) {
+        logger.error('[AdminSandbox WS] SESSION_SECRET not configured');
+        ws.close(4003, 'Server configuration error');
+        return;
+      }
+      
+      if (token) {
+        const jwt = await import('jsonwebtoken');
+        try {
+          const decoded = jwt.default.verify(token, jwtSecret) as { sub: string };
+          userId = decoded.sub;
+        } catch (jwtError: any) {
+          logger.error('[AdminSandbox WS] JWT verification failed', { error: jwtError.message });
+          ws.close(4001, 'Invalid token');
+          return;
+        }
+      } else {
+        logger.warn('[AdminSandbox WS] No token provided');
+        ws.close(4001, 'Authentication required');
+        return;
+      }
+      
+      if (!userId) {
+        ws.close(4001, 'Invalid authentication');
+        return;
+      }
+      
+      // CRITICAL: Verify user is an admin
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user || user.role !== 'admin') {
+        logger.warn('[AdminSandbox WS] Non-admin access attempt', { userId, role: user?.role });
+        ws.close(4003, 'Admin access required');
+        return;
+      }
+      
+      logger.info('[AdminSandbox WS] Admin authenticated', { userId });
+      
+      const { geminiVoiceService } = await import('./services/geminiVoiceService');
+      
+      if (!geminiVoiceService.isAvailable()) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Gemini Live not available' }));
+        ws.close(4003, 'Service unavailable');
+        return;
+      }
+      
+      // Start the admin sandbox session with unrestricted prompts
+      sessionId = await geminiVoiceService.startAdminSandboxSession(userId, {
+        onAudioChunk: (audioData: Buffer) => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'audio',
+              data: audioData.toString('base64'),
+            }));
+          }
+        },
+        onTranscript: (text: string, isFinal: boolean) => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'transcript',
+              text,
+              isFinal,
+            }));
+          }
+        },
+        onModelText: (text: string) => {
+          if (ws.readyState === WebSocket.default.OPEN && text) {
+            ws.send(JSON.stringify({
+              type: 'response_text',
+              text,
+            }));
+          }
+        },
+        onError: (error: Error) => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'error',
+              message: error.message,
+            }));
+          }
+        },
+        onClose: () => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.close(1000, 'Session ended');
+          }
+        },
+      });
+      
+      ws.send(JSON.stringify({ type: 'connected', sessionId }));
+      logger.info('[AdminSandbox WS] Session started', { userId, sessionId });
+      
+      // Handle incoming messages
+      ws.on('message', async (data: Buffer) => {
+        try {
+          const message = JSON.parse(data.toString());
+          
+          if (message.type === 'audio' && sessionId) {
+            const audioBuffer = Buffer.from(message.data, 'base64');
+            await geminiVoiceService.sendAudio(sessionId, audioBuffer);
+          } else if (message.type === 'text' && sessionId) {
+            await geminiVoiceService.sendText(sessionId, message.text);
+          } else if (message.type === 'end') {
+            if (sessionId) {
+              await geminiVoiceService.endSession(sessionId);
+              sessionId = null;
+            }
+            ws.close(1000, 'Session ended by client');
+          }
+        } catch (error: any) {
+          logger.error('[AdminSandbox WS] Message error', { error: error.message });
+        }
+      });
+      
+      // Handle close
+      ws.on('close', async () => {
+        logger.info('[AdminSandbox WS] Connection closed', { userId, sessionId });
+        if (sessionId) {
+          try {
+            await geminiVoiceService.endSession(sessionId);
+            sessionId = null;
+          } catch (cleanupError: any) {
+            logger.error('[AdminSandbox WS] Session cleanup error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+      // Handle errors
+      ws.on('error', async (error: Error) => {
+        logger.error('[AdminSandbox WS] WebSocket error', { userId, sessionId, error: error.message });
+        if (sessionId) {
+          try {
+            await geminiVoiceService.endSession(sessionId);
+            sessionId = null;
+          } catch (cleanupError: any) {
+            logger.error('[AdminSandbox WS] Session cleanup error on error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+    } catch (error: any) {
+      logger.error('[AdminSandbox WS] Connection error', { error: error.message });
+      ws.close(4002, 'Server error');
+    }
+  });
   
   return httpServer;
 }

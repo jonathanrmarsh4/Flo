@@ -21,6 +21,7 @@ interface UseGeminiLiveVoiceOptions {
   onError?: (error: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
+  endpoint?: 'gemini-live' | 'admin-sandbox';
 }
 
 // Simple moving average low-pass filter
@@ -298,15 +299,16 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
         throw new Error('Not authenticated');
       }
 
-      // Determine WebSocket URL based on platform
+      // Determine WebSocket URL based on platform and endpoint
+      const voiceEndpoint = options.endpoint || 'gemini-live';
       let wsUrl: string;
       if (Capacitor.isNativePlatform()) {
         // iOS/Android: Connect to production server
-        wsUrl = `wss://get-flo.com/api/voice/gemini-live?token=${encodeURIComponent(authToken)}`;
+        wsUrl = `wss://get-flo.com/api/voice/${voiceEndpoint}?token=${encodeURIComponent(authToken)}`;
       } else {
         // Web: Use current host
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        wsUrl = `${protocol}//${window.location.host}/api/voice/gemini-live?token=${encodeURIComponent(authToken)}`;
+        wsUrl = `${protocol}//${window.location.host}/api/voice/${voiceEndpoint}?token=${encodeURIComponent(authToken)}`;
       }
 
       const ws = new WebSocket(wsUrl);

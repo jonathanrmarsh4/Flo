@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AdminNotificationConfig } from '@/components/admin/AdminNotificationConfig';
 import { AdminReportModelSettings } from '@/components/admin/AdminReportModelSettings';
 import { AdminAnalyticsTab } from '@/components/admin/AdminAnalyticsTab';
+import { AdminSandboxVoice } from '@/components/admin/AdminSandboxVoice';
 
 interface AdminUserSummary {
   id: string;
@@ -895,6 +896,8 @@ export default function AdminDashboard() {
             <h3 className="text-lg text-white mb-4">
               System Settings
             </h3>
+
+            <AdminSandboxVoice />
 
             <AdminReportModelSettings />
           </div>

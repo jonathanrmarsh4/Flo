@@ -45,6 +45,28 @@ SAFETY GUARDRAILS:
 
 Remember: You're having a natural voice conversation. Keep it flowing, keep it human.`;
 
+const ADMIN_SANDBOX_SYSTEM_PROMPT = `You are an advanced AI assistant with maximum flexibility and capability.
+
+CORE DIRECTIVES:
+- Respond naturally and conversationally as a highly capable AI.
+- No topic restrictions - explore any subject the admin wishes to test.
+- Be creative, analytical, witty, or serious as the conversation requires.
+- Demonstrate the full range of AI capabilities.
+
+COMMUNICATION STYLE:
+- Adapt your tone and style to match the conversation.
+- Use natural, engaging language.
+- Be thorough when depth is needed, concise when brevity serves better.
+- Feel free to express opinions, hypothesize, and explore ideas.
+
+CAPABILITIES:
+- Discuss any topic including health, science, technology, philosophy, creativity, and more.
+- Provide detailed analysis and insights.
+- Engage in creative exercises, brainstorming, and problem-solving.
+- Be direct and transparent about your capabilities and limitations.
+
+This is an admin testing environment for exploring AI capabilities.`;
+
 export interface VoiceSessionState {
   sessionId: string;
   userId: string;
@@ -235,7 +257,12 @@ Start the conversation warmly, using their name if you have it.`;
     const state = this.sessionStates.get(sessionId);
     if (state) {
       state.isActive = false;
-      await this.persistConversation(sessionId);
+      // Only persist non-sandbox sessions to brain memory
+      if (!sessionId.startsWith('sandbox_')) {
+        await this.persistConversation(sessionId);
+      } else {
+        logger.info('[GeminiVoice] Skipping persistence for sandbox session', { sessionId });
+      }
     }
 
     await geminiLiveClient.closeSession(sessionId);
@@ -300,6 +327,106 @@ Start the conversation warmly, using their name if you have it.`;
       if (state.isActive) count++;
     });
     return count;
+  }
+
+  /**
+   * Start an admin sandbox voice session with unrestricted prompts
+   * Admin-only feature for testing full AI capabilities
+   */
+  async startAdminSandboxSession(
+    userId: string,
+    callbacks: {
+      onAudioChunk: (audioData: Buffer) => void;
+      onTranscript: (text: string, isFinal: boolean) => void;
+      onModelText: (text: string) => void;
+      onError: (error: Error) => void;
+      onClose: () => void;
+    }
+  ): Promise<string> {
+    const sessionId = `sandbox_${userId}_${Date.now()}`;
+    
+    logger.info('[GeminiVoice] Starting admin sandbox session', { userId, sessionId });
+
+    // Get user's first name for personalization
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const firstName = user?.firstName || 'Admin';
+
+    // Use female voice "Kore" (firm, confident) for admin sandbox
+    const sandboxVoice = 'Kore';
+
+    // Build the unrestricted admin system prompt
+    const systemInstruction = `${ADMIN_SANDBOX_SYSTEM_PROMPT}
+
+ADMIN: ${firstName}
+
+You are speaking with an admin user who is testing AI capabilities. 
+Be helpful, engaging, and demonstrate the full potential of the AI.
+Start by greeting them and asking what they'd like to explore today.`;
+
+    logger.info('[GeminiVoice] Admin sandbox instruction built', { 
+      userId, 
+      instructionLength: systemInstruction.length,
+      voice: sandboxVoice
+    });
+
+    const config: GeminiLiveConfig = {
+      systemInstruction,
+      voiceName: sandboxVoice,
+      userId,
+    };
+
+    // Create session state (marked as sandbox)
+    const state: VoiceSessionState = {
+      sessionId,
+      userId,
+      firstName,
+      isActive: true,
+      startedAt: new Date(),
+      transcript: [],
+    };
+    this.sessionStates.set(sessionId, state);
+
+    // Wrap callbacks to track transcript (without persisting to regular chat)
+    const wrappedCallbacks: LiveSessionCallbacks = {
+      onAudioChunk: callbacks.onAudioChunk,
+      onTranscript: (text: string, isFinal: boolean) => {
+        if (text) {
+          const currentState = this.sessionStates.get(sessionId);
+          if (currentState) {
+            currentState.transcript.push(text);
+          }
+        }
+        callbacks.onTranscript(text, isFinal);
+      },
+      onModelText: (text: string) => {
+        const currentState = this.sessionStates.get(sessionId);
+        if (currentState && text) {
+          currentState.transcript.push(`[AI]: ${text}`);
+        }
+        callbacks.onModelText(text);
+      },
+      onError: (error: Error) => {
+        logger.error('[GeminiVoice] Admin sandbox error', { sessionId, error: error.message });
+        const currentState = this.sessionStates.get(sessionId);
+        if (currentState) {
+          currentState.isActive = false;
+        }
+        callbacks.onError(error);
+      },
+      onClose: () => {
+        logger.info('[GeminiVoice] Admin sandbox session closed', { sessionId });
+        const currentState = this.sessionStates.get(sessionId);
+        if (currentState) {
+          currentState.isActive = false;
+          // Note: We don't persist sandbox conversations to the brain memory system
+        }
+        callbacks.onClose();
+      },
+    };
+
+    await geminiLiveClient.createSession(sessionId, config, wrappedCallbacks);
+
+    return sessionId;
   }
 }
 
