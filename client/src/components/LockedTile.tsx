@@ -46,7 +46,11 @@ export function LockedTile({ title, description, icon: Icon, onUpgrade, classNam
       {/* Unlock Button */}
       <button
         onClick={onUpgrade}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+        className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-medium transition-all ${
+          isDark
+            ? 'bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400'
+            : 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500'
+        }`}
         data-testid="button-unlock-feature"
       >
         <Sparkles className="w-4 h-4" />

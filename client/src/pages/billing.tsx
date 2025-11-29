@@ -392,7 +392,7 @@ export default function BillingPage() {
                       variant={selectedPeriod === 'monthly' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setSelectedPeriod('monthly')}
-                      className={selectedPeriod === 'monthly' ? 'flex-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 text-white/70 hover:text-white hover:bg-white/5'}
+                      className={selectedPeriod === 'monthly' ? 'flex-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 border-0' : 'flex-1 text-white/70 hover:text-white hover:bg-white/5'}
                       data-testid="button-monthly"
                     >
                       Monthly
@@ -401,7 +401,7 @@ export default function BillingPage() {
                       variant={selectedPeriod === 'annual' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setSelectedPeriod('annual')}
-                      className={selectedPeriod === 'annual' ? 'flex-1 gap-1 bg-blue-600 hover:bg-blue-700' : 'flex-1 gap-1 text-white/70 hover:text-white hover:bg-white/5'}
+                      className={selectedPeriod === 'annual' ? 'flex-1 gap-1 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 border-0' : 'flex-1 gap-1 text-white/70 hover:text-white hover:bg-white/5'}
                       data-testid="button-annual"
                     >
                       Annual
@@ -450,7 +450,7 @@ export default function BillingPage() {
                   </CardContent>
                   <CardFooter className="flex-col gap-3">
                     <Button
-                      className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                      className="w-full gap-2 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white border-0"
                       size="lg"
                       onClick={handlePurchase}
                       disabled={isPurchasing || !selectedProduct}

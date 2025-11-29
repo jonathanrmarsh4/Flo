@@ -70,7 +70,7 @@ export function PaywallModal({ open, onOpenChange, modal, onUpgrade }: PaywallMo
               onUpgrade();
               onOpenChange(false);
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-white text-sm font-medium transition-all"
             data-testid="button-upgrade"
           >
             <Sparkles className="w-4 h-4" />
