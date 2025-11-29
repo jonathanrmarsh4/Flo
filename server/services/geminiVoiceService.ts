@@ -332,6 +332,7 @@ Start the conversation warmly, using their name if you have it.`;
   /**
    * Start an admin sandbox voice session with unrestricted prompts
    * Admin-only feature for testing full AI capabilities
+   * Includes full health context and persists to brain memory
    */
   async startAdminSandboxSession(
     userId: string,
@@ -343,9 +344,10 @@ Start the conversation warmly, using their name if you have it.`;
       onClose: () => void;
     }
   ): Promise<string> {
-    const sessionId = `sandbox_${userId}_${Date.now()}`;
+    // Use voice_ prefix so sessions persist to brain memory
+    const sessionId = `voice_admin_${userId}_${Date.now()}`;
     
-    logger.info('[GeminiVoice] Starting admin sandbox session', { userId, sessionId });
+    logger.info('[GeminiVoice] Starting admin sandbox session with full context', { userId, sessionId });
 
     // Get user's first name for personalization
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -354,16 +356,58 @@ Start the conversation warmly, using their name if you have it.`;
     // Use female voice "Kore" (firm, confident) for admin sandbox
     const sandboxVoice = 'Kore';
 
-    // Build the unrestricted admin system prompt
+    // Build full health context (same as regular sessions)
+    let healthContext = '';
+    try {
+      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext] = await Promise.all([
+        buildUserHealthContext(userId),
+        getActiveActionPlanItems(userId),
+        getRelevantInsights(userId),
+        getRecentLifeEvents(userId),
+      ]);
+      
+      healthContext = [
+        baseHealthContext,
+        actionPlanContext,
+        insightsContext,
+        lifeEventsContext,
+      ].filter(Boolean).join('\n');
+      
+      // Truncate if too large
+      if (healthContext.length > 6000) {
+        logger.warn('[GeminiVoice] Admin sandbox health context truncated', { 
+          originalLength: healthContext.length,
+          truncatedTo: 6000 
+        });
+        healthContext = healthContext.substring(0, 6000) + '\n\n[Context truncated for voice session]';
+      }
+      
+      logger.info('[GeminiVoice] Admin sandbox built full health context', { 
+        userId, 
+        contextLength: healthContext.length,
+        hasActionPlan: actionPlanContext.length > 0 
+      });
+    } catch (contextError: any) {
+      logger.error('[GeminiVoice] Admin sandbox failed to build health context', { error: contextError.message });
+      healthContext = 'Health data is currently loading...';
+    }
+
+    // Build the unrestricted admin system prompt WITH full health context
     const systemInstruction = `${ADMIN_SANDBOX_SYSTEM_PROMPT}
 
-ADMIN: ${firstName}
+USER PROFILE:
+- Name: ${firstName}
+- Role: Admin (full access to all AI capabilities)
 
-You are speaking with an admin user who is testing AI capabilities. 
+CURRENT HEALTH CONTEXT:
+${healthContext}
+
+You are speaking with an admin user. You have full access to their health data above.
 Be helpful, engaging, and demonstrate the full potential of the AI.
-Start by greeting them and asking what they'd like to explore today.`;
+You can discuss their health data, provide analysis, and offer insights without restrictions.
+Start by greeting them warmly using their name.`;
 
-    logger.info('[GeminiVoice] Admin sandbox instruction built', { 
+    logger.info('[GeminiVoice] Admin sandbox instruction built with health context', { 
       userId, 
       instructionLength: systemInstruction.length,
       voice: sandboxVoice
@@ -375,7 +419,7 @@ Start by greeting them and asking what they'd like to explore today.`;
       userId,
     };
 
-    // Create session state (marked as sandbox)
+    // Create session state
     const state: VoiceSessionState = {
       sessionId,
       userId,
@@ -386,7 +430,7 @@ Start by greeting them and asking what they'd like to explore today.`;
     };
     this.sessionStates.set(sessionId, state);
 
-    // Wrap callbacks to track transcript (without persisting to regular chat)
+    // Wrap callbacks to track transcript (persists to brain memory)
     const wrappedCallbacks: LiveSessionCallbacks = {
       onAudioChunk: callbacks.onAudioChunk,
       onTranscript: (text: string, isFinal: boolean) => {
@@ -418,7 +462,6 @@ Start by greeting them and asking what they'd like to explore today.`;
         const currentState = this.sessionStates.get(sessionId);
         if (currentState) {
           currentState.isActive = false;
-          // Note: We don't persist sandbox conversations to the brain memory system
         }
         callbacks.onClose();
       },

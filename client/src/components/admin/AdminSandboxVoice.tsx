@@ -118,7 +118,7 @@ export function AdminSandboxVoice() {
           AI Sandbox Voice
         </CardTitle>
         <CardDescription className="text-amber-200/60">
-          Unrestricted AI testing with female voice (Kore). Conversations are not saved to brain memory.
+          Unrestricted AI with full health data access. Uses female voice (Kore) and saves to brain memory.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -252,7 +252,7 @@ export function AdminSandboxVoice() {
         <div className="p-3 rounded-lg bg-white/5 border border-white/10">
           <p className="text-xs text-white/50">
             <strong className="text-amber-400">Admin Only:</strong> This sandbox uses an unrestricted AI prompt 
-            for testing purposes. Conversations are not persisted to the brain memory system.
+            with full access to your health data. Conversations ARE persisted to brain memory.
             Voice: Kore (female, confident)
           </p>
         </div>
