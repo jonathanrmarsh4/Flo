@@ -9059,49 +9059,62 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       }
       
       // Start the admin sandbox session with unrestricted prompts
-      sessionId = await geminiVoiceService.startAdminSandboxSession(userId, {
-        onAudioChunk: (audioData: Buffer) => {
-          if (ws.readyState === WebSocket.default.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'audio',
-              data: audioData.toString('base64'),
-            }));
-          }
-        },
-        onTranscript: (text: string, isFinal: boolean) => {
-          if (ws.readyState === WebSocket.default.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'transcript',
-              text,
-              isFinal,
-            }));
-          }
-        },
-        onModelText: (text: string) => {
-          if (ws.readyState === WebSocket.default.OPEN && text) {
-            ws.send(JSON.stringify({
-              type: 'response_text',
-              text,
-            }));
-          }
-        },
-        onError: (error: Error) => {
-          if (ws.readyState === WebSocket.default.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'error',
-              message: error.message,
-            }));
-          }
-        },
-        onClose: () => {
-          if (ws.readyState === WebSocket.default.OPEN) {
-            ws.close(1000, 'Session ended');
-          }
-        },
-      });
-      
-      ws.send(JSON.stringify({ type: 'connected', sessionId }));
-      logger.info('[AdminSandbox WS] Session started', { userId, sessionId });
+      try {
+        sessionId = await geminiVoiceService.startAdminSandboxSession(userId, {
+          onAudioChunk: (audioData: Buffer) => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'audio',
+                data: audioData.toString('base64'),
+              }));
+            }
+          },
+          onTranscript: (text: string, isFinal: boolean) => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'transcript',
+                text,
+                isFinal,
+              }));
+            }
+          },
+          onModelText: (text: string) => {
+            if (ws.readyState === WebSocket.default.OPEN && text) {
+              ws.send(JSON.stringify({
+                type: 'response_text',
+                text,
+              }));
+            }
+          },
+          onError: (error: Error) => {
+            logger.error('[AdminSandbox WS] Session error callback', { error: error.message });
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: error.message,
+              }));
+            }
+          },
+          onClose: () => {
+            logger.info('[AdminSandbox WS] Session closed callback');
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.close(1000, 'Session ended');
+            }
+          },
+        });
+        
+        ws.send(JSON.stringify({ type: 'connected', sessionId }));
+        logger.info('[AdminSandbox WS] Session started successfully', { userId, sessionId });
+      } catch (sessionError: any) {
+        logger.error('[AdminSandbox WS] Failed to start session', { 
+          userId, 
+          error: sessionError.message,
+          stack: sessionError.stack 
+        });
+        ws.send(JSON.stringify({ type: 'error', message: 'Failed to start voice session: ' + sessionError.message }));
+        ws.close(4004, 'Session start failed');
+        return;
+      }
       
       // Handle incoming messages
       ws.on('message', async (data: Buffer) => {
