@@ -335,16 +335,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertProfile(userId: string, data: Partial<InsertProfile>): Promise<Profile> {
+    const normalizedData = {
+      ...data,
+      heightUnit: data.heightUnit === "in" ? "inches" as const : data.heightUnit,
+    };
+    
     const [profile] = await db
       .insert(profiles)
       .values({
         userId,
-        ...data,
+        ...normalizedData,
       })
       .onConflictDoUpdate({
         target: profiles.userId,
         set: {
-          ...data,
+          ...normalizedData,
           updatedAt: new Date(),
         },
       })
@@ -1994,7 +1999,7 @@ export class DatabaseStorage implements IStorage {
     
     for (const item of actionItems) {
       const date = item.createdAt?.toISOString().split('T')[0] || '';
-      rows.push(`Action Plan,${date},"${this.escapeCsv(item.title)}",,,,"${item.status}","${this.escapeCsv(item.description || '')}"`);
+      rows.push(`Action Plan,${date},"${this.escapeCsv(item.snapshotTitle)}",,,,"${item.status}","${this.escapeCsv(item.snapshotInsight || '')}"`);
     }
     
     return rows.join('\n');

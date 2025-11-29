@@ -52,8 +52,8 @@ export async function getProfile(userId: string) {
           goals: profile.goals,
           healthBaseline: profile.health_baseline,
           aiPersonalization: profile.ai_personalization,
-          reminderType: profile.reminder_type as "morning" | "evening" | null,
-          reminderTime: profile.reminder_time,
+          reminderType: null,
+          reminderTime: null,
           createdAt: profile.created_at ? new Date(profile.created_at) : new Date(),
           updatedAt: profile.updated_at ? new Date(profile.updated_at) : new Date(),
         };
@@ -71,8 +71,7 @@ export async function getProfile(userId: string) {
 export async function upsertProfile(userId: string, data: any) {
   if (isSupabaseHealthEnabled()) {
     try {
-      const supabaseData: supabaseHealth.HealthProfile = {
-        health_id: await getHealthId(userId),
+      const supabaseData: Partial<supabaseHealth.HealthProfile> = {
         sex: data.sex,
         date_of_birth: data.dateOfBirth?.toISOString?.() || data.dateOfBirth,
         weight: data.weight,
@@ -82,8 +81,6 @@ export async function upsertProfile(userId: string, data: any) {
         goals: data.goals,
         health_baseline: data.healthBaseline,
         ai_personalization: data.aiPersonalization,
-        reminder_type: data.reminderType,
-        reminder_time: data.reminderTime,
       };
       
       const result = await supabaseHealth.upsertProfile(userId, supabaseData);
@@ -100,8 +97,8 @@ export async function upsertProfile(userId: string, data: any) {
         goals: result.goals,
         healthBaseline: result.health_baseline,
         aiPersonalization: result.ai_personalization,
-        reminderType: result.reminder_type as "morning" | "evening" | null,
-        reminderTime: result.reminder_time,
+        reminderType: null,
+        reminderTime: null,
         createdAt: result.created_at ? new Date(result.created_at) : new Date(),
         updatedAt: result.updated_at ? new Date(result.updated_at) : new Date(),
       };
@@ -157,60 +154,60 @@ export async function getDailyMetrics(userId: string, days = 7) {
   return [];
 }
 
-export async function upsertDailyMetric(userId: string, metric: any) {
+export async function upsertDailyMetrics(userId: string, metric: any) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.upsertDailyMetric(userId, metric);
+      return await supabaseHealth.upsertDailyMetrics(userId, metric);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertDailyMetric failed:", error);
+      logger.error("[HealthStorageRouter] Supabase upsertDailyMetrics failed:", error);
       throw error;
     }
   }
   throw new Error("Supabase health storage not enabled");
 }
 
-export async function getHealthKitSamples(userId: string, dataType?: string, limit = 100) {
+export async function getHealthkitSamples(userId: string, dataType: string, startDate: Date, endDate: Date) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.getHealthKitSamples(userId, dataType, limit);
+      return await supabaseHealth.getHealthkitSamples(userId, dataType, startDate, endDate);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase getHealthKitSamples failed:", error);
+      logger.error("[HealthStorageRouter] Supabase getHealthkitSamples failed:", error);
       return [];
     }
   }
   return [];
 }
 
-export async function upsertHealthKitSample(userId: string, sample: any) {
+export async function createHealthkitSamples(userId: string, samples: any[]) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.upsertHealthKitSample(userId, sample);
+      return await supabaseHealth.createHealthkitSamples(userId, samples);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertHealthKitSample failed:", error);
+      logger.error("[HealthStorageRouter] Supabase createHealthkitSamples failed:", error);
       throw error;
     }
   }
   throw new Error("Supabase health storage not enabled");
 }
 
-export async function getHealthKitWorkouts(userId: string, limit = 50) {
+export async function getHealthkitWorkouts(userId: string, limit = 50) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.getHealthKitWorkouts(userId, limit);
+      return await supabaseHealth.getHealthkitWorkouts(userId, limit);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase getHealthKitWorkouts failed:", error);
+      logger.error("[HealthStorageRouter] Supabase getHealthkitWorkouts failed:", error);
       return [];
     }
   }
   return [];
 }
 
-export async function upsertHealthKitWorkout(userId: string, workout: any) {
+export async function createHealthkitWorkouts(userId: string, workouts: any[]) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.upsertHealthKitWorkout(userId, workout);
+      return await supabaseHealth.createHealthkitWorkouts(userId, workouts);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertHealthKitWorkout failed:", error);
+      logger.error("[HealthStorageRouter] Supabase createHealthkitWorkouts failed:", error);
       throw error;
     }
   }
@@ -241,48 +238,48 @@ export async function createLifeEvent(userId: string, event: any) {
   throw new Error("Supabase health storage not enabled");
 }
 
-export async function getFlomentumScores(userId: string, days = 7) {
+export async function getFlomentumDaily(userId: string, days = 7) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.getFlomentumScores(userId, days);
+      return await supabaseHealth.getFlomentumDaily(userId, days);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase getFlomentumScores failed:", error);
+      logger.error("[HealthStorageRouter] Supabase getFlomentumDaily failed:", error);
       return [];
     }
   }
   return [];
 }
 
-export async function upsertFlomentumScore(userId: string, score: any) {
+export async function upsertFlomentumDaily(userId: string, score: any) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.upsertFlomentumScore(userId, score);
+      return await supabaseHealth.upsertFlomentumDaily(userId, score);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertFlomentumScore failed:", error);
+      logger.error("[HealthStorageRouter] Supabase upsertFlomentumDaily failed:", error);
       throw error;
     }
   }
   throw new Error("Supabase health storage not enabled");
 }
 
-export async function getDiagnosticStudies(userId: string, type?: string) {
+export async function getDiagnosticsStudies(userId: string, type?: string) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.getDiagnosticStudies(userId, type);
+      return await supabaseHealth.getDiagnosticsStudies(userId, type);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase getDiagnosticStudies failed:", error);
+      logger.error("[HealthStorageRouter] Supabase getDiagnosticsStudies failed:", error);
       return [];
     }
   }
   return [];
 }
 
-export async function createDiagnosticStudy(userId: string, study: any) {
+export async function createDiagnosticsStudy(userId: string, study: any) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.createDiagnosticStudy(userId, study);
+      return await supabaseHealth.createDiagnosticsStudy(userId, study);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase createDiagnosticStudy failed:", error);
+      logger.error("[HealthStorageRouter] Supabase createDiagnosticsStudy failed:", error);
       throw error;
     }
   }
@@ -313,24 +310,12 @@ export async function createActionPlanItem(userId: string, item: any) {
   throw new Error("Supabase health storage not enabled");
 }
 
-export async function updateActionPlanItem(userId: string, itemId: string, updates: any) {
+export async function updateActionPlanItem(itemId: string, updates: any) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.updateActionPlanItem(userId, itemId, updates);
+      return await supabaseHealth.updateActionPlanItem(itemId, updates);
     } catch (error) {
       logger.error("[HealthStorageRouter] Supabase updateActionPlanItem failed:", error);
-      throw error;
-    }
-  }
-  throw new Error("Supabase health storage not enabled");
-}
-
-export async function deleteActionPlanItem(userId: string, itemId: string) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      return await supabaseHealth.deleteActionPlanItem(userId, itemId);
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase deleteActionPlanItem failed:", error);
       throw error;
     }
   }
@@ -368,12 +353,12 @@ export async function createBiomarkerSession(userId: string, session: any) {
   return created;
 }
 
-export async function getBiomarkerMeasurements(sessionId: string) {
+export async function getMeasurementsBySession(sessionId: string) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.getBiomarkerMeasurements(sessionId);
+      return await supabaseHealth.getMeasurementsBySession(sessionId);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase getBiomarkerMeasurements failed, falling back to Neon:", error);
+      logger.error("[HealthStorageRouter] Supabase getMeasurementsBySession failed, falling back to Neon:", error);
     }
   }
   
@@ -381,6 +366,22 @@ export async function getBiomarkerMeasurements(sessionId: string) {
     .select()
     .from(biomarkerMeasurements)
     .where(eq(biomarkerMeasurements.sessionId, sessionId));
+}
+
+export async function createBiomarkerMeasurement(measurement: any) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.createBiomarkerMeasurement(measurement);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase createBiomarkerMeasurement failed, falling back to Neon:", error);
+    }
+  }
+  
+  const [created] = await db
+    .insert(biomarkerMeasurements)
+    .values(measurement)
+    .returning();
+  return created;
 }
 
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);
