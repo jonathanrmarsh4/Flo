@@ -8831,8 +8831,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ────────────────────────────────────────────────────────────────
   
   const WebSocket = await import('ws');
-  // Single WebSocket server that handles all voice endpoints
-  const wss = new WebSocket.WebSocketServer({ server: httpServer, noServer: false });
+  // Single WebSocket server with noServer mode for manual upgrade handling
+  const wss = new WebSocket.WebSocketServer({ noServer: true });
   
   // Upgrade handler to route based on path
   httpServer.on('upgrade', (request, socket, head) => {
