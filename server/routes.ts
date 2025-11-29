@@ -3212,6 +3212,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/labs/history - Get user's recent lab upload history for debugging
+  app.get("/api/labs/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+
+      const jobs = await storage.getLabUploadJobsByUser(userId, limit);
+
+      res.json({
+        jobs: jobs.map(job => ({
+          id: job.id,
+          fileName: job.fileName,
+          status: job.status,
+          createdAt: job.createdAt,
+          updatedAt: job.updatedAt,
+          result: job.resultPayload,
+          error: job.errorDetails,
+        })),
+      });
+    } catch (error) {
+      logger.error('Error getting lab upload history:', error);
+      res.status(500).json({ error: "Failed to get lab upload history" });
+    }
+  });
+
   // Admin routes - User management
   app.get("/api/admin/users", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
