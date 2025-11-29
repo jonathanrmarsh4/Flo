@@ -80,6 +80,8 @@ export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   'FSH': { unit: 'mIU/mL', min: 1.4, max: 18.1, category: 'Hormonal & Endocrine' },
   'Prolactin': { unit: 'ng/mL', min: 2, max: 18, category: 'Hormonal & Endocrine' },
   'IGF-1': { unit: 'ng/mL', min: 115, max: 307, category: 'Hormonal & Endocrine' },
+  'PSA': { unit: 'ng/mL', min: 0, max: 4.0, category: 'Hormonal & Endocrine' },
+  'Prostate-Specific Antigen': { unit: 'ng/mL', min: 0, max: 4.0, category: 'Hormonal & Endocrine' },
   
   // Metabolic & Diabetes
   'Fasting Glucose': { unit: 'mg/dL', min: 70, max: 100, category: 'Metabolic & Diabetes' },
