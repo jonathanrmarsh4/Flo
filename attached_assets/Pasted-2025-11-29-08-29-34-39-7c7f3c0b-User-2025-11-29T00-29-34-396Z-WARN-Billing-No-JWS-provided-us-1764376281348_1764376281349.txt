@@ -1,0 +1,32 @@
+2025-11-29 08:29:34.39
+7c7f3c0b
+User
+[2025-11-29T00:29:34.396Z] [WARN] [Billing] No JWS provided, using client-supplied data (less secure)
+2025-11-29 08:29:34.43
+7c7f3c0b
+User
+[2025-11-29T00:29:34.436Z] [ERROR] [Billing] App Store verification error: {"error":{"message":"column \"app_store_original_transaction_id\" does not exist","stack":"error: column \"app_store_original_transaction_id\" does not exist\n at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async NeonPreparedQuery.execute (file:///home/runner/workspace/node_modules/drizzle-orm/neon-serverless/session.js:76:20)\n at async file:///home/runner/workspace/dist/index.js:5477:36"}}
+2025-11-29 08:29:34.43
+7c7f3c0b
+User
+12:29:34 AM [express] POST /api/billing/verify-app-store 500 in 212ms :: {"error":"column \"app_store…
+2025-11-29 08:29:38.04
+7c7f3c0b
+User
+[2025-11-29T00:29:38.047Z] [INFO] [AppStore] Loaded Apple Root Certificates {"count":3}
+2025-11-29 08:29:38.04
+7c7f3c0b
+User
+[2025-11-29T00:29:38.048Z] [INFO] [AppStore] SignedDataVerifier initialized successfully {"environment":"Production","bundleId":"com.flo.healthapp","appAppleId":6755718285,"rootCertsLoaded":3,"onlineChecks":true}
+2025-11-29 08:29:38.18
+7c7f3c0b
+User
+[2025-11-29T00:29:38.187Z] [ERROR] [Billing] App Store webhook JWS verification failed {}
+2025-11-29 08:29:38.18
+7c7f3c0b
+User
+[2025-11-29T00:29:38.187Z] [ERROR] [AppStore] Notification verification failed: {"error":{"message":"","stack":"Error\n at SignedDataVerifier.verifyNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:138:19)\n at SignedDataVerifier.verifyAndDecodeNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:130:14)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async verifyAndDecodeNotification (file:///home/runner/workspace/dist/index.js:4794:35)\n at async file:///home/runner/workspace/dist/index.js:5546:25"}}
+2025-11-29 08:29:38.18
+7c7f3c0b
+User
+12:29:38 AM [express] POST /api/billing/app-store-webhook 400 in 143ms :: {"error":"Invalid notificat…
