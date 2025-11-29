@@ -7,6 +7,7 @@ import { z } from "zod";
 import { storage } from "../storage";
 import { logger } from "../logger";
 import { isAuthenticated } from "../replitAuth";
+import { authRateLimiter, signupRateLimiter, passwordResetRateLimiter } from "../middleware/rateLimiter";
 import {
   generateRegistrationOptions,
   verifyRegistrationResponse,
@@ -35,7 +36,7 @@ import { fromError } from "zod-validation-error";
 const router = Router();
 
 // Helper function to generate JWT token for mobile authentication
-function generateMobileAuthToken(userId: number | string): string {
+function generateMobileAuthToken(userId: number | string, tokenVersion: number = 0): string {
   if (!process.env.SESSION_SECRET) {
     throw new Error('SESSION_SECRET is required for JWT generation');
   }
@@ -45,6 +46,7 @@ function generateMobileAuthToken(userId: number | string): string {
     iss: 'flo-health-app',
     aud: 'flo-mobile-client',
     type: 'mobile',
+    ver: tokenVersion, // Token version for invalidation on password change
   };
   
   const secret = process.env.SESSION_SECRET;
@@ -54,7 +56,7 @@ function generateMobileAuthToken(userId: number | string): string {
 }
 
 // Apple Sign-In endpoint
-router.post("/api/mobile/auth/apple", async (req, res) => {
+router.post("/api/mobile/auth/apple", authRateLimiter, async (req, res) => {
   try {
     // Validate request body
     const body = appleSignInSchema.parse(req.body);
@@ -209,7 +211,7 @@ router.post("/api/mobile/auth/apple", async (req, res) => {
 });
 
 // Google Sign-In endpoint
-router.post("/api/mobile/auth/google", async (req, res) => {
+router.post("/api/mobile/auth/google", authRateLimiter, async (req, res) => {
   try {
     // Validate request body
     const body = googleSignInSchema.parse(req.body);
@@ -348,7 +350,7 @@ router.post("/api/mobile/auth/google", async (req, res) => {
 });
 
 // Email/Password registration endpoint
-router.post("/api/mobile/auth/register", async (req, res) => {
+router.post("/api/mobile/auth/register", signupRateLimiter, async (req, res) => {
   try {
     // Validate request body
     const body = emailRegisterSchema.parse(req.body);
@@ -485,7 +487,10 @@ router.post("/api/mobile/auth/register", async (req, res) => {
 });
 
 // Email/Password login endpoint
-router.post("/api/mobile/auth/login", async (req, res) => {
+router.post("/api/mobile/auth/login", authRateLimiter, async (req, res) => {
+  const MAX_FAILED_ATTEMPTS = 5;
+  const LOCKOUT_DURATION_MINUTES = 15;
+  
   try {
     // Validate request body
     const body = emailLoginSchema.parse(req.body);
@@ -517,17 +522,43 @@ router.post("/api/mobile/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Please set a password first" });
     }
     
+    // Check if account is locked due to too many failed attempts
+    const isLocked = await storage.isAccountLocked(user.id);
+    if (isLocked) {
+      return res.status(429).json({ 
+        error: "Account temporarily locked",
+        message: `Too many failed login attempts. Please try again in ${LOCKOUT_DURATION_MINUTES} minutes.`
+      });
+    }
+    
     // Validate password with bcrypt
     const isPasswordValid = await bcrypt.compare(body.password, credentials.passwordHash);
     if (!isPasswordValid) {
+      // Increment failed attempts
+      const failedAttempts = await storage.incrementFailedAttempts(user.id);
+      
+      // Lock account if too many failed attempts
+      if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+        await storage.lockAccount(user.id, LOCKOUT_DURATION_MINUTES);
+        logger.warn('Account locked due to too many failed login attempts', { userId: user.id, email: user.email, failedAttempts });
+        return res.status(429).json({ 
+          error: "Account temporarily locked",
+          message: `Too many failed login attempts. Please try again in ${LOCKOUT_DURATION_MINUTES} minutes.`
+        });
+      }
+      
       return res.status(401).json({ error: "Invalid email or password" });
     }
+    
+    // Password is correct - reset failed attempts
+    await storage.resetFailedAttempts(user.id);
     
     // Update last login timestamp
     await storage.updateLastLoginAt(user.id);
     
-    // Generate JWT token for mobile authentication
-    const token = generateMobileAuthToken(user.id);
+    // Generate JWT token for mobile authentication (now includes tokenVersion)
+    const tokenVersion = await storage.getTokenVersion(user.id);
+    const token = generateMobileAuthToken(user.id, tokenVersion);
     
     res.json({ 
       user: {
@@ -552,7 +583,7 @@ router.post("/api/mobile/auth/login", async (req, res) => {
 });
 
 // Password reset request endpoint
-router.post("/api/mobile/auth/request-reset", async (req, res) => {
+router.post("/api/mobile/auth/request-reset", passwordResetRateLimiter, async (req, res) => {
   try {
     // Validate request body
     const body = passwordResetRequestSchema.parse(req.body);
@@ -602,7 +633,7 @@ router.post("/api/mobile/auth/request-reset", async (req, res) => {
 });
 
 // Password reset endpoint
-router.post("/api/mobile/auth/reset", async (req, res) => {
+router.post("/api/mobile/auth/reset", passwordResetRateLimiter, async (req, res) => {
   try {
     // Validate request body
     const body = passwordResetSchema.parse(req.body);
@@ -623,7 +654,13 @@ router.post("/api/mobile/auth/reset", async (req, res) => {
     // Update password and clear reset token (single-use: token is deleted)
     await storage.updatePasswordHash(user.id, passwordHash);
     
-    logger.info('Password reset successful', { userId: user.id });
+    // Increment token version to invalidate all existing JWT sessions
+    await storage.incrementTokenVersion(user.id);
+    
+    // Reset any failed login attempts
+    await storage.resetFailedAttempts(user.id);
+    
+    logger.info('Password reset successful (all sessions invalidated)', { userId: user.id });
     
     res.json({ 
       success: true,
@@ -914,7 +951,7 @@ router.post("/api/mobile/auth/passkey/register", isAuthenticated, async (req, re
 
 // Generate passkey authentication options (for login)
 // This endpoint supports discoverable credentials (passkeys stored on device)
-router.post("/api/mobile/auth/passkey/login-options", async (req, res) => {
+router.post("/api/mobile/auth/passkey/login-options", authRateLimiter, async (req, res) => {
   try {
     const bodySchema = z.object({
       email: z.string().email().optional(),
@@ -962,7 +999,7 @@ router.post("/api/mobile/auth/passkey/login-options", async (req, res) => {
 });
 
 // Verify passkey authentication and login
-router.post("/api/mobile/auth/passkey/login", async (req, res) => {
+router.post("/api/mobile/auth/passkey/login", authRateLimiter, async (req, res) => {
   try {
     const bodySchema = z.object({
       response: z.any(),

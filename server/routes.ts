@@ -19,6 +19,7 @@ import {
   canAccessInsights,
   canAccessFlomentum,
 } from "./middleware/planEnforcement";
+import { aiEndpointRateLimiter, uploadRateLimiter } from "./middleware/rateLimiter";
 import { logger } from "./logger";
 import { sendBugReportEmail, sendSupportRequestEmail } from "./services/emailService";
 import { eq, desc, and, gte, gt, sql, isNull, isNotNull } from "drizzle-orm";
@@ -275,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const objectStorageService = new ObjectStorageService();
 
   // Get upload URL for blood work file
-  app.post("/api/objects/upload", isAuthenticated, async (req, res) => {
+  app.post("/api/objects/upload", isAuthenticated, uploadRateLimiter, async (req, res) => {
     try {
       const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL();
       res.json({ uploadURL, objectPath });
@@ -440,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Blood work analysis endpoint
-  app.post("/api/blood-work/analyze", isAuthenticated, canUploadLab, async (req: any, res) => {
+  app.post("/api/blood-work/analyze", isAuthenticated, canUploadLab, aiEndpointRateLimiter, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { fileUrl, fileName } = req.body;
@@ -2911,7 +2912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   });
 
-  app.post("/api/labs/upload", isAuthenticated, upload.single('file'), async (req: any, res) => {
+  app.post("/api/labs/upload", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req: any, res) => {
     let job: any;
     let bloodWorkRecord: any;
     
@@ -4970,7 +4971,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Diagnostic results routes
   // Upload calcium score PDF and extract data
-  app.post("/api/diagnostics/calcium-score/upload", isAuthenticated, upload.single('file'), async (req: any, res) => {
+  app.post("/api/diagnostics/calcium-score/upload", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
@@ -5094,7 +5095,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // EXPERIMENTAL: Upload calcium score PDF using advanced AI model for difficult PDFs
-  app.post("/api/diagnostics/calcium-score/upload-experimental", isAuthenticated, upload.single('file'), async (req: any, res) => {
+  app.post("/api/diagnostics/calcium-score/upload-experimental", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
@@ -5222,7 +5223,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload DEXA scan PDF and extract data
-  app.post("/api/diagnostics/dexa/upload", isAuthenticated, upload.single('file'), async (req: any, res) => {
+  app.post("/api/diagnostics/dexa/upload", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
@@ -5371,7 +5372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload DEXA scan PDF with OCR + GPT-5 (Experimental)
-  app.post("/api/diagnostics/dexa/upload-experimental", isAuthenticated, upload.single('file'), async (req: any, res) => {
+  app.post("/api/diagnostics/dexa/upload-experimental", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
@@ -6456,7 +6457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Flō Oracle Chat Routes
-  app.post("/api/chat/grok", isAuthenticated, async (req: any, res) => {
+  app.post("/api/chat/grok", isAuthenticated, aiEndpointRateLimiter, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { message, conversationHistory } = req.body;
@@ -6617,7 +6618,7 @@ ${userContext}`;
   });
 
   // Flō Oracle - Text-only chat with Grok (personalized health coaching)
-  app.post("/api/flo-oracle/chat", isAuthenticated, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
+  app.post("/api/flo-oracle/chat", isAuthenticated, canAccessOracle, canSendOracleMsg, aiEndpointRateLimiter, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
 
     try {
@@ -7810,7 +7811,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ────────────────────────────────────────────────────────────────
 
   // Generate insights for a user (run correlation detection)
-  app.post("/api/insights/generate", isAuthenticated, async (req: any, res) => {
+  app.post("/api/insights/generate", isAuthenticated, aiEndpointRateLimiter, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       logger.info(`[Insights] Generating insights for user ${userId}`);

@@ -203,6 +203,9 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").default("free").notNull(),
   status: userStatusEnum("status").default("active").notNull(),
   
+  // JWT token version - increment to invalidate all sessions
+  tokenVersion: integer("token_version").default(0).notNull(),
+  
   // Daily reminder preferences
   reminderEnabled: boolean("reminder_enabled").default(true).notNull(),
   reminderTime: varchar("reminder_time").default("08:15").notNull(), // HH:MM format (24hr)
@@ -248,6 +251,8 @@ export const userCredentials = pgTable("user_credentials", {
   resetTokenExpiresAt: timestamp("reset_token_expires_at"), // Reset token expiry
   verificationToken: varchar("verification_token").unique(), // Email verification token
   verificationTokenExpiresAt: timestamp("verification_token_expires_at"), // Verification token expiry
+  failedAttempts: integer("failed_attempts").default(0).notNull(), // Count of consecutive failed login attempts
+  lockedUntil: timestamp("locked_until"), // Account locked until this time
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1701,6 +1706,7 @@ export const insertUserCredentialsSchema = createInsertSchema(userCredentials, {
   lastLoginAt: z.coerce.date().nullable().optional(),
   resetTokenExpiresAt: z.coerce.date().nullable().optional(),
   verificationTokenExpiresAt: z.coerce.date().nullable().optional(),
+  lockedUntil: z.coerce.date().nullable().optional(),
 }).omit({
   id: true,
   createdAt: true,
@@ -1716,6 +1722,8 @@ export const userCredentialsSchema = z.object({
   resetTokenExpiresAt: z.date().nullable(),
   verificationToken: z.string().nullable(),
   verificationTokenExpiresAt: z.date().nullable(),
+  failedAttempts: z.number(),
+  lockedUntil: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startBaselineScheduler } from "./services/baselineScheduler";
@@ -8,6 +9,44 @@ import { startInsightsSchedulerV2 } from "./services/insightsSchedulerV2";
 import { initializeDailyReminderScheduler } from "./services/dailyReminderScheduler";
 
 const app = express();
+
+// Security headers middleware
+app.use(helmet({
+  // Enable HSTS - force HTTPS for 1 year
+  hsts: {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true,
+  },
+  // Prevent clickjacking
+  frameguard: {
+    action: 'deny',
+  },
+  // Prevent MIME type sniffing
+  noSniff: true,
+  // Referrer policy
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin',
+  },
+  // Content Security Policy - relaxed for development, tighten in production
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://api.openai.com", "https://generativelanguage.googleapis.com", "wss:", "https:"],
+      mediaSrc: ["'self'", "blob:"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  } : false, // Disable CSP in development for easier debugging
+  // Hide X-Powered-By header
+  hidePoweredBy: true,
+  // XSS protection (legacy but still useful)
+  xssFilter: true,
+}));
 
 app.use(cors({
   origin: function (origin, callback) {

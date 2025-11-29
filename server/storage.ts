@@ -167,6 +167,16 @@ export interface IStorage {
   clearVerificationToken(userId: string): Promise<void>;
   updateLastLoginAt(userId: string): Promise<void>;
   
+  // Account lockout operations
+  incrementFailedAttempts(userId: string): Promise<number>; // Returns new count
+  resetFailedAttempts(userId: string): Promise<void>;
+  lockAccount(userId: string, lockDurationMinutes: number): Promise<void>;
+  isAccountLocked(userId: string): Promise<boolean>;
+  
+  // Token version operations (for JWT invalidation)
+  incrementTokenVersion(userId: string): Promise<number>; // Returns new version
+  getTokenVersion(userId: string): Promise<number>;
+  
   // Passkey operations (WebAuthn/FIDO2)
   createPasskeyCredential(data: InsertPasskeyCredential): Promise<PasskeyCredential>;
   getPasskeysByUserId(userId: string): Promise<PasskeyCredential[]>;
@@ -813,6 +823,82 @@ export class DatabaseStorage implements IStorage {
         updatedAt: new Date(),
       })
       .where(eq(userCredentials.userId, userId));
+  }
+
+  // Account lockout operations
+  async incrementFailedAttempts(userId: string): Promise<number> {
+    const [result] = await db
+      .update(userCredentials)
+      .set({
+        failedAttempts: sql`${userCredentials.failedAttempts} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, userId))
+      .returning({ failedAttempts: userCredentials.failedAttempts });
+    
+    return result?.failedAttempts ?? 0;
+  }
+
+  async resetFailedAttempts(userId: string): Promise<void> {
+    await db
+      .update(userCredentials)
+      .set({
+        failedAttempts: 0,
+        lockedUntil: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, userId));
+  }
+
+  async lockAccount(userId: string, lockDurationMinutes: number): Promise<void> {
+    const lockedUntil = new Date();
+    lockedUntil.setMinutes(lockedUntil.getMinutes() + lockDurationMinutes);
+    
+    await db
+      .update(userCredentials)
+      .set({
+        lockedUntil,
+        updatedAt: new Date(),
+      })
+      .where(eq(userCredentials.userId, userId));
+  }
+
+  async isAccountLocked(userId: string): Promise<boolean> {
+    const [credentials] = await db
+      .select({ lockedUntil: userCredentials.lockedUntil })
+      .from(userCredentials)
+      .where(eq(userCredentials.userId, userId))
+      .limit(1);
+    
+    if (!credentials?.lockedUntil) {
+      return false;
+    }
+    
+    return credentials.lockedUntil > new Date();
+  }
+
+  // Token version operations (for JWT invalidation)
+  async incrementTokenVersion(userId: string): Promise<number> {
+    const [result] = await db
+      .update(users)
+      .set({
+        tokenVersion: sql`${users.tokenVersion} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning({ tokenVersion: users.tokenVersion });
+    
+    return result?.tokenVersion ?? 0;
+  }
+
+  async getTokenVersion(userId: string): Promise<number> {
+    const [user] = await db
+      .select({ tokenVersion: users.tokenVersion })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    
+    return user?.tokenVersion ?? 0;
   }
 
   // Passkey operations (WebAuthn/FIDO2)

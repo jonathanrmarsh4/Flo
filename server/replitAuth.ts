@@ -213,6 +213,17 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         return res.status(401).json({ message: "Account suspended" });
       }
       
+      // Check token version - invalidate token if password was changed
+      const tokenVersion = decoded.ver ?? 0;
+      if (tokenVersion !== dbUser.tokenVersion) {
+        logger.warn('JWT authentication failed: token version mismatch (password changed)', { 
+          userId: decoded.sub, 
+          tokenVersion, 
+          dbTokenVersion: dbUser.tokenVersion 
+        });
+        return res.status(401).json({ message: "Session expired. Please log in again." });
+      }
+      
       // Attach complete user object to request (matching session auth structure)
       req.user = {
         id: dbUser.id,
