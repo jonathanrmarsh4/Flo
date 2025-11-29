@@ -16,6 +16,9 @@ import { PLANS, PRICING } from '../config/plans';
 import { PAYWALL_MODALS } from '../config/paywallModals';
 import { getAppleRootCertificates } from '../config/appleRootCerts';
 
+// Public router for webhook endpoints (no authentication required)
+export const publicBillingRouter = Router();
+
 // App Store configuration
 const APP_STORE_BUNDLE_ID = process.env.APP_STORE_BUNDLE_ID || 'com.flo.healthapp';
 const APP_STORE_ISSUER_ID = process.env.APP_STORE_ISSUER_ID || '';
@@ -711,8 +714,9 @@ router.post('/cancel-subscription', async (req: any, res) => {
 /**
  * POST /api/billing/webhook
  * Handle Stripe webhook events
+ * NOTE: This is registered on publicBillingRouter (no auth required)
  */
-router.post('/webhook', async (req, res) => {
+publicBillingRouter.post('/webhook', async (req, res) => {
   if (!stripe) {
     return res.status(503).json({ error: 'Stripe is not configured' });
   }
@@ -1223,8 +1227,9 @@ router.post('/verify-app-store', async (req: any, res) => {
  * Configure this URL in App Store Connect
  * 
  * Security: Uses Apple's official library for JWS signature verification
+ * NOTE: This is registered on publicBillingRouter (no auth required - Apple calls this)
  */
-router.post('/app-store-webhook', async (req, res) => {
+publicBillingRouter.post('/app-store-webhook', async (req, res) => {
   try {
     const { signedPayload } = req.body;
     

@@ -8816,7 +8816,12 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // Mobile auth routes (Apple, Google, Email/Password)
   app.use(mobileAuthRouter);
   
-  // Billing routes (Stripe subscription management)
+  // Public billing routes (webhooks - no authentication required)
+  // These must be registered BEFORE the authenticated routes
+  const { publicBillingRouter } = await import('./routes/billing');
+  app.use('/api/billing', publicBillingRouter);
+  
+  // Authenticated billing routes (Stripe subscription management)
   app.use('/api/billing', isAuthenticated, billingRouter);
 
   const httpServer = createServer(app);
