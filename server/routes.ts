@@ -4403,13 +4403,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         diastolicBp: dailyMetrics.diastolicBp ?? null,
         bloodGlucoseMgDl: dailyMetrics.bloodGlucoseMgDl ?? null,
         vo2Max: dailyMetrics.vo2Max ?? null,
-        // 5 newly added metrics for complete HealthKit coverage
+        // Extended metrics for complete HealthKit coverage
         basalEnergyKcal: dailyMetrics.basalEnergyKcal ?? null,
         walkingHrAvgBpm: dailyMetrics.walkingHrAvgBpm ?? null,
         dietaryWaterMl: dailyMetrics.dietaryWaterMl ?? null,
         oxygenSaturationPct: dailyMetrics.oxygenSaturationPct ?? null,
         respiratoryRateBpm: dailyMetrics.respiratoryRateBpm ?? null,
+        bodyTempC: dailyMetrics.bodyTempC ?? null,
       };
+      
+      // PRODUCTION DEBUG: Log ALL extended metrics to verify iOS is sending them
+      console.log('📊 [HEALTHKIT DEBUG] Extended metrics from iOS:', JSON.stringify(extendedMetrics, null, 2));
 
       // Log extended metrics for debugging
       logger.debug('[HealthKit] Extended metrics received', { extendedMetrics });
@@ -4579,9 +4583,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dietary_water_ml: extendedMetrics.dietaryWaterMl,
             oxygen_saturation_pct: extendedMetrics.oxygenSaturationPct,
             respiratory_rate_bpm: extendedMetrics.respiratoryRateBpm,
+            body_temp_c: extendedMetrics.bodyTempC,
             normalization_version: 'norm_v1',
           };
           
+          console.log('📤 [SUPABASE DEBUG] Writing metrics to Supabase:', JSON.stringify(supabaseMetrics, null, 2));
           await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
           logger.info(`[HealthKit] Also stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
         }
