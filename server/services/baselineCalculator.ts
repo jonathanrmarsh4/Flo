@@ -3,7 +3,16 @@ import { userDailyMetrics, userMetricBaselines } from "@shared/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { logger } from "../logger";
 
-export type MetricKey = "sleep_hours" | "resting_hr" | "hrv_ms" | "active_energy_kcal";
+export type MetricKey = 
+  | "sleep_hours" 
+  | "resting_hr" 
+  | "hrv_ms" 
+  | "active_energy_kcal"
+  | "basal_energy_kcal"
+  | "walking_hr_avg"
+  | "dietary_water_ml"
+  | "oxygen_saturation_pct"
+  | "respiratory_rate_bpm";
 
 export interface BaselineStats {
   mean: number;
@@ -37,6 +46,12 @@ export async function calculateBaseline(
       resting_hr: userDailyMetrics.restingHrBpm,
       hrv_ms: userDailyMetrics.hrvMs,
       active_energy_kcal: userDailyMetrics.activeEnergyKcal,
+      // 5 newly added metrics for complete HealthKit coverage
+      basal_energy_kcal: userDailyMetrics.basalEnergyKcal,
+      walking_hr_avg: userDailyMetrics.walkingHrAvgBpm,
+      dietary_water_ml: userDailyMetrics.dietaryWaterMl,
+      oxygen_saturation_pct: userDailyMetrics.oxygenSaturationPct,
+      respiratory_rate_bpm: userDailyMetrics.respiratoryRateBpm,
     };
 
     const column = columnMap[metricKey];
@@ -165,7 +180,18 @@ export async function updateAllBaselines(
   userId: string,
   windowDays: number = 30
 ): Promise<void> {
-  const metrics: MetricKey[] = ["sleep_hours", "resting_hr", "hrv_ms", "active_energy_kcal"];
+  const metrics: MetricKey[] = [
+    "sleep_hours", 
+    "resting_hr", 
+    "hrv_ms", 
+    "active_energy_kcal",
+    // 5 newly added metrics for complete HealthKit coverage
+    "basal_energy_kcal",
+    "walking_hr_avg",
+    "dietary_water_ml",
+    "oxygen_saturation_pct",
+    "respiratory_rate_bpm",
+  ];
 
   logger.info(`[Baseline] Updating all baselines for user ${userId}`);
 
