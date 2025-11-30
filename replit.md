@@ -46,11 +46,11 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - **Mindfulness daily metrics (Nov 2025):** getMindfulnessDailyMetrics/upsertMindfulnessDailyMetrics - daily aggregations
 - **Response Normalization:** healthRouter converts Supabase snake_case responses to camelCase for API compatibility
 - **Predicate Safety:** All storage methods use safe predicate building (`whereClause = conditions.length === 1 ? conditions[0] : and(...conditions)`)
-- **Fully Refactored Tables (0 direct db calls):** sleepNights, healthkitSamples, lifeEvents, flomentumDaily, diagnosticsStudies, actionPlanItems
-- **Intentional Direct Calls:** 
-  - userDailyMetrics (timezone lookups + ingestion)
-  - dailyInsights (AI-generated content stays in Neon)
-  - diagnosticMetrics (AI-generated content stays in Neon)
+- **Fully Refactored Tables (0 direct db calls):** sleepNights, healthkitSamples, lifeEvents, flomentumDaily, diagnosticsStudies, actionPlanItems, userDailyMetrics, healthDailyMetrics, biomarkerTestSessions, biomarkerMeasurements, profiles, nutritionDailyMetrics, mindfulnessSessions, mindfulnessDailyMetrics, healthkitWorkouts
+- **Non-Health Tables (remain in Neon):** 
+  - dailyInsights (AI-generated content, not health data)
+  - diagnosticMetrics (AI-generated summaries, not raw health data)
+  - flomentumWeekly (aggregated scores, reads from Supabase flomentum_daily)
 - **Activation:** Set `SUPABASE_HEALTH_ENABLED=true` environment variable to enable Supabase routing
 
 Production database schema changes require manual verification and careful migration to avoid data loss.

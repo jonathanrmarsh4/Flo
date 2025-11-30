@@ -4517,70 +4517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[HealthKit] Ingesting daily metrics for user ${userId}, date ${metrics.localDate}`);
       logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
-      // INTENTIONAL NEON WRITE: healthDailyMetrics stays in Neon for Flōmentum fast lookups
-      // This is documented in replit.md as an intentional exception for performance reasons
-      // The canonical health data is also written to Supabase below via upsertSupabaseDailyMetrics
-      const healthMetricsData = {
-        userId,
-        date: metrics.localDate,
-        sleepTotalMinutes: metrics.sleepHours ? Math.round(metrics.sleepHours * 60) : null,
-        hrvSdnnMs: metrics.hrvMs ? Math.round(metrics.hrvMs) : null,
-        restingHr: metrics.restingHrBpm ? Math.round(metrics.restingHrBpm) : null,
-        steps: metrics.stepsRawSum ?? metrics.stepsNormalized ?? null,
-        activeKcal: metrics.activeEnergyKcal ? Math.round(metrics.activeEnergyKcal) : null,
-        exerciseMinutes: metrics.exerciseMinutes ? Math.round(metrics.exerciseMinutes) : null,
-        weightKg: extendedMetrics.weightKg,
-        bodyFatPct: extendedMetrics.bodyFatPercent,
-        leanMassKg: extendedMetrics.leanBodyMassKg,
-        bmi: extendedMetrics.bmi,
-        waistCircumferenceCm: extendedMetrics.waistCircumferenceCm,
-      };
-
-      logger.debug('[HealthKit] Saving to health_daily_metrics', { healthMetricsData });
-
-      try {
-        console.log('⏳ [BODY COMP DEBUG] Starting database insert...');
-        await db.insert(healthDailyMetrics).values(healthMetricsData).onConflictDoUpdate({
-          target: [healthDailyMetrics.userId, healthDailyMetrics.date],
-          set: {
-            sleepTotalMinutes: healthMetricsData.sleepTotalMinutes,
-            hrvSdnnMs: healthMetricsData.hrvSdnnMs,
-            restingHr: healthMetricsData.restingHr,
-            steps: healthMetricsData.steps,
-            activeKcal: healthMetricsData.activeKcal,
-            exerciseMinutes: healthMetricsData.exerciseMinutes,
-            weightKg: healthMetricsData.weightKg,
-            bodyFatPct: healthMetricsData.bodyFatPct,
-            leanMassKg: healthMetricsData.leanMassKg,
-            bmi: healthMetricsData.bmi,
-            waistCircumferenceCm: healthMetricsData.waistCircumferenceCm,
-          },
-        });
-        console.log('✅ [BODY COMP DEBUG] Successfully saved to health_daily_metrics for date:', healthMetricsData.date);
-      } catch (saveError: any) {
-        console.log('❌ [BODY COMP DEBUG] SAVE FAILED! Error:', saveError.message);
-        console.log('❌ [BODY COMP DEBUG] Error stack:', saveError.stack);
-        console.log('❌ [BODY COMP DEBUG] Data that failed:', JSON.stringify(healthMetricsData, null, 2));
-      }
-
-      // INTENTIONAL NEON WRITE: userDailyMetrics stays in Neon for timezone lookups + ingestion
-      // This is documented in replit.md as an intentional exception for performance reasons
-      // The canonical health data is also written to Supabase below via upsertSupabaseDailyMetrics
-      const { and, sql: drizzleSql } = await import("drizzle-orm");
-      
-      // Check if record exists
-      const existing = await db
-        .select()
-        .from(userDailyMetrics)
-        .where(
-          and(
-            eq(userDailyMetrics.userId, userId),
-            eq(userDailyMetrics.localDate, metrics.localDate)
-          )
-        )
-        .limit(1);
-
-      // Combine validated metrics with extended health fields
+      // Combine validated metrics with extended health fields for Flomentum calculation
       const fullMetrics = {
         ...metrics,
         weightKg: extendedMetrics.weightKg,
@@ -4597,7 +4534,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         diastolicBp: extendedMetrics.diastolicBp,
         bloodGlucoseMgDl: extendedMetrics.bloodGlucoseMgDl,
         vo2Max: extendedMetrics.vo2Max,
-        // 5 newly added metrics for complete HealthKit coverage
         basalEnergyKcal: extendedMetrics.basalEnergyKcal,
         walkingHrAvgBpm: extendedMetrics.walkingHrAvgBpm,
         dietaryWaterMl: extendedMetrics.dietaryWaterMl,
@@ -4605,79 +4541,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         respiratoryRateBpm: extendedMetrics.respiratoryRateBpm,
       };
 
-      if (existing.length > 0) {
-        // Update existing record
-        await db
-          .update(userDailyMetrics)
-          .set({
-            ...fullMetrics,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(userDailyMetrics.userId, userId),
-              eq(userDailyMetrics.localDate, metrics.localDate)
-            )
-          );
-
-        logger.info(`[HealthKit] Updated daily metrics for ${userId}, ${metrics.localDate}`);
-      } else {
-        // Insert new record
-        await db.insert(userDailyMetrics).values(fullMetrics);
-
-        logger.info(`[HealthKit] Inserted daily metrics for ${userId}, ${metrics.localDate}`);
+      // SUPABASE-ONLY: All health data writes go to Supabase exclusively
+      const { isSupabaseHealthEnabled, upsertDailyMetrics: upsertSupabaseDailyMetrics } = await import('./services/healthStorageRouter');
+      
+      if (!isSupabaseHealthEnabled()) {
+        return res.status(503).json({ error: "Health data storage not available - Supabase not enabled" });
       }
 
-      // Also store in Supabase if enabled (for Flo Oracle context)
-      try {
-        const { isSupabaseHealthEnabled, upsertDailyMetrics: upsertSupabaseDailyMetrics } = await import('./services/healthStorageRouter');
-        
-        if (isSupabaseHealthEnabled()) {
-          // Convert to Supabase snake_case format
-          const supabaseMetrics = {
-            local_date: metrics.localDate,
-            timezone: metrics.timezone,
-            utc_day_start: metrics.utcDayStart,
-            utc_day_end: metrics.utcDayEnd,
-            steps_normalized: metrics.stepsNormalized,
-            steps_raw_sum: metrics.stepsRawSum,
-            steps_sources: metrics.stepsSources,
-            active_energy_kcal: metrics.activeEnergyKcal,
-            exercise_minutes: metrics.exerciseMinutes,
-            sleep_hours: metrics.sleepHours,
-            resting_hr_bpm: metrics.restingHrBpm,
-            hrv_ms: metrics.hrvMs,
-            weight_kg: extendedMetrics.weightKg,
-            height_cm: extendedMetrics.heightCm,
-            bmi: extendedMetrics.bmi,
-            body_fat_percent: extendedMetrics.bodyFatPercent,
-            lean_body_mass_kg: extendedMetrics.leanBodyMassKg,
-            waist_circumference_cm: extendedMetrics.waistCircumferenceCm,
-            distance_meters: extendedMetrics.distanceMeters,
-            flights_climbed: extendedMetrics.flightsClimbed,
-            stand_hours: extendedMetrics.standHours,
-            avg_heart_rate_bpm: extendedMetrics.avgHeartRateBpm,
-            systolic_bp: extendedMetrics.systolicBp,
-            diastolic_bp: extendedMetrics.diastolicBp,
-            blood_glucose_mg_dl: extendedMetrics.bloodGlucoseMgDl,
-            vo2_max: extendedMetrics.vo2Max,
-            basal_energy_kcal: extendedMetrics.basalEnergyKcal,
-            walking_hr_avg_bpm: extendedMetrics.walkingHrAvgBpm,
-            dietary_water_ml: extendedMetrics.dietaryWaterMl,
-            oxygen_saturation_pct: extendedMetrics.oxygenSaturationPct,
-            respiratory_rate_bpm: extendedMetrics.respiratoryRateBpm,
-            body_temp_c: extendedMetrics.bodyTempC,
-            normalization_version: 'norm_v1',
-          };
-          
-          console.log('📤 [SUPABASE DEBUG] Writing metrics to Supabase:', JSON.stringify(supabaseMetrics, null, 2));
-          await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
-          logger.info(`[HealthKit] Also stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
-        }
-      } catch (supabaseError: any) {
-        // Log but don't fail - Neon storage succeeded
-        logger.warn(`[HealthKit] Supabase storage failed (Neon succeeded): ${supabaseError.message}`);
-      }
+      // Convert to Supabase snake_case format
+      const supabaseMetrics = {
+        local_date: metrics.localDate,
+        timezone: metrics.timezone,
+        utc_day_start: metrics.utcDayStart,
+        utc_day_end: metrics.utcDayEnd,
+        steps_normalized: metrics.stepsNormalized,
+        steps_raw_sum: metrics.stepsRawSum,
+        steps_sources: metrics.stepsSources,
+        active_energy_kcal: metrics.activeEnergyKcal,
+        exercise_minutes: metrics.exerciseMinutes,
+        sleep_hours: metrics.sleepHours,
+        resting_hr_bpm: metrics.restingHrBpm,
+        hrv_ms: metrics.hrvMs,
+        weight_kg: extendedMetrics.weightKg,
+        height_cm: extendedMetrics.heightCm,
+        bmi: extendedMetrics.bmi,
+        body_fat_percent: extendedMetrics.bodyFatPercent,
+        lean_body_mass_kg: extendedMetrics.leanBodyMassKg,
+        waist_circumference_cm: extendedMetrics.waistCircumferenceCm,
+        distance_meters: extendedMetrics.distanceMeters,
+        flights_climbed: extendedMetrics.flightsClimbed,
+        stand_hours: extendedMetrics.standHours,
+        avg_heart_rate_bpm: extendedMetrics.avgHeartRateBpm,
+        systolic_bp: extendedMetrics.systolicBp,
+        diastolic_bp: extendedMetrics.diastolicBp,
+        blood_glucose_mg_dl: extendedMetrics.bloodGlucoseMgDl,
+        vo2_max: extendedMetrics.vo2Max,
+        basal_energy_kcal: extendedMetrics.basalEnergyKcal,
+        walking_hr_avg_bpm: extendedMetrics.walkingHrAvgBpm,
+        dietary_water_ml: extendedMetrics.dietaryWaterMl,
+        oxygen_saturation_pct: extendedMetrics.oxygenSaturationPct,
+        respiratory_rate_bpm: extendedMetrics.respiratoryRateBpm,
+        body_temp_c: extendedMetrics.bodyTempC,
+        normalization_version: 'norm_v1',
+      };
+      
+      console.log('📤 [SUPABASE] Writing daily metrics to Supabase:', JSON.stringify(supabaseMetrics, null, 2));
+      await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
+      logger.info(`[HealthKit] Stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
 
       // Calculate Flōmentum score after storing metrics
       try {
@@ -6392,35 +6302,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logger.info('Received daily summary from iOS', { userId, date: summaryData.date });
 
-      // Store the daily metrics
-      await db.insert(healthDailyMetrics).values({
-        userId,
-        date: summaryData.date,
-        sleepTotalMinutes: summaryData.sleep_total_minutes ?? null,
-        hrvSdnnMs: summaryData.hrv_sdnn_ms ?? null,
-        restingHr: summaryData.resting_hr ?? null,
-        respiratoryRate: summaryData.respiratory_rate ?? null,
-        bodyTempDeviationC: summaryData.body_temp_deviation_c ?? null,
-        oxygenSaturationAvg: summaryData.oxygen_saturation_avg ?? null,
-        steps: summaryData.steps ?? null,
-        activeKcal: summaryData.active_kcal ?? null,
-        exerciseMinutes: summaryData.exercise_minutes ?? null,
-        standHours: summaryData.stand_hours ?? null,
-      }).onConflictDoUpdate({
-        target: [healthDailyMetrics.userId, healthDailyMetrics.date],
-        set: {
-          sleepTotalMinutes: summaryData.sleep_total_minutes ?? null,
-          hrvSdnnMs: summaryData.hrv_sdnn_ms ?? null,
-          restingHr: summaryData.resting_hr ?? null,
-          respiratoryRate: summaryData.respiratory_rate ?? null,
-          bodyTempDeviationC: summaryData.body_temp_deviation_c ?? null,
-          oxygenSaturationAvg: summaryData.oxygen_saturation_avg ?? null,
-          steps: summaryData.steps ?? null,
-          activeKcal: summaryData.active_kcal ?? null,
-          exerciseMinutes: summaryData.exercise_minutes ?? null,
-          standHours: summaryData.stand_hours ?? null,
-        },
-      });
+      // SUPABASE-ONLY: Store daily metrics in Supabase exclusively
+      const { isSupabaseHealthEnabled, upsertDailyMetrics: upsertSupabaseDailyMetrics } = await import('./services/healthStorageRouter');
+      
+      if (!isSupabaseHealthEnabled()) {
+        return res.status(503).json({ error: "Health data storage not available - Supabase not enabled" });
+      }
+
+      // Convert to Supabase snake_case format for user_daily_metrics table
+      const supabaseMetrics = {
+        local_date: summaryData.date,
+        timezone: summaryData.timezone || 'UTC',
+        utc_day_start: new Date(summaryData.date + 'T00:00:00Z'),
+        utc_day_end: new Date(summaryData.date + 'T23:59:59Z'),
+        sleep_hours: summaryData.sleep_total_minutes ? summaryData.sleep_total_minutes / 60 : null,
+        hrv_ms: summaryData.hrv_sdnn_ms ?? null,
+        resting_hr_bpm: summaryData.resting_hr ?? null,
+        respiratory_rate_bpm: summaryData.respiratory_rate ?? null,
+        oxygen_saturation_pct: summaryData.oxygen_saturation_avg ?? null,
+        steps_raw_sum: summaryData.steps ?? null,
+        active_energy_kcal: summaryData.active_kcal ?? null,
+        exercise_minutes: summaryData.exercise_minutes ?? null,
+        stand_hours: summaryData.stand_hours ?? null,
+        normalization_version: 'norm_v1',
+      };
+
+      await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
+      logger.info(`[HealthKit] Stored daily summary in Supabase for ${userId}, ${summaryData.date}`);
 
       // Calculate baselines
       const { calculateFlomentumBaselines } = await import("./services/flomentumBaselineCalculator");
