@@ -4541,6 +4541,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`[HealthKit] Inserted daily metrics for ${userId}, ${metrics.localDate}`);
       }
 
+      // Also store in Supabase if enabled (for Flo Oracle context)
+      try {
+        const { isSupabaseHealthEnabled, upsertDailyMetrics: upsertSupabaseDailyMetrics } = await import('./services/healthStorageRouter');
+        
+        if (isSupabaseHealthEnabled()) {
+          // Convert to Supabase snake_case format
+          const supabaseMetrics = {
+            local_date: metrics.localDate,
+            timezone: metrics.timezone,
+            utc_day_start: metrics.utcDayStart,
+            utc_day_end: metrics.utcDayEnd,
+            steps_normalized: metrics.stepsNormalized,
+            steps_raw_sum: metrics.stepsRawSum,
+            steps_sources: metrics.stepsSources,
+            active_energy_kcal: metrics.activeEnergyKcal,
+            exercise_minutes: metrics.exerciseMinutes,
+            sleep_hours: metrics.sleepHours,
+            resting_hr_bpm: metrics.restingHrBpm,
+            hrv_ms: metrics.hrvMs,
+            weight_kg: extendedMetrics.weightKg,
+            height_cm: extendedMetrics.heightCm,
+            bmi: extendedMetrics.bmi,
+            body_fat_percent: extendedMetrics.bodyFatPercent,
+            lean_body_mass_kg: extendedMetrics.leanBodyMassKg,
+            waist_circumference_cm: extendedMetrics.waistCircumferenceCm,
+            distance_meters: extendedMetrics.distanceMeters,
+            flights_climbed: extendedMetrics.flightsClimbed,
+            stand_hours: extendedMetrics.standHours,
+            avg_heart_rate_bpm: extendedMetrics.avgHeartRateBpm,
+            systolic_bp: extendedMetrics.systolicBp,
+            diastolic_bp: extendedMetrics.diastolicBp,
+            blood_glucose_mg_dl: extendedMetrics.bloodGlucoseMgDl,
+            vo2_max: extendedMetrics.vo2Max,
+            basal_energy_kcal: extendedMetrics.basalEnergyKcal,
+            walking_hr_avg_bpm: extendedMetrics.walkingHrAvgBpm,
+            dietary_water_ml: extendedMetrics.dietaryWaterMl,
+            oxygen_saturation_pct: extendedMetrics.oxygenSaturationPct,
+            respiratory_rate_bpm: extendedMetrics.respiratoryRateBpm,
+            normalization_version: 'norm_v1',
+          };
+          
+          await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
+          logger.info(`[HealthKit] Also stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
+        }
+      } catch (supabaseError: any) {
+        // Log but don't fail - Neon storage succeeded
+        logger.warn(`[HealthKit] Supabase storage failed (Neon succeeded): ${supabaseError.message}`);
+      }
+
       // Calculate Flōmentum score after storing metrics
       try {
         const { calculateFlomentumBaselines } = await import("./services/flomentumBaselineCalculator");
