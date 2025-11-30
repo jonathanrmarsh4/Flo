@@ -6255,12 +6255,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Step 2: Load user's health context + RAG-retrieved insights + recent life events + shared brain
-      const { buildUserHealthContext, getRelevantInsights, getRecentLifeEvents } = await import('./services/floOracleContextBuilder');
-      const [healthContext, insightsContext, lifeEventsContext, brainInsights] = await Promise.all([
+      // Step 2: Load user's health context + RAG-retrieved insights + recent life events + shared brain + conversational memories
+      const { buildUserHealthContext, getRelevantInsights, getRecentLifeEvents, getUserMemoriesContext } = await import('./services/floOracleContextBuilder');
+      const [healthContext, insightsContext, lifeEventsContext, memoriesContext, brainInsights] = await Promise.all([
         buildUserHealthContext(userId),
         getRelevantInsights(userId, 5),
         getRecentLifeEvents(userId, 14),
+        getUserMemoriesContext(userId, 20),
         getHybridInsights(userId, message.trim(), { recentLimit: 10, semanticLimit: 5 })
           .catch(err => {
             logger.error('[FloOracle] Failed to retrieve brain insights:', err);
@@ -6271,6 +6272,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fullContext = healthContext;
       if (insightsContext) fullContext += `\n${insightsContext}`;
       if (lifeEventsContext) fullContext += `\n${lifeEventsContext}`;
+      if (memoriesContext) fullContext += `\n${memoriesContext}`;
       if (correlationInsight) fullContext += `\n\nREAL-TIME CORRELATION DETECTED:\n${correlationInsight}`;
       
       // Add shared brain insights and BRAIN_UPDATE capability
@@ -6451,6 +6453,13 @@ ${fullContext}`;
         logger.error('[FloOracle] Failed to store Flo response:', err);
       });
       
+      // Fire-and-forget: extract and store conversational memories (goals, moods, symptoms, life context)
+      import('./services/memoryExtractionService').then(({ processAndStoreFromChatTurn }) => {
+        processAndStoreFromChatTurn(userId, message.trim(), finalResponse).catch(err => {
+          logger.error('[FloOracle] Failed to extract memories:', err);
+        });
+      });
+      
       // Fire-and-forget: mark AI chat used for gamification
       markAiChatUsed(userId).catch(() => {});
       
@@ -6462,6 +6471,61 @@ ${fullContext}`;
         error: "Failed to process chat request",
         message: error.message 
       });
+    }
+  });
+
+  // ==================== USER MEMORY API (Conversational Memory System) ====================
+  
+  // Get user's stored memories
+  app.get("/api/user-memory", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const limit = parseInt(req.query.limit as string) || 25;
+      const tags = req.query.tags ? (req.query.tags as string).split(',') : undefined;
+      
+      const { getUserMemories, getMemoryCount } = await import('./services/userMemoryService');
+      const [memories, count] = await Promise.all([
+        getUserMemories(userId, { limit, tags }),
+        getMemoryCount(userId)
+      ]);
+      
+      logger.info('[UserMemory] Retrieved memories', { userId, count: memories.length, totalCount: count });
+      res.json({ memories, totalCount: count });
+    } catch (error: any) {
+      logger.error('[UserMemory] Error fetching memories:', error);
+      res.status(500).json({ error: 'Failed to fetch memories' });
+    }
+  });
+  
+  // Get memory count for user
+  app.get("/api/user-memory/count", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { getMemoryCount } = await import('./services/userMemoryService');
+      const count = await getMemoryCount(userId);
+      res.json({ count });
+    } catch (error: any) {
+      logger.error('[UserMemory] Error counting memories:', error);
+      res.status(500).json({ error: 'Failed to count memories' });
+    }
+  });
+  
+  // Delete all user memories (data privacy)
+  app.delete("/api/user-memory", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { deleteUserMemories } = await import('./services/userMemoryService');
+      const success = await deleteUserMemories(userId);
+      
+      if (success) {
+        logger.info('[UserMemory] Deleted all memories', { userId });
+        res.json({ success: true, message: 'All memories deleted' });
+      } else {
+        res.status(500).json({ error: 'Failed to delete memories' });
+      }
+    } catch (error: any) {
+      logger.error('[UserMemory] Error deleting memories:', error);
+      res.status(500).json({ error: 'Failed to delete memories' });
     }
   });
 

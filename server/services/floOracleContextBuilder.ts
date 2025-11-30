@@ -101,6 +101,7 @@ interface UserHealthContext {
 
 // Import age calculation utility that uses mid-year (July 1st) assumption for ±6 month accuracy
 import { calculateAgeFromBirthYear } from "@shared/utils/ageCalculation";
+import { getMemoriesAsContext } from './userMemoryService';
 
 // Format a date in the user's local timezone as YYYY-MM-DD
 function formatDateInTimezone(date: Date, timezone: string): string {
@@ -893,6 +894,26 @@ export async function getRecentLifeEvents(userId: string, days: number = 14): Pr
     return lines.join('\n');
   } catch (error) {
     logger.error('[FloOracle] Error retrieving life events:', error);
+    return '';
+  }
+}
+
+/**
+ * Get user's conversational memories (persistent personal context)
+ * Returns extracted memories from past conversations: goals, moods, symptoms, habits, life events
+ */
+export async function getUserMemoriesContext(userId: string, limit: number = 20): Promise<string> {
+  try {
+    const memoriesContext = await getMemoriesAsContext(userId, limit);
+    
+    if (!memoriesContext) {
+      return '';
+    }
+
+    logger.info(`[FloOracle] Retrieved conversational memories for user ${userId}`);
+    return '\n\nCONVERSATIONAL MEMORY (things the user has told you before - use naturally):\n' + memoriesContext;
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving conversational memories:', error);
     return '';
   }
 }

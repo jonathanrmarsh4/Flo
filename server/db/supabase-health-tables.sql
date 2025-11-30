@@ -279,6 +279,29 @@ CREATE TABLE IF NOT EXISTS action_plan_items (
 CREATE INDEX IF NOT EXISTS idx_action_plan_health_status ON action_plan_items(health_id, status);
 CREATE INDEX IF NOT EXISTS idx_action_plan_health_category ON action_plan_items(health_id, category);
 
+-- User conversational memory (AI persistent memory for personal context)
+-- Stores extracted memories from conversations: goals, moods, symptoms, habits, life events, preferences
+-- Uses JSONB for flexible schema-less storage with GIN indexes for fast retrieval
+CREATE TABLE IF NOT EXISTS user_memory (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  health_id UUID NOT NULL,
+  session_id UUID,                                    -- Optional: link to specific chat session
+  occurred_at TIMESTAMPTZ DEFAULT NOW(),              -- When this memory/event happened
+  memory JSONB NOT NULL DEFAULT '{}'::jsonb,          -- Flexible memory payload (type, raw, extracted, importance)
+  tags TEXT[] DEFAULT '{}',                           -- Quick filtering tags (goal, mood, symptom, habit, etc.)
+  embedding VECTOR(1536),                             -- Optional: for semantic search (text-embedding-3-small)
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE user_memory IS 'AI conversational memory for holistic personal understanding - goals, moods, habits, life events';
+COMMENT ON COLUMN user_memory.memory IS 'JSONB with type, raw text, extracted facts, importance, linked metrics';
+COMMENT ON COLUMN user_memory.tags IS 'Quick filter tags: goal, mood, symptom, habit, personal_life, etc.';
+COMMENT ON COLUMN user_memory.embedding IS 'Vector embedding for semantic search (nullable until populated)';
+
+CREATE INDEX IF NOT EXISTS idx_user_memory_health_time ON user_memory(health_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_memory_tags ON user_memory USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_user_memory_json ON user_memory USING GIN(memory jsonb_path_ops);
+
 -- Enable Row Level Security on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE biomarker_test_sessions ENABLE ROW LEVEL SECURITY;
@@ -291,6 +314,7 @@ ALTER TABLE user_daily_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE flomentum_daily ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sleep_nights ENABLE ROW LEVEL SECURITY;
 ALTER TABLE action_plan_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_memory ENABLE ROW LEVEL SECURITY;
 
 -- Create policy for service role access (backend server uses service key)
 CREATE POLICY "Service role full access" ON profiles FOR ALL USING (true);
@@ -304,6 +328,7 @@ CREATE POLICY "Service role full access" ON user_daily_metrics FOR ALL USING (tr
 CREATE POLICY "Service role full access" ON flomentum_daily FOR ALL USING (true);
 CREATE POLICY "Service role full access" ON sleep_nights FOR ALL USING (true);
 CREATE POLICY "Service role full access" ON action_plan_items FOR ALL USING (true);
+CREATE POLICY "Service role full access" ON user_memory FOR ALL USING (true);
 
 -- Biomarkers table is reference data, allow read access
 ALTER TABLE biomarkers ENABLE ROW LEVEL SECURITY;
