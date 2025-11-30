@@ -241,21 +241,25 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   const renderTile = (tileId: TileId) => {
     const tileContent = (() => {
       switch (tileId) {
-        case 'health-metrics':
+        case 'heart-metabolic':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <HeartMetabolicTile 
-                  isDark={isDark}
-                  score={dashboardData?.componentScores?.cardiometabolic}
-                  riskBand={dashboardData?.details?.cardiometabolicDetails?.riskBand}
-                  glycemicScore={dashboardData?.details?.cardiometabolicDetails?.glycemicScore}
-                  lipidsScore={dashboardData?.details?.cardiometabolicDetails?.lipidsScore}
-                  bloodPressureScore={dashboardData?.details?.cardiometabolicDetails?.bloodPressureScore}
-                  cacScore={dashboardData?.details?.cardiometabolicDetails?.cacScore}
-                />
-                <BodyCompositionTile isDark={isDark} />
-              </div>
+              <HeartMetabolicTile 
+                isDark={isDark}
+                score={dashboardData?.componentScores?.cardiometabolic}
+                riskBand={dashboardData?.details?.cardiometabolicDetails?.riskBand}
+                glycemicScore={dashboardData?.details?.cardiometabolicDetails?.glycemicScore}
+                lipidsScore={dashboardData?.details?.cardiometabolicDetails?.lipidsScore}
+                bloodPressureScore={dashboardData?.details?.cardiometabolicDetails?.bloodPressureScore}
+                cacScore={dashboardData?.details?.cardiometabolicDetails?.cacScore}
+              />
+            </SortableItem>
+          );
+
+        case 'body-composition':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              <BodyCompositionTile isDark={isDark} />
             </SortableItem>
           );
 

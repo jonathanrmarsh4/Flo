@@ -95,12 +95,12 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Activity className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-            <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Body Comp
+            <Activity className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+            <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Body Composition
             </h3>
           </div>
-          <GripVertical className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-300'}`} />
+          <GripVertical className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-300'}`} data-testid="drag-handle-body-composition" />
         </div>
 
         <div className="mb-4">

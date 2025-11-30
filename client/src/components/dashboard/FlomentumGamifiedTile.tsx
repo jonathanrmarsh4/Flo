@@ -78,9 +78,9 @@ export function FlomentumGamifiedTile({ isDark, onClick }: FlomentumGamifiedTile
         data-testid="tile-flomentum-gamified"
       >
         <div className="flex items-center gap-2 mb-4">
-          <Flame className={`w-4 h-4 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
-          <h3 className={`text-xs tracking-wide ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-            FLOMENTUM
+          <Flame className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+          <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Flōmentum
           </h3>
         </div>
         <div className="text-center py-6">
@@ -103,9 +103,9 @@ export function FlomentumGamifiedTile({ isDark, onClick }: FlomentumGamifiedTile
         data-testid="tile-flomentum-gamified"
       >
         <div className="flex items-center gap-2 mb-4">
-          <Flame className={`w-4 h-4 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
-          <h3 className={`text-xs tracking-wide ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-            FLOMENTUM
+          <Flame className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+          <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Flōmentum
           </h3>
         </div>
         <div className="text-center py-6">
@@ -168,9 +168,9 @@ export function FlomentumGamifiedTile({ isDark, onClick }: FlomentumGamifiedTile
       {/* Header with Level Badge */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Flame className={`w-4 h-4 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
-          <h3 className={`text-xs tracking-wide ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-            FLOMENTUM
+          <Flame className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+          <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Flōmentum
           </h3>
         </div>
         {hasGamification && (

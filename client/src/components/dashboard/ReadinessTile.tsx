@@ -53,11 +53,9 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
         data-testid="tile-readiness"
       >
         <div className="flex items-center gap-2 mb-4">
-          <Zap className={`w-4 h-4 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
-          <h3 className={`text-xs tracking-wide ${
-            isDark ? 'text-white/60' : 'text-gray-500'
-          }`}>
-            DAILY READINESS
+          <Zap className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+          <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Daily Readiness
           </h3>
         </div>
         <div className="text-center py-6">
@@ -81,11 +79,9 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
         data-testid="tile-readiness"
       >
         <div className="flex items-center gap-2 mb-4">
-          <Zap className={`w-4 h-4 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
-          <h3 className={`text-xs tracking-wide ${
-            isDark ? 'text-white/60' : 'text-gray-500'
-          }`}>
-            DAILY READINESS
+          <Zap className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+          <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Daily Readiness
           </h3>
         </div>
         <div className="text-center py-6">
@@ -166,11 +162,9 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Zap className={`w-4 h-4 ${colors.icon}`} />
-          <h3 className={`text-xs tracking-wide ${
-            isDark ? 'text-white/60' : 'text-gray-500'
-          }`}>
-            DAILY READINESS
+          <Zap className={`w-5 h-5 ${colors.icon}`} />
+          <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Daily Readiness
           </h3>
         </div>
         {isCalibrating && (

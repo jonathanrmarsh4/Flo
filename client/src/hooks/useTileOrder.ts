@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 
 // Define tile IDs
 export type TileId = 
-  | 'health-metrics' // Heart & Metabolic + Body Composition grid
+  | 'heart-metabolic'
+  | 'body-composition'
   | 'flomentum'
   | 'readiness'
   | 'sleep'
@@ -14,7 +15,8 @@ const DEFAULT_TILE_ORDER: TileId[] = [
   'insights',
   'sleep',
   'readiness',
-  'health-metrics',
+  'heart-metabolic',
+  'body-composition',
 ];
 
 const STORAGE_KEY = 'flo-dashboard-tile-order';
