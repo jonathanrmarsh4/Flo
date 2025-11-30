@@ -334,7 +334,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
     }`}>
       {/* Header */}
-      <header className={`sticky top-0 z-40 backdrop-blur-xl border-b transition-colors ${
+      <header className={`sticky top-0 z-40 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
         <div className="px-4 py-3">
