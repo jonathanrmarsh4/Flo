@@ -6693,6 +6693,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
 
+  // DEBUG: View what health context Flo Oracle has access to
+  app.get("/api/flo-oracle/debug-context", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { buildUserHealthContext, clearContextCache, getUserHealthMetrics } = await import('./services/floOracleContextBuilder');
+      
+      // Clear cache to get fresh data
+      clearContextCache(userId);
+      
+      // Build context exactly as Flo Oracle would see it
+      const rawContext = await buildUserHealthContext(userId, true);
+      
+      // Get the structured health metrics directly
+      const healthMetrics = await getUserHealthMetrics(userId);
+      
+      res.json({
+        userId,
+        supabaseEnabled: process.env.SUPABASE_HEALTH_ENABLED === 'true',
+        rawContext: rawContext.substring(0, 5000) + (rawContext.length > 5000 ? '...[truncated]' : ''),
+        contextLength: rawContext.length,
+        healthMetrics: healthMetrics,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error('[FloOracle Debug] Error:', error);
+      res.status(500).json({ error: "Failed to build context", details: (error as Error).message });
+    }
+  });
+
   // Flō Oracle - Text-only chat with Grok (personalized health coaching)
   app.post("/api/flo-oracle/chat", isAuthenticated, canAccessOracle, canSendOracleMsg, aiEndpointRateLimiter, async (req: any, res) => {
     const userId = req.user?.claims?.sub;

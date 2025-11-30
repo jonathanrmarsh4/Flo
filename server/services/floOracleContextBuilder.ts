@@ -92,6 +92,7 @@ interface UserHealthContext {
     dietaryWater: number | null;
     exerciseTime: number | null;
     standTime: number | null;
+    avgHeartRate: number | null;
   };
   flomentumCurrent: {
     score: number | null;
@@ -232,6 +233,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         dietaryWater: null,
         exerciseTime: null,
         standTime: null,
+        avgHeartRate: null,
       },
       flomentumCurrent: {
         score: null,
@@ -370,28 +372,71 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
 
-    const wearableData = await db
-      .select({
-        avgHrv: sql<number>`AVG(${userDailyMetrics.hrvMs})`,
-        avgRhr: sql<number>`AVG(${userDailyMetrics.restingHrBpm})`,
-        avgSteps: sql<number>`AVG(${userDailyMetrics.stepsRawSum})`,
-        avgActiveKcal: sql<number>`AVG(${userDailyMetrics.activeEnergyKcal})`,
-      })
-      .from(userDailyMetrics)
-      .where(
-        and(
-          eq(userDailyMetrics.userId, userId),
-          gte(userDailyMetrics.localDate, sevenDaysAgoStr)
-        )
-      );
+    // Check if Supabase is enabled for routing wearable data
+    const supabaseEnabled = isSupabaseHealthEnabled();
+    logger.info(`[FloOracle] Supabase health enabled: ${supabaseEnabled}`);
 
-    if (wearableData.length > 0 && wearableData[0]) {
-      context.wearableAvg7Days.hrv = wearableData[0].avgHrv ? Math.round(wearableData[0].avgHrv) : null;
-      context.wearableAvg7Days.rhr = wearableData[0].avgRhr ? Math.round(wearableData[0].avgRhr) : null;
-      context.wearableAvg7Days.steps = wearableData[0].avgSteps ? Math.round(wearableData[0].avgSteps) : null;
-      context.wearableAvg7Days.activeKcal = wearableData[0].avgActiveKcal ? Math.round(wearableData[0].avgActiveKcal) : null;
+    if (supabaseEnabled) {
+      // Fetch wearable averages from Supabase user_daily_metrics
+      try {
+        const supabaseWearableMetrics = await getSupabaseDailyMetrics(userId, 7);
+        
+        if (supabaseWearableMetrics.length > 0) {
+          // Calculate averages for wearable metrics
+          const avgMetricWearable = (key: keyof typeof supabaseWearableMetrics[0]) => {
+            const values = supabaseWearableMetrics
+              .map(m => m[key] as number | null | undefined)
+              .filter((v): v is number => v != null && !isNaN(v));
+            return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+          };
+          
+          context.wearableAvg7Days.hrv = avgMetricWearable('hrv_ms') ? Math.round(avgMetricWearable('hrv_ms')!) : null;
+          context.wearableAvg7Days.rhr = avgMetricWearable('resting_hr_bpm') ? Math.round(avgMetricWearable('resting_hr_bpm')!) : null;
+          context.wearableAvg7Days.steps = avgMetricWearable('steps_raw_sum') ? Math.round(avgMetricWearable('steps_raw_sum')!) : null;
+          context.wearableAvg7Days.activeKcal = avgMetricWearable('active_energy_kcal') ? Math.round(avgMetricWearable('active_energy_kcal')!) : null;
+          
+          // Also calculate sleep from Supabase
+          const avgSleepHours = avgMetricWearable('sleep_hours');
+          if (avgSleepHours) {
+            const hours = Math.floor(avgSleepHours);
+            const mins = Math.round((avgSleepHours - hours) * 60);
+            context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
+          }
+          
+          logger.info(`[FloOracle] Fetched wearable averages from Supabase (${supabaseWearableMetrics.length} days) - steps: ${context.wearableAvg7Days.steps}, hrv: ${context.wearableAvg7Days.hrv}`);
+        }
+      } catch (error) {
+        logger.error('[FloOracle] Error fetching Supabase wearable metrics, falling back to Neon:', error);
+        // Fall through to Neon query below
+      }
+    }
+    
+    // If Supabase not enabled OR Supabase query didn't populate data, fall back to Neon
+    if (!supabaseEnabled || context.wearableAvg7Days.steps === null) {
+      const wearableData = await db
+        .select({
+          avgHrv: sql<number>`AVG(${userDailyMetrics.hrvMs})`,
+          avgRhr: sql<number>`AVG(${userDailyMetrics.restingHrBpm})`,
+          avgSteps: sql<number>`AVG(${userDailyMetrics.stepsRawSum})`,
+          avgActiveKcal: sql<number>`AVG(${userDailyMetrics.activeEnergyKcal})`,
+        })
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            gte(userDailyMetrics.localDate, sevenDaysAgoStr)
+          )
+        );
+
+      if (wearableData.length > 0 && wearableData[0]) {
+        context.wearableAvg7Days.hrv = wearableData[0].avgHrv ? Math.round(wearableData[0].avgHrv) : null;
+        context.wearableAvg7Days.rhr = wearableData[0].avgRhr ? Math.round(wearableData[0].avgRhr) : null;
+        context.wearableAvg7Days.steps = wearableData[0].avgSteps ? Math.round(wearableData[0].avgSteps) : null;
+        context.wearableAvg7Days.activeKcal = wearableData[0].avgActiveKcal ? Math.round(wearableData[0].avgActiveKcal) : null;
+      }
     }
 
+    // Fetch sleep data from sleepNights table (more accurate than daily metrics sleep_hours)
     const sleepData = await db
       .select({
         avgSleep: sql<number>`AVG(${sleepNights.totalSleepMin})`,
@@ -409,13 +454,6 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       const mins = Math.round(sleepData[0].avgSleep % 60);
       context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
     }
-
-    // Fetch all additional HealthKit metrics
-    // When Supabase is enabled, pull from user_daily_metrics (which contains aggregated data including blood pressure)
-    // Otherwise fall back to healthkit_samples table in Neon
-    
-    const supabaseEnabled = isSupabaseHealthEnabled();
-    logger.info(`[FloOracle] Supabase health enabled: ${supabaseEnabled}`);
     
     if (supabaseEnabled) {
       // Fetch from Supabase user_daily_metrics (contains blood pressure and other aggregated metrics)
@@ -455,6 +493,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
             dietaryWater: avgMetric('dietary_water_ml') ? Math.round(avgMetric('dietary_water_ml')!) : null,
             exerciseTime: avgMetric('exercise_minutes') ? Math.round(avgMetric('exercise_minutes')!) : null,
             standTime: latest.stand_hours ? Math.round(latest.stand_hours) : null,
+            avgHeartRate: avgMetric('avg_heart_rate_bpm') ? Math.round(avgMetric('avg_heart_rate_bpm')!) : null,
           };
           
           logger.info(`[FloOracle] Fetched HealthKit metrics from Supabase (${supabaseMetrics.length} days)`);
@@ -524,6 +563,8 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         getMetricAvg('appleStandTime')
       ]);
 
+      const avgHeartRate = await getMetricAvg('heartRate');
+      
       context.healthkitMetrics = {
         weight: weight ? Math.round(weight * 10) / 10 : null,
         height: height ? Math.round(height) : null,
@@ -545,6 +586,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         dietaryWater: dietaryWater ? Math.round(dietaryWater) : null,
         exerciseTime: exerciseTime ? Math.round(exerciseTime) : null,
         standTime: standTime ? Math.round(standTime) : null,
+        avgHeartRate: avgHeartRate ? Math.round(avgHeartRate) : null,
       };
     }
     
@@ -665,6 +707,125 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
   }
 }
 
+// Export function to get raw health metrics for debugging
+export async function getUserHealthMetrics(userId: string): Promise<{
+  wearableAvg7Days: any;
+  healthkitMetrics: any;
+  dataSource: string;
+  supabaseEnabled: boolean;
+}> {
+  const supabaseEnabled = isSupabaseHealthEnabled();
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+  const wearableAvg7Days = {
+    hrv: null as number | null,
+    sleep: null as string | null,
+    rhr: null as number | null,
+    steps: null as number | null,
+    activeKcal: null as number | null,
+  };
+
+  const healthkitMetrics: Record<string, number | null> = {
+    weight: null,
+    height: null,
+    bmi: null,
+    bodyFatPct: null,
+    leanBodyMass: null,
+    distance: null,
+    basalEnergy: null,
+    flightsClimbed: null,
+    bloodPressureSystolic: null,
+    bloodPressureDiastolic: null,
+    oxygenSaturation: null,
+    respiratoryRate: null,
+    bloodGlucose: null,
+    bodyTemp: null,
+    vo2Max: null,
+    walkingHR: null,
+    waistCircumference: null,
+    dietaryWater: null,
+    exerciseTime: null,
+    standTime: null,
+    avgHeartRate: null,
+  };
+
+  let dataSource = 'none';
+  let rawMetrics: any[] = [];
+
+  try {
+    if (supabaseEnabled) {
+      logger.info('[DebugContext] Using Supabase for health metrics');
+      const supabaseMetrics = await getSupabaseDailyMetrics(userId, { startDate: sevenDaysAgoStr, limit: 30 });
+      rawMetrics = supabaseMetrics;
+      dataSource = 'supabase';
+    } else {
+      logger.info('[DebugContext] Using Neon for health metrics');
+      rawMetrics = await db
+        .select()
+        .from(userDailyMetrics)
+        .where(
+          and(
+            eq(userDailyMetrics.userId, userId),
+            gte(userDailyMetrics.localDate, sevenDaysAgoStr)
+          )
+        )
+        .orderBy(desc(userDailyMetrics.localDate))
+        .limit(30);
+      dataSource = 'neon';
+    }
+
+    if (rawMetrics.length > 0) {
+      // Calculate averages for wearable data
+      const hrvValues = rawMetrics.filter(m => m.hrvMs != null).map(m => m.hrvMs);
+      const rhrValues = rawMetrics.filter(m => m.restingHrBpm != null).map(m => m.restingHrBpm);
+      const stepsValues = rawMetrics.filter(m => m.stepsRawSum != null).map(m => m.stepsRawSum);
+      const activeKcalValues = rawMetrics.filter(m => m.activeEnergyKcal != null).map(m => m.activeEnergyKcal);
+
+      if (hrvValues.length > 0) wearableAvg7Days.hrv = Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length);
+      if (rhrValues.length > 0) wearableAvg7Days.rhr = Math.round(rhrValues.reduce((a, b) => a + b, 0) / rhrValues.length);
+      if (stepsValues.length > 0) wearableAvg7Days.steps = Math.round(stepsValues.reduce((a, b) => a + b, 0) / stepsValues.length);
+      if (activeKcalValues.length > 0) wearableAvg7Days.activeKcal = Math.round(activeKcalValues.reduce((a, b) => a + b, 0) / activeKcalValues.length);
+
+      // Get most recent values for extended metrics
+      const mostRecent = rawMetrics[0];
+      if (mostRecent) {
+        healthkitMetrics.weight = mostRecent.weightKg;
+        healthkitMetrics.height = mostRecent.heightCm;
+        healthkitMetrics.bmi = mostRecent.bmi;
+        healthkitMetrics.bodyFatPct = mostRecent.bodyFatPercent;
+        healthkitMetrics.leanBodyMass = mostRecent.leanBodyMassKg;
+        healthkitMetrics.distance = mostRecent.distanceKm;
+        healthkitMetrics.basalEnergy = mostRecent.basalEnergyKcal;
+        healthkitMetrics.flightsClimbed = mostRecent.flightsClimbed;
+        healthkitMetrics.bloodPressureSystolic = mostRecent.bloodPressureSystolic;
+        healthkitMetrics.bloodPressureDiastolic = mostRecent.bloodPressureDiastolic;
+        healthkitMetrics.oxygenSaturation = mostRecent.oxygenSaturationPct;
+        healthkitMetrics.respiratoryRate = mostRecent.respiratoryRateBpm;
+        healthkitMetrics.bloodGlucose = mostRecent.bloodGlucoseMgdl;
+        healthkitMetrics.vo2Max = mostRecent.vo2MaxMlKgMin;
+        healthkitMetrics.walkingHR = mostRecent.walkingHrAvgBpm;
+        healthkitMetrics.waistCircumference = mostRecent.waistCircumferenceCm;
+        healthkitMetrics.dietaryWater = mostRecent.dietaryWaterMl;
+        healthkitMetrics.exerciseTime = mostRecent.exerciseMinutes;
+        healthkitMetrics.standTime = mostRecent.standMinutes;
+        healthkitMetrics.avgHeartRate = mostRecent.avgHeartRateBpm;
+      }
+    }
+  } catch (error) {
+    logger.error('[DebugContext] Error fetching metrics:', error);
+    dataSource = 'error';
+  }
+
+  return {
+    wearableAvg7Days,
+    healthkitMetrics,
+    dataSource,
+    supabaseEnabled,
+  };
+}
+
 function buildContextString(context: UserHealthContext, bloodPanelHistory: BloodPanelHistory[] = [], workoutHistory: any[] = []): string {
   const lines: string[] = ['USER CONTEXT (never shared with user):'];
   
@@ -751,6 +912,7 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
 
   // Cardiovascular metrics (7-day averages)
   const cardioMetrics: string[] = [];
+  if (hk.avgHeartRate) cardioMetrics.push(`Avg HR ${hk.avgHeartRate} bpm`);
   if (hk.bloodPressureSystolic && hk.bloodPressureDiastolic) {
     cardioMetrics.push(`BP ${hk.bloodPressureSystolic}/${hk.bloodPressureDiastolic} mmHg`);
   }
