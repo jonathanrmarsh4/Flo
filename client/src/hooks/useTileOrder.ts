@@ -8,13 +8,13 @@ export type TileId =
   | 'sleep'
   | 'insights';
 
-// Default tile order (quick-stats removed - hidden by design)
+// Default tile order (Flo Overview is locked at top, these are the sortable tiles below it)
 const DEFAULT_TILE_ORDER: TileId[] = [
-  'health-metrics',
   'flomentum',
-  'readiness',
-  'sleep',
   'insights',
+  'sleep',
+  'readiness',
+  'health-metrics',
 ];
 
 const STORAGE_KEY = 'flo-dashboard-tile-order';
