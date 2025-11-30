@@ -167,6 +167,7 @@ export default function BillingPage() {
     }
   };
 
+  // Cancel subscription mutation for Stripe web subscriptions
   const cancelSubscriptionMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/billing/cancel-subscription', {
@@ -180,7 +181,7 @@ export default function BillingPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/billing/plan'] });
       toast({
         title: 'Subscription Cancelled',
-        description: 'Your subscription has been cancelled successfully.',
+        description: 'Your subscription will be cancelled at the end of the billing period.',
       });
     },
     onError: (error: any) => {
@@ -191,6 +192,17 @@ export default function BillingPage() {
       });
     },
   });
+
+  // Handle cancel button - depends on subscription provider
+  const handleCancelSubscription = () => {
+    if (storeKitReady) {
+      // iOS App Store subscription - open subscription management
+      window.location.href = 'https://apps.apple.com/account/subscriptions';
+    } else {
+      // Web Stripe subscription - call API
+      cancelSubscriptionMutation.mutate();
+    }
+  };
 
   if (planLoading || pricing.isLoading) {
     return (
@@ -206,7 +218,7 @@ export default function BillingPage() {
   if (pricing.error && !pricing.monthly && !pricing.yearly) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white">
-        <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/5 border-b border-white/10">
+        <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/5 border-b border-white/10 pt-[env(safe-area-inset-top)]">
           <div className="px-4 py-3 flex items-center gap-3">
             <Button
               variant="ghost"
@@ -254,7 +266,7 @@ export default function BillingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white pb-8">
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/5 border-b border-white/10">
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/5 border-b border-white/10 pt-[env(safe-area-inset-top)]">
         <div className="px-4 py-3 flex items-center gap-3">
           <Button
             variant="ghost"
@@ -335,11 +347,14 @@ export default function BillingPage() {
             {isPremium && (
               <div className="pt-4 border-t border-white/10 space-y-3">
                 <p className="text-xs text-white/50 text-center">
-                  To manage your subscription, go to Settings &gt; Apple ID &gt; Subscriptions on your device
+                  {storeKitReady 
+                    ? 'To manage your subscription, go to Settings > Apple ID > Subscriptions on your device'
+                    : 'Your subscription will be cancelled at the end of the current billing period'
+                  }
                 </p>
                 <Button
                   variant="outline"
-                  onClick={() => cancelSubscriptionMutation.mutate()}
+                  onClick={handleCancelSubscription}
                   disabled={cancelSubscriptionMutation.isPending}
                   data-testid="button-cancel-subscription"
                   className="w-full border-white/10 text-white/70 hover:text-white hover:bg-white/5"
@@ -350,7 +365,7 @@ export default function BillingPage() {
                       Processing...
                     </>
                   ) : (
-                    'Cancel Subscription'
+                    storeKitReady ? 'Manage Subscription' : 'Cancel Subscription'
                   )}
                 </Button>
               </div>
@@ -507,8 +522,10 @@ export default function BillingPage() {
               Questions about billing? Contact us at support@nuvitaelabs.com
             </p>
             <p className="text-xs text-white/50">
-              Subscriptions are billed through the App Store and auto-renew. 
-              Manage your subscription in iOS Settings &gt; Apple ID &gt; Subscriptions.
+              {storeKitReady 
+                ? 'Subscriptions are billed through the App Store and auto-renew. Manage your subscription in iOS Settings > Apple ID > Subscriptions.'
+                : 'Subscriptions are billed monthly or annually and auto-renew until cancelled.'
+              }
             </p>
           </CardContent>
         </Card>
