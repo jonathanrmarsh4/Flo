@@ -12,6 +12,10 @@ import {
   profiles as neonProfiles,
   biomarkerTestSessions,
   biomarkerMeasurements,
+  biomarkers,
+  biomarkerSynonyms,
+  biomarkerUnits,
+  biomarkerReferenceRanges,
   healthkitSamples,
   healthkitWorkouts,
   diagnosticsStudies,
@@ -28,6 +32,7 @@ const supabase = getSupabaseClient();
 interface MigrationStats {
   users: number;
   profiles: number;
+  biomarkersRef: number;
   biomarkerSessions: number;
   biomarkerMeasurements: number;
   healthkitSamples: number;
@@ -43,6 +48,7 @@ interface MigrationStats {
 const stats: MigrationStats = {
   users: 0,
   profiles: 0,
+  biomarkersRef: 0,
   biomarkerSessions: 0,
   biomarkerMeasurements: 0,
   healthkitSamples: 0,
@@ -87,9 +93,14 @@ async function migrateProfiles(healthIdMap: Map<string, string>) {
     }
     
     try {
+      // Supabase still uses date_of_birth, convert birth_year to July 1st mid-year date
+      const dateOfBirth = profile.birthYear 
+        ? new Date(profile.birthYear, 6, 1).toISOString().split('T')[0] // YYYY-07-01
+        : null;
+      
       const { error } = await supabase.from('profiles').upsert({
         health_id: healthId,
-        birth_year: profile.birthYear,
+        date_of_birth: dateOfBirth,
         sex: profile.sex,
         weight: profile.weight,
         weight_unit: profile.weightUnit,
@@ -110,6 +121,39 @@ async function migrateProfiles(healthIdMap: Map<string, string>) {
   }
   
   console.log(`Migrated ${stats.profiles} profiles`);
+}
+
+async function migrateBiomarkersReference() {
+  console.log('\nMigrating biomarkers reference data...');
+  
+  // Get all biomarkers from Neon
+  const allBiomarkers = await db.select().from(biomarkers);
+  console.log(`  Found ${allBiomarkers.length} biomarkers in Neon`);
+  
+  // Upsert biomarkers to Supabase (matching Neon schema)
+  for (const biomarker of allBiomarkers) {
+    try {
+      const { error } = await supabase.from('biomarkers').upsert({
+        id: biomarker.id,
+        name: biomarker.name,
+        category: biomarker.category,
+        canonical_unit: biomarker.canonicalUnit,
+        display_unit_preference: biomarker.displayUnitPreference,
+        precision: biomarker.precision,
+        decimals_policy: biomarker.decimalsPolicy,
+        global_default_ref_min: biomarker.globalDefaultRefMin,
+        global_default_ref_max: biomarker.globalDefaultRefMax,
+        created_at: biomarker.createdAt?.toISOString(),
+      }, { onConflict: 'id' });
+      
+      if (error) throw error;
+      stats.biomarkersRef++;
+    } catch (err: any) {
+      stats.errors.push(`Biomarker ${biomarker.id}: ${err.message}`);
+    }
+  }
+  
+  console.log(`Migrated ${stats.biomarkersRef} biomarkers`);
 }
 
 async function migrateBiomarkerSessions(healthIdMap: Map<string, string>): Promise<Map<string, string>> {
@@ -536,7 +580,10 @@ async function runMigration() {
     // Build the mapping
     const healthIdMap = await getHealthIdMap();
     
-    // Migrate all tables
+    // Migrate reference data first (required for foreign keys)
+    await migrateBiomarkersReference();
+    
+    // Migrate user-linked health data
     await migrateProfiles(healthIdMap);
     const sessionIdMap = await migrateBiomarkerSessions(healthIdMap);
     await migrateBiomarkerMeasurements(sessionIdMap);
@@ -553,6 +600,7 @@ async function runMigration() {
     console.log('MIGRATION SUMMARY');
     console.log('=' .repeat(60));
     console.log(`Users with health_id: ${stats.users}`);
+    console.log(`Biomarkers (reference): ${stats.biomarkersRef}`);
     console.log(`Profiles: ${stats.profiles}`);
     console.log(`Biomarker sessions: ${stats.biomarkerSessions}`);
     console.log(`Biomarker measurements: ${stats.biomarkerMeasurements}`);
