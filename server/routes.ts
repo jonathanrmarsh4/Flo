@@ -1995,24 +1995,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info('Daily insights fetch failed, continuing without them');
       }
 
-      // Get life events (last 30 days) - routed through storage layer
+      // Get life events (last 30 days) - routed through healthRouter to Supabase
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
       let lifeEventsData: any[] = [];
       try {
-        lifeEventsData = await storage.getLifeEvents(userId, { startDate: thirtyDaysAgo, limit: 20 });
+        lifeEventsData = await healthRouter.getLifeEvents(userId, { startDate: thirtyDaysAgo, limit: 20 });
       } catch (error) {
         logger.info('Life events fetch failed, continuing without them');
       }
 
-      // Get Flōmentum data (last 7 days for average) - routed through storage layer
+      // Get Flōmentum data (last 7 days for average) - routed through healthRouter to Supabase
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
       let flomentumData: any = null;
       try {
-        const recentScores = await storage.getFlomentumDaily(userId, { startDate: sevenDaysAgo, limit: 7 });
+        const recentScores = await healthRouter.getFlomentumDaily(userId, { startDate: sevenDaysAgo, limit: 7 });
         
         if (recentScores.length > 0) {
           const avgScore = recentScores.reduce((sum, s) => sum + (s.score || 0), 0) / recentScores.length;
@@ -2027,10 +2027,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info('Flōmentum data fetch failed, continuing without it');
       }
 
-      // Get HealthKit summary (7-day averages) - routed through storage layer
+      // Get HealthKit summary (7-day averages) - routed through healthRouter to Supabase
       let healthkitSummary: any = null;
       try {
-        const recentSamples = await storage.getHealthkitSamples(userId, { startDate: sevenDaysAgo, limit: 1000 });
+        const recentSamples = await healthRouter.getHealthkitSamples(userId, { startDate: sevenDaysAgo, limit: 1000 });
         
         if (recentSamples.length > 0) {
           const metricAverages: any = {};
@@ -4495,7 +4495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { dataType, limit = 100 } = req.query;
 
-      const samples = await storage.getHealthkitSamples(userId, {
+      const samples = await healthRouter.getHealthkitSamples(userId, {
         dataTypes: dataType ? [dataType as string] : undefined,
         limit: Math.min(parseInt(limit as string) || 100, 1000),
       });
@@ -4745,7 +4745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Query sleep data from sleep_nights table via storage layer (more reliable than sleepHours from iOS)
           // sleepHours only captures "in bed" samples, but sleep_nights processes all sleep stages
-          const sleepNight = await storage.getSleepNightByDate(userId, metrics.localDate);
+          const sleepNight = await healthRouter.getSleepNightByDate(userId, metrics.localDate);
           
           // Map userDailyMetrics fields to Flōmentum metrics
           // Note: userDailyMetrics has limited fields, so some will be null
@@ -4773,8 +4773,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const scoreResult = calculateFlomentumScore(flomentumMetrics, context);
 
-          // Store the daily Flōmentum score via storage layer
-          await storage.upsertFlomentumDaily({
+          // Store the daily Flōmentum score via healthRouter to Supabase
+          await healthRouter.upsertFlomentumDaily(userId, {
             date: metrics.localDate,
             userId,
             score: scoreResult.score,
@@ -5030,10 +5030,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if updating or creating
-      const existing = await storage.getSleepNightByDate(userId, sleepNightData.sleepDate);
+      const existing = await healthRouter.getSleepNightByDate(userId, sleepNightData.sleepDate);
 
       // Use storage layer for upsert (routes to Supabase when enabled)
-      await storage.upsertSleepNight({
+      await healthRouter.upsertSleepNight(userId, {
         userId,
         sleepDate: sleepNightData.sleepDate,
         timezone: sleepNightData.timezone,
@@ -5118,7 +5118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Use storage layer for upsert (routes to Supabase when enabled)
-      await storage.upsertSleepNight({
+      await healthRouter.upsertSleepNight(userId, {
         userId,
         sleepDate: sleepNight.sleepDate,
         timezone: sleepNight.timezone,
@@ -5190,8 +5190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const scoreResult = calculateFlomentumScore(flomentumMetrics, context);
 
-            // Update the daily Flōmentum score with sleep data included via storage layer
-            await storage.upsertFlomentumDaily({
+            // Update the daily Flōmentum score with sleep data included via healthRouter to Supabase
+            await healthRouter.upsertFlomentumDaily(userId, {
               date: sleepDate,
               userId,
               score: scoreResult.score,
@@ -5265,7 +5265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const subscore = existing[0];
 
         // Fetch corresponding sleep night data via storage layer
-        const night = await storage.getSleepNightByDate(userId, today);
+        const night = await healthRouter.getSleepNightByDate(userId, today);
 
         if (!night) {
           return res.status(404).json({ error: "Sleep night data not found" });
@@ -5301,7 +5301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
 
-      const recentNights = await storage.getSleepNights(userId, { startDate: twoDaysAgo, limit: 1 });
+      const recentNights = await healthRouter.getSleepNights(userId, { startDate: twoDaysAgo, limit: 1 });
 
       if (recentNights.length === 0) {
         return res.status(404).json({
@@ -5451,7 +5451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Insert study into database
-      const study = await storage.createDiagnosticStudy({
+      const study = await healthRouter.createDiagnosticStudy(userId, {
         userId,
         type: "coronary_calcium_score",
         source: "uploaded_pdf",
@@ -5577,7 +5577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Insert study into database
-      const study = await storage.createDiagnosticStudy({
+      const study = await healthRouter.createDiagnosticStudy(userId, {
         userId,
         type: "coronary_calcium_score",
         source: "uploaded_pdf_experimental",
@@ -5695,7 +5695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const whoClassification = data.bone_density.who_classification;
 
       // Insert study into database
-      const study = await storage.createDiagnosticStudy({
+      const study = await healthRouter.createDiagnosticStudy(userId, {
         userId,
         type: "dexa_scan",
         source: "uploaded_pdf",
@@ -5844,7 +5844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const whoClassification = data.bone_density.who_classification;
 
       // Insert study into database
-      const study = await storage.createDiagnosticStudy({
+      const study = await healthRouter.createDiagnosticStudy(userId, {
         userId,
         type: "dexa_scan",
         source: "uploaded_pdf_experimental",
@@ -6361,8 +6361,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const scoreResult = calculateFlomentumScore(metrics, context);
 
-      // Store the daily score via storage layer
-      await storage.upsertFlomentumDaily({
+      // Store the daily score via healthRouter to Supabase
+      await healthRouter.upsertFlomentumDaily(userId, {
         date: summaryData.date,
         userId,
         score: scoreResult.score,
@@ -6475,23 +6475,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         day: '2-digit'
       }).split(',')[0]; // Format: YYYY-MM-DD
 
-      // Get today's Flōmentum score via storage layer
-      const dailyScore = await storage.getFlomentumDailyByDate(userId, today);
+      // Get today's Flōmentum score via healthRouter to Supabase
+      const dailyScore = await healthRouter.getFlomentumDailyByDate(userId, today);
 
       if (!dailyScore) {
         return res.json(null);
       }
 
-      // Get quick snapshot (recent 3 scores for trend) via storage layer
-      const recentScores = await storage.getFlomentumDaily(userId, { limit: 3 });
+      // Get quick snapshot (recent 3 scores for trend) via healthRouter to Supabase
+      const recentScores = await healthRouter.getFlomentumDaily(userId, { limit: 3 });
 
       const quickSnapshot = recentScores.map(s => ({
         date: s.date,
         score: s.score,
       }));
 
-      // Always calculate streak from consecutive Flomentum scores via storage layer
-      const allScores = await storage.getFlomentumDaily(userId, { limit: 90 });
+      // Always calculate streak from consecutive Flomentum scores via healthRouter to Supabase
+      const allScores = await healthRouter.getFlomentumDaily(userId, { limit: 90 });
 
       // If no scores exist, no gamification data
       if (allScores.length === 0) {
@@ -6595,7 +6595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(1);
       
       // Query sleep_nights for reliable sleep data via storage layer (same as Flōmentum score calculation)
-      const sleepNight = await storage.getSleepNightByDate(userId, today);
+      const sleepNight = await healthRouter.getSleepNightByDate(userId, today);
       
       // Query healthkit workouts for today's exercise as additional fallback
       // Note: startDate is a timestamp, so we compare the date portion
@@ -8889,7 +8889,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const { status, completedAt } = validationResult.data;
       const completedDate = completedAt ? new Date(completedAt) : (status === 'completed' ? new Date() : undefined);
 
-      const item = await storage.updateActionPlanItemStatus(id, userId, status, completedDate);
+      const item = await healthRouter.updateActionPlanItemStatus(id, userId, status, completedDate);
       
       if (!item) {
         return res.status(404).json({ error: "Action plan item not found" });
@@ -8914,7 +8914,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
     try {
       // Verify ownership before deleting
-      const item = await storage.getActionPlanItem(id, userId);
+      const item = await healthRouter.getActionPlanItem(id, userId);
       if (!item) {
         return res.status(404).json({ error: "Action plan item not found" });
       }
@@ -8941,7 +8941,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
     try {
       // Get the action plan item
-      const item = await storage.getActionPlanItem(id, userId);
+      const item = await healthRouter.getActionPlanItem(id, userId);
       if (!item) {
         return res.status(404).json({ error: "Action plan item not found" });
       }

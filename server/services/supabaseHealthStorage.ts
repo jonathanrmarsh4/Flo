@@ -371,6 +371,52 @@ export async function getHealthkitSamples(
   return data || [];
 }
 
+interface GetHealthkitSamplesFlexibleOptions {
+  dataTypes?: string[];
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getHealthkitSamplesFlexible(
+  userId: string, 
+  options: GetHealthkitSamplesFlexibleOptions = {}
+): Promise<HealthkitSample[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('healthkit_samples')
+    .select('*')
+    .eq('health_id', healthId);
+  
+  if (options.dataTypes && options.dataTypes.length > 0) {
+    query = query.in('data_type', options.dataTypes);
+  }
+  
+  if (options.startDate) {
+    query = query.gte('start_date', options.startDate.toISOString());
+  }
+  
+  if (options.endDate) {
+    query = query.lte('start_date', options.endDate.toISOString());
+  }
+  
+  query = query.order('start_date', { ascending: false });
+  
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching healthkit samples (flexible):', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 // ==================== HEALTHKIT WORKOUTS ====================
 
 export interface HealthkitWorkout {
@@ -552,6 +598,39 @@ export async function getLifeEvents(userId: string, days = 14): Promise<LifeEven
   return data || [];
 }
 
+interface GetLifeEventsFlexibleOptions {
+  startDate?: Date;
+  limit?: number;
+}
+
+export async function getLifeEventsFlexible(userId: string, options: GetLifeEventsFlexibleOptions = {}): Promise<LifeEvent[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('life_events')
+    .select('*')
+    .eq('health_id', healthId);
+  
+  if (options.startDate) {
+    query = query.gte('happened_at', options.startDate.toISOString());
+  }
+  
+  query = query.order('happened_at', { ascending: false });
+  
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching life events (flexible):', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 // ==================== USER DAILY METRICS ====================
 
 export interface UserDailyMetric {
@@ -692,6 +771,60 @@ export async function getFlomentumDaily(userId: string, days = 7): Promise<Flome
   return data || [];
 }
 
+interface GetFlomentumDailyFlexibleOptions {
+  startDate?: Date;
+  limit?: number;
+}
+
+export async function getFlomentumDailyFlexible(userId: string, options: GetFlomentumDailyFlexibleOptions = {}): Promise<FlomentumDaily[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('flomentum_daily')
+    .select('*')
+    .eq('health_id', healthId);
+  
+  if (options.startDate) {
+    query = query.gte('date', options.startDate.toISOString().split('T')[0]);
+  }
+  
+  query = query.order('date', { ascending: false });
+  
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching flomentum daily (flexible):', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getFlomentumDailyByDate(userId: string, date: string): Promise<FlomentumDaily | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('flomentum_daily')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('date', date)
+    .single();
+
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return null; // No row found
+    }
+    logger.error('[SupabaseHealth] Error fetching flomentum daily by date:', error);
+    throw error;
+  }
+
+  return data;
+}
+
 // ==================== SLEEP NIGHTS ====================
 
 export interface SleepNight {
@@ -752,15 +885,39 @@ export async function upsertSleepNight(userId: string, sleep: Omit<SleepNight, '
   return data;
 }
 
-export async function getSleepNights(userId: string, days = 7): Promise<SleepNight[]> {
+interface GetSleepNightsOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getSleepNights(userId: string, optionsOrDays: GetSleepNightsOptions | number = 7): Promise<SleepNight[]> {
   const healthId = await getHealthId(userId);
   
-  const { data, error } = await supabase
+  let query = supabase
     .from('sleep_nights')
     .select('*')
     .eq('health_id', healthId)
-    .order('sleep_date', { ascending: false })
-    .limit(days);
+    .order('sleep_date', { ascending: false });
+    
+  if (typeof optionsOrDays === 'number') {
+    query = query.limit(optionsOrDays);
+  } else {
+    const { startDate, endDate, limit } = optionsOrDays;
+    if (startDate) {
+      const startDateStr = startDate.toISOString().split('T')[0];
+      query = query.gte('sleep_date', startDateStr);
+    }
+    if (endDate) {
+      const endDateStr = endDate.toISOString().split('T')[0];
+      query = query.lte('sleep_date', endDateStr);
+    }
+    if (limit) {
+      query = query.limit(limit);
+    }
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     logger.error('[SupabaseHealth] Error fetching sleep nights:', error);
@@ -768,6 +925,24 @@ export async function getSleepNights(userId: string, days = 7): Promise<SleepNig
   }
 
   return data || [];
+}
+
+export async function getSleepNightByDate(userId: string, sleepDate: string): Promise<SleepNight | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('sleep_nights')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('sleep_date', sleepDate)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching sleep night by date:', error);
+    throw error;
+  }
+
+  return data;
 }
 
 // ==================== ACTION PLAN ITEMS ====================

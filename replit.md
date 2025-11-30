@@ -31,17 +31,23 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - Service layer at `server/services/supabaseHealthStorage.ts` for Supabase operations
 - Logger utility at `server/utils/logger.ts` for consistent logging
 - **Birth Year Privacy Enhancement (Nov 2025):** Replaced full `date_of_birth` with `birth_year` integer only to prevent re-identification attacks if databases are compromised. Age calculations use July 1st mid-year assumption (±6 month accuracy). Shared utility at `shared/utils/ageCalculation.ts`. 12 existing profiles migrated successfully.
-- **Storage Layer Expansion (Nov 2025):** 146 storage layer calls in routes.ts, covering:
+- **Storage Layer Expansion (Nov 2025):** Complete healthRouter implementation covering:
   - HealthKit samples (get/upsert with flexible filtering)
-  - Sleep nights (get/getByDate/upsert)
+  - Sleep nights (getSleepNights/getSleepNightByDate/upsertSleepNight)
   - User daily metrics (get/getByDate/upsert)
-  - Life events (get/create)
-  - Flomentum daily (get/getByDate/upsert)
-  - Daily insights (get/getByDate/create/update/markSeen/dismiss) - stays in Neon as AI-generated content
+  - Life events (getLifeEvents/createLifeEvent)
+  - Flomentum daily (getFlomentumDaily/getFlomentumDailyByDate/upsertFlomentumDaily)
+  - Diagnostic studies (getDiagnosticsStudies/createDiagnosticStudy)
+  - Action plan items (getActionPlanItems/getActionPlanItem/updateActionPlanItemStatus)
+  - Biomarker sessions and measurements (getBiomarkerSessions/createBiomarkerSession/getMeasurementsBySession/createBiomarkerMeasurement)
+  - Health profiles (getProfile/upsertProfile)
+- **Response Normalization:** healthRouter converts Supabase snake_case responses to camelCase for API compatibility
 - **Predicate Safety:** All storage methods use safe predicate building (`whereClause = conditions.length === 1 ? conditions[0] : and(...conditions)`)
-- **Fully Refactored Tables (0 direct db calls):** sleepNights, healthkitSamples, lifeEvents, flomentumDaily
-- **Refactored Endpoints:** healthkit/samples, sleep/nights, healthkit/sleep-samples, sleep/today, comprehensive-report, flomentum/today, flomentum/daily-summary, readiness/today, embeddings/sync, daily-insights/debug
-- **Intentional Direct Calls:** userDailyMetrics (6 - timezone lookups + ingestion), dailyInsights (5 - AI-generated content stays in Neon)
+- **Fully Refactored Tables (0 direct db calls):** sleepNights, healthkitSamples, lifeEvents, flomentumDaily, diagnosticsStudies, actionPlanItems
+- **Intentional Direct Calls:** 
+  - userDailyMetrics (timezone lookups + ingestion)
+  - dailyInsights (AI-generated content stays in Neon)
+  - diagnosticMetrics (AI-generated content stays in Neon)
 - **Activation:** Set `SUPABASE_HEALTH_ENABLED=true` environment variable to enable Supabase routing
 
 Production database schema changes require manual verification and careful migration to avoid data loss.
