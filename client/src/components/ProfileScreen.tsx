@@ -10,6 +10,7 @@ import { MedicalDisclaimerScreen } from '@/components/MedicalDisclaimerScreen';
 import { ExportDataScreen } from '@/components/ExportDataScreen';
 import { DeleteDataConfirmation } from '@/components/DeleteDataConfirmation';
 import { HelpSupportScreen } from '@/components/HelpSupportScreen';
+import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { PasskeyManagement } from '@/components/PasskeyManagement';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -1451,7 +1452,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
       />
 
       {showHelpSupport && (
-        <HelpSupportScreen 
+        <NotificationsScreen 
           isDark={isDark} 
           onClose={() => setShowHelpSupport(false)} 
         />
