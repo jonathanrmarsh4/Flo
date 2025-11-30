@@ -48,9 +48,6 @@ import {
   sleepSubscores,
   insertSleepNightsSchema,
   insertSleepSubscoresSchema,
-  mindfulnessSessions,
-  mindfulnessDailyMetrics,
-  nutritionDailyMetrics,
   userSettings as userSettingsTable,
   healthDailyMetrics,
   flomentumDaily,
@@ -5228,33 +5225,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Nutrition Routes
   // ============================================
 
-  // Get nutrition daily metrics for a user
+  // Get nutrition daily metrics for a user - uses healthStorageRouter for dual-database support
   app.get("/api/nutrition/daily", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { startDate, endDate, limit } = req.query;
 
-      let query = db
-        .select()
-        .from(nutritionDailyMetrics)
-        .where(eq(nutritionDailyMetrics.userId, userId))
-        .orderBy(desc(nutritionDailyMetrics.localDate));
-
-      if (startDate && endDate) {
-        query = db
-          .select()
-          .from(nutritionDailyMetrics)
-          .where(
-            and(
-              eq(nutritionDailyMetrics.userId, userId),
-              gte(nutritionDailyMetrics.localDate, startDate as string),
-              sql`${nutritionDailyMetrics.localDate} <= ${endDate}`
-            )
-          )
-          .orderBy(desc(nutritionDailyMetrics.localDate));
-      }
-
-      const records = await (limit ? query.limit(Number(limit)) : query);
+      const options: { startDate?: Date; endDate?: Date; limit?: number } = {};
+      if (startDate) options.startDate = new Date(startDate as string);
+      if (endDate) options.endDate = new Date(endDate as string);
+      if (limit) options.limit = Number(limit);
+      
+      const records = await healthRouter.getNutritionDailyMetrics(userId, options);
       
       return res.json(records);
     } catch (error: any) {
@@ -5305,34 +5287,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mindfulness Routes
   // ============================================
 
-  // Get mindfulness sessions for a user
+  // Get mindfulness sessions for a user - uses healthStorageRouter for dual-database support
   app.get("/api/mindfulness/sessions", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { startDate, endDate, limit } = req.query;
 
-      let records;
-      if (startDate && endDate) {
-        records = await db
-          .select()
-          .from(mindfulnessSessions)
-          .where(
-            and(
-              eq(mindfulnessSessions.userId, userId),
-              gte(mindfulnessSessions.sessionDate, startDate as string),
-              sql`${mindfulnessSessions.sessionDate} <= ${endDate}`
-            )
-          )
-          .orderBy(desc(mindfulnessSessions.startTime))
-          .limit(limit ? Number(limit) : 100);
-      } else {
-        records = await db
-          .select()
-          .from(mindfulnessSessions)
-          .where(eq(mindfulnessSessions.userId, userId))
-          .orderBy(desc(mindfulnessSessions.startTime))
-          .limit(limit ? Number(limit) : 100);
-      }
+      const options: { startDate?: Date; endDate?: Date; limit?: number } = {};
+      if (startDate) options.startDate = new Date(startDate as string);
+      if (endDate) options.endDate = new Date(endDate as string);
+      options.limit = limit ? Number(limit) : 100;
+      
+      const records = await healthRouter.getMindfulnessSessions(userId, options);
       
       return res.json(records);
     } catch (error: any) {
@@ -5341,34 +5307,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get mindfulness daily metrics
+  // Get mindfulness daily metrics - uses healthStorageRouter for dual-database support
   app.get("/api/mindfulness/daily", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { startDate, endDate, limit } = req.query;
 
-      let records;
-      if (startDate && endDate) {
-        records = await db
-          .select()
-          .from(mindfulnessDailyMetrics)
-          .where(
-            and(
-              eq(mindfulnessDailyMetrics.userId, userId),
-              gte(mindfulnessDailyMetrics.localDate, startDate as string),
-              sql`${mindfulnessDailyMetrics.localDate} <= ${endDate}`
-            )
-          )
-          .orderBy(desc(mindfulnessDailyMetrics.localDate))
-          .limit(limit ? Number(limit) : 100);
-      } else {
-        records = await db
-          .select()
-          .from(mindfulnessDailyMetrics)
-          .where(eq(mindfulnessDailyMetrics.userId, userId))
-          .orderBy(desc(mindfulnessDailyMetrics.localDate))
-          .limit(limit ? Number(limit) : 100);
-      }
+      const options: { startDate?: Date; endDate?: Date; limit?: number } = {};
+      if (startDate) options.startDate = new Date(startDate as string);
+      if (endDate) options.endDate = new Date(endDate as string);
+      options.limit = limit ? Number(limit) : 100;
+      
+      const records = await healthRouter.getMindfulnessDailyMetrics(userId, options);
       
       return res.json(records);
     } catch (error: any) {

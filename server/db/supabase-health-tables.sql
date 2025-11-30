@@ -194,6 +194,15 @@ CREATE TABLE IF NOT EXISTS user_daily_metrics (
   dietary_water_ml REAL,
   oxygen_saturation_pct REAL,
   respiratory_rate_bpm REAL,
+  -- Gait & Mobility metrics (8 columns)
+  walking_speed_ms REAL,
+  walking_step_length_m REAL,
+  walking_double_support_pct REAL,
+  walking_asymmetry_pct REAL,
+  apple_walking_steadiness REAL,
+  six_minute_walk_distance_m REAL,
+  stair_ascent_speed_ms REAL,
+  stair_descent_speed_ms REAL,
   normalization_version TEXT NOT NULL DEFAULT 'norm_v1',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -307,6 +316,101 @@ CREATE INDEX IF NOT EXISTS idx_user_memory_health_time ON user_memory(health_id,
 CREATE INDEX IF NOT EXISTS idx_user_memory_tags ON user_memory USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_user_memory_json ON user_memory USING GIN(memory jsonb_path_ops);
 
+-- Nutrition Daily Metrics - Daily aggregation of all 38 nutrition types from HealthKit
+CREATE TABLE IF NOT EXISTS nutrition_daily_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  health_id UUID NOT NULL,
+  local_date TEXT NOT NULL,
+  timezone TEXT NOT NULL,
+  -- Macronutrients
+  energy_kcal REAL,
+  carbohydrates_g REAL,
+  protein_g REAL,
+  fat_total_g REAL,
+  fat_saturated_g REAL,
+  fat_polyunsaturated_g REAL,
+  fat_monounsaturated_g REAL,
+  cholesterol_mg REAL,
+  fiber_g REAL,
+  sugar_g REAL,
+  -- Vitamins
+  vitamin_a_mcg REAL,
+  vitamin_b6_mg REAL,
+  vitamin_b12_mcg REAL,
+  vitamin_c_mg REAL,
+  vitamin_d_mcg REAL,
+  vitamin_e_mg REAL,
+  vitamin_k_mcg REAL,
+  thiamin_mg REAL,
+  riboflavin_mg REAL,
+  niacin_mg REAL,
+  folate_mcg REAL,
+  biotin_mcg REAL,
+  pantothenic_acid_mg REAL,
+  -- Minerals
+  calcium_mg REAL,
+  chloride_mg REAL,
+  chromium_mcg REAL,
+  copper_mg REAL,
+  iodine_mcg REAL,
+  iron_mg REAL,
+  magnesium_mg REAL,
+  manganese_mg REAL,
+  molybdenum_mcg REAL,
+  phosphorus_mg REAL,
+  potassium_mg REAL,
+  selenium_mcg REAL,
+  sodium_mg REAL,
+  zinc_mg REAL,
+  -- Other
+  caffeine_mg REAL,
+  water_ml REAL,
+  meal_count INTEGER,
+  sources JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_nutrition_daily_unique ON nutrition_daily_metrics(health_id, local_date);
+CREATE INDEX IF NOT EXISTS idx_nutrition_daily_health_date ON nutrition_daily_metrics(health_id, local_date);
+
+-- Mindfulness Sessions - Individual meditation/mindfulness sessions from HealthKit
+CREATE TABLE IF NOT EXISTS mindfulness_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  health_id UUID NOT NULL,
+  session_date TEXT NOT NULL,
+  timezone TEXT NOT NULL,
+  start_time TIMESTAMP NOT NULL,
+  end_time TIMESTAMP NOT NULL,
+  duration_minutes REAL NOT NULL,
+  source_name TEXT,
+  source_id TEXT,
+  healthkit_uuid TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mindfulness_sessions_health_date ON mindfulness_sessions(health_id, session_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mindfulness_sessions_uuid ON mindfulness_sessions(health_id, healthkit_uuid);
+
+-- Mindfulness Daily Metrics - Daily aggregation of mindfulness sessions
+CREATE TABLE IF NOT EXISTS mindfulness_daily_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  health_id UUID NOT NULL,
+  local_date TEXT NOT NULL,
+  timezone TEXT NOT NULL,
+  total_minutes REAL NOT NULL DEFAULT 0,
+  session_count INTEGER NOT NULL DEFAULT 0,
+  avg_session_minutes REAL,
+  longest_session_minutes REAL,
+  sources JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_mindfulness_daily_unique ON mindfulness_daily_metrics(health_id, local_date);
+CREATE INDEX IF NOT EXISTS idx_mindfulness_daily_health_date ON mindfulness_daily_metrics(health_id, local_date);
+
 -- Enable Row Level Security on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE biomarker_test_sessions ENABLE ROW LEVEL SECURITY;
@@ -320,6 +424,9 @@ ALTER TABLE flomentum_daily ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sleep_nights ENABLE ROW LEVEL SECURITY;
 ALTER TABLE action_plan_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_memory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE nutrition_daily_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mindfulness_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mindfulness_daily_metrics ENABLE ROW LEVEL SECURITY;
 
 -- Create policy for service role access (backend server uses service key)
 CREATE POLICY "Service role full access" ON profiles FOR ALL USING (true);
@@ -334,6 +441,9 @@ CREATE POLICY "Service role full access" ON flomentum_daily FOR ALL USING (true)
 CREATE POLICY "Service role full access" ON sleep_nights FOR ALL USING (true);
 CREATE POLICY "Service role full access" ON action_plan_items FOR ALL USING (true);
 CREATE POLICY "Service role full access" ON user_memory FOR ALL USING (true);
+CREATE POLICY "Service role full access" ON nutrition_daily_metrics FOR ALL USING (true);
+CREATE POLICY "Service role full access" ON mindfulness_sessions FOR ALL USING (true);
+CREATE POLICY "Service role full access" ON mindfulness_daily_metrics FOR ALL USING (true);
 
 -- Biomarkers table is reference data, allow read access
 ALTER TABLE biomarkers ENABLE ROW LEVEL SECURITY;

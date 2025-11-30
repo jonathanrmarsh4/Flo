@@ -945,6 +945,361 @@ export async function getSleepNightByDate(userId: string, sleepDate: string): Pr
   return data;
 }
 
+// ==================== NUTRITION DAILY METRICS ====================
+
+export interface NutritionDailyMetrics {
+  id?: string;
+  health_id: string;
+  local_date: string;
+  timezone: string;
+  energy_kcal?: number | null;
+  carbohydrates_g?: number | null;
+  protein_g?: number | null;
+  fat_total_g?: number | null;
+  fat_saturated_g?: number | null;
+  fat_polyunsaturated_g?: number | null;
+  fat_monounsaturated_g?: number | null;
+  cholesterol_mg?: number | null;
+  fiber_g?: number | null;
+  sugar_g?: number | null;
+  vitamin_a_mcg?: number | null;
+  vitamin_b6_mg?: number | null;
+  vitamin_b12_mcg?: number | null;
+  vitamin_c_mg?: number | null;
+  vitamin_d_mcg?: number | null;
+  vitamin_e_mg?: number | null;
+  vitamin_k_mcg?: number | null;
+  thiamin_mg?: number | null;
+  riboflavin_mg?: number | null;
+  niacin_mg?: number | null;
+  folate_mcg?: number | null;
+  biotin_mcg?: number | null;
+  pantothenic_acid_mg?: number | null;
+  calcium_mg?: number | null;
+  chloride_mg?: number | null;
+  chromium_mcg?: number | null;
+  copper_mg?: number | null;
+  iodine_mcg?: number | null;
+  iron_mg?: number | null;
+  magnesium_mg?: number | null;
+  manganese_mg?: number | null;
+  molybdenum_mcg?: number | null;
+  phosphorus_mg?: number | null;
+  potassium_mg?: number | null;
+  selenium_mcg?: number | null;
+  sodium_mg?: number | null;
+  zinc_mg?: number | null;
+  caffeine_mg?: number | null;
+  water_ml?: number | null;
+  meal_count?: number | null;
+  sources?: Record<string, any> | null;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export async function getNutritionDailyMetrics(userId: string, days = 7): Promise<NutritionDailyMetrics[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('nutrition_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('local_date', { ascending: false })
+    .limit(days);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching nutrition daily metrics:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+interface GetNutritionDailyOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getNutritionDailyMetricsFlexible(userId: string, options: GetNutritionDailyOptions = {}): Promise<NutritionDailyMetrics[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('nutrition_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('local_date', { ascending: false });
+
+  if (options.startDate) {
+    const startDateStr = options.startDate.toISOString().split('T')[0];
+    query = query.gte('local_date', startDateStr);
+  }
+  if (options.endDate) {
+    const endDateStr = options.endDate.toISOString().split('T')[0];
+    query = query.lte('local_date', endDateStr);
+  }
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching nutrition daily metrics (flexible):', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getNutritionDailyByDate(userId: string, localDate: string): Promise<NutritionDailyMetrics | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('nutrition_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('local_date', localDate)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching nutrition daily by date:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function upsertNutritionDailyMetrics(userId: string, nutrition: Omit<NutritionDailyMetrics, 'health_id'>): Promise<NutritionDailyMetrics> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('nutrition_daily_metrics')
+    .upsert({
+      ...nutrition,
+      health_id: healthId,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'health_id,local_date',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error upserting nutrition daily metrics:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+// ==================== MINDFULNESS SESSIONS ====================
+
+export interface MindfulnessSession {
+  id?: string;
+  health_id: string;
+  session_date: string;
+  timezone: string;
+  start_time: Date;
+  end_time: Date;
+  duration_minutes: number;
+  source_name?: string | null;
+  source_id?: string | null;
+  healthkit_uuid?: string | null;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export async function getMindfulnessSessions(userId: string, days = 7): Promise<MindfulnessSession[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('mindfulness_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('start_time', { ascending: false })
+    .limit(days * 10); // Allow multiple sessions per day
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching mindfulness sessions:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+interface GetMindfulnessSessionsOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getMindfulnessSessionsFlexible(userId: string, options: GetMindfulnessSessionsOptions = {}): Promise<MindfulnessSession[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('mindfulness_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('start_time', { ascending: false });
+
+  if (options.startDate) {
+    const startDateStr = options.startDate.toISOString().split('T')[0];
+    query = query.gte('session_date', startDateStr);
+  }
+  if (options.endDate) {
+    const endDateStr = options.endDate.toISOString().split('T')[0];
+    query = query.lte('session_date', endDateStr);
+  }
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching mindfulness sessions (flexible):', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function createMindfulnessSession(userId: string, session: Omit<MindfulnessSession, 'health_id'>): Promise<MindfulnessSession> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('mindfulness_sessions')
+    .upsert({
+      ...session,
+      health_id: healthId,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'health_id,healthkit_uuid',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error creating mindfulness session:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+// ==================== MINDFULNESS DAILY METRICS ====================
+
+export interface MindfulnessDailyMetrics {
+  id?: string;
+  health_id: string;
+  local_date: string;
+  timezone: string;
+  total_minutes: number;
+  session_count: number;
+  avg_session_minutes?: number | null;
+  longest_session_minutes?: number | null;
+  sources?: Record<string, any> | null;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export async function getMindfulnessDailyMetrics(userId: string, days = 7): Promise<MindfulnessDailyMetrics[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('mindfulness_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('local_date', { ascending: false })
+    .limit(days);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching mindfulness daily metrics:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+interface GetMindfulnessDailyOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getMindfulnessDailyMetricsFlexible(userId: string, options: GetMindfulnessDailyOptions = {}): Promise<MindfulnessDailyMetrics[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('mindfulness_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('local_date', { ascending: false });
+
+  if (options.startDate) {
+    const startDateStr = options.startDate.toISOString().split('T')[0];
+    query = query.gte('local_date', startDateStr);
+  }
+  if (options.endDate) {
+    const endDateStr = options.endDate.toISOString().split('T')[0];
+    query = query.lte('local_date', endDateStr);
+  }
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching mindfulness daily metrics (flexible):', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getMindfulnessDailyByDate(userId: string, localDate: string): Promise<MindfulnessDailyMetrics | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('mindfulness_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('local_date', localDate)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching mindfulness daily by date:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function upsertMindfulnessDailyMetrics(userId: string, mindfulness: Omit<MindfulnessDailyMetrics, 'health_id'>): Promise<MindfulnessDailyMetrics> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('mindfulness_daily_metrics')
+    .upsert({
+      ...mindfulness,
+      health_id: healthId,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'health_id,local_date',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error upserting mindfulness daily metrics:', error);
+    throw error;
+  }
+
+  return data;
+}
+
 // ==================== ACTION PLAN ITEMS ====================
 
 export interface ActionPlanItem {
@@ -1230,6 +1585,27 @@ export async function deleteAllHealthData(userId: string): Promise<void> {
     .delete()
     .eq('health_id', healthId);
   if (diagnosticsError) errors.push(`diagnostics_studies: ${diagnosticsError.message}`);
+
+  // 9. Delete nutrition_daily_metrics
+  const { error: nutritionError } = await supabase
+    .from('nutrition_daily_metrics')
+    .delete()
+    .eq('health_id', healthId);
+  if (nutritionError) errors.push(`nutrition_daily_metrics: ${nutritionError.message}`);
+
+  // 10. Delete mindfulness_sessions
+  const { error: mindfulnessSessionsError } = await supabase
+    .from('mindfulness_sessions')
+    .delete()
+    .eq('health_id', healthId);
+  if (mindfulnessSessionsError) errors.push(`mindfulness_sessions: ${mindfulnessSessionsError.message}`);
+
+  // 11. Delete mindfulness_daily_metrics
+  const { error: mindfulnessDailyError } = await supabase
+    .from('mindfulness_daily_metrics')
+    .delete()
+    .eq('health_id', healthId);
+  if (mindfulnessDailyError) errors.push(`mindfulness_daily_metrics: ${mindfulnessDailyError.message}`);
 
   // 9. Delete biomarker_measurements (CASCADE from sessions handles this, but explicit delete for safety)
   // Get session IDs first

@@ -23,6 +23,9 @@ import {
   userDailyMetrics,
   flomentumDaily,
   sleepNights,
+  nutritionDailyMetrics,
+  mindfulnessSessions,
+  mindfulnessDailyMetrics,
 } from '@shared/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { getSupabaseClient } from '../services/supabaseClient';
@@ -42,6 +45,9 @@ interface MigrationStats {
   dailyMetrics: number;
   flomentumDaily: number;
   sleepNights: number;
+  nutritionDailyMetrics: number;
+  mindfulnessSessions: number;
+  mindfulnessDailyMetrics: number;
   errors: string[];
 }
 
@@ -58,6 +64,9 @@ const stats: MigrationStats = {
   dailyMetrics: 0,
   flomentumDaily: 0,
   sleepNights: 0,
+  nutritionDailyMetrics: 0,
+  mindfulnessSessions: 0,
+  mindfulnessDailyMetrics: 0,
   errors: [],
 };
 
@@ -569,6 +578,142 @@ async function migrateSleepNights(healthIdMap: Map<string, string>) {
   console.log(`Migrated ${stats.sleepNights} sleep nights`);
 }
 
+async function migrateNutritionDailyMetrics(healthIdMap: Map<string, string>) {
+  console.log('\nMigrating nutrition daily metrics...');
+  
+  const records = await db.select().from(nutritionDailyMetrics);
+  
+  for (const record of records) {
+    const healthId = healthIdMap.get(record.userId);
+    if (!healthId) continue;
+    
+    try {
+      const { error } = await supabase.from('nutrition_daily_metrics').upsert({
+        health_id: healthId,
+        local_date: record.localDate,
+        timezone: record.timezone,
+        energy_kcal: record.energyKcal,
+        carbohydrates_g: record.carbohydratesG,
+        protein_g: record.proteinG,
+        fat_total_g: record.fatTotalG,
+        fat_saturated_g: record.fatSaturatedG,
+        fat_polyunsaturated_g: record.fatPolyunsaturatedG,
+        fat_monounsaturated_g: record.fatMonounsaturatedG,
+        cholesterol_mg: record.cholesterolMg,
+        fiber_g: record.fiberG,
+        sugar_g: record.sugarG,
+        vitamin_a_mcg: record.vitaminAMcg,
+        vitamin_b6_mg: record.vitaminB6Mg,
+        vitamin_b12_mcg: record.vitaminB12Mcg,
+        vitamin_c_mg: record.vitaminCMg,
+        vitamin_d_mcg: record.vitaminDMcg,
+        vitamin_e_mg: record.vitaminEMg,
+        vitamin_k_mcg: record.vitaminKMcg,
+        thiamin_mg: record.thiaminMg,
+        riboflavin_mg: record.riboflavinMg,
+        niacin_mg: record.niacinMg,
+        folate_mcg: record.folateMcg,
+        biotin_mcg: record.biotinMcg,
+        pantothenic_acid_mg: record.pantothenicAcidMg,
+        calcium_mg: record.calciumMg,
+        chloride_mg: record.chlorideMg,
+        chromium_mcg: record.chromiumMcg,
+        copper_mg: record.copperMg,
+        iodine_mcg: record.iodineMcg,
+        iron_mg: record.ironMg,
+        magnesium_mg: record.magnesiumMg,
+        manganese_mg: record.manganeseMg,
+        molybdenum_mcg: record.molybdenumMcg,
+        phosphorus_mg: record.phosphorusMg,
+        potassium_mg: record.potassiumMg,
+        selenium_mcg: record.seleniumMcg,
+        sodium_mg: record.sodiumMg,
+        zinc_mg: record.zincMg,
+        caffeine_mg: record.caffeineMg,
+        water_ml: record.waterMl,
+        meal_count: record.mealCount,
+        sources: record.sources,
+        created_at: record.createdAt?.toISOString(),
+        updated_at: record.updatedAt?.toISOString(),
+      }, { onConflict: 'health_id,local_date' });
+      
+      if (error) throw error;
+      stats.nutritionDailyMetrics++;
+    } catch (err: any) {
+      stats.errors.push(`Nutrition daily ${record.id}: ${err.message}`);
+    }
+  }
+  
+  console.log(`Migrated ${stats.nutritionDailyMetrics} nutrition daily metrics`);
+}
+
+async function migrateMindfulnessSessions(healthIdMap: Map<string, string>) {
+  console.log('\nMigrating mindfulness sessions...');
+  
+  const sessions = await db.select().from(mindfulnessSessions);
+  
+  for (const session of sessions) {
+    const healthId = healthIdMap.get(session.userId);
+    if (!healthId) continue;
+    
+    try {
+      const { error } = await supabase.from('mindfulness_sessions').upsert({
+        health_id: healthId,
+        session_date: session.sessionDate,
+        timezone: session.timezone,
+        start_time: session.startTime.toISOString(),
+        end_time: session.endTime.toISOString(),
+        duration_minutes: session.durationMinutes,
+        source_name: session.sourceName,
+        source_id: session.sourceId,
+        healthkit_uuid: session.healthkitUuid,
+        created_at: session.createdAt?.toISOString(),
+        updated_at: session.updatedAt?.toISOString(),
+      }, { onConflict: 'health_id,healthkit_uuid' });
+      
+      if (error) throw error;
+      stats.mindfulnessSessions++;
+    } catch (err: any) {
+      stats.errors.push(`Mindfulness session ${session.id}: ${err.message}`);
+    }
+  }
+  
+  console.log(`Migrated ${stats.mindfulnessSessions} mindfulness sessions`);
+}
+
+async function migrateMindfulnessDailyMetrics(healthIdMap: Map<string, string>) {
+  console.log('\nMigrating mindfulness daily metrics...');
+  
+  const records = await db.select().from(mindfulnessDailyMetrics);
+  
+  for (const record of records) {
+    const healthId = healthIdMap.get(record.userId);
+    if (!healthId) continue;
+    
+    try {
+      const { error } = await supabase.from('mindfulness_daily_metrics').upsert({
+        health_id: healthId,
+        local_date: record.localDate,
+        timezone: record.timezone,
+        total_minutes: record.totalMinutes,
+        session_count: record.sessionCount,
+        avg_session_minutes: record.avgSessionMinutes,
+        longest_session_minutes: record.longestSessionMinutes,
+        sources: record.sources,
+        created_at: record.createdAt?.toISOString(),
+        updated_at: record.updatedAt?.toISOString(),
+      }, { onConflict: 'health_id,local_date' });
+      
+      if (error) throw error;
+      stats.mindfulnessDailyMetrics++;
+    } catch (err: any) {
+      stats.errors.push(`Mindfulness daily ${record.id}: ${err.message}`);
+    }
+  }
+  
+  console.log(`Migrated ${stats.mindfulnessDailyMetrics} mindfulness daily metrics`);
+}
+
 async function runMigration() {
   console.log('=' .repeat(60));
   console.log('HEALTH DATA MIGRATION: Neon -> Supabase');
@@ -594,6 +739,9 @@ async function runMigration() {
     await migrateDailyMetrics(healthIdMap);
     await migrateFlomentumDaily(healthIdMap);
     await migrateSleepNights(healthIdMap);
+    await migrateNutritionDailyMetrics(healthIdMap);
+    await migrateMindfulnessSessions(healthIdMap);
+    await migrateMindfulnessDailyMetrics(healthIdMap);
     
     // Print summary
     console.log('\n' + '=' .repeat(60));
@@ -611,6 +759,9 @@ async function runMigration() {
     console.log(`Daily metrics: ${stats.dailyMetrics}`);
     console.log(`Flōmentum daily: ${stats.flomentumDaily}`);
     console.log(`Sleep nights: ${stats.sleepNights}`);
+    console.log(`Nutrition daily metrics: ${stats.nutritionDailyMetrics}`);
+    console.log(`Mindfulness sessions: ${stats.mindfulnessSessions}`);
+    console.log(`Mindfulness daily metrics: ${stats.mindfulnessDailyMetrics}`);
     
     if (stats.errors.length > 0) {
       console.log(`\nErrors (${stats.errors.length}):`);

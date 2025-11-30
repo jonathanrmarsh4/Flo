@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { users, profiles, biomarkerTestSessions, biomarkerMeasurements } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { users, profiles, biomarkerTestSessions, biomarkerMeasurements, nutritionDailyMetrics, mindfulnessSessions, mindfulnessDailyMetrics } from "@shared/schema";
+import { eq, gte, lte, and, desc } from "drizzle-orm";
 import * as supabaseHealth from "./supabaseHealthStorage";
 import { createLogger } from "../utils/logger";
 
@@ -769,5 +769,370 @@ export async function createMeasurementWithSession(params: CreateMeasurementWith
 
 // Daily Insights are stored in Neon (not health data, but AI-generated content)
 // No routing needed - they stay in the primary database
+
+// ==================== NUTRITION DAILY METRICS ====================
+
+interface GetNutritionDailyOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getNutritionDailyMetrics(userId: string, options: GetNutritionDailyOptions = { limit: 7 }): Promise<any[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const data = await supabaseHealth.getNutritionDailyMetricsFlexible(userId, options);
+      return data.map(row => ({
+        id: row.id,
+        userId: userId,
+        localDate: row.local_date,
+        timezone: row.timezone,
+        energyKcal: row.energy_kcal,
+        carbohydratesG: row.carbohydrates_g,
+        proteinG: row.protein_g,
+        fatTotalG: row.fat_total_g,
+        fatSaturatedG: row.fat_saturated_g,
+        fatPolyunsaturatedG: row.fat_polyunsaturated_g,
+        fatMonounsaturatedG: row.fat_monounsaturated_g,
+        cholesterolMg: row.cholesterol_mg,
+        fiberG: row.fiber_g,
+        sugarG: row.sugar_g,
+        vitaminAMcg: row.vitamin_a_mcg,
+        vitaminB6Mg: row.vitamin_b6_mg,
+        vitaminB12Mcg: row.vitamin_b12_mcg,
+        vitaminCMg: row.vitamin_c_mg,
+        vitaminDMcg: row.vitamin_d_mcg,
+        vitaminEMg: row.vitamin_e_mg,
+        vitaminKMcg: row.vitamin_k_mcg,
+        thiaminMg: row.thiamin_mg,
+        riboflavinMg: row.riboflavin_mg,
+        niacinMg: row.niacin_mg,
+        folateMcg: row.folate_mcg,
+        biotinMcg: row.biotin_mcg,
+        pantothenicAcidMg: row.pantothenic_acid_mg,
+        calciumMg: row.calcium_mg,
+        chlorideMg: row.chloride_mg,
+        chromiumMcg: row.chromium_mcg,
+        copperMg: row.copper_mg,
+        iodineMcg: row.iodine_mcg,
+        ironMg: row.iron_mg,
+        magnesiumMg: row.magnesium_mg,
+        manganeseMg: row.manganese_mg,
+        molybdenumMcg: row.molybdenum_mcg,
+        phosphorusMg: row.phosphorus_mg,
+        potassiumMg: row.potassium_mg,
+        seleniumMcg: row.selenium_mcg,
+        sodiumMg: row.sodium_mg,
+        zincMg: row.zinc_mg,
+        caffeineMg: row.caffeine_mg,
+        waterMl: row.water_ml,
+        mealCount: row.meal_count,
+        sources: row.sources,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getNutritionDailyMetrics failed, falling back to Neon:", error);
+    }
+  }
+  
+  let query = db.select().from(nutritionDailyMetrics).where(eq(nutritionDailyMetrics.userId, userId));
+  
+  if (options.startDate) {
+    query = query.where(gte(nutritionDailyMetrics.localDate, options.startDate.toISOString().split('T')[0]));
+  }
+  if (options.endDate) {
+    query = query.where(lte(nutritionDailyMetrics.localDate, options.endDate.toISOString().split('T')[0]));
+  }
+  
+  let result = await query.orderBy(desc(nutritionDailyMetrics.localDate)).limit(options.limit ?? 7);
+  return result;
+}
+
+export async function getNutritionDailyByDate(userId: string, localDate: string): Promise<any | null> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const data = await supabaseHealth.getNutritionDailyByDate(userId, localDate);
+      if (data) {
+        return {
+          id: data.id,
+          userId: userId,
+          localDate: data.local_date,
+          timezone: data.timezone,
+          energyKcal: data.energy_kcal,
+          carbohydratesG: data.carbohydrates_g,
+          proteinG: data.protein_g,
+          fatTotalG: data.fat_total_g,
+          fatSaturatedG: data.fat_saturated_g,
+          fatPolyunsaturatedG: data.fat_polyunsaturated_g,
+          fatMonounsaturatedG: data.fat_monounsaturated_g,
+          cholesterolMg: data.cholesterol_mg,
+          fiberG: data.fiber_g,
+          sugarG: data.sugar_g,
+          vitaminAMcg: data.vitamin_a_mcg,
+          vitaminB6Mg: data.vitamin_b6_mg,
+          vitaminB12Mcg: data.vitamin_b12_mcg,
+          vitaminCMg: data.vitamin_c_mg,
+          vitaminDMcg: data.vitamin_d_mcg,
+          vitaminEMg: data.vitamin_e_mg,
+          vitaminKMcg: data.vitamin_k_mcg,
+          thiaminMg: data.thiamin_mg,
+          riboflavinMg: data.riboflavin_mg,
+          niacinMg: data.niacin_mg,
+          folateMcg: data.folate_mcg,
+          biotinMcg: data.biotin_mcg,
+          pantothenicAcidMg: data.pantothenic_acid_mg,
+          calciumMg: data.calcium_mg,
+          chlorideMg: data.chloride_mg,
+          chromiumMcg: data.chromium_mcg,
+          copperMg: data.copper_mg,
+          iodineMcg: data.iodine_mcg,
+          ironMg: data.iron_mg,
+          magnesiumMg: data.magnesium_mg,
+          manganeseMg: data.manganese_mg,
+          molybdenumMcg: data.molybdenum_mcg,
+          phosphorusMg: data.phosphorus_mg,
+          potassiumMg: data.potassium_mg,
+          seleniumMcg: data.selenium_mcg,
+          sodiumMg: data.sodium_mg,
+          zincMg: data.zinc_mg,
+          caffeineMg: data.caffeine_mg,
+          waterMl: data.water_ml,
+          mealCount: data.meal_count,
+          sources: data.sources,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        };
+      }
+      return null;
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getNutritionDailyByDate failed, falling back to Neon:", error);
+    }
+  }
+  
+  const [result] = await db.select().from(nutritionDailyMetrics)
+    .where(and(eq(nutritionDailyMetrics.userId, userId), eq(nutritionDailyMetrics.localDate, localDate)));
+  return result || null;
+}
+
+export async function upsertNutritionDailyMetrics(userId: string, data: any): Promise<any> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const supabaseData = {
+        local_date: data.localDate,
+        timezone: data.timezone,
+        energy_kcal: data.energyKcal,
+        carbohydrates_g: data.carbohydratesG,
+        protein_g: data.proteinG,
+        fat_total_g: data.fatTotalG,
+        fat_saturated_g: data.fatSaturatedG,
+        fat_polyunsaturated_g: data.fatPolyunsaturatedG,
+        fat_monounsaturated_g: data.fatMonounsaturatedG,
+        cholesterol_mg: data.cholesterolMg,
+        fiber_g: data.fiberG,
+        sugar_g: data.sugarG,
+        vitamin_a_mcg: data.vitaminAMcg,
+        vitamin_b6_mg: data.vitaminB6Mg,
+        vitamin_b12_mcg: data.vitaminB12Mcg,
+        vitamin_c_mg: data.vitaminCMg,
+        vitamin_d_mcg: data.vitaminDMcg,
+        vitamin_e_mg: data.vitaminEMg,
+        vitamin_k_mcg: data.vitaminKMcg,
+        thiamin_mg: data.thiaminMg,
+        riboflavin_mg: data.riboflavinMg,
+        niacin_mg: data.niacinMg,
+        folate_mcg: data.folateMcg,
+        biotin_mcg: data.biotinMcg,
+        pantothenic_acid_mg: data.pantothenicAcidMg,
+        calcium_mg: data.calciumMg,
+        chloride_mg: data.chlorideMg,
+        chromium_mcg: data.chromiumMcg,
+        copper_mg: data.copperMg,
+        iodine_mcg: data.iodineMcg,
+        iron_mg: data.ironMg,
+        magnesium_mg: data.magnesiumMg,
+        manganese_mg: data.manganeseMg,
+        molybdenum_mcg: data.molybdenumMcg,
+        phosphorus_mg: data.phosphorusMg,
+        potassium_mg: data.potassiumMg,
+        selenium_mcg: data.seleniumMcg,
+        sodium_mg: data.sodiumMg,
+        zinc_mg: data.zincMg,
+        caffeine_mg: data.caffeineMg,
+        water_ml: data.waterMl,
+        meal_count: data.mealCount,
+        sources: data.sources,
+      };
+      return await supabaseHealth.upsertNutritionDailyMetrics(userId, supabaseData);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase upsertNutritionDailyMetrics failed, falling back to Neon:", error);
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  return await storage.upsertNutritionDailyMetrics(userId, data);
+}
+
+// ==================== MINDFULNESS SESSIONS ====================
+
+interface GetMindfulnessSessionsOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getMindfulnessSessions(userId: string, options: GetMindfulnessSessionsOptions = { limit: 70 }): Promise<any[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const data = await supabaseHealth.getMindfulnessSessionsFlexible(userId, options);
+      return data.map(row => ({
+        id: row.id,
+        userId: userId,
+        sessionDate: row.session_date,
+        timezone: row.timezone,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        durationMinutes: row.duration_minutes,
+        sourceName: row.source_name,
+        sourceId: row.source_id,
+        healthkitUuid: row.healthkit_uuid,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getMindfulnessSessions failed, falling back to Neon:", error);
+    }
+  }
+  
+  let query = db.select().from(mindfulnessSessions).where(eq(mindfulnessSessions.userId, userId));
+  
+  if (options.startDate) {
+    query = query.where(gte(mindfulnessSessions.sessionDate, options.startDate.toISOString().split('T')[0]));
+  }
+  if (options.endDate) {
+    query = query.where(lte(mindfulnessSessions.sessionDate, options.endDate.toISOString().split('T')[0]));
+  }
+  
+  let result = await query.orderBy(desc(mindfulnessSessions.startTime)).limit(options.limit ?? 70);
+  return result;
+}
+
+export async function createMindfulnessSession(userId: string, data: any): Promise<any> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const supabaseData = {
+        session_date: data.sessionDate,
+        timezone: data.timezone,
+        start_time: data.startTime,
+        end_time: data.endTime,
+        duration_minutes: data.durationMinutes,
+        source_name: data.sourceName,
+        source_id: data.sourceId,
+        healthkit_uuid: data.healthkitUuid,
+      };
+      return await supabaseHealth.createMindfulnessSession(userId, supabaseData);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase createMindfulnessSession failed, falling back to Neon:", error);
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  return await storage.createMindfulnessSession(userId, data);
+}
+
+// ==================== MINDFULNESS DAILY METRICS ====================
+
+interface GetMindfulnessDailyOptions {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+}
+
+export async function getMindfulnessDailyMetrics(userId: string, options: GetMindfulnessDailyOptions = { limit: 7 }): Promise<any[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const data = await supabaseHealth.getMindfulnessDailyMetricsFlexible(userId, options);
+      return data.map(row => ({
+        id: row.id,
+        userId: userId,
+        localDate: row.local_date,
+        timezone: row.timezone,
+        totalMinutes: row.total_minutes,
+        sessionCount: row.session_count,
+        avgSessionMinutes: row.avg_session_minutes,
+        longestSessionMinutes: row.longest_session_minutes,
+        sources: row.sources,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getMindfulnessDailyMetrics failed, falling back to Neon:", error);
+    }
+  }
+  
+  let query = db.select().from(mindfulnessDailyMetrics).where(eq(mindfulnessDailyMetrics.userId, userId));
+  
+  if (options.startDate) {
+    query = query.where(gte(mindfulnessDailyMetrics.localDate, options.startDate.toISOString().split('T')[0]));
+  }
+  if (options.endDate) {
+    query = query.where(lte(mindfulnessDailyMetrics.localDate, options.endDate.toISOString().split('T')[0]));
+  }
+  
+  let result = await query.orderBy(desc(mindfulnessDailyMetrics.localDate)).limit(options.limit ?? 7);
+  return result;
+}
+
+export async function getMindfulnessDailyByDate(userId: string, localDate: string): Promise<any | null> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const data = await supabaseHealth.getMindfulnessDailyByDate(userId, localDate);
+      if (data) {
+        return {
+          id: data.id,
+          userId: userId,
+          localDate: data.local_date,
+          timezone: data.timezone,
+          totalMinutes: data.total_minutes,
+          sessionCount: data.session_count,
+          avgSessionMinutes: data.avg_session_minutes,
+          longestSessionMinutes: data.longest_session_minutes,
+          sources: data.sources,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+        };
+      }
+      return null;
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getMindfulnessDailyByDate failed, falling back to Neon:", error);
+    }
+  }
+  
+  const [result] = await db.select().from(mindfulnessDailyMetrics)
+    .where(and(eq(mindfulnessDailyMetrics.userId, userId), eq(mindfulnessDailyMetrics.localDate, localDate)));
+  return result || null;
+}
+
+export async function upsertMindfulnessDailyMetrics(userId: string, data: any): Promise<any> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const supabaseData = {
+        local_date: data.localDate,
+        timezone: data.timezone,
+        total_minutes: data.totalMinutes,
+        session_count: data.sessionCount,
+        avg_session_minutes: data.avgSessionMinutes,
+        longest_session_minutes: data.longestSessionMinutes,
+        sources: data.sources,
+      };
+      return await supabaseHealth.upsertMindfulnessDailyMetrics(userId, supabaseData);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase upsertMindfulnessDailyMetrics failed, falling back to Neon:", error);
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  return await storage.upsertMindfulnessDailyMetrics(userId, data);
+}
 
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);

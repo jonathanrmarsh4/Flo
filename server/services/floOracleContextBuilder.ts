@@ -14,12 +14,14 @@ import {
   healthkitSamples,
   healthkitWorkouts,
   actionPlanItems,
-  nutritionDailyMetrics,
-  mindfulnessDailyMetrics
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
-import { isSupabaseHealthEnabled } from './healthStorageRouter';
+import { 
+  isSupabaseHealthEnabled, 
+  getNutritionDailyMetrics as getHealthRouterNutritionMetrics,
+  getMindfulnessDailyMetrics as getHealthRouterMindfulnessMetrics
+} from './healthStorageRouter';
 import { getDailyMetrics as getSupabaseDailyMetrics } from './supabaseHealthStorage';
 
 // In-memory cache for user health context (5 minute TTL)
@@ -710,24 +712,15 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.bodyCompositionExplanation = null;
     }
 
-    // Fetch mindfulness summary (last 7 days)
-    // NOTE: Currently queries Neon directly. When mindfulness_daily_metrics table is migrated
-    // to Supabase, this should be updated to use healthStorageRouter for dual-database support.
+    // Fetch mindfulness summary (last 7 days) - uses healthStorageRouter for dual-database support
     try {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
-      const todayStr = formatDateInTimezone(new Date(), userTimezone);
 
-      const mindfulnessRecords = await db
-        .select()
-        .from(mindfulnessDailyMetrics)
-        .where(
-          and(
-            eq(mindfulnessDailyMetrics.userId, userId),
-            gte(mindfulnessDailyMetrics.localDate, sevenDaysAgoStr)
-          )
-        );
+      const mindfulnessRecords = await getHealthRouterMindfulnessMetrics(userId, { 
+        startDate: sevenDaysAgo, 
+        limit: 7 
+      });
 
       if (mindfulnessRecords.length > 0) {
         const totalMinutes = mindfulnessRecords.reduce((sum, r) => sum + (r.totalMinutes || 0), 0);
@@ -747,23 +740,15 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.warn('[FloOracle] Failed to fetch mindfulness data');
     }
 
-    // Fetch nutrition summary (last 7 days)
-    // NOTE: Currently queries Neon directly. When nutrition_daily_metrics table is migrated
-    // to Supabase, this should be updated to use healthStorageRouter for dual-database support.
+    // Fetch nutrition summary (last 7 days) - uses healthStorageRouter for dual-database support
     try {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
 
-      const nutritionRecords = await db
-        .select()
-        .from(nutritionDailyMetrics)
-        .where(
-          and(
-            eq(nutritionDailyMetrics.userId, userId),
-            gte(nutritionDailyMetrics.localDate, sevenDaysAgoStr)
-          )
-        );
+      const nutritionRecords = await getHealthRouterNutritionMetrics(userId, { 
+        startDate: sevenDaysAgo, 
+        limit: 7 
+      });
 
       if (nutritionRecords.length > 0) {
         const avgField = (field: 'energyKcal' | 'proteinG' | 'carbohydratesG' | 'fatTotalG' | 'fiberG' | 'caffeineMg') => {
