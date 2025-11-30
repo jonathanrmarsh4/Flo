@@ -485,6 +485,12 @@ export interface UserDailyMetric {
   diastolic_bp?: number | null;
   blood_glucose_mg_dl?: number | null;
   vo2_max?: number | null;
+  // 5 newly added metrics for complete HealthKit coverage
+  basal_energy_kcal?: number | null;
+  walking_hr_avg_bpm?: number | null;
+  dietary_water_ml?: number | null;
+  oxygen_saturation_pct?: number | null;
+  respiratory_rate_bpm?: number | null;
   normalization_version?: string;
   created_at?: Date;
   updated_at?: Date;

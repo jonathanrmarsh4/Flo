@@ -9,7 +9,7 @@ export type MetricKey =
   | "hrv_ms" 
   | "active_energy_kcal"
   | "basal_energy_kcal"
-  | "walking_hr_avg"
+  | "walking_hr_avg_bpm"
   | "dietary_water_ml"
   | "oxygen_saturation_pct"
   | "respiratory_rate_bpm";
@@ -48,7 +48,7 @@ export async function calculateBaseline(
       active_energy_kcal: userDailyMetrics.activeEnergyKcal,
       // 5 newly added metrics for complete HealthKit coverage
       basal_energy_kcal: userDailyMetrics.basalEnergyKcal,
-      walking_hr_avg: userDailyMetrics.walkingHrAvgBpm,
+      walking_hr_avg_bpm: userDailyMetrics.walkingHrAvgBpm,
       dietary_water_ml: userDailyMetrics.dietaryWaterMl,
       oxygen_saturation_pct: userDailyMetrics.oxygenSaturationPct,
       respiratory_rate_bpm: userDailyMetrics.respiratoryRateBpm,
@@ -187,7 +187,7 @@ export async function updateAllBaselines(
     "active_energy_kcal",
     // 5 newly added metrics for complete HealthKit coverage
     "basal_energy_kcal",
-    "walking_hr_avg",
+    "walking_hr_avg_bpm",
     "dietary_water_ml",
     "oxygen_saturation_pct",
     "respiratory_rate_bpm",

@@ -72,7 +72,18 @@ Production database schema changes require manual verification and careful migra
 - **iOS Shortcuts:** Quick event logging via secure API keys and templates.
 
 ### Extended HealthKit Metrics
-The `user_daily_metrics` table tracks 14 extended health metrics from iOS HealthKit, including body composition, activity, cardiovascular, metabolic, and cardiorespiratory fitness data.
+The `user_daily_metrics` table now tracks **all 26 HealthKit data types** with complete daily aggregation:
+
+**Core Metrics (21 original):** steps, distance, activeEnergy, heartRate, weight, HRV, restingHeartRate, bloodPressure (systolic/diastolic), height, BMI, bodyFatPercentage, leanBodyMass, flightsClimbed, bloodGlucose, vo2Max, waistCircumference, exerciseTime, standTime, sleepAnalysis
+
+**Newly Added Metrics (Nov 2025):**
+- `basalEnergyKcal` - Basal energy burned (resting metabolism)
+- `walkingHrAvgBpm` - Walking heart rate average  
+- `dietaryWaterMl` - Water intake in milliliters
+- `oxygenSaturationPct` - Blood oxygen saturation percentage
+- `respiratoryRateBpm` - Respiratory rate in breaths per minute
+
+These 5 metrics were previously stored as raw samples but not aggregated into daily metrics. Now included in baseline calculations for trend detection via `server/services/baselineCalculator.ts`.
 
 ## External Dependencies
 
