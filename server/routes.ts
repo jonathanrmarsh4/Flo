@@ -6529,12 +6529,79 @@ ${fullContext}`;
     }
   });
 
-  // ────────────────────────────────────────────────────────────────
-  // VOICE ENDPOINTS - Gemini Live Voice Chat
-  // ────────────────────────────────────────────────────────────────
+  // ElevenLabs WebSocket signed URL endpoint (authenticated)
+  app.post("/api/elevenlabs/get-signed-url", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const ELEVENLABS_AGENT_ID = process.env.ELEVENLABS_AGENT_ID;
 
-  // LEGACY_REMOVAL_START
-  const _unused_elevenlabs_bridge = async (req: any, res: any) => {
+      if (!ELEVENLABS_AGENT_ID) {
+        return res.status(503).json({ 
+          error: "ElevenLabs agent not configured. Please set ELEVENLABS_AGENT_ID environment variable." 
+        });
+      }
+
+      const { elevenlabsClient } = await import('./services/elevenlabsClient');
+
+      if (!elevenlabsClient.isAvailable()) {
+        return res.status(503).json({ 
+          error: "ElevenLabs service is not configured. Please add ELEVENLABS_API_KEY to your environment." 
+        });
+      }
+
+      logger.info('[ElevenLabs] Requesting signed URL', { userId, agentId: ELEVENLABS_AGENT_ID });
+
+      const signedUrl = await elevenlabsClient.getSignedUrl(ELEVENLABS_AGENT_ID, userId);
+
+      // Generate a session token that maps to the user - this will be passed to ElevenLabs
+      // and forwarded in the Authorization header when ElevenLabs calls our LLM endpoint
+      const { conversationSessionStore } = await import('./services/conversationSessionStore');
+      const sessionToken = conversationSessionStore.generateSessionToken(userId, ELEVENLABS_AGENT_ID);
+      
+      logger.info('[ElevenLabs] Generated session token for voice chat', { 
+        userId, 
+        tokenPrefix: sessionToken.substring(0, 12) + '...' 
+      });
+
+      res.json({ 
+        signed_url: signedUrl,
+        user_id: userId,
+        session_token: sessionToken,  // Client will pass this to ElevenLabs as LLM API key
+      });
+
+    } catch (error: any) {
+      logger.error('[ElevenLabs] Error getting signed URL:', error);
+      res.status(500).json({ 
+        error: "Failed to get ElevenLabs signed URL. Please try again." 
+      });
+    }
+  });
+
+  // ElevenLabs Register Conversation Session - called by client after WebSocket connects
+  app.post("/api/elevenlabs/register-session", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { conversation_id } = req.body;
+      
+      if (!conversation_id) {
+        return res.status(400).json({ error: "conversation_id is required" });
+      }
+      
+      const ELEVENLABS_AGENT_ID = process.env.ELEVENLABS_AGENT_ID || '';
+      const { conversationSessionStore } = await import('./services/conversationSessionStore');
+      
+      conversationSessionStore.create(conversation_id, userId, ELEVENLABS_AGENT_ID);
+      logger.info('[ElevenLabs] Registered conversation session', { conversationId: conversation_id, userId });
+      
+      res.json({ success: true, conversation_id });
+    } catch (error: any) {
+      logger.error('[ElevenLabs] Error registering session:', error);
+      res.status(500).json({ error: "Failed to register conversation session" });
+    }
+  });
+
+  // ElevenLabs Custom LLM Bridge - OpenAI-compatible endpoint
+  app.post("/api/elevenlabs/llm/chat/completions", async (req: any, res) => {
     try {
       logger.info('[ElevenLabs-Bridge] Received chat request from ElevenLabs', {
         hasMessages: !!req.body?.messages,
