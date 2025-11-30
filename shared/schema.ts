@@ -2507,6 +2507,9 @@ export const developerMessages = pgTable("developer_messages", {
   message: text("message").notNull(),
   type: developerMessageTypeEnum("type").default("update").notNull(),
   
+  // Targeting: null = all users, array = specific user IDs
+  targetUserIds: jsonb("target_user_ids").$type<string[]>(),
+  
   // Publishing controls
   isActive: boolean("is_active").default(true).notNull(),
   
@@ -2515,6 +2518,59 @@ export const developerMessages = pgTable("developer_messages", {
 }, (table) => ({
   activeCreatedAtIdx: index("idx_developer_messages_active_created").on(table.isActive, table.createdAt),
 }));
+
+// ============================================================================
+// User Feedback - Bug Reports & Feature Requests from Users
+// ============================================================================
+
+export const userFeedbackTypeEnum = pgEnum("user_feedback_type", [
+  "bug_report",
+  "feature_request"
+]);
+
+export const userFeedbackStatusEnum = pgEnum("user_feedback_status", [
+  "new",
+  "in_review",
+  "planned",
+  "resolved",
+  "dismissed"
+]);
+
+export const userFeedback = pgTable("user_feedback", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: userFeedbackTypeEnum("type").notNull(),
+  
+  // For feature requests: title is required
+  title: varchar("title", { length: 255 }),
+  message: text("message").notNull(),
+  
+  // Admin response/status
+  status: userFeedbackStatusEnum("status").default("new").notNull(),
+  adminNotes: text("admin_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("idx_user_feedback_user").on(table.userId),
+  typeStatusIdx: index("idx_user_feedback_type_status").on(table.type, table.status),
+  createdAtIdx: index("idx_user_feedback_created").on(table.createdAt),
+}));
+
+// Zod enums for validation
+export const UserFeedbackTypeEnum = z.enum(["bug_report", "feature_request"]);
+export const UserFeedbackStatusEnum = z.enum(["new", "in_review", "planned", "resolved", "dismissed"]);
+
+// Insert schema
+export const insertUserFeedbackSchema = createInsertSchema(userFeedback).omit({
+  createdAt: true,
+  updatedAt: true,
+} as const);
+
+// Types
+export type InsertUserFeedback = z.infer<typeof insertUserFeedbackSchema>;
+export type UserFeedback = typeof userFeedback.$inferSelect;
 
 // Track which users have read which messages
 export const developerMessageReads = pgTable("developer_message_reads", {

@@ -71,6 +71,7 @@ import {
   userDailyEngagement,
   developerMessages,
   developerMessageReads,
+  userFeedback,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -3501,8 +3502,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Get all active messages that haven't expired
-      const messages = await db
-        .select({ id: developerMessages.id })
+      const allMessages = await db
+        .select({ id: developerMessages.id, targetUserIds: developerMessages.targetUserIds })
         .from(developerMessages)
         .where(
           and(
@@ -3513,6 +3514,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             )
           )
         );
+      
+      // Filter to messages targeting this user (null = all users, or userId in targetUserIds array)
+      const messages = allMessages.filter(m => 
+        m.targetUserIds === null || (m.targetUserIds as string[]).includes(userId)
+      );
       
       // Get which ones the user has read
       const readMessages = await db
@@ -3536,7 +3542,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // Get all active messages
-      const messages = await db
+      const allMessages = await db
         .select()
         .from(developerMessages)
         .where(
@@ -3550,6 +3556,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .orderBy(desc(developerMessages.createdAt));
       
+      // Filter to messages targeting this user (null = all users, or userId in targetUserIds array)
+      const messages = allMessages.filter(m => 
+        m.targetUserIds === null || (m.targetUserIds as string[]).includes(userId)
+      );
+      
       // Get which ones the user has read
       const readMessages = await db
         .select({ messageId: developerMessageReads.messageId })
@@ -3558,8 +3569,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const readMessageIds = new Set(readMessages.map(r => r.messageId));
       
-      // Add isRead status to messages
-      const messagesWithReadStatus = messages.map(m => ({
+      // Add isRead status to messages (don't expose targetUserIds to users)
+      const messagesWithReadStatus = messages.map(({ targetUserIds, ...m }) => ({
         ...m,
         isRead: readMessageIds.has(m.id),
       }));
@@ -3610,7 +3621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit bug report (sends email via Resend)
+  // Submit bug report (stores in database AND sends email)
   app.post("/api/notifications/bug-report", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3620,13 +3631,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Bug description is required" });
       }
       
-      // Get user email for reply-to
+      // Store in database
+      const [feedback] = await db
+        .insert(userFeedback)
+        .values({
+          userId,
+          type: 'bug_report',
+          message: message.trim(),
+        })
+        .returning();
+      
+      // Also send email notification
       const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       const userEmail = user?.email;
       
-      // Send bug report email
       const { sendBugReportEmail } = await import('./services/emailService');
-      const success = await sendBugReportEmail(
+      await sendBugReportEmail(
         'Bug Report from Flō User',
         message.trim(),
         'medium',
@@ -3634,20 +3654,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         parseInt(userId) || undefined
       );
       
-      if (!success) {
-        logger.error('[BugReport] Failed to send bug report email', { userId });
-        return res.status(500).json({ error: "Failed to send bug report" });
-      }
-      
-      logger.info('[BugReport] Bug report submitted successfully', { userId });
-      res.json({ success: true });
+      logger.info('[BugReport] Bug report submitted successfully', { userId, feedbackId: feedback.id });
+      res.json({ success: true, id: feedback.id });
     } catch (error) {
       logger.error('Error submitting bug report:', error);
       res.status(500).json({ error: "Failed to submit bug report" });
     }
   });
 
-  // Submit feature request (sends email via Resend)
+  // Submit feature request (stores in database AND sends email)
   app.post("/api/notifications/feature-request", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -3661,26 +3676,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Feature description is required" });
       }
       
-      // Get user email for reply-to
+      // Store in database
+      const [feedback] = await db
+        .insert(userFeedback)
+        .values({
+          userId,
+          type: 'feature_request',
+          title: title.trim(),
+          message: description.trim(),
+        })
+        .returning();
+      
+      // Also send email notification
       const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       const userEmail = user?.email;
       
-      // Send feature request email
       const { sendFeatureRequestEmail } = await import('./services/emailService');
-      const success = await sendFeatureRequestEmail(
+      await sendFeatureRequestEmail(
         title.trim(),
         description.trim(),
         userEmail || undefined,
         parseInt(userId) || undefined
       );
       
-      if (!success) {
-        logger.error('[FeatureRequest] Failed to send feature request email', { userId });
-        return res.status(500).json({ error: "Failed to send feature request" });
-      }
-      
-      logger.info('[FeatureRequest] Feature request submitted successfully', { userId, title });
-      res.json({ success: true });
+      logger.info('[FeatureRequest] Feature request submitted successfully', { userId, title, feedbackId: feedback.id });
+      res.json({ success: true, id: feedback.id });
     } catch (error) {
       logger.error('Error submitting feature request:', error);
       res.status(500).json({ error: "Failed to submit feature request" });
@@ -3690,7 +3710,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      const { title, message, type, expiresAt } = req.body;
+      const { title, message, type, expiresAt, targetUserIds } = req.body;
       
       if (!title || !message) {
         return res.status(400).json({ error: "Title and message are required" });
@@ -3703,10 +3723,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message,
           type: type || 'update',
           expiresAt: expiresAt ? new Date(expiresAt) : null,
+          targetUserIds: targetUserIds && targetUserIds.length > 0 ? targetUserIds : null,
         })
         .returning();
       
-      logger.info('[Admin] Developer message created', { messageId: newMessage.id });
+      logger.info('[Admin] Developer message created', { 
+        messageId: newMessage.id, 
+        targetUsers: targetUserIds?.length || 'all' 
+      });
       res.json(newMessage);
     } catch (error) {
       logger.error('Error creating developer message:', error);
@@ -3787,6 +3811,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error deleting developer message:', error);
       res.status(500).json({ error: "Failed to delete message" });
+    }
+  });
+
+  // ============================================================================
+  // Admin: User Feedback (Bug Reports & Feature Requests)
+  // ============================================================================
+
+  // Admin: Get all user feedback with optional filtering
+  app.get("/api/admin/user-feedback", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { type, status } = req.query;
+      
+      let query = db
+        .select({
+          id: userFeedback.id,
+          userId: userFeedback.userId,
+          type: userFeedback.type,
+          title: userFeedback.title,
+          message: userFeedback.message,
+          status: userFeedback.status,
+          adminNotes: userFeedback.adminNotes,
+          createdAt: userFeedback.createdAt,
+          updatedAt: userFeedback.updatedAt,
+          userEmail: users.email,
+          userName: users.firstName,
+        })
+        .from(userFeedback)
+        .leftJoin(users, eq(userFeedback.userId, users.id))
+        .orderBy(desc(userFeedback.createdAt));
+      
+      // Apply filters if provided
+      const conditions = [];
+      if (type && (type === 'bug_report' || type === 'feature_request')) {
+        conditions.push(eq(userFeedback.type, type as any));
+      }
+      if (status && ['new', 'in_review', 'planned', 'resolved', 'dismissed'].includes(status as string)) {
+        conditions.push(eq(userFeedback.status, status as any));
+      }
+      
+      let results;
+      if (conditions.length === 1) {
+        results = await query.where(conditions[0]);
+      } else if (conditions.length > 1) {
+        results = await query.where(and(...conditions));
+      } else {
+        results = await query;
+      }
+      
+      res.json({ feedback: results });
+    } catch (error) {
+      logger.error('Error fetching user feedback:', error);
+      res.status(500).json({ error: "Failed to fetch feedback" });
+    }
+  });
+
+  // Admin: Update user feedback status/notes
+  app.patch("/api/admin/user-feedback/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const feedbackId = parseInt(req.params.id);
+      const { status, adminNotes } = req.body;
+      
+      if (isNaN(feedbackId)) {
+        return res.status(400).json({ error: "Invalid feedback ID" });
+      }
+      
+      const updateData: any = { updatedAt: new Date() };
+      if (status !== undefined) updateData.status = status;
+      if (adminNotes !== undefined) updateData.adminNotes = adminNotes;
+      
+      const [updated] = await db
+        .update(userFeedback)
+        .set(updateData)
+        .where(eq(userFeedback.id, feedbackId))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Feedback not found" });
+      }
+      
+      logger.info('[Admin] User feedback updated', { feedbackId, status });
+      res.json(updated);
+    } catch (error) {
+      logger.error('Error updating user feedback:', error);
+      res.status(500).json({ error: "Failed to update feedback" });
+    }
+  });
+
+  // Admin: Get feedback counts by status (for dashboard)
+  app.get("/api/admin/user-feedback/stats", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const stats = await db
+        .select({
+          type: userFeedback.type,
+          status: userFeedback.status,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(userFeedback)
+        .groupBy(userFeedback.type, userFeedback.status);
+      
+      res.json({ stats });
+    } catch (error) {
+      logger.error('Error fetching feedback stats:', error);
+      res.status(500).json({ error: "Failed to fetch feedback stats" });
+    }
+  });
+
+  // Admin: Get list of users for targeting messages
+  app.get("/api/admin/users-list", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const usersList = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.status, 'active'))
+        .orderBy(users.email);
+      
+      res.json({ users: usersList });
+    } catch (error) {
+      logger.error('Error fetching users list:', error);
+      res.status(500).json({ error: "Failed to fetch users" });
     }
   });
 

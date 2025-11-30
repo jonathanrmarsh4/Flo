@@ -13,6 +13,7 @@ import { AdminNotificationConfig } from '@/components/admin/AdminNotificationCon
 import { AdminReportModelSettings } from '@/components/admin/AdminReportModelSettings';
 import { AdminAnalyticsTab } from '@/components/admin/AdminAnalyticsTab';
 import { AdminSandboxVoice } from '@/components/admin/AdminSandboxVoice';
+import { AdminMessagesManager } from '@/components/admin/AdminMessagesManager';
 
 interface AdminUserSummary {
   id: string;
@@ -876,7 +877,13 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'notifications' && (
-          <AdminNotificationConfig />
+          <div className="space-y-6">
+            <AdminMessagesManager />
+            <div className="pt-6 border-t border-white/10">
+              <h3 className="text-lg text-white mb-4">Push Notification Triggers</h3>
+              <AdminNotificationConfig />
+            </div>
+          </div>
         )}
 
         {activeTab === 'billing' && (
