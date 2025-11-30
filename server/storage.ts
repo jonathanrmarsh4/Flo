@@ -24,6 +24,12 @@ import {
   diagnosticMetrics,
   userSettings,
   actionPlanItems,
+  healthkitSamples,
+  sleepNights,
+  userDailyMetrics,
+  lifeEvents,
+  flomentumDaily,
+  dailyInsights,
   type User,
   type UpsertUser,
   type Profile,
@@ -69,9 +75,21 @@ import {
   passkeyCredentials,
   type PasskeyCredential,
   type InsertPasskeyCredential,
+  type HealthkitSample,
+  type InsertHealthkitSample,
+  type SleepNight,
+  type InsertSleepNight,
+  type UserDailyMetrics,
+  type InsertUserDailyMetrics,
+  type LifeEvent,
+  type InsertLifeEvent,
+  type FlomentumDaily,
+  type InsertFlomentumDaily,
+  type DailyInsight,
+  type InsertDailyInsight,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, or, ilike, and, sql, lt, gt } from "drizzle-orm";
+import { eq, desc, or, ilike, and, sql, lt, gt, gte, inArray } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -267,6 +285,37 @@ export interface IStorage {
   updateActionPlanItemStatus(id: string, userId: string, status: string, completedAt?: Date): Promise<ActionPlanItem | null>;
   removeActionPlanItem(id: string, userId: string): Promise<void>;
   getActionPlanItem(id: string, userId: string): Promise<ActionPlanItem | null>;
+  
+  // HealthKit samples operations
+  getHealthkitSamples(userId: string, options?: { dataTypes?: string[]; startDate?: Date; limit?: number }): Promise<HealthkitSample[]>;
+  upsertHealthkitSamples(samples: InsertHealthkitSample[]): Promise<void>;
+  
+  // Sleep nights operations
+  getSleepNights(userId: string, options?: { startDate?: Date; endDate?: Date; limit?: number }): Promise<SleepNight[]>;
+  getSleepNightByDate(userId: string, sleepDate: string): Promise<SleepNight | undefined>;
+  upsertSleepNight(data: InsertSleepNight): Promise<SleepNight>;
+  
+  // User daily metrics operations
+  getUserDailyMetrics(userId: string, options?: { startDate?: Date; endDate?: Date; localDate?: string; limit?: number }): Promise<UserDailyMetrics[]>;
+  getUserDailyMetricsByDate(userId: string, localDate: string): Promise<UserDailyMetrics | undefined>;
+  upsertUserDailyMetrics(data: InsertUserDailyMetrics): Promise<UserDailyMetrics>;
+  
+  // Life events operations
+  getLifeEvents(userId: string, options?: { startDate?: Date; limit?: number }): Promise<LifeEvent[]>;
+  createLifeEvent(data: InsertLifeEvent): Promise<LifeEvent>;
+  
+  // Flomentum daily operations
+  getFlomentumDaily(userId: string, options?: { startDate?: Date; limit?: number }): Promise<FlomentumDaily[]>;
+  getFlomentumDailyByDate(userId: string, date: string): Promise<FlomentumDaily | undefined>;
+  upsertFlomentumDaily(data: InsertFlomentumDaily): Promise<FlomentumDaily>;
+  
+  // Daily insights operations
+  getDailyInsights(userId: string, options?: { startDate?: Date; limit?: number }): Promise<DailyInsight[]>;
+  getDailyInsightsByDate(userId: string, generatedDate: string): Promise<DailyInsight[]>;
+  createDailyInsight(data: InsertDailyInsight): Promise<DailyInsight>;
+  updateDailyInsight(id: string, updates: Partial<DailyInsight>): Promise<DailyInsight | undefined>;
+  markDailyInsightsSeen(userId: string, insightIds: string[]): Promise<void>;
+  dismissDailyInsight(id: string, userId: string): Promise<void>;
   
   deleteUserData(userId: string): Promise<void>;
 }
@@ -2241,6 +2290,274 @@ export class DatabaseStorage implements IStorage {
         sampleCount24h: 0
       };
     }
+  }
+
+  // HealthKit samples operations
+  async getHealthkitSamples(userId: string, options?: { dataTypes?: string[]; startDate?: Date; limit?: number }): Promise<HealthkitSample[]> {
+    const conditions = [eq(healthkitSamples.userId, userId)];
+    
+    if (options?.dataTypes && options.dataTypes.length > 0) {
+      conditions.push(inArray(healthkitSamples.dataType, options.dataTypes));
+    }
+    if (options?.startDate) {
+      conditions.push(gte(healthkitSamples.startDate, options.startDate));
+    }
+    
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
+    return db
+      .select()
+      .from(healthkitSamples)
+      .where(whereClause)
+      .orderBy(desc(healthkitSamples.startDate))
+      .limit(options?.limit || 1000);
+  }
+
+  async upsertHealthkitSamples(samples: InsertHealthkitSample[]): Promise<void> {
+    if (samples.length === 0) return;
+    
+    await db
+      .insert(healthkitSamples)
+      .values(samples)
+      .onConflictDoNothing({ target: healthkitSamples.uuid });
+  }
+
+  // Sleep nights operations
+  async getSleepNights(userId: string, options?: { startDate?: Date; endDate?: Date; limit?: number }): Promise<SleepNight[]> {
+    const conditions = [eq(sleepNights.userId, userId)];
+    
+    if (options?.startDate) {
+      conditions.push(gte(sleepNights.finalWake, options.startDate));
+    }
+    if (options?.endDate) {
+      conditions.push(lt(sleepNights.finalWake, options.endDate));
+    }
+    
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
+    return db
+      .select()
+      .from(sleepNights)
+      .where(whereClause)
+      .orderBy(desc(sleepNights.sleepDate))
+      .limit(options?.limit || 100);
+  }
+
+  async getSleepNightByDate(userId: string, sleepDate: string): Promise<SleepNight | undefined> {
+    const [result] = await db
+      .select()
+      .from(sleepNights)
+      .where(and(
+        eq(sleepNights.userId, userId),
+        eq(sleepNights.sleepDate, sleepDate)
+      ))
+      .limit(1);
+    return result;
+  }
+
+  async upsertSleepNight(data: InsertSleepNight): Promise<SleepNight> {
+    const [result] = await db
+      .insert(sleepNights)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [sleepNights.userId, sleepNights.sleepDate],
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  // User daily metrics operations
+  async getUserDailyMetrics(userId: string, options?: { startDate?: Date; endDate?: Date; localDate?: string; limit?: number }): Promise<UserDailyMetrics[]> {
+    const conditions = [eq(userDailyMetrics.userId, userId)];
+    
+    if (options?.localDate) {
+      conditions.push(eq(userDailyMetrics.localDate, options.localDate));
+    }
+    if (options?.startDate) {
+      conditions.push(gte(userDailyMetrics.utcDayStart, options.startDate));
+    }
+    if (options?.endDate) {
+      conditions.push(lt(userDailyMetrics.utcDayEnd, options.endDate));
+    }
+    
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
+    return db
+      .select()
+      .from(userDailyMetrics)
+      .where(whereClause)
+      .orderBy(desc(userDailyMetrics.localDate))
+      .limit(options?.limit || 100);
+  }
+
+  async getUserDailyMetricsByDate(userId: string, localDate: string): Promise<UserDailyMetrics | undefined> {
+    const [result] = await db
+      .select()
+      .from(userDailyMetrics)
+      .where(and(
+        eq(userDailyMetrics.userId, userId),
+        eq(userDailyMetrics.localDate, localDate)
+      ))
+      .limit(1);
+    return result;
+  }
+
+  async upsertUserDailyMetrics(data: InsertUserDailyMetrics): Promise<UserDailyMetrics> {
+    const [result] = await db
+      .insert(userDailyMetrics)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [userDailyMetrics.userId, userDailyMetrics.localDate],
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  // Life events operations
+  async getLifeEvents(userId: string, options?: { startDate?: Date; limit?: number }): Promise<LifeEvent[]> {
+    const conditions = [eq(lifeEvents.userId, userId)];
+    
+    if (options?.startDate) {
+      conditions.push(gte(lifeEvents.happenedAt, options.startDate));
+    }
+    
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
+    return db
+      .select()
+      .from(lifeEvents)
+      .where(whereClause)
+      .orderBy(desc(lifeEvents.happenedAt))
+      .limit(options?.limit || 100);
+  }
+
+  async createLifeEvent(data: InsertLifeEvent): Promise<LifeEvent> {
+    const [result] = await db
+      .insert(lifeEvents)
+      .values(data)
+      .returning();
+    return result;
+  }
+
+  // Flomentum daily operations
+  async getFlomentumDaily(userId: string, options?: { startDate?: Date; limit?: number }): Promise<FlomentumDaily[]> {
+    const conditions = [eq(flomentumDaily.userId, userId)];
+    
+    if (options?.startDate) {
+      conditions.push(gte(flomentumDaily.createdAt, options.startDate));
+    }
+    
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
+    return db
+      .select()
+      .from(flomentumDaily)
+      .where(whereClause)
+      .orderBy(desc(flomentumDaily.date))
+      .limit(options?.limit || 100);
+  }
+
+  async getFlomentumDailyByDate(userId: string, date: string): Promise<FlomentumDaily | undefined> {
+    const [result] = await db
+      .select()
+      .from(flomentumDaily)
+      .where(and(
+        eq(flomentumDaily.userId, userId),
+        eq(flomentumDaily.date, date)
+      ))
+      .limit(1);
+    return result;
+  }
+
+  async upsertFlomentumDaily(data: InsertFlomentumDaily): Promise<FlomentumDaily> {
+    const [result] = await db
+      .insert(flomentumDaily)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [flomentumDaily.userId, flomentumDaily.date],
+        set: {
+          ...data,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result;
+  }
+
+  // Daily insights operations
+  async getDailyInsights(userId: string, options?: { startDate?: Date; limit?: number }): Promise<DailyInsight[]> {
+    const conditions = [eq(dailyInsights.userId, userId)];
+    
+    if (options?.startDate) {
+      conditions.push(gte(dailyInsights.createdAt, options.startDate));
+    }
+    
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    
+    return db
+      .select()
+      .from(dailyInsights)
+      .where(whereClause)
+      .orderBy(desc(dailyInsights.createdAt))
+      .limit(options?.limit || 100);
+  }
+
+  async getDailyInsightsByDate(userId: string, generatedDate: string): Promise<DailyInsight[]> {
+    return db
+      .select()
+      .from(dailyInsights)
+      .where(and(
+        eq(dailyInsights.userId, userId),
+        eq(dailyInsights.generatedDate, generatedDate)
+      ))
+      .orderBy(desc(dailyInsights.createdAt));
+  }
+
+  async createDailyInsight(data: InsertDailyInsight): Promise<DailyInsight> {
+    const [result] = await db
+      .insert(dailyInsights)
+      .values(data)
+      .returning();
+    return result;
+  }
+
+  async updateDailyInsight(id: string, updates: Partial<DailyInsight>): Promise<DailyInsight | undefined> {
+    const [result] = await db
+      .update(dailyInsights)
+      .set(updates)
+      .where(eq(dailyInsights.id, id))
+      .returning();
+    return result;
+  }
+
+  async markDailyInsightsSeen(userId: string, insightIds: string[]): Promise<void> {
+    if (insightIds.length === 0) return;
+    
+    await db
+      .update(dailyInsights)
+      .set({ isNew: false })
+      .where(and(
+        eq(dailyInsights.userId, userId),
+        inArray(dailyInsights.id, insightIds)
+      ));
+  }
+
+  async dismissDailyInsight(id: string, userId: string): Promise<void> {
+    await db
+      .update(dailyInsights)
+      .set({ isDismissed: true })
+      .where(and(
+        eq(dailyInsights.id, id),
+        eq(dailyInsights.userId, userId)
+      ));
   }
 }
 

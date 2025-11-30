@@ -23,14 +23,23 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Neon (Primary):** Identity data (users, sessions, email, credentials, billing, audit logs). Uses Drizzle ORM.
 - **Supabase (Health):** Sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events). Linked via pseudonymous `health_id` UUID.
 
-**Data Segregation Architecture (Completed):**
+**Data Segregation Architecture (In Progress - Phase 2):**
 - `users.health_id` column added to Neon for pseudonymous linking
 - 12 health tables created in Supabase with Row-Level Security (RLS)
 - Data migration completed: 11 profiles, 47 biomarker sessions, 17 daily metrics, 8 sleep nights migrated
 - Feature-flagged routing via `server/services/healthStorageRouter.ts` with `SUPABASE_HEALTH_ENABLED` flag
 - Service layer at `server/services/supabaseHealthStorage.ts` for Supabase operations
 - Logger utility at `server/utils/logger.ts` for consistent logging
-- **Current Status:** Router infrastructure complete. 122 storage layer calls in routes.ts (routed correctly), 39 direct db calls need future refactoring for full segregation
+- **Storage Layer Expansion (Nov 2025):** Added comprehensive storage methods in `server/storage.ts` for:
+  - HealthKit samples (get/upsert with flexible filtering)
+  - Sleep nights (get/getByDate/upsert)
+  - User daily metrics (get/getByDate/upsert)
+  - Life events (get/create)
+  - Flomentum daily (get/getByDate/upsert)
+  - Daily insights (get/getByDate/create/update/markSeen/dismiss) - stays in Neon as AI-generated content
+- **Predicate Safety:** All storage methods use safe predicate building (`whereClause = conditions.length === 1 ? conditions[0] : and(...conditions)`)
+- **Refactored Endpoints:** comprehensive-report, healthkit/samples, sleep/nights, healthkit/sleep-samples, sleep/score, daily-insights/debug
+- **Remaining Work:** Some flomentum/readiness/engagement endpoints still use direct db calls
 - **Activation:** Set `SUPABASE_HEALTH_ENABLED=true` environment variable to enable Supabase routing
 
 Production database schema changes require manual verification and careful migration to avoid data loss.

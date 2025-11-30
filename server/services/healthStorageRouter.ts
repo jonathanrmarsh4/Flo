@@ -384,4 +384,7 @@ export async function createBiomarkerMeasurement(measurement: any) {
   return created;
 }
 
+// Daily Insights are stored in Neon (not health data, but AI-generated content)
+// No routing needed - they stay in the primary database
+
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);

@@ -1989,67 +1989,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info('Biological age calculation failed, continuing without it');
       }
 
-      // Get daily insights (last 10 days)
-      const { dailyInsights, lifeEvents, flomentumDaily, healthkitSamples, systemSettings } = await import("@shared/schema");
+      // Get daily insights (last 10 days) - stays in Neon (AI-generated content)
+      const { systemSettings } = await import("@shared/schema");
       
       const tenDaysAgo = new Date();
       tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
       
       let dailyInsightsData: any[] = [];
       try {
-        dailyInsightsData = await db
-          .select()
-          .from(dailyInsights)
-          .where(
-            and(
-              eq(dailyInsights.userId, userId),
-              gte(dailyInsights.createdAt, tenDaysAgo)
-            )
-          )
-          .orderBy(desc(dailyInsights.createdAt))
-          .limit(10);
+        dailyInsightsData = await storage.getDailyInsights(userId, { startDate: tenDaysAgo, limit: 10 });
       } catch (error) {
         logger.info('Daily insights fetch failed, continuing without them');
       }
 
-      // Get life events (last 30 days)
+      // Get life events (last 30 days) - routed through storage layer
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       
       let lifeEventsData: any[] = [];
       try {
-        lifeEventsData = await db
-          .select()
-          .from(lifeEvents)
-          .where(
-            and(
-              eq(lifeEvents.userId, userId),
-              gte(lifeEvents.happenedAt, thirtyDaysAgo)
-            )
-          )
-          .orderBy(desc(lifeEvents.happenedAt))
-          .limit(20);
+        lifeEventsData = await storage.getLifeEvents(userId, { startDate: thirtyDaysAgo, limit: 20 });
       } catch (error) {
         logger.info('Life events fetch failed, continuing without them');
       }
 
-      // Get Flōmentum data (last 7 days for average)
+      // Get Flōmentum data (last 7 days for average) - routed through storage layer
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
       let flomentumData: any = null;
       try {
-        const recentScores = await db
-          .select()
-          .from(flomentumDaily)
-          .where(
-            and(
-              eq(flomentumDaily.userId, userId),
-              gte(flomentumDaily.createdAt, sevenDaysAgo)
-            )
-          )
-          .orderBy(desc(flomentumDaily.createdAt))
-          .limit(7);
+        const recentScores = await storage.getFlomentumDaily(userId, { startDate: sevenDaysAgo, limit: 7 });
         
         if (recentScores.length > 0) {
           const avgScore = recentScores.reduce((sum, s) => sum + (s.score || 0), 0) / recentScores.length;
@@ -2057,26 +2027,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           flomentumData = {
             current_score: latestScore.score,
             trend_7d: avgScore,
-            domain_scores: latestScore.factors, // factors JSONB contains domain data
+            domain_scores: latestScore.factors,
           };
         }
       } catch (error) {
         logger.info('Flōmentum data fetch failed, continuing without it');
       }
 
-      // Get HealthKit summary (7-day averages)
+      // Get HealthKit summary (7-day averages) - routed through storage layer
       let healthkitSummary: any = null;
       try {
-        const recentSamples = await db
-          .select()
-          .from(healthkitSamples)
-          .where(
-            and(
-              eq(healthkitSamples.userId, userId),
-              gte(healthkitSamples.startDate, sevenDaysAgo)
-            )
-          )
-          .limit(1000);
+        const recentSamples = await storage.getHealthkitSamples(userId, { startDate: sevenDaysAgo, limit: 1000 });
         
         if (recentSamples.length > 0) {
           const metricAverages: any = {};
@@ -3972,19 +3933,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { dataType, limit = 100 } = req.query;
 
-      const { and } = await import("drizzle-orm");
-      
-      const conditions = [eq(healthkitSamples.userId, userId)];
-      if (dataType) {
-        conditions.push(eq(healthkitSamples.dataType, dataType as string));
-      }
-
-      const samples = await db
-        .select()
-        .from(healthkitSamples)
-        .where(and(...conditions))
-        .orderBy(desc(healthkitSamples.startDate))
-        .limit(Math.min(parseInt(limit as string) || 100, 1000));
+      const samples = await storage.getHealthkitSamples(userId, {
+        dataTypes: dataType ? [dataType as string] : undefined,
+        limit: Math.min(parseInt(limit as string) || 100, 1000),
+      });
 
       res.json({ samples });
     } catch (error: any) {
@@ -4481,98 +4433,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required sleep data" });
       }
 
-      // Check if sleep night already exists
-      const existing = await db
-        .select()
-        .from(sleepNights)
-        .where(
-          and(
-            eq(sleepNights.userId, userId),
-            eq(sleepNights.sleepDate, sleepNightData.sleepDate)
-          )
-        )
-        .limit(1);
+      // Check if updating or creating
+      const existing = await storage.getSleepNightByDate(userId, sleepNightData.sleepDate);
 
-      if (existing.length > 0) {
-        // Update existing record
-        await db
-          .update(sleepNights)
-          .set({
-            timezone: sleepNightData.timezone,
-            nightStart: sleepNightData.nightStart ? new Date(sleepNightData.nightStart) : null,
-            finalWake: sleepNightData.finalWake ? new Date(sleepNightData.finalWake) : null,
-            sleepOnset: sleepNightData.sleepOnset ? new Date(sleepNightData.sleepOnset) : null,
-            timeInBedMin: sleepNightData.timeInBedMin,
-            totalSleepMin: sleepNightData.totalSleepMin,
-            sleepEfficiencyPct: sleepNightData.sleepEfficiencyPct,
-            sleepLatencyMin: sleepNightData.sleepLatencyMin,
-            wasoMin: sleepNightData.wasoMin,
-            numAwakenings: sleepNightData.numAwakenings,
-            coreSleepMin: sleepNightData.coreSleepMin,
-            deepSleepMin: sleepNightData.deepSleepMin,
-            remSleepMin: sleepNightData.remSleepMin,
-            unspecifiedSleepMin: sleepNightData.unspecifiedSleepMin,
-            awakeInBedMin: sleepNightData.awakeInBedMin,
-            midSleepTimeLocal: sleepNightData.midSleepTimeLocal,
-            fragmentationIndex: sleepNightData.fragmentationIndex,
-            deepPct: sleepNightData.deepPct,
-            remPct: sleepNightData.remPct,
-            corePct: sleepNightData.corePct,
-            bedtimeLocal: sleepNightData.bedtimeLocal,
-            waketimeLocal: sleepNightData.waketimeLocal,
-            restingHrBpm: sleepNightData.restingHrBpm,
-            hrvMs: sleepNightData.hrvMs,
-            respiratoryRate: sleepNightData.respiratoryRate,
-            wristTemperature: sleepNightData.wristTemperature,
-            oxygenSaturation: sleepNightData.oxygenSaturation,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(sleepNights.userId, userId),
-              eq(sleepNights.sleepDate, sleepNightData.sleepDate)
-            )
-          );
+      // Use storage layer for upsert (routes to Supabase when enabled)
+      await storage.upsertSleepNight({
+        userId,
+        sleepDate: sleepNightData.sleepDate,
+        timezone: sleepNightData.timezone,
+        nightStart: sleepNightData.nightStart ? new Date(sleepNightData.nightStart) : null,
+        finalWake: sleepNightData.finalWake ? new Date(sleepNightData.finalWake) : null,
+        sleepOnset: sleepNightData.sleepOnset ? new Date(sleepNightData.sleepOnset) : null,
+        timeInBedMin: sleepNightData.timeInBedMin,
+        totalSleepMin: sleepNightData.totalSleepMin,
+        sleepEfficiencyPct: sleepNightData.sleepEfficiencyPct,
+        sleepLatencyMin: sleepNightData.sleepLatencyMin,
+        wasoMin: sleepNightData.wasoMin,
+        numAwakenings: sleepNightData.numAwakenings,
+        coreSleepMin: sleepNightData.coreSleepMin,
+        deepSleepMin: sleepNightData.deepSleepMin,
+        remSleepMin: sleepNightData.remSleepMin,
+        unspecifiedSleepMin: sleepNightData.unspecifiedSleepMin,
+        awakeInBedMin: sleepNightData.awakeInBedMin,
+        midSleepTimeLocal: sleepNightData.midSleepTimeLocal,
+        fragmentationIndex: sleepNightData.fragmentationIndex,
+        deepPct: sleepNightData.deepPct,
+        remPct: sleepNightData.remPct,
+        corePct: sleepNightData.corePct,
+        bedtimeLocal: sleepNightData.bedtimeLocal,
+        waketimeLocal: sleepNightData.waketimeLocal,
+        restingHrBpm: sleepNightData.restingHrBpm,
+        hrvMs: sleepNightData.hrvMs,
+        respiratoryRate: sleepNightData.respiratoryRate,
+        wristTemperature: sleepNightData.wristTemperature,
+        oxygenSaturation: sleepNightData.oxygenSaturation,
+      });
 
-        logger.info(`[Sleep] Updated sleep night for ${userId}, ${sleepNightData.sleepDate}`);
-        return res.json({ status: "updated", sleepDate: sleepNightData.sleepDate });
-      } else {
-        // Insert new record
-        await db.insert(sleepNights).values({
-          userId,
-          sleepDate: sleepNightData.sleepDate,
-          timezone: sleepNightData.timezone,
-          nightStart: sleepNightData.nightStart ? new Date(sleepNightData.nightStart) : null,
-          finalWake: sleepNightData.finalWake ? new Date(sleepNightData.finalWake) : null,
-          sleepOnset: sleepNightData.sleepOnset ? new Date(sleepNightData.sleepOnset) : null,
-          timeInBedMin: sleepNightData.timeInBedMin,
-          totalSleepMin: sleepNightData.totalSleepMin,
-          sleepEfficiencyPct: sleepNightData.sleepEfficiencyPct,
-          sleepLatencyMin: sleepNightData.sleepLatencyMin,
-          wasoMin: sleepNightData.wasoMin,
-          numAwakenings: sleepNightData.numAwakenings,
-          coreSleepMin: sleepNightData.coreSleepMin,
-          deepSleepMin: sleepNightData.deepSleepMin,
-          remSleepMin: sleepNightData.remSleepMin,
-          unspecifiedSleepMin: sleepNightData.unspecifiedSleepMin,
-          awakeInBedMin: sleepNightData.awakeInBedMin,
-          midSleepTimeLocal: sleepNightData.midSleepTimeLocal,
-          fragmentationIndex: sleepNightData.fragmentationIndex,
-          deepPct: sleepNightData.deepPct,
-          remPct: sleepNightData.remPct,
-          corePct: sleepNightData.corePct,
-          bedtimeLocal: sleepNightData.bedtimeLocal,
-          waketimeLocal: sleepNightData.waketimeLocal,
-          restingHrBpm: sleepNightData.restingHrBpm,
-          hrvMs: sleepNightData.hrvMs,
-          respiratoryRate: sleepNightData.respiratoryRate,
-          wristTemperature: sleepNightData.wristTemperature,
-          oxygenSaturation: sleepNightData.oxygenSaturation,
-        });
-
-        logger.info(`[Sleep] Created sleep night for ${userId}, ${sleepNightData.sleepDate}`);
-        return res.json({ status: "created", sleepDate: sleepNightData.sleepDate });
-      }
+      const status = existing ? "updated" : "created";
+      logger.info(`[Sleep] ${status} sleep night for ${userId}, ${sleepNightData.sleepDate}`);
+      return res.json({ status, sleepDate: sleepNightData.sleepDate });
     } catch (error: any) {
       logger.error("[Sleep] Error uploading sleep night data:", error);
       return res.status(500).json({ error: error.message });
@@ -4622,90 +4521,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(204).send(); // No content - not an error, just insufficient data
       }
 
-      // Check if this sleep night already exists
-      const existing = await db
-        .select()
-        .from(sleepNights)
-        .where(
-          and(
-            eq(sleepNights.userId, userId),
-            eq(sleepNights.sleepDate, sleepDate)
-          )
-        )
-        .limit(1);
+      // Use storage layer for upsert (routes to Supabase when enabled)
+      await storage.upsertSleepNight({
+        userId,
+        sleepDate: sleepNight.sleepDate,
+        timezone: sleepNight.timezone,
+        nightStart: sleepNight.nightStart,
+        finalWake: sleepNight.finalWake,
+        sleepOnset: sleepNight.sleepOnset,
+        timeInBedMin: sleepNight.timeInBedMin,
+        totalSleepMin: sleepNight.totalSleepMin,
+        sleepEfficiencyPct: sleepNight.sleepEfficiencyPct,
+        sleepLatencyMin: sleepNight.sleepLatencyMin,
+        wasoMin: sleepNight.wasoMin,
+        numAwakenings: sleepNight.numAwakenings,
+        coreSleepMin: sleepNight.coreSleepMin,
+        deepSleepMin: sleepNight.deepSleepMin,
+        remSleepMin: sleepNight.remSleepMin,
+        unspecifiedSleepMin: sleepNight.unspecifiedSleepMin,
+        awakeInBedMin: sleepNight.awakeInBedMin,
+        midSleepTimeLocal: sleepNight.midSleepTimeLocal,
+        fragmentationIndex: sleepNight.fragmentationIndex,
+        deepPct: sleepNight.deepPct,
+        remPct: sleepNight.remPct,
+        corePct: sleepNight.corePct,
+        bedtimeLocal: sleepNight.bedtimeLocal,
+        waketimeLocal: sleepNight.waketimeLocal,
+        restingHrBpm: null,
+        hrvMs: null,
+        respiratoryRate: null,
+        wristTemperature: null,
+        oxygenSaturation: null,
+      });
 
-      if (existing.length > 0) {
-        // Update existing record
-        await db
-          .update(sleepNights)
-          .set({
-            nightStart: sleepNight.nightStart,
-            finalWake: sleepNight.finalWake,
-            sleepOnset: sleepNight.sleepOnset,
-            timeInBedMin: sleepNight.timeInBedMin,
-            totalSleepMin: sleepNight.totalSleepMin,
-            sleepEfficiencyPct: sleepNight.sleepEfficiencyPct,
-            sleepLatencyMin: sleepNight.sleepLatencyMin,
-            wasoMin: sleepNight.wasoMin,
-            numAwakenings: sleepNight.numAwakenings,
-            coreSleepMin: sleepNight.coreSleepMin,
-            deepSleepMin: sleepNight.deepSleepMin,
-            remSleepMin: sleepNight.remSleepMin,
-            unspecifiedSleepMin: sleepNight.unspecifiedSleepMin,
-            awakeInBedMin: sleepNight.awakeInBedMin,
-            midSleepTimeLocal: sleepNight.midSleepTimeLocal,
-            fragmentationIndex: sleepNight.fragmentationIndex,
-            deepPct: sleepNight.deepPct,
-            remPct: sleepNight.remPct,
-            corePct: sleepNight.corePct,
-            bedtimeLocal: sleepNight.bedtimeLocal,
-            waketimeLocal: sleepNight.waketimeLocal,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(sleepNights.userId, userId),
-              eq(sleepNights.sleepDate, sleepDate)
-            )
-          );
-
-        logger.info(`[Sleep] Updated sleep night from raw samples: ${userId}, ${sleepDate}`);
-      } else {
-        // Insert new record
-        await db.insert(sleepNights).values({
-          userId,
-          sleepDate: sleepNight.sleepDate,
-          timezone: sleepNight.timezone,
-          nightStart: sleepNight.nightStart,
-          finalWake: sleepNight.finalWake,
-          sleepOnset: sleepNight.sleepOnset,
-          timeInBedMin: sleepNight.timeInBedMin,
-          totalSleepMin: sleepNight.totalSleepMin,
-          sleepEfficiencyPct: sleepNight.sleepEfficiencyPct,
-          sleepLatencyMin: sleepNight.sleepLatencyMin,
-          wasoMin: sleepNight.wasoMin,
-          numAwakenings: sleepNight.numAwakenings,
-          coreSleepMin: sleepNight.coreSleepMin,
-          deepSleepMin: sleepNight.deepSleepMin,
-          remSleepMin: sleepNight.remSleepMin,
-          unspecifiedSleepMin: sleepNight.unspecifiedSleepMin,
-          awakeInBedMin: sleepNight.awakeInBedMin,
-          midSleepTimeLocal: sleepNight.midSleepTimeLocal,
-          fragmentationIndex: sleepNight.fragmentationIndex,
-          deepPct: sleepNight.deepPct,
-          remPct: sleepNight.remPct,
-          corePct: sleepNight.corePct,
-          bedtimeLocal: sleepNight.bedtimeLocal,
-          waketimeLocal: sleepNight.waketimeLocal,
-          restingHrBpm: null,
-          hrvMs: null,
-          respiratoryRate: null,
-          wristTemperature: null,
-          oxygenSaturation: null,
-        });
-
-        logger.info(`[Sleep] Created sleep night from raw samples: ${userId}, ${sleepDate}`);
-      }
+      logger.info(`[Sleep] Saved sleep night from raw samples: ${userId}, ${sleepDate}`);
 
       // Recalculate Flōmentum score now that sleep data is available
       // This ensures the score includes sleep metrics even though they arrive after daily metrics
@@ -4836,23 +4685,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`[Sleep] Returning cached sleep score for user ${userId}, ${today}`);
         const subscore = existing[0];
 
-        // Fetch corresponding sleep night data
-        const nightData = await db
-          .select()
-          .from(sleepNights)
-          .where(
-            and(
-              eq(sleepNights.userId, userId),
-              eq(sleepNights.sleepDate, today)
-            )
-          )
-          .limit(1);
+        // Fetch corresponding sleep night data via storage layer
+        const night = await storage.getSleepNightByDate(userId, today);
 
-        if (nightData.length === 0) {
+        if (!night) {
           return res.status(404).json({ error: "Sleep night data not found" });
         }
-
-        const night = nightData[0];
 
         // Format response
         const totalHours = Math.floor((night.totalSleepMin || 0) / 60);
@@ -4880,31 +4718,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First, update baselines
       await calculateSleepBaselinesForUser(userId);
 
-      // Get most recent sleep night (within last 2 days)
+      // Get most recent sleep night (within last 2 days) via storage layer
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      const cutoffDate = twoDaysAgo.toISOString().split('T')[0];
 
-      const recentNight = await db
-        .select()
-        .from(sleepNights)
-        .where(
-          and(
-            eq(sleepNights.userId, userId),
-            gte(sleepNights.sleepDate, cutoffDate)
-          )
-        )
-        .orderBy(desc(sleepNights.sleepDate))
-        .limit(1);
+      const recentNights = await storage.getSleepNights(userId, { startDate: twoDaysAgo, limit: 1 });
 
-      if (recentNight.length === 0) {
+      if (recentNights.length === 0) {
         return res.status(404).json({
           error: "No recent sleep data available",
           message: "Please ensure you have synced HealthKit sleep data"
         });
       }
 
-      const night = recentNight[0];
+      const night = recentNights[0];
 
       // Calculate sleep score
       const scoreResult = await calculateSleepScore({
@@ -8115,16 +7942,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      const rawInsights = await db
-        .select()
-        .from(dailyInsights)
-        .where(
-          and(
-            eq(dailyInsights.userId, userId),
-            eq(dailyInsights.generatedDate, today)
-          )
-        )
-        .orderBy(desc(dailyInsights.createdAt));
+      // Use storage layer (stays in Neon as AI-generated content)
+      const rawInsights = await storage.getDailyInsightsByDate(userId, today);
 
       res.json({
         date: today,
