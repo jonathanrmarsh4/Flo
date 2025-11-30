@@ -41,6 +41,9 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - Action plan items (getActionPlanItems/getActionPlanItem/updateActionPlanItemStatus)
   - Biomarker sessions and measurements (getBiomarkerSessions/createBiomarkerSession/getMeasurementsBySession/createBiomarkerMeasurement)
   - Health profiles (getProfile/upsertProfile)
+  - **Nutrition daily metrics (Nov 2025):** getNutritionDailyMetrics/getNutritionDailyByDate/upsertNutritionDailyMetrics - 38 nutrient fields
+  - **Mindfulness sessions (Nov 2025):** getMindfulnessSessions/upsertMindfulnessSession - individual meditation tracking
+  - **Mindfulness daily metrics (Nov 2025):** getMindfulnessDailyMetrics/upsertMindfulnessDailyMetrics - daily aggregations
 - **Response Normalization:** healthRouter converts Supabase snake_case responses to camelCase for API compatibility
 - **Predicate Safety:** All storage methods use safe predicate building (`whereClause = conditions.length === 1 ? conditions[0] : and(...conditions)`)
 - **Fully Refactored Tables (0 direct db calls):** sleepNights, healthkitSamples, lifeEvents, flomentumDaily, diagnosticsStudies, actionPlanItems
