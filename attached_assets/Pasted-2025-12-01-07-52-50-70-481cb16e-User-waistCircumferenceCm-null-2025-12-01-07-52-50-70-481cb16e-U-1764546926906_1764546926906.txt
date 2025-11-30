@@ -1,0 +1,143 @@
+2025-12-01 07:52:50.70
+481cb16e
+User
+"waistCircumferenceCm": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+}
+2025-12-01 07:52:50.70
+481cb16e
+User
+"heightCm": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"bodyFatPercent": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"respiratoryRateBpm": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"distanceMeters": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"vo2Max": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"walkingHrAvgBpm": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"localDate": "2025-11-24"
+2025-12-01 07:52:50.70
+481cb16e
+User
+}
+2025-12-01 07:52:50.70
+481cb16e
+User
+"avgHeartRateBpm": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"oxygenSaturationPct": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"flightsClimbed": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"bodyTempC": null
+2025-12-01 07:52:50.70
+481cb16e
+User
+"leanBodyMassKg": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"diastolicBp": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"standHours": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"systolicBp": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+📊 [HEALTHKIT DEBUG] Extended metrics from iOS: {
+2025-12-01 07:52:50.70
+481cb16e
+User
+"weightKg": null,
+2025-12-01 07:52:50.70
+481cb16e
+User
+"bmi": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+[2025-11-30T23:52:50.709Z] [INFO] [HealthKit] Ingesting daily metrics for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-11-24
+2025-12-01 07:52:50.71
+481cb16e
+User
+"weight_kg": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+📤 [SUPABASE] Writing daily metrics to Supabase: {
+2025-12-01 07:52:50.71
+481cb16e
+User
+"distance_meters": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+"flights_climbed": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+"timezone": "Australia/Perth",
+2025-12-01 07:52:50.71
+481cb16e
+User
+"stand_hours": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+"diastolic_bp": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+"avg_heart_rate_bpm": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+"local_date": "2025-11-24",
+2025-12-01 07:52:50.71
+481cb16e
+User
+"bmi": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+"waist_circumference_cm": null,
+2025-12-01 07:52:50.71
+481cb16e
+User
+"body_fat_percent": null,
+
+Collapse
+
+Wrap
+
+Colors
+

@@ -164,15 +164,21 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
           return;
         }
 
-        // Request comprehensive HealthKit permissions
+        // Request ALL comprehensive HealthKit permissions (26 types)
         const allDataTypes: HealthDataType[] = [
+          // Daily Readiness
           'heartRateVariability', 'restingHeartRate', 'respiratoryRate',
           'oxygenSaturation', 'sleepAnalysis', 'bodyTemperature',
-          'weight', 'height', 'bmi', 'bodyFatPercentage', 'leanBodyMass',
+          // Body Composition
+          'weight', 'height', 'bmi', 'bodyFatPercentage', 'leanBodyMass', 'waistCircumference',
+          // Cardiometabolic
           'heartRate', 'bloodPressureSystolic', 'bloodPressureDiastolic',
           'bloodGlucose', 'vo2Max', 'walkingHeartRateAverage',
+          // Activity
           'steps', 'distance', 'calories', 'basalEnergyBurned',
           'flightsClimbed', 'appleExerciseTime', 'appleStandTime',
+          // Hydration
+          'dietaryWater',
         ];
 
         const result = await HealthKitService.requestAuthorization({
