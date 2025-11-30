@@ -1,0 +1,92 @@
+2025-12-01 07:46:12.95
+887cc6d7
+User
+[2025-11-30T23:46:12.949Z] [ERROR] [Sleep] Error processing raw sleep samples: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.95
+887cc6d7
+User
+[2025-11-30T23:46:12.949Z] [ERROR] [SupabaseHealth] Error upserting sleep night: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.95
+887cc6d7
+User
+[2025-11-30T23:46:12.949Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertSleepNight failed: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.95
+887cc6d7
+User
+11:46:12 PM [express] POST /api/healthkit/sleep-samples 500 in 330ms :: {"error":"Could not find the …
+2025-12-01 07:46:12.95
+887cc6d7
+User
+[2025-11-30T23:46:12.954Z] [ERROR] [Sleep] Error processing raw sleep samples: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.95
+887cc6d7
+User
+[2025-11-30T23:46:12.954Z] [ERROR] [SupabaseHealth] Error upserting sleep night: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.95
+887cc6d7
+User
+[2025-11-30T23:46:12.954Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertSleepNight failed: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.95
+887cc6d7
+User
+11:46:12 PM [express] POST /api/healthkit/sleep-samples 500 in 291ms :: {"error":"Could not find the …
+2025-12-01 07:46:12.97
+887cc6d7
+User
+[2025-11-30T23:46:12.976Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertSleepNight failed: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.97
+887cc6d7
+User
+[2025-11-30T23:46:12.976Z] [ERROR] [SupabaseHealth] Error upserting sleep night: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.97
+887cc6d7
+User
+[2025-11-30T23:46:12.977Z] [ERROR] [Sleep] Error processing raw sleep samples: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}}
+2025-12-01 07:46:12.97
+887cc6d7
+User
+11:46:12 PM [express] POST /api/healthkit/sleep-samples 500 in 347ms :: {"error":"Could not find the …
+2025-12-01 07:46:12.98
+887cc6d7
+User
+[2025-11-30T23:46:12.981Z] [INFO] [Readiness] Returning cached readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-01
+2025-12-01 07:46:18.01
+887cc6d7
+User
+[2025-11-30T23:46:18.015Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertFlomentumDaily failed: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}
+2025-12-01 07:46:18.01
+887cc6d7
+User
+[2025-11-30T23:46:18.015Z] [ERROR] [SupabaseHealth] Error upserting flomentum daily: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}
+2025-12-01 07:46:18.01
+887cc6d7
+User
+[2025-11-30T23:46:18.015Z] [ERROR] [Flōmentum] Error calculating score for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-11-28: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}
+2025-12-01 07:46:18.01
+887cc6d7
+User
+11:46:18 PM [express] POST /api/healthkit/daily-metrics 200 in 1125ms :: {"status":"upserted","date":…
+2025-12-01 07:46:18.04
+887cc6d7
+User
+[2025-11-30T23:46:18.046Z] [ERROR] [SupabaseHealth] Error upserting flomentum daily: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}
+2025-12-01 07:46:18.04
+887cc6d7
+User
+[2025-11-30T23:46:18.046Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertFlomentumDaily failed: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}
+2025-12-01 07:46:18.04
+887cc6d7
+User
+[2025-11-30T23:46:18.046Z] [ERROR] [Flōmentum] Error calculating score for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-11-25: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}
+2025-12-01 07:46:18.04
+887cc6d7
+User
+11:46:18 PM [express] POST /api/healthkit/daily-metrics 200 in 1039ms :: {"status":"upserted","date":…
+2025-12-01 07:46:18.13
+887cc6d7
+User
+[2025-11-30T23:46:18.134Z] [ERROR] [Flōmentum] Error calculating score for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-11-29: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}
+2025-12-01 07:46:18.13
+887cc6d7
+User
+[2025-11-30T23:46:18.134Z] [ERROR] [SupabaseHealth] Error upserting flomentum daily: {"error":{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'dailyFocus' column of 'flomentum_daily' in the schema cache"}}

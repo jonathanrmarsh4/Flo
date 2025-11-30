@@ -11,9 +11,31 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "syncWorkouts", returnType: CAPPluginReturnPromise)
     ]
     
-    // Track active syncs to prevent premature token cleanup
     private var activeSyncCount = 0
     private let syncCountLock = NSLock()
+    
+    private func buildAllHealthKitTypes() -> Set<HKObjectType> {
+        var types: Set<HKObjectType> = []
+        var unavailableTypes: [String] = []
+        
+        for dataType in HealthDataType.allCases {
+            do {
+                let sampleType = try dataType.sampleType()
+                types.insert(sampleType)
+            } catch {
+                unavailableTypes.append(dataType.rawValue)
+            }
+        }
+        
+        types.insert(HKObjectType.workoutType())
+        
+        if !unavailableTypes.isEmpty {
+            print("⚠️ [HealthSyncPlugin] Some HealthKit types unavailable on this device: \(unavailableTypes.joined(separator: ", "))")
+        }
+        
+        print("✅ [HealthSyncPlugin] Requesting authorization for \(types.count) HealthKit data types")
+        return types
+    }
     
     @objc func syncReadinessData(_ call: CAPPluginCall) {
         let days = call.getInt("days") ?? 7
@@ -22,57 +44,35 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         
         print("🔄 [HealthSyncPlugin] Queuing background sync for last \(days) days... (waitForAuth: \(waitForAuth))")
         
-        // Request HealthKit authorization on first sync
         let healthStore = HKHealthStore()
-        let readTypes: Set<HKObjectType> = [
-            HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!,
-            HKObjectType.quantityType(forIdentifier: .stepCount)!,
-            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
-            HKObjectType.quantityType(forIdentifier: .appleExerciseTime)!,
-            HKObjectType.quantityType(forIdentifier: .heartRate)!,
-            HKObjectType.quantityType(forIdentifier: .restingHeartRate)!,
-            HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
-            HKObjectType.workoutType(),  // Workout data type
-            // Body composition types
-            HKObjectType.quantityType(forIdentifier: .bodyMass)!,
-            HKObjectType.quantityType(forIdentifier: .bodyFatPercentage)!,
-            HKObjectType.quantityType(forIdentifier: .leanBodyMass)!,
-            HKObjectType.quantityType(forIdentifier: .bodyMassIndex)!,
-            HKObjectType.quantityType(forIdentifier: .waistCircumference)!
-        ]
+        let readTypes = buildAllHealthKitTypes()
         
         healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
             if let error = error {
                 print("❌ [HealthSyncPlugin] Authorization request error: \(error.localizedDescription)")
             } else {
-                print("🔓 [HealthSyncPlugin] Authorization requested, success: \(success)")
+                print("🔓 [HealthSyncPlugin] Authorization requested for \(readTypes.count) types, success: \(success)")
             }
         }
         
-        // Store token in UserDefaults temporarily for normalization service to access
         if let token = token {
             UserDefaults.standard.set(token, forKey: "jwt_token")
             print("🔑 [HealthSyncPlugin] Auth token received and stored")
         }
         
-        // Increment active sync counter
         syncCountLock.lock()
         activeSyncCount += 1
         let currentSyncId = activeSyncCount
         syncCountLock.unlock()
         print("📊 [HealthSyncPlugin] Active syncs: \(currentSyncId)")
         
-        // PERFORMANCE FIX: Return immediately to unblock app launch
-        // Run sync in background without blocking JS bridge
         call.resolve([
             "success": true,
             "days": days,
             "message": "Background sync started"
         ])
         
-        // Dispatch sync work to background queue
         DispatchQueue.global(qos: .background).async {
-            // If requested, wait for HealthKit auth to be ready (for sleep data)
             if waitForAuth {
                 print("⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...")
                 self.waitForHealthKitAuth(maxAttempts: 20) { ready in
@@ -96,7 +96,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         
         print("💪 [HealthSyncPlugin] Queuing workout sync for last \(days) days...")
         
-        // Request HealthKit authorization for workouts
         let healthStore = HKHealthStore()
         let readTypes: Set<HKObjectType> = [
             HKObjectType.workoutType()
@@ -110,20 +109,17 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }
         
-        // Store token in UserDefaults temporarily for normalization service to access
         if let token = token {
             UserDefaults.standard.set(token, forKey: "jwt_token")
             print("🔑 [HealthSyncPlugin] Auth token received and stored for workout sync")
         }
         
-        // Return immediately to unblock JS
         call.resolve([
             "success": true,
             "days": days,
             "message": "Workout sync started"
         ])
         
-        // Dispatch sync work to background queue
         DispatchQueue.global(qos: .background).async {
             let normalizationService = HealthKitNormalisationService()
             normalizationService.syncWorkouts(days: days) { success, error in
@@ -135,7 +131,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                     print("⚠️ [HealthSyncPlugin] Workout sync completed but returned false")
                 }
                 
-                // Clean up token
                 UserDefaults.standard.removeObject(forKey: "jwt_token")
                 print("🧹 [HealthSyncPlugin] Workout sync complete, auth token cleared")
             }
@@ -150,7 +145,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             } else if success {
                 print("✅ [HealthSyncPlugin] Successfully synced \(days) days in background!")
                 
-                // Also sync workouts after main sync completes
                 normalizationService.syncWorkouts(days: days) { workoutSuccess, workoutError in
                     if let workoutError = workoutError {
                         print("⚠️ [HealthSyncPlugin] Workout sync error: \(workoutError.localizedDescription)")
@@ -162,7 +156,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
             }
             
-            // Decrement active sync counter
             self.syncCountLock.lock()
             self.activeSyncCount -= 1
             let remaining = self.activeSyncCount
@@ -170,7 +163,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             
             print("📊 [HealthSyncPlugin] Sync #\(syncId) completed, \(remaining) active syncs remaining")
             
-            // Only clear token when ALL syncs are complete
             if remaining == 0 {
                 print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
                 UserDefaults.standard.removeObject(forKey: "jwt_token")
@@ -189,9 +181,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
             
             print("🔍 [HealthSyncPlugin] Auth check attempt \(attempts)/\(maxAttempts): status = \(status.rawValue)")
             
-            // For category types (sleep), authorizationStatus always returns sharingDenied (1)
-            // even when read permission is granted (iOS privacy feature).
-            // We just wait for status to change from notDetermined (0) to anything else.
             if status != .notDetermined {
                 print("✅ [HealthSyncPlugin] Auth status determined (status=\(status.rawValue)), proceeding with sync")
                 completion(true)
@@ -199,7 +188,6 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
                 print("⏱️ [HealthSyncPlugin] Auth wait timeout after \(maxAttempts) attempts")
                 completion(false)
             } else {
-                // Wait 500ms and try again
                 DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
                     checkAuth()
                 }
