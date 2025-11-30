@@ -14,10 +14,7 @@ import { PasskeyManagement } from '@/components/PasskeyManagement';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { format, setMonth, setYear, getMonth, getYear } from 'date-fns';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest, getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -114,11 +111,6 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   // Local state for medical context (only saves when clicking Done)
   const [localMedicalContext, setLocalMedicalContext] = useState<string>('');
   
-  // Calendar navigation state
-  const [calendarMonth, setCalendarMonth] = useState<Date>(
-    profile?.dateOfBirth ? new Date(profile.dateOfBirth) : new Date()
-  );
-  
   // Safe defaults to prevent spreading undefined
   const currentHealthBaseline = profile?.healthBaseline ?? {};
   const currentAIPersonalization = profile?.aiPersonalization ?? {};
@@ -139,13 +131,6 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
     }
     setIsEditing(!isEditing);
   };
-
-  // Sync calendar month with profile date of birth
-  useEffect(() => {
-    if (profile?.dateOfBirth) {
-      setCalendarMonth(new Date(profile.dateOfBirth));
-    }
-  }, [profile?.dateOfBirth]);
 
   // Sync local inputs with profile data (but not while editing medical context)
   useEffect(() => {
@@ -271,20 +256,18 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
     }
   };
 
-  // Calculate age from date of birth
-  const calculateAge = (dateOfBirth: Date | string | null | undefined): number | null => {
-    if (!dateOfBirth) return null;
+  // Calculate age from birth year using mid-year (July 1st) assumption for ±6 month accuracy
+  const calculateAge = (birthYear: number | null | undefined): number | null => {
+    if (!birthYear) return null;
     const today = new Date();
-    const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11
+    // Assume birth on July 1st (month 6) for mid-year approximation
+    const age = currentYear - birthYear - (currentMonth < 6 ? 1 : 0);
     return age;
   };
 
-  const age = calculateAge(profile?.dateOfBirth);
+  const age = calculateAge(profile?.birthYear);
   const userName = user.firstName && user.lastName 
     ? `${user.firstName} ${user.lastName}` 
     : user.firstName || user.lastName || 'User';
@@ -405,82 +388,34 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
 
           <div className="space-y-3">
-            {/* Date of Birth */}
+            {/* Birth Year (Privacy: Only collect year for age calculation) */}
             <div className="flex items-center justify-between py-3 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <Calendar className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
-                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Date of Birth</span>
+                <div>
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Birth Year</span>
+                  <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>For your privacy, we only collect year</p>
+                </div>
               </div>
               {isEditing ? (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={`text-sm ${!profile?.dateOfBirth && 'text-muted-foreground'}`}
-                      data-testid="button-dob-picker"
-                    >
-                      {profile?.dateOfBirth ? format(new Date(profile.dateOfBirth), 'PPP') : 'Pick a date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <div className="p-3 space-y-3">
-                      {/* Year and Month Selectors */}
-                      <div className="flex gap-2">
-                        <Select
-                          value={getYear(calendarMonth).toString()}
-                          onValueChange={(value) => {
-                            setCalendarMonth(setYear(calendarMonth, parseInt(value)));
-                          }}
-                        >
-                          <SelectTrigger className="flex-1" data-testid="select-year">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => new Date().getFullYear() - i).map((year) => (
-                              <SelectItem key={year} value={year.toString()}>
-                                {year}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={getMonth(calendarMonth).toString()}
-                          onValueChange={(value) => {
-                            setCalendarMonth(setMonth(calendarMonth, parseInt(value)));
-                          }}
-                        >
-                          <SelectTrigger className="flex-1" data-testid="select-month">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((month, idx) => (
-                              <SelectItem key={idx} value={idx.toString()}>
-                                {month}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <CalendarComponent
-                        mode="single"
-                        selected={profile?.dateOfBirth ? new Date(profile.dateOfBirth) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            updateDemographics.mutate({ dateOfBirth: date });
-                          }
-                        }}
-                        month={calendarMonth}
-                        onMonthChange={setCalendarMonth}
-                        initialFocus
-                      />
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Select
+                  value={profile?.birthYear?.toString() ?? ''}
+                  onValueChange={(value) => updateDemographics.mutate({ birthYear: parseInt(value) })}
+                >
+                  <SelectTrigger className="w-24" data-testid="select-birth-year">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: new Date().getFullYear() - 1900 + 1 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               ) : (
-                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-dob">
-                  {profile?.dateOfBirth 
-                    ? new Date(profile.dateOfBirth!).toLocaleDateString()
-                    : 'Not set'}
+                <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-birth-year">
+                  {profile?.birthYear ?? 'Not set'}
                 </span>
               )}
             </div>

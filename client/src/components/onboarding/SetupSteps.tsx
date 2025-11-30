@@ -19,25 +19,6 @@ type SetupStep = 'notifications' | 'profile' | 'bloodwork' | 'optional' | 'secur
 // Generate year options (100 years back from current year)
 const currentYear = new Date().getFullYear();
 const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
-const months = [
-  { value: '01', label: 'January' },
-  { value: '02', label: 'February' },
-  { value: '03', label: 'March' },
-  { value: '04', label: 'April' },
-  { value: '05', label: 'May' },
-  { value: '06', label: 'June' },
-  { value: '07', label: 'July' },
-  { value: '08', label: 'August' },
-  { value: '09', label: 'September' },
-  { value: '10', label: 'October' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'December' },
-];
-
-// Get days in month
-function getDaysInMonth(year: number, month: number): number {
-  return new Date(year, month, 0).getDate();
-}
 
 // Countries that use imperial system (US, Liberia, Myanmar)
 const imperialCountries = ['US', 'LR', 'MM'];
@@ -78,12 +59,10 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
   const [isRequestingNotifications, setIsRequestingNotifications] = useState(false);
   const [isRequestingHealthKit, setIsRequestingHealthKit] = useState(false);
   
-  // Profile form state with separate date fields
+  // Profile form state (birth year only for privacy)
   const [profileData, setProfileData] = useState({
     name: '',
     birthYear: '',
-    birthMonth: '',
-    birthDay: '',
     biologicalSex: '',
     height: '',
     weight: ''
@@ -114,18 +93,6 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
   const currentStepIndex = steps.findIndex(step => step.id === currentStep);
 
-  // Get available days based on selected year and month
-  const availableDays = profileData.birthYear && profileData.birthMonth
-    ? Array.from(
-        { length: getDaysInMonth(parseInt(profileData.birthYear), parseInt(profileData.birthMonth)) },
-        (_, i) => String(i + 1).padStart(2, '0')
-      )
-    : Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
-
-  // Compute ISO date string from separate fields
-  const dateOfBirth = profileData.birthYear && profileData.birthMonth && profileData.birthDay
-    ? `${profileData.birthYear}-${profileData.birthMonth}-${profileData.birthDay}`
-    : '';
 
   // Request notification permission
   const handleNotificationToggle = async () => {
@@ -330,15 +297,12 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
   };
 
   const handleProfileNext = async () => {
-    if (!profileData.name || !profileData.birthYear || !profileData.birthMonth || !profileData.birthDay || !profileData.biologicalSex) {
+    if (!profileData.name || !profileData.birthYear || !profileData.biologicalSex) {
       return;
     }
     
     setIsSavingProfile(true);
     try {
-      // Construct date from separate fields
-      const dob = new Date(`${profileData.birthYear}-${profileData.birthMonth}-${profileData.birthDay}`);
-      
       // Map biologicalSex to expected format
       const sexMap: Record<string, 'Male' | 'Female' | 'Other'> = {
         'male': 'Male',
@@ -359,9 +323,9 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
       }
       
       // Save demographics to backend with user's preferred units
-      // Metric users: cm/kg, Imperial users: inches/lbs
+      // Privacy: Only birth year is collected (not full DOB)
       await updateDemographics.mutateAsync({
-        dateOfBirth: dob,
+        birthYear: parseInt(profileData.birthYear),
         sex: sexMap[profileData.biologicalSex] || 'Other',
         height: heightValue,
         heightUnit: isMetric ? 'cm' : 'inches',
@@ -726,48 +690,25 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                   />
                 </div>
 
-                {/* Date of Birth - Three Dropdowns */}
+                {/* Birth Year (Privacy: Only year is collected) */}
                 <div>
                   <label className={`block text-sm mb-2 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                    Date of Birth *
+                    Birth Year *
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {/* Year */}
-                    <select
-                      value={profileData.birthYear}
-                      onChange={(e) => setProfileData({...profileData, birthYear: e.target.value, birthDay: ''})}
-                      className={inputClassName}
-                    >
-                      <option value="">Year</option>
-                      {years.map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                    
-                    {/* Month */}
-                    <select
-                      value={profileData.birthMonth}
-                      onChange={(e) => setProfileData({...profileData, birthMonth: e.target.value, birthDay: ''})}
-                      className={inputClassName}
-                    >
-                      <option value="">Month</option>
-                      {months.map(month => (
-                        <option key={month.value} value={month.value}>{month.label}</option>
-                      ))}
-                    </select>
-                    
-                    {/* Day */}
-                    <select
-                      value={profileData.birthDay}
-                      onChange={(e) => setProfileData({...profileData, birthDay: e.target.value})}
-                      className={inputClassName}
-                    >
-                      <option value="">Day</option>
-                      {availableDays.map(day => (
-                        <option key={day} value={day}>{parseInt(day)}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <select
+                    value={profileData.birthYear}
+                    onChange={(e) => setProfileData({...profileData, birthYear: e.target.value})}
+                    className={inputClassName}
+                    data-testid="select-birth-year"
+                  >
+                    <option value="">Select year...</option>
+                    {years.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                  <p className={`text-xs mt-1 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                    For your privacy, we only collect birth year
+                  </p>
                 </div>
 
                 <div>
@@ -815,9 +756,9 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
               <button
                 onClick={handleProfileNext}
-                disabled={isSavingProfile || !profileData.name || !profileData.birthYear || !profileData.birthMonth || !profileData.birthDay || !profileData.biologicalSex}
+                disabled={isSavingProfile || !profileData.name || !profileData.birthYear || !profileData.biologicalSex}
                 className={`w-full py-4 rounded-xl font-medium transition-all ${
-                  profileData.name && profileData.birthYear && profileData.birthMonth && profileData.birthDay && profileData.biologicalSex && !isSavingProfile
+                  profileData.name && profileData.birthYear && profileData.biologicalSex && !isSavingProfile
                     ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-green-500 text-white shadow-lg hover:shadow-xl'
                     : isDark 
                       ? 'bg-white/10 text-white/40 cursor-not-allowed'
