@@ -1962,8 +1962,8 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (profile) {
-      if (profile.dateOfBirth) {
-        rows.push(`Profile,,Date of Birth,"${profile.dateOfBirth.toISOString().split('T')[0]}",,,`);
+      if (profile.birthYear) {
+        rows.push(`Profile,,Birth Year,"${profile.birthYear}",,,`);
       }
       if (profile.sex) {
         rows.push(`Profile,,Sex,"${profile.sex}",,,`);

@@ -89,7 +89,7 @@ async function migrateProfiles(healthIdMap: Map<string, string>) {
     try {
       const { error } = await supabase.from('profiles').upsert({
         health_id: healthId,
-        date_of_birth: profile.dateOfBirth?.toISOString(),
+        birth_year: profile.birthYear,
         sex: profile.sex,
         weight: profile.weight,
         weight_unit: profile.weightUnit,
