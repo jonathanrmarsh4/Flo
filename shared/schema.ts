@@ -397,7 +397,7 @@ export const subscriptions = pgTable("subscriptions", {
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id"), // Legacy column - kept for backwards compatibility (nullable)
-  billingCustomerId: varchar("billing_customer_id").notNull().references(() => billingCustomers.id, { onDelete: "cascade" }),
+  billingCustomerId: varchar("billing_customer_id").references(() => billingCustomers.id, { onDelete: "cascade" }), // Nullable for legacy/orphaned records
   stripePaymentIntentId: varchar("stripe_payment_intent_id").unique(),
   provider: billingProviderEnum("provider").default("stripe"),
   appStoreTransactionId: varchar("app_store_transaction_id"),
