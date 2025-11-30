@@ -377,7 +377,7 @@ export const billingCustomers = pgTable("billing_customers", {
 export const subscriptions = pgTable("subscriptions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id"), // Legacy column - kept for backwards compatibility (nullable)
-  billingCustomerId: varchar("billing_customer_id").references(() => billingCustomers.id, { onDelete: "cascade" }), // Nullable for legacy/orphaned records
+  billingCustomerId: varchar("billing_customer_id"), // No FK constraint - allows orphaned/legacy records
   stripeSubscriptionId: varchar("stripe_subscription_id").unique(),
   stripePriceId: varchar("stripe_price_id"),
   provider: billingProviderEnum("provider").default("stripe"),
@@ -397,7 +397,7 @@ export const subscriptions = pgTable("subscriptions", {
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: varchar("customer_id"), // Legacy column - kept for backwards compatibility (nullable)
-  billingCustomerId: varchar("billing_customer_id").references(() => billingCustomers.id, { onDelete: "cascade" }), // Nullable for legacy/orphaned records
+  billingCustomerId: varchar("billing_customer_id"), // No FK constraint - allows orphaned/legacy records
   stripePaymentIntentId: varchar("stripe_payment_intent_id").unique(),
   provider: billingProviderEnum("provider").default("stripe"),
   appStoreTransactionId: varchar("app_store_transaction_id"),
