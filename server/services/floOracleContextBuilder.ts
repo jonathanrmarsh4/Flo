@@ -17,6 +17,8 @@ import {
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
+import { isSupabaseHealthEnabled } from './healthStorageRouter';
+import { getDailyMetrics as getSupabaseDailyMetrics } from './supabaseHealthStorage';
 
 // In-memory cache for user health context (5 minute TTL)
 interface CachedContext {
@@ -408,108 +410,143 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
     }
 
-    // Fetch all additional HealthKit metrics from healthkitSamples table (last 7 days)
-    const sevenDaysAgoTimestamp = new Date();
-    sevenDaysAgoTimestamp.setDate(sevenDaysAgoTimestamp.getDate() - 7);
-
-    // Helper function to get average value for a metric type
-    const getMetricAvg = async (dataType: string): Promise<number | null> => {
-      const result = await db
-        .select({ avgValue: sql<number>`AVG(${healthkitSamples.value})` })
-        .from(healthkitSamples)
-        .where(
-          and(
-            eq(healthkitSamples.userId, userId),
-            eq(healthkitSamples.dataType, dataType),
-            gte(healthkitSamples.startDate, sevenDaysAgoTimestamp)
-          )
-        );
-      return result[0]?.avgValue ?? null;
-    };
-
-    // Helper function to get latest value for point-in-time metrics (weight, height, etc.)
-    const getMetricLatest = async (dataType: string): Promise<number | null> => {
-      const result = await db
-        .select({ value: healthkitSamples.value })
-        .from(healthkitSamples)
-        .where(
-          and(
-            eq(healthkitSamples.userId, userId),
-            eq(healthkitSamples.dataType, dataType)
-          )
-        )
-        .orderBy(desc(healthkitSamples.startDate))
-        .limit(1);
-      return result[0]?.value ?? null;
-    };
-
     // Fetch all additional HealthKit metrics
-    const [
-      weight,
-      height,
-      bmi,
-      bodyFatPct,
-      leanBodyMass,
-      distance,
-      basalEnergy,
-      flightsClimbed,
-      bloodPressureSystolic,
-      bloodPressureDiastolic,
-      oxygenSaturation,
-      respiratoryRate,
-      bloodGlucose,
-      bodyTemp,
-      vo2Max,
-      walkingHR,
-      waistCircumference,
-      dietaryWater,
-      exerciseTime,
-      standTime
-    ] = await Promise.all([
-      getMetricLatest('weight'),
-      getMetricLatest('height'),
-      getMetricLatest('bmi'),
-      getMetricLatest('bodyFatPercentage'),
-      getMetricLatest('leanBodyMass'),
-      getMetricAvg('distance'),
-      getMetricAvg('basalEnergyBurned'),
-      getMetricAvg('flightsClimbed'),
-      getMetricAvg('bloodPressureSystolic'),
-      getMetricAvg('bloodPressureDiastolic'),
-      getMetricAvg('oxygenSaturation'),
-      getMetricAvg('respiratoryRate'),
-      getMetricAvg('bloodGlucose'),
-      getMetricAvg('bodyTemperature'),
-      getMetricLatest('vo2Max'),
-      getMetricAvg('walkingHeartRateAverage'),
-      getMetricLatest('waistCircumference'),
-      getMetricAvg('dietaryWater'),
-      getMetricAvg('appleExerciseTime'),
-      getMetricAvg('appleStandTime')
-    ]);
+    // When Supabase is enabled, pull from user_daily_metrics (which contains aggregated data including blood pressure)
+    // Otherwise fall back to healthkit_samples table in Neon
+    
+    const supabaseEnabled = isSupabaseHealthEnabled();
+    logger.info(`[FloOracle] Supabase health enabled: ${supabaseEnabled}`);
+    
+    if (supabaseEnabled) {
+      // Fetch from Supabase user_daily_metrics (contains blood pressure and other aggregated metrics)
+      try {
+        const supabaseMetrics = await getSupabaseDailyMetrics(userId, 7);
+        
+        if (supabaseMetrics.length > 0) {
+          // Get latest values for point-in-time metrics (from most recent day)
+          const latest = supabaseMetrics[0];
+          
+          // Calculate averages for metrics that should be averaged over 7 days
+          const avgMetric = (key: keyof typeof latest) => {
+            const values = supabaseMetrics
+              .map(m => m[key] as number | null | undefined)
+              .filter((v): v is number => v != null && !isNaN(v));
+            return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+          };
+          
+          context.healthkitMetrics = {
+            weight: latest.weight_kg ? Math.round(latest.weight_kg * 10) / 10 : null,
+            height: latest.height_cm ? Math.round(latest.height_cm) : null,
+            bmi: latest.bmi ? Math.round(latest.bmi * 10) / 10 : null,
+            bodyFatPct: latest.body_fat_percent ? Math.round(latest.body_fat_percent * 10) / 10 : null,
+            leanBodyMass: latest.lean_body_mass_kg ? Math.round(latest.lean_body_mass_kg * 10) / 10 : null,
+            distance: avgMetric('distance_meters') ? Math.round(avgMetric('distance_meters')!) : null,
+            basalEnergy: avgMetric('basal_energy_kcal') ? Math.round(avgMetric('basal_energy_kcal')!) : null,
+            flightsClimbed: avgMetric('flights_climbed') ? Math.round(avgMetric('flights_climbed')!) : null,
+            bloodPressureSystolic: avgMetric('systolic_bp') ? Math.round(avgMetric('systolic_bp')!) : null,
+            bloodPressureDiastolic: avgMetric('diastolic_bp') ? Math.round(avgMetric('diastolic_bp')!) : null,
+            oxygenSaturation: avgMetric('oxygen_saturation_pct') ? Math.round(avgMetric('oxygen_saturation_pct')!) : null,
+            respiratoryRate: avgMetric('respiratory_rate_bpm') ? Math.round(avgMetric('respiratory_rate_bpm')! * 10) / 10 : null,
+            bloodGlucose: avgMetric('blood_glucose_mg_dl') ? Math.round(avgMetric('blood_glucose_mg_dl')!) : null,
+            bodyTemp: null, // Not stored in daily metrics
+            vo2Max: latest.vo2_max ? Math.round(latest.vo2_max * 10) / 10 : null,
+            walkingHR: avgMetric('walking_hr_avg_bpm') ? Math.round(avgMetric('walking_hr_avg_bpm')!) : null,
+            waistCircumference: latest.waist_circumference_cm ? Math.round(latest.waist_circumference_cm * 10) / 10 : null,
+            dietaryWater: avgMetric('dietary_water_ml') ? Math.round(avgMetric('dietary_water_ml')!) : null,
+            exerciseTime: avgMetric('exercise_minutes') ? Math.round(avgMetric('exercise_minutes')!) : null,
+            standTime: latest.stand_hours ? Math.round(latest.stand_hours) : null,
+          };
+          
+          logger.info(`[FloOracle] Fetched HealthKit metrics from Supabase (${supabaseMetrics.length} days)`);
+        }
+      } catch (error) {
+        logger.error('[FloOracle] Error fetching Supabase daily metrics:', error);
+      }
+    } else {
+      // Fallback to Neon healthkit_samples table
+      const sevenDaysAgoTimestamp = new Date();
+      sevenDaysAgoTimestamp.setDate(sevenDaysAgoTimestamp.getDate() - 7);
 
-    context.healthkitMetrics = {
-      weight: weight ? Math.round(weight * 10) / 10 : null,
-      height: height ? Math.round(height) : null,
-      bmi: bmi ? Math.round(bmi * 10) / 10 : null,
-      bodyFatPct: bodyFatPct ? Math.round(bodyFatPct * 10) / 10 : null,
-      leanBodyMass: leanBodyMass ? Math.round(leanBodyMass * 10) / 10 : null,
-      distance: distance ? Math.round(distance) : null,
-      basalEnergy: basalEnergy ? Math.round(basalEnergy) : null,
-      flightsClimbed: flightsClimbed ? Math.round(flightsClimbed) : null,
-      bloodPressureSystolic: bloodPressureSystolic ? Math.round(bloodPressureSystolic) : null,
-      bloodPressureDiastolic: bloodPressureDiastolic ? Math.round(bloodPressureDiastolic) : null,
-      oxygenSaturation: oxygenSaturation ? Math.round(oxygenSaturation) : null,
-      respiratoryRate: respiratoryRate ? Math.round(respiratoryRate * 10) / 10 : null,
-      bloodGlucose: bloodGlucose ? Math.round(bloodGlucose) : null,
-      bodyTemp: bodyTemp ? Math.round(bodyTemp * 10) / 10 : null,
-      vo2Max: vo2Max ? Math.round(vo2Max * 10) / 10 : null,
-      walkingHR: walkingHR ? Math.round(walkingHR) : null,
-      waistCircumference: waistCircumference ? Math.round(waistCircumference * 10) / 10 : null,
-      dietaryWater: dietaryWater ? Math.round(dietaryWater) : null,
-      exerciseTime: exerciseTime ? Math.round(exerciseTime) : null,
-      standTime: standTime ? Math.round(standTime) : null,
-    };
+      const getMetricAvg = async (dataType: string): Promise<number | null> => {
+        const result = await db
+          .select({ avgValue: sql<number>`AVG(${healthkitSamples.value})` })
+          .from(healthkitSamples)
+          .where(
+            and(
+              eq(healthkitSamples.userId, userId),
+              eq(healthkitSamples.dataType, dataType),
+              gte(healthkitSamples.startDate, sevenDaysAgoTimestamp)
+            )
+          );
+        return result[0]?.avgValue ?? null;
+      };
+
+      const getMetricLatest = async (dataType: string): Promise<number | null> => {
+        const result = await db
+          .select({ value: healthkitSamples.value })
+          .from(healthkitSamples)
+          .where(
+            and(
+              eq(healthkitSamples.userId, userId),
+              eq(healthkitSamples.dataType, dataType)
+            )
+          )
+          .orderBy(desc(healthkitSamples.startDate))
+          .limit(1);
+        return result[0]?.value ?? null;
+      };
+
+      const [
+        weight, height, bmi, bodyFatPct, leanBodyMass, distance, basalEnergy,
+        flightsClimbed, bloodPressureSystolic, bloodPressureDiastolic,
+        oxygenSaturation, respiratoryRate, bloodGlucose, bodyTemp,
+        vo2Max, walkingHR, waistCircumference, dietaryWater, exerciseTime, standTime
+      ] = await Promise.all([
+        getMetricLatest('weight'),
+        getMetricLatest('height'),
+        getMetricLatest('bmi'),
+        getMetricLatest('bodyFatPercentage'),
+        getMetricLatest('leanBodyMass'),
+        getMetricAvg('distance'),
+        getMetricAvg('basalEnergyBurned'),
+        getMetricAvg('flightsClimbed'),
+        getMetricAvg('bloodPressureSystolic'),
+        getMetricAvg('bloodPressureDiastolic'),
+        getMetricAvg('oxygenSaturation'),
+        getMetricAvg('respiratoryRate'),
+        getMetricAvg('bloodGlucose'),
+        getMetricAvg('bodyTemperature'),
+        getMetricLatest('vo2Max'),
+        getMetricAvg('walkingHeartRateAverage'),
+        getMetricLatest('waistCircumference'),
+        getMetricAvg('dietaryWater'),
+        getMetricAvg('appleExerciseTime'),
+        getMetricAvg('appleStandTime')
+      ]);
+
+      context.healthkitMetrics = {
+        weight: weight ? Math.round(weight * 10) / 10 : null,
+        height: height ? Math.round(height) : null,
+        bmi: bmi ? Math.round(bmi * 10) / 10 : null,
+        bodyFatPct: bodyFatPct ? Math.round(bodyFatPct * 10) / 10 : null,
+        leanBodyMass: leanBodyMass ? Math.round(leanBodyMass * 10) / 10 : null,
+        distance: distance ? Math.round(distance) : null,
+        basalEnergy: basalEnergy ? Math.round(basalEnergy) : null,
+        flightsClimbed: flightsClimbed ? Math.round(flightsClimbed) : null,
+        bloodPressureSystolic: bloodPressureSystolic ? Math.round(bloodPressureSystolic) : null,
+        bloodPressureDiastolic: bloodPressureDiastolic ? Math.round(bloodPressureDiastolic) : null,
+        oxygenSaturation: oxygenSaturation ? Math.round(oxygenSaturation) : null,
+        respiratoryRate: respiratoryRate ? Math.round(respiratoryRate * 10) / 10 : null,
+        bloodGlucose: bloodGlucose ? Math.round(bloodGlucose) : null,
+        bodyTemp: bodyTemp ? Math.round(bodyTemp * 10) / 10 : null,
+        vo2Max: vo2Max ? Math.round(vo2Max * 10) / 10 : null,
+        walkingHR: walkingHR ? Math.round(walkingHR) : null,
+        waistCircumference: waistCircumference ? Math.round(waistCircumference * 10) / 10 : null,
+        dietaryWater: dietaryWater ? Math.round(dietaryWater) : null,
+        exerciseTime: exerciseTime ? Math.round(exerciseTime) : null,
+        standTime: standTime ? Math.round(standTime) : null,
+      };
+    }
     
     // Log what metrics we actually found
     const nonNullMetrics = Object.entries(context.healthkitMetrics)
