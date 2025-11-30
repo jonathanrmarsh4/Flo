@@ -99,17 +99,8 @@ interface UserHealthContext {
   bodyCompositionExplanation: string | null;
 }
 
-function calculateAge(dateOfBirth: Date | string | null): number | null {
-  if (!dateOfBirth) return null;
-  const dob = new Date(dateOfBirth);
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  return age;
-}
+// Import age calculation utility that uses mid-year (July 1st) assumption for ±6 month accuracy
+import { calculateAgeFromBirthYear } from "@shared/utils/ageCalculation";
 
 // Format a date in the user's local timezone as YYYY-MM-DD
 function formatDateInTimezone(date: Date, timezone: string): string {
@@ -265,7 +256,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       .limit(1);
 
     if (userProfile) {
-      context.age = calculateAge(userProfile.dateOfBirth);
+      context.age = calculateAgeFromBirthYear(userProfile.birthYear);
       context.sex = userProfile.sex || 'unknown';
       context.primaryGoals = Array.isArray(userProfile.goals) ? userProfile.goals : [];
     }

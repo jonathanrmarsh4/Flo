@@ -73,9 +73,9 @@ export async function getUserContext(userId: string): Promise<UserContext> {
     .where(eq(profiles.userId, userId))
     .limit(1);
 
-  const age = profile?.dateOfBirth 
-    ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
-    : null;
+  // Import age calculation utility that uses mid-year (July 1st) assumption for ±6 month accuracy
+  const { calculateAgeFromBirthYear } = await import("@shared/utils/ageCalculation");
+  const age = calculateAgeFromBirthYear(profile?.birthYear);
 
   const sex = profile?.sex ?? null;
 

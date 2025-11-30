@@ -3,6 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { db } from "./db";
+import { calculateAgeFromBirthYear } from "@shared/utils/ageCalculation";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import type { GrokChatMessage } from "./services/grokClient";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -509,9 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Get user profile for normalization context
         const profile = await storage.getProfile(userId);
         const userSex = profile?.sex ?? undefined;
-        const userAgeY = profile?.dateOfBirth 
-          ? Math.floor((Date.now() - new Date(profile.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
-          : undefined;
+        const userAgeY = calculateAgeFromBirthYear(profile?.birthYear) ?? undefined;
 
         // Normalize biomarkers
         const normalizationResult = await normalizeBatch(extractionResult.data.biomarkers, {
@@ -875,10 +874,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       
-      // Parse dateOfBirth if present
+      // birthYear is already an integer, no parsing needed
       const requestData = {
         ...req.body,
-        dateOfBirth: req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : undefined,
+        birthYear: req.body.birthYear ? Number(req.body.birthYear) : undefined,
       };
       
       // Validate with Zod schema
@@ -1348,19 +1347,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user profile to calculate chronological age
       const profile = await storage.getProfile(userId);
-      if (!profile || !profile.dateOfBirth) {
+      if (!profile || !profile.birthYear) {
         return res.status(400).json({ 
-          error: "Date of birth not found. Please complete your profile to calculate biological age.",
-          missingData: "dateOfBirth"
+          error: "Birth year not found. Please complete your profile to calculate biological age.",
+          missingData: "birthYear"
         });
       }
 
-      // Calculate chronological age
-      const today = new Date();
-      const birthDate = new Date(profile.dateOfBirth);
-      const ageYears = today.getFullYear() - birthDate.getFullYear() - 
-        (today.getMonth() < birthDate.getMonth() || 
-         (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+      // Calculate chronological age using mid-year (July 1st) assumption for ±6 month accuracy
+      const ageYears = calculateAgeFromBirthYear(profile.birthYear)!;
 
       // Get user's latest biomarker test session
       const sessions = await storage.getTestSessionsByUser(userId);
@@ -1660,7 +1655,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user profile
       const profile = await storage.getProfile(userId);
       const missingFields: string[] = [];
-      if (!profile?.dateOfBirth) missingFields.push("dateOfBirth");
+      if (!profile?.birthYear) missingFields.push("birthYear");
       if (!profile?.sex) missingFields.push("sex");
       
       if (missingFields.length > 0 || !profile) {
@@ -1670,12 +1665,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Calculate age (profile is guaranteed to be defined and have dateOfBirth at this point)
-      const today = new Date();
-      const birthDate = new Date(profile.dateOfBirth!);
-      const ageYears = today.getFullYear() - birthDate.getFullYear() - 
-        (today.getMonth() < birthDate.getMonth() || 
-         (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+      // Calculate age using mid-year (July 1st) assumption for ±6 month accuracy
+      const ageYears = calculateAgeFromBirthYear(profile.birthYear)!;
 
       // Get all biomarker sessions
       const sessions = await storage.getTestSessionsByUser(userId);
@@ -1897,18 +1888,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get user profile
       const profile = await storage.getProfile(userId);
-      if (!profile?.dateOfBirth || !profile?.sex) {
+      if (!profile?.birthYear || !profile?.sex) {
         return res.status(422).json({ 
           error: "Insufficient profile data. Please complete your age and sex in your profile."
         });
       }
 
-      // Calculate age
-      const today = new Date();
-      const birthDate = new Date(profile.dateOfBirth);
-      const ageYears = today.getFullYear() - birthDate.getFullYear() - 
-        (today.getMonth() < birthDate.getMonth() || 
-         (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+      // Calculate age using mid-year (July 1st) assumption for ±6 month accuracy
+      const ageYears = calculateAgeFromBirthYear(profile.birthYear)!;
 
       // Get biomarker sessions
       let sessions;
@@ -2298,13 +2285,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (context === "auto") {
         const profile = await storage.getProfile(userId);
         if (profile) {
-          // Calculate age from date of birth if not provided
-          if (!age && profile.dateOfBirth) {
-            const today = new Date();
-            const birthDate = new Date(profile.dateOfBirth);
-            age = today.getFullYear() - birthDate.getFullYear() - 
-              (today.getMonth() < birthDate.getMonth() || 
-               (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
+          // Calculate age from birth year if not provided
+          if (!age && profile.birthYear) {
+            age = calculateAgeFromBirthYear(profile.birthYear) ?? undefined;
           }
           // Normalize sex to lowercase for context matching
           if (!sex && profile.sex) {
@@ -2403,15 +2386,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user profile for personalization
       const profile = await storage.getProfile(userId);
       
-      // Build profile snapshot
-      let calculatedAge: number | undefined = undefined;
-      if (profile?.dateOfBirth) {
-        const today = new Date();
-        const birthDate = new Date(profile.dateOfBirth);
-        calculatedAge = today.getFullYear() - birthDate.getFullYear() - 
-          (today.getMonth() < birthDate.getMonth() || 
-           (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate()) ? 1 : 0);
-      }
+      // Build profile snapshot using mid-year (July 1st) assumption for ±6 month accuracy
+      const calculatedAge = calculateAgeFromBirthYear(profile?.birthYear) ?? undefined;
       
       const profileSnapshot = {
         age: calculatedAge,
@@ -5382,16 +5358,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profile = await storage.getProfile(userId);
       const sex = profile?.sex === 'Female' ? 'female' : 'male';
       
-      // Calculate age from DOB
-      let age: number | null = null;
-      if (profile?.dateOfBirth) {
-        const dob = new Date(profile.dateOfBirth);
-        const today = new Date();
-        age = today.getFullYear() - dob.getFullYear();
-        const monthDiff = today.getMonth() - dob.getMonth();
-        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-          age--;
-        }
+      // Calculate age from birth year using mid-year (July 1st) assumption
+      let age: number | null = calculateAgeFromBirthYear(profile?.birthYear);
+      if (age !== null) {
         age = Math.max(18, Math.min(100, age)); // Clamp to valid range
       }
       
@@ -5616,19 +5585,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get scores
       const scores = await calculateDashboardScores(userId);
 
-      // Get user profile for date of birth
+      // Get user profile for birth year
       const profile = await storage.getProfile(userId);
-      const dateOfBirth = profile?.dateOfBirth;
 
       let calendarAge: number | null = null;
       let bioAge: number | null = null;
       let bioAgeDelta: number | null = null;
 
-      if (dateOfBirth) {
-        const now = new Date();
-        const birth = new Date(dateOfBirth);
-        calendarAge = Math.floor((now.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-      }
+      // Calculate age using mid-year (July 1st) assumption for ±6 month accuracy
+      calendarAge = calculateAgeFromBirthYear(profile?.birthYear);
 
       // Biological age will be fetched separately on the client
       // For now, we'll leave it null and the client can fetch it from /api/biological-age
