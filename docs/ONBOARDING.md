@@ -45,7 +45,7 @@ client/src/components/
 | Step | Icon | Gradient | Required | Description |
 |------|------|----------|----------|-------------|
 | Notifications | Bell | blue→cyan | Yes* | Enable notifications + HealthKit |
-| Profile | User | teal→emerald | Yes | Name, DOB, biological sex |
+| Profile | User | teal→emerald | Yes | Name, birth year, biological sex |
 | Blood Work | Upload | purple→pink | Yes | Upload blood test PDF |
 | Optional Scans | Bone | orange→amber | No | CAC + DEXA scans |
 
