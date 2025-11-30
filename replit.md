@@ -30,6 +30,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - Feature-flagged routing via `server/services/healthStorageRouter.ts` with `SUPABASE_HEALTH_ENABLED` flag
 - Service layer at `server/services/supabaseHealthStorage.ts` for Supabase operations
 - Logger utility at `server/utils/logger.ts` for consistent logging
+- **Birth Year Privacy Enhancement (Nov 2025):** Replaced full `date_of_birth` with `birth_year` integer only to prevent re-identification attacks if databases are compromised. Age calculations use July 1st mid-year assumption (±6 month accuracy). Shared utility at `shared/utils/ageCalculation.ts`. 12 existing profiles migrated successfully.
 - **Storage Layer Expansion (Nov 2025):** 146 storage layer calls in routes.ts, covering:
   - HealthKit samples (get/upsert with flexible filtering)
   - Sleep nights (get/getByDate/upsert)
