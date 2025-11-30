@@ -23,6 +23,7 @@ import {
 import { aiEndpointRateLimiter, uploadRateLimiter } from "./middleware/rateLimiter";
 import { logger } from "./logger";
 import { sendBugReportEmail, sendSupportRequestEmail } from "./services/emailService";
+import { fillMissingMetricsFromSamples, backfillMissingMetrics } from "./services/healthkitSampleAggregator";
 import { eq, desc, and, gte, gt, sql, isNull, isNotNull, or } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
@@ -4273,6 +4274,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logger.info(`[HealthKit] Batch upload complete: ${inserted} inserted, ${duplicates} duplicates`);
 
+      // Trigger aggregation for critical metrics (oxygen, respiratory, temp) from samples
+      // This fills gaps for metrics iOS doesn't aggregate automatically
+      if (inserted > 0) {
+        try {
+          // Get unique dates from samples to aggregate
+          const uniqueDates = new Set<string>();
+          for (const sample of samples) {
+            const date = new Date(sample.startDate).toISOString().split('T')[0];
+            uniqueDates.add(date);
+          }
+          
+          // Aggregate for each date (non-blocking, run in background)
+          const user = await storage.getUser(userId);
+          if (user) {
+            const timezone = user.timezone || 'Australia/Perth';
+            const datesArray = Array.from(uniqueDates);
+            for (let i = 0; i < datesArray.length; i++) {
+              const date = datesArray[i];
+              fillMissingMetricsFromSamples(userId, date, timezone).catch(err => {
+                logger.error(`[HealthKit] Aggregation error for ${date}:`, err);
+              });
+            }
+            logger.info(`[HealthKit] Triggered aggregation for ${datesArray.length} dates`);
+          }
+        } catch (aggError) {
+          logger.error('[HealthKit] Failed to trigger aggregation:', aggError);
+        }
+      }
+
       res.json({ 
         inserted,
         duplicates,
@@ -4280,6 +4310,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       logger.error("[HealthKit] Batch upload error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Backfill missing metrics from samples (for historical data)
+  app.post("/api/healthkit/backfill-samples", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { days = 30 } = req.body;
+      
+      logger.info(`[HealthKit] Starting backfill for user ${userId}, last ${days} days`);
+      
+      // Run backfill asynchronously
+      backfillMissingMetrics(userId, days).catch(err => {
+        logger.error(`[HealthKit] Backfill error:`, err);
+      });
+      
+      res.json({ 
+        message: `Backfill started for last ${days} days`,
+        status: 'processing'
+      });
+    } catch (error: any) {
+      logger.error("[HealthKit] Backfill request error:", error);
       return res.status(500).json({ error: error.message });
     }
   });

@@ -939,6 +939,7 @@ export const userDailyMetrics = pgTable("user_daily_metrics", {
   dietaryWaterMl: real("dietary_water_ml"), // Water intake in milliliters
   oxygenSaturationPct: real("oxygen_saturation_pct"), // Blood oxygen saturation percentage (0-100)
   respiratoryRateBpm: real("respiratory_rate_bpm"), // Respiratory rate in breaths per minute
+  bodyTempC: real("body_temp_c"), // Body temperature in Celsius
   normalizationVersion: text("normalization_version").notNull().default("norm_v1"), // Track algorithm version
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
