@@ -24,6 +24,7 @@ import { aiEndpointRateLimiter, uploadRateLimiter } from "./middleware/rateLimit
 import { logger } from "./logger";
 import { sendBugReportEmail, sendSupportRequestEmail } from "./services/emailService";
 import { fillMissingMetricsFromSamples, backfillMissingMetrics } from "./services/healthkitSampleAggregator";
+import * as healthRouter from "./services/healthStorageRouter";
 import { eq, desc, and, gte, gt, sql, isNull, isNotNull, or } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
@@ -522,33 +523,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userAgeY,
           profileName: "Global Default",
         });
-        const session = await storage.createTestSession({
-          userId,
+        const session = await healthRouter.createBiomarkerSession(userId, {
           source: "ai_extracted",
-          testDate,
+          test_date: testDate.toISOString(),
         });
 
         // Create measurements for successfully normalized biomarkers
         const measurementIds: string[] = [];
         if (normalizationResult.normalized && normalizationResult.normalized.length > 0) {
           for (const normalized of normalizationResult.normalized) {
-            const measurement = await storage.createMeasurement({
-              sessionId: session.id,
-              biomarkerId: normalized.biomarkerId,
-              recordId: record.id,
+            const measurement = await healthRouter.createBiomarkerMeasurement({
+              session_id: session.id,
+              biomarker_id: normalized.biomarkerId,
+              record_id: record.id,
               source: "ai_extracted",
-              valueRaw: normalized.valueRawNumeric,
-              unitRaw: normalized.unitRaw,
-              valueCanonical: normalized.valueCanonical,
-              unitCanonical: normalized.unitCanonical,
-              valueDisplay: `${normalized.valueRawString} ${normalized.unitRaw}`,
-              referenceLow: normalized.referenceLow ?? undefined,
-              referenceHigh: normalized.referenceHigh ?? undefined,
+              value_raw: normalized.valueRawNumeric,
+              unit_raw: normalized.unitRaw,
+              value_canonical: normalized.valueCanonical,
+              unit_canonical: normalized.unitCanonical,
+              value_display: `${normalized.valueRawString} ${normalized.unitRaw}`,
+              reference_low: normalized.referenceLow ?? null,
+              reference_high: normalized.referenceHigh ?? null,
               flags: normalized.flags,
               warnings: normalized.warnings,
-              normalizationContext: normalized.normalizationContext as any,
+              normalization_context: normalized.normalizationContext as any,
             });
-            measurementIds.push(measurement.id);
+            if (measurement?.id) {
+              measurementIds.push(measurement.id);
+            }
           }
         }
 
@@ -2657,7 +2659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ranges
       );
 
-      const result = await storage.createMeasurementWithSession({
+      const result = await healthRouter.createMeasurementWithSession({
         userId,
         biomarkerId,
         value,
@@ -2934,10 +2936,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const extractedBiomarkers = result.extractedData.biomarkers;
             const testDate = new Date(result.extractedData.testDate);
             
-            const session = await storage.createTestSession({
-              userId,
+            const session = await healthRouter.createBiomarkerSession(userId, {
               source: "ai_extracted",
-              testDate,
+              test_date: testDate.toISOString(),
               notes: result.extractedData.notes || `Extracted from ${fileName}`,
             });
 
@@ -2988,23 +2989,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
                 seenBiomarkersInSession.add(normalized.biomarker_id);
 
-                const measurement = await storage.createMeasurement({
-                  sessionId: session.id,
-                  biomarkerId: normalized.biomarker_id,
+                const measurement = await healthRouter.createBiomarkerMeasurement({
+                  session_id: session.id,
+                  biomarker_id: normalized.biomarker_id,
                   source: "ai_extracted",
-                  valueRaw: biomarker.value,
-                  unitRaw: biomarker.unit,
-                  valueCanonical: normalized.value_canonical,
-                  unitCanonical: normalized.unit_canonical,
-                  valueDisplay: normalized.value_display,
-                  referenceLow: biomarker.referenceRangeLow ?? normalized.ref_range.low ?? undefined,
-                  referenceHigh: biomarker.referenceRangeHigh ?? normalized.ref_range.high ?? undefined,
+                  value_raw: biomarker.value,
+                  unit_raw: biomarker.unit,
+                  value_canonical: normalized.value_canonical,
+                  unit_canonical: normalized.unit_canonical,
+                  value_display: normalized.value_display,
+                  reference_low: biomarker.referenceRangeLow ?? normalized.ref_range.low ?? null,
+                  reference_high: biomarker.referenceRangeHigh ?? normalized.ref_range.high ?? null,
                   flags: biomarker.flags ?? normalized.flags,
                   warnings: normalized.warnings,
-                  normalizationContext: normalized.context_used,
+                  normalization_context: normalized.context_used,
                 });
 
-                measurementIds.push(measurement.id);
+                if (measurement?.id) {
+                  measurementIds.push(measurement.id);
+                }
                 successfulBiomarkers.push(biomarker.name);
               } catch (error: any) {
                 logger.error(`Failed to normalize biomarker ${biomarker.name}:`, error);

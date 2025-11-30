@@ -384,6 +384,69 @@ export async function createBiomarkerMeasurement(measurement: any) {
   return created;
 }
 
+export interface CreateMeasurementWithSessionParams {
+  userId: string;
+  biomarkerId: string;
+  value: number;
+  unit: string;
+  testDate: Date;
+  valueCanonical: number;
+  unitCanonical: string;
+  valueDisplay: string;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  flags: string[];
+  warnings: string[];
+  normalizationContext: any;
+  source?: string;
+}
+
+export async function createMeasurementWithSession(params: CreateMeasurementWithSessionParams) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const result = await supabaseHealth.createMeasurementWithSession(params);
+      
+      // Convert Supabase response format to Neon format for compatibility
+      return {
+        session: {
+          id: result.session.id,
+          userId: params.userId,
+          source: result.session.source,
+          testDate: new Date(result.session.test_date),
+          notes: result.session.notes,
+          createdAt: result.session.created_at ? new Date(result.session.created_at) : new Date(),
+        },
+        measurement: {
+          id: result.measurement.id,
+          sessionId: result.measurement.session_id,
+          biomarkerId: result.measurement.biomarker_id,
+          recordId: result.measurement.record_id,
+          source: result.measurement.source,
+          valueRaw: result.measurement.value_raw,
+          unitRaw: result.measurement.unit_raw,
+          valueCanonical: result.measurement.value_canonical,
+          unitCanonical: result.measurement.unit_canonical,
+          valueDisplay: result.measurement.value_display,
+          referenceLow: result.measurement.reference_low,
+          referenceHigh: result.measurement.reference_high,
+          flags: result.measurement.flags,
+          warnings: result.measurement.warnings,
+          normalizationContext: result.measurement.normalization_context,
+          updatedBy: result.measurement.updated_by,
+          createdAt: result.measurement.created_at ? new Date(result.measurement.created_at) : new Date(),
+          updatedAt: result.measurement.updated_at ? new Date(result.measurement.updated_at) : null,
+        },
+      };
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase createMeasurementWithSession failed, falling back to Neon:", error);
+    }
+  }
+  
+  // Fall back to Neon - import storage dynamically to avoid circular dependency
+  const { storage } = await import("../storage");
+  return await storage.createMeasurementWithSession(params);
+}
+
 // Daily Insights are stored in Neon (not health data, but AI-generated content)
 // No routing needed - they stay in the primary database
 

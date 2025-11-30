@@ -176,9 +176,16 @@ export interface BiomarkerMeasurement {
 }
 
 export async function createBiomarkerMeasurement(measurement: BiomarkerMeasurement): Promise<BiomarkerMeasurement> {
+  const sanitizedMeasurement = {
+    ...measurement,
+    normalization_context: typeof measurement.normalization_context === 'string' 
+      ? null 
+      : (measurement.normalization_context || null),
+  };
+  
   const { data, error } = await supabase
     .from('biomarker_measurements')
-    .insert(measurement)
+    .insert(sanitizedMeasurement)
     .select()
     .single();
 
@@ -202,6 +209,97 @@ export async function getMeasurementsBySession(sessionId: string): Promise<Bioma
   }
 
   return data || [];
+}
+
+export interface CreateMeasurementWithSessionParams {
+  userId: string;
+  biomarkerId: string;
+  value: number;
+  unit: string;
+  testDate: Date;
+  valueCanonical: number;
+  unitCanonical: string;
+  valueDisplay: string;
+  referenceLow: number | null;
+  referenceHigh: number | null;
+  flags: string[];
+  warnings: string[];
+  normalizationContext: Record<string, any> | null;
+  source?: string;
+}
+
+export async function createMeasurementWithSession(params: CreateMeasurementWithSessionParams): Promise<{ session: BiomarkerTestSession; measurement: BiomarkerMeasurement }> {
+  const healthId = await getHealthId(params.userId);
+  const source = params.source || 'manual';
+  
+  const testDateStart = new Date(params.testDate);
+  testDateStart.setHours(0, 0, 0, 0);
+  const testDateEnd = new Date(params.testDate);
+  testDateEnd.setHours(23, 59, 59, 999);
+  
+  const { data: existingSession, error: sessionError } = await supabase
+    .from('biomarker_test_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('source', source)
+    .gte('test_date', testDateStart.toISOString())
+    .lte('test_date', testDateEnd.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  
+  let session: BiomarkerTestSession;
+  
+  if (existingSession && !sessionError) {
+    session = existingSession;
+  } else {
+    const { data: newSession, error: createError } = await supabase
+      .from('biomarker_test_sessions')
+      .insert({
+        health_id: healthId,
+        source: source,
+        test_date: params.testDate.toISOString(),
+      })
+      .select()
+      .single();
+    
+    if (createError || !newSession) {
+      logger.error('[SupabaseHealth] Error creating biomarker session:', createError);
+      throw createError || new Error('Failed to create session');
+    }
+    session = newSession;
+  }
+  
+  const sanitizedContext = typeof params.normalizationContext === 'string' 
+    ? null 
+    : (params.normalizationContext || null);
+  
+  const { data: measurement, error: measurementError } = await supabase
+    .from('biomarker_measurements')
+    .insert({
+      session_id: session.id,
+      biomarker_id: params.biomarkerId,
+      source: source,
+      value_raw: params.value,
+      unit_raw: params.unit,
+      value_canonical: params.valueCanonical,
+      unit_canonical: params.unitCanonical,
+      value_display: params.valueDisplay,
+      reference_low: params.referenceLow,
+      reference_high: params.referenceHigh,
+      flags: params.flags,
+      warnings: params.warnings,
+      normalization_context: sanitizedContext,
+    })
+    .select()
+    .single();
+  
+  if (measurementError || !measurement) {
+    logger.error('[SupabaseHealth] Error creating biomarker measurement:', measurementError);
+    throw measurementError || new Error('Failed to create measurement');
+  }
+  
+  return { session, measurement };
 }
 
 // ==================== HEALTHKIT SAMPLES ====================
