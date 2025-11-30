@@ -23,7 +23,7 @@ import {
 import { aiEndpointRateLimiter, uploadRateLimiter } from "./middleware/rateLimiter";
 import { logger } from "./logger";
 import { sendBugReportEmail, sendSupportRequestEmail } from "./services/emailService";
-import { eq, desc, and, gte, gt, sql, isNull, isNotNull } from "drizzle-orm";
+import { eq, desc, and, gte, gt, sql, isNull, isNotNull, or } from "drizzle-orm";
 import { 
   updateDemographicsSchema, 
   updateHealthBaselineSchema, 
@@ -69,6 +69,8 @@ import {
   ActionPlanStatusEnum,
   users,
   userDailyEngagement,
+  developerMessages,
+  developerMessageReads,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -3486,6 +3488,305 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error removing device token:', error);
       res.status(500).json({ error: "Failed to remove device token" });
+    }
+  });
+
+  // ============================================================================
+  // Developer Messages & User Notifications (Bug Reports, Feature Requests)
+  // ============================================================================
+
+  // Get unread notification count for bell icon badge
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all active messages that haven't expired
+      const messages = await db
+        .select({ id: developerMessages.id })
+        .from(developerMessages)
+        .where(
+          and(
+            eq(developerMessages.isActive, true),
+            or(
+              isNull(developerMessages.expiresAt),
+              gte(developerMessages.expiresAt, new Date())
+            )
+          )
+        );
+      
+      // Get which ones the user has read
+      const readMessages = await db
+        .select({ messageId: developerMessageReads.messageId })
+        .from(developerMessageReads)
+        .where(eq(developerMessageReads.userId, userId));
+      
+      const readMessageIds = new Set(readMessages.map(r => r.messageId));
+      const unreadCount = messages.filter(m => !readMessageIds.has(m.id)).length;
+      
+      res.json({ unreadCount });
+    } catch (error) {
+      logger.error('Error fetching notification count:', error);
+      res.status(500).json({ error: "Failed to fetch notification count" });
+    }
+  });
+
+  // Get developer messages with read status
+  app.get("/api/notifications/messages", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all active messages
+      const messages = await db
+        .select()
+        .from(developerMessages)
+        .where(
+          and(
+            eq(developerMessages.isActive, true),
+            or(
+              isNull(developerMessages.expiresAt),
+              gte(developerMessages.expiresAt, new Date())
+            )
+          )
+        )
+        .orderBy(desc(developerMessages.createdAt));
+      
+      // Get which ones the user has read
+      const readMessages = await db
+        .select({ messageId: developerMessageReads.messageId })
+        .from(developerMessageReads)
+        .where(eq(developerMessageReads.userId, userId));
+      
+      const readMessageIds = new Set(readMessages.map(r => r.messageId));
+      
+      // Add isRead status to messages
+      const messagesWithReadStatus = messages.map(m => ({
+        ...m,
+        isRead: readMessageIds.has(m.id),
+      }));
+      
+      res.json({ messages: messagesWithReadStatus });
+    } catch (error) {
+      logger.error('Error fetching developer messages:', error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Mark a developer message as read
+  app.post("/api/notifications/messages/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const messageId = parseInt(req.params.id);
+      
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Invalid message ID" });
+      }
+      
+      // Check if already read
+      const existing = await db
+        .select()
+        .from(developerMessageReads)
+        .where(
+          and(
+            eq(developerMessageReads.userId, userId),
+            eq(developerMessageReads.messageId, messageId)
+          )
+        )
+        .limit(1);
+      
+      if (existing.length === 0) {
+        // Mark as read
+        await db
+          .insert(developerMessageReads)
+          .values({
+            userId,
+            messageId,
+          });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error marking message as read:', error);
+      res.status(500).json({ error: "Failed to mark message as read" });
+    }
+  });
+
+  // Submit bug report (sends email via Resend)
+  app.post("/api/notifications/bug-report", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message } = req.body;
+      
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ error: "Bug description is required" });
+      }
+      
+      // Get user email for reply-to
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const userEmail = user?.email;
+      
+      // Send bug report email
+      const { sendBugReportEmail } = await import('./services/emailService');
+      const success = await sendBugReportEmail(
+        'Bug Report from Flō User',
+        message.trim(),
+        'medium',
+        userEmail || undefined,
+        parseInt(userId) || undefined
+      );
+      
+      if (!success) {
+        logger.error('[BugReport] Failed to send bug report email', { userId });
+        return res.status(500).json({ error: "Failed to send bug report" });
+      }
+      
+      logger.info('[BugReport] Bug report submitted successfully', { userId });
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error submitting bug report:', error);
+      res.status(500).json({ error: "Failed to submit bug report" });
+    }
+  });
+
+  // Submit feature request (sends email via Resend)
+  app.post("/api/notifications/feature-request", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { title, description } = req.body;
+      
+      if (!title || typeof title !== 'string' || title.trim().length === 0) {
+        return res.status(400).json({ error: "Feature title is required" });
+      }
+      
+      if (!description || typeof description !== 'string' || description.trim().length === 0) {
+        return res.status(400).json({ error: "Feature description is required" });
+      }
+      
+      // Get user email for reply-to
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      const userEmail = user?.email;
+      
+      // Send feature request email
+      const { sendFeatureRequestEmail } = await import('./services/emailService');
+      const success = await sendFeatureRequestEmail(
+        title.trim(),
+        description.trim(),
+        userEmail || undefined,
+        parseInt(userId) || undefined
+      );
+      
+      if (!success) {
+        logger.error('[FeatureRequest] Failed to send feature request email', { userId });
+        return res.status(500).json({ error: "Failed to send feature request" });
+      }
+      
+      logger.info('[FeatureRequest] Feature request submitted successfully', { userId, title });
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error submitting feature request:', error);
+      res.status(500).json({ error: "Failed to submit feature request" });
+    }
+  });
+
+  // Admin: Create a new developer message
+  app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { title, message, type, expiresAt } = req.body;
+      
+      if (!title || !message) {
+        return res.status(400).json({ error: "Title and message are required" });
+      }
+      
+      const [newMessage] = await db
+        .insert(developerMessages)
+        .values({
+          title,
+          message,
+          type: type || 'update',
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+        })
+        .returning();
+      
+      logger.info('[Admin] Developer message created', { messageId: newMessage.id });
+      res.json(newMessage);
+    } catch (error) {
+      logger.error('Error creating developer message:', error);
+      res.status(500).json({ error: "Failed to create message" });
+    }
+  });
+
+  // Admin: Get all developer messages (including inactive)
+  app.get("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const messages = await db
+        .select()
+        .from(developerMessages)
+        .orderBy(desc(developerMessages.createdAt));
+      
+      res.json({ messages });
+    } catch (error) {
+      logger.error('Error fetching admin developer messages:', error);
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  });
+
+  // Admin: Update a developer message
+  app.patch("/api/admin/developer-messages/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      const { title, message, type, isActive, expiresAt } = req.body;
+      
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Invalid message ID" });
+      }
+      
+      const updateData: any = {};
+      if (title !== undefined) updateData.title = title;
+      if (message !== undefined) updateData.message = message;
+      if (type !== undefined) updateData.type = type;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
+      
+      const [updated] = await db
+        .update(developerMessages)
+        .set(updateData)
+        .where(eq(developerMessages.id, messageId))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      
+      logger.info('[Admin] Developer message updated', { messageId });
+      res.json(updated);
+    } catch (error) {
+      logger.error('Error updating developer message:', error);
+      res.status(500).json({ error: "Failed to update message" });
+    }
+  });
+
+  // Admin: Delete a developer message
+  app.delete("/api/admin/developer-messages/:id", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const messageId = parseInt(req.params.id);
+      
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Invalid message ID" });
+      }
+      
+      const [deleted] = await db
+        .delete(developerMessages)
+        .where(eq(developerMessages.id, messageId))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Message not found" });
+      }
+      
+      logger.info('[Admin] Developer message deleted', { messageId });
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error deleting developer message:', error);
+      res.status(500).json({ error: "Failed to delete message" });
     }
   });
 

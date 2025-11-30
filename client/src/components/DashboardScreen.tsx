@@ -7,7 +7,8 @@ import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
 import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
-import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical } from 'lucide-react';
+import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell } from 'lucide-react';
+import { NotificationsScreen } from './NotificationsScreen';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useState } from 'react';
@@ -137,6 +138,7 @@ function SortableItem({ id, isDark, children }: SortableItemProps) {
 export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogout }: DashboardScreenProps) {
   const [, setLocation] = useLocation();
   const [showInsights, setShowInsights] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [paywallModalId, setPaywallModalId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { user } = useAuth();
@@ -144,6 +146,10 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
+  });
+  
+  const { data: notificationCountData } = useQuery<{ unreadCount: number }>({
+    queryKey: ['/api/notifications/unread-count'],
   });
 
   const { data: planData } = usePlan();
@@ -357,6 +363,20 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
                 </button>
               )}
               <button 
+                onClick={() => setShowNotifications(true)}
+                className={`p-2 rounded-lg transition-colors relative ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                data-testid="button-notifications"
+              >
+                <Bell className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+                {(notificationCountData?.unreadCount ?? 0) > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-medium text-white bg-cyan-500 rounded-full">
+                    {notificationCountData?.unreadCount ?? 0}
+                  </span>
+                )}
+              </button>
+              <button 
                 onClick={onThemeToggle}
                 className={`p-2 rounded-lg transition-colors ${
                   isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
@@ -445,6 +465,14 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           onOpenChange={(open) => !open && setPaywallModalId(null)}
           modal={currentPaywallModal}
           onUpgrade={handleUpgrade}
+        />
+      )}
+
+      {/* Notifications Screen */}
+      {showNotifications && (
+        <NotificationsScreen 
+          isDark={isDark} 
+          onClose={() => setShowNotifications(false)} 
         />
       )}
     </div>

@@ -2486,3 +2486,61 @@ export const insertFloChatMessageSchema = createInsertSchema(floChatMessages).om
 // Types
 export type InsertFloChatMessage = z.infer<typeof insertFloChatMessageSchema>;
 export type FloChatMessage = typeof floChatMessages.$inferSelect;
+
+// ============================================================================
+// Developer Messages - Admin-to-User Announcements
+// ============================================================================
+
+// Type of developer message
+export const developerMessageTypeEnum = pgEnum("developer_message_type", [
+  "update",   // App updates and releases
+  "outage",   // Scheduled maintenance or outages
+  "feature"   // New feature announcements
+]);
+
+// Developer messages table - for broadcasting announcements from admins to users
+export const developerMessages = pgTable("developer_messages", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  
+  // Message content
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: developerMessageTypeEnum("type").default("update").notNull(),
+  
+  // Publishing controls
+  isActive: boolean("is_active").default(true).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"), // Optional expiry
+}, (table) => ({
+  activeCreatedAtIdx: index("idx_developer_messages_active_created").on(table.isActive, table.createdAt),
+}));
+
+// Track which users have read which messages
+export const developerMessageReads = pgTable("developer_message_reads", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  messageId: integer("message_id").notNull().references(() => developerMessages.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  readAt: timestamp("read_at").defaultNow().notNull(),
+}, (table) => ({
+  userMessageUniqueIdx: uniqueIndex("idx_developer_message_reads_unique").on(table.userId, table.messageId),
+  userIdIdx: index("idx_developer_message_reads_user").on(table.userId),
+}));
+
+// Zod enums for validation
+export const DeveloperMessageTypeEnum = z.enum(["update", "outage", "feature"]);
+
+// Insert schemas - id is auto-excluded since it uses generatedAlwaysAsIdentity()
+export const insertDeveloperMessageSchema = createInsertSchema(developerMessages).omit({
+  createdAt: true,
+} as const);
+
+export const insertDeveloperMessageReadSchema = createInsertSchema(developerMessageReads).omit({
+  readAt: true,
+} as const);
+
+// Types
+export type InsertDeveloperMessage = z.infer<typeof insertDeveloperMessageSchema>;
+export type DeveloperMessage = typeof developerMessages.$inferSelect;
+export type InsertDeveloperMessageRead = z.infer<typeof insertDeveloperMessageReadSchema>;
+export type DeveloperMessageRead = typeof developerMessageReads.$inferSelect;
