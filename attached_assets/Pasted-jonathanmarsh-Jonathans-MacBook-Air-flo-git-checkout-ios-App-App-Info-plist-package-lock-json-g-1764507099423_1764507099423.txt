@@ -1,0 +1,122 @@
+jonathanmarsh@Jonathans-MacBook-Air flo % git checkout -- ios/App/App/Info.plist package-lock.json
+git pull
+Updating b78516d..51cf992
+Fast-forward
+ .replit                                                                     |   65 +
+ attached_assets/Flo Clear_1764390686476.png                                 |  Bin 0 -> 1338355 bytes
+ attached_assets/IMG_7832_1764471185026.png                                  |  Bin 0 -> 280952 bytes
+ attached_assets/IMG_7833_1764471223198.png                                  |  Bin 0 -> 309224 bytes
+ attached_assets/IMG_7834_1764471283478.png                                  |  Bin 0 -> 316351 bytes
+ .../Pasted--Area-Control-Practice--1764397358642_1764397358642.txt          |   46 +
+ ...id-data-type-uuid-column-name-health-id--1764495887614_1764495887615.txt |  150 +
+ ...id-data-type-uuid-column-name-health-id--1764495927111_1764495927111.txt |  150 +
+ ...Phase-1-Holistic-Personal-Understanding--1764464970025_1764464970026.txt |  123 +
+ ...e-Fl-an-AI-health-companion-whose-primar-1764422826507_1764422826508.txt |   69 +
+ ...uare-Image-Send-X-Check-from-lucide-reac-1764474546996_1764474546997.txt |  498 +++
+ .../Screenshot 2025-11-30 at 11.33.04\342\200\257am_1764473601676.png"      |  Bin 0 -> 1537835 bytes
+ attached_assets/image_1764391710283.png                                     |  Bin 0 -> 144114 bytes
+ attached_assets/image_1764399889158.png                                     |  Bin 0 -> 213670 bytes
+ attached_assets/image_1764413156261.png                                     |  Bin 0 -> 95349 bytes
+ attached_assets/image_1764459982207.png                                     |  Bin 0 -> 138022 bytes
+ attached_assets/image_1764476386636.png                                     |  Bin 0 -> 110309 bytes
+ attached_assets/image_1764476476888.png                                     |  Bin 0 -> 221329 bytes
+ attached_assets/image_1764476695096.png                                     |  Bin 0 -> 230146 bytes
+ attached_assets/image_1764476722365.png                                     |  Bin 0 -> 146839 bytes
+ attached_assets/image_1764476750600.png                                     |  Bin 0 -> 147960 bytes
+ attached_assets/image_1764476783043.png                                     |  Bin 0 -> 227056 bytes
+ attached_assets/image_1764476849192.png                                     |  Bin 0 -> 221526 bytes
+ attached_assets/image_1764497124963.png                                     |  Bin 0 -> 330490 bytes
+ attached_assets/image_1764497149195.png                                     |  Bin 0 -> 330490 bytes
+ client/public/favicon.png                                                   |  Bin 1145 -> 1338355 bytes
+ client/src/components/DashboardScreen.tsx                                   |   64 +-
+ client/src/components/DiagnosticResultsScreen.tsx                           |   15 +-
+ client/src/components/ExportDataScreen.tsx                                  |   95 +-
+ client/src/components/NotificationsScreen.tsx                               |  522 +++
+ client/src/components/PrivacyPolicyScreen.tsx                               |    2 +-
+ client/src/components/ProfileScreen.tsx                                     |  128 +-
+ client/src/components/TermsOfServiceScreen.tsx                              |    2 +-
+ client/src/components/admin/AdminMessagesManager.tsx                        |  536 +++
+ client/src/components/dashboard/BodyCompositionTile.tsx                     |    8 +-
+ client/src/components/dashboard/FlomentumGamifiedTile.tsx                   |   18 +-
+ client/src/components/dashboard/HeartMetabolicTile.tsx                      |    8 +-
+ client/src/components/dashboard/ReadinessTile.tsx                           |   24 +-
+ client/src/components/onboarding/SetupSteps.tsx                             |  103 +-
+ client/src/hooks/useTileOrder.ts                                            |   12 +-
+ client/src/lib/biomarker-config.ts                                          |   23 +
+ client/src/pages/ActionsScreen.tsx                                          |   24 +-
+ client/src/pages/MobileAuth.tsx                                             |  846 ++---
+ client/src/pages/admin-dashboard.tsx                                        |    6 +-
+ client/src/pages/billing.tsx                                                |   33 +-
+ client/src/pages/dashboard-new.tsx                                          |    2 +-
+ client/src/pages/labs.tsx                                                   |   16 +-
+ docs/ONBOARDING.md                                                          |    2 +-
+ docs/ios-healthkit-samples-guide.md                                         |  178 +
+ ios/App/App/Health.swift                                                    |  275 +-
+ ios/App/App/Info.plist                                                      |    2 +
+ package-lock.json                                                           | 6687 ++++++++++++++---------------------
+ package.json                                                                |   10 +-
+ replit.md                                                                   |   67 +-
+ server/db/supabase-health-tables.sql                                        |  341 ++
+ server/index.ts                                                             |   39 +
+ server/middleware/rateLimiter.ts                                            |   52 +
+ server/replitAuth.ts                                                        |   11 +
+ server/routes.ts                                                            | 2053 +++++++----
+ server/routes/mobileAuth.ts                                                 |  109 +-
+ server/scripts/migrate-health-data-to-supabase.ts                           |  633 ++++
+ server/scripts/run-supabase-migration.ts                                    |   55 +
+ server/services/aiInsightGenerator.ts                                       |    6 +-
+ server/services/baselineCalculator.ts                                       |   30 +-
+ server/services/emailService.ts                                             |   90 +
+ server/services/floOracleContextBuilder.ts                                  |  623 +++-
+ server/services/geminiVoiceService.ts                                       |   34 +-
+ server/services/healthStorageRouter.ts                                      |  773 ++++
+ server/services/healthkitSampleAggregator.ts                                |  356 ++
+ server/services/memoryExtractionService.ts                                  |  131 +
+ server/services/nutritionMindfulnessAggregator.ts                           |  543 +++
+ server/services/supabaseHealthStorage.ts                                    | 1277 +++++++
+ server/services/userMemoryService.ts                                        |  266 ++
+ server/storage.ts                                                           |  467 ++-
+ server/utils/logger.ts                                                      |   61 +
+ shared/schema.ts                                                            |  281 +-
+ shared/utils/ageCalculation.ts                                              |   49 +
+ 77 files changed, 13463 insertions(+), 5626 deletions(-)
+ create mode 100644 attached_assets/Flo Clear_1764390686476.png
+ create mode 100644 attached_assets/IMG_7832_1764471185026.png
+ create mode 100644 attached_assets/IMG_7833_1764471223198.png
+ create mode 100644 attached_assets/IMG_7834_1764471283478.png
+ create mode 100644 attached_assets/Pasted--Area-Control-Practice--1764397358642_1764397358642.txt
+ create mode 100644 attached_assets/Pasted--column-name-id-data-type-uuid-column-name-health-id--1764495887614_1764495887615.txt
+ create mode 100644 attached_assets/Pasted--column-name-id-data-type-uuid-column-name-health-id--1764495927111_1764495927111.txt
+ create mode 100644 attached_assets/Pasted--project-Fl-Conversational-Memory-Enhancement-Phase-1-Holistic-Personal-Understanding--1764464970025_1764464970026.txt
+ create mode 100644 attached_assets/Pasted-Flo-Oracle-Caring-Context-First-Health-Companion-You-are-Fl-an-AI-health-companion-whose-primar-1764422826507_1764422826508.txt
+ create mode 100644 attached_assets/Pasted-import-Bell-ChevronLeft-Bug-Lightbulb-MessageSquare-Image-Send-X-Check-from-lucide-reac-1764474546996_1764474546997.txt
+ create mode 100644 "attached_assets/Screenshot 2025-11-30 at 11.33.04\342\200\257am_1764473601676.png"
+ create mode 100644 attached_assets/image_1764391710283.png
+ create mode 100644 attached_assets/image_1764399889158.png
+ create mode 100644 attached_assets/image_1764413156261.png
+ create mode 100644 attached_assets/image_1764459982207.png
+ create mode 100644 attached_assets/image_1764476386636.png
+ create mode 100644 attached_assets/image_1764476476888.png
+ create mode 100644 attached_assets/image_1764476695096.png
+ create mode 100644 attached_assets/image_1764476722365.png
+ create mode 100644 attached_assets/image_1764476750600.png
+ create mode 100644 attached_assets/image_1764476783043.png
+ create mode 100644 attached_assets/image_1764476849192.png
+ create mode 100644 attached_assets/image_1764497124963.png
+ create mode 100644 attached_assets/image_1764497149195.png
+ create mode 100644 client/src/components/NotificationsScreen.tsx
+ create mode 100644 client/src/components/admin/AdminMessagesManager.tsx
+ create mode 100644 docs/ios-healthkit-samples-guide.md
+ create mode 100644 server/db/supabase-health-tables.sql
+ create mode 100644 server/middleware/rateLimiter.ts
+ create mode 100644 server/scripts/migrate-health-data-to-supabase.ts
+ create mode 100644 server/scripts/run-supabase-migration.ts
+ create mode 100644 server/services/healthStorageRouter.ts
+ create mode 100644 server/services/healthkitSampleAggregator.ts
+ create mode 100644 server/services/memoryExtractionService.ts
+ create mode 100644 server/services/nutritionMindfulnessAggregator.ts
+ create mode 100644 server/services/supabaseHealthStorage.ts
+ create mode 100644 server/services/userMemoryService.ts
+ create mode 100644 server/utils/logger.ts
+ create mode 100644 shared/utils/ageCalculation.ts
+jonathanmarsh@Jonathans-MacBook-Air flo %   
