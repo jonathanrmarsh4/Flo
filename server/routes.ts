@@ -427,14 +427,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const eventDetails = details || {};
       
-      // Log event to database
-      const { lifeEvents } = await import('@shared/schema');
-      const [inserted] = await db.insert(lifeEvents).values({
-        userId,
+      // Log event to Supabase (health data must go to Supabase for privacy/security)
+      const { isSupabaseHealthEnabled, createLifeEvent } = await import('./services/healthStorageRouter');
+      
+      if (!isSupabaseHealthEnabled()) {
+        logger.error(`[LifeEvents] Supabase health storage not enabled - cannot store health data`);
+        return res.status(503).json({ error: "Health storage not available" });
+      }
+      
+      const inserted = await createLifeEvent(userId, {
         eventType,
         details: eventDetails,
         notes: `Quick-logged via iOS Shortcut`, // Track source
-      }).returning();
+      });
       
       logger.info(`[LifeEvents] Quick-logged ${eventType} for user ${userId} via API key`);
       
@@ -442,8 +447,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         event: {
           id: inserted.id,
-          eventType: inserted.eventType,
-          happenedAt: inserted.happenedAt,
+          eventType: inserted.event_type || inserted.eventType,
+          happenedAt: inserted.happened_at || inserted.happenedAt,
         }
       });
     } catch (error) {
@@ -4404,47 +4409,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Fallback to Neon ONLY if Supabase not enabled or actually failed (not for duplicates)
-      if (!isSupabaseHealthEnabled() || !supabaseSuccess) {
-        inserted = 0;
-        duplicates = 0;
-        for (const workout of workouts) {
-          try {
-            const insertData = {
-              userId,
-              workoutType: workout.workoutType,
-              startDate: new Date(workout.startDate),
-              endDate: new Date(workout.endDate),
-              duration: workout.duration,
-              totalDistance: workout.totalDistance || null,
-              totalDistanceUnit: workout.totalDistanceUnit || null,
-              totalEnergyBurned: workout.totalEnergyBurned || null,
-              totalEnergyBurnedUnit: workout.totalEnergyBurnedUnit || null,
-              averageHeartRate: workout.averageHeartRate || null,
-              maxHeartRate: workout.maxHeartRate || null,
-              minHeartRate: workout.minHeartRate || null,
-              sourceName: workout.sourceName || null,
-              sourceBundleId: workout.sourceBundleId || null,
-              deviceName: workout.deviceName || null,
-              deviceManufacturer: workout.deviceManufacturer || null,
-              deviceModel: workout.deviceModel || null,
-              metadata: workout.metadata || null,
-              uuid: workout.uuid || null,
-            };
-
-            await db.insert(healthkitWorkouts).values(insertData);
-            inserted++;
-          } catch (error: any) {
-            if (error.code === '23505') {
-              duplicates++;
-              logger.debug(`[HealthKit] Duplicate workout UUID: ${workout.uuid}`);
-            } else {
-              logger.error(`[HealthKit] Failed to insert workout:`, error);
-              throw error;
-            }
-          }
-        }
-        logger.info(`[HealthKit] Neon workout upload: ${inserted} inserted, ${duplicates} duplicates`);
+      // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+      // Return 503 if Supabase not enabled - do not fall back to Neon
+      if (!isSupabaseHealthEnabled()) {
+        logger.error(`[HealthKit] Supabase health storage not enabled - cannot store health data`);
+        return res.status(503).json({ error: "Health storage not available" });
+      }
+      
+      // If Supabase failed (not just duplicates), return error
+      if (!supabaseSuccess) {
+        logger.error(`[HealthKit] Supabase workout upload failed`);
+        return res.status(500).json({ error: "Failed to store workout data" });
       }
 
       res.json({ 
@@ -4542,8 +4517,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[HealthKit] Ingesting daily metrics for user ${userId}, date ${metrics.localDate}`);
       logger.debug(`[HealthKit] Received metrics: ${JSON.stringify(metrics, null, 2)}`);
 
-      // Also populate health_daily_metrics for Flōmentum consistency and body composition tracking
-      // Use stepsRawSum for actual step count (stepsNormalized may be 0-1 score or lower)
+      // INTENTIONAL NEON WRITE: healthDailyMetrics stays in Neon for Flōmentum fast lookups
+      // This is documented in replit.md as an intentional exception for performance reasons
+      // The canonical health data is also written to Supabase below via upsertSupabaseDailyMetrics
       const healthMetricsData = {
         userId,
         date: metrics.localDate,
@@ -4587,7 +4563,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('❌ [BODY COMP DEBUG] Data that failed:', JSON.stringify(healthMetricsData, null, 2));
       }
 
-      // Upsert: insert or update if already exists for this user+date
+      // INTENTIONAL NEON WRITE: userDailyMetrics stays in Neon for timezone lookups + ingestion
+      // This is documented in replit.md as an intentional exception for performance reasons
+      // The canonical health data is also written to Supabase below via upsertSupabaseDailyMetrics
       const { and, sql: drizzleSql } = await import("drizzle-orm");
       
       // Check if record exists
@@ -7026,22 +7004,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? { ...extraction.details, dosage: dosageInfo }
             : extraction.details;
           
-          // Log event to database
-          const { lifeEvents } = await import('@shared/schema');
-          await db.insert(lifeEvents).values({
-            userId,
-            eventType: extraction.eventType,
-            details: eventDetails,
-            notes: message.trim(),
-          });
+          // Log event to Supabase (health data must go to Supabase for privacy/security)
+          const { isSupabaseHealthEnabled, createLifeEvent } = await import('./services/healthStorageRouter');
           
-          eventAcknowledgment = extraction.acknowledgment;
-          logger.info('[FloOracle] Life event logged', {
-            userId,
-            eventType: extraction.eventType,
-            acknowledgment: eventAcknowledgment,
-            dosage: dosageInfo || 'none',
-          });
+          if (isSupabaseHealthEnabled()) {
+            await createLifeEvent(userId, {
+              eventType: extraction.eventType,
+              details: eventDetails,
+              notes: message.trim(),
+            });
+            
+            eventAcknowledgment = extraction.acknowledgment;
+            logger.info('[FloOracle] Life event logged to Supabase', {
+              userId,
+              eventType: extraction.eventType,
+              acknowledgment: eventAcknowledgment,
+              dosage: dosageInfo || 'none',
+            });
+          } else {
+            logger.warn('[FloOracle] Supabase not enabled - life event not logged');
+          }
         }
       }
 

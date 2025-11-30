@@ -568,43 +568,43 @@ export async function updateActionPlanItem(itemId: string, updates: any) {
 }
 
 export async function updateActionPlanItemStatus(id: string, userId: string, status: string, completedAt?: Date) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const updates: any = { status };
-      if (completedAt) {
-        updates.completed_at = completedAt;
-      }
-      const result = await supabaseHealth.updateActionPlanItem(id, updates);
-      // Normalize Supabase snake_case to camelCase for API compatibility
-      return {
-        id: result.id,
-        userId: userId,
-        title: result.title,
-        description: result.description,
-        category: result.category,
-        status: result.status,
-        priority: result.priority,
-        targetValue: result.target_value,
-        targetUnit: result.target_unit,
-        currentValue: result.current_value,
-        progressPercent: result.progress_percent,
-        startDate: result.start_date,
-        targetDate: result.target_date,
-        completedAt: result.completed_at,
-        notes: result.notes,
-        source: result.source,
-        metadata: result.metadata,
-        createdAt: result.created_at,
-        updatedAt: result.updated_at,
-      };
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase updateActionPlanItemStatus failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  // Fallback to Neon
-  const { storage } = await import("../storage");
-  return await storage.updateActionPlanItemStatus(id, userId, status, completedAt);
+  try {
+    const updates: any = { status };
+    if (completedAt) {
+      updates.completed_at = completedAt;
+    }
+    const result = await supabaseHealth.updateActionPlanItem(id, updates);
+    // Normalize Supabase snake_case to camelCase for API compatibility
+    return {
+      id: result.id,
+      userId: userId,
+      title: result.title,
+      description: result.description,
+      category: result.category,
+      status: result.status,
+      priority: result.priority,
+      targetValue: result.target_value,
+      targetUnit: result.target_unit,
+      currentValue: result.current_value,
+      progressPercent: result.progress_percent,
+      startDate: result.start_date,
+      targetDate: result.target_date,
+      completedAt: result.completed_at,
+      notes: result.notes,
+      source: result.source,
+      metadata: result.metadata,
+      createdAt: result.created_at,
+      updatedAt: result.updated_at,
+    };
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase updateActionPlanItemStatus failed:", error);
+    throw error;
+  }
 }
 
 export async function getActionPlanItem(id: string, userId: string) {
@@ -661,19 +661,17 @@ export async function getBiomarkerSessions(userId: string) {
 }
 
 export async function createBiomarkerSession(userId: string, session: any) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      return await supabaseHealth.createBiomarkerSession(userId, session);
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase createBiomarkerSession failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  const [created] = await db
-    .insert(biomarkerTestSessions)
-    .values({ userId, ...session })
-    .returning();
-  return created;
+  try {
+    return await supabaseHealth.createBiomarkerSession(userId, session);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase createBiomarkerSession failed:", error);
+    throw error;
+  }
 }
 
 export async function getMeasurementsBySession(sessionId: string) {
@@ -692,19 +690,17 @@ export async function getMeasurementsBySession(sessionId: string) {
 }
 
 export async function createBiomarkerMeasurement(measurement: any) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      return await supabaseHealth.createBiomarkerMeasurement(measurement);
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase createBiomarkerMeasurement failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  const [created] = await db
-    .insert(biomarkerMeasurements)
-    .values(measurement)
-    .returning();
-  return created;
+  try {
+    return await supabaseHealth.createBiomarkerMeasurement(measurement);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase createBiomarkerMeasurement failed:", error);
+    throw error;
+  }
 }
 
 export interface CreateMeasurementWithSessionParams {
@@ -725,49 +721,49 @@ export interface CreateMeasurementWithSessionParams {
 }
 
 export async function createMeasurementWithSession(params: CreateMeasurementWithSessionParams) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const result = await supabaseHealth.createMeasurementWithSession(params);
-      
-      // Convert Supabase response format to Neon format for compatibility
-      return {
-        session: {
-          id: result.session.id,
-          userId: params.userId,
-          source: result.session.source,
-          testDate: new Date(result.session.test_date),
-          notes: result.session.notes,
-          createdAt: result.session.created_at ? new Date(result.session.created_at) : new Date(),
-        },
-        measurement: {
-          id: result.measurement.id,
-          sessionId: result.measurement.session_id,
-          biomarkerId: result.measurement.biomarker_id,
-          recordId: result.measurement.record_id,
-          source: result.measurement.source,
-          valueRaw: result.measurement.value_raw,
-          unitRaw: result.measurement.unit_raw,
-          valueCanonical: result.measurement.value_canonical,
-          unitCanonical: result.measurement.unit_canonical,
-          valueDisplay: result.measurement.value_display,
-          referenceLow: result.measurement.reference_low,
-          referenceHigh: result.measurement.reference_high,
-          flags: result.measurement.flags,
-          warnings: result.measurement.warnings,
-          normalizationContext: result.measurement.normalization_context,
-          updatedBy: result.measurement.updated_by,
-          createdAt: result.measurement.created_at ? new Date(result.measurement.created_at) : new Date(),
-          updatedAt: result.measurement.updated_at ? new Date(result.measurement.updated_at) : null,
-        },
-      };
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase createMeasurementWithSession failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  // Fall back to Neon - import storage dynamically to avoid circular dependency
-  const { storage } = await import("../storage");
-  return await storage.createMeasurementWithSession(params);
+  try {
+    const result = await supabaseHealth.createMeasurementWithSession(params);
+    
+    // Convert Supabase response format to Neon format for compatibility
+    return {
+      session: {
+        id: result.session.id,
+        userId: params.userId,
+        source: result.session.source,
+        testDate: new Date(result.session.test_date),
+        notes: result.session.notes,
+        createdAt: result.session.created_at ? new Date(result.session.created_at) : new Date(),
+      },
+      measurement: {
+        id: result.measurement.id,
+        sessionId: result.measurement.session_id,
+        biomarkerId: result.measurement.biomarker_id,
+        recordId: result.measurement.record_id,
+        source: result.measurement.source,
+        valueRaw: result.measurement.value_raw,
+        unitRaw: result.measurement.unit_raw,
+        valueCanonical: result.measurement.value_canonical,
+        unitCanonical: result.measurement.unit_canonical,
+        valueDisplay: result.measurement.value_display,
+        referenceLow: result.measurement.reference_low,
+        referenceHigh: result.measurement.reference_high,
+        flags: result.measurement.flags,
+        warnings: result.measurement.warnings,
+        normalizationContext: result.measurement.normalization_context,
+        updatedBy: result.measurement.updated_by,
+        createdAt: result.measurement.created_at ? new Date(result.measurement.created_at) : new Date(),
+        updatedAt: result.measurement.updated_at ? new Date(result.measurement.updated_at) : null,
+      },
+    };
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase createMeasurementWithSession failed:", error);
+    throw error;
+  }
 }
 
 // Daily Insights are stored in Neon (not health data, but AI-generated content)
