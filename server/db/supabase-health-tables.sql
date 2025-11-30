@@ -189,6 +189,11 @@ CREATE TABLE IF NOT EXISTS user_daily_metrics (
   diastolic_bp REAL,
   blood_glucose_mg_dl REAL,
   vo2_max REAL,
+  basal_energy_kcal REAL,
+  walking_hr_avg_bpm REAL,
+  dietary_water_ml REAL,
+  oxygen_saturation_pct REAL,
+  respiratory_rate_bpm REAL,
   normalization_version TEXT NOT NULL DEFAULT 'norm_v1',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()

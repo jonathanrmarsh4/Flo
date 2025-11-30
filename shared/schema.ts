@@ -934,6 +934,11 @@ export const userDailyMetrics = pgTable("user_daily_metrics", {
   diastolicBp: real("diastolic_bp"), // Diastolic blood pressure in mmHg
   bloodGlucoseMgDl: real("blood_glucose_mg_dl"), // Blood glucose in mg/dL
   vo2Max: real("vo2_max"), // VO2 max in mL/kg/min
+  basalEnergyKcal: real("basal_energy_kcal"), // Basal energy burned (resting metabolism)
+  walkingHrAvgBpm: real("walking_hr_avg_bpm"), // Walking heart rate average
+  dietaryWaterMl: real("dietary_water_ml"), // Water intake in milliliters
+  oxygenSaturationPct: real("oxygen_saturation_pct"), // Blood oxygen saturation percentage (0-100)
+  respiratoryRateBpm: real("respiratory_rate_bpm"), // Respiratory rate in breaths per minute
   normalizationVersion: text("normalization_version").notNull().default("norm_v1"), // Track algorithm version
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
