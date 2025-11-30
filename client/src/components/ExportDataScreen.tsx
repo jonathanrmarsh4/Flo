@@ -1,6 +1,9 @@
 import { Download, CheckCircle, FileText, Activity, User, Database, ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 interface ExportDataScreenProps {
   isDark: boolean;
@@ -16,6 +19,7 @@ interface ExportStats {
 export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [exportComplete, setExportComplete] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const { data: stats } = useQuery<ExportStats>({
     queryKey: ['/api/user/export-stats'],
@@ -24,6 +28,7 @@ export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
   const handleExportCSV = async () => {
     setIsExporting(true);
     setExportComplete(false);
+    setExportError(null);
 
     try {
       const response = await fetch('/api/user/export-csv', {
@@ -35,23 +40,77 @@ export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
         throw new Error('Export failed');
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const csvText = await response.text();
+      const filename = `flo-health-data-${new Date().toISOString().split('T')[0]}.csv`;
       
-      link.setAttribute('href', url);
-      link.setAttribute('download', `flo-health-data-${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
+      // Check if we're on a native platform (iOS/Android)
+      if (Capacitor.isNativePlatform()) {
+        try {
+          // Write CSV to a temporary file using Capacitor Filesystem
+          const writeResult = await Filesystem.writeFile({
+            path: filename,
+            data: csvText,
+            directory: Directory.Cache,
+            encoding: Encoding.UTF8,
+          });
+          
+          // Get the file URI for sharing
+          const fileUri = writeResult.uri;
+          
+          // Use native share to let user save or share the file
+          await Share.share({
+            title: 'Flō Health Data Export',
+            text: 'Your Flō health data export',
+            url: fileUri,
+            dialogTitle: 'Save or Share Your Health Data',
+          });
+          
+          setExportComplete(true);
+          
+          // Clean up the temp file after a delay
+          setTimeout(async () => {
+            try {
+              await Filesystem.deleteFile({
+                path: filename,
+                directory: Directory.Cache,
+              });
+            } catch {
+              // Ignore cleanup errors
+            }
+          }, 60000); // Keep file for 1 minute in case user needs it
+          
+        } catch (shareError: any) {
+          // User cancelled share - this is not an error
+          if (shareError?.message?.includes('cancelled') || shareError?.message?.includes('canceled')) {
+            console.log('Share cancelled by user');
+          } else {
+            console.error('Native share failed:', shareError);
+            throw shareError;
+          }
+        }
+      } else {
+        // Web browser: use traditional download approach
+        const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        setExportComplete(true);
+      }
       
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      setExportComplete(true);
       setTimeout(() => setExportComplete(false), 3000);
     } catch (error) {
       console.error('Export failed:', error);
+      setExportError('Failed to export data. Please try again.');
+      setTimeout(() => setExportError(null), 5000);
     } finally {
       setIsExporting(false);
     }
@@ -222,7 +281,17 @@ export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
                   ? 'bg-teal-500/10 text-teal-300 border border-teal-500/30' 
                   : 'bg-teal-50 text-teal-700 border border-teal-200'
               }`}>
-                Your data has been downloaded successfully!
+                Your data export is ready!
+              </div>
+            )}
+            
+            {exportError && (
+              <div className={`mt-4 p-3 rounded-lg text-sm text-center ${
+                isDark 
+                  ? 'bg-red-500/10 text-red-300 border border-red-500/30' 
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                {exportError}
               </div>
             )}
           </div>
