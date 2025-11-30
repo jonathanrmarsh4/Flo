@@ -403,19 +403,23 @@ export async function getFlomentumDaily(userId: string, options: GetFlomentumDai
   if (isSupabaseHealthEnabled()) {
     try {
       const results = await supabaseHealth.getFlomentumDailyFlexible(userId, options);
-      // Normalize Supabase snake_case to camelCase for API compatibility
-      return results.map(r => ({
-        id: r.id,
-        userId: userId,
-        date: r.date,
-        score: r.score,
-        zone: r.zone,
-        deltaVsYesterday: r.delta_vs_yesterday,
-        factors: r.factors,
-        dailyFocus: r.daily_focus,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-      }));
+      if (results && results.length > 0) {
+        // Normalize Supabase snake_case to camelCase for API compatibility
+        return results.map(r => ({
+          id: r.id,
+          userId: userId,
+          date: r.date,
+          score: r.score,
+          zone: r.zone,
+          deltaVsYesterday: r.delta_vs_yesterday,
+          factors: r.factors,
+          dailyFocus: r.daily_focus,
+          createdAt: r.created_at,
+          updatedAt: r.updated_at,
+        }));
+      }
+      // If Supabase has no data, fallback to Neon (transition period)
+      logger.info("[HealthStorageRouter] Supabase getFlomentumDaily returned no data, falling back to Neon");
     } catch (error) {
       logger.error("[HealthStorageRouter] Supabase getFlomentumDaily failed, falling back to Neon:", error);
     }
@@ -427,37 +431,48 @@ export async function getFlomentumDaily(userId: string, options: GetFlomentumDai
 }
 
 export async function upsertFlomentumDaily(userId: string, score: any) {
+  const { storage } = await import("../storage");
+  
+  // DUAL-WRITE: Write to BOTH databases during transition period
+  // Write to Neon first (primary, always succeeds)
+  const neonResult = await storage.upsertFlomentumDaily(score);
+  logger.info(`[HealthStorageRouter] Flomentum score written to Neon for ${userId}, ${score.date}`);
+  
+  // Then also write to Supabase if enabled
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.upsertFlomentumDaily(userId, score);
+      await supabaseHealth.upsertFlomentumDaily(userId, score);
+      logger.info(`[HealthStorageRouter] Flomentum score also written to Supabase for ${userId}, ${score.date}`);
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertFlomentumDaily failed, falling back to Neon:", error);
+      // Log but don't fail - Neon write succeeded
+      logger.warn("[HealthStorageRouter] Supabase upsertFlomentumDaily failed (Neon succeeded):", error);
     }
   }
   
-  // Fallback to Neon
-  const { storage } = await import("../storage");
-  return await storage.upsertFlomentumDaily(score);
+  return neonResult;
 }
 
 export async function getFlomentumDailyByDate(userId: string, date: string) {
   if (isSupabaseHealthEnabled()) {
     try {
       const result = await supabaseHealth.getFlomentumDailyByDate(userId, date);
-      if (!result) return null;
-      // Normalize Supabase snake_case to camelCase for API compatibility
-      return {
-        id: result.id,
-        userId: userId,
-        date: result.date,
-        score: result.score,
-        zone: result.zone,
-        deltaVsYesterday: result.delta_vs_yesterday,
-        factors: result.factors,
-        dailyFocus: result.daily_focus,
-        createdAt: result.created_at,
-        updatedAt: result.updated_at,
-      };
+      if (result) {
+        // Normalize Supabase snake_case to camelCase for API compatibility
+        return {
+          id: result.id,
+          userId: userId,
+          date: result.date,
+          score: result.score,
+          zone: result.zone,
+          deltaVsYesterday: result.delta_vs_yesterday,
+          factors: result.factors,
+          dailyFocus: result.daily_focus,
+          createdAt: result.created_at,
+          updatedAt: result.updated_at,
+        };
+      }
+      // If Supabase has no data, fallback to Neon (transition period)
+      logger.info(`[HealthStorageRouter] Supabase getFlomentumDailyByDate returned no data for ${date}, falling back to Neon`);
     } catch (error) {
       logger.error("[HealthStorageRouter] Supabase getFlomentumDailyByDate failed, falling back to Neon:", error);
     }
