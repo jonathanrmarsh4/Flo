@@ -69,53 +69,47 @@ export async function getProfile(userId: string) {
 }
 
 export async function upsertProfile(userId: string, data: any) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const supabaseData: Partial<supabaseHealth.HealthProfile> = {
-        sex: data.sex,
-        birth_year: data.birthYear,
-        weight: data.weight,
-        weight_unit: data.weightUnit,
-        height: data.height,
-        height_unit: data.heightUnit,
-        goals: data.goals,
-        health_baseline: data.healthBaseline,
-        ai_personalization: data.aiPersonalization,
-      };
-      
-      const result = await supabaseHealth.upsertProfile(userId, supabaseData);
-      
-      return {
-        id: result.id,
-        userId: userId,
-        sex: result.sex as "Male" | "Female" | "Other" | null,
-        birthYear: result.birth_year ?? null,
-        weight: result.weight,
-        weightUnit: result.weight_unit as "kg" | "lbs" | null,
-        height: result.height,
-        heightUnit: result.height_unit as "cm" | "inches" | null,
-        goals: result.goals,
-        healthBaseline: result.health_baseline,
-        aiPersonalization: result.ai_personalization,
-        reminderType: null,
-        reminderTime: null,
-        createdAt: result.created_at ? new Date(result.created_at) : new Date(),
-        updatedAt: result.updated_at ? new Date(result.updated_at) : new Date(),
-      };
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertProfile failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  const [profile] = await db
-    .insert(profiles)
-    .values({ userId, ...data })
-    .onConflictDoUpdate({
-      target: profiles.userId,
-      set: { ...data, updatedAt: new Date() },
-    })
-    .returning();
-  return profile;
+  try {
+    const supabaseData: Partial<supabaseHealth.HealthProfile> = {
+      sex: data.sex,
+      birth_year: data.birthYear,
+      weight: data.weight,
+      weight_unit: data.weightUnit,
+      height: data.height,
+      height_unit: data.heightUnit,
+      goals: data.goals,
+      health_baseline: data.healthBaseline,
+      ai_personalization: data.aiPersonalization,
+    };
+    
+    const result = await supabaseHealth.upsertProfile(userId, supabaseData);
+    
+    return {
+      id: result.id,
+      userId: userId,
+      sex: result.sex as "Male" | "Female" | "Other" | null,
+      birthYear: result.birth_year ?? null,
+      weight: result.weight,
+      weightUnit: result.weight_unit as "kg" | "lbs" | null,
+      height: result.height,
+      heightUnit: result.height_unit as "cm" | "inches" | null,
+      goals: result.goals,
+      healthBaseline: result.health_baseline,
+      aiPersonalization: result.ai_personalization,
+      reminderType: null,
+      reminderTime: null,
+      createdAt: result.created_at ? new Date(result.created_at) : new Date(),
+      updatedAt: result.updated_at ? new Date(result.updated_at) : new Date(),
+    };
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase upsertProfile failed:", error);
+    throw error;
+  }
 }
 
 interface GetSleepNightsOptions {
@@ -218,43 +212,43 @@ export async function getSleepNightByDate(userId: string, sleepDate: string) {
 }
 
 export async function upsertSleepNight(userId: string, sleep: any) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const result = await supabaseHealth.upsertSleepNight(userId, sleep);
-      // Normalize Supabase snake_case to camelCase for API compatibility
-      // Add null-safe handling for optional timestamps
-      return {
-        id: result.id,
-        userId: userId,
-        sleepDate: result.sleep_date,
-        inBedAt: result.in_bed_at || null,
-        asleepAt: result.asleep_at || null,
-        wakeAt: result.wake_at || null,
-        outOfBedAt: result.out_of_bed_at || null,
-        totalMinutesInBed: result.total_minutes_in_bed,
-        totalMinutesAsleep: result.total_minutes_asleep,
-        awakeMinutes: result.awake_minutes,
-        deepMinutes: result.deep_minutes,
-        remMinutes: result.rem_minutes,
-        coreMinutes: result.core_minutes,
-        sleepEfficiency: result.sleep_efficiency,
-        avgHeartRate: result.avg_heart_rate,
-        avgHrv: result.avg_hrv,
-        avgRespiratoryRate: result.avg_respiratory_rate,
-        avgOxygenSaturation: result.avg_oxygen_saturation,
-        source: result.source,
-        rawData: result.raw_data,
-        createdAt: result.created_at ? new Date(result.created_at) : null,
-        updatedAt: result.updated_at ? new Date(result.updated_at) : null,
-      };
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertSleepNight failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  // Fallback to Neon
-  const { storage } = await import("../storage");
-  return await storage.upsertSleepNight(sleep);
+  try {
+    const result = await supabaseHealth.upsertSleepNight(userId, sleep);
+    // Normalize Supabase snake_case to camelCase for API compatibility
+    // Add null-safe handling for optional timestamps
+    return {
+      id: result.id,
+      userId: userId,
+      sleepDate: result.sleep_date,
+      inBedAt: result.in_bed_at || null,
+      asleepAt: result.asleep_at || null,
+      wakeAt: result.wake_at || null,
+      outOfBedAt: result.out_of_bed_at || null,
+      totalMinutesInBed: result.total_minutes_in_bed,
+      totalMinutesAsleep: result.total_minutes_asleep,
+      awakeMinutes: result.awake_minutes,
+      deepMinutes: result.deep_minutes,
+      remMinutes: result.rem_minutes,
+      coreMinutes: result.core_minutes,
+      sleepEfficiency: result.sleep_efficiency,
+      avgHeartRate: result.avg_heart_rate,
+      avgHrv: result.avg_hrv,
+      avgRespiratoryRate: result.avg_respiratory_rate,
+      avgOxygenSaturation: result.avg_oxygen_saturation,
+      source: result.source,
+      rawData: result.raw_data,
+      createdAt: result.created_at ? new Date(result.created_at) : null,
+      updatedAt: result.updated_at ? new Date(result.updated_at) : null,
+    };
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase upsertSleepNight failed:", error);
+    throw error;
+  }
 }
 
 export async function getDailyMetrics(userId: string, days = 7) {
@@ -508,33 +502,33 @@ export async function getDiagnosticsStudies(userId: string, type?: string) {
 }
 
 export async function createDiagnosticStudy(userId: string, study: any) {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const result = await supabaseHealth.createDiagnosticsStudy(userId, study);
-      // Normalize Supabase snake_case to camelCase for API compatibility
-      return {
-        id: result.id,
-        userId: userId,
-        type: result.type,
-        source: result.source,
-        studyDate: result.study_date,
-        ageAtScan: result.age_at_scan,
-        totalScoreNumeric: result.total_score_numeric,
-        riskCategory: result.risk_category,
-        agePercentile: result.age_percentile,
-        aiPayload: result.ai_payload,
-        status: result.status,
-        createdAt: result.created_at,
-        updatedAt: result.updated_at,
-      };
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase createDiagnosticStudy failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  // Fallback to Neon
-  const { storage } = await import("../storage");
-  return await storage.createDiagnosticStudy(study);
+  try {
+    const result = await supabaseHealth.createDiagnosticsStudy(userId, study);
+    // Normalize Supabase snake_case to camelCase for API compatibility
+    return {
+      id: result.id,
+      userId: userId,
+      type: result.type,
+      source: result.source,
+      studyDate: result.study_date,
+      ageAtScan: result.age_at_scan,
+      totalScoreNumeric: result.total_score_numeric,
+      riskCategory: result.risk_category,
+      agePercentile: result.age_percentile,
+      aiPayload: result.ai_payload,
+      status: result.status,
+      createdAt: result.created_at,
+      updatedAt: result.updated_at,
+    };
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase createDiagnosticStudy failed:", error);
+    throw error;
+  }
 }
 
 export async function getActionPlanItems(userId: string, status?: string) {
@@ -925,61 +919,62 @@ export async function getNutritionDailyByDate(userId: string, localDate: string)
 }
 
 export async function upsertNutritionDailyMetrics(userId: string, data: any): Promise<any> {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const supabaseData = {
-        local_date: data.localDate,
-        timezone: data.timezone,
-        energy_kcal: data.energyKcal,
-        carbohydrates_g: data.carbohydratesG,
-        protein_g: data.proteinG,
-        fat_total_g: data.fatTotalG,
-        fat_saturated_g: data.fatSaturatedG,
-        fat_polyunsaturated_g: data.fatPolyunsaturatedG,
-        fat_monounsaturated_g: data.fatMonounsaturatedG,
-        cholesterol_mg: data.cholesterolMg,
-        fiber_g: data.fiberG,
-        sugar_g: data.sugarG,
-        vitamin_a_mcg: data.vitaminAMcg,
-        vitamin_b6_mg: data.vitaminB6Mg,
-        vitamin_b12_mcg: data.vitaminB12Mcg,
-        vitamin_c_mg: data.vitaminCMg,
-        vitamin_d_mcg: data.vitaminDMcg,
-        vitamin_e_mg: data.vitaminEMg,
-        vitamin_k_mcg: data.vitaminKMcg,
-        thiamin_mg: data.thiaminMg,
-        riboflavin_mg: data.riboflavinMg,
-        niacin_mg: data.niacinMg,
-        folate_mcg: data.folateMcg,
-        biotin_mcg: data.biotinMcg,
-        pantothenic_acid_mg: data.pantothenicAcidMg,
-        calcium_mg: data.calciumMg,
-        chloride_mg: data.chlorideMg,
-        chromium_mcg: data.chromiumMcg,
-        copper_mg: data.copperMg,
-        iodine_mcg: data.iodineMcg,
-        iron_mg: data.ironMg,
-        magnesium_mg: data.magnesiumMg,
-        manganese_mg: data.manganeseMg,
-        molybdenum_mcg: data.molybdenumMcg,
-        phosphorus_mg: data.phosphorusMg,
-        potassium_mg: data.potassiumMg,
-        selenium_mcg: data.seleniumMcg,
-        sodium_mg: data.sodiumMg,
-        zinc_mg: data.zincMg,
-        caffeine_mg: data.caffeineMg,
-        water_ml: data.waterMl,
-        meal_count: data.mealCount,
-        sources: data.sources,
-      };
-      return await supabaseHealth.upsertNutritionDailyMetrics(userId, supabaseData);
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertNutritionDailyMetrics failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  const { storage } = await import("../storage");
-  return await storage.upsertNutritionDailyMetrics(userId, data);
+  try {
+    const supabaseData = {
+      local_date: data.localDate,
+      timezone: data.timezone,
+      energy_kcal: data.energyKcal,
+      carbohydrates_g: data.carbohydratesG,
+      protein_g: data.proteinG,
+      fat_total_g: data.fatTotalG,
+      fat_saturated_g: data.fatSaturatedG,
+      fat_polyunsaturated_g: data.fatPolyunsaturatedG,
+      fat_monounsaturated_g: data.fatMonounsaturatedG,
+      cholesterol_mg: data.cholesterolMg,
+      fiber_g: data.fiberG,
+      sugar_g: data.sugarG,
+      vitamin_a_mcg: data.vitaminAMcg,
+      vitamin_b6_mg: data.vitaminB6Mg,
+      vitamin_b12_mcg: data.vitaminB12Mcg,
+      vitamin_c_mg: data.vitaminCMg,
+      vitamin_d_mcg: data.vitaminDMcg,
+      vitamin_e_mg: data.vitaminEMg,
+      vitamin_k_mcg: data.vitaminKMcg,
+      thiamin_mg: data.thiaminMg,
+      riboflavin_mg: data.riboflavinMg,
+      niacin_mg: data.niacinMg,
+      folate_mcg: data.folateMcg,
+      biotin_mcg: data.biotinMcg,
+      pantothenic_acid_mg: data.pantothenicAcidMg,
+      calcium_mg: data.calciumMg,
+      chloride_mg: data.chlorideMg,
+      chromium_mcg: data.chromiumMcg,
+      copper_mg: data.copperMg,
+      iodine_mcg: data.iodineMcg,
+      iron_mg: data.ironMg,
+      magnesium_mg: data.magnesiumMg,
+      manganese_mg: data.manganeseMg,
+      molybdenum_mcg: data.molybdenumMcg,
+      phosphorus_mg: data.phosphorusMg,
+      potassium_mg: data.potassiumMg,
+      selenium_mcg: data.seleniumMcg,
+      sodium_mg: data.sodiumMg,
+      zinc_mg: data.zincMg,
+      caffeine_mg: data.caffeineMg,
+      water_ml: data.waterMl,
+      meal_count: data.mealCount,
+      sources: data.sources,
+    };
+    return await supabaseHealth.upsertNutritionDailyMetrics(userId, supabaseData);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase upsertNutritionDailyMetrics failed:", error);
+    throw error;
+  }
 }
 
 // ==================== MINDFULNESS SESSIONS ====================
@@ -1027,26 +1022,27 @@ export async function getMindfulnessSessions(userId: string, options: GetMindful
 }
 
 export async function createMindfulnessSession(userId: string, data: any): Promise<any> {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const supabaseData = {
-        session_date: data.sessionDate,
-        timezone: data.timezone,
-        start_time: data.startTime,
-        end_time: data.endTime,
-        duration_minutes: data.durationMinutes,
-        source_name: data.sourceName,
-        source_id: data.sourceId,
-        healthkit_uuid: data.healthkitUuid,
-      };
-      return await supabaseHealth.createMindfulnessSession(userId, supabaseData);
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase createMindfulnessSession failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  const { storage } = await import("../storage");
-  return await storage.createMindfulnessSession(userId, data);
+  try {
+    const supabaseData = {
+      session_date: data.sessionDate,
+      timezone: data.timezone,
+      start_time: data.startTime,
+      end_time: data.endTime,
+      duration_minutes: data.durationMinutes,
+      source_name: data.sourceName,
+      source_id: data.sourceId,
+      healthkit_uuid: data.healthkitUuid,
+    };
+    return await supabaseHealth.createMindfulnessSession(userId, supabaseData);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase createMindfulnessSession failed:", error);
+    throw error;
+  }
 }
 
 // ==================== MINDFULNESS DAILY METRICS ====================
@@ -1123,25 +1119,26 @@ export async function getMindfulnessDailyByDate(userId: string, localDate: strin
 }
 
 export async function upsertMindfulnessDailyMetrics(userId: string, data: any): Promise<any> {
-  if (isSupabaseHealthEnabled()) {
-    try {
-      const supabaseData = {
-        local_date: data.localDate,
-        timezone: data.timezone,
-        total_minutes: data.totalMinutes,
-        session_count: data.sessionCount,
-        avg_session_minutes: data.avgSessionMinutes,
-        longest_session_minutes: data.longestSessionMinutes,
-        sources: data.sources,
-      };
-      return await supabaseHealth.upsertMindfulnessDailyMetrics(userId, supabaseData);
-    } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase upsertMindfulnessDailyMetrics failed, falling back to Neon:", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  const { storage } = await import("../storage");
-  return await storage.upsertMindfulnessDailyMetrics(userId, data);
+  try {
+    const supabaseData = {
+      local_date: data.localDate,
+      timezone: data.timezone,
+      total_minutes: data.totalMinutes,
+      session_count: data.sessionCount,
+      avg_session_minutes: data.avgSessionMinutes,
+      longest_session_minutes: data.longestSessionMinutes,
+      sources: data.sources,
+    };
+    return await supabaseHealth.upsertMindfulnessDailyMetrics(userId, supabaseData);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase upsertMindfulnessDailyMetrics failed:", error);
+    throw error;
+  }
 }
 
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);
