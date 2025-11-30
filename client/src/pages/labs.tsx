@@ -231,12 +231,13 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={`min-h-screen pb-20 overscroll-none transition-colors ${
-      isDark 
-        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
-        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
-    }`}>
-      {/* Header */}
+    <div className="h-screen overflow-hidden flex flex-col">
+      <div className={`flex-1 overflow-y-auto overscroll-none pb-20 transition-colors ${
+        isDark 
+          ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+          : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      }`}>
+        {/* Header */}
       <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
@@ -448,6 +449,7 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+      </div>
 
       <BottomNav 
         isDark={isDark}

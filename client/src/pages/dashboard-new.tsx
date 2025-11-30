@@ -46,7 +46,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative min-h-screen">
+    <div className="h-screen overflow-hidden flex flex-col">
       <DashboardScreen 
         isDark={isDark}
         onSettingsClick={handleSettingsClick}
