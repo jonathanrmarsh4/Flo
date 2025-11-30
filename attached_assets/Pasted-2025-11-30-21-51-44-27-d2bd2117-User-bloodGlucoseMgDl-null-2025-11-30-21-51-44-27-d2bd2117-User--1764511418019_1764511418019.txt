@@ -1,0 +1,150 @@
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"bloodGlucoseMgDl": null,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"bmi": 23.626916885375977,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"avgHeartRateBpm": 84.70100535787795,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"weightKg": 70.71300506591797,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"diastolicBp": 83,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+⏳ [BODY COMP DEBUG] Starting database insert...
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"localDate": "2025-11-27"
+2025-11-30 21:51:44.27
+d2bd2117
+User
+📥 [BODY COMP DEBUG] Raw req.body: {
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"distanceMeters": 2996.531635661231,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"basalEnergyKcal": null,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"heightCm": null,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"waistCircumferenceCm": null,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+}
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"leanBodyMassKg": 65.52300262451172,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"systolicBp": 148,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"bodyFatPercent": 7.340000152587891,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+📊 [HEALTHKIT DEBUG] Extended metrics from iOS: {
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"standHours": null,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"bmi": 23.626916885375977,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"vo2Max": null,
+2025-11-30 21:51:44.27
+d2bd2117
+User
+"weightKg": 70.71300506591797,
+2025-11-30 21:51:44.28
+d2bd2117
+User
+"heightCm": null,
+2025-11-30 21:51:44.28
+d2bd2117
+User
+📥 [BODY COMP DEBUG] Raw req.body: {
+2025-11-30 21:51:44.28
+d2bd2117
+User
+"bodyFatPercent": 7.518000125885011,
+2025-11-30 21:51:44.28
+d2bd2117
+User
+"bmi": 23.422433853149414,
+2025-11-30 21:51:49.28
+d2bd2117
+User
+[2025-11-30T13:51:49.287Z] [INFO] [BioAge] Session fb7a50cd-1f25-4111-948a-d4da8fbba2b4 (Mon Jul 15 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 1 matches - [Glucose, Testosterone, SHBG, Free Testosterone, Free PSA Ratio, AFP, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides]
+2025-11-30 21:51:49.32
+d2bd2117
+User
+[2025-11-30T13:51:49.326Z] [INFO] [BioAge] Session ed662c05-b5cb-4c42-975e-5c66ba57a854 (Tue Feb 20 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Free T4, TSH, Free T3, FSH, LH, Estradiol (E2), Progesterone, Testosterone, SHBG, Free Testosterone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, Cortisol (AM), DHEA-S, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, MPV, Hematocrit]
+2025-11-30 21:51:49.36
+d2bd2117
+User
+[2025-11-30T13:51:49.368Z] [INFO] [BioAge] Session 0e667ae9-cade-4620-a1a5-a202e2d5c57f (Tue Feb 20 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Free T4, TSH, Free T3, FSH, LH, Estradiol (E2), Progesterone, Testosterone, SHBG, Free Testosterone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, Cortisol (AM), DHEA-S, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, MPV, Hematocrit]
+2025-11-30 21:51:49.40
+d2bd2117
+User
+[2025-11-30T13:51:49.407Z] [INFO] [BioAge] Best session: 3095c712-8d83-4f8c-85fc-8ea1342d64a6 with 9 matches
+2025-11-30 21:51:49.40
+d2bd2117
+User
+[2025-11-30T13:51:49.407Z] [INFO] [BioAge] Using session 3095c712-8d83-4f8c-85fc-8ea1342d64a6 with 59 measurements
+2025-11-30 21:51:49.40
+d2bd2117
+User
+[2025-11-30T13:51:49.407Z] [INFO] [BioAge] Session 8793f271-5fdc-429d-bbd4-70e987733de0 (Tue Feb 20 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Growth Hormone, Free T4, TSH, Free T3, FSH, LH, Estradiol (E2), Progesterone, Testosterone, SHBG, Free Testosterone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, Cortisol (AM), DHEA-S, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, MPV, Hematocrit]
+2025-11-30 21:51:49.44
+d2bd2117
+User
+[2025-11-30T13:51:49.445Z] [INFO] [BioAge] Extracted values: {"albumin_g_L":41,"creatinine_umol_L":77.91576,"glucose_mmol_L":4.7,"crp_mg_dL":0.08,"lymphocytes_KPerUL":1.8,"mcv_fL":90,"rdw_percent":12.4,"alkPhos_U_L":66,"wbc_10e3_per_uL":5.8}
+2025-11-30 21:51:49.44
+d2bd2117
+User
+[2025-11-30T13:51:49.445Z] [INFO] [BioAge] Missing biomarkers: []
+2025-11-30 21:51:49.44
+d2bd2117
+User
+[2025-11-30T13:51:49.445Z] [INFO] [BioAge] Measurement map keys: [Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, Total Cholesterol, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, FSH, LH, Estradiol (E2), Progesterone, MPV, DHEA-S, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Free T4, TSH, Free T3, Testosterone, SHBG, Free Testosterone, Cortisol (AM), Hematocrit]
+2025-11-30 21:51:49.44
+d2bd2117
+User
+[2025-11-30T13:51:49.445Z] [INFO] [BioAge] SUCCESS! PhenoAge=43.1, ChronoAge=52, Accel=-8.9
+2025-11-30 21:51:49.44
+d2bd2117
+User
+1:51:49 PM [express] GET /api/biological-age 304 in 1366ms :: {"biologicalAge":43.1,"chronologicalAg…
+
+Collapse
+
+Wrap
+
+Colors
