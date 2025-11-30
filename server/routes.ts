@@ -3953,6 +3953,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         diastolicBp: dailyMetrics.diastolicBp ?? null,
         bloodGlucoseMgDl: dailyMetrics.bloodGlucoseMgDl ?? null,
         vo2Max: dailyMetrics.vo2Max ?? null,
+        // 5 newly added metrics for complete HealthKit coverage
+        basalEnergyKcal: dailyMetrics.basalEnergyKcal ?? null,
+        walkingHrAvgBpm: dailyMetrics.walkingHrAvgBpm ?? null,
+        dietaryWaterMl: dailyMetrics.dietaryWaterMl ?? null,
+        oxygenSaturationPct: dailyMetrics.oxygenSaturationPct ?? null,
+        respiratoryRateBpm: dailyMetrics.respiratoryRateBpm ?? null,
       };
 
       // Log extended metrics for debugging
@@ -4054,6 +4060,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         diastolicBp: extendedMetrics.diastolicBp,
         bloodGlucoseMgDl: extendedMetrics.bloodGlucoseMgDl,
         vo2Max: extendedMetrics.vo2Max,
+        // 5 newly added metrics for complete HealthKit coverage
+        basalEnergyKcal: extendedMetrics.basalEnergyKcal,
+        walkingHrAvgBpm: extendedMetrics.walkingHrAvgBpm,
+        dietaryWaterMl: extendedMetrics.dietaryWaterMl,
+        oxygenSaturationPct: extendedMetrics.oxygenSaturationPct,
+        respiratoryRateBpm: extendedMetrics.respiratoryRateBpm,
       };
 
       if (existing.length > 0) {
