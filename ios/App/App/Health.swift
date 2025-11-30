@@ -54,17 +54,81 @@ enum HealthDataType: String, CaseIterable {
     case appleExerciseTime
     case appleStandTime
     case sleepAnalysis
+    
+    // MARK: - Nutrition (38 types)
+    // Macronutrients
+    case dietaryEnergyConsumed
+    case dietaryCarbohydrates
+    case dietaryProtein
+    case dietaryFatTotal
+    case dietaryFatSaturated
+    case dietaryFatPolyunsaturated
+    case dietaryFatMonounsaturated
+    case dietaryCholesterol
+    case dietaryFiber
+    case dietarySugar
+    // Vitamins
+    case dietaryVitaminA
+    case dietaryVitaminB6
+    case dietaryVitaminB12
+    case dietaryVitaminC
+    case dietaryVitaminD
+    case dietaryVitaminE
+    case dietaryVitaminK
+    case dietaryThiamin
+    case dietaryRiboflavin
+    case dietaryNiacin
+    case dietaryFolate
+    case dietaryBiotin
+    case dietaryPantothenicAcid
+    // Minerals
+    case dietaryCalcium
+    case dietaryChloride
+    case dietaryChromium
+    case dietaryCopper
+    case dietaryIodine
+    case dietaryIron
+    case dietaryMagnesium
+    case dietaryManganese
+    case dietaryMolybdenum
+    case dietaryPhosphorus
+    case dietaryPotassium
+    case dietarySelenium
+    case dietarySodium
+    case dietaryZinc
+    // Other
+    case dietaryCaffeine
+    
+    // MARK: - Gait & Mobility (8 types)
+    case walkingSpeed
+    case walkingStepLength
+    case walkingDoubleSupportPercentage
+    case walkingAsymmetryPercentage
+    case appleWalkingSteadiness
+    case sixMinuteWalkTestDistance
+    case stairAscentSpeed
+    case stairDescentSpeed
+    
+    // MARK: - Mindfulness (1 type)
+    case mindfulSession
 
     func sampleType() throws -> HKSampleType {
         switch self {
+        // Category types
         case .sleepAnalysis:
             guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+                throw HealthManagerError.dataTypeUnavailable(rawValue)
+            }
+            return type
+        case .mindfulSession:
+            guard let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) else {
                 throw HealthManagerError.dataTypeUnavailable(rawValue)
             }
             return type
         default:
             let identifier: HKQuantityTypeIdentifier
             switch self {
+            // Original types
             case .steps:
                 identifier = .stepCount
             case .distance:
@@ -115,7 +179,115 @@ enum HealthDataType: String, CaseIterable {
                 identifier = .appleExerciseTime
             case .appleStandTime:
                 identifier = .appleStandTime
-            case .sleepAnalysis:
+            
+            // Nutrition - Macronutrients
+            case .dietaryEnergyConsumed:
+                identifier = .dietaryEnergyConsumed
+            case .dietaryCarbohydrates:
+                identifier = .dietaryCarbohydrates
+            case .dietaryProtein:
+                identifier = .dietaryProtein
+            case .dietaryFatTotal:
+                identifier = .dietaryFatTotal
+            case .dietaryFatSaturated:
+                identifier = .dietaryFatSaturated
+            case .dietaryFatPolyunsaturated:
+                identifier = .dietaryFatPolyunsaturated
+            case .dietaryFatMonounsaturated:
+                identifier = .dietaryFatMonounsaturated
+            case .dietaryCholesterol:
+                identifier = .dietaryCholesterol
+            case .dietaryFiber:
+                identifier = .dietaryFiber
+            case .dietarySugar:
+                identifier = .dietarySugar
+            
+            // Nutrition - Vitamins
+            case .dietaryVitaminA:
+                identifier = .dietaryVitaminA
+            case .dietaryVitaminB6:
+                identifier = .dietaryVitaminB6
+            case .dietaryVitaminB12:
+                identifier = .dietaryVitaminB12
+            case .dietaryVitaminC:
+                identifier = .dietaryVitaminC
+            case .dietaryVitaminD:
+                identifier = .dietaryVitaminD
+            case .dietaryVitaminE:
+                identifier = .dietaryVitaminE
+            case .dietaryVitaminK:
+                identifier = .dietaryVitaminK
+            case .dietaryThiamin:
+                identifier = .dietaryThiamin
+            case .dietaryRiboflavin:
+                identifier = .dietaryRiboflavin
+            case .dietaryNiacin:
+                identifier = .dietaryNiacin
+            case .dietaryFolate:
+                identifier = .dietaryFolate
+            case .dietaryBiotin:
+                identifier = .dietaryBiotin
+            case .dietaryPantothenicAcid:
+                identifier = .dietaryPantothenicAcid
+            
+            // Nutrition - Minerals
+            case .dietaryCalcium:
+                identifier = .dietaryCalcium
+            case .dietaryChloride:
+                identifier = .dietaryChloride
+            case .dietaryChromium:
+                identifier = .dietaryChromium
+            case .dietaryCopper:
+                identifier = .dietaryCopper
+            case .dietaryIodine:
+                identifier = .dietaryIodine
+            case .dietaryIron:
+                identifier = .dietaryIron
+            case .dietaryMagnesium:
+                identifier = .dietaryMagnesium
+            case .dietaryManganese:
+                identifier = .dietaryManganese
+            case .dietaryMolybdenum:
+                identifier = .dietaryMolybdenum
+            case .dietaryPhosphorus:
+                identifier = .dietaryPhosphorus
+            case .dietaryPotassium:
+                identifier = .dietaryPotassium
+            case .dietarySelenium:
+                identifier = .dietarySelenium
+            case .dietarySodium:
+                identifier = .dietarySodium
+            case .dietaryZinc:
+                identifier = .dietaryZinc
+            
+            // Nutrition - Other
+            case .dietaryCaffeine:
+                identifier = .dietaryCaffeine
+            
+            // Gait & Mobility
+            case .walkingSpeed:
+                identifier = .walkingSpeed
+            case .walkingStepLength:
+                identifier = .walkingStepLength
+            case .walkingDoubleSupportPercentage:
+                identifier = .walkingDoubleSupportPercentage
+            case .walkingAsymmetryPercentage:
+                identifier = .walkingAsymmetryPercentage
+            case .appleWalkingSteadiness:
+                if #available(iOS 15.0, *) {
+                    identifier = .appleWalkingSteadiness
+                } else {
+                    throw HealthManagerError.dataTypeUnavailable(rawValue)
+                }
+            case .sixMinuteWalkTestDistance:
+                identifier = .sixMinuteWalkTestDistance
+            case .stairAscentSpeed:
+                identifier = .stairAscentSpeed
+            case .stairDescentSpeed:
+                identifier = .stairDescentSpeed
+            
+            // Category types handled above
+            case .sleepAnalysis, .mindfulSession:
                 fatalError("Should never reach here")
             }
             
@@ -128,6 +300,7 @@ enum HealthDataType: String, CaseIterable {
 
     var defaultUnit: HKUnit {
         switch self {
+        // Original types
         case .steps:
             return HKUnit.count()
         case .distance:
@@ -164,11 +337,56 @@ enum HealthDataType: String, CaseIterable {
             return HKUnit.minute()
         case .sleepAnalysis:
             return HKUnit.count()
+        
+        // Nutrition - Energy in kcal
+        case .dietaryEnergyConsumed:
+            return HKUnit.kilocalorie()
+        
+        // Nutrition - Mass in grams (macros, fiber, sugar)
+        case .dietaryCarbohydrates, .dietaryProtein, .dietaryFatTotal, .dietaryFatSaturated,
+             .dietaryFatPolyunsaturated, .dietaryFatMonounsaturated, .dietaryFiber, .dietarySugar:
+            return HKUnit.gram()
+        
+        // Nutrition - Cholesterol in milligrams
+        case .dietaryCholesterol, .dietaryCaffeine:
+            return HKUnit.gramUnit(with: .milli)
+        
+        // Nutrition - Vitamins (various units)
+        case .dietaryVitaminA:  // mcg RAE
+            return HKUnit.gramUnit(with: .micro)
+        case .dietaryVitaminB6, .dietaryVitaminB12, .dietaryVitaminD, .dietaryVitaminK,
+             .dietaryFolate, .dietaryBiotin, .dietaryChromium, .dietaryIodine, .dietaryMolybdenum, .dietarySelenium:
+            return HKUnit.gramUnit(with: .micro)  // mcg
+        case .dietaryVitaminC, .dietaryVitaminE, .dietaryThiamin, .dietaryRiboflavin,
+             .dietaryNiacin, .dietaryPantothenicAcid:
+            return HKUnit.gramUnit(with: .milli)  // mg
+        
+        // Nutrition - Minerals in milligrams
+        case .dietaryCalcium, .dietaryChloride, .dietaryCopper, .dietaryIron,
+             .dietaryMagnesium, .dietaryManganese, .dietaryPhosphorus, .dietaryPotassium, .dietarySodium, .dietaryZinc:
+            return HKUnit.gramUnit(with: .milli)
+        
+        // Gait & Mobility
+        case .walkingSpeed:
+            return HKUnit.meter().unitDivided(by: HKUnit.second())  // m/s
+        case .walkingStepLength:
+            return HKUnit.meter()  // meters (convert to cm in display)
+        case .walkingDoubleSupportPercentage, .walkingAsymmetryPercentage, .appleWalkingSteadiness:
+            return HKUnit.percent()
+        case .sixMinuteWalkTestDistance:
+            return HKUnit.meter()
+        case .stairAscentSpeed, .stairDescentSpeed:
+            return HKUnit.meter().unitDivided(by: HKUnit.second())  // m/s (vertical)
+        
+        // Mindfulness - category type, no unit
+        case .mindfulSession:
+            return HKUnit.count()
         }
     }
 
     var unitIdentifier: String {
         switch self {
+        // Original types
         case .steps, .flightsClimbed, .bmi:
             return "count"
         case .distance, .height, .waistCircumference:
@@ -196,6 +414,39 @@ enum HealthDataType: String, CaseIterable {
         case .appleExerciseTime, .appleStandTime:
             return "min"
         case .sleepAnalysis:
+            return "category"
+        
+        // Nutrition - Energy
+        case .dietaryEnergyConsumed:
+            return "kcal"
+        
+        // Nutrition - Macros in grams
+        case .dietaryCarbohydrates, .dietaryProtein, .dietaryFatTotal, .dietaryFatSaturated,
+             .dietaryFatPolyunsaturated, .dietaryFatMonounsaturated, .dietaryFiber, .dietarySugar:
+            return "g"
+        
+        // Nutrition - Milligrams
+        case .dietaryCholesterol, .dietaryCaffeine, .dietaryVitaminC, .dietaryVitaminE,
+             .dietaryThiamin, .dietaryRiboflavin, .dietaryNiacin, .dietaryPantothenicAcid,
+             .dietaryCalcium, .dietaryChloride, .dietaryCopper, .dietaryIron,
+             .dietaryMagnesium, .dietaryManganese, .dietaryPhosphorus, .dietaryPotassium, .dietarySodium, .dietaryZinc:
+            return "mg"
+        
+        // Nutrition - Micrograms
+        case .dietaryVitaminA, .dietaryVitaminB6, .dietaryVitaminB12, .dietaryVitaminD, .dietaryVitaminK,
+             .dietaryFolate, .dietaryBiotin, .dietaryChromium, .dietaryIodine, .dietaryMolybdenum, .dietarySelenium:
+            return "mcg"
+        
+        // Gait & Mobility
+        case .walkingSpeed, .stairAscentSpeed, .stairDescentSpeed:
+            return "m/s"
+        case .walkingStepLength, .sixMinuteWalkTestDistance:
+            return "meter"
+        case .walkingDoubleSupportPercentage, .walkingAsymmetryPercentage, .appleWalkingSteadiness:
+            return "percent"
+        
+        // Mindfulness
+        case .mindfulSession:
             return "category"
         }
     }
@@ -358,9 +609,9 @@ final class Health {
     func readCategorySamples(dataTypeIdentifier: String, startDateString: String?, endDateString: String?, limit: Int?, ascending: Bool, completion: @escaping (Result<[[String: Any]], Error>) -> Void) throws {
         let dataType = try parseDataType(identifier: dataTypeIdentifier)
         
-        // Ensure this is a category type (like sleep)
-        guard dataType == .sleepAnalysis else {
-            throw HealthManagerError.invalidDataType("Category samples only supported for sleepAnalysis")
+        // Ensure this is a category type (sleep or mindfulness)
+        guard dataType == .sleepAnalysis || dataType == .mindfulSession else {
+            throw HealthManagerError.invalidDataType("Category samples only supported for sleepAnalysis and mindfulSession")
         }
         
         let categoryType = try dataType.sampleType() as! HKCategoryType
@@ -391,6 +642,7 @@ final class Health {
             
             let results = categorySamples.map { sample -> [String: Any] in
                 var category = "unknown"
+                
                 if dataType == .sleepAnalysis {
                     if #available(iOS 16.0, *) {
                         switch sample.value {
@@ -421,14 +673,22 @@ final class Health {
                             category = "unknown"
                         }
                     }
+                } else if dataType == .mindfulSession {
+                    // Mindfulness sessions use HKCategoryValue.notApplicable (value = 0)
+                    // Duration is calculated from startDate to endDate
+                    category = "mindful"
                 }
+                
+                // Calculate duration in minutes for mindfulness sessions
+                let durationMinutes = sample.endDate.timeIntervalSince(sample.startDate) / 60.0
                 
                 var payload: [String: Any] = [
                     "dataType": dataType.rawValue,
                     "value": sample.value,
                     "category": category,
                     "startDate": self.isoFormatter.string(from: sample.startDate),
-                    "endDate": self.isoFormatter.string(from: sample.endDate)
+                    "endDate": self.isoFormatter.string(from: sample.endDate),
+                    "durationMinutes": durationMinutes
                 ]
                 
                 if let metadata = sample.metadata {
@@ -436,6 +696,11 @@ final class Health {
                 }
                 
                 payload["uuid"] = sample.uuid.uuidString
+                
+                // Add source info
+                let source = sample.sourceRevision.source
+                payload["sourceName"] = source.name
+                payload["sourceId"] = source.bundleIdentifier
                 
                 return payload
             }

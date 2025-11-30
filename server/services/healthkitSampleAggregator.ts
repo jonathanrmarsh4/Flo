@@ -35,10 +35,28 @@ const SAMPLE_TYPE_MAPPING: Record<string, string> = {
   // Water
   'dietaryWater': 'dietary_water_ml',
   'HKQuantityTypeIdentifierDietaryWater': 'dietary_water_ml',
+  
+  // Gait & Mobility (8 new types)
+  'walkingSpeed': 'walking_speed_ms',
+  'HKQuantityTypeIdentifierWalkingSpeed': 'walking_speed_ms',
+  'walkingStepLength': 'walking_step_length_m',
+  'HKQuantityTypeIdentifierWalkingStepLength': 'walking_step_length_m',
+  'walkingDoubleSupportPercentage': 'walking_double_support_pct',
+  'HKQuantityTypeIdentifierWalkingDoubleSupportPercentage': 'walking_double_support_pct',
+  'walkingAsymmetryPercentage': 'walking_asymmetry_pct',
+  'HKQuantityTypeIdentifierWalkingAsymmetryPercentage': 'walking_asymmetry_pct',
+  'appleWalkingSteadiness': 'apple_walking_steadiness',
+  'HKQuantityTypeIdentifierAppleWalkingSteadiness': 'apple_walking_steadiness',
+  'sixMinuteWalkTestDistance': 'six_minute_walk_distance_m',
+  'HKQuantityTypeIdentifierSixMinuteWalkTestDistance': 'six_minute_walk_distance_m',
+  'stairAscentSpeed': 'stair_ascent_speed_ms',
+  'HKQuantityTypeIdentifierStairAscentSpeed': 'stair_ascent_speed_ms',
+  'stairDescentSpeed': 'stair_descent_speed_ms',
+  'HKQuantityTypeIdentifierStairDescentSpeed': 'stair_descent_speed_ms',
 };
 
-// Which metrics to average vs sum
-const SUM_METRICS = ['basal_energy_kcal', 'dietary_water_ml'];
+// Which metrics to average vs sum (energy and water are summed, everything else averaged)
+const SUM_METRICS = ['basal_energy_kcal', 'dietary_water_ml', 'six_minute_walk_distance_m'];
 
 interface AggregatedMetrics {
   oxygen_saturation_pct: number | null;
@@ -47,6 +65,15 @@ interface AggregatedMetrics {
   basal_energy_kcal: number | null;
   walking_hr_avg_bpm: number | null;
   dietary_water_ml: number | null;
+  // Gait & Mobility
+  walking_speed_ms: number | null;
+  walking_step_length_m: number | null;
+  walking_double_support_pct: number | null;
+  walking_asymmetry_pct: number | null;
+  apple_walking_steadiness: number | null;
+  six_minute_walk_distance_m: number | null;
+  stair_ascent_speed_ms: number | null;
+  stair_descent_speed_ms: number | null;
 }
 
 /**
@@ -65,6 +92,15 @@ export async function aggregateSamplesForDate(
     basal_energy_kcal: null,
     walking_hr_avg_bpm: null,
     dietary_water_ml: null,
+    // Gait & Mobility
+    walking_speed_ms: null,
+    walking_step_length_m: null,
+    walking_double_support_pct: null,
+    walking_asymmetry_pct: null,
+    apple_walking_steadiness: null,
+    six_minute_walk_distance_m: null,
+    stair_ascent_speed_ms: null,
+    stair_descent_speed_ms: null,
   };
 
   try {
@@ -127,6 +163,16 @@ export async function aggregateSamplesForDate(
         if (targetField === 'dietary_water_ml' && sample.unit === 'L') {
           value = value * 1000;
         }
+        
+        // Gait percentages: convert from decimal to percentage if needed
+        if ((targetField === 'walking_double_support_pct' || 
+             targetField === 'walking_asymmetry_pct' ||
+             targetField === 'apple_walking_steadiness') && value <= 1) {
+          value = value * 100;
+        }
+        
+        // Speed units: already in m/s from iOS, no conversion needed
+        // Distance: already in meters from iOS, no conversion needed
         
         groupedValues[targetField].push(value);
       }
@@ -193,6 +239,15 @@ export async function fillMissingMetricsFromSamples(
     if (existing.basalEnergyKcal == null) missingFields.push('basal_energy_kcal');
     if (existing.walkingHrAvgBpm == null) missingFields.push('walking_hr_avg_bpm');
     if (existing.dietaryWaterMl == null) missingFields.push('dietary_water_ml');
+    // Gait & Mobility
+    if (existing.walkingSpeedMs == null) missingFields.push('walking_speed_ms');
+    if (existing.walkingStepLengthM == null) missingFields.push('walking_step_length_m');
+    if (existing.walkingDoubleSupportPct == null) missingFields.push('walking_double_support_pct');
+    if (existing.walkingAsymmetryPct == null) missingFields.push('walking_asymmetry_pct');
+    if (existing.appleWalkingSteadiness == null) missingFields.push('apple_walking_steadiness');
+    if (existing.sixMinuteWalkDistanceM == null) missingFields.push('six_minute_walk_distance_m');
+    if (existing.stairAscentSpeedMs == null) missingFields.push('stair_ascent_speed_ms');
+    if (existing.stairDescentSpeedMs == null) missingFields.push('stair_descent_speed_ms');
 
     if (missingFields.length === 0) {
       logger.debug(`[SampleAggregator] All sample-based metrics already populated for ${userId} on ${localDate}`);
@@ -221,6 +276,31 @@ export async function fillMissingMetricsFromSamples(
     }
     if (aggregated.dietary_water_ml != null && existing.dietaryWaterMl == null) {
       updates.dietaryWaterMl = aggregated.dietary_water_ml;
+    }
+    // Gait & Mobility
+    if (aggregated.walking_speed_ms != null && existing.walkingSpeedMs == null) {
+      updates.walkingSpeedMs = aggregated.walking_speed_ms;
+    }
+    if (aggregated.walking_step_length_m != null && existing.walkingStepLengthM == null) {
+      updates.walkingStepLengthM = aggregated.walking_step_length_m;
+    }
+    if (aggregated.walking_double_support_pct != null && existing.walkingDoubleSupportPct == null) {
+      updates.walkingDoubleSupportPct = aggregated.walking_double_support_pct;
+    }
+    if (aggregated.walking_asymmetry_pct != null && existing.walkingAsymmetryPct == null) {
+      updates.walkingAsymmetryPct = aggregated.walking_asymmetry_pct;
+    }
+    if (aggregated.apple_walking_steadiness != null && existing.appleWalkingSteadiness == null) {
+      updates.appleWalkingSteadiness = aggregated.apple_walking_steadiness;
+    }
+    if (aggregated.six_minute_walk_distance_m != null && existing.sixMinuteWalkDistanceM == null) {
+      updates.sixMinuteWalkDistanceM = aggregated.six_minute_walk_distance_m;
+    }
+    if (aggregated.stair_ascent_speed_ms != null && existing.stairAscentSpeedMs == null) {
+      updates.stairAscentSpeedMs = aggregated.stair_ascent_speed_ms;
+    }
+    if (aggregated.stair_descent_speed_ms != null && existing.stairDescentSpeedMs == null) {
+      updates.stairDescentSpeedMs = aggregated.stair_descent_speed_ms;
     }
 
     if (Object.keys(updates).length > 0) {

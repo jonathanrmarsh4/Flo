@@ -940,6 +940,15 @@ export const userDailyMetrics = pgTable("user_daily_metrics", {
   oxygenSaturationPct: real("oxygen_saturation_pct"), // Blood oxygen saturation percentage (0-100)
   respiratoryRateBpm: real("respiratory_rate_bpm"), // Respiratory rate in breaths per minute
   bodyTempC: real("body_temp_c"), // Body temperature in Celsius
+  // Gait & Mobility metrics (8 new fields for elderly fall prevention)
+  walkingSpeedMs: real("walking_speed_ms"), // Walking speed in meters/second
+  walkingStepLengthM: real("walking_step_length_m"), // Step length in meters
+  walkingDoubleSupportPct: real("walking_double_support_pct"), // % of gait with both feet on ground (higher = less stable)
+  walkingAsymmetryPct: real("walking_asymmetry_pct"), // Left/right step timing difference percentage
+  appleWalkingSteadiness: real("apple_walking_steadiness"), // Fall-risk score (0-1, iOS 15+)
+  sixMinuteWalkDistanceM: real("six_minute_walk_distance_m"), // 6-minute walk test distance in meters (Apple Watch)
+  stairAscentSpeedMs: real("stair_ascent_speed_ms"), // Stair climbing speed (vertical m/s)
+  stairDescentSpeedMs: real("stair_descent_speed_ms"), // Stair descending speed (vertical m/s)
   normalizationVersion: text("normalization_version").notNull().default("norm_v1"), // Track algorithm version
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1056,6 +1065,102 @@ export const sleepBaselines = pgTable("sleep_baselines", {
 }, (table) => [
   uniqueIndex("idx_sleep_baselines_unique").on(table.userId, table.metricKey),
   index("idx_sleep_baselines_user").on(table.userId),
+]);
+
+// Mindfulness Sessions - Individual meditation/mindfulness sessions from HealthKit
+export const mindfulnessSessions = pgTable("mindfulness_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sessionDate: text("session_date").notNull(), // YYYY-MM-DD (local calendar day)
+  timezone: text("timezone").notNull(), // IANA timezone (e.g., 'America/Los_Angeles')
+  startTime: timestamp("start_time").notNull(), // Session start (UTC)
+  endTime: timestamp("end_time").notNull(), // Session end (UTC)
+  durationMinutes: real("duration_minutes").notNull(), // Duration in minutes
+  sourceName: text("source_name"), // App name (e.g., 'Headspace', 'Calm')
+  sourceId: text("source_id"), // App bundle identifier
+  healthkitUuid: text("healthkit_uuid"), // HealthKit sample UUID for deduplication
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_mindfulness_sessions_user_date").on(table.userId, table.sessionDate),
+  uniqueIndex("idx_mindfulness_sessions_uuid").on(table.userId, table.healthkitUuid),
+]);
+
+// Mindfulness Daily Metrics - Daily aggregation of mindfulness sessions
+export const mindfulnessDailyMetrics = pgTable("mindfulness_daily_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  localDate: text("local_date").notNull(), // YYYY-MM-DD
+  timezone: text("timezone").notNull(), // IANA timezone
+  totalMinutes: real("total_minutes").notNull().default(0), // Total mindful minutes for the day
+  sessionCount: integer("session_count").notNull().default(0), // Number of sessions
+  avgSessionMinutes: real("avg_session_minutes"), // Average session duration
+  longestSessionMinutes: real("longest_session_minutes"), // Longest session of the day
+  sources: jsonb("sources"), // Array of sources that contributed
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_mindfulness_daily_unique").on(table.userId, table.localDate),
+  index("idx_mindfulness_daily_user_date").on(table.userId, table.localDate),
+]);
+
+// Nutrition Daily Metrics - Daily aggregation of all 38 nutrition types from HealthKit
+export const nutritionDailyMetrics = pgTable("nutrition_daily_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  localDate: text("local_date").notNull(), // YYYY-MM-DD
+  timezone: text("timezone").notNull(), // IANA timezone
+  // Macronutrients
+  energyKcal: real("energy_kcal"), // Total calories consumed
+  carbohydratesG: real("carbohydrates_g"), // Carbohydrates in grams
+  proteinG: real("protein_g"), // Protein in grams
+  fatTotalG: real("fat_total_g"), // Total fat in grams
+  fatSaturatedG: real("fat_saturated_g"), // Saturated fat in grams
+  fatPolyunsaturatedG: real("fat_polyunsaturated_g"), // Polyunsaturated fat
+  fatMonounsaturatedG: real("fat_monounsaturated_g"), // Monounsaturated fat
+  cholesterolMg: real("cholesterol_mg"), // Cholesterol in milligrams
+  fiberG: real("fiber_g"), // Dietary fiber in grams
+  sugarG: real("sugar_g"), // Sugar in grams
+  // Vitamins
+  vitaminAMcg: real("vitamin_a_mcg"), // Vitamin A in micrograms RAE
+  vitaminB6Mg: real("vitamin_b6_mg"), // Vitamin B6 in milligrams
+  vitaminB12Mcg: real("vitamin_b12_mcg"), // Vitamin B12 in micrograms
+  vitaminCMg: real("vitamin_c_mg"), // Vitamin C in milligrams
+  vitaminDMcg: real("vitamin_d_mcg"), // Vitamin D in micrograms
+  vitaminEMg: real("vitamin_e_mg"), // Vitamin E in milligrams
+  vitaminKMcg: real("vitamin_k_mcg"), // Vitamin K in micrograms
+  thiaminMg: real("thiamin_mg"), // Thiamin (B1) in milligrams
+  riboflavinMg: real("riboflavin_mg"), // Riboflavin (B2) in milligrams
+  niacinMg: real("niacin_mg"), // Niacin (B3) in milligrams
+  folateMcg: real("folate_mcg"), // Folate in micrograms
+  biotinMcg: real("biotin_mcg"), // Biotin in micrograms
+  pantothenicAcidMg: real("pantothenic_acid_mg"), // Pantothenic acid (B5) in milligrams
+  // Minerals
+  calciumMg: real("calcium_mg"), // Calcium in milligrams
+  chlorideMg: real("chloride_mg"), // Chloride in milligrams
+  chromiumMcg: real("chromium_mcg"), // Chromium in micrograms
+  copperMg: real("copper_mg"), // Copper in milligrams
+  iodineMcg: real("iodine_mcg"), // Iodine in micrograms
+  ironMg: real("iron_mg"), // Iron in milligrams
+  magnesiumMg: real("magnesium_mg"), // Magnesium in milligrams
+  manganeseMg: real("manganese_mg"), // Manganese in milligrams
+  molybdenumMcg: real("molybdenum_mcg"), // Molybdenum in micrograms
+  phosphorusMg: real("phosphorus_mg"), // Phosphorus in milligrams
+  potassiumMg: real("potassium_mg"), // Potassium in milligrams
+  seleniumMcg: real("selenium_mcg"), // Selenium in micrograms
+  sodiumMg: real("sodium_mg"), // Sodium in milligrams
+  zincMg: real("zinc_mg"), // Zinc in milligrams
+  // Other
+  caffeineMg: real("caffeine_mg"), // Caffeine in milligrams
+  waterMl: real("water_ml"), // Water intake in milliliters (from dietaryWater)
+  // Metadata
+  mealCount: integer("meal_count"), // Number of meals/entries logged
+  sources: jsonb("sources"), // Array of apps that contributed data
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_nutrition_daily_unique").on(table.userId, table.localDate),
+  index("idx_nutrition_daily_user_date").on(table.userId, table.localDate),
 ]);
 
 // Flōmentum user settings
@@ -1935,6 +2040,39 @@ export const insertSleepBaselinesSchema = createInsertSchema(sleepBaselines).omi
 
 export type InsertSleepBaseline = z.infer<typeof insertSleepBaselinesSchema>;
 export type SleepBaseline = typeof sleepBaselines.$inferSelect;
+
+// Mindfulness Sessions schemas
+export const insertMindfulnessSessionSchema = createInsertSchema(mindfulnessSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  startTime: z.union([z.date(), z.string().transform(str => new Date(str))]),
+  endTime: z.union([z.date(), z.string().transform(str => new Date(str))]),
+});
+
+export type InsertMindfulnessSession = z.infer<typeof insertMindfulnessSessionSchema>;
+export type MindfulnessSession = typeof mindfulnessSessions.$inferSelect;
+
+// Mindfulness Daily Metrics schemas
+export const insertMindfulnessDailyMetricsSchema = createInsertSchema(mindfulnessDailyMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertMindfulnessDailyMetrics = z.infer<typeof insertMindfulnessDailyMetricsSchema>;
+export type MindfulnessDailyMetrics = typeof mindfulnessDailyMetrics.$inferSelect;
+
+// Nutrition Daily Metrics schemas
+export const insertNutritionDailyMetricsSchema = createInsertSchema(nutritionDailyMetrics).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertNutritionDailyMetrics = z.infer<typeof insertNutritionDailyMetricsSchema>;
+export type NutritionDailyMetrics = typeof nutritionDailyMetrics.$inferSelect;
 
 // Mobile auth request schemas
 export const appleSignInSchema = z.object({

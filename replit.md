@@ -78,18 +78,39 @@ Production database schema changes require manual verification and careful migra
 - **iOS Shortcuts:** Quick event logging via secure API keys and templates.
 
 ### Extended HealthKit Metrics
-The `user_daily_metrics` table now tracks **all 26 HealthKit data types** with complete daily aggregation:
+The platform now tracks **73+ HealthKit data types** across multiple tables with complete daily aggregation:
 
-**Core Metrics (21 original):** steps, distance, activeEnergy, heartRate, weight, HRV, restingHeartRate, bloodPressure (systolic/diastolic), height, BMI, bodyFatPercentage, leanBodyMass, flightsClimbed, bloodGlucose, vo2Max, waistCircumference, exerciseTime, standTime, sleepAnalysis
+**Core Metrics (26 in user_daily_metrics):** steps, distance, activeEnergy, heartRate, weight, HRV, restingHeartRate, bloodPressure (systolic/diastolic), height, BMI, bodyFatPercentage, leanBodyMass, flightsClimbed, bloodGlucose, vo2Max, waistCircumference, exerciseTime, standTime, sleepAnalysis, basalEnergy, walkingHR, dietaryWater, oxygenSaturation, respiratoryRate
 
-**Newly Added Metrics (Nov 2025):**
-- `basalEnergyKcal` - Basal energy burned (resting metabolism)
-- `walkingHrAvgBpm` - Walking heart rate average  
-- `dietaryWaterMl` - Water intake in milliliters
-- `oxygenSaturationPct` - Blood oxygen saturation percentage
-- `respiratoryRateBpm` - Respiratory rate in breaths per minute
+**Gait & Mobility Metrics (8 fields in user_daily_metrics, Nov 2025):**
+- `walkingSpeedMs` - Average walking speed in meters/second
+- `walkingStepLengthM` - Average step length in meters
+- `walkingDoubleSupportPct` - Double support percentage (fall risk indicator)
+- `walkingAsymmetryPct` - Walking asymmetry percentage
+- `walkingSteadiness` - Apple Walking Steadiness score (0-100%)
+- `sixMinuteWalkDistanceM` - 6-minute walk test distance
+- `stairAscentSpeedMs` - Stair climbing speed ascending
+- `stairDescentSpeedMs` - Stair climbing speed descending
 
-These 5 metrics were previously stored as raw samples but not aggregated into daily metrics. Now included in baseline calculations for trend detection via `server/services/baselineCalculator.ts`.
+**Nutrition Metrics (38 fields in nutrition_daily_metrics, Nov 2025):**
+- **Macronutrients:** energyKcal, proteinG, carbohydratesG, fatTotalG, fatSaturatedG, fatPolyunsaturatedG, fatMonounsaturatedG, fiberG, sugarG
+- **Minerals:** calciumMg, ironMg, magnesiumMg, manganeseMg, phosphorusMg, potassiumMg, sodiumMg, zincMg, copperMg, seleniumMg, chromiumMg, iodineMg, chlorideMg, molybdenumMg
+- **Vitamins:** vitaminAMcg, vitaminB6Mg, vitaminB12Mcg, vitaminCMg, vitaminDMcg, vitaminEMg, vitaminKMcg, biotinMcg, folateMcg, niacinMg, pantothenicAcidMg, riboflavinMg, thiaminMg
+- **Other:** cholesterolMg, caffeineMg, waterMl
+
+**Mindfulness Tracking (Nov 2025):**
+- `mindfulness_sessions` table: Individual meditation/mindfulness sessions with duration, source app, HealthKit UUID
+- `mindfulness_daily_metrics` table: Daily aggregations (totalMinutes, sessionCount, avgSessionMinutes, longestSessionMinutes)
+
+**Aggregation Services:**
+- `healthkitSampleAggregator.ts` - Aggregates core + gait/mobility metrics daily
+- `nutritionMindfulnessAggregator.ts` - Aggregates nutrition and mindfulness data daily
+
+**API Routes:**
+- `POST /api/healthkit/nutrition` - Batch upload nutrition samples
+- `POST /api/healthkit/mindfulness` - Upload individual mindfulness sessions
+
+All new data types are included in Flō Oracle's AI context for personalized health insights.
 
 ## External Dependencies
 

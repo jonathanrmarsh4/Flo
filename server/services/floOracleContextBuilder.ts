@@ -13,7 +13,9 @@ import {
   lifeEvents,
   healthkitSamples,
   healthkitWorkouts,
-  actionPlanItems
+  actionPlanItems,
+  nutritionDailyMetrics,
+  mindfulnessDailyMetrics
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
@@ -100,6 +102,21 @@ interface UserHealthContext {
     dailyFocus: string | null;
   };
   bodyCompositionExplanation: string | null;
+  mindfulnessSummary: {
+    totalMinutes: number;
+    sessionCount: number;
+    avgDailyMinutes: number;
+    daysWithPractice: number;
+  } | null;
+  nutritionSummary: {
+    avgDailyCalories: number | null;
+    avgDailyProtein: number | null;
+    avgDailyCarbs: number | null;
+    avgDailyFat: number | null;
+    avgDailyFiber: number | null;
+    avgDailyCaffeine: number | null;
+    daysTracked: number;
+  } | null;
 }
 
 // Import age calculation utility that uses mid-year (July 1st) assumption for ±6 month accuracy
@@ -241,6 +258,8 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         dailyFocus: null,
       },
       bodyCompositionExplanation: null,
+      mindfulnessSummary: null,
+      nutritionSummary: null,
     };
 
     // Fetch user's timezone from users table
@@ -691,6 +710,83 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       context.bodyCompositionExplanation = null;
     }
 
+    // Fetch mindfulness summary (last 7 days)
+    // NOTE: Currently queries Neon directly. When mindfulness_daily_metrics table is migrated
+    // to Supabase, this should be updated to use healthStorageRouter for dual-database support.
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
+      const todayStr = formatDateInTimezone(new Date(), userTimezone);
+
+      const mindfulnessRecords = await db
+        .select()
+        .from(mindfulnessDailyMetrics)
+        .where(
+          and(
+            eq(mindfulnessDailyMetrics.userId, userId),
+            gte(mindfulnessDailyMetrics.localDate, sevenDaysAgoStr)
+          )
+        );
+
+      if (mindfulnessRecords.length > 0) {
+        const totalMinutes = mindfulnessRecords.reduce((sum, r) => sum + (r.totalMinutes || 0), 0);
+        const sessionCount = mindfulnessRecords.reduce((sum, r) => sum + (r.sessionCount || 0), 0);
+        const daysWithPractice = mindfulnessRecords.length;
+        const avgDailyMinutes = Math.round((totalMinutes / 7) * 10) / 10;
+
+        context.mindfulnessSummary = {
+          totalMinutes,
+          sessionCount,
+          avgDailyMinutes,
+          daysWithPractice,
+        };
+        logger.info(`[FloOracle] Fetched mindfulness: ${totalMinutes}min total, ${sessionCount} sessions`);
+      }
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch mindfulness data');
+    }
+
+    // Fetch nutrition summary (last 7 days)
+    // NOTE: Currently queries Neon directly. When nutrition_daily_metrics table is migrated
+    // to Supabase, this should be updated to use healthStorageRouter for dual-database support.
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoStr = formatDateInTimezone(sevenDaysAgo, userTimezone);
+
+      const nutritionRecords = await db
+        .select()
+        .from(nutritionDailyMetrics)
+        .where(
+          and(
+            eq(nutritionDailyMetrics.userId, userId),
+            gte(nutritionDailyMetrics.localDate, sevenDaysAgoStr)
+          )
+        );
+
+      if (nutritionRecords.length > 0) {
+        const avgField = (field: 'energyKcal' | 'proteinG' | 'carbohydratesG' | 'fatTotalG' | 'fiberG' | 'caffeineMg') => {
+          const values = nutritionRecords.map(r => r[field]).filter((v): v is number => v != null);
+          if (values.length === 0) return null;
+          return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
+        };
+
+        context.nutritionSummary = {
+          avgDailyCalories: avgField('energyKcal'),
+          avgDailyProtein: avgField('proteinG'),
+          avgDailyCarbs: avgField('carbohydratesG'),
+          avgDailyFat: avgField('fatTotalG'),
+          avgDailyFiber: avgField('fiberG'),
+          avgDailyCaffeine: avgField('caffeineMg'),
+          daysTracked: nutritionRecords.length,
+        };
+        logger.info(`[FloOracle] Fetched nutrition: ${nutritionRecords.length} days tracked`);
+      }
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch nutrition data');
+    }
+
     const contextString = buildContextString(context, bloodPanelHistory, workoutHistory);
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars)`);
     
@@ -975,6 +1071,50 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
       lines.push(`  ... and ${workoutHistory.length - 5} more workouts`);
     }
     logger.info(`[FloOracle] Added ${Math.min(5, workoutHistory.length)} recent workouts to context`);
+  }
+
+  // Add gait/mobility metrics if available (for fall prevention insights)
+  const hkMobility = context.healthkitMetrics as any;
+  if (hkMobility.walkingSpeed || hkMobility.walkingSteadiness || hkMobility.stairAscentSpeed) {
+    lines.push('');
+    lines.push('GAIT & MOBILITY METRICS:');
+    const mobilityParts: string[] = [];
+    if (hkMobility.walkingSpeed) mobilityParts.push(`Walking speed ${hkMobility.walkingSpeed.toFixed(2)} m/s`);
+    if (hkMobility.walkingStepLength) mobilityParts.push(`Step length ${(hkMobility.walkingStepLength * 100).toFixed(1)} cm`);
+    if (hkMobility.walkingSteadiness) mobilityParts.push(`Steadiness ${hkMobility.walkingSteadiness.toFixed(0)}%`);
+    if (hkMobility.walkingDoubleSupportPct) mobilityParts.push(`Double support ${hkMobility.walkingDoubleSupportPct.toFixed(1)}%`);
+    if (hkMobility.walkingAsymmetryPct) mobilityParts.push(`Asymmetry ${hkMobility.walkingAsymmetryPct.toFixed(1)}%`);
+    if (hkMobility.sixMinuteWalkDistance) mobilityParts.push(`6-min walk ${hkMobility.sixMinuteWalkDistance.toFixed(0)} m`);
+    if (hkMobility.stairAscentSpeed) mobilityParts.push(`Stair ascent ${hkMobility.stairAscentSpeed.toFixed(2)} m/s`);
+    if (hkMobility.stairDescentSpeed) mobilityParts.push(`Stair descent ${hkMobility.stairDescentSpeed.toFixed(2)} m/s`);
+    lines.push(`  ${mobilityParts.join(', ')}`);
+    logger.info(`[FloOracle] Added ${mobilityParts.length} mobility metrics to context`);
+  }
+
+  // Add mindfulness summary if available
+  const mindfulness = context.mindfulnessSummary as any;
+  if (mindfulness && mindfulness.totalMinutes > 0) {
+    lines.push('');
+    lines.push('MINDFULNESS (last 7 days):');
+    lines.push(`  Total: ${mindfulness.totalMinutes} min | Sessions: ${mindfulness.sessionCount} | Days practiced: ${mindfulness.daysWithPractice} | Avg daily: ${mindfulness.avgDailyMinutes.toFixed(1)} min`);
+    logger.info(`[FloOracle] Added mindfulness summary to context`);
+  }
+
+  // Add nutrition summary if available
+  const nutrition = context.nutritionSummary as any;
+  if (nutrition && nutrition.daysTracked > 0) {
+    lines.push('');
+    lines.push('NUTRITION (7-day averages):');
+    const nutritionParts: string[] = [];
+    if (nutrition.avgDailyCalories) nutritionParts.push(`Calories ${nutrition.avgDailyCalories.toFixed(0)} kcal`);
+    if (nutrition.avgDailyProtein) nutritionParts.push(`Protein ${nutrition.avgDailyProtein.toFixed(0)}g`);
+    if (nutrition.avgDailyCarbs) nutritionParts.push(`Carbs ${nutrition.avgDailyCarbs.toFixed(0)}g`);
+    if (nutrition.avgDailyFat) nutritionParts.push(`Fat ${nutrition.avgDailyFat.toFixed(0)}g`);
+    if (nutrition.avgDailyFiber) nutritionParts.push(`Fiber ${nutrition.avgDailyFiber.toFixed(0)}g`);
+    if (nutrition.avgDailyCaffeine) nutritionParts.push(`Caffeine ${nutrition.avgDailyCaffeine.toFixed(0)}mg`);
+    lines.push(`  ${nutritionParts.join(', ')}`);
+    lines.push(`  Days tracked: ${nutrition.daysTracked}`);
+    logger.info(`[FloOracle] Added nutrition summary to context`);
   }
   
   if (context.flomentumCurrent.score !== null) {

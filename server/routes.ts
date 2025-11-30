@@ -48,6 +48,9 @@ import {
   sleepSubscores,
   insertSleepNightsSchema,
   insertSleepSubscoresSchema,
+  mindfulnessSessions,
+  mindfulnessDailyMetrics,
+  nutritionDailyMetrics,
   userSettings as userSettingsTable,
   healthDailyMetrics,
   flomentumDaily,
@@ -104,6 +107,12 @@ import {
 import { generateDailyInsights } from "./services/insightsEngineV2";
 import { triggerInsightsGenerationCheck } from "./services/insightsSchedulerV2";
 import { format } from "date-fns";
+import { 
+  upsertNutritionDaily, 
+  processMindfulnessSession, 
+  getMindfulnessSummary, 
+  getNutritionSummary 
+} from "./services/nutritionMindfulnessAggregator";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -5211,6 +5220,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({ status: "upserted", sleepDate });
     } catch (error: any) {
       logger.error("[Sleep] Error processing raw sleep samples:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // Nutrition Routes
+  // ============================================
+
+  // Get nutrition daily metrics for a user
+  app.get("/api/nutrition/daily", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate, limit } = req.query;
+
+      let query = db
+        .select()
+        .from(nutritionDailyMetrics)
+        .where(eq(nutritionDailyMetrics.userId, userId))
+        .orderBy(desc(nutritionDailyMetrics.localDate));
+
+      if (startDate && endDate) {
+        query = db
+          .select()
+          .from(nutritionDailyMetrics)
+          .where(
+            and(
+              eq(nutritionDailyMetrics.userId, userId),
+              gte(nutritionDailyMetrics.localDate, startDate as string),
+              sql`${nutritionDailyMetrics.localDate} <= ${endDate}`
+            )
+          )
+          .orderBy(desc(nutritionDailyMetrics.localDate));
+      }
+
+      const records = await (limit ? query.limit(Number(limit)) : query);
+      
+      return res.json(records);
+    } catch (error: any) {
+      logger.error("[Nutrition] Error fetching daily metrics:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get nutrition summary (averages over date range)
+  app.get("/api/nutrition/summary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: "startDate and endDate are required" });
+      }
+
+      const summary = await getNutritionSummary(userId, startDate as string, endDate as string);
+      return res.json(summary);
+    } catch (error: any) {
+      logger.error("[Nutrition] Error getting summary:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Trigger nutrition aggregation for a date (called by iOS after uploading samples)
+  app.post("/api/nutrition/aggregate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { localDate, timezone } = req.body;
+      
+      if (!localDate || !timezone) {
+        return res.status(400).json({ error: "localDate and timezone are required" });
+      }
+
+      await upsertNutritionDaily(userId, localDate, timezone);
+      
+      logger.info(`[Nutrition] Aggregated for ${userId} on ${localDate}`);
+      return res.json({ status: "ok", localDate });
+    } catch (error: any) {
+      logger.error("[Nutrition] Error aggregating:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // Mindfulness Routes
+  // ============================================
+
+  // Get mindfulness sessions for a user
+  app.get("/api/mindfulness/sessions", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate, limit } = req.query;
+
+      let records;
+      if (startDate && endDate) {
+        records = await db
+          .select()
+          .from(mindfulnessSessions)
+          .where(
+            and(
+              eq(mindfulnessSessions.userId, userId),
+              gte(mindfulnessSessions.sessionDate, startDate as string),
+              sql`${mindfulnessSessions.sessionDate} <= ${endDate}`
+            )
+          )
+          .orderBy(desc(mindfulnessSessions.startTime))
+          .limit(limit ? Number(limit) : 100);
+      } else {
+        records = await db
+          .select()
+          .from(mindfulnessSessions)
+          .where(eq(mindfulnessSessions.userId, userId))
+          .orderBy(desc(mindfulnessSessions.startTime))
+          .limit(limit ? Number(limit) : 100);
+      }
+      
+      return res.json(records);
+    } catch (error: any) {
+      logger.error("[Mindfulness] Error fetching sessions:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get mindfulness daily metrics
+  app.get("/api/mindfulness/daily", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate, limit } = req.query;
+
+      let records;
+      if (startDate && endDate) {
+        records = await db
+          .select()
+          .from(mindfulnessDailyMetrics)
+          .where(
+            and(
+              eq(mindfulnessDailyMetrics.userId, userId),
+              gte(mindfulnessDailyMetrics.localDate, startDate as string),
+              sql`${mindfulnessDailyMetrics.localDate} <= ${endDate}`
+            )
+          )
+          .orderBy(desc(mindfulnessDailyMetrics.localDate))
+          .limit(limit ? Number(limit) : 100);
+      } else {
+        records = await db
+          .select()
+          .from(mindfulnessDailyMetrics)
+          .where(eq(mindfulnessDailyMetrics.userId, userId))
+          .orderBy(desc(mindfulnessDailyMetrics.localDate))
+          .limit(limit ? Number(limit) : 100);
+      }
+      
+      return res.json(records);
+    } catch (error: any) {
+      logger.error("[Mindfulness] Error fetching daily metrics:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get mindfulness summary (totals over date range)
+  app.get("/api/mindfulness/summary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: "startDate and endDate are required" });
+      }
+
+      const summary = await getMindfulnessSummary(userId, startDate as string, endDate as string);
+      return res.json(summary);
+    } catch (error: any) {
+      logger.error("[Mindfulness] Error getting summary:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upload mindfulness session from iOS HealthKit
+  app.post("/api/mindfulness/session", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startTime, endTime, sourceName, sourceId, healthkitUuid, timezone } = req.body;
+      
+      if (!startTime || !endTime) {
+        return res.status(400).json({ error: "startTime and endTime are required" });
+      }
+
+      await processMindfulnessSession(
+        userId,
+        new Date(startTime),
+        new Date(endTime),
+        sourceName || null,
+        sourceId || null,
+        healthkitUuid || null,
+        { timezone: timezone || 'America/Los_Angeles' }
+      );
+      
+      logger.info(`[Mindfulness] Session processed for ${userId}`);
+      return res.json({ status: "ok" });
+    } catch (error: any) {
+      logger.error("[Mindfulness] Error processing session:", error);
       return res.status(500).json({ error: error.message });
     }
   });
