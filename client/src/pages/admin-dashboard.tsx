@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { AdminNotificationConfig } from '@/components/admin/AdminNotificationConfig';
 import { AdminReportModelSettings } from '@/components/admin/AdminReportModelSettings';
 import { AdminAnalyticsTab } from '@/components/admin/AdminAnalyticsTab';
 import { AdminSandboxVoice } from '@/components/admin/AdminSandboxVoice';
@@ -879,10 +878,6 @@ export default function AdminDashboard() {
         {activeTab === 'notifications' && (
           <div className="space-y-6">
             <AdminMessagesManager />
-            <div className="pt-6 border-t border-white/10">
-              <h3 className="text-lg text-white mb-4">Push Notification Triggers</h3>
-              <AdminNotificationConfig />
-            </div>
           </div>
         )}
 

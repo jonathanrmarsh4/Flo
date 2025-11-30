@@ -11,8 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { 
   MessageSquare, Send, Bug, Lightbulb, Users, Trash2, 
-  Check, Clock, AlertCircle, Archive, Eye, Loader2
+  Check, Clock, AlertCircle, Archive, Eye, Loader2, Bell
 } from 'lucide-react';
+import { AdminNotificationConfig } from './AdminNotificationConfig';
 
 interface DeveloperMessage {
   id: number;
@@ -47,7 +48,7 @@ interface UserOption {
   role: string;
 }
 
-type TabType = 'compose' | 'sent' | 'bugs' | 'features';
+type TabType = 'compose' | 'sent' | 'bugs' | 'features' | 'triggers';
 
 export function AdminMessagesManager() {
   const { toast } = useToast();
@@ -204,6 +205,7 @@ export function AdminMessagesManager() {
     { id: 'sent' as TabType, label: 'Sent', icon: MessageSquare, count: messages.length },
     { id: 'bugs' as TabType, label: 'Bug Reports', icon: Bug, count: bugReports.filter(b => b.status === 'new').length },
     { id: 'features' as TabType, label: 'Feature Requests', icon: Lightbulb, count: featureRequests.filter(f => f.status === 'new').length },
+    { id: 'triggers' as TabType, label: 'Push Triggers', icon: Bell, count: null },
   ];
 
   return (
@@ -524,6 +526,10 @@ export function AdminMessagesManager() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {activeTab === 'triggers' && (
+        <AdminNotificationConfig />
       )}
     </div>
   );
