@@ -1877,6 +1877,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserData(userId: string): Promise<void> {
+    // Import Supabase health storage for deletion
+    const { isSupabaseHealthEnabled, clearHealthIdCache } = await import('./services/healthStorageRouter');
+    const supabaseHealth = await import('./services/supabaseHealthStorage');
+    
+    // If Supabase health is enabled, delete from Supabase first (before Neon profile deletion)
+    if (isSupabaseHealthEnabled()) {
+      // Delete from Supabase - throws on error to prevent partial deletion
+      await supabaseHealth.deleteAllHealthData(userId);
+    }
+    
+    // Clear healthId cache from both locations
+    clearHealthIdCache(userId);
+    supabaseHealth.clearHealthIdCache(userId);
+    
     // Delete all user data in a transaction for atomicity
     // FK cascades will handle dependent records:
     // - bloodWorkRecords → analysisResults (cascade)
@@ -1907,6 +1921,39 @@ export class DatabaseStorage implements IStorage {
       await tx
         .delete(labUploadJobs)
         .where(eq(labUploadJobs.userId, userId));
+      
+      // Also delete from other Neon tables that may contain user data
+      await tx
+        .delete(healthkitSamples)
+        .where(eq(healthkitSamples.userId, userId));
+      
+      await tx
+        .delete(sleepNights)
+        .where(eq(sleepNights.userId, userId));
+      
+      await tx
+        .delete(userDailyMetrics)
+        .where(eq(userDailyMetrics.userId, userId));
+      
+      await tx
+        .delete(lifeEvents)
+        .where(eq(lifeEvents.userId, userId));
+      
+      await tx
+        .delete(flomentumDaily)
+        .where(eq(flomentumDaily.userId, userId));
+      
+      await tx
+        .delete(dailyInsights)
+        .where(eq(dailyInsights.userId, userId));
+      
+      await tx
+        .delete(actionPlanItems)
+        .where(eq(actionPlanItems.userId, userId));
+      
+      await tx
+        .delete(profiles)
+        .where(eq(profiles.userId, userId));
     });
   }
 

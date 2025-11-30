@@ -887,4 +887,117 @@ export async function getAllHealthData(userId: string): Promise<{
   };
 }
 
+/**
+ * Delete all health data for a user (GDPR compliance / account deletion)
+ * Order matters due to foreign key constraints
+ * Throws on first error to ensure atomic behavior
+ */
+export async function deleteAllHealthData(userId: string): Promise<void> {
+  const healthId = await getHealthId(userId);
+  logger.info(`[SupabaseHealth] Deleting all health data for health_id: ${healthId}`);
+
+  const errors: string[] = [];
+
+  // Delete in order to respect foreign key constraints
+  // First delete tables that reference other tables
+  
+  // 1. Delete flomentum_daily (references nothing)
+  const { error: flomentumError } = await supabase
+    .from('flomentum_daily')
+    .delete()
+    .eq('health_id', healthId);
+  if (flomentumError) errors.push(`flomentum_daily: ${flomentumError.message}`);
+
+  // 2. Delete sleep_nights
+  const { error: sleepError } = await supabase
+    .from('sleep_nights')
+    .delete()
+    .eq('health_id', healthId);
+  if (sleepError) errors.push(`sleep_nights: ${sleepError.message}`);
+
+  // 3. Delete life_events
+  const { error: eventsError } = await supabase
+    .from('life_events')
+    .delete()
+    .eq('health_id', healthId);
+  if (eventsError) errors.push(`life_events: ${eventsError.message}`);
+
+  // 4. Delete user_daily_metrics
+  const { error: metricsError } = await supabase
+    .from('user_daily_metrics')
+    .delete()
+    .eq('health_id', healthId);
+  if (metricsError) errors.push(`user_daily_metrics: ${metricsError.message}`);
+
+  // 5. Delete healthkit_samples
+  const { error: samplesError } = await supabase
+    .from('healthkit_samples')
+    .delete()
+    .eq('health_id', healthId);
+  if (samplesError) errors.push(`healthkit_samples: ${samplesError.message}`);
+
+  // 6. Delete healthkit_workouts
+  const { error: workoutsError } = await supabase
+    .from('healthkit_workouts')
+    .delete()
+    .eq('health_id', healthId);
+  if (workoutsError) errors.push(`healthkit_workouts: ${workoutsError.message}`);
+
+  // 7. Delete action_plan_items
+  const { error: actionError } = await supabase
+    .from('action_plan_items')
+    .delete()
+    .eq('health_id', healthId);
+  if (actionError) errors.push(`action_plan_items: ${actionError.message}`);
+
+  // 8. Delete diagnostics_studies (no child tables in Supabase - metrics are in Neon)
+  const { error: diagnosticsError } = await supabase
+    .from('diagnostics_studies')
+    .delete()
+    .eq('health_id', healthId);
+  if (diagnosticsError) errors.push(`diagnostics_studies: ${diagnosticsError.message}`);
+
+  // 9. Delete biomarker_measurements (CASCADE from sessions handles this, but explicit delete for safety)
+  // Get session IDs first
+  const { data: sessions } = await supabase
+    .from('biomarker_test_sessions')
+    .select('id')
+    .eq('health_id', healthId);
+  
+  if (sessions && sessions.length > 0) {
+    const sessionIds = sessions.map(s => s.id);
+    const { error: measurementsError } = await supabase
+      .from('biomarker_measurements')
+      .delete()
+      .in('session_id', sessionIds);
+    if (measurementsError) errors.push(`biomarker_measurements: ${measurementsError.message}`);
+  }
+
+  // 10. Delete biomarker_test_sessions
+  const { error: sessionsError } = await supabase
+    .from('biomarker_test_sessions')
+    .delete()
+    .eq('health_id', healthId);
+  if (sessionsError) errors.push(`biomarker_test_sessions: ${sessionsError.message}`);
+
+  // 11. Delete profile last (other tables may reference it)
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('health_id', healthId);
+  if (profileError) errors.push(`profiles: ${profileError.message}`);
+
+  // Clear the health ID cache for this user
+  clearHealthIdCache(userId);
+  
+  // If any errors occurred, throw with details
+  if (errors.length > 0) {
+    const errorMessage = `Failed to delete some health data: ${errors.join('; ')}`;
+    logger.error(`[SupabaseHealth] ${errorMessage}`);
+    throw new Error(errorMessage);
+  }
+  
+  logger.info(`[SupabaseHealth] Successfully deleted all health data for health_id: ${healthId}`);
+}
+
 logger.info('[SupabaseHealth] Health storage service initialized');
