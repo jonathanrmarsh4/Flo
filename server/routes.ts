@@ -4114,18 +4114,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (userSettings && userSettings.flomentumEnabled) {
           const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
           
-          // Query sleep data from sleep_nights table (more reliable than sleepHours from iOS)
+          // Query sleep data from sleep_nights table via storage layer (more reliable than sleepHours from iOS)
           // sleepHours only captures "in bed" samples, but sleep_nights processes all sleep stages
-          const [sleepNight] = await db
-            .select()
-            .from(sleepNights)
-            .where(
-              and(
-                eq(sleepNights.userId, userId),
-                eq(sleepNights.sleepDate, metrics.localDate)
-              )
-            )
-            .limit(1);
+          const sleepNight = await storage.getSleepNightByDate(userId, metrics.localDate);
           
           // Map userDailyMetrics fields to Flōmentum metrics
           // Note: userDailyMetrics has limited fields, so some will be null
@@ -4153,39 +4144,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           const scoreResult = calculateFlomentumScore(flomentumMetrics, context);
 
-          // Store the daily Flōmentum score
-          await db.insert(flomentumDaily).values({
+          // Store the daily Flōmentum score via storage layer
+          await storage.upsertFlomentumDaily({
             date: metrics.localDate,
             userId,
             score: scoreResult.score,
             zone: scoreResult.zone,
             factors: scoreResult.factors,
             dailyFocus: scoreResult.dailyFocus,
-          }).onConflictDoUpdate({
-            target: [flomentumDaily.userId, flomentumDaily.date],
-            set: {
-              score: scoreResult.score,
-              zone: scoreResult.zone,
-              factors: scoreResult.factors,
-              dailyFocus: scoreResult.dailyFocus,
-            },
           });
 
           logger.info(`[Flōmentum] Score calculated for ${userId}, ${metrics.localDate}: ${scoreResult.score} (${scoreResult.zone})`);
           
           res.json({ 
-            status: existing.length > 0 ? "updated" : "created", 
+            status: "upserted", 
             date: metrics.localDate,
             flomentumScore: scoreResult.score,
             flomentumZone: scoreResult.zone,
           });
         } else {
-          res.json({ status: existing.length > 0 ? "updated" : "created", date: metrics.localDate });
+          res.json({ status: "upserted", date: metrics.localDate });
         }
       } catch (flomentumError: any) {
         logger.error(`[Flōmentum] Error calculating score for ${userId}, ${metrics.localDate}:`, flomentumError);
         // Return success for metrics storage even if Flōmentum fails
-        res.json({ status: existing.length > 0 ? "updated" : "created", date: metrics.localDate });
+        res.json({ status: "upserted", date: metrics.localDate });
       }
     } catch (error: any) {
       logger.error("[HealthKit] Daily metrics ingestion error:", error);
@@ -4237,17 +4220,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .limit(1);
 
-      // Fetch today's metrics for freshness check and display data
-      const todayMetricsData = await db
-        .select()
-        .from(userDailyMetrics)
-        .where(
-          and(
-            eq(userDailyMetrics.userId, userId),
-            eq(userDailyMetrics.localDate, today)
-          )
-        )
-        .limit(1);
+      // Fetch today's metrics for freshness check and display data via storage layer
+      const todayMetricsRecord = await storage.getUserDailyMetricsByDate(userId, today);
+      const todayMetricsData = todayMetricsRecord ? [todayMetricsRecord] : [];
 
       // CRITICAL GUARD: Can only return cached readiness if both exist AND metrics are fresh
       if (existing.length > 0 && todayMetricsData.length > 0) {
@@ -4263,21 +4238,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // SAFE PATH: Cached readiness is fresh, metrics exist
           logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
           
-          // Fetch yesterday's metrics for Activity Load context
+          // Fetch yesterday's metrics for Activity Load context via storage layer
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayStr = yesterday.toISOString().split('T')[0];
           
-          const yesterdayMetricsData = await db
-            .select({ activeEnergyKcal: userDailyMetrics.activeEnergyKcal })
-            .from(userDailyMetrics)
-            .where(
-              and(
-                eq(userDailyMetrics.userId, userId),
-                eq(userDailyMetrics.localDate, yesterdayStr)
-              )
-            )
-            .limit(1);
+          const yesterdayMetricsRecord = await storage.getUserDailyMetricsByDate(userId, yesterdayStr);
+          const yesterdayMetricsData = yesterdayMetricsRecord ? [{ activeEnergyKcal: yesterdayMetricsRecord.activeEnergyKcal }] : [];
           
           const displayMetrics = {
             avgSleepHours: todayMetricsData[0].sleepHours ?? undefined,
@@ -4565,17 +4532,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
           const { calculateFlomentumBaselines } = await import("./services/flomentumBaselineCalculator");
           
-          // Get daily metrics for this date
-          const [dailyMetrics] = await db
-            .select()
-            .from(userDailyMetrics)
-            .where(
-              and(
-                eq(userDailyMetrics.userId, userId),
-                eq(userDailyMetrics.localDate, sleepDate)
-              )
-            )
-            .limit(1);
+          // Get daily metrics for this date via storage layer
+          const dailyMetrics = await storage.getUserDailyMetricsByDate(userId, sleepDate);
           
           if (dailyMetrics) {
             const baselines = await calculateFlomentumBaselines(userId, sleepDate);
@@ -4603,22 +4561,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             const scoreResult = calculateFlomentumScore(flomentumMetrics, context);
 
-            // Update the daily Flōmentum score with sleep data included
-            await db.insert(flomentumDaily).values({
+            // Update the daily Flōmentum score with sleep data included via storage layer
+            await storage.upsertFlomentumDaily({
               date: sleepDate,
               userId,
               score: scoreResult.score,
               zone: scoreResult.zone,
               factors: scoreResult.factors,
               dailyFocus: scoreResult.dailyFocus,
-            }).onConflictDoUpdate({
-              target: [flomentumDaily.userId, flomentumDaily.date],
-              set: {
-                score: scoreResult.score,
-                zone: scoreResult.zone,
-                factors: scoreResult.factors,
-                dailyFocus: scoreResult.dailyFocus,
-              },
             });
 
             logger.info(`[Flōmentum] Score recalculated with sleep data for ${userId}, ${sleepDate}: ${scoreResult.score} (${scoreResult.zone})`);
@@ -4629,7 +4579,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't fail the sleep upload if Flōmentum fails
       }
 
-      return res.json({ status: existing.length > 0 ? "updated" : "created", sleepDate });
+      return res.json({ status: "upserted", sleepDate });
     } catch (error: any) {
       logger.error("[Sleep] Error processing raw sleep samples:", error);
       return res.status(500).json({ error: error.message });
@@ -5793,22 +5743,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const scoreResult = calculateFlomentumScore(metrics, context);
 
-      // Store the daily score
-      await db.insert(flomentumDaily).values({
+      // Store the daily score via storage layer
+      await storage.upsertFlomentumDaily({
         date: summaryData.date,
         userId,
         score: scoreResult.score,
         zone: scoreResult.zone,
         factors: scoreResult.factors,
         dailyFocus: scoreResult.dailyFocus,
-      }).onConflictDoUpdate({
-        target: [flomentumDaily.userId, flomentumDaily.date],
-        set: {
-          score: scoreResult.score,
-          zone: scoreResult.zone,
-          factors: scoreResult.factors,
-          dailyFocus: scoreResult.dailyFocus,
-        },
       });
 
       logger.info('Flōmentum score calculated', { 
@@ -5915,43 +5857,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         day: '2-digit'
       }).split(',')[0]; // Format: YYYY-MM-DD
 
-      // Get today's Flōmentum score
-      const [dailyScore] = await db
-        .select()
-        .from(flomentumDaily)
-        .where(and(
-          eq(flomentumDaily.userId, userId),
-          eq(flomentumDaily.date, today)
-        ))
-        .limit(1);
+      // Get today's Flōmentum score via storage layer
+      const dailyScore = await storage.getFlomentumDailyByDate(userId, today);
 
       if (!dailyScore) {
         return res.json(null);
       }
 
-      // Get quick snapshot (recent 3 scores for trend)
-      const recentScores = await db
-        .select({
-          date: flomentumDaily.date,
-          score: flomentumDaily.score,
-        })
-        .from(flomentumDaily)
-        .where(eq(flomentumDaily.userId, userId))
-        .orderBy(sql`${flomentumDaily.date} DESC`)
-        .limit(3);
+      // Get quick snapshot (recent 3 scores for trend) via storage layer
+      const recentScores = await storage.getFlomentumDaily(userId, { limit: 3 });
 
       const quickSnapshot = recentScores.map(s => ({
         date: s.date,
         score: s.score,
       }));
 
-      // Always calculate streak from consecutive Flomentum scores
-      const allScores = await db
-        .select({ date: flomentumDaily.date })
-        .from(flomentumDaily)
-        .where(eq(flomentumDaily.userId, userId))
-        .orderBy(sql`${flomentumDaily.date} DESC`)
-        .limit(90);
+      // Always calculate streak from consecutive Flomentum scores via storage layer
+      const allScores = await storage.getFlomentumDaily(userId, { limit: 90 });
 
       // If no scores exist, no gamification data
       if (allScores.length === 0) {
@@ -6040,17 +5962,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
 
-      // Get today's health metrics for activity bars
+      // Get today's health metrics for activity bars via storage layer
       // Use userDailyMetrics as primary source (where iOS HealthKit sync stores data)
       // Also check healthDailyMetrics as fallback
-      const [dailyMetrics] = await db
-        .select()
-        .from(userDailyMetrics)
-        .where(and(
-          eq(userDailyMetrics.userId, userId),
-          eq(userDailyMetrics.localDate, today)
-        ))
-        .limit(1);
+      const dailyMetrics = await storage.getUserDailyMetricsByDate(userId, today);
       
       const [healthMetrics] = await db
         .select()
@@ -6061,15 +5976,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
       
-      // Query sleep_nights for reliable sleep data (same as Flōmentum score calculation)
-      const [sleepNight] = await db
-        .select({ totalSleepMin: sleepNights.totalSleepMin })
-        .from(sleepNights)
-        .where(and(
-          eq(sleepNights.userId, userId),
-          eq(sleepNights.sleepDate, today)
-        ))
-        .limit(1);
+      // Query sleep_nights for reliable sleep data via storage layer (same as Flōmentum score calculation)
+      const sleepNight = await storage.getSleepNightByDate(userId, today);
       
       // Query healthkit workouts for today's exercise as additional fallback
       // Note: startDate is a timestamp, so we compare the date portion
@@ -7724,13 +7632,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       }
 
       if (!syncType || syncType === 'all' || syncType === 'healthkit') {
-        // Get user's HealthKit daily metrics
-        const healthKitData = await db
-          .select()
-          .from(userDailyMetrics)
-          .where(eq(userDailyMetrics.userId, userId))
-          .orderBy(desc(userDailyMetrics.localDate))
-          .limit(60); // Last 60 days
+        // Get user's HealthKit daily metrics via storage layer
+        const healthKitData = await storage.getUserDailyMetrics(userId, { limit: 60 });
 
         if (healthKitData.length > 0) {
           healthKitCount = await syncHealthKitEmbeddings(userId, healthKitData);
