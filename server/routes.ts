@@ -4238,41 +4238,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logger.info(`[HealthKit] Batch upload: ${samples.length} samples from user ${userId}`);
 
+      // Import the health storage router for Supabase routing
+      const { isSupabaseHealthEnabled, createHealthkitSamples } = await import('./services/healthStorageRouter');
+      
       let inserted = 0;
       let duplicates = 0;
 
-      for (const sample of samples) {
+      let supabaseSuccess = false;
+      
+      if (isSupabaseHealthEnabled()) {
+        // Route to Supabase - batch insert with deduplication
         try {
-          const insertData = {
-            userId,
-            dataType: sample.dataType,
+          const formattedSamples = samples.map(sample => ({
+            data_type: sample.dataType,
             value: sample.value,
             unit: sample.unit,
-            startDate: new Date(sample.startDate),
-            endDate: new Date(sample.endDate),
-            sourceName: sample.sourceName || null,
-            sourceBundleId: sample.sourceBundleId || null,
-            deviceName: sample.deviceName || null,
-            deviceManufacturer: sample.deviceManufacturer || null,
-            deviceModel: sample.deviceModel || null,
+            start_date: new Date(sample.startDate).toISOString(),
+            end_date: new Date(sample.endDate).toISOString(),
+            source_name: sample.sourceName || null,
+            source_bundle_id: sample.sourceBundleId || null,
+            device_name: sample.deviceName || null,
+            device_manufacturer: sample.deviceManufacturer || null,
+            device_model: sample.deviceModel || null,
             metadata: sample.metadata || null,
             uuid: sample.uuid || null,
-          };
-
-          await db.insert(healthkitSamples).values(insertData);
-          inserted++;
+          }));
+          
+          inserted = await createHealthkitSamples(userId, formattedSamples);
+          duplicates = samples.length - inserted;
+          supabaseSuccess = true; // Mark as success even if all were duplicates
+          logger.info(`[HealthKit] Supabase batch upload: ${inserted} inserted, ${duplicates} duplicates`);
         } catch (error: any) {
-          if (error.code === '23505') {
-            duplicates++;
-            logger.debug(`[HealthKit] Duplicate sample UUID: ${sample.uuid}`);
-          } else {
-            logger.error(`[HealthKit] Failed to insert sample:`, error);
-            throw error;
-          }
+          logger.error(`[HealthKit] Supabase batch upload failed, falling back to Neon:`, error);
+          supabaseSuccess = false;
         }
       }
+      
+      // Fallback to Neon ONLY if Supabase not enabled or actually failed (not for duplicates)
+      if (!isSupabaseHealthEnabled() || !supabaseSuccess) {
+        inserted = 0;
+        duplicates = 0;
+        for (const sample of samples) {
+          try {
+            const insertData = {
+              userId,
+              dataType: sample.dataType,
+              value: sample.value,
+              unit: sample.unit,
+              startDate: new Date(sample.startDate),
+              endDate: new Date(sample.endDate),
+              sourceName: sample.sourceName || null,
+              sourceBundleId: sample.sourceBundleId || null,
+              deviceName: sample.deviceName || null,
+              deviceManufacturer: sample.deviceManufacturer || null,
+              deviceModel: sample.deviceModel || null,
+              metadata: sample.metadata || null,
+              uuid: sample.uuid || null,
+            };
 
-      logger.info(`[HealthKit] Batch upload complete: ${inserted} inserted, ${duplicates} duplicates`);
+            await db.insert(healthkitSamples).values(insertData);
+            inserted++;
+          } catch (error: any) {
+            if (error.code === '23505') {
+              duplicates++;
+              logger.debug(`[HealthKit] Duplicate sample UUID: ${sample.uuid}`);
+            } else {
+              logger.error(`[HealthKit] Failed to insert sample:`, error);
+              throw error;
+            }
+          }
+        }
+        logger.info(`[HealthKit] Neon batch upload: ${inserted} inserted, ${duplicates} duplicates`);
+      }
 
       // Trigger aggregation for critical metrics (oxygen, respiratory, temp) from samples
       // This fills gaps for metrics iOS doesn't aggregate automatically
@@ -4353,47 +4390,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       logger.info(`[HealthKit] Workout batch upload: ${workouts.length} workouts from user ${userId}`);
 
+      // Import the health storage router for Supabase routing
+      const { isSupabaseHealthEnabled, createHealthkitWorkouts } = await import('./services/healthStorageRouter');
+
       let inserted = 0;
       let duplicates = 0;
 
-      for (const workout of workouts) {
+      let supabaseSuccess = false;
+      
+      if (isSupabaseHealthEnabled()) {
+        // Route to Supabase - batch insert with deduplication
         try {
-          const insertData = {
-            userId,
-            workoutType: workout.workoutType,
-            startDate: new Date(workout.startDate),
-            endDate: new Date(workout.endDate),
+          const formattedWorkouts = workouts.map(workout => ({
+            workout_type: workout.workoutType,
+            start_date: new Date(workout.startDate).toISOString(),
+            end_date: new Date(workout.endDate).toISOString(),
             duration: workout.duration,
-            totalDistance: workout.totalDistance || null,
-            totalDistanceUnit: workout.totalDistanceUnit || null,
-            totalEnergyBurned: workout.totalEnergyBurned || null,
-            totalEnergyBurnedUnit: workout.totalEnergyBurnedUnit || null,
-            averageHeartRate: workout.averageHeartRate || null,
-            maxHeartRate: workout.maxHeartRate || null,
-            minHeartRate: workout.minHeartRate || null,
-            sourceName: workout.sourceName || null,
-            sourceBundleId: workout.sourceBundleId || null,
-            deviceName: workout.deviceName || null,
-            deviceManufacturer: workout.deviceManufacturer || null,
-            deviceModel: workout.deviceModel || null,
+            total_distance: workout.totalDistance || null,
+            total_distance_unit: workout.totalDistanceUnit || null,
+            total_energy_burned: workout.totalEnergyBurned || null,
+            total_energy_burned_unit: workout.totalEnergyBurnedUnit || null,
+            average_heart_rate: workout.averageHeartRate || null,
+            max_heart_rate: workout.maxHeartRate || null,
+            min_heart_rate: workout.minHeartRate || null,
+            source_name: workout.sourceName || null,
+            source_bundle_id: workout.sourceBundleId || null,
+            device_name: workout.deviceName || null,
+            device_manufacturer: workout.deviceManufacturer || null,
+            device_model: workout.deviceModel || null,
             metadata: workout.metadata || null,
             uuid: workout.uuid || null,
-          };
-
-          await db.insert(healthkitWorkouts).values(insertData);
-          inserted++;
+          }));
+          
+          inserted = await createHealthkitWorkouts(userId, formattedWorkouts);
+          duplicates = workouts.length - inserted;
+          supabaseSuccess = true; // Mark as success even if all were duplicates
+          logger.info(`[HealthKit] Supabase workout upload: ${inserted} inserted, ${duplicates} duplicates`);
         } catch (error: any) {
-          if (error.code === '23505') {
-            duplicates++;
-            logger.debug(`[HealthKit] Duplicate workout UUID: ${workout.uuid}`);
-          } else {
-            logger.error(`[HealthKit] Failed to insert workout:`, error);
-            throw error;
-          }
+          logger.error(`[HealthKit] Supabase workout upload failed, falling back to Neon:`, error);
+          supabaseSuccess = false;
         }
       }
+      
+      // Fallback to Neon ONLY if Supabase not enabled or actually failed (not for duplicates)
+      if (!isSupabaseHealthEnabled() || !supabaseSuccess) {
+        inserted = 0;
+        duplicates = 0;
+        for (const workout of workouts) {
+          try {
+            const insertData = {
+              userId,
+              workoutType: workout.workoutType,
+              startDate: new Date(workout.startDate),
+              endDate: new Date(workout.endDate),
+              duration: workout.duration,
+              totalDistance: workout.totalDistance || null,
+              totalDistanceUnit: workout.totalDistanceUnit || null,
+              totalEnergyBurned: workout.totalEnergyBurned || null,
+              totalEnergyBurnedUnit: workout.totalEnergyBurnedUnit || null,
+              averageHeartRate: workout.averageHeartRate || null,
+              maxHeartRate: workout.maxHeartRate || null,
+              minHeartRate: workout.minHeartRate || null,
+              sourceName: workout.sourceName || null,
+              sourceBundleId: workout.sourceBundleId || null,
+              deviceName: workout.deviceName || null,
+              deviceManufacturer: workout.deviceManufacturer || null,
+              deviceModel: workout.deviceModel || null,
+              metadata: workout.metadata || null,
+              uuid: workout.uuid || null,
+            };
 
-      logger.info(`[HealthKit] Workout batch upload complete: ${inserted} inserted, ${duplicates} duplicates`);
+            await db.insert(healthkitWorkouts).values(insertData);
+            inserted++;
+          } catch (error: any) {
+            if (error.code === '23505') {
+              duplicates++;
+              logger.debug(`[HealthKit] Duplicate workout UUID: ${workout.uuid}`);
+            } else {
+              logger.error(`[HealthKit] Failed to insert workout:`, error);
+              throw error;
+            }
+          }
+        }
+        logger.info(`[HealthKit] Neon workout upload: ${inserted} inserted, ${duplicates} duplicates`);
+      }
 
       res.json({ 
         inserted,
