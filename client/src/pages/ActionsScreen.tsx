@@ -8,6 +8,7 @@ import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
 import { OverdueLabWorkTile } from "@/components/OverdueLabWorkTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
+import { FloLogo } from "@/components/FloLogo";
 import { usePlan } from "@/hooks/usePlan";
 import { ListChecks, Filter, Sparkles } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
@@ -114,15 +115,18 @@ export default function ActionsScreen() {
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex-shrink-0 pt-[env(safe-area-inset-top)] backdrop-blur-xl border-b bg-white/5 border-white/10">
-          <div className="px-4 pt-4 pb-4">
-            <div className="flex items-center justify-center mb-4">
-              <div className="text-center">
-                <h1 className="text-lg text-white" data-testid="heading-actions">
-                  Action Plan
-                </h1>
-                <p className="text-xs text-white/50">
-                  {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
-                </p>
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <FloLogo size={32} />
+                <div>
+                  <h1 className="text-lg text-white" data-testid="heading-actions">
+                    Action Plan
+                  </h1>
+                  <p className="text-xs text-white/50">
+                    {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
               </div>
             </div>
 

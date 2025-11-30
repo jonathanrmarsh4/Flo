@@ -1,6 +1,7 @@
 import { X, Heart, Activity, Brain, Bone, Stethoscope } from 'lucide-react';
 import { CalciumScoreTile } from './CalciumScoreTile';
 import { DexaScanTile } from './DexaScanTile';
+import { FloLogo } from './FloLogo';
 
 interface CalciumScoreSummary {
   totalScore: number | null;
@@ -37,9 +38,17 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
       <div className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
-        <div className="px-4 pt-4 pb-4">
-          <div className="flex items-center justify-center">
-            <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Diagnostics</h1>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FloLogo size={32} />
+              <div>
+                <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Diagnostics</h1>
+                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Advanced health scans
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
