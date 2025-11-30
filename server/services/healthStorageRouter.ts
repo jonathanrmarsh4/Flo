@@ -431,25 +431,19 @@ export async function getFlomentumDaily(userId: string, options: GetFlomentumDai
 }
 
 export async function upsertFlomentumDaily(userId: string, score: any) {
-  const { storage } = await import("../storage");
-  
-  // DUAL-WRITE: Write to BOTH databases during transition period
-  // Write to Neon first (primary, always succeeds)
-  const neonResult = await storage.upsertFlomentumDaily(score);
-  logger.info(`[HealthStorageRouter] Flomentum score written to Neon for ${userId}, ${score.date}`);
-  
-  // Then also write to Supabase if enabled
-  if (isSupabaseHealthEnabled()) {
-    try {
-      await supabaseHealth.upsertFlomentumDaily(userId, score);
-      logger.info(`[HealthStorageRouter] Flomentum score also written to Supabase for ${userId}, ${score.date}`);
-    } catch (error) {
-      // Log but don't fail - Neon write succeeded
-      logger.warn("[HealthStorageRouter] Supabase upsertFlomentumDaily failed (Neon succeeded):", error);
-    }
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
   }
   
-  return neonResult;
+  try {
+    const result = await supabaseHealth.upsertFlomentumDaily(userId, score);
+    logger.info(`[HealthStorageRouter] Flomentum score written to Supabase for ${userId}, ${score.date}`);
+    return result;
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase upsertFlomentumDaily failed:", error);
+    throw error;
+  }
 }
 
 export async function getFlomentumDailyByDate(userId: string, date: string) {

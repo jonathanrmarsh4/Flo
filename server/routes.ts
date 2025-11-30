@@ -4253,71 +4253,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let inserted = 0;
       let duplicates = 0;
 
-      let supabaseSuccess = false;
-      
-      if (isSupabaseHealthEnabled()) {
-        // Route to Supabase - batch insert with deduplication
-        try {
-          const formattedSamples = samples.map(sample => ({
-            data_type: sample.dataType,
-            value: sample.value,
-            unit: sample.unit,
-            start_date: new Date(sample.startDate).toISOString(),
-            end_date: new Date(sample.endDate).toISOString(),
-            source_name: sample.sourceName || null,
-            source_bundle_id: sample.sourceBundleId || null,
-            device_name: sample.deviceName || null,
-            device_manufacturer: sample.deviceManufacturer || null,
-            device_model: sample.deviceModel || null,
-            metadata: sample.metadata || null,
-            uuid: sample.uuid || null,
-          }));
-          
-          inserted = await createHealthkitSamples(userId, formattedSamples);
-          duplicates = samples.length - inserted;
-          supabaseSuccess = true; // Mark as success even if all were duplicates
-          logger.info(`[HealthKit] Supabase batch upload: ${inserted} inserted, ${duplicates} duplicates`);
-        } catch (error: any) {
-          logger.error(`[HealthKit] Supabase batch upload failed, falling back to Neon:`, error);
-          supabaseSuccess = false;
-        }
+      // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+      if (!isSupabaseHealthEnabled()) {
+        logger.error(`[HealthKit] Supabase health storage not enabled - cannot store health data`);
+        return res.status(503).json({ error: "Health storage not available" });
       }
       
-      // Fallback to Neon ONLY if Supabase not enabled or actually failed (not for duplicates)
-      if (!isSupabaseHealthEnabled() || !supabaseSuccess) {
-        inserted = 0;
-        duplicates = 0;
-        for (const sample of samples) {
-          try {
-            const insertData = {
-              userId,
-              dataType: sample.dataType,
-              value: sample.value,
-              unit: sample.unit,
-              startDate: new Date(sample.startDate),
-              endDate: new Date(sample.endDate),
-              sourceName: sample.sourceName || null,
-              sourceBundleId: sample.sourceBundleId || null,
-              deviceName: sample.deviceName || null,
-              deviceManufacturer: sample.deviceManufacturer || null,
-              deviceModel: sample.deviceModel || null,
-              metadata: sample.metadata || null,
-              uuid: sample.uuid || null,
-            };
-
-            await db.insert(healthkitSamples).values(insertData);
-            inserted++;
-          } catch (error: any) {
-            if (error.code === '23505') {
-              duplicates++;
-              logger.debug(`[HealthKit] Duplicate sample UUID: ${sample.uuid}`);
-            } else {
-              logger.error(`[HealthKit] Failed to insert sample:`, error);
-              throw error;
-            }
-          }
-        }
-        logger.info(`[HealthKit] Neon batch upload: ${inserted} inserted, ${duplicates} duplicates`);
+      try {
+        const formattedSamples = samples.map(sample => ({
+          data_type: sample.dataType,
+          value: sample.value,
+          unit: sample.unit,
+          start_date: new Date(sample.startDate).toISOString(),
+          end_date: new Date(sample.endDate).toISOString(),
+          source_name: sample.sourceName || null,
+          source_bundle_id: sample.sourceBundleId || null,
+          device_name: sample.deviceName || null,
+          device_manufacturer: sample.deviceManufacturer || null,
+          device_model: sample.deviceModel || null,
+          metadata: sample.metadata || null,
+          uuid: sample.uuid || null,
+        }));
+        
+        inserted = await createHealthkitSamples(userId, formattedSamples);
+        duplicates = samples.length - inserted;
+        logger.info(`[HealthKit] Supabase batch upload: ${inserted} inserted, ${duplicates} duplicates`);
+      } catch (error: any) {
+        logger.error(`[HealthKit] Supabase batch upload failed:`, error);
+        return res.status(500).json({ error: "Failed to store health data" });
       }
 
       // Trigger aggregation for critical metrics (oxygen, respiratory, temp) from samples
