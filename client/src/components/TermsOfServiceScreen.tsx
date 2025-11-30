@@ -49,7 +49,7 @@ export function TermsOfServiceScreen({ isDark, onClose }: TermsOfServiceScreenPr
             {/* Introduction */}
             <div className={`mb-8 ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
               <p className="mb-4">
-                These Terms of Service ("Terms") govern your access to and use of Flo (the "App") and related websites, products, and services (collectively, the "Services") provided by Nuvitae Labs Pty Ltd ("Nuvitae Labs", "we", "us", or "our").
+                These Terms of Service ("Terms") govern your access to and use of Flo (the "App") and related websites, products, and services (collectively, the "Services") provided by Nuvitae Labs ("Nuvitae Labs", "we", "us", or "our").
               </p>
               <p className="mb-4">
                 By accessing or using the Services, you agree to be bound by these Terms. If you do not agree, do not use the Services.

@@ -49,7 +49,7 @@ export function PrivacyPolicyScreen({ isDark, onClose }: PrivacyPolicyScreenProp
             {/* Introduction */}
             <div className={`mb-8 ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
               <p className="mb-4">
-                This Privacy Policy explains how Nuvitae Labs Pty Ltd ("Nuvitae Labs", "we", "us", or "our") collects, uses, discloses, and protects your information when you use the Flō application, website, and related services (collectively, the "Service").
+                This Privacy Policy explains how Nuvitae ("Nuvitae Labs", "we", "us", or "our") collects, uses, discloses, and protects your information when you use the Flō application, website, and related services (collectively, the "Service").
               </p>
               <p>
                 By using Flō, you agree to the collection and use of information in accordance with this Privacy Policy. If you do not agree, please do not use the Service.
