@@ -300,7 +300,8 @@ export const profiles = pgTable("profiles", {
   userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
   
   // Demographics (queryable columns)
-  dateOfBirth: timestamp("date_of_birth", { mode: "date" }),
+  // Note: We only store birth year (not full DOB) for privacy - reduces re-identification risk
+  birthYear: integer("birth_year"),
   sex: sexEnum("sex"),
   weight: real("weight"),
   weightUnit: weightUnitEnum("weight_unit").default("kg"),
@@ -1294,7 +1295,7 @@ export type User = typeof users.$inferSelect;
 
 // Profile schemas
 export const insertProfileSchema = createInsertSchema(profiles, {
-  dateOfBirth: z.date().optional(),
+  birthYear: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
   sex: SexEnum.optional(),
   weight: z.number().min(0).optional(),
   weightUnit: WeightUnitEnum.optional(),
@@ -1311,7 +1312,7 @@ export const insertProfileSchema = createInsertSchema(profiles, {
 
 // Section-specific update schemas
 export const updateDemographicsSchema = z.object({
-  dateOfBirth: z.date().optional(),
+  birthYear: z.number().int().min(1900).max(new Date().getFullYear()).optional(),
   sex: SexEnum.optional(),
   weight: z.number().min(0).optional(),
   weightUnit: WeightUnitEnum.optional(),

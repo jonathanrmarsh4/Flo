@@ -50,7 +50,7 @@ export function clearHealthIdCache(userId?: string) {
 export interface HealthProfile {
   id?: string;
   health_id: string;
-  date_of_birth?: Date | null;
+  birth_year?: number | null;
   sex?: 'male' | 'female' | 'other' | null;
   weight?: number | null;
   weight_unit?: string;

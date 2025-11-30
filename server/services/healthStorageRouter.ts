@@ -44,7 +44,7 @@ export async function getProfile(userId: string) {
           id: profile.id,
           userId: userId,
           sex: profile.sex as "Male" | "Female" | "Other" | null,
-          dateOfBirth: profile.date_of_birth ? new Date(profile.date_of_birth) : null,
+          birthYear: profile.birth_year ?? null,
           weight: profile.weight,
           weightUnit: profile.weight_unit as "kg" | "lbs" | null,
           height: profile.height,
@@ -73,7 +73,7 @@ export async function upsertProfile(userId: string, data: any) {
     try {
       const supabaseData: Partial<supabaseHealth.HealthProfile> = {
         sex: data.sex,
-        date_of_birth: data.dateOfBirth?.toISOString?.() || data.dateOfBirth,
+        birth_year: data.birthYear,
         weight: data.weight,
         weight_unit: data.weightUnit,
         height: data.height,
@@ -89,7 +89,7 @@ export async function upsertProfile(userId: string, data: any) {
         id: result.id,
         userId: userId,
         sex: result.sex as "Male" | "Female" | "Other" | null,
-        dateOfBirth: result.date_of_birth ? new Date(result.date_of_birth) : null,
+        birthYear: result.birth_year ?? null,
         weight: result.weight,
         weightUnit: result.weight_unit as "kg" | "lbs" | null,
         height: result.height,

@@ -3,10 +3,11 @@
 -- The health_id is a UUID that maps to users.health_id in Neon (never exposed here)
 
 -- Profiles table (demographics, goals)
+-- Note: We only store birth_year (not full DOB) for privacy - reduces re-identification risk
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   health_id UUID NOT NULL UNIQUE,
-  date_of_birth TIMESTAMP,
+  birth_year INTEGER,
   sex VARCHAR(20) CHECK (sex IN ('male', 'female', 'other')),
   weight REAL,
   weight_unit VARCHAR(10) DEFAULT 'kg',
