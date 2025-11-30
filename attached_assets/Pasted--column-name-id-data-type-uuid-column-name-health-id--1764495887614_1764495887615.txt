@@ -1,0 +1,150 @@
+[
+  {
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "health_id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "local_date",
+    "data_type": "text"
+  },
+  {
+    "column_name": "timezone",
+    "data_type": "text"
+  },
+  {
+    "column_name": "utc_day_start",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "utc_day_end",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "steps_normalized",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "steps_raw_sum",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "steps_sources",
+    "data_type": "jsonb"
+  },
+  {
+    "column_name": "active_energy_kcal",
+    "data_type": "real"
+  },
+  {
+    "column_name": "exercise_minutes",
+    "data_type": "real"
+  },
+  {
+    "column_name": "sleep_hours",
+    "data_type": "real"
+  },
+  {
+    "column_name": "resting_hr_bpm",
+    "data_type": "real"
+  },
+  {
+    "column_name": "hrv_ms",
+    "data_type": "real"
+  },
+  {
+    "column_name": "weight_kg",
+    "data_type": "real"
+  },
+  {
+    "column_name": "height_cm",
+    "data_type": "real"
+  },
+  {
+    "column_name": "bmi",
+    "data_type": "real"
+  },
+  {
+    "column_name": "body_fat_percent",
+    "data_type": "real"
+  },
+  {
+    "column_name": "lean_body_mass_kg",
+    "data_type": "real"
+  },
+  {
+    "column_name": "waist_circumference_cm",
+    "data_type": "real"
+  },
+  {
+    "column_name": "distance_meters",
+    "data_type": "real"
+  },
+  {
+    "column_name": "flights_climbed",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "stand_hours",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "avg_heart_rate_bpm",
+    "data_type": "real"
+  },
+  {
+    "column_name": "systolic_bp",
+    "data_type": "real"
+  },
+  {
+    "column_name": "diastolic_bp",
+    "data_type": "real"
+  },
+  {
+    "column_name": "blood_glucose_mg_dl",
+    "data_type": "real"
+  },
+  {
+    "column_name": "vo2_max",
+    "data_type": "real"
+  },
+  {
+    "column_name": "normalization_version",
+    "data_type": "text"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "updated_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "column_name": "basal_energy_kcal",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "walking_hr_avg_bpm",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "dietary_water_ml",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "oxygen_saturation_pct",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "respiratory_rate_bpm",
+    "data_type": "numeric"
+  },
+  {
+    "column_name": "body_temp_c",
+    "data_type": "numeric"
+  }
+]

@@ -486,7 +486,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
             oxygenSaturation: avgMetric('oxygen_saturation_pct') ? Math.round(avgMetric('oxygen_saturation_pct')!) : null,
             respiratoryRate: avgMetric('respiratory_rate_bpm') ? Math.round(avgMetric('respiratory_rate_bpm')! * 10) / 10 : null,
             bloodGlucose: avgMetric('blood_glucose_mg_dl') ? Math.round(avgMetric('blood_glucose_mg_dl')!) : null,
-            bodyTemp: null, // Not stored in daily metrics
+            bodyTemp: avgMetric('body_temp_c') ? Math.round(avgMetric('body_temp_c')! * 10) / 10 : null,
             vo2Max: latest.vo2_max ? Math.round(latest.vo2_max * 10) / 10 : null,
             walkingHR: avgMetric('walking_hr_avg_bpm') ? Math.round(avgMetric('walking_hr_avg_bpm')!) : null,
             waistCircumference: latest.waist_circumference_cm ? Math.round(latest.waist_circumference_cm * 10) / 10 : null,
@@ -757,7 +757,7 @@ export async function getUserHealthMetrics(userId: string): Promise<{
   try {
     if (supabaseEnabled) {
       logger.info('[DebugContext] Using Supabase for health metrics');
-      const supabaseMetrics = await getSupabaseDailyMetrics(userId, { startDate: sevenDaysAgoStr, limit: 30 });
+      const supabaseMetrics = await getSupabaseDailyMetrics(userId, 30);
       rawMetrics = supabaseMetrics;
       dataSource = 'supabase';
     } else {
@@ -777,40 +777,44 @@ export async function getUserHealthMetrics(userId: string): Promise<{
     }
 
     if (rawMetrics.length > 0) {
+      // Helper to get field value (handles both snake_case from Supabase and camelCase from Neon)
+      const getField = (m: any, snakeCase: string, camelCase: string) => m[snakeCase] ?? m[camelCase];
+      
       // Calculate averages for wearable data
-      const hrvValues = rawMetrics.filter(m => m.hrvMs != null).map(m => m.hrvMs);
-      const rhrValues = rawMetrics.filter(m => m.restingHrBpm != null).map(m => m.restingHrBpm);
-      const stepsValues = rawMetrics.filter(m => m.stepsRawSum != null).map(m => m.stepsRawSum);
-      const activeKcalValues = rawMetrics.filter(m => m.activeEnergyKcal != null).map(m => m.activeEnergyKcal);
+      const hrvValues = rawMetrics.filter(m => getField(m, 'hrv_ms', 'hrvMs') != null).map(m => getField(m, 'hrv_ms', 'hrvMs'));
+      const rhrValues = rawMetrics.filter(m => getField(m, 'resting_hr_bpm', 'restingHrBpm') != null).map(m => getField(m, 'resting_hr_bpm', 'restingHrBpm'));
+      const stepsValues = rawMetrics.filter(m => getField(m, 'steps_raw_sum', 'stepsRawSum') != null).map(m => getField(m, 'steps_raw_sum', 'stepsRawSum'));
+      const activeKcalValues = rawMetrics.filter(m => getField(m, 'active_energy_kcal', 'activeEnergyKcal') != null).map(m => getField(m, 'active_energy_kcal', 'activeEnergyKcal'));
 
       if (hrvValues.length > 0) wearableAvg7Days.hrv = Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length);
       if (rhrValues.length > 0) wearableAvg7Days.rhr = Math.round(rhrValues.reduce((a, b) => a + b, 0) / rhrValues.length);
       if (stepsValues.length > 0) wearableAvg7Days.steps = Math.round(stepsValues.reduce((a, b) => a + b, 0) / stepsValues.length);
       if (activeKcalValues.length > 0) wearableAvg7Days.activeKcal = Math.round(activeKcalValues.reduce((a, b) => a + b, 0) / activeKcalValues.length);
 
-      // Get most recent values for extended metrics
+      // Get most recent values for extended metrics (handle both snake_case and camelCase)
       const mostRecent = rawMetrics[0];
       if (mostRecent) {
-        healthkitMetrics.weight = mostRecent.weightKg;
-        healthkitMetrics.height = mostRecent.heightCm;
+        healthkitMetrics.weight = getField(mostRecent, 'weight_kg', 'weightKg');
+        healthkitMetrics.height = getField(mostRecent, 'height_cm', 'heightCm');
         healthkitMetrics.bmi = mostRecent.bmi;
-        healthkitMetrics.bodyFatPct = mostRecent.bodyFatPercent;
-        healthkitMetrics.leanBodyMass = mostRecent.leanBodyMassKg;
-        healthkitMetrics.distance = mostRecent.distanceKm;
-        healthkitMetrics.basalEnergy = mostRecent.basalEnergyKcal;
-        healthkitMetrics.flightsClimbed = mostRecent.flightsClimbed;
-        healthkitMetrics.bloodPressureSystolic = mostRecent.bloodPressureSystolic;
-        healthkitMetrics.bloodPressureDiastolic = mostRecent.bloodPressureDiastolic;
-        healthkitMetrics.oxygenSaturation = mostRecent.oxygenSaturationPct;
-        healthkitMetrics.respiratoryRate = mostRecent.respiratoryRateBpm;
-        healthkitMetrics.bloodGlucose = mostRecent.bloodGlucoseMgdl;
-        healthkitMetrics.vo2Max = mostRecent.vo2MaxMlKgMin;
-        healthkitMetrics.walkingHR = mostRecent.walkingHrAvgBpm;
-        healthkitMetrics.waistCircumference = mostRecent.waistCircumferenceCm;
-        healthkitMetrics.dietaryWater = mostRecent.dietaryWaterMl;
-        healthkitMetrics.exerciseTime = mostRecent.exerciseMinutes;
-        healthkitMetrics.standTime = mostRecent.standMinutes;
-        healthkitMetrics.avgHeartRate = mostRecent.avgHeartRateBpm;
+        healthkitMetrics.bodyFatPct = getField(mostRecent, 'body_fat_percent', 'bodyFatPercent');
+        healthkitMetrics.leanBodyMass = getField(mostRecent, 'lean_body_mass_kg', 'leanBodyMassKg');
+        healthkitMetrics.distance = getField(mostRecent, 'distance_meters', 'distanceMeters');
+        healthkitMetrics.basalEnergy = getField(mostRecent, 'basal_energy_kcal', 'basalEnergyKcal');
+        healthkitMetrics.flightsClimbed = getField(mostRecent, 'flights_climbed', 'flightsClimbed');
+        healthkitMetrics.bloodPressureSystolic = getField(mostRecent, 'systolic_bp', 'systolicBp');
+        healthkitMetrics.bloodPressureDiastolic = getField(mostRecent, 'diastolic_bp', 'diastolicBp');
+        healthkitMetrics.oxygenSaturation = getField(mostRecent, 'oxygen_saturation_pct', 'oxygenSaturationPct');
+        healthkitMetrics.respiratoryRate = getField(mostRecent, 'respiratory_rate_bpm', 'respiratoryRateBpm');
+        healthkitMetrics.bloodGlucose = getField(mostRecent, 'blood_glucose_mg_dl', 'bloodGlucoseMgDl');
+        healthkitMetrics.bodyTemp = getField(mostRecent, 'body_temp_c', 'bodyTempC');
+        healthkitMetrics.vo2Max = getField(mostRecent, 'vo2_max', 'vo2Max');
+        healthkitMetrics.walkingHR = getField(mostRecent, 'walking_hr_avg_bpm', 'walkingHrAvgBpm');
+        healthkitMetrics.waistCircumference = getField(mostRecent, 'waist_circumference_cm', 'waistCircumferenceCm');
+        healthkitMetrics.dietaryWater = getField(mostRecent, 'dietary_water_ml', 'dietaryWaterMl');
+        healthkitMetrics.exerciseTime = getField(mostRecent, 'exercise_minutes', 'exerciseMinutes');
+        healthkitMetrics.standTime = getField(mostRecent, 'stand_hours', 'standHours');
+        healthkitMetrics.avgHeartRate = getField(mostRecent, 'avg_heart_rate_bpm', 'avgHeartRateBpm');
       }
     }
   } catch (error) {
