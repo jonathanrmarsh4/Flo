@@ -1,0 +1,140 @@
+2025-12-01 08:08:56.01
+7091458e
+User
+[2025-12-01T00:08:56.007Z] [INFO] [Readiness] Returning cached readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-01
+2025-12-01 08:08:56.03
+7091458e
+User
+[2025-12-01T00:08:56.036Z] [INFO] [BioAge] Checking 30 sessions for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-01 08:08:56.04
+7091458e
+User
+12:08:56 AM [express] GET /api/readiness/today 200 in 380ms :: {"readinessScore":70,"readinessBucket"…
+2025-12-01 08:08:56.07
+7091458e
+User
+[2025-12-01T00:08:56.075Z] [INFO] [BioAge] Session 13b675d3-d098-4995-8c3a-23175db3fdfa (Mon Jul 21 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Cortisol (AM), Testosterone, SHBG, Free Testosterone, DHEA-S, FSH, LH, Estradiol (E2), Progesterone]
+2025-12-01 08:08:56.14
+7091458e
+User
+[2025-12-01T00:08:56.145Z] [INFO] [BioAge] Session 2a48c7a2-40e9-444e-8354-8aacfc1e9693 (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Magnesium]
+2025-12-01 08:08:56.19
+7091458e
+User
+12:08:56 AM [express] GET /api/dashboard/overview 200 in 516ms :: {"bioAge":null,"calendarAge":52,"bi…
+2025-12-01 08:08:56.19
+7091458e
+User
+[2025-12-01T00:08:56.189Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase getFlomentumDailyByDate returned no data for 2025-12-01, falling back to Neon
+2025-12-01 08:08:56.19
+7091458e
+User
+[2025-12-01T00:08:56.196Z] [INFO] Sleep baselines calculation complete {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","nights":12}
+2025-12-01 08:08:56.22
+7091458e
+User
+[2025-12-01T00:08:56.222Z] [INFO] [BioAge] Session 057037fc-fac6-4b80-b3e5-7d99e2405b8d (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Vitamin B12]
+2025-12-01 08:08:56.33
+7091458e
+User
+[2025-12-01T00:08:56.330Z] [INFO] [BioAge] Session 762075a2-f03b-4f18-89f3-448f33f050fc (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [PSA]
+2025-12-01 08:08:56.36
+7091458e
+User
+[2025-12-01T00:08:56.368Z] [INFO] [BioAge] Session 1faef0a2-8ae3-4c6f-86c9-67c182f1e70d (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 4 matches - [Hemoglobin, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Platelets, Basophils]
+2025-12-01 08:08:56.53
+7091458e
+User
+12:08:56 AM [express] GET /api/sleep/today 404 in 869ms :: {"error":"No recent sleep data available",…
+2025-12-01 08:08:56.54
+7091458e
+User
+[2025-12-01T00:08:56.548Z] [INFO] [BioAge] Session 7405e804-8138-4fee-b7cf-4b5edc853c2e (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Testosterone, SHBG, Free Testosterone]
+2025-12-01 08:08:56.55
+7091458e
+User
+[2025-12-01T00:08:56.554Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase getFlomentumDaily returned no data, falling back to Neon
+2025-12-01 08:08:56.62
+7091458e
+User
+[2025-12-01T00:08:56.619Z] [INFO] [BioAge] Session ee868819-9761-44fd-b70c-c99c562dd0b6 (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Uric Acid]
+2025-12-01 08:08:56.65
+7091458e
+User
+[2025-12-01T00:08:56.656Z] [INFO] [BioAge] Session 2c407d16-0a7d-41fa-abc8-f05cf4bb7382 (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 1 matches - [AST, ALT, GGT, Bilirubin, Total Protein, Albumin, Globulin]
+2025-12-01 08:08:56.69
+7091458e
+User
+[2025-12-01T00:08:56.693Z] [INFO] [BioAge] Session c3725682-9417-4d81-84b2-2da9f54d3738 (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 1 matches - [BUN, Creatinine, Sodium, Potassium, Chloride, CO2, eGFR]
+2025-12-01 08:08:56.73
+7091458e
+User
+[2025-12-01T00:08:56.732Z] [INFO] [BioAge] Session 5aa69ff5-3cc3-4166-8bc6-38a5766d3336 (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [TSH, Free T4, Free T3]
+2025-12-01 08:08:56.84
+7091458e
+User
+[2025-12-01T00:08:56.839Z] [INFO] [BioAge] Session 6a5c56df-7bb2-4824-805f-11a6d0e2e979 (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Iron, Transferrin, Ferritin]
+2025-12-01 08:08:56.86
+7091458e
+User
+[2025-12-01T00:08:56.860Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase getFlomentumDaily returned no data, falling back to Neon
+2025-12-01 08:08:56.87
+7091458e
+User
+[2025-12-01T00:08:56.876Z] [INFO] [BioAge] Session e5eaec75-fd5d-4338-a1f5-640e39bf942b (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Total Cholesterol, Triglycerides, HDL Cholesterol, LDL Cholesterol]
+2025-12-01 08:08:56.95
+7091458e
+User
+[2025-12-01T00:08:56.953Z] [INFO] [BioAge] Session 3095c712-8d83-4f8c-85fc-8ea1342d64a6 (Wed Feb 19 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, Total Cholesterol, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, FSH, LH, Estradiol (E2), Progesterone, MPV, DHEA-S, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Free T4, TSH, Free T3, Testosterone, SHBG, Free Testosterone, Cortisol (AM), Hematocrit]
+2025-12-01 08:08:56.99
+7091458e
+User
+[2025-12-01T00:08:56.992Z] [INFO] [BioAge] Session 844a6097-c168-4e17-9ce8-ffded87b5c96 (Mon Aug 19 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, FSH, LH, Estradiol (E2), Progesterone, Free T4, TSH, Free T3, Testosterone, SHBG, Free Testosterone, hs-CRP, DHEA-S, Cortisol (AM), Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, MPV, Hematocrit]
+2025-12-01 08:08:57.02
+7091458e
+User
+[2025-12-01T00:08:57.028Z] [INFO] [BioAge] Session fb7a50cd-1f25-4111-948a-d4da8fbba2b4 (Mon Jul 15 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 1 matches - [Glucose, Testosterone, SHBG, Free Testosterone, Free PSA Ratio, AFP, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides]
+2025-12-01 08:08:57.07
+7091458e
+User
+[2025-12-01T00:08:57.070Z] [INFO] [BioAge] Session ed662c05-b5cb-4c42-975e-5c66ba57a854 (Tue Feb 20 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Free T4, TSH, Free T3, FSH, LH, Estradiol (E2), Progesterone, Testosterone, SHBG, Free Testosterone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, Cortisol (AM), DHEA-S, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, MPV, Hematocrit]
+2025-12-01 08:08:57.11
+7091458e
+User
+[2025-12-01T00:08:57.109Z] [INFO] [BioAge] Session 0e667ae9-cade-4620-a1a5-a202e2d5c57f (Tue Feb 20 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Free T4, TSH, Free T3, FSH, LH, Estradiol (E2), Progesterone, Testosterone, SHBG, Free Testosterone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, Cortisol (AM), DHEA-S, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, MPV, Hematocrit]
+2025-12-01 08:08:57.15
+7091458e
+User
+[2025-12-01T00:08:57.149Z] [INFO] [BioAge] Session 8793f271-5fdc-429d-bbd4-70e987733de0 (Tue Feb 20 2024 00:00:00 GMT+0000 (Coordinated Universal Time)): 9 matches - [Growth Hormone, Free T4, TSH, Free T3, FSH, LH, Estradiol (E2), Progesterone, Testosterone, SHBG, Free Testosterone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, Cortisol (AM), DHEA-S, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, MPV, Hematocrit]
+2025-12-01 08:08:57.15
+7091458e
+User
+[2025-12-01T00:08:57.149Z] [INFO] [BioAge] Using session 3095c712-8d83-4f8c-85fc-8ea1342d64a6 with 59 measurements
+2025-12-01 08:08:57.15
+7091458e
+User
+[2025-12-01T00:08:57.149Z] [INFO] [BioAge] Best session: 3095c712-8d83-4f8c-85fc-8ea1342d64a6 with 9 matches
+2025-12-01 08:08:57.19
+7091458e
+User
+[2025-12-01T00:08:57.189Z] [INFO] [BioAge] Missing biomarkers: []
+2025-12-01 08:08:57.19
+7091458e
+User
+[2025-12-01T00:08:57.189Z] [INFO] [BioAge] Extracted values: {"albumin_g_L":41,"creatinine_umol_L":77.91576,"glucose_mmol_L":4.7,"crp_mg_dL":0.08,"lymphocytes_KPerUL":1.8,"mcv_fL":90,"rdw_percent":12.4,"alkPhos_U_L":66,"wbc_10e3_per_uL":5.8}
+2025-12-01 08:08:57.19
+7091458e
+User
+[2025-12-01T00:08:57.190Z] [INFO] [BioAge] SUCCESS! PhenoAge=43.1, ChronoAge=52, Accel=-8.9
+2025-12-01 08:08:57.19
+7091458e
+User
+[2025-12-01T00:08:57.189Z] [INFO] [BioAge] Measurement map keys: [Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, Total Cholesterol, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, FSH, LH, Estradiol (E2), Progesterone, MPV, DHEA-S, Hemoglobin, RBC, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils, Platelets, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides, Iron, Transferrin, Transferrin Saturation, Ferritin, Glucose, hs-CRP, Free T4, TSH, Free T3, Testosterone, SHBG, Free Testosterone, Cortisol (AM), Hematocrit]
+2025-12-01 08:08:57.19
+7091458e
+User
+12:08:57 AM [express] GET /api/biological-age 304 in 1521ms :: {"biologicalAge":43.1,"chronologicalAg…
+2025-12-01 08:08:57.55
+7091458e
+User
+12:08:57 AM [express] GET /api/flomentum/today 200 in 1911ms :: {"date":"2025-12-01","score":40,"zone…
