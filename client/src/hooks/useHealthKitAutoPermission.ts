@@ -9,21 +9,10 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { logger } from '@/lib/logger';
 import Readiness from '@/plugins/readiness';
-
-// Import HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
-interface HealthSyncPluginType {
-  requestAuthorization(): Promise<{
-    success: boolean;
-    readAuthorized: string[];
-    readDenied: string[];
-    writeAuthorized: string[];
-    writeDenied: string[];
-  }>;
-}
-const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');
+import { HealthSyncPlugin } from '@/plugins/healthSync';
 
 const HEALTHKIT_PERMISSION_KEY = 'healthkit_permission_requested';
 

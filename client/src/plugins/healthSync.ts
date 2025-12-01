@@ -1,0 +1,38 @@
+import { registerPlugin } from '@capacitor/core';
+
+export interface HealthSyncPluginType {
+  requestAuthorization(): Promise<{
+    success: boolean;
+    readAuthorized: string[];
+    readDenied: string[];
+    writeAuthorized: string[];
+    writeDenied: string[];
+  }>;
+  syncReadinessData(options: { days: number; waitForAuth?: boolean }): Promise<{
+    success: boolean;
+    message: string;
+    days: number;
+  }>;
+  syncNutritionData(options: { days: number }): Promise<{
+    success: boolean;
+    message: string;
+    days: number;
+  }>;
+  syncMindfulnessData(options: { days: number }): Promise<{
+    success: boolean;
+    message: string;
+    days: number;
+  }>;
+  syncSleepData(options: { days: number }): Promise<{
+    success: boolean;
+    message: string;
+    days: number;
+  }>;
+  syncWorkouts(options: { days: number }): Promise<{
+    success: boolean;
+    message: string;
+    days: number;
+  }>;
+}
+
+export const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');

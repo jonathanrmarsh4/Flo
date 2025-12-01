@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { Activity, Heart, Scale, TrendingUp, AlertCircle, Check, Clock } from 'l
 import { logger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
 import Readiness from '@/plugins/readiness';
+import { HealthSyncPlugin } from '@/plugins/healthSync';
 import {
   DAILY_READINESS_DATA_TYPES,
   BODY_COMPOSITION_DATA_TYPES,
@@ -18,18 +19,6 @@ import {
   type HealthDataType,
   type AuthorizationStatus,
 } from '@/types/healthkit';
-
-// Import HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
-interface HealthSyncPluginType {
-  requestAuthorization(): Promise<{
-    success: boolean;
-    readAuthorized: string[];
-    readDenied: string[];
-    writeAuthorized: string[];
-    writeDenied: string[];
-  }>;
-}
-const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');
 
 export default function HealthKitPage() {
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);

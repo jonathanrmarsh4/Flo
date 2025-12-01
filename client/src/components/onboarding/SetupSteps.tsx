@@ -1,25 +1,13 @@
 import { useState, useRef } from 'react';
 import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint } from 'lucide-react';
-import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { HealthKitService } from '@/services/healthkit';
 import type { HealthDataType } from '@/types/healthkit';
 import { apiRequest, queryClient, getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateDemographics } from '@/hooks/useProfile';
 import { startRegistration } from '@simplewebauthn/browser';
-
-// Import HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
-interface HealthSyncPluginType {
-  requestAuthorization(): Promise<{
-    success: boolean;
-    readAuthorized: string[];
-    readDenied: string[];
-    writeAuthorized: string[];
-    writeDenied: string[];
-  }>;
-}
-const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');
+import { HealthSyncPlugin } from '@/plugins/healthSync';
 
 interface SetupStepsProps {
   isDark: boolean;
