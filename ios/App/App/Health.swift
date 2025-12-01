@@ -477,7 +477,7 @@ struct AuthorizationStatusPayload {
     }
 }
 
-final class Health {
+final class FloHealth {
     private let healthStore = HKHealthStore()
     private let isoFormatter: ISO8601DateFormatter
 
