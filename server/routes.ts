@@ -534,6 +534,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userAgeY,
           profileName: "Global Default",
         });
+        
+        // Check for existing session with same date to prevent duplicates
+        // Use UTC-normalized date and efficient direct Supabase query
+        const testDateUtc = `${testDate.getUTCFullYear()}-${String(testDate.getUTCMonth() + 1).padStart(2, '0')}-${String(testDate.getUTCDate()).padStart(2, '0')}`;
+        const existingSession = await healthRouter.findSessionByDateAndSource(userId, testDateUtc, 'ai_extracted');
+        
+        if (existingSession) {
+          logger.warn(`[BloodWork] Duplicate session detected for ${testDateUtc} - using existing session ${existingSession.id}`);
+          // Delete the uploaded PDF since we're not creating a new session
+          try {
+            await objectStorageService.deleteObjectEntity(normalizedPath);
+          } catch (deleteError) {
+            logger.warn(`[BloodWork] Failed to delete duplicate PDF: ${deleteError}`);
+          }
+          await storage.updateBloodWorkRecordStatus(record.id, "completed");
+          
+          return res.json({ 
+            success: true, 
+            duplicate: true,
+            message: `Lab results for ${testDateUtc} already exist. No duplicate session created.`,
+            existingSessionId: existingSession.id,
+          });
+        }
+        
         const session = await healthRouter.createBiomarkerSession(userId, {
           source: "ai_extracted",
           test_date: testDate.toISOString(),
@@ -1335,6 +1359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/biomarker-sessions", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const includeDuplicates = req.query.includeDuplicates === 'true';
 
       // Get all test sessions for user
       const sessions = await healthRouter.getBiomarkerSessions(userId);
@@ -1349,6 +1374,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
+
+      // Deduplicate sessions by (testDate, source) - keep the session with most measurements
+      // This fixes trend line issues caused by duplicate PDF uploads
+      if (!includeDuplicates) {
+        // Group sessions by normalized UTC date (YYYY-MM-DD) and source
+        const sessionsByDateSource = new Map<string, typeof sessionsWithMeasurements[0]>();
+        
+        for (const session of sessionsWithMeasurements) {
+          // Normalize date to UTC YYYY-MM-DD for grouping (consistent timezone handling)
+          const testDate = new Date(session.testDate);
+          const dateKey = `${testDate.getUTCFullYear()}-${String(testDate.getUTCMonth() + 1).padStart(2, '0')}-${String(testDate.getUTCDate()).padStart(2, '0')}`;
+          const key = `${dateKey}|${session.source || 'unknown'}`;
+          
+          const existing = sessionsByDateSource.get(key);
+          if (!existing) {
+            sessionsByDateSource.set(key, session);
+          } else {
+            // Keep the session with more measurements (more complete data)
+            // On tie, prefer most recent createdAt
+            const existingCount = existing.measurements?.length || 0;
+            const currentCount = session.measurements?.length || 0;
+            if (currentCount > existingCount) {
+              sessionsByDateSource.set(key, session);
+            } else if (currentCount === existingCount) {
+              // Tie-breaker: prefer most recent createdAt
+              const existingCreatedAt = new Date(existing.createdAt || 0).getTime();
+              const currentCreatedAt = new Date(session.createdAt || 0).getTime();
+              if (currentCreatedAt > existingCreatedAt) {
+                sessionsByDateSource.set(key, session);
+              }
+            }
+          }
+        }
+        
+        const deduplicatedSessions = Array.from(sessionsByDateSource.values());
+        logger.info(`[BiomarkerSessions] Deduplicated ${sessions.length} sessions to ${deduplicatedSessions.length} unique (date, source) combinations`);
+        
+        return res.json({ sessions: deduplicatedSessions });
+      }
 
       res.json({ sessions: sessionsWithMeasurements });
     } catch (error) {
@@ -3190,6 +3254,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error getting lab upload history:', error);
       res.status(500).json({ error: "Failed to get lab upload history" });
+    }
+  });
+
+  // Admin routes - Biomarker session duplicate cleanup
+  app.get("/api/admin/biomarker-duplicates/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
+      
+      type SessionType = typeof sessions[0];
+      
+      // Group sessions by (date, source) to find duplicates
+      const sessionGroups = new Map<string, SessionType[]>();
+      
+      for (const session of sessions) {
+        const dateKey = new Date(session.testDate).toISOString().split('T')[0];
+        const key = `${dateKey}|${session.source || 'unknown'}`;
+        
+        if (!sessionGroups.has(key)) {
+          sessionGroups.set(key, []);
+        }
+        sessionGroups.get(key)!.push(session);
+      }
+      
+      // Find groups with more than one session (duplicates)
+      const duplicates = [];
+      for (const [key, groupSessions] of Array.from(sessionGroups.entries())) {
+        if (groupSessions.length > 1) {
+          // Get measurement counts for each session
+          const sessionsWithCounts = await Promise.all(
+            groupSessions.map(async (s: SessionType) => {
+              const measurements = await healthRouter.getMeasurementsBySession(s.id!);
+              return {
+                id: s.id,
+                testDate: s.testDate,
+                source: s.source,
+                createdAt: s.createdAt,
+                measurementCount: measurements.length,
+              };
+            })
+          );
+          
+          duplicates.push({
+            key,
+            count: groupSessions.length,
+            sessions: sessionsWithCounts,
+          });
+        }
+      }
+      
+      res.json({
+        userId,
+        totalSessions: sessions.length,
+        duplicateGroups: duplicates.length,
+        duplicates,
+      });
+    } catch (error) {
+      logger.error('Error finding duplicate sessions:', error);
+      res.status(500).json({ error: "Failed to find duplicate sessions" });
+    }
+  });
+  
+  app.delete("/api/admin/biomarker-duplicates/:userId/cleanup", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const dryRun = req.query.dryRun !== 'false'; // Default to dry run
+      
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
+      
+      type SessionType = typeof sessions[0];
+      
+      // Group sessions by (date, source) to find duplicates
+      const sessionGroups = new Map<string, SessionType[]>();
+      
+      for (const session of sessions) {
+        const dateKey = new Date(session.testDate).toISOString().split('T')[0];
+        const key = `${dateKey}|${session.source || 'unknown'}`;
+        
+        if (!sessionGroups.has(key)) {
+          sessionGroups.set(key, []);
+        }
+        sessionGroups.get(key)!.push(session);
+      }
+      
+      const deletedSessions: string[] = [];
+      const keptSessions: string[] = [];
+      
+      for (const [key, groupSessions] of Array.from(sessionGroups.entries())) {
+        if (groupSessions.length > 1) {
+          // Get measurement counts for each session
+          const sessionsWithCounts = await Promise.all(
+            groupSessions.map(async (s: SessionType) => {
+              const measurements = await healthRouter.getMeasurementsBySession(s.id!);
+              return { session: s, measurementCount: measurements.length };
+            })
+          );
+          
+          // Sort by measurement count descending, then by createdAt descending
+          sessionsWithCounts.sort((a, b) => {
+            if (b.measurementCount !== a.measurementCount) {
+              return b.measurementCount - a.measurementCount;
+            }
+            return new Date(b.session.createdAt || 0).getTime() - new Date(a.session.createdAt || 0).getTime();
+          });
+          
+          // Keep the first one (most measurements/most recent), delete the rest
+          keptSessions.push(sessionsWithCounts[0].session.id!);
+          
+          for (let i = 1; i < sessionsWithCounts.length; i++) {
+            const sessionToDelete = sessionsWithCounts[i].session;
+            deletedSessions.push(sessionToDelete.id!);
+            
+            if (!dryRun) {
+              await healthRouter.deleteBiomarkerSession(userId, sessionToDelete.id!);
+            }
+          }
+        }
+      }
+      
+      res.json({
+        dryRun,
+        userId,
+        keptSessions: keptSessions.length,
+        deletedSessions: deletedSessions.length,
+        deletedSessionIds: deletedSessions,
+        keptSessionIds: keptSessions,
+        message: dryRun 
+          ? `Would delete ${deletedSessions.length} duplicate sessions. Add ?dryRun=false to execute.`
+          : `Deleted ${deletedSessions.length} duplicate sessions.`,
+      });
+    } catch (error) {
+      logger.error('Error cleaning up duplicate sessions:', error);
+      res.status(500).json({ error: "Failed to clean up duplicate sessions" });
     }
   });
 

@@ -757,6 +757,49 @@ export async function createBiomarkerSession(userId: string, session: any) {
   }
 }
 
+export async function deleteBiomarkerSession(userId: string, sessionId: string): Promise<void> {
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot delete health data");
+  }
+  
+  try {
+    await supabaseHealth.deleteBiomarkerSession(userId, sessionId);
+    logger.info(`[HealthStorageRouter] Deleted biomarker session ${sessionId} for user ${userId}`);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase deleteBiomarkerSession failed:", error);
+    throw error;
+  }
+}
+
+export async function findSessionByDateAndSource(
+  userId: string,
+  testDateUtc: string, // YYYY-MM-DD format
+  source: string
+) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const result = await supabaseHealth.findSessionByDateAndSource(userId, testDateUtc, source);
+      if (result) {
+        // Normalize Supabase snake_case to camelCase for API compatibility
+        return {
+          id: result.id,
+          userId: userId,
+          source: result.source,
+          testDate: result.test_date,
+          notes: result.notes,
+          createdAt: result.created_at ? new Date(result.created_at) : null,
+        };
+      }
+      return null;
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase findSessionByDateAndSource failed:", error);
+      throw error;
+    }
+  }
+  return null;
+}
+
 export async function getMeasurementsBySession(sessionId: string) {
   if (isSupabaseHealthEnabled()) {
     try {

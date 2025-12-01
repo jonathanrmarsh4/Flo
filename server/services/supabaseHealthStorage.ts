@@ -154,6 +154,37 @@ export async function getBiomarkerSessions(userId: string, limit = 100): Promise
   return data || [];
 }
 
+// Check for existing session by date and source (for duplicate prevention)
+export async function findSessionByDateAndSource(
+  userId: string, 
+  testDateUtc: string, // YYYY-MM-DD format
+  source: string
+): Promise<BiomarkerTestSession | null> {
+  const healthId = await getHealthId(userId);
+  
+  // Query for sessions on the specified date with the given source
+  // Use date range to handle timezone variations (midnight to midnight UTC)
+  const startOfDay = `${testDateUtc}T00:00:00.000Z`;
+  const endOfDay = `${testDateUtc}T23:59:59.999Z`;
+  
+  const { data, error } = await supabase
+    .from('biomarker_test_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('source', source)
+    .gte('test_date', startOfDay)
+    .lte('test_date', endOfDay)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error finding session by date:', error);
+    throw error;
+  }
+  
+  return data && data.length > 0 ? data[0] : null;
+}
+
 // ==================== BIOMARKER MEASUREMENTS ====================
 
 export interface BiomarkerMeasurement {
@@ -1650,6 +1681,48 @@ export async function deleteAllHealthData(userId: string): Promise<void> {
   }
   
   logger.info(`[SupabaseHealth] Successfully deleted all health data for health_id: ${healthId}`);
+}
+
+// Delete a single biomarker session and its measurements
+export async function deleteBiomarkerSession(userId: string, sessionId: string): Promise<void> {
+  const healthId = await getHealthId(userId);
+  
+  // First verify the session belongs to this user
+  const { data: session, error: fetchError } = await supabase
+    .from('biomarker_test_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('health_id', healthId)
+    .single();
+    
+  if (fetchError || !session) {
+    throw new Error(`Session not found or doesn't belong to user`);
+  }
+  
+  // Delete measurements first (foreign key constraint)
+  const { error: measurementsError } = await supabase
+    .from('biomarker_measurements')
+    .delete()
+    .eq('session_id', sessionId);
+    
+  if (measurementsError) {
+    logger.error('[SupabaseHealth] Error deleting measurements:', measurementsError);
+    throw measurementsError;
+  }
+  
+  // Delete the session
+  const { error: sessionError } = await supabase
+    .from('biomarker_test_sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('health_id', healthId);
+    
+  if (sessionError) {
+    logger.error('[SupabaseHealth] Error deleting session:', sessionError);
+    throw sessionError;
+  }
+  
+  logger.info(`[SupabaseHealth] Deleted biomarker session ${sessionId} and its measurements`);
 }
 
 logger.info('[SupabaseHealth] Health storage service initialized');
