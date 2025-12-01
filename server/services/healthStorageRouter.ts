@@ -711,7 +711,16 @@ export async function getActionPlanItem(id: string, userId: string) {
 export async function getBiomarkerSessions(userId: string) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.getBiomarkerSessions(userId);
+      const results = await supabaseHealth.getBiomarkerSessions(userId);
+      // Normalize Supabase snake_case to camelCase for API compatibility
+      return results.map(r => ({
+        id: r.id,
+        userId: userId,
+        source: r.source,
+        testDate: r.test_date,
+        notes: r.notes,
+        createdAt: r.created_at ? new Date(r.created_at) : null,
+      }));
     } catch (error) {
       logger.error("[HealthStorageRouter] Supabase getBiomarkerSessions failed, falling back to Neon:", error);
     }
@@ -730,7 +739,16 @@ export async function createBiomarkerSession(userId: string, session: any) {
   }
   
   try {
-    return await supabaseHealth.createBiomarkerSession(userId, session);
+    const result = await supabaseHealth.createBiomarkerSession(userId, session);
+    // Normalize Supabase snake_case to camelCase for API compatibility
+    return {
+      id: result.id,
+      userId: userId,
+      source: result.source,
+      testDate: result.test_date,
+      notes: result.notes,
+      createdAt: result.created_at ? new Date(result.created_at) : null,
+    };
   } catch (error) {
     logger.error("[HealthStorageRouter] Supabase createBiomarkerSession failed:", error);
     throw error;
@@ -740,7 +758,28 @@ export async function createBiomarkerSession(userId: string, session: any) {
 export async function getMeasurementsBySession(sessionId: string) {
   if (isSupabaseHealthEnabled()) {
     try {
-      return await supabaseHealth.getMeasurementsBySession(sessionId);
+      const results = await supabaseHealth.getMeasurementsBySession(sessionId);
+      // Normalize Supabase snake_case to camelCase for API compatibility
+      return results.map(r => ({
+        id: r.id,
+        sessionId: r.session_id,
+        biomarkerId: r.biomarker_id,
+        recordId: r.record_id,
+        source: r.source,
+        valueRaw: r.value_raw,
+        unitRaw: r.unit_raw,
+        valueCanonical: r.value_canonical,
+        unitCanonical: r.unit_canonical,
+        valueDisplay: r.value_display,
+        referenceLow: r.reference_low,
+        referenceHigh: r.reference_high,
+        flags: r.flags,
+        warnings: r.warnings,
+        normalizationContext: r.normalization_context,
+        updatedBy: r.updated_by,
+        createdAt: r.created_at ? new Date(r.created_at) : null,
+        updatedAt: r.updated_at ? new Date(r.updated_at) : null,
+      }));
     } catch (error) {
       logger.error("[HealthStorageRouter] Supabase getMeasurementsBySession failed, falling back to Neon:", error);
     }
@@ -759,7 +798,28 @@ export async function createBiomarkerMeasurement(measurement: any) {
   }
   
   try {
-    return await supabaseHealth.createBiomarkerMeasurement(measurement);
+    const result = await supabaseHealth.createBiomarkerMeasurement(measurement);
+    // Normalize Supabase snake_case to camelCase for API compatibility
+    return {
+      id: result.id,
+      sessionId: result.session_id,
+      biomarkerId: result.biomarker_id,
+      recordId: result.record_id,
+      source: result.source,
+      valueRaw: result.value_raw,
+      unitRaw: result.unit_raw,
+      valueCanonical: result.value_canonical,
+      unitCanonical: result.unit_canonical,
+      valueDisplay: result.value_display,
+      referenceLow: result.reference_low,
+      referenceHigh: result.reference_high,
+      flags: result.flags,
+      warnings: result.warnings,
+      normalizationContext: result.normalization_context,
+      updatedBy: result.updated_by,
+      createdAt: result.created_at ? new Date(result.created_at) : null,
+      updatedAt: result.updated_at ? new Date(result.updated_at) : null,
+    };
   } catch (error) {
     logger.error("[HealthStorageRouter] Supabase createBiomarkerMeasurement failed:", error);
     throw error;
