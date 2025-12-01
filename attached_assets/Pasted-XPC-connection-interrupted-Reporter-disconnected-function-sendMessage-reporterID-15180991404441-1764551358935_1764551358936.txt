@@ -1,0 +1,68 @@
+XPC connection interrupted
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Reporter disconnected. { function=sendMessage, reporterID=151809914044417 }
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x11e071d60 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x11e331600.width == _UIButtonBarButton:0x11e32e080.width   (active)>",
+    "<NSLayoutConstraint:0x11e071ea0 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x135048000]   (active, names: '|':_UIButtonBarButton:0x11e32e080 )>",
+    "<NSLayoutConstraint:0x11e071ef0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x135048000]-(8)-|   (active, names: '|':_UIButtonBarButton:0x11e32e080 )>",
+    "<NSLayoutConstraint:0x11e072440 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x11e331600.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x11e071ef0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x135048000]-(8)-|   (active, names: '|':_UIButtonBarButton:0x11e32e080 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x11e0728f0 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x11e331a00.width == _UIButtonBarButton:0x11e32e580.width   (active)>",
+    "<NSLayoutConstraint:0x11e072a30 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x135048380]   (active, names: '|':_UIButtonBarButton:0x11e32e580 )>",
+    "<NSLayoutConstraint:0x11e072a80 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x135048380]-(8)-|   (active, names: '|':_UIButtonBarButton:0x11e32e580 )>",
+    "<NSLayoutConstraint:0x11e072f30 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x11e331a00.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x11e072a80 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x135048380]-(8)-|   (active, names: '|':_UIButtonBarButton:0x11e32e580 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x11e073340 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x11e331e00.width == _UIButtonBarButton:0x11e32ea80.width   (active)>",
+    "<NSLayoutConstraint:0x11e073430 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x135048700]   (active, names: '|':_UIButtonBarButton:0x11e32ea80 )>",
+    "<NSLayoutConstraint:0x11e073480 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x135048700]-(8)-|   (active, names: '|':_UIButtonBarButton:0x11e32ea80 )>",
+    "<NSLayoutConstraint:0x11e073930 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x11e331e00.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x11e073480 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x135048700]-(8)-|   (active, names: '|':_UIButtonBarButton:0x11e32ea80 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = D25A6FD4-5737-4DD4-A1F0-8C3225EFBEF9
+<0x10960a440> Gesture: System gesture gate timed out.
+containerToPush is nil, will not push anything to candidate receiver for request token: ADA9B872
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x11e029290 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  Can only perform input operation for an active session. sessionID = D25A6FD4-5737-4DD4-A1F0-8C3225EFBEF9
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = D25A6FD4-5737-4DD4-A1F0-8C3225EFBEF9
