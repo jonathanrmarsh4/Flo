@@ -18,7 +18,7 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         var types: Set<HKObjectType> = []
         var unavailableTypes: [String] = []
         
-        for dataType in HealthDataType.allCases {
+        for dataType in FloHealthDataType.allCases {
             do {
                 let sampleType = try dataType.sampleType()
                 types.insert(sampleType)

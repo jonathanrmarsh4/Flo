@@ -1,7 +1,7 @@
 import Foundation
 import HealthKit
 
-enum HealthManagerError: LocalizedError {
+enum FloHealthError: LocalizedError {
     case healthDataUnavailable
     case invalidDataType(String)
     case invalidDate(String)
@@ -27,7 +27,7 @@ enum HealthManagerError: LocalizedError {
     }
 }
 
-enum HealthDataType: String, CaseIterable {
+enum FloHealthDataType: String, CaseIterable {
     case steps
     case distance
     case calories
@@ -117,12 +117,12 @@ enum HealthDataType: String, CaseIterable {
         // Category types
         case .sleepAnalysis:
             guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
-                throw HealthManagerError.dataTypeUnavailable(rawValue)
+                throw FloHealthError.dataTypeUnavailable(rawValue)
             }
             return type
         case .mindfulSession:
             guard let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) else {
-                throw HealthManagerError.dataTypeUnavailable(rawValue)
+                throw FloHealthError.dataTypeUnavailable(rawValue)
             }
             return type
         default:
@@ -277,7 +277,7 @@ enum HealthDataType: String, CaseIterable {
                 if #available(iOS 15.0, *) {
                     identifier = .appleWalkingSteadiness
                 } else {
-                    throw HealthManagerError.dataTypeUnavailable(rawValue)
+                    throw FloHealthError.dataTypeUnavailable(rawValue)
                 }
             case .sixMinuteWalkTestDistance:
                 identifier = .sixMinuteWalkTestDistance
@@ -292,7 +292,7 @@ enum HealthDataType: String, CaseIterable {
             }
             
             guard let type = HKObjectType.quantityType(forIdentifier: identifier) else {
-                throw HealthManagerError.dataTypeUnavailable(rawValue)
+                throw FloHealthError.dataTypeUnavailable(rawValue)
             }
             return type
         }
@@ -451,21 +451,21 @@ enum HealthDataType: String, CaseIterable {
         }
     }
 
-    static func parseMany(_ identifiers: [String]) throws -> [HealthDataType] {
+    static func parseMany(_ identifiers: [String]) throws -> [FloHealthDataType] {
         try identifiers.map { identifier in
-            guard let type = HealthDataType(rawValue: identifier) else {
-                throw HealthManagerError.invalidDataType(identifier)
+            guard let type = FloHealthDataType(rawValue: identifier) else {
+                throw FloHealthError.invalidDataType(identifier)
             }
             return type
         }
     }
 }
 
-struct AuthorizationStatusPayload {
-    let readAuthorized: [HealthDataType]
-    let readDenied: [HealthDataType]
-    let writeAuthorized: [HealthDataType]
-    let writeDenied: [HealthDataType]
+struct FloAuthorizationStatusPayload {
+    let readAuthorized: [FloHealthDataType]
+    let readDenied: [FloHealthDataType]
+    let writeAuthorized: [FloHealthDataType]
+    let writeDenied: [FloHealthDataType]
 
     func toDictionary() -> [String: Any] {
         return [
@@ -508,15 +508,15 @@ final class FloHealth {
         ]
     }
 
-    func requestAuthorization(readIdentifiers: [String], writeIdentifiers: [String], completion: @escaping (Result<AuthorizationStatusPayload, Error>) -> Void) {
+    func requestAuthorization(readIdentifiers: [String], writeIdentifiers: [String], completion: @escaping (Result<FloAuthorizationStatusPayload, Error>) -> Void) {
         guard HKHealthStore.isHealthDataAvailable() else {
-            completion(.failure(HealthManagerError.healthDataUnavailable))
+            completion(.failure(FloHealthError.healthDataUnavailable))
             return
         }
 
         do {
-            let readTypes = try HealthDataType.parseMany(readIdentifiers)
-            let writeTypes = try HealthDataType.parseMany(writeIdentifiers)
+            let readTypes = try FloHealthDataType.parseMany(readIdentifiers)
+            let writeTypes = try FloHealthDataType.parseMany(writeIdentifiers)
 
             let readObjectTypes = try objectTypes(for: readTypes)
             let writeSampleTypes = try sampleTypes(for: writeTypes)
@@ -534,7 +534,7 @@ final class FloHealth {
                         completion(.success(result))
                     }
                 } else {
-                    completion(.failure(HealthManagerError.operationFailed("Authorization request was not granted.")))
+                    completion(.failure(FloHealthError.operationFailed("Authorization request was not granted.")))
                 }
             }
         } catch {
@@ -542,10 +542,10 @@ final class FloHealth {
         }
     }
 
-    func checkAuthorization(readIdentifiers: [String], writeIdentifiers: [String], completion: @escaping (Result<AuthorizationStatusPayload, Error>) -> Void) {
+    func checkAuthorization(readIdentifiers: [String], writeIdentifiers: [String], completion: @escaping (Result<FloAuthorizationStatusPayload, Error>) -> Void) {
         do {
-            let readTypes = try HealthDataType.parseMany(readIdentifiers)
-            let writeTypes = try HealthDataType.parseMany(writeIdentifiers)
+            let readTypes = try FloHealthDataType.parseMany(readIdentifiers)
+            let writeTypes = try FloHealthDataType.parseMany(writeIdentifiers)
 
             evaluateAuthorizationStatus(readTypes: readTypes, writeTypes: writeTypes) { payload in
                 completion(.success(payload))
@@ -563,7 +563,7 @@ final class FloHealth {
         let endDate = try parseDate(endDateString, defaultValue: Date())
 
         guard endDate >= startDate else {
-            throw HealthManagerError.invalidDateRange
+            throw FloHealthError.invalidDateRange
         }
 
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: [])
@@ -611,7 +611,7 @@ final class FloHealth {
         
         // Ensure this is a category type (sleep or mindfulness)
         guard dataType == .sleepAnalysis || dataType == .mindfulSession else {
-            throw HealthManagerError.invalidDataType("Category samples only supported for sleepAnalysis and mindfulSession")
+            throw FloHealthError.invalidDataType("Category samples only supported for sleepAnalysis and mindfulSession")
         }
         
         let categoryType = try dataType.sampleType() as! HKCategoryType
@@ -620,7 +620,7 @@ final class FloHealth {
         let endDate = try parseDate(endDateString, defaultValue: Date())
         
         guard endDate >= startDate else {
-            throw HealthManagerError.invalidDateRange
+            throw FloHealthError.invalidDateRange
         }
         
         let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: [])
@@ -713,21 +713,21 @@ final class FloHealth {
 
     func saveSample(dataTypeIdentifier: String, value: Double, unitIdentifier: String?, startDateString: String?, endDateString: String?, metadata: [String: String]?, completion: @escaping (Result<Void, Error>) -> Void) throws {
         guard HKHealthStore.isHealthDataAvailable() else {
-            throw HealthManagerError.healthDataUnavailable
+            throw FloHealthError.healthDataUnavailable
         }
 
         let dataType = try parseDataType(identifier: dataTypeIdentifier)
         let sampleType = try dataType.sampleType()
         
         guard let quantityType = sampleType as? HKQuantityType else {
-            throw HealthManagerError.invalidDataType("Data type is not a quantity type")
+            throw FloHealthError.invalidDataType("Data type is not a quantity type")
         }
 
         let startDate = try parseDate(startDateString, defaultValue: Date())
         let endDate = try parseDate(endDateString, defaultValue: startDate)
 
         guard endDate >= startDate else {
-            throw HealthManagerError.invalidDateRange
+            throw FloHealthError.invalidDateRange
         }
 
         let unit = unit(for: unitIdentifier, dataType: dataType)
@@ -751,16 +751,16 @@ final class FloHealth {
             if success {
                 completion(.success(()))
             } else {
-                completion(.failure(HealthManagerError.operationFailed("Failed to save the sample.")))
+                completion(.failure(FloHealthError.operationFailed("Failed to save the sample.")))
             }
         }
     }
 
-    private func evaluateAuthorizationStatus(readTypes: [HealthDataType], writeTypes: [HealthDataType], completion: @escaping (AuthorizationStatusPayload) -> Void) {
+    private func evaluateAuthorizationStatus(readTypes: [FloHealthDataType], writeTypes: [FloHealthDataType], completion: @escaping (FloAuthorizationStatusPayload) -> Void) {
         let writeStatus = writeAuthorizationStatus(for: writeTypes)
 
         readAuthorizationStatus(for: readTypes) { readAuthorized, readDenied in
-            let payload = AuthorizationStatusPayload(
+            let payload = FloAuthorizationStatusPayload(
                 readAuthorized: readAuthorized,
                 readDenied: readDenied,
                 writeAuthorized: writeStatus.authorized,
@@ -770,9 +770,9 @@ final class FloHealth {
         }
     }
 
-    private func writeAuthorizationStatus(for types: [HealthDataType]) -> (authorized: [HealthDataType], denied: [HealthDataType]) {
-        var authorized: [HealthDataType] = []
-        var denied: [HealthDataType] = []
+    private func writeAuthorizationStatus(for types: [FloHealthDataType]) -> (authorized: [FloHealthDataType], denied: [FloHealthDataType]) {
+        var authorized: [FloHealthDataType] = []
+        var denied: [FloHealthDataType] = []
 
         for type in types {
             guard let sampleType = try? type.sampleType() else {
@@ -793,7 +793,7 @@ final class FloHealth {
         return (authorized, denied)
     }
 
-    private func readAuthorizationStatus(for types: [HealthDataType], completion: @escaping ([HealthDataType], [HealthDataType]) -> Void) {
+    private func readAuthorizationStatus(for types: [FloHealthDataType], completion: @escaping ([FloHealthDataType], [FloHealthDataType]) -> Void) {
         guard !types.isEmpty else {
             completion([], [])
             return
@@ -802,8 +802,8 @@ final class FloHealth {
         if #available(iOS 12.0, *) {
             let group = DispatchGroup()
             let lock = NSLock()
-            var authorized: [HealthDataType] = []
-            var denied: [HealthDataType] = []
+            var authorized: [FloHealthDataType] = []
+            var denied: [FloHealthDataType] = []
 
             for type in types {
                 guard let objectType = try? type.sampleType() else {
@@ -840,9 +840,9 @@ final class FloHealth {
         }
     }
 
-    private func parseDataType(identifier: String) throws -> HealthDataType {
-        guard let type = HealthDataType(rawValue: identifier) else {
-            throw HealthManagerError.invalidDataType(identifier)
+    private func parseDataType(identifier: String) throws -> FloHealthDataType {
+        guard let type = FloHealthDataType(rawValue: identifier) else {
+            throw FloHealthError.invalidDataType(identifier)
         }
         return type
     }
@@ -856,10 +856,10 @@ final class FloHealth {
             return date
         }
 
-        throw HealthManagerError.invalidDate(value)
+        throw FloHealthError.invalidDate(value)
     }
 
-    private func unit(for identifier: String?, dataType: HealthDataType) -> HKUnit {
+    private func unit(for identifier: String?, dataType: FloHealthDataType) -> HKUnit {
         guard let identifier = identifier else {
             return dataType.defaultUnit
         }
@@ -880,7 +880,7 @@ final class FloHealth {
         }
     }
 
-    private func objectTypes(for dataTypes: [HealthDataType]) throws -> Set<HKObjectType> {
+    private func objectTypes(for dataTypes: [FloHealthDataType]) throws -> Set<HKObjectType> {
         var set = Set<HKObjectType>()
         for dataType in dataTypes {
             let type = try dataType.sampleType()
@@ -889,7 +889,7 @@ final class FloHealth {
         return set
     }
 
-    private func sampleTypes(for dataTypes: [HealthDataType]) throws -> Set<HKSampleType> {
+    private func sampleTypes(for dataTypes: [FloHealthDataType]) throws -> Set<HKSampleType> {
         var set = Set<HKSampleType>()
         for dataType in dataTypes {
             let type = try dataType.sampleType() as HKSampleType

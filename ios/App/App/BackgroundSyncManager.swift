@@ -17,7 +17,7 @@ class BackgroundSyncManager {
     private let enabledKey = "healthkit.background.enabled"
     
     // Data types to observe (start with 3 high-value metrics)
-    private let observedTypes: [HealthDataType] = [.steps, .heartRate, .sleepAnalysis]
+    private let observedTypes: [FloHealthDataType] = [.steps, .heartRate, .sleepAnalysis]
     
     // MARK: - Initialization
     
@@ -148,7 +148,7 @@ class BackgroundSyncManager {
     // MARK: - Private Methods
     
     /// Fetch delta data using HKAnchoredObjectQuery
-    private func fetchDeltaData(for dataType: HealthDataType, completionHandler: @escaping () -> Void) {
+    private func fetchDeltaData(for dataType: FloHealthDataType, completionHandler: @escaping () -> Void) {
         do {
             let sampleType = try dataType.sampleType()
             let anchorKey = "\(anchorPrefix).\(dataType.rawValue)"
@@ -205,7 +205,7 @@ class BackgroundSyncManager {
     }
     
     /// Serialize HKSample objects to dictionaries
-    private func serializeSamples(_ samples: [HKSample], dataType: HealthDataType) -> [[String: Any]] {
+    private func serializeSamples(_ samples: [HKSample], dataType: FloHealthDataType) -> [[String: Any]] {
         return samples.compactMap { sample in
             var dict: [String: Any] = [
                 "uuid": sample.uuid.uuidString,
@@ -242,7 +242,7 @@ class BackgroundSyncManager {
     }
     
     /// Get preferred unit for a data type
-    private func preferredUnit(for dataType: HealthDataType) -> HKUnit {
+    private func preferredUnit(for dataType: FloHealthDataType) -> HKUnit {
         switch dataType {
         case .steps:
             return HKUnit.count()
@@ -256,7 +256,7 @@ class BackgroundSyncManager {
     }
     
     /// Append samples to the queue in UserDefaults
-    private func appendToQueue(_ samples: [[String: Any]], for dataType: HealthDataType) {
+    private func appendToQueue(_ samples: [[String: Any]], for dataType: FloHealthDataType) {
         let queueKey = "\(queuePrefix).\(dataType.rawValue)"
         
         // Load existing queue
