@@ -218,7 +218,39 @@ export async function upsertSleepNight(userId: string, sleep: any) {
   }
   
   try {
-    const result = await supabaseHealth.upsertSleepNight(userId, sleep);
+    // Convert camelCase input to snake_case for Supabase
+    const sleepSnakeCase = {
+      sleep_date: sleep.sleepDate,
+      timezone: sleep.timezone,
+      night_start: sleep.nightStart ?? null,
+      final_wake: sleep.finalWake ?? null,
+      sleep_onset: sleep.sleepOnset ?? null,
+      time_in_bed_min: sleep.timeInBedMin ?? null,
+      total_sleep_min: sleep.totalSleepMin ?? null,
+      sleep_efficiency_pct: sleep.sleepEfficiencyPct ?? null,
+      sleep_latency_min: sleep.sleepLatencyMin ?? null,
+      waso_min: sleep.wasoMin ?? null,
+      num_awakenings: sleep.numAwakenings ?? null,
+      core_sleep_min: sleep.coreSleepMin ?? null,
+      deep_sleep_min: sleep.deepSleepMin ?? null,
+      rem_sleep_min: sleep.remSleepMin ?? null,
+      unspecified_sleep_min: sleep.unspecifiedSleepMin ?? null,
+      awake_in_bed_min: sleep.awakeInBedMin ?? null,
+      mid_sleep_time_local: sleep.midSleepTimeLocal ?? null,
+      fragmentation_index: sleep.fragmentationIndex ?? null,
+      deep_pct: sleep.deepPct ?? null,
+      rem_pct: sleep.remPct ?? null,
+      core_pct: sleep.corePct ?? null,
+      bedtime_local: sleep.bedtimeLocal ?? null,
+      waketime_local: sleep.waketimeLocal ?? null,
+      resting_hr_bpm: sleep.restingHrBpm ?? null,
+      hrv_ms: sleep.hrvMs ?? null,
+      respiratory_rate: sleep.respiratoryRate ?? null,
+      wrist_temperature: sleep.wristTemperature ?? null,
+      oxygen_saturation: sleep.oxygenSaturation ?? null,
+    };
+    
+    const result = await supabaseHealth.upsertSleepNight(userId, sleepSnakeCase);
     // Normalize Supabase snake_case to camelCase for API compatibility
     // Add null-safe handling for optional timestamps
     return {
