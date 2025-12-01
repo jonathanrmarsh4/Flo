@@ -308,7 +308,9 @@ export default function MeasurementHistory() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {measurement.valueDisplay}
+                              {measurement.valueCanonical !== null && measurement.valueCanonical !== undefined 
+                                ? `${Number(measurement.valueCanonical).toFixed(1)} ${measurement.unitCanonical || ''}`
+                                : measurement.valueDisplay}
                             </span>
                             {getSourceBadge(measurement.source)}
                           </div>
@@ -316,7 +318,11 @@ export default function MeasurementHistory() {
                             {selectedBiomarker?.name}
                           </p>
                           <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                            {measurement.createdAt ? format(new Date(measurement.createdAt), "MMM d, yyyy 'at' h:mm a") : 'Unknown date'}
+                            {(measurement as any).testDate 
+                              ? format(new Date((measurement as any).testDate), "MMM d, yyyy 'at' h:mm a")
+                              : measurement.createdAt 
+                                ? format(new Date(measurement.createdAt), "MMM d, yyyy 'at' h:mm a") 
+                                : 'Unknown date'}
                           </p>
                           {measurement.updatedAt && measurement.updatedAt !== measurement.createdAt && (
                             <p className={`text-xs italic ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
