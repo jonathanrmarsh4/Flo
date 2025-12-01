@@ -690,8 +690,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allBiomarkers = await storage.getBiomarkers();
       const biomarkerMap = new Map(allBiomarkers.map(b => [b.id, b]));
 
-      // Get all test sessions for user
-      const sessions = await storage.getTestSessionsByUser(userId);
+      // Get all test sessions for user (from Supabase via healthRouter)
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
       
       if (sessions.length === 0) {
         return res.json({ overdue: [], upcoming: [], hasLabData: false });
@@ -701,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const measurementsByBiomarker = new Map<string, { testDate: Date; biomarkerId: string; biomarkerName: string }>();
       
       for (const session of sessions) {
-        const measurements = await storage.getMeasurementsBySession(session.id);
+        const measurements = await healthRouter.getMeasurementsBySession(session.id);
         for (const m of measurements) {
           const biomarker = biomarkerMap.get(m.biomarkerId);
           if (!biomarker) continue;
@@ -1337,12 +1337,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
 
       // Get all test sessions for user
-      const sessions = await storage.getTestSessionsByUser(userId);
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
 
       // For each session, fetch its measurements
       const sessionsWithMeasurements = await Promise.all(
         sessions.map(async (session) => {
-          const measurements = await storage.getMeasurementsBySession(session.id);
+          const measurements = await healthRouter.getMeasurementsBySession(session.id);
           return {
             ...session,
             measurements,
@@ -1374,8 +1374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate chronological age using mid-year (July 1st) assumption for ±6 month accuracy
       const ageYears = calculateAgeFromBirthYear(profile.birthYear)!;
 
-      // Get user's latest biomarker test session
-      const sessions = await storage.getTestSessionsByUser(userId);
+      // Get user's latest biomarker test session (from Supabase via healthRouter)
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
       if (sessions.length === 0) {
         return res.status(400).json({ 
           error: "No biomarker data found. Please add test results to calculate biological age.",
@@ -1403,7 +1403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[BioAge] Checking ${sortedSessions.length} sessions for user ${userId}`);
       
       for (const session of sortedSessions) {
-        const sessionMeasurements = await storage.getMeasurementsBySession(session.id);
+        const sessionMeasurements = await healthRouter.getMeasurementsBySession(session.id);
         if (sessionMeasurements.length === 0) continue;
 
         // Count how many required biomarkers this session has
@@ -1685,8 +1685,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate age using mid-year (July 1st) assumption for ±6 month accuracy
       const ageYears = calculateAgeFromBirthYear(profile.birthYear)!;
 
-      // Get all biomarker sessions
-      const sessions = await storage.getTestSessionsByUser(userId);
+      // Get all biomarker sessions (from Supabase via healthRouter)
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
       if (sessions.length === 0) {
         return res.status(422).json({ 
           error: "No biomarker data found. Please add test results to generate comprehensive insights.",
@@ -1708,7 +1708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const panels = [];
       
       for (const session of sortedSessions) {
-        const measurements = await storage.getMeasurementsBySession(session.id);
+        const measurements = await healthRouter.getMeasurementsBySession(session.id);
         if (measurements.length === 0) continue;
 
         const markers = await Promise.all(measurements.map(async (m) => {
@@ -1914,12 +1914,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate age using mid-year (July 1st) assumption for ±6 month accuracy
       const ageYears = calculateAgeFromBirthYear(profile.birthYear)!;
 
-      // Get biomarker sessions
+      // Get biomarker sessions (from Supabase via healthRouter)
       let sessions;
       if (sessionId) {
-        // Get specific session only
-        const session = await storage.getTestSessionById(sessionId);
-        if (!session || session.userId !== userId) {
+        // Get specific session only - need to get all sessions and filter
+        const allSessions = await healthRouter.getBiomarkerSessions(userId);
+        const session = allSessions.find(s => s.id === sessionId);
+        if (!session) {
           return res.status(404).json({ 
             error: "Session not found or unauthorized"
           });
@@ -1927,7 +1928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sessions = [session];
       } else {
         // Get all sessions
-        sessions = await storage.getTestSessionsByUser(userId);
+        sessions = await healthRouter.getBiomarkerSessions(userId);
       }
 
       if (sessions.length === 0) {
@@ -1948,7 +1949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build biomarker panels
       const panels = [];
       for (const session of sortedSessions) {
-        const measurements = await storage.getMeasurementsBySession(session.id);
+        const measurements = await healthRouter.getMeasurementsBySession(session.id);
         if (measurements.length === 0) continue;
 
         const markers = measurements.map(m => {
@@ -2148,8 +2149,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { biomarkers } = await import("@shared/schema");
       const { eq } = await import("drizzle-orm");
       
-      // Get all test sessions for the user
-      const sessions = await storage.getTestSessionsByUser(userId);
+      // Get all test sessions for the user (from Supabase via healthRouter)
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
       
       if (sessions.length === 0) {
         return res.json({ topBiomarkers: [] });
@@ -2159,7 +2160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const biomarkerMap = new Map<string, any>();
       
       for (const session of sessions) {
-        const measurements = await storage.getMeasurementsBySession(session.id);
+        const measurements = await healthRouter.getMeasurementsBySession(session.id);
         
         for (const measurement of measurements) {
           // Only keep the latest measurement for each biomarker
@@ -2839,7 +2840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteMeasurement(measurementId);
 
-      const remainingMeasurements = await storage.getMeasurementsBySession(session.id);
+      const remainingMeasurements = await healthRouter.getMeasurementsBySession(session.id);
       if (remainingMeasurements.length === 0) {
         await storage.deleteTestSession(session.id);
       }
