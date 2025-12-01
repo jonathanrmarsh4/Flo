@@ -3,14 +3,27 @@
  * 
  * Automatically requests HealthKit permissions on app launch for iOS devices.
  * Only prompts once - stores result in localStorage to avoid repeated prompts.
+ * 
+ * Uses HealthSyncPlugin.requestAuthorization() instead of @healthpilot/healthkit
+ * because the framework has a bug where authorization can hang indefinitely.
  */
 
 import { useEffect, useState } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { HealthKitService } from '@/services/healthkit';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { logger } from '@/lib/logger';
-import type { HealthDataType } from '@/types/healthkit';
 import Readiness from '@/plugins/readiness';
+
+// Import HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
+interface HealthSyncPluginType {
+  requestAuthorization(): Promise<{
+    success: boolean;
+    readAuthorized: string[];
+    readDenied: string[];
+    writeAuthorized: string[];
+    writeDenied: string[];
+  }>;
+}
+const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');
 
 const HEALTHKIT_PERMISSION_KEY = 'healthkit_permission_requested';
 
@@ -35,69 +48,14 @@ export function useHealthKitAutoPermission() {
       try {
         setIsRequesting(true);
 
-        // Check if HealthKit is available
-        const available = await HealthKitService.isAvailable();
-        if (!available) {
-          logger.info('HealthKit not available on this device');
-          localStorage.setItem(HEALTHKIT_PERMISSION_KEY, 'true');
-          setHasRequested(true);
-          return;
-        }
+        logger.info('🔐 [AutoPermission] Auto-requesting HealthKit permissions on app launch');
 
-        // Define all 26 data types we want to read
-        const allDataTypes: HealthDataType[] = [
-          // Daily Readiness (6)
-          'heartRateVariability',
-          'restingHeartRate',
-          'respiratoryRate',
-          'oxygenSaturation',
-          'sleepAnalysis',
-          'bodyTemperature',
-          
-          // Body Composition (6)
-          'weight',
-          'height',
-          'bmi',
-          'bodyFatPercentage',
-          'leanBodyMass',
-          'waistCircumference',
-          
-          // Cardiometabolic (6)
-          'heartRate',
-          'bloodPressureSystolic',
-          'bloodPressureDiastolic',
-          'bloodGlucose',
-          'vo2Max',
-          'walkingHeartRateAverage',
-          
-          // Activity (7)
-          'steps',
-          'distance',
-          'calories',
-          'basalEnergyBurned',
-          'flightsClimbed',
-          'appleExerciseTime',
-          'appleStandTime',
-          
-          // Additional
-          'dietaryWater',
-        ];
+        // Use HealthSyncPlugin for authorization - it requests all 74+ types
+        // and doesn't hang like the @healthpilot/healthkit framework
+        const result = await HealthSyncPlugin.requestAuthorization();
 
-        // Remove duplicates
-        const uniqueDataTypes = Array.from(new Set(allDataTypes));
-
-        logger.info('Auto-requesting HealthKit permissions on app launch', {
-          dataTypes: uniqueDataTypes.length,
-        });
-
-        // Request authorization (this shows the iOS native permission dialog)
-        const result = await HealthKitService.requestAuthorization({
-          read: uniqueDataTypes,
-          write: [], // Only request read permissions
-        });
-
-        if (result) {
-          logger.info('HealthKit permissions granted', {
+        if (result && result.success) {
+          logger.info('✅ [AutoPermission] HealthKit permissions granted', {
             readAuthorized: result.readAuthorized?.length || 0,
           });
           
@@ -111,13 +69,18 @@ export function useHealthKitAutoPermission() {
               logger.error('[AutoPermission] Re-sync failed', err);
             }
           }, 1000); // 1 second delay to ensure permissions are fully processed
+        } else {
+          logger.info('⚠️ [AutoPermission] HealthKit permissions result', {
+            success: result?.success,
+            readAuthorized: result?.readAuthorized?.length || 0,
+          });
         }
 
         // Mark as requested so we don't prompt again
         localStorage.setItem(HEALTHKIT_PERMISSION_KEY, 'true');
         setHasRequested(true);
       } catch (error) {
-        logger.error('Error auto-requesting HealthKit permissions', error);
+        logger.error('❌ [AutoPermission] Error auto-requesting HealthKit permissions', error);
         // Still mark as requested to avoid repeated errors
         localStorage.setItem(HEALTHKIT_PERMISSION_KEY, 'true');
         setHasRequested(true);
