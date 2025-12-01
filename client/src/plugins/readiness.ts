@@ -7,8 +7,8 @@ async function syncWithAuth(days: number, waitForAuth?: boolean) {
     // Get JWT token from secure storage (same key as queryClient uses)
     const { value: token } = await SecureStoragePlugin.get({ key: 'auth_token' });
     
-    // Pass token to Swift plugin (token passed via separate secure channel)
-    return await HealthSyncPlugin.syncReadinessData({ days, waitForAuth });
+    // Pass token to Swift plugin so it can authenticate with backend
+    return await HealthSyncPlugin.syncReadinessData({ days, token: token || undefined, waitForAuth });
   } catch (error) {
     console.error('[Readiness] Failed to get auth token:', error);
     // Try without token (will fail but with better error message)

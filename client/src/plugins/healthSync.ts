@@ -8,27 +8,27 @@ export interface HealthSyncPluginType {
     writeAuthorized: string[];
     writeDenied: string[];
   }>;
-  syncReadinessData(options: { days: number; waitForAuth?: boolean }): Promise<{
+  syncReadinessData(options: { days: number; token?: string; waitForAuth?: boolean }): Promise<{
     success: boolean;
     message: string;
     days: number;
   }>;
-  syncNutritionData(options: { days: number }): Promise<{
+  syncNutritionData(options: { days: number; token?: string }): Promise<{
     success: boolean;
     message: string;
     days: number;
   }>;
-  syncMindfulnessData(options: { days: number }): Promise<{
+  syncMindfulnessData(options: { days: number; token?: string }): Promise<{
     success: boolean;
     message: string;
     days: number;
   }>;
-  syncSleepData(options: { days: number }): Promise<{
+  syncSleepData(options: { days: number; token?: string }): Promise<{
     success: boolean;
     message: string;
     days: number;
   }>;
-  syncWorkouts(options: { days: number }): Promise<{
+  syncWorkouts(options: { days: number; token?: string }): Promise<{
     success: boolean;
     message: string;
     days: number;
