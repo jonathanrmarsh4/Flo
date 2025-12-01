@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Activity, Heart, Scale, TrendingUp, AlertCircle, Check, Clock } from 'lucide-react';
-import { HealthKitService } from '@/services/healthkit';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
 import Readiness from '@/plugins/readiness';
@@ -19,6 +19,18 @@ import {
   type AuthorizationStatus,
 } from '@/types/healthkit';
 
+// Import HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
+interface HealthSyncPluginType {
+  requestAuthorization(): Promise<{
+    success: boolean;
+    readAuthorized: string[];
+    readDenied: string[];
+    writeAuthorized: string[];
+    writeDenied: string[];
+  }>;
+}
+const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');
+
 export default function HealthKitPage() {
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [authStatus, setAuthStatus] = useState<AuthorizationStatus | null>(null);
@@ -30,74 +42,82 @@ export default function HealthKitPage() {
   }, []);
 
   const checkAvailability = async () => {
-    const available = await HealthKitService.isAvailable();
-    setIsAvailable(available);
+    // On iOS native platform, HealthKit is always available
+    // We no longer call the buggy @healthpilot/healthkit framework
+    const isNative = Capacitor.isNativePlatform();
+    setIsAvailable(isNative);
   };
 
   const requestPermissions = async () => {
     setIsRequesting(true);
     
-    const allDataTypes: HealthDataType[] = [
-      ...DAILY_READINESS_DATA_TYPES,
-      ...BODY_COMPOSITION_DATA_TYPES,
-      ...CARDIOMETABOLIC_DATA_TYPES,
-      ...ACTIVITY_DATA_TYPES,
-    ];
+    try {
+      // Use HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
+      // This requests ALL 74+ HealthKit types supported by Flō
+      console.log('🔐 [HealthKit] Requesting authorization via HealthSyncPlugin...');
+      const result = await HealthSyncPlugin.requestAuthorization();
+      console.log('🔐 [HealthKit] Authorization result:', result);
 
-    const uniqueDataTypes = Array.from(new Set(allDataTypes));
-
-    const result = await HealthKitService.requestAuthorization({
-      read: uniqueDataTypes,
-      write: [], // Only request read permissions for now
-    });
-
-    if (result) {
-      setAuthStatus(result);
-      logger.info('HealthKit permissions granted', {
-        readAuthorized: result.readAuthorized.length,
-      });
-      
-      // Automatically sync readiness data after successful permission grant
-      try {
-        console.log('🎯 [HealthKit] Permissions granted! Starting automatic sync...');
-        logger.info('Starting automatic readiness data sync...');
-        const syncResult = await Readiness.syncReadinessData({ days: 7 });
-        console.log('🎯 [HealthKit] Sync completed:', syncResult);
-        logger.info('Automatic readiness sync completed', syncResult);
+      if (result) {
+        // Convert to AuthorizationStatus format (cast strings to HealthDataType)
+        const status: AuthorizationStatus = {
+          readAuthorized: (result.readAuthorized || []) as HealthDataType[],
+          readDenied: (result.readDenied || []) as HealthDataType[],
+          writeAuthorized: (result.writeAuthorized || []) as HealthDataType[],
+          writeDenied: (result.writeDenied || []) as HealthDataType[],
+        };
+        setAuthStatus(status);
+        logger.info('HealthKit permissions granted', {
+          readAuthorized: status.readAuthorized.length,
+        });
         
-        toast({
-          title: "Connected Successfully",
-          description: "Your health data is now syncing automatically.",
-        });
-      } catch (error) {
-        logger.error('Automatic readiness sync failed', error);
-        toast({
-          title: "Connected",
-          description: "Permissions granted. Data sync will happen in the background.",
-        });
+        // Automatically sync readiness data after successful permission grant
+        try {
+          console.log('🎯 [HealthKit] Permissions granted! Starting automatic sync...');
+          logger.info('Starting automatic readiness data sync...');
+          const syncResult = await Readiness.syncReadinessData({ days: 7 });
+          console.log('🎯 [HealthKit] Sync completed:', syncResult);
+          logger.info('Automatic readiness sync completed', syncResult);
+          
+          toast({
+            title: "Connected Successfully",
+            description: "Your health data is now syncing automatically.",
+          });
+        } catch (error) {
+          logger.error('Automatic readiness sync failed', error);
+          toast({
+            title: "Connected",
+            description: "Permissions granted. Data sync will happen in the background.",
+          });
+        }
       }
+    } catch (error) {
+      logger.error('HealthKit authorization error', error);
+      toast({
+        title: "Error",
+        description: "Could not request HealthKit permissions.",
+        variant: "destructive",
+      });
     }
 
     setIsRequesting(false);
   };
 
   const checkPermissions = async () => {
-    const allDataTypes: HealthDataType[] = [
-      ...DAILY_READINESS_DATA_TYPES,
-      ...BODY_COMPOSITION_DATA_TYPES,
-      ...CARDIOMETABOLIC_DATA_TYPES,
-      ...ACTIVITY_DATA_TYPES,
-    ];
-
-    const uniqueDataTypes = Array.from(new Set(allDataTypes));
-
-    const result = await HealthKitService.checkAuthorization({
-      read: uniqueDataTypes,
-      write: [],
-    });
-
-    if (result) {
-      setAuthStatus(result);
+    // Use HealthSyncPlugin to check current authorization status
+    try {
+      const result = await HealthSyncPlugin.requestAuthorization();
+      if (result) {
+        const status: AuthorizationStatus = {
+          readAuthorized: (result.readAuthorized || []) as HealthDataType[],
+          readDenied: (result.readDenied || []) as HealthDataType[],
+          writeAuthorized: (result.writeAuthorized || []) as HealthDataType[],
+          writeDenied: (result.writeDenied || []) as HealthDataType[],
+        };
+        setAuthStatus(status);
+      }
+    } catch (error) {
+      logger.error('Error checking HealthKit permissions', error);
     }
   };
 

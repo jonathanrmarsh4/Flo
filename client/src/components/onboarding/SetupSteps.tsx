@@ -164,19 +164,8 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
     if (isNative) {
       setIsRequestingHealthKit(true);
       try {
-        const available = await HealthKitService.isAvailable();
-        
-        if (!available) {
-          toast({ 
-            title: 'HealthKit not available', 
-            description: 'HealthKit is not available on this device',
-            variant: 'destructive'
-          });
-          setIsRequestingHealthKit(false);
-          return;
-        }
-
         // Use HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
+        // Note: HealthSyncPlugin checks availability internally and requests all 74+ types
         // This requests ALL 74+ HealthKit types supported by Flō
         console.log('[Onboarding] Requesting HealthKit authorization via HealthSyncPlugin...');
         
