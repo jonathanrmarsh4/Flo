@@ -1,0 +1,138 @@
+2025-12-01 08:57:18.17
+22936997
+User
+"systolic_bp": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"height_cm": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"normalization_version": "norm_v1"
+2025-12-01 08:57:18.17
+22936997
+User
+"walking_hr_avg_bpm": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"distance_meters": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"body_fat_percent": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"weight_kg": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"vo2_max": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"basal_energy_kcal": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"dietary_water_ml": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"respiratory_rate_bpm": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"lean_body_mass_kg": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"local_date": "2025-11-26",
+2025-12-01 08:57:18.17
+22936997
+User
+"oxygen_saturation_pct": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"waist_circumference_cm": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"stand_hours": null,
+2025-12-01 08:57:18.17
+22936997
+User
+"avg_heart_rate_bpm": null,
+2025-12-01 08:57:18.19
+22936997
+User
+"oxygenSaturationPct": null,
+2025-12-01 08:57:18.19
+22936997
+User
+"weightKg": null,
+2025-12-01 08:57:18.19
+22936997
+User
+"walkingHrAvgBpm": null,
+2025-12-01 08:57:18.19
+22936997
+User
+"heightCm": null,
+2025-12-01 08:57:18.19
+22936997
+User
+"bmi": null,
+2025-12-01 08:57:18.19
+22936997
+User
+📊 [HEALTHKIT DEBUG] Extended metrics from iOS: {
+2025-12-01 08:58:33.17
+22936997
+User
+[2025-12-01T00:58:33.179Z] [INFO] [BioAge] Checking 30 sessions for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-01 08:58:33.18
+22936997
+User
+[2025-12-01T00:58:33.181Z] [INFO] [Sleep] Querying for date 2025-12-01 in timezone Australia/Perth
+2025-12-01 08:58:33.20
+22936997
+User
+[2025-12-01T00:58:33.207Z] [INFO] [Readiness] Querying for date 2025-12-01 in timezone Australia/Perth
+2025-12-01 08:58:33.21
+22936997
+User
+[2025-12-01T00:58:33.217Z] [INFO] [BioAge] Session 13b675d3-d098-4995-8c3a-23175db3fdfa (Mon Jul 21 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Cortisol (AM), Testosterone, SHBG, Free Testosterone, DHEA-S, FSH, LH, Estradiol (E2), Progesterone]
+2025-12-01 08:58:33.21
+22936997
+User
+[2025-12-01T00:58:33.218Z] [INFO] Calculating sleep baselines {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78"}
+2025-12-01 08:58:33.23
+22936997
+User
+12:58:33 AM [express] GET /api/daily-insights 200 in 254ms :: {"date":"2025-12-01","count":11,"insigh…
+2025-12-01 08:58:33.25
+22936997
+User
+12:58:33 AM [express] GET /api/notifications/unread-count 304 in 236ms :: {"unreadCount":0}
+2025-12-01 08:58:33.26
+22936997
+User
+12:58:33 AM [express] GET /api/body-composition 200 in 264ms :: {"hasData":true,"data":{"body_composi…
+2025-12-01 08:58:33.28
+22936997
+User
+[2025-12-01T00:58:33.289Z] [INFO] [Readiness] Returning cached readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-01
+2025-12-01 08:58:33.29
+22936997
+User
+[2025-12-01T00:58:33.297Z] [INFO] [BioAge] Session 2a48c7a2-40e9-444e-8354-8aacfc1e9693 (Mon Jul 14 2025 00:00:00 GMT+0000 (Coordinated Universal Time)): 0 matches - [Magnesium]
+
+Collapse
+
+Wrap
+
+Colors

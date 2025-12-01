@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { HealthKitService } from '@/services/healthkit';
 import type { HealthDataType } from '@/types/healthkit';
@@ -8,6 +8,18 @@ import { apiRequest, queryClient, getAuthHeaders, getApiBaseUrl } from '@/lib/qu
 import { useToast } from '@/hooks/use-toast';
 import { useUpdateDemographics } from '@/hooks/useProfile';
 import { startRegistration } from '@simplewebauthn/browser';
+
+// Import HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
+interface HealthSyncPluginType {
+  requestAuthorization(): Promise<{
+    success: boolean;
+    readAuthorized: string[];
+    readDenied: string[];
+    writeAuthorized: string[];
+    writeDenied: string[];
+  }>;
+}
+const HealthSyncPlugin = registerPlugin<HealthSyncPluginType>('HealthSyncPlugin');
 
 interface SetupStepsProps {
   isDark: boolean;
@@ -164,37 +176,31 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
           return;
         }
 
-        // Request ALL comprehensive HealthKit permissions (26 types)
-        const allDataTypes: HealthDataType[] = [
-          // Daily Readiness
-          'heartRateVariability', 'restingHeartRate', 'respiratoryRate',
-          'oxygenSaturation', 'sleepAnalysis', 'bodyTemperature',
-          // Body Composition
-          'weight', 'height', 'bmi', 'bodyFatPercentage', 'leanBodyMass', 'waistCircumference',
-          // Cardiometabolic
-          'heartRate', 'bloodPressureSystolic', 'bloodPressureDiastolic',
-          'bloodGlucose', 'vo2Max', 'walkingHeartRateAverage',
-          // Activity
-          'steps', 'distance', 'calories', 'basalEnergyBurned',
-          'flightsClimbed', 'appleExerciseTime', 'appleStandTime',
-          // Hydration
-          'dietaryWater',
-        ];
+        // Use HealthSyncPlugin for authorization (bypasses buggy @healthpilot/healthkit)
+        // This requests ALL 74+ HealthKit types supported by Flō
+        console.log('[Onboarding] Requesting HealthKit authorization via HealthSyncPlugin...');
+        const result = await HealthSyncPlugin.requestAuthorization();
+        console.log('[Onboarding] HealthKit authorization result:', result);
 
-        const result = await HealthKitService.requestAuthorization({
-          read: allDataTypes,
-          write: [],
-        });
-
-        if (result && (result.readAuthorized?.length || 0) > 0) {
+        if (result && result.success) {
           setHealthKitEnabled(true);
-          toast({ title: 'HealthKit connected', description: 'Your health data will sync automatically' });
-        } else {
+          const authorizedCount = result.readAuthorized?.length || 0;
+          toast({ 
+            title: 'HealthKit connected', 
+            description: `${authorizedCount} health data types authorized` 
+          });
+        } else if (result && (result.readAuthorized?.length || 0) > 0) {
           toast({ 
             title: 'Limited access', 
             description: 'Some HealthKit permissions were denied. You can update this in Settings.',
           });
           setHealthKitEnabled(true); // Still mark as enabled if any permissions granted
+        } else {
+          toast({ 
+            title: 'HealthKit access needed', 
+            description: 'Please enable HealthKit access in Settings to sync your health data.',
+            variant: 'destructive'
+          });
         }
       } catch (error) {
         console.error('[Onboarding] HealthKit permission error:', error);

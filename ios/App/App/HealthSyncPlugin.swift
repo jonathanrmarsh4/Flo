@@ -8,7 +8,8 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "HealthSyncPlugin"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "syncReadinessData", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "syncWorkouts", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "syncWorkouts", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise)
     ]
     
     private var activeSyncCount = 0
@@ -35,6 +36,58 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         
         print("✅ [HealthSyncPlugin] Requesting authorization for \(types.count) HealthKit data types")
         return types
+    }
+    
+    @objc func requestAuthorization(_ call: CAPPluginCall) {
+        print("🔐 [HealthSyncPlugin] requestAuthorization called")
+        
+        guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ [HealthSyncPlugin] HealthKit not available")
+            call.reject("HealthKit is not available on this device")
+            return
+        }
+        
+        let healthStore = HKHealthStore()
+        let readTypes = buildAllHealthKitTypes()
+        
+        print("🔐 [HealthSyncPlugin] Requesting authorization for \(readTypes.count) types...")
+        
+        healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("❌ [HealthSyncPlugin] Authorization error: \(error.localizedDescription)")
+                    call.reject(error.localizedDescription)
+                    return
+                }
+                
+                print("✅ [HealthSyncPlugin] Authorization completed, success: \(success)")
+                
+                var readAuthorized: [String] = []
+                var readDenied: [String] = []
+                
+                for dataType in FloHealthDataType.allCases {
+                    if let sampleType = try? dataType.sampleType() {
+                        let status = healthStore.authorizationStatus(for: sampleType)
+                        switch status {
+                        case .sharingAuthorized:
+                            readAuthorized.append(dataType.rawValue)
+                        default:
+                            readDenied.append(dataType.rawValue)
+                        }
+                    }
+                }
+                
+                print("✅ [HealthSyncPlugin] Auth result - authorized: \(readAuthorized.count), denied: \(readDenied.count)")
+                
+                call.resolve([
+                    "success": success,
+                    "readAuthorized": readAuthorized,
+                    "readDenied": readDenied,
+                    "writeAuthorized": [],
+                    "writeDenied": []
+                ])
+            }
+        }
     }
     
     @objc func syncReadinessData(_ call: CAPPluginCall) {
