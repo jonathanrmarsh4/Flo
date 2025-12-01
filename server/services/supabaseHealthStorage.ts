@@ -236,6 +236,9 @@ export interface BiomarkerMeasurement {
   value_display: string;
   reference_low?: number | null;
   reference_high?: number | null;
+  reference_low_raw?: number | null;
+  reference_high_raw?: number | null;
+  reference_unit_raw?: string | null;
   flags?: string[] | null;
   warnings?: string[] | null;
   normalization_context?: Record<string, any> | null;

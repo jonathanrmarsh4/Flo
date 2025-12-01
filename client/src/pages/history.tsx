@@ -308,9 +308,7 @@ export default function MeasurementHistory() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              {measurement.valueCanonical !== null && measurement.valueCanonical !== undefined 
-                                ? `${Number(measurement.valueCanonical).toFixed(1)} ${measurement.unitCanonical || ''}`
-                                : measurement.valueDisplay}
+                              {measurement.valueRaw} {measurement.unitRaw}
                             </span>
                             {getSourceBadge(measurement.source)}
                           </div>
@@ -319,9 +317,9 @@ export default function MeasurementHistory() {
                           </p>
                           <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                             {(measurement as any).testDate 
-                              ? format(new Date((measurement as any).testDate), "MMM d, yyyy 'at' h:mm a")
+                              ? format(new Date((measurement as any).testDate), "MMM d, yyyy")
                               : measurement.createdAt 
-                                ? format(new Date(measurement.createdAt), "MMM d, yyyy 'at' h:mm a") 
+                                ? format(new Date(measurement.createdAt), "MMM d, yyyy") 
                                 : 'Unknown date'}
                           </p>
                           {measurement.updatedAt && measurement.updatedAt !== measurement.createdAt && (
@@ -351,11 +349,26 @@ export default function MeasurementHistory() {
                           </button>
                         </div>
                       </div>
-                      {measurement.referenceLow !== null && measurement.referenceHigh !== null && (
-                        <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                          Reference Range: {measurement.referenceLow} - {measurement.referenceHigh} {measurement.unitCanonical}
-                        </div>
-                      )}
+                      {(() => {
+                        const m = measurement as any;
+                        const hasRawRef = m.referenceLowRaw != null && m.referenceHighRaw != null;
+                        const hasCanonicalRef = measurement.referenceLow != null && measurement.referenceHigh != null;
+                        
+                        if (hasRawRef) {
+                          return (
+                            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                              Reference Range: {m.referenceLowRaw} - {m.referenceHighRaw} {m.referenceUnitRaw || measurement.unitRaw}
+                            </div>
+                          );
+                        } else if (hasCanonicalRef && measurement.unitRaw === measurement.unitCanonical) {
+                          return (
+                            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                              Reference Range: {measurement.referenceLow} - {measurement.referenceHigh} {measurement.unitCanonical}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   )}
                 </div>
