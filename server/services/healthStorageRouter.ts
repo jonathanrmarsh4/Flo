@@ -708,12 +708,12 @@ export async function getActionPlanItem(id: string, userId: string) {
   return await storage.getActionPlanItem(id, userId);
 }
 
-export async function getBiomarkerSessions(userId: string) {
+export async function getBiomarkerSessions(userId: string, limit = 100) {
   if (isSupabaseHealthEnabled()) {
     try {
-      const results = await supabaseHealth.getBiomarkerSessions(userId);
+      const results = await supabaseHealth.getBiomarkerSessions(userId, limit);
       // Normalize Supabase snake_case to camelCase for API compatibility
-      return results.map(r => ({
+      const mapped = results.map(r => ({
         id: r.id,
         userId: userId,
         source: r.source,
@@ -721,6 +721,8 @@ export async function getBiomarkerSessions(userId: string) {
         notes: r.notes,
         createdAt: r.created_at ? new Date(r.created_at) : null,
       }));
+      logger.info(`[HealthStorageRouter] getBiomarkerSessions returned ${mapped.length} sessions for user, sample testDate: ${mapped[0]?.testDate}`);
+      return mapped;
     } catch (error) {
       logger.error("[HealthStorageRouter] Supabase getBiomarkerSessions failed, falling back to Neon:", error);
     }

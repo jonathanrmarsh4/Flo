@@ -134,7 +134,7 @@ export async function createBiomarkerSession(userId: string, session: Omit<Bioma
   return data;
 }
 
-export async function getBiomarkerSessions(userId: string, limit = 10): Promise<BiomarkerTestSession[]> {
+export async function getBiomarkerSessions(userId: string, limit = 100): Promise<BiomarkerTestSession[]> {
   const healthId = await getHealthId(userId);
   
   const { data, error } = await supabase
@@ -148,6 +148,8 @@ export async function getBiomarkerSessions(userId: string, limit = 10): Promise<
     logger.error('[SupabaseHealth] Error fetching biomarker sessions:', error);
     throw error;
   }
+  
+  logger.info(`[SupabaseHealth] getBiomarkerSessions returned ${data?.length || 0} sessions, raw test_date sample: ${data?.[0]?.test_date}`);
 
   return data || [];
 }
