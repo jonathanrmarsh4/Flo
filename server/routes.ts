@@ -1411,6 +1411,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const deduplicatedSessions = Array.from(sessionsByDateSource.values());
         logger.info(`[BiomarkerSessions] Deduplicated ${sessions.length} sessions to ${deduplicatedSessions.length} unique (date, source) combinations`);
         
+        // Log biomarker counts for debugging
+        const allBiomarkerIds = new Set<string>();
+        deduplicatedSessions.forEach(s => {
+          s.measurements?.forEach((m: any) => allBiomarkerIds.add(m.biomarkerId));
+        });
+        logger.info(`[BiomarkerSessions] Total unique biomarkerIds in deduplicated sessions: ${allBiomarkerIds.size}`);
+        
+        // Check for Free Testosterone specifically
+        const freeTestosteroneId = 'b367037b-2ed0-41e8-9701-bf0e7b38a257';
+        let freeTestosteroneSessions = 0;
+        deduplicatedSessions.forEach(s => {
+          if (s.measurements?.some((m: any) => m.biomarkerId === freeTestosteroneId)) {
+            freeTestosteroneSessions++;
+          }
+        });
+        logger.info(`[BiomarkerSessions] Sessions with Free Testosterone after dedup: ${freeTestosteroneSessions}`);
+        
         return res.json({ sessions: deduplicatedSessions });
       }
 
