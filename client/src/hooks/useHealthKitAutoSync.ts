@@ -77,7 +77,9 @@ export function useHealthKitAutoSync() {
       }
       
       // Sync last 7 days to ensure we don't miss data if user hasn't opened app
-      const syncResult = await Readiness.syncReadinessData({ days: 7 });
+      // Use waitForAuth=true on initial sync to ensure HealthKit permissions are ready
+      // This prevents "Authorization not determined" errors on cold launch
+      const syncResult = await Readiness.syncReadinessData({ days: 7, waitForAuth: isInitialSync });
       console.log('🚀 [AutoSync] Sync result:', syncResult);
       
       if (syncResult.success) {
