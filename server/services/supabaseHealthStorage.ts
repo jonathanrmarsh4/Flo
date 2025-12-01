@@ -154,6 +154,42 @@ export async function getBiomarkerSessions(userId: string, limit = 100): Promise
   return data || [];
 }
 
+export async function getTestSessionById(sessionId: string): Promise<BiomarkerTestSession | null> {
+  const { data, error } = await supabase
+    .from('biomarker_test_sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching session by id:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getTestSessionByIdWithOwnerCheck(
+  sessionId: string, 
+  userId: string
+): Promise<BiomarkerTestSession | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('biomarker_test_sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .eq('health_id', healthId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching session by id with owner check:', error);
+    throw error;
+  }
+
+  return data;
+}
+
 // Check for existing session by date and source (for duplicate prevention)
 export async function findSessionByDateAndSource(
   userId: string, 
@@ -242,6 +278,146 @@ export async function getMeasurementsBySession(sessionId: string): Promise<Bioma
   }
 
   return data || [];
+}
+
+export interface MeasurementWithTestDate extends BiomarkerMeasurement {
+  test_date: string;
+}
+
+export async function getMeasurementHistory(
+  userId: string, 
+  biomarkerId: string, 
+  limit: number = 5
+): Promise<MeasurementWithTestDate[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('biomarker_measurements')
+    .select(`
+      *,
+      biomarker_test_sessions!inner (
+        test_date,
+        health_id
+      )
+    `)
+    .eq('biomarker_id', biomarkerId)
+    .eq('biomarker_test_sessions.health_id', healthId)
+    .order('biomarker_test_sessions(test_date)', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching measurement history:', error);
+    throw error;
+  }
+
+  return (data || []).map(row => ({
+    ...row,
+    test_date: row.biomarker_test_sessions?.test_date || row.created_at,
+    biomarker_test_sessions: undefined,
+  }));
+}
+
+export async function getMeasurementById(measurementId: string): Promise<BiomarkerMeasurement | null> {
+  const { data, error } = await supabase
+    .from('biomarker_measurements')
+    .select('*')
+    .eq('id', measurementId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching measurement:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getMeasurementByIdWithOwnerCheck(measurementId: string, userId: string): Promise<BiomarkerMeasurement | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('biomarker_measurements')
+    .select(`
+      *,
+      biomarker_test_sessions!inner (
+        health_id
+      )
+    `)
+    .eq('id', measurementId)
+    .eq('biomarker_test_sessions.health_id', healthId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching measurement with owner check:', error);
+    throw error;
+  }
+
+  if (!data) return null;
+  
+  const { biomarker_test_sessions, ...measurement } = data;
+  return measurement;
+}
+
+export interface UpdateMeasurementParams {
+  biomarker_id?: string;
+  value_raw?: number;
+  unit_raw?: string;
+  value_canonical?: number;
+  unit_canonical?: string;
+  value_display?: string;
+  reference_low?: number | null;
+  reference_high?: number | null;
+  flags?: string[];
+  warnings?: string[];
+  normalization_context?: Record<string, any> | null;
+  source?: string;
+  updated_by?: string;
+}
+
+export async function updateMeasurement(
+  measurementId: string, 
+  updates: UpdateMeasurementParams
+): Promise<BiomarkerMeasurement> {
+  const { data, error } = await supabase
+    .from('biomarker_measurements')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', measurementId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating measurement:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deleteMeasurement(measurementId: string): Promise<void> {
+  const { error } = await supabase
+    .from('biomarker_measurements')
+    .delete()
+    .eq('id', measurementId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error deleting measurement:', error);
+    throw error;
+  }
+}
+
+export async function deleteTestSession(sessionId: string): Promise<void> {
+  const { error } = await supabase
+    .from('biomarker_test_sessions')
+    .delete()
+    .eq('id', sessionId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error deleting session:', error);
+    throw error;
+  }
 }
 
 export interface CreateMeasurementWithSessionParams {

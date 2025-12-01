@@ -2268,8 +2268,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (!biomarker) continue;
         
-        // Get measurement history for trend
-        const history = await storage.getMeasurementHistory(userId, biomarker.id, 6);
+        // Get measurement history for trend (from Supabase via healthRouter)
+        const history = await healthRouter.getMeasurementHistory(userId, biomarker.id, 6);
         const trendHistory = history.map(h => ({
           value: h.valueCanonical,
           date: h.createdAt?.toISOString().split('T')[0] || '',
@@ -2545,8 +2545,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get historical measurements for trend
-      const history = await storage.getMeasurementHistory(userId, biomarkerId, 5);
+      // Get historical measurements for trend (from Supabase via healthRouter)
+      const history = await healthRouter.getMeasurementHistory(userId, biomarkerId, 5);
       const trendHistory = history.map(h => ({
         value: h.valueCanonical,
         date: h.createdAt?.toISOString().split('T')[0] || '',
@@ -2767,7 +2767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         testDate: new Date(testDate),
         valueCanonical: normalized.value_canonical,
         unitCanonical: normalized.unit_canonical,
-        valueDisplay: normalized.value_display,
+        valueDisplay: `${normalized.value_display} ${normalized.unit_canonical}`,
         referenceLow: normalized.ref_range.low,
         referenceHigh: normalized.ref_range.high,
         flags: normalized.flags,
@@ -2806,7 +2806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "biomarkerId query parameter is required" });
       }
 
-      const measurements = await storage.getMeasurementHistory(userId, biomarkerId);
+      const measurements = await healthRouter.getMeasurementHistory(userId, biomarkerId);
 
       res.json({ measurements });
     } catch (error) {
@@ -2839,14 +2839,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "At least one field must be provided for update" });
       }
 
-      const existingMeasurement = await storage.getMeasurementById(measurementId);
+      const existingMeasurement = await healthRouter.getMeasurementByIdForUser(measurementId, userId);
       if (!existingMeasurement) {
-        return res.status(404).json({ error: "Measurement not found" });
-      }
-
-      const session = await storage.getTestSessionById(existingMeasurement.sessionId);
-      if (!session || session.userId !== userId) {
-        return res.status(403).json({ error: "Unauthorized" });
+        return res.status(404).json({ error: "Measurement not found or not authorized" });
       }
 
       const { biomarkers, synonyms, units, ranges } = await storage.getAllBiomarkerData();
@@ -2883,13 +2878,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ranges
       );
 
-      const updatedMeasurement = await storage.updateMeasurement(measurementId, {
+      const updatedMeasurement = await healthRouter.updateMeasurement(measurementId, {
         biomarkerId: targetBiomarkerId,
         valueRaw: targetValue,
         unitRaw: targetUnit,
         valueCanonical: normalized.value_canonical,
         unitCanonical: normalized.unit_canonical,
-        valueDisplay: normalized.value_display,
+        valueDisplay: `${normalized.value_display} ${normalized.unit_canonical}`,
         referenceLow: normalized.ref_range.low,
         referenceHigh: normalized.ref_range.high,
         flags: normalized.flags,
@@ -2916,21 +2911,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const measurementId = req.params.id;
       const userId = req.user.claims.sub;
 
-      const existingMeasurement = await storage.getMeasurementById(measurementId);
+      const existingMeasurement = await healthRouter.getMeasurementByIdForUser(measurementId, userId);
       if (!existingMeasurement) {
-        return res.status(404).json({ error: "Measurement not found" });
+        return res.status(404).json({ error: "Measurement not found or not authorized" });
       }
 
-      const session = await storage.getTestSessionById(existingMeasurement.sessionId);
-      if (!session || session.userId !== userId) {
-        return res.status(403).json({ error: "Unauthorized" });
-      }
+      const sessionId = existingMeasurement.sessionId;
+      await healthRouter.deleteMeasurement(measurementId);
 
-      await storage.deleteMeasurement(measurementId);
-
-      const remainingMeasurements = await healthRouter.getMeasurementsBySession(session.id);
+      const remainingMeasurements = await healthRouter.getMeasurementsBySession(sessionId);
       if (remainingMeasurements.length === 0) {
-        await storage.deleteTestSession(session.id);
+        await healthRouter.deleteTestSession(sessionId);
       }
 
       res.json({ success: true });

@@ -734,6 +734,43 @@ export async function getBiomarkerSessions(userId: string, limit = 100) {
     .where(eq(biomarkerTestSessions.userId, userId));
 }
 
+export async function getTestSessionById(sessionId: string, userId?: string) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      if (userId) {
+        const result = await supabaseHealth.getTestSessionByIdWithOwnerCheck(sessionId, userId);
+        if (!result) return undefined;
+        
+        return {
+          id: result.id,
+          userId: userId,
+          source: result.source,
+          testDate: result.test_date ? new Date(result.test_date) : null,
+          notes: result.notes,
+          createdAt: result.created_at ? new Date(result.created_at) : null,
+        };
+      } else {
+        const result = await supabaseHealth.getTestSessionById(sessionId);
+        if (!result) return undefined;
+        
+        return {
+          id: result.id,
+          userId: result.health_id,
+          source: result.source,
+          testDate: result.test_date ? new Date(result.test_date) : null,
+          notes: result.notes,
+          createdAt: result.created_at ? new Date(result.created_at) : null,
+        };
+      }
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getTestSessionById failed, falling back to Neon:", error);
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  return await storage.getTestSessionById(sessionId);
+}
+
 export async function createBiomarkerSession(userId: string, session: any) {
   // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
   if (!isSupabaseHealthEnabled()) {
@@ -834,6 +871,220 @@ export async function getMeasurementsBySession(sessionId: string) {
     .select()
     .from(biomarkerMeasurements)
     .where(eq(biomarkerMeasurements.sessionId, sessionId));
+}
+
+export async function getMeasurementHistory(userId: string, biomarkerId: string, limit: number = 5) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const results = await supabaseHealth.getMeasurementHistory(userId, biomarkerId, limit);
+      return results.map(r => ({
+        id: r.id,
+        sessionId: r.session_id,
+        biomarkerId: r.biomarker_id,
+        recordId: r.record_id,
+        source: r.source,
+        valueRaw: r.value_raw,
+        unitRaw: r.unit_raw,
+        valueCanonical: r.value_canonical,
+        unitCanonical: r.unit_canonical,
+        valueDisplay: r.value_display,
+        referenceLow: r.reference_low,
+        referenceHigh: r.reference_high,
+        flags: r.flags,
+        warnings: r.warnings,
+        normalizationContext: r.normalization_context,
+        updatedBy: r.updated_by,
+        createdAt: r.created_at ? new Date(r.created_at) : null,
+        updatedAt: r.updated_at ? new Date(r.updated_at) : null,
+        testDate: r.test_date ? new Date(r.test_date) : null,
+      }));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getMeasurementHistory failed, falling back to Neon:", error);
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  return await storage.getMeasurementHistory(userId, biomarkerId, limit);
+}
+
+export async function getMeasurementByIdForUser(measurementId: string, userId: string) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const result = await supabaseHealth.getMeasurementByIdWithOwnerCheck(measurementId, userId);
+      if (!result) return undefined;
+      
+      return {
+        id: result.id,
+        sessionId: result.session_id,
+        biomarkerId: result.biomarker_id,
+        recordId: result.record_id,
+        source: result.source,
+        valueRaw: result.value_raw,
+        unitRaw: result.unit_raw,
+        valueCanonical: result.value_canonical,
+        unitCanonical: result.unit_canonical,
+        valueDisplay: result.value_display,
+        referenceLow: result.reference_low,
+        referenceHigh: result.reference_high,
+        flags: result.flags,
+        warnings: result.warnings,
+        normalizationContext: result.normalization_context,
+        updatedBy: result.updated_by,
+        createdAt: result.created_at ? new Date(result.created_at) : null,
+        updatedAt: result.updated_at ? new Date(result.updated_at) : null,
+      };
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getMeasurementByIdForUser failed, falling back to Neon:", error);
+    }
+  }
+  
+  try {
+    const { storage } = await import("../storage");
+    const measurement = await storage.getMeasurementById(measurementId);
+    if (!measurement) return undefined;
+    
+    const session = await storage.getTestSessionById(measurement.sessionId);
+    if (!session || session.userId !== userId) return undefined;
+    
+    return measurement;
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Neon getMeasurementByIdForUser failed:", error);
+    return undefined;
+  }
+}
+
+export async function getMeasurementById(measurementId: string) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const result = await supabaseHealth.getMeasurementById(measurementId);
+      if (!result) return undefined;
+      
+      return {
+        id: result.id,
+        sessionId: result.session_id,
+        biomarkerId: result.biomarker_id,
+        recordId: result.record_id,
+        source: result.source,
+        valueRaw: result.value_raw,
+        unitRaw: result.unit_raw,
+        valueCanonical: result.value_canonical,
+        unitCanonical: result.unit_canonical,
+        valueDisplay: result.value_display,
+        referenceLow: result.reference_low,
+        referenceHigh: result.reference_high,
+        flags: result.flags,
+        warnings: result.warnings,
+        normalizationContext: result.normalization_context,
+        updatedBy: result.updated_by,
+        createdAt: result.created_at ? new Date(result.created_at) : null,
+        updatedAt: result.updated_at ? new Date(result.updated_at) : null,
+      };
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getMeasurementById failed, falling back to Neon:", error);
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  return await storage.getMeasurementById(measurementId);
+}
+
+export interface UpdateMeasurementParams {
+  biomarkerId?: string;
+  valueRaw?: number;
+  unitRaw?: string;
+  valueCanonical?: number;
+  unitCanonical?: string;
+  valueDisplay?: string;
+  referenceLow?: number | null;
+  referenceHigh?: number | null;
+  flags?: string[];
+  warnings?: string[];
+  normalizationContext?: Record<string, any> | null;
+  source?: string;
+  updatedBy?: string;
+  updatedAt?: Date;
+}
+
+export async function updateMeasurement(measurementId: string, updates: UpdateMeasurementParams) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const supabaseUpdates: any = {};
+      if (updates.biomarkerId !== undefined) supabaseUpdates.biomarker_id = updates.biomarkerId;
+      if (updates.valueRaw !== undefined) supabaseUpdates.value_raw = updates.valueRaw;
+      if (updates.unitRaw !== undefined) supabaseUpdates.unit_raw = updates.unitRaw;
+      if (updates.valueCanonical !== undefined) supabaseUpdates.value_canonical = updates.valueCanonical;
+      if (updates.unitCanonical !== undefined) supabaseUpdates.unit_canonical = updates.unitCanonical;
+      if (updates.valueDisplay !== undefined) supabaseUpdates.value_display = updates.valueDisplay;
+      if (updates.referenceLow !== undefined) supabaseUpdates.reference_low = updates.referenceLow;
+      if (updates.referenceHigh !== undefined) supabaseUpdates.reference_high = updates.referenceHigh;
+      if (updates.flags !== undefined) supabaseUpdates.flags = updates.flags;
+      if (updates.warnings !== undefined) supabaseUpdates.warnings = updates.warnings;
+      if (updates.normalizationContext !== undefined) supabaseUpdates.normalization_context = updates.normalizationContext;
+      if (updates.source !== undefined) supabaseUpdates.source = updates.source;
+      if (updates.updatedBy !== undefined) supabaseUpdates.updated_by = updates.updatedBy;
+      
+      const result = await supabaseHealth.updateMeasurement(measurementId, supabaseUpdates);
+      
+      return {
+        id: result.id,
+        sessionId: result.session_id,
+        biomarkerId: result.biomarker_id,
+        recordId: result.record_id,
+        source: result.source,
+        valueRaw: result.value_raw,
+        unitRaw: result.unit_raw,
+        valueCanonical: result.value_canonical,
+        unitCanonical: result.unit_canonical,
+        valueDisplay: result.value_display,
+        referenceLow: result.reference_low,
+        referenceHigh: result.reference_high,
+        flags: result.flags,
+        warnings: result.warnings,
+        normalizationContext: result.normalization_context,
+        updatedBy: result.updated_by,
+        createdAt: result.created_at ? new Date(result.created_at) : null,
+        updatedAt: result.updated_at ? new Date(result.updated_at) : null,
+      };
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase updateMeasurement failed:", error);
+      throw error;
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  return await storage.updateMeasurement(measurementId, updates);
+}
+
+export async function deleteMeasurement(measurementId: string): Promise<void> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      await supabaseHealth.deleteMeasurement(measurementId);
+      logger.info(`[HealthStorageRouter] Deleted measurement ${measurementId}`);
+      return;
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase deleteMeasurement failed:", error);
+      throw error;
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  await storage.deleteMeasurement(measurementId);
+}
+
+export async function deleteTestSession(sessionId: string): Promise<void> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      await supabaseHealth.deleteTestSession(sessionId);
+      logger.info(`[HealthStorageRouter] Deleted session ${sessionId}`);
+      return;
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase deleteTestSession failed:", error);
+      throw error;
+    }
+  }
+  
+  const { storage } = await import("../storage");
+  await storage.deleteTestSession(sessionId);
 }
 
 export async function createBiomarkerMeasurement(measurement: any) {
