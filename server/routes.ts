@@ -567,6 +567,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const measurementIds: string[] = [];
         if (normalizationResult.normalized && normalizationResult.normalized.length > 0) {
           for (const normalized of normalizationResult.normalized) {
+            // Format canonical value for display (round to reasonable precision)
+            const formattedCanonical = Number(normalized.valueCanonical.toFixed(2));
+            const displayValue = formattedCanonical % 1 === 0 
+              ? formattedCanonical.toString() 
+              : normalized.valueCanonical.toFixed(2);
+            
             const measurement = await healthRouter.createBiomarkerMeasurement({
               session_id: session.id,
               biomarker_id: normalized.biomarkerId,
@@ -576,7 +582,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               unit_raw: normalized.unitRaw,
               value_canonical: normalized.valueCanonical,
               unit_canonical: normalized.unitCanonical,
-              value_display: `${normalized.valueRawString} ${normalized.unitRaw}`,
+              // Use formatted canonical value + unit for display to match reference range units
+              value_display: `${displayValue} ${normalized.unitCanonical}`,
               reference_low: normalized.referenceLow ?? null,
               reference_high: normalized.referenceHigh ?? null,
               flags: normalized.flags,
@@ -3090,7 +3097,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   unit_raw: biomarker.unit,
                   value_canonical: normalized.value_canonical,
                   unit_canonical: normalized.unit_canonical,
-                  value_display: normalized.value_display,
+                  // Use formatted canonical value + unit for display to match reference range units
+                  value_display: `${normalized.value_display} ${normalized.unit_canonical}`,
                   reference_low: biomarker.referenceRangeLow ?? normalized.ref_range.low ?? null,
                   reference_high: biomarker.referenceRangeHigh ?? normalized.ref_range.high ?? null,
                   flags: biomarker.flags ?? normalized.flags,
