@@ -1,0 +1,440 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/839B0099-2BE9-47A5-84CD-F660B7515D7F/App.app'
+⚡️  Loading app at https://get-flo.com...
+✅ WKUIDelegate configured for media capture permissions
+✅ HealthSyncPlugin registered manually
+✅ WebViewCachePlugin registered manually
+✅ NativeMicrophonePlugin registered manually
+WebContent process (0x1170e40c0) took 6.408643 seconds to launch
+GPU process (0x1171081e0) took 6.399682 seconds to launch
+Networking process (0x117050100) took 22.674659 seconds to launch
+0x1170e40c0 - [PID=35643] WebProcessProxy::didBecomeUnresponsive:
+0x10c3e4e18 - [pageProxyID=7, webPageID=8, PID=35643] WebPageProxy::processDidBecomeUnresponsive:
+WebContent[35645] Unable to hide query parameters from script (missing data)
+Error acquiring assertion: <Error Domain=RBSServiceErrorDomain Code=1 "((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))" UserInfo={NSLocalizedFailureReason=((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))}>
+0x11713c300 - ProcessAssertion::acquireSync Failed to acquire RBS assertion 'XPCConnectionTerminationWatchdog' for process with PID=35643, error: (null)
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x10c346910 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x10c346d30 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+⚡️  [warn] - Capacitor plugin "HealthSyncPlugin" already registered. Cannot register plugins twice.
+⚡️  [warn] - Capacitor plugin "HealthSyncPlugin" already registered. Cannot register plugins twice.
+⚡️  [warn] - Capacitor plugin "HealthSyncPlugin" already registered. Cannot register plugins twice.
+⚡️  [log] - [StoreKit] Module loaded, Subscriptions: object
+⚡️  [log] - [QueryClient] SecureStoragePlugin pre-loaded
+⚡️  WebView loaded
+⚡️  To Native ->  App addListener 8908048
+⚡️  To Native ->  App addListener 8908049
+⚡️  To Native ->  App getLaunchUrl 8908050
+⚡️  To Native ->  SecureStoragePlugin get 8908051
+⚡️  TO JS undefined
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0NTQ2MDY1LCJleHAiOjE3NjUxNTA4NjV9.uhvk
+⚡️  To Native ->  Preferences get 8908052
+⚡️  TO JS {"value":"1764553759364"}
+⚡️  To Native ->  Preferences get 8908053
+⚡️  TO JS {"value":"1764553759325"}
+⚡️  [warn] - [Stripe Native] Missing VITE_STRIPE_PUBLISHABLE_KEY
+⚡️  To Native ->  App addListener 8908054
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  To Native ->  Preferences get 8908055
+⚡️  TO JS {"value":"1.0.1"}
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering initial HealthKit sync...
+⚡️  To Native ->  SecureStoragePlugin get 8908056
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0NTQ2MDY1LCJleHAiOjE3NjUxNTA4NjV9.uhvk
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 8908057
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: false)
+✅ [HealthSyncPlugin] Requesting authorization for 74 HealthKit data types
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"message":"Background sync started","days":7,"success":true}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"message":"Background sync started","days":7,"success":true}
+⚡️  [log] - ✅ [AutoSync] Sync success block entered
+⚡️  To Native ->  Preferences set 8908058
+⚡️  TO JS undefined
+[Normalisation] Syncing last 7 days: 2025-11-24 01:52:56 +0000 to 2025-12-01 01:52:56 +0000
+⚡️  [log] - ⏳ [AutoSync] Waiting 4s for backend upload to complete...
+🔓 [HealthSyncPlugin] Authorization requested for 74 types, success: true
+[ExerciseMinutes] Querying workouts for day: 2025-11-24 00:00:00 to 2025-11-25 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-11-25 00:00:00 to 2025-11-26 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5634 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2430 steps
+[Steps] Using iPhone primary source: 5634 steps (from 2 sources)
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-11-26 00:00:00 to 2025-11-27 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3949 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2243 steps
+[Steps] Using iPhone primary source: 3949 steps (from 2 sources)
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-11-27 00:00:00 to 2025-11-28 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3308 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1889 steps
+[Steps] Using iPhone primary source: 3308 steps (from 2 sources)
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3935 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2304 steps
+[Steps] Using iPhone primary source: 3935 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-28 00:00:00 to 2025-11-29 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-11-29 00:00:00 to 2025-11-30 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5181 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2099 steps
+[Steps] Using iPhone primary source: 5181 steps (from 2 sources)
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-11-30 00:00:00 to 2025-12-01 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6649 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3343 steps
+[Steps] Using iPhone primary source: 6649 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-01 00:00:00 to 2025-12-02 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3303 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1352 steps
+[Steps] Using iPhone primary source: 3303 steps (from 2 sources)
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 640 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 200 steps
+[Steps] Using iPhone primary source: 640 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-24: {"flightsClimbed":1,"stepsSourcesMetadata":{"final_steps":5634,"overlaps_detected":0,"iphone_steps":5634,"priority_order":"iPhone","gaps_filled":0,"notes":"Using HKStatisticsQuery with .separateBySour...
+[Normalisation] Sending payload for 2025-11-25: {"timezone":"Australia\/Perth","stepsNormalized":3949,"restingHrBpm":71,"utcDayEnd":"2025-11-25T16:00:00.000Z","distanceMeters":2984.3861851848446,"hrvMs":17.451324606465136,"avgHeartRateBpm":94.68705...
+[Normalisation] Sending payload for 2025-11-26: {"bmi":23.585485458374023,"stepsSourcesMetadata":{"overlaps_detected":0,"gaps_filled":0,"iphone_steps":3308,"notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","final_s...
+[Normalisation] Sending payload for 2025-11-27: {"diastolicBp":83,"bmi":23.626916885375977,"stepsSourcesMetadata":{"overlaps_detected":0,"gaps_filled":0,"iphone_steps":3935,"notes":"Using HKStatisticsQuery with .separateBySource for accurate dedupl...
+[Normalisation] Sending payload for 2025-11-28: {"standHours":1,"bmi":23.46687126159668,"stepsSourcesMetadata":{"overlaps_detected":0,"gaps_filled":0,"iphone_steps":5181,"notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplica...
+[Normalisation] Sending payload for 2025-11-29: {"standHours":1,"bmi":23.422433853149414,"stepsSourcesMetadata":{"overlaps_detected":0,"gaps_filled":0,"iphone_steps":6649,"notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplic...
+[Normalisation] Sending payload for 2025-11-30: {"timezone":"Australia\/Perth","stepsNormalized":3303,"restingHrBpm":72,"utcDayEnd":"2025-11-30T16:00:00.000Z","distanceMeters":2532.046147113543,"hrvMs":18.04169478904263,"avgHeartRateBpm":86.4889571...
+[Normalisation] Sending payload for 2025-12-01: {"bmi":23.17184066772461,"stepsSourcesMetadata":{"overlaps_detected":0,"gaps_filled":0,"iphone_steps":640,"notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication","final_ste...
+quic_conn_process_inbound [C1.1.1.1:2] [-fa27ef32b887f4ca] unable to parse packet
+[Normalisation] Successfully uploaded metrics for 2025-11-28
+[Normalisation] Successfully uploaded metrics for 2025-11-29
+[Normalisation] Successfully uploaded metrics for 2025-11-27
+[Normalisation] Successfully uploaded metrics for 2025-11-30
+[Normalisation] Successfully uploaded metrics for 2025-12-01
+[Normalisation] Successfully uploaded metrics for 2025-11-24
+⚡️  [log] - 🌍 [Timezone] Hook initialized - checking timezone on launch
+⚡️  To Native ->  Preferences get 8908059
+⚡️  To Native ->  Preferences get 8908060
+⚡️  TO JS {"value":"1764553759690"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  To Native ->  LocalNotifications checkPermissions 8908061
+⚡️  [log] - [API] Making request: GET https://get-flo.com/api/user/timezone
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  TO JS {"display":"granted"}
+⚡️  To Native ->  LocalNotifications addListener 8908062
+⚡️  To Native ->  LocalNotifications addListener 8908063
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No recent sleep data available\",\"message\":\"Please ensure you have synced HealthKit sleep data\"}"}
+nw_read_request_report [C1] Receive failed with error "Socket is not connected"
+nw_read_request_report [C1] Receive failed with error "Socket is not connected"
+nw_read_request_report [C1] Receive failed with error "Socket is not connected"
+nw_read_request_report [C1] Receive failed with error "Socket is not connected"
+Task <75E7101D-04C1-4797-9923-07E56AE91A55>.<2> HTTP load failed, 344/0 bytes (error code: -1005 [1:57])
+Task <3376F7E7-C881-4984-ADB5-B3672AFA52B7>.<3> HTTP load failed, 344/0 bytes (error code: -1005 [1:57])
+Connection 1: received failure notification
+Task <75E7101D-04C1-4797-9923-07E56AE91A55>.<2> finished with error [-1005] Error Domain=NSURLErrorDomain Code=-1005 "The network connection was lost." UserInfo={_kCFStreamErrorCodeKey=57, NSUnderlyingError=0x11ce71500 {Error Domain=kCFErrorDomainCFNetwork Code=-1005 "(null)" UserInfo={NSErrorPeerAddressKey=<CFData 0x11cf277f0 [0x1fb956058]>{length = 16, capacity = 16, bytes = 0x100201bb226fb3d00000000000000000}, _kCFStreamErrorCodeKey=57, _kCFStreamErrorDomainKey=1}}, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <75E7101D-04C1-4797-9923-07E56AE91A55>.<2>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <75E7101D-04C1-4797-9923-07E56AE91A55>.<2>"
+), NSLocalizedDescription=The network connection was lost., NSErrorFailingURLStringKey=https://get-flo.com/api/healthkit/daily-metrics, NSErrorFailingURLKey=https://get-flo.com/api/healthkit/daily-metrics, _kCFStreamErrorDomainKey=1}
+⚡️  To Native ->  LocalNotifications cancel 8908064
+nw_endpoint_handler_unregister_context [C1.1.1.1 34.111.179.208:443 failed channel-flow (satisfied (Path is satisfied), viable, interface: en0[802.11], ipv4, dns, uses wifi, LQM: good)] Cannot unregister after flow table is released
+nw_endpoint_handler_unregister_context [C1.1.1.1 34.111.179.208:443 failed channel-flow (satisfied (Path is satisfied), viable, interface: en0[802.11], ipv4, dns, uses wifi, LQM: good)] Cannot unregister after flow table is released
+[Normalisation] Upload error for 2025-11-25: The network connection was lost.
+⚡️  To Native ->  LocalNotifications schedule 8908065
+Task <3376F7E7-C881-4984-ADB5-B3672AFA52B7>.<3> finished with error [-1005] Error Domain=NSURLErrorDomain Code=-1005 "The network connection was lost." UserInfo={_kCFStreamErrorCodeKey=57, NSUnderlyingError=0x11ce70c00 {Error Domain=kCFErrorDomainCFNetwork Code=-1005 "(null)" UserInfo={NSErrorPeerAddressKey=<CFData 0x11cf277f0 [0x1fb956058]>{length = 16, capacity = 16, bytes = 0x100201bb226fb3d00000000000000000}, _kCFStreamErrorCodeKey=57, _kCFStreamErrorDomainKey=1}}, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDataTask <3376F7E7-C881-4984-ADB5-B3672AFA52B7>.<3>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDataTask <3376F7E7-C881-4984-ADB5-B3672AFA52B7>.<3>"
+), NSLocalizedDescription=The network connection was lost., NSErrorFailingURLStringKey=https://get-flo.com/api/healthkit/daily-metrics, NSErrorFailingURLKey=https://get-flo.com/api/healthkit/daily-metrics, _kCFStreamErrorDomainKey=1}
+[Normalisation] Upload error for 2025-11-26: The network connection was lost.
+⚡️  To Native ->  SecureStoragePlugin get 8908066
+[Normalisation] Upload completed with 2 errors
+❌ [HealthSyncPlugin] Background sync failed: The network connection was lost.
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+⚡️  TO JS undefined
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  [log] - 🔄 [AutoSync] Refetching dashboard queries...
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No recent sleep data available\",\"message\":\"Please ensure you have synced HealthKit sleep data\"}"}
+⚡️  [log] - ✅ [AutoSync] Dashboard refresh completed!
+⚡️  To Native ->  LocalNotifications schedule 8908067
+ERROR MESSAGE:  {"errorMessage":"Scheduled time must be *after* current time","message":"Scheduled time must be *after* current time"}
+⚡️  TO JS {"notifications":[{"id":1}]}
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0NTQ2MDY1LCJleHAiOjE3NjUxNTA4NjV9.uhvk
+⚡️  [log] - [Flōmentum Notifications] All scheduled notifications cancelled
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 8908068
+⚡️  TO JS {"notifications":[{"id":100}]}
+⚡️  [error] - {"errorMessage":"Scheduled time must be *after* current time","message":"Scheduled time must be *after* current time"}
+⚡️  [error] - [Notifications] Failed to send {"errorMessage":"Scheduled time must be *after* current time"}
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+⚡️  To Native ->  LocalNotifications ✅ [HealthSyncPlugin] Requesting authorization for 74 HealthKit data types
+schedule 8908069
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"success":true,"days":7,"message":"Background sync started"}
+⚡️  [log] - [Flōmentum Notifications] Daily score scheduled for 20:00
+⚡️  TO JS {"notifications":[{"id":101}]}
+⚡️  To Native ->  LocalNotifications schedule 8908070
+⚡️  [log] - [Flōmentum Notifications] Sync reminder scheduled for 09:00
+⚡️  TO JS {"notifications":[{"id":102}]}
+⚡️  [log] - [Flōmentum Notifications] Weekly summary scheduled for Mondays at 8 AM
+⚡️  To Native ->  LocalNotifications schedule 8908071
+⚡️  TO JS {"notifications":[{"id":103}]}
+⚡️  To Native ->  LocalNotifications schedule 8908072
+⚡️  TO JS {"notifications":[{"id":104}]}
+⚡️  To Native ->  LocalNotifications schedule 8908073
+⚡️  TO JS {"notifications":[{"id":105}]}
+⚡️  [log] - [Flōmentum Notifications] Daily action reminders scheduled
+🔓 [HealthSyncPlugin] Authorization requested for 74 types, success: true
+⚡️  [log] - [Flōmentum Notifications] Initialization complete
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-24 01:53:09 +0000 to 2025-12-01 01:53:09 +0000
+⚡️  TO JS {"title":"Health data synced ✓","body":"Your latest HealthKit metrics are ready","attachments":[],"schedule":{"at":"2025-12-01T01:53:02Z"},"id":1,"actionTypeId":"","sound":"","extra":{}}
+⚡️  [log] - [Notifications] Received in foreground: {"title":"Health data synced ✓","body":"Your latest HealthKit metrics are ready","attachments":[],"schedule":{"at":"2025-12-01T01:53:02Z"},"id":1,"actionTypeId":"","sound":"","extra":{}}
+[ExerciseMinutes] Querying workouts for day: 2025-11-24 00:00:00 to 2025-11-25 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5634 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2430 steps
+[Steps] Using iPhone primary source: 5634 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-25 00:00:00 to 2025-11-26 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3949 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2243 steps
+[Steps] Using iPhone primary source: 3949 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-26 00:00:00 to 2025-11-27 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-11-27 00:00:00 to 2025-11-28 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3308 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1889 steps
+[Steps] Using iPhone primary source: 3308 steps (from 2 sources)
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3935 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2304 steps
+[Steps] Using iPhone primary source: 3935 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-28 00:00:00 to 2025-11-29 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-11-29 00:00:00 to 2025-11-30 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5181 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2099 steps
+[Steps] Using iPhone primary source: 5181 steps (from 2 sources)
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6649 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3343 steps
+[Steps] Using iPhone primary source: 6649 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-30 00:00:00 to 2025-12-01 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[ExerciseMinutes] Querying workouts for day: 2025-12-01 00:00:00 to 2025-12-02 00:00:00
+[ExerciseMinutes] ⚠️ Workout authorization denied
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3303 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1352 steps
+[Steps] Using iPhone primary source: 3303 steps (from 2 sources)
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 640 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 200 steps
+[Steps] Using iPhone primary source: 640 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-24: {"flightsClimbed":1,"localDate":"2025-11-24","activeEnergyKcal":968.6508179849326,"stepsSourcesMetadata":{"final_steps":5634,"overlaps_detected":0,"iphone_steps":5634,"priority_order":"iPhone","gaps_f...
+[Normalisation] Sending payload for 2025-11-25: {"localDate":"2025-11-25","stepsNormalized":3949,"utcDayEnd":"2025-11-25T16:00:00.000Z","restingHrBpm":71,"stepsSourcesMetadata":{"final_steps":3949,"overlaps_detected":0,"iphone_steps":3949,"priority...
+[Normalisation] Sending payload for 2025-11-26: {"bodyFatPercent":7.381000518798827,"activeEnergyKcal":345.69294837814897,"localDate":"2025-11-26","stepsSourcesMetadata":{"overlaps_detected":0,"final_steps":3308,"gaps_filled":0,"iphone_steps":3308,...
+[Normalisation] Sending payload for 2025-11-27: {"bodyFatPercent":7.340000152587891,"activeEnergyKcal":370.39634254253843,"localDate":"2025-11-27","stepsSourcesMetadata":{"overlaps_detected":0,"final_steps":3935,"gaps_filled":0,"iphone_steps":3935,...
+[Normalisation] Sending payload for 2025-11-28: {"bodyFatPercent":7.788000583648682,"activeEnergyKcal":889.4373744112456,"localDate":"2025-11-28","flightsClimbed":2,"stepsSourcesMetadata":{"overlaps_detected":0,"final_steps":5181,"gaps_filled":0,"i...
+[Normalisation] Sending payload for 2025-11-29: {"bodyFatPercent":7.518000125885011,"activeEnergyKcal":611.1096261176737,"localDate":"2025-11-29","flightsClimbed":1,"stepsSourcesMetadata":{"overlaps_detected":0,"final_steps":6649,"gaps_filled":0,"i...
+[Normalisation] Sending payload for 2025-11-30: {"localDate":"2025-11-30","stepsNormalized":3303,"utcDayEnd":"2025-11-30T16:00:00.000Z","restingHrBpm":72,"weightKg":70,"stepsSourcesMetadata":{"final_steps":3303,"overlaps_detected":0,"iphone_steps":...
+[Normalisation] Sending payload for 2025-12-01: {"bodyFatPercent":7.339000225067139,"activeEnergyKcal":79.51682812273505,"localDate":"2025-12-01","stepsSourcesMetadata":{"overlaps_detected":0,"final_steps":640,"gaps_filled":0,"iphone_steps":640,"no...
+quic_conn_process_inbound [C3.1.1.1:2] [-f081b5310bcdc4c8] unable to parse packet
+[Normalisation] Successfully uploaded metrics for 2025-11-28
+[Normalisation] Successfully uploaded metrics for 2025-12-01
+[Normalisation] Successfully uploaded metrics for 2025-11-27
+[Normalisation] Successfully uploaded metrics for 2025-11-25
+[Normalisation] Successfully uploaded metrics for 2025-11-24
+[Normalisation] Successfully uploaded metrics for 2025-11-29
+[Normalisation] Successfully uploaded metrics for 2025-11-30
+[Normalisation] Successfully uploaded metrics for 2025-11-26
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-24, window: 2025-11-23 07:00:00 +0000 to 2025-11-24 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-25, window: 2025-11-24 07:00:00 +0000 to 2025-11-25 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-26, window: 2025-11-25 07:00:00 +0000 to 2025-11-26 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-27, window: 2025-11-26 07:00:00 +0000 to 2025-11-27 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-28, window: 2025-11-27 07:00:00 +0000 to 2025-11-28 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-29, window: 2025-11-28 07:00:00 +0000 to 2025-11-29 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-30, window: 2025-11-29 07:00:00 +0000 to 2025-11-30 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-01, window: 2025-11-30 07:00:00 +0000 to 2025-12-01 07:00:00 +0000
+[Sleep] Found 22 raw sleep samples for 2025-11-25
+[Sleep] Found 29 raw sleep samples for 2025-11-26
+[Sleep] Uploading 22 raw samples for 2025-11-25
+[Sleep] Found 39 raw sleep samples for 2025-11-24
+[Sleep] Uploading 29 raw samples for 2025-11-26
+[Sleep] Found 29 raw sleep samples for 2025-11-28
+[Sleep] Uploading 39 raw samples for 2025-11-24
+[Sleep] Uploading 29 raw samples for 2025-11-28
+[Sleep] Found 31 raw sleep samples for 2025-11-27
+[Sleep] Uploading 31 raw samples for 2025-11-27
+[Sleep] Found 19 raw sleep samples for 2025-11-29
+[Sleep] Found 30 raw sleep samples for 2025-12-01
+[Sleep] Uploading 19 raw samples for 2025-11-29
+[Sleep] Uploading 30 raw samples for 2025-12-01
+[Sleep] Found 37 raw sleep samples for 2025-11-30
+[Sleep] Uploading 37 raw samples for 2025-11-30
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-11-25: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-11-26: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-11-27: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-11-24: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-11-28: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-11-29: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-12-01: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Response: {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Upload failed for 2025-11-30: HTTP 500 - {"error":"Could not find the 'awakeInBedMin' column of 'sleep_nights' in the schema cache"}
+[Sleep] Sleep upload completed with 8 errors, 0 successes
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Found 7 workouts
+[Workouts] Uploading 7 workouts to backend
+[Workouts] Upload successful: {"inserted":0,"duplicates":7,"total":7}
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+[Workouts] Found 7 workouts
+⚡️  [log] - [Onboarding] Requesting HealthKit authorization via HealthSyncPlugin...
+⚡️  To Native ->  HealthSyncPlugin requestAuthorization 8908074
+🔐 [HealthSyncPlugin] requestAuthorization called
+✅ [HealthSyncPlugin] Requesting authorization for 74 HealthKit data types
+🔐 [HealthSyncPlugin] Requesting authorization for 74 types...
+✅ [HealthSyncPlugin] Authorization completed, success: true
+✅ [HealthSyncPlugin] Auth result - authorized: 0, denied: 73
+⚡️  TO JS {"readAuthorized":[],"writeAuthorized":[],"success":true,"writeDenied":[],"readDenied":["steps","distance","calories","heartRate","weight","heartRateVariability","restingHeartRate","bloodPressureSystolic","bloodPressureDiastolic","oxygenSaturation","respir
+⚡️  [log] - [Onboarding] HealthKit authorization result: {"readAuthorized":[],"writeAuthorized":[],"success":true,"writeDenied":[],"readDenied":["steps","distance","calories","heartRate","weight","heartRateVariability","restingHeartRate","bloodPressureSystolic","bloodPressureDiastolic","oxygenSaturation","respiratoryRate","height","bmi","bodyFatPercentage","leanBodyMass","basalEnergyBurned","flightsClimbed","bloodGlucose","bodyTemperature","vo2Max","walkingHeartRateAverage","waistCircumference","dietaryWater","appleExerciseTime","appleStandTime","sleepAnalysis","dietaryEnergyConsumed","dietaryCarbohydrates","dietaryProtein","dietaryFatTotal","dietaryFatSaturated","dietaryFatPolyunsaturated","dietaryFatMonounsaturated","dietaryCholesterol","dietaryFiber","dietarySugar","dietaryVitaminA","dietaryVitaminB6","dietaryVitaminB12","dietaryVitaminC","dietaryVitaminD","dietaryVitaminE","dietaryVitaminK","dietaryThiamin","dietaryRiboflavin","dietaryNiacin","dietaryFolate","dietaryBiotin","dietaryPantothenicAcid","dietaryCalcium","dietaryChloride","dietaryChromium","dietaryCopper","dietaryIodine","dietaryIron","dietaryMagnesium","dietaryManganese","dietaryMolybdenum","dietaryPhosphorus","dietaryPotassium","dietarySelenium","dietarySodium","dietaryZinc","dietaryCaffeine","walkingSpeed","walkingStepLength","walkingDoubleSupportPercentage","walkingAsymmetryPercentage","appleWalkingSteadiness","sixMinuteWalkTestDistance","stairAscentSpeed","stairDescentSpeed","mindfulSession"]}
+⚡️  To Native ->  LocalNotifications checkPermissions 8908075
+⚡️  TO JS {"display":"granted"}
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No recent sleep data available\",\"message\":\"Please ensure you have synced HealthKit sleep data\"}"}
+XPC connection interrupted
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462145 }
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x12bb1ac10 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x12ba85600.width == _UIButtonBarButton:0x12ba81e00.width   (active)>",
+    "<NSLayoutConstraint:0x12bb1ad50 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x12bb54380]   (active, names: '|':_UIButtonBarButton:0x12ba81e00 )>",
+    "<NSLayoutConstraint:0x12bb1ada0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x12bb54380]-(8)-|   (active, names: '|':_UIButtonBarButton:0x12ba81e00 )>",
+    "<NSLayoutConstraint:0x12bb1b2f0 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x12ba85600.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x12bb1ada0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x12bb54380]-(8)-|   (active, names: '|':_UIButtonBarButton:0x12ba81e00 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x12bb1b7a0 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x12ba85a00.width == _UIButtonBarButton:0x12ba82300.width   (active)>",
+    "<NSLayoutConstraint:0x12bb1b8e0 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x12bb54700]   (active, names: '|':_UIButtonBarButton:0x12ba82300 )>",
+    "<NSLayoutConstraint:0x12bb1b930 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x12bb54700]-(8)-|   (active, names: '|':_UIButtonBarButton:0x12ba82300 )>",
+    "<NSLayoutConstraint:0x12bb1bde0 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x12ba85a00.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x12bb1b930 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x12bb54700]-(8)-|   (active, names: '|':_UIButtonBarButton:0x12ba82300 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x12b9fdea0 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x12ba85e00.width == _UIButtonBarButton:0x12ba82800.width   (active)>",
+    "<NSLayoutConstraint:0x12b860550 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x12bb54a80]   (active, names: '|':_UIButtonBarButton:0x12ba82800 )>",
+    "<NSLayoutConstraint:0x12b8628a0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x12bb54a80]-(8)-|   (active, names: '|':_UIButtonBarButton:0x12ba82800 )>",
+    "<NSLayoutConstraint:0x136c2c320 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x12ba85e00.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x12b8628a0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x12bb54a80]-(8)-|   (active, names: '|':_UIButtonBarButton:0x12ba82800 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = CE80F589-6DC7-4BA3-BAA7-778573245A97
+<0x10c256440> Gesture: System gesture gate timed out.
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x136d2d230 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+Reporter disconnected or already stopped. { func=stop, reporterID=153068339462145 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462146 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = CE80F589-6DC7-4BA3-BAA7-778573245A97
+Reporter disconnected or already stopped. { func=stop, reporterID=153068339462146 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+Reporter disconnected. { function=sendMessage, reporterID=153068339462148 }
+⚡️  [log] - [API] Making request: PATCH https://get-flo.com/api/profile/demographics
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+Reporter disconnected or already stopped. { func=stop, reporterID=153068339462148 }
+⚡️  [log] - [API] Response received: 200 
+⚡️  [error] - [Onboarding] Passkey registration error: {"name":"Error","message":"Failed to get registration options","error":"Error: Failed to get registration options"}
+⚡️  [log] - [Onboarding] Passkey registration options received
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 8908076
+⚡️  TO JS undefined
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No recent sleep data available\",\"message\":\"Please ensure you have synced HealthKit sleep data\"}"}
+LaunchServices: store (null) or url (null) was nil: Error Domain=NSOSStatusErrorDomain Code=-54 "process may not map database" UserInfo={_LSLine=72, _LSFunction=_LSServer_GetServerStoreForConnectionWithCompletionHandler, _LSFile=LSDReadService.mm, NSDebugDescription=process may not map database}
+Attempt to map database failed: permission was denied. This attempt will not be retried.
+Failed to initialize client context with error Error Domain=NSOSStatusErrorDomain Code=-54 "process may not map database" UserInfo={_LSLine=72, _LSFunction=_LSServer_GetServerStoreForConnectionWithCompletionHandler, _LSFile=LSDReadService.mm, NSDebugDescription=process may not map database}
+Failed to get application extension record: Error Domain=NSOSStatusErrorDomain Code=-54 "(null)"
+ASAuthorizationController credential request failed with error: Error Domain=com.apple.AuthenticationServices.AuthorizationError Code=1006 "(null)"
+⚡️  [error] - [Onboarding] Passkey registration error: {"name":"InvalidStateError","message":"The authenticator was previously registered","error":"InvalidStateError: The authenticator was previously registered"}
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 8908077
+⚡️  TO JS {"value":"1764554080060"}
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  To Native ->  Preferences get 8908078
+⚡️  To Native ->  Preferences get 8908079
+⚡️  TO JS {"value":"1764553759690"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
