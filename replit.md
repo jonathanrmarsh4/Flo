@@ -58,7 +58,16 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 
 **Billing & Subscription System:** Supports FREE and PREMIUM tiers with dual payment provider support: StoreKit 2 (iOS) for in-app purchases with JWS verification, and Stripe for web-based transactions.
 
-**Daily Reminder Notifications:** Utilizes Gemini 2.5 Flash for AI-driven personalized reminders based on user data and Action Plan items for premium users.
+**Daily Reminder Notifications (Dec 2025):** Utilizes Gemini 2.5 Flash for AI-driven personalized reminders based on user data. Refactored to route ALL health data reads through healthStorageRouter to Supabase:
+- `reminderContextBuilder.ts` - Builds rich health context with aggregated metrics:
+  - `getBiomarkerTrends()` - 90-day biomarker trends with percent change
+  - `getLatestDexaComparison()` - Latest DEXA scan with previous comparison
+  - `getWearableAverages()` - 7d and 30d averages for HRV, RHR, sleep, steps
+  - `getBehaviorMetrics14d()` - Alcohol, sauna, ice bath, supplement tracking
+  - `getTrainingLoad7d()` - Zone 2/5 minutes, strength sessions, calories
+  - `getReminderInsightCards()` - AI-detected patterns with confidence scores
+  - `getReminderActionPlanItems()` - Active action plan items for personalization
+- Scheduler runs at 10:00 AM UTC (enabled via `ENABLE_DAILY_REMINDERS=true`)
 
 **iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events, with pre-built templates and an API key management settings page.
 
