@@ -31,8 +31,9 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 - `baselineCalculator.ts` - Reads daily metrics from Supabase via healthRouter
 - `flomentumBaselineCalculator.ts` - Reads from `user_daily_metrics` via healthRouter (replaces legacy `health_daily_metrics`)
 - `healthkitSampleAggregator.ts` - Uses healthRouter for all reads/writes
+- `upsertFlomentumDaily()` - Converts camelCase from routes.ts to snake_case for Supabase columns
 - **Architecture clarification:** `flomentumScoringEngine.ts` is a pure calculation function (no DB access)
-- **Root cause fixed:** Data was written to Supabase but previously read from empty Neon tables
+- **Root cause fixed:** Data was written to Supabase but previously read from empty Neon tables; flomentum writes failed due to camelCase/snake_case mismatch
 
 **Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights using a 2-layer architecture: a RAG Layer (vector search + Gemini 2.5 Pro) and a safety net Layer D for out-of-range biomarkers. It includes confidence scoring, insight ranking, domain diversity limits, and natural language generation, with insights generated at 6 AM local time.
 

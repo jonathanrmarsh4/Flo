@@ -584,7 +584,17 @@ export async function upsertFlomentumDaily(userId: string, score: any) {
   }
   
   try {
-    const result = await supabaseHealth.upsertFlomentumDaily(userId, score);
+    // Convert camelCase from routes.ts to snake_case for Supabase
+    const supabaseScore = {
+      date: score.date,
+      score: score.score,
+      zone: score.zone,
+      delta_vs_yesterday: score.deltaVsYesterday ?? null,
+      factors: score.factors,
+      daily_focus: score.dailyFocus ?? null,
+    };
+    
+    const result = await supabaseHealth.upsertFlomentumDaily(userId, supabaseScore);
     logger.info(`[HealthStorageRouter] Flomentum score written to Supabase for ${userId}, ${score.date}`);
     return result;
   } catch (error) {
