@@ -159,10 +159,21 @@ export async function getHybridInsights(
     minImportance = 1,
   } = options;
 
+  logger.info(`[BrainService] getHybridInsights called for user ${userId} with query: "${query.substring(0, 50)}..."`);
+
   const [recentInsights, semanticInsights] = await Promise.all([
     getRecentInsights(userId, recentLimit),
     searchInsightsBySimilarity(userId, query, semanticLimit, minImportance),
   ]);
+
+  // Log details about what was found
+  const medicalDocs = recentInsights.filter(i => i.source === 'medical_document');
+  logger.info(`[BrainService] Recent insights: ${recentInsights.length} total, ${medicalDocs.length} medical documents`);
+  logger.info(`[BrainService] Semantic insights: ${semanticInsights.length} total`);
+  
+  if (medicalDocs.length > 0) {
+    logger.info(`[BrainService] Medical document sources found:`, medicalDocs.map(d => ({ id: d.id, tags: d.tags })));
+  }
 
   const seenIds = new Set<string>();
   const merged: BrainInsight[] = [];
@@ -180,6 +191,8 @@ export async function getHybridInsights(
       merged.push(insight);
     }
   }
+
+  logger.info(`[BrainService] Merged total: ${merged.length} insights for user ${userId}`);
 
   return {
     recentInsights,
@@ -350,8 +363,12 @@ function mapRowToBrainInsight(row: UserInsight): BrainInsight {
 
 export function formatInsightsForChat(insights: BrainInsight[]): string {
   if (insights.length === 0) {
+    logger.debug('[BrainService] formatInsightsForChat: No insights to format');
     return "No prior insights available.";
   }
+
+  const medicalDocs = insights.filter(i => i.source === 'medical_document');
+  logger.info(`[BrainService] formatInsightsForChat: ${insights.length} total, ${medicalDocs.length} medical documents`);
 
   return insights
     .map((insight, idx) => {
