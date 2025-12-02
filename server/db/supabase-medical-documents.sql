@@ -43,7 +43,7 @@ CREATE TYPE document_processing_status AS ENUM (
 -- Main medical documents table
 CREATE TABLE IF NOT EXISTS medical_documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  health_id UUID NOT NULL REFERENCES health_profiles(health_id) ON DELETE CASCADE,
+  health_id UUID NOT NULL,
   
   -- Document metadata
   document_type medical_document_type NOT NULL DEFAULT 'specialist_consult',
@@ -105,14 +105,6 @@ CREATE TRIGGER medical_documents_updated_at
   BEFORE UPDATE ON medical_documents
   FOR EACH ROW
   EXECUTE FUNCTION update_medical_documents_updated_at();
-
--- Add document_id column to user_insights_embeddings for linking chunks back to source
--- This allows us to fetch all chunks for a specific document
-ALTER TABLE user_insights_embeddings 
-ADD COLUMN IF NOT EXISTS document_id UUID REFERENCES medical_documents(id) ON DELETE CASCADE;
-
-CREATE INDEX IF NOT EXISTS idx_user_insights_embeddings_document_id 
-ON user_insights_embeddings(document_id);
 
 -- Comments
 COMMENT ON TABLE medical_documents IS 'Stores metadata for uploaded medical reports. Document content is chunked and stored in user_insights with source=medical_document';
