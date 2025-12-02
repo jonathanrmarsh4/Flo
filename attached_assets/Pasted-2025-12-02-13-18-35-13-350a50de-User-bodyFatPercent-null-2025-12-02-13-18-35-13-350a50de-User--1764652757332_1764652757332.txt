@@ -1,0 +1,168 @@
+2025-12-02 13:18:35.13
+350a50de
+User
+"bodyFatPercent": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+📊 [HEALTHKIT DEBUG] Extended metrics from iOS: {
+2025-12-02 13:18:35.13
+350a50de
+User
+"distanceMeters": 2532.046147113543,
+2025-12-02 13:18:35.13
+350a50de
+User
+"diastolicBp": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"heightCm": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"leanBodyMassKg": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"respiratoryRateBpm": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"dietaryWaterMl": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"basalEnergyKcal": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"weightKg": 70,
+2025-12-02 13:18:35.13
+350a50de
+User
+"bloodGlucoseMgDl": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+📥 [BODY COMP DEBUG] Raw req.body: {
+2025-12-02 13:18:35.13
+350a50de
+User
+"weightKg": 70,
+2025-12-02 13:18:35.13
+350a50de
+User
+"flightsClimbed": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"bodyTempC": null
+2025-12-02 13:18:35.13
+350a50de
+User
+"waistCircumferenceCm": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"systolicBp": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"avgHeartRateBpm": 86.48895713206166,
+2025-12-02 13:18:35.13
+350a50de
+User
+"bmi": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"standHours": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"oxygenSaturationPct": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"vo2Max": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"localDate": "2025-11-30"
+2025-12-02 13:18:35.13
+350a50de
+User
+}
+2025-12-02 13:18:35.13
+350a50de
+User
+}
+2025-12-02 13:18:35.13
+350a50de
+User
+"diastolic_bp": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"lean_body_mass_kg": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"body_temp_c": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"vo2_max": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"basal_energy_kcal": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"timezone": "Australia/Perth",
+2025-12-02 13:18:35.13
+350a50de
+User
+"height_cm": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"local_date": "2025-11-30",
+2025-12-02 13:18:35.13
+350a50de
+User
+[2025-12-02T05:18:35.132Z] [INFO] [HealthKit] Ingesting daily metrics for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-11-30
+2025-12-02 13:18:35.13
+350a50de
+User
+"waist_circumference_cm": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"weight_kg": 70,
+2025-12-02 13:18:35.13
+350a50de
+User
+"steps_normalized": 3303,
+2025-12-02 13:18:35.13
+350a50de
+User
+📤 [SUPABASE] Writing daily metrics to Supabase: {
+2025-12-02 13:18:35.13
+350a50de
+User
+"utc_day_start": "2025-11-29T16:00:00.000Z",
+2025-12-02 13:18:35.13
+350a50de
+User
+"active_energy_kcal": 390.8919207795939,
+2025-12-02 13:18:35.13
+350a50de
+User
+"bmi": null,
+2025-12-02 13:18:35.13
+350a50de
+User
+"hrv_ms": 18.04169478904263,
