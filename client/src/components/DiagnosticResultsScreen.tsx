@@ -1,6 +1,7 @@
-import { X, Heart, Activity, Brain, Bone, Stethoscope } from 'lucide-react';
+import { X, Heart, Activity, Brain, Bone, Stethoscope, FileText } from 'lucide-react';
 import { CalciumScoreTile } from './CalciumScoreTile';
 import { DexaScanTile } from './DexaScanTile';
+import { SpecialistReportsTile } from './SpecialistReportsTile';
 import { FloLogo } from './FloLogo';
 
 interface CalciumScoreSummary {
@@ -127,6 +128,20 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
                 icon={<Brain className="w-5 h-5" />}
                 isDark={isDark}
               />
+            </div>
+          </section>
+
+          {/* Specialist Reports Section */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className={`w-5 h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+              <h2 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Specialist Reports
+              </h2>
+            </div>
+            
+            <div className="space-y-3">
+              <SpecialistReportsTile isDark={isDark} />
             </div>
           </section>
       </div>
