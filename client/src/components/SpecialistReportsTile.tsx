@@ -5,7 +5,7 @@ interface MedicalDocument {
   id: string;
   documentType: string;
   title: string;
-  status: string;
+  processingStatus: string;
   createdAt: string;
   metadata?: {
     providerName?: string;
@@ -32,6 +32,7 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   'oncology_report': 'Oncology',
   'hematology_report': 'Hematology',
   'immunology_report': 'Immunology',
+  'urology_report': 'Urology',
   'genetic_test': 'Genetic Test',
   'sleep_study': 'Sleep Study',
   'stress_test': 'Stress Test',
@@ -50,7 +51,7 @@ export function SpecialistReportsTile({ isDark }: SpecialistReportsTileProps) {
     queryKey: ['/api/medical-documents'],
   });
 
-  const documents = data?.documents?.filter(d => d.status === 'completed') || [];
+  const documents = data?.documents?.filter(d => d.processingStatus === 'completed') || [];
 
   if (isLoading) {
     return (
