@@ -1,0 +1,387 @@
+2025-12-02 13:09:48.32
+350a50de
+User
+[2025-12-02T05:09:48.322Z] [INFO] [SupabaseHealth] Flomentum upsert payload: "{\"date\":\"2025-12-01\",\"score\":38,\"zone\":\"DRAINING\",\"delta_vs_yesterday\":null,\"factors\":[{\"status\":\"negative\",\"title\":\"Slightly short sleep\",\"detail\":\"6h 27m (Target: 8h)\",\"componentKey\":\"sleep\",\"pointsContribution\":-4},{\"status\":\"negative\",\"title\":\"Low movement today\",\"detail\":\"3,456 steps (Goal: 7,000)\",\"componentKey\":\"steps\",\"pointsContribution\":-6},{\"status\":\"neutral\",\"title\":\"No workout data today\",\"detail\":\"Sync HealthKit workouts to track exercise\",\"componentKey\":\"intensity\",\"pointsContribution\":0},{\"status\":\"neutral\",\"title\":\"Resting HR stable\",\"detail\":\"73 bpm (Baseline: 72 bpm)\",\"componentKey\":\"resting_hr\",\"pointsContribution\":2},{\"status\":\"negative\",\"title\":\"HRV suppressed vs baseline\",\"detail\":\"12 ms (Baseline: 20 ms)\",\"componentKey\":\"hrv\",\"pointsContribution\":-4}],\"daily_focus\":{\"title\":\"Boost your movement today\",\"body\":\"Add a 15–20 min walk to reach your step target.\",\"componentKey\":\"steps\"},\"health_id\":\"29d2a63e-44a2-472c-a825-89be5a07cbeb\",\"updated_at\":\"2025-12-02T05:09:48.322Z\"}"
+2025-12-02 13:09:48.32
+350a50de
+User
+[2025-12-02T05:09:48.322Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+2025-12-02 13:09:48.32
+350a50de
+User
+[2025-12-02T05:09:48.322Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-01, score: 38
+2025-12-02 13:09:48.35
+350a50de
+User
+[2025-12-02T05:09:48.358Z] [INFO] [SupabaseHealth] Flomentum Supabase response - status: 400, statusText: Bad Request, data: null, error: {"code":"23514","details":"Failing row contains (7de44632-855f-4bfd-a842-0eb38b8dbf67, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-30, 36, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 54m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.279124, 2025-12-02 05:09:48.108).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}
+2025-12-02 13:09:48.36
+350a50de
+User
+[2025-12-02T05:09:48.359Z] [ERROR] [SupabaseHealth] Error upserting flomentum daily: {"error":{"code":"23514","details":"Failing row contains (7de44632-855f-4bfd-a842-0eb38b8dbf67, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-30, 36, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 54m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.279124, 2025-12-02 05:09:48.108).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.36
+350a50de
+User
+[2025-12-02T05:09:48.359Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertFlomentumDaily failed: {"error":{"code":"23514","details":"Failing row contains (7de44632-855f-4bfd-a842-0eb38b8dbf67, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-30, 36, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 54m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.279124, 2025-12-02 05:09:48.108).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.36
+350a50de
+User
+[2025-12-02T05:09:48.359Z] [ERROR] [Flōmentum] Error calculating score for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-11-30: {"error":{"code":"23514","details":"Failing row contains (7de44632-855f-4bfd-a842-0eb38b8dbf67, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-30, 36, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 54m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.279124, 2025-12-02 05:09:48.108).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.36
+350a50de
+User
+5:09:48 AM [express] POST /api/healthkit/daily-metrics 200 in 1217ms :: {"status":"upserted","date":…
+2025-12-02 13:09:48.37
+350a50de
+User
+[2025-12-02T05:09:48.372Z] [INFO] [SupabaseHealth] Flomentum Supabase response - status: 400, statusText: Bad Request, data: null, error: {"code":"23514","details":"Failing row contains (28cded67-8af1-43df-b687-9433de3843b7, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-29, 44, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"4h 9m (Target: 8h)\", \"..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.296833, 2025-12-02 05:09:48.122).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}
+2025-12-02 13:09:48.37
+350a50de
+User
+[2025-12-02T05:09:48.372Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertFlomentumDaily failed: {"error":{"code":"23514","details":"Failing row contains (28cded67-8af1-43df-b687-9433de3843b7, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-29, 44, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"4h 9m (Target: 8h)\", \"..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.296833, 2025-12-02 05:09:48.122).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.37
+350a50de
+User
+[2025-12-02T05:09:48.372Z] [ERROR] [Flōmentum] Error calculating score for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-11-29: {"error":{"code":"23514","details":"Failing row contains (28cded67-8af1-43df-b687-9433de3843b7, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-29, 44, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"4h 9m (Target: 8h)\", \"..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.296833, 2025-12-02 05:09:48.122).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.37
+350a50de
+User
+5:09:48 AM [express] POST /api/healthkit/daily-metrics 200 in 1220ms :: {"status":"upserted","date":…
+2025-12-02 13:09:48.37
+350a50de
+User
+[2025-12-02T05:09:48.378Z] [ERROR] [SupabaseHealth] Error upserting flomentum daily: {"error":{"code":"23514","details":"Failing row contains (6ee99c19-555e-4be9-a429-10b2ea02663c, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-12-02, 32, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 54m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.305419, 2025-12-02 05:09:48.128).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.37
+350a50de
+User
+[2025-12-02T05:09:48.378Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertFlomentumDaily failed: {"error":{"code":"23514","details":"Failing row contains (6ee99c19-555e-4be9-a429-10b2ea02663c, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-12-02, 32, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 54m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.305419, 2025-12-02 05:09:48.128).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.37
+350a50de
+User
+5:09:48 AM [express] POST /api/healthkit/daily-metrics 200 in 1219ms :: {"status":"upserted","date":…
+2025-12-02 13:09:48.47
+350a50de
+User
+[2025-12-02T05:09:48.474Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertFlomentumDaily failed: {"error":{"code":"23514","details":"Failing row contains (4141e02e-d72e-459b-96ed-0e878411888d, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-26, 24, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 17m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.399786, 2025-12-02 05:09:48.23).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.47
+350a50de
+User
+[2025-12-02T05:09:48.474Z] [ERROR] [SupabaseHealth] Error upserting flomentum daily: {"error":{"code":"23514","details":"Failing row contains (4141e02e-d72e-459b-96ed-0e878411888d, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-26, 24, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 17m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.399786, 2025-12-02 05:09:48.23).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.47
+350a50de
+User
+[2025-12-02T05:09:48.474Z] [ERROR] [Flōmentum] Error calculating score for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-11-26: {"error":{"code":"23514","details":"Failing row contains (4141e02e-d72e-459b-96ed-0e878411888d, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-26, 24, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 17m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.399786, 2025-12-02 05:09:48.23).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.47
+350a50de
+User
+5:09:48 AM [express] POST /api/healthkit/daily-metrics 200 in 1308ms :: {"status":"upserted","date":…
+2025-12-02 13:09:48.48
+350a50de
+User
+[2025-12-02T05:09:48.486Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+2025-12-02 13:09:48.48
+350a50de
+User
+[2025-12-02T05:09:48.487Z] [INFO] [SupabaseHealth] Flomentum upsert payload: "{\"date\":\"2025-11-25\",\"score\":24,\"zone\":\"DRAINING\",\"delta_vs_yesterday\":null,\"factors\":[{\"status\":\"negative\",\"title\":\"Very short sleep\",\"detail\":\"4h 50m (Target: 8h)\",\"componentKey\":\"sleep\",\"pointsContribution\":-10},{\"status\":\"negative\",\"title\":\"Low movement today\",\"detail\":\"3,949 steps (Goal: 7,000)\",\"componentKey\":\"steps\",\"pointsContribution\":-6},{\"status\":\"neutral\",\"title\":\"No workout data today\",\"detail\":\"Sync HealthKit workouts to track exercise\",\"componentKey\":\"intensity\",\"pointsContribution\":0},{\"status\":\"negative\",\"title\":\"Resting heart rate elevated vs baseline\",\"detail\":\"71 bpm (Baseline: 60 bpm)\",\"componentKey\":\"resting_hr\",\"pointsContribution\":-6},{\"status\":\"negative\",\"title\":\"HRV suppressed vs baseline\",\"detail\":\"17 ms (Baseline: 50 ms)\",\"componentKey\":\"hrv\",\"pointsContribution\":-4}],\"daily_focus\":{\"title\":\"Prioritise sleep tonight\",\"body\":\"Aim for bed by a consistent time and target at least 7 hours of sleep.\",\"componentKey\":\"sleep\"},\"health_id\":\"29d2a63e-44a2-472c-a825-89be5a07cbeb\",\"updated_at\":\"2025-12-02T05:09:48.487Z\"}"
+2025-12-02 13:09:48.50
+350a50de
+User
+[2025-12-02T05:09:48.502Z] [INFO] [SupabaseHealth] Flomentum upsert payload: "{\"date\":\"2025-11-27\",\"score\":40,\"zone\":\"DRAINING\",\"delta_vs_yesterday\":null,\"factors\":[{\"status\":\"negative\",\"title\":\"Slightly short sleep\",\"detail\":\"6h 2m (Target: 8h)\",\"componentKey\":\"sleep\",\"pointsContribution\":-4},{\"status\":\"negative\",\"title\":\"Low movement today\",\"detail\":\"3,935 steps (Goal: 7,000)\",\"componentKey\":\"steps\",\"pointsContribution\":-6},{\"status\":\"neutral\",\"title\":\"No workout data today\",\"detail\":\"Sync HealthKit workouts to track exercise\",\"componentKey\":\"intensity\",\"pointsContribution\":0}],\"daily_focus\":{\"title\":\"Boost your movement today\",\"body\":\"Add a 15–20 min walk to reach your step target.\",\"componentKey\":\"steps\"},\"health_id\":\"29d2a63e-44a2-472c-a825-89be5a07cbeb\",\"updated_at\":\"2025-12-02T05:09:48.502Z\"}"
+2025-12-02 13:09:48.50
+350a50de
+User
+[2025-12-02T05:09:48.502Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+2025-12-02 13:09:48.73
+350a50de
+User
+[2025-12-02T05:09:48.737Z] [ERROR] [HealthStorageRouter] [HealthStorageRouter] Supabase upsertFlomentumDaily failed: {"error":{"code":"23514","details":"Failing row contains (cdad5d3d-6935-4c48-9454-1521b36411a5, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-25, 24, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"4h 50m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.65257, 2025-12-02 05:09:48.487).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}}
+2025-12-02 13:09:48.74
+350a50de
+User
+[2025-12-02T05:09:48.746Z] [INFO] [SupabaseHealth] Flomentum Supabase response - status: 400, statusText: Bad Request, data: null, error: {"code":"23514","details":"Failing row contains (592f69a0-34da-4ed2-9e22-f75eab5b9a61, 29d2a63e-44a2-472c-a825-89be5a07cbeb, 2025-11-28, 42, DRAINING, null, [{\"title\": \"Very short sleep\", \"detail\": \"5h 50m (Target: 8h)\", ..., {\"body\": \"Aim for bed by a consistent time and target at least 7..., 2025-12-02 05:09:48.670906, 2025-12-02 05:09:48.498).","hint":null,"message":"new row for relation \"flomentum_daily\" violates check constraint \"flomentum_daily_zone_check\""}
+
+Collapse
+
+Wrap
+
+Colors
+
+Live
+Security and Privacy Scanner
+Beta
+Run a scan to check for potential security risks and privacy leaks in your application. Scans are typically complete within minutes. Learn more
+
+Run scan
+
+Scan settings
+1 potential vulnerability found.
+Last ran on
+ 
+12:53 noon, Dec 02, 2025
+Security
+Detected user input used to manually construct a SQL string. This is usually bad practice because manual construction could accidentally result in a SQL injection. An attacker could use a SQL injection to steal or modify contents of the database. Instead, use a parameterized query which is available by default in most database engines. Alternatively, consider using an object-relational mapper (ORM) such as Sequelize which will protect your queries.
+
+
+Hide
+
+Fix with Agent
+Vulnerability scans are enabled by the following Replit partners:
+Security scans are powered by Semgrep Community Edition.
+Privacy scans are powered by HoundDog.ai.
+Security scanning powered by Semgrep and privacy scanning powered by HoundDog.ai , both running locally on Replit infrastructure. No code or data is transmitted to any third party, including Semgrep or HoundDog.ai.
+
+
+npm run dev
+
+Ask Agent…
+5m
+ • 
+5 minutes ago
+
+
+
+All Databases
+
+Refresh
+Databases
+Development Database
+36.4MB / 10GB
+Production Database
+37.59MB / 100GB
+Billing Period
+Renews monthly, 6 Dec
+Hours of Compute Used
+167.52 hours
+
+main
+
+
+Remote Updates
+jonathanrmarsh4/Flo
+origin/main•upstream
+last fetched 11 min ago
+
+Fetch
+2 commits to push
+
+Sync with Remote
+
+Pull
+
+Push
+Commit
+There are no changes to commit.
+Preview
+
+Transitioned from Plan to Build mode
+
+
+
+Show previous events
+
+4 messages & 10 actions
+Now let me check the logs to confirm the server is running with the fix:
+Checkpoint made
+2 hours ago
+Fix flomentum data writing to Supabase by converting field names
+
+Rollback here
+
+Changes
+
+Preview
+3 minutes of work
+Want users to get these changes? Republish this App.
+
+Published
+Checkpoint made
+2 hours ago
+•
+Free
+•
+Publish
+Published your App
+
+Rollback here
+
+Changes
+
+Preview
+I have a bigger problem, there is no data in healthkit_samples in supabase
+2 hours ago
+
+11 messages & 33 actions
+Let me investigate where HealthKit samples are being written:
+yes please deploy
+2 hours ago
+
+1 message & 2 actions
+Click the **Publish** button to deploy. Once live, trigger a HealthKit sync from your iOS app - you should see data populate in both `healthkit_samples` and `flomentum_daily` tables in Supabase.
+Want users to get these changes? Republish this App.
+
+Published
+Checkpoint made
+2 hours ago
+•
+Free
+•
+Publish
+Published your App
+
+Rollback here
+
+Changes
+
+Preview
+Checkpoint made
+35 minutes ago
+•
+Free
+•
+Publish
+Published your App
+
+Rollback here
+
+Changes
+
+Preview
+
+1 action
+we are still not seeing any healthkit or flomentum data populate in Supabase. I checked the iOS logs and its all being. uploaded. Please confirm
+28 minutes ago
+
+7 messages & 25 actions
+Let me check the server logs to see what's happening when the iOS app uploads data:
+I can see data is being saved somewhere as the Sleep score has healthkit sleep data and that is in supabase.
+24 minutes ago
+
+Show less
+
+Decided on data type failure analysis
+That's a crucial clue - sleep data IS making it to Supabase, which means the connection and healthId work. Let me get architectural analysis on why some data types are succeeding while others fail:
+
+Investigated data sync issues
+
+Planned logging and table checks
+Let me check the exact routing in routes.ts for the HealthKit samples endpoint and add better logging:
+
+Opened server/routes.ts
+
+Decided on table existence check (5 seconds)
+Let me check what tables should exist in Supabase and verify if the issue is table creation:
+
+Show 2 more
+Checked system logs
+
+Decided on adding Supabase logging (5 seconds)
+The development logs show "0 have health data" but this is the dev environment. Since you test in production, let me add detailed logging to track exactly what's happening with HealthKit samples and Flomentum writes:
+
+Opened server/services/supabaseHealthStorage.ts
+
+Decided on logging strategy adjustments (5 seconds)
+Let me add detailed logging to catch exactly what's happening during the Supabase writes:
+
+Edited server/services/supabaseHealthStorage.ts
+
+Planned logging for upsertFlomentumDaily
+Now let me add the same detailed logging to upsertFlomentumDaily:
+
+Show 2 more
+
+Edited server/services/supabaseHealthStorage.ts
+
+Decided on logging strategy
+I've added detailed logging to both functions. Now let me deploy so we can see exactly what's happening in production when your iOS app syncs:
+
+Restarted Start application
+
+Decided on next steps after deployment
+Click Publish to deploy the logging changes. After deployment, trigger a HealthKit sync from your iOS app, then check your production logs for messages like:
+
+[SupabaseHealth] createHealthkitSamples called for user...
+[SupabaseHealth] Supabase response - status: ...
+[SupabaseHealth] upsertFlomentumDaily called...
+These logs will reveal exactly where the data flow is breaking - whether it's the healthId lookup, the Supabase write, or something else.
+Checkpoint made
+20 minutes ago
+Add detailed logging for health data synchronization to Supabase
+
+Rollback here
+
+Changes
+
+Preview
+3 minutes of work
+Want users to get these changes? Republish this App.
+
+Published
+Checkpoint made
+15 minutes ago
+•
+Free
+•
+Publish
+Published your App
+
+Rollback here
+
+Changes
+
+Preview
+service and iOS logs
+8 minutes ago
+
+8 messages & 17 actions
+I see the issue now! Looking at the iOS logs: 1. **iOS is uploading to `/api/healthkit/sync`** (normalized daily metrics), NOT `/api/healthkit/samples` 2. The server log shows: `[HealthStorageRouter] Supabase getFlomentumDailyByDate returned no data for 2025-12-02, falling back to Neon` This means the **daily metrics sync endpoint** might be writing to Neon instead of Supabase. Let me check that endpoint:
+Checkpoint made
+6 minutes ago
+Add detailed logging for daily metric and flomentum data updates
+
+Rollback here
+
+Changes
+
+Preview
+2 minutes of work
+Want users to get these changes? Republish this App.
+
+Published
+sorry I forgot to publish!
+5 minutes ago
+
+Suggested deployment again
+No problem! Let's deploy now:
+
+Restarted Start application
+
+Decided on deployment approach
+Click Publish now. After it's deployed, trigger a HealthKit sync from your iOS app and share the production logs - we'll see exactly what Supabase is returning!
+16 seconds of work
+Want users to get these changes? Republish this App.
+
+Published
+Checkpoint made
+2 minutes ago
+•
+Free
+•
+Publish
+Published your App
+
+Rollback here
+
+Changes
+
+Preview
+
+Scroll to latest
+
+Make, test, iterate…
+
+Build
+
+
+
+
+
+
