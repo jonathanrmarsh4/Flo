@@ -4,6 +4,7 @@ import { App } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
 import Readiness from '@/plugins/readiness';
 import WebViewCache from '@/plugins/webviewCache';
+import { HealthSyncPlugin } from '@/plugins/healthSync';
 import { logger } from '@/lib/logger';
 import { sendNotification } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
@@ -81,6 +82,20 @@ export function useHealthKitAutoSync() {
       // This prevents "Authorization not determined" errors on cold launch
       const syncResult = await Readiness.syncReadinessData({ days: 7, waitForAuth: isInitialSync });
       console.log('🚀 [AutoSync] Sync result:', syncResult);
+      
+      // Also sync workouts separately (not included in syncReadinessData)
+      try {
+        console.log('🏋️ [AutoSync] Syncing workouts...');
+        const workoutResult = await HealthSyncPlugin.syncWorkouts({ days: 7 });
+        console.log('🏋️ [AutoSync] Workout sync result:', workoutResult);
+        if (workoutResult.success) {
+          logger.info('Workout sync completed successfully', { days: workoutResult.days });
+        }
+      } catch (workoutError) {
+        // Don't fail the whole sync if workouts fail
+        console.warn('⚠️ [AutoSync] Workout sync failed:', workoutError);
+        logger.warn('Workout sync failed', { error: workoutError });
+      }
       
       if (syncResult.success) {
         console.log('✅ [AutoSync] Sync success block entered');

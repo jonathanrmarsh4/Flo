@@ -510,6 +510,18 @@ export async function createHealthkitWorkouts(userId: string, workouts: any[]) {
   throw new Error("Supabase health storage not enabled");
 }
 
+export async function getHealthkitWorkoutsByDate(userId: string, localDate: string) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.getHealthkitWorkoutsByDate(userId, localDate);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getHealthkitWorkoutsByDate failed:", error);
+      return [];
+    }
+  }
+  return [];
+}
+
 interface GetLifeEventsOptions {
   startDate?: Date;
   limit?: number;

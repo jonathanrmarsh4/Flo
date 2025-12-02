@@ -1,0 +1,80 @@
+2025-12-02 19:16:45.02
+0d3723e1
+User
+[2025-12-02T11:16:45.028Z] [INFO] [Sleep] Returning cached sleep score for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-02
+2025-12-02 19:16:45.03
+0d3723e1
+User
+[2025-12-02T11:16:45.035Z] [INFO] [Sleep] Returning cached sleep score for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-02
+2025-12-02 19:16:45.03
+0d3723e1
+User
+[2025-12-02T11:16:45.038Z] [INFO] [SupabaseHealth] getBiomarkerSessions returned 7 sessions, raw test_date sample: 2025-11-28T00:00:00
+2025-12-02 19:16:45.03
+0d3723e1
+User
+[2025-12-02T11:16:45.038Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] getBiomarkerSessions returned 7 sessions for user, sample testDate: 2025-11-28T00:00:00
+2025-12-02 19:16:45.07
+0d3723e1
+User
+11:16:45 AM [express] GET /api/dashboard/overview 200 in 366ms :: {"bioAge":null,"calendarAge":52,"bi…
+2025-12-02 19:16:45.08
+0d3723e1
+User
+11:16:45 AM [express] GET /api/dashboard/overview 200 in 362ms :: {"bioAge":null,"calendarAge":52,"bi…
+2025-12-02 19:16:45.10
+0d3723e1
+User
+[2025-12-02T11:16:45.106Z] [INFO] [BioAge] Checking 7 sessions for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-02 19:16:45.25
+0d3723e1
+User
+[2025-12-02T11:16:45.252Z] [INFO] [Readiness] Computing readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-02
+2025-12-02 19:16:45.25
+0d3723e1
+User
+[2025-12-02T11:16:45.252Z] [INFO] [Readiness] Cached readiness is stale (metrics updated at Tue Dec 02 2025 11:16:40 GMT+0000 (Coordinated Universal Time), readiness at Tue Dec 02 2025 02:33:26 GMT+0000 (Coordinated Universal Time)). Recomputing...
+2025-12-02 19:16:45.25
+0d3723e1
+User
+[2025-12-02T11:16:45.257Z] [INFO] [Readiness] Computing readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-02
+2025-12-02 19:16:45.25
+0d3723e1
+User
+[2025-12-02T11:16:45.257Z] [INFO] [Readiness] Cached readiness is stale (metrics updated at Tue Dec 02 2025 11:16:40 GMT+0000 (Coordinated Universal Time), readiness at Tue Dec 02 2025 02:33:26 GMT+0000 (Coordinated Universal Time)). Recomputing...
+2025-12-02 19:16:45.27
+0d3723e1
+User
+11:16:45 AM [express] GET /api/sleep/today 200 in 558ms :: {"nightflo_score":65,"score_label":"Fair",…
+2025-12-02 19:16:45.27
+0d3723e1
+User
+11:16:45 AM [express] GET /api/sleep/today 200 in 560ms :: {"nightflo_score":65,"score_label":"Fair",…
+2025-12-02 19:16:45.35
+0d3723e1
+User
+[2025-12-02T11:16:45.353Z] [INFO] [BioAge] Session b5c21065-834b-49f5-9d4b-cce08adbc1f1 (2025-11-28T00:00:00): 6 matches - [Iron, Transferrin, Ferritin, BUN, Creatinine, eGFR, Sodium, Potassium, Chloride, CO2, AST, ALT, GGT, Bilirubin, Total Protein, Albumin, Globulin, TSH, PSA, Total Cholesterol, Hemoglobin, RDW, Monocytes, Triglycerides, MCV, WBC, Eosinophils, HDL Cholesterol, MCH, Neutrophils, Basophils, LDL Cholesterol, MCHC, Lymphocytes, Platelets]
+2025-12-02 19:16:45.60
+0d3723e1
+User
+[2025-12-02T11:16:45.604Z] [INFO] [BioAge] Session 512a02d3-889f-4b9b-9c19-7121652fdb78 (2025-07-21T00:00:00): 0 matches - [Cortisol (AM), Testosterone, SHBG, Free Testosterone, DHEA-S, FSH, LH, Estradiol (E2), Progesterone]
+2025-12-02 19:16:45.84
+0d3723e1
+User
+[2025-12-02T11:16:45.848Z] [INFO] [BioAge] Session e6cc0921-c113-4614-b5d4-d4daf47d6d6b (2025-07-14T00:00:00): 4 matches - [Hemoglobin, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Platelets, Basophils]
+2025-12-02 19:16:45.94
+0d3723e1
+User
+[2025-12-02T11:16:45.943Z] [INFO] [Readiness] Updated stale readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-02: 71
+2025-12-02 19:16:45.94
+0d3723e1
+User
+11:16:45 AM [express] GET /api/readiness/today 200 in 1248ms :: {"userId":"095f8978-a3ad-4fe1-af39-1b…
+2025-12-02 19:16:45.96
+0d3723e1
+User
+[2025-12-02T11:16:45.967Z] [INFO] [Readiness] Updated stale readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-02: 71
+2025-12-02 19:16:45.96
+0d3723e1
+User
+11:16:45 AM [express] GET /api/readiness/today 200 in 1274ms :: {"userId":"095f8978-a3ad-4fe1-af39-1b…

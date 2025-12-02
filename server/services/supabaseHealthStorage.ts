@@ -720,6 +720,26 @@ export async function getHealthkitWorkouts(userId: string, limit = 7): Promise<H
   return data || [];
 }
 
+export async function getHealthkitWorkoutsByDate(userId: string, localDate: string): Promise<HealthkitWorkout[]> {
+  const healthId = await getHealthId(userId);
+  
+  // Query workouts where start_date falls on the given local date
+  // We filter by date portion of start_date timestamp
+  const { data, error } = await supabase
+    .from('healthkit_workouts')
+    .select('*')
+    .eq('health_id', healthId)
+    .gte('start_date', `${localDate}T00:00:00`)
+    .lt('start_date', `${localDate}T23:59:59.999`);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching healthkit workouts by date:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 // ==================== DIAGNOSTICS STUDIES ====================
 
 export interface DiagnosticsStudy {

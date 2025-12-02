@@ -6980,17 +6980,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Query sleep_nights for reliable sleep data via storage layer (same as Flōmentum score calculation)
       const sleepNight = await healthRouter.getSleepNightByDate(userId, today);
       
-      // Query healthkit workouts for today's exercise as additional fallback
-      // Note: startDate is a timestamp, so we compare the date portion
-      const todayWorkouts = await db
-        .select({ duration: healthkitWorkouts.duration })
-        .from(healthkitWorkouts)
-        .where(and(
-          eq(healthkitWorkouts.userId, userId),
-          sql`DATE(${healthkitWorkouts.startDate}) = ${today}`
-        ));
+      // Query healthkit workouts for today's exercise from Supabase via healthRouter
+      // (workouts are stored in Supabase, not Neon)
+      const todayWorkouts = await healthRouter.getHealthkitWorkoutsByDate(userId, today);
       
-      const workoutMinutes = todayWorkouts.reduce((sum, w) => sum + (w.duration || 0), 0);
+      const workoutMinutes = todayWorkouts.reduce((sum, w: any) => sum + (w.duration || 0), 0);
 
       // Activity goals - prioritize userDailyMetrics (stepsRawSum for actual count, not normalized score)
       // Then fall back to healthDailyMetrics if available
