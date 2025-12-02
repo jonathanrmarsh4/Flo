@@ -1,5 +1,18 @@
-import { FileText, Brain, ChevronRight } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { FileText, Brain, ChevronRight, Trash2, X } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useState } from 'react';
+import { queryClient, apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface MedicalDocument {
   id: string;
@@ -47,9 +60,55 @@ const DOCUMENT_TYPE_LABELS: Record<string, string> = {
 };
 
 export function SpecialistReportsTile({ isDark }: SpecialistReportsTileProps) {
+  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<MedicalDocument | null>(null);
+  const [editMode, setEditMode] = useState(false);
+
   const { data, isLoading } = useQuery<{ documents: MedicalDocument[] }>({
     queryKey: ['/api/medical-documents'],
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (documentId: string) => {
+      const response = await apiRequest('DELETE', `/api/medical-documents/${documentId}`);
+      if (!response.ok) {
+        throw new Error('Failed to delete document');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/medical-documents'] });
+      toast({
+        title: 'Report Deleted',
+        description: 'The specialist report has been removed from AI memory.',
+      });
+      setDocumentToDelete(null);
+      setDeleteDialogOpen(false);
+      if (documents.length <= 1) {
+        setEditMode(false);
+      }
+    },
+    onError: () => {
+      toast({
+        title: 'Delete Failed',
+        description: 'Could not delete the report. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleDeleteClick = (doc: MedicalDocument, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDocumentToDelete(doc);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (documentToDelete) {
+      deleteMutation.mutate(documentToDelete.id);
+    }
+  };
 
   const documents = data?.documents?.filter(d => d.processingStatus === 'completed') || [];
 
@@ -125,11 +184,37 @@ export function SpecialistReportsTile({ isDark }: SpecialistReportsTileProps) {
             </p>
           </div>
         </div>
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-          isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
-        }`}>
-          <Brain className="w-3 h-3" />
-          <span>AI Ready</span>
+        <div className="flex items-center gap-2">
+          {editMode ? (
+            <button
+              onClick={() => setEditMode(false)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${
+                isDark ? 'bg-white/10 text-white/80 hover:bg-white/20' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+              data-testid="button-done-editing"
+            >
+              <X className="w-3 h-3" />
+              <span>Done</span>
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => setEditMode(true)}
+                className={`px-2 py-1 rounded-full text-xs transition-colors ${
+                  isDark ? 'bg-white/10 text-white/60 hover:bg-white/20' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                }`}
+                data-testid="button-edit-reports"
+              >
+                Edit
+              </button>
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+              }`}>
+                <Brain className="w-3 h-3" />
+                <span>AI Ready</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -142,6 +227,19 @@ export function SpecialistReportsTile({ isDark }: SpecialistReportsTileProps) {
             }`}
             data-testid={`report-item-${doc.id}`}
           >
+            {editMode && (
+              <button
+                onClick={(e) => handleDeleteClick(doc, e)}
+                className={`mr-3 p-1.5 rounded-full transition-colors flex-shrink-0 ${
+                  isDark 
+                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30' 
+                    : 'bg-red-100 text-red-600 hover:bg-red-200'
+                }`}
+                data-testid={`button-delete-report-${doc.id}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
             <div className="flex-1 min-w-0">
               <p className={`text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {doc.title || 'Untitled Report'}
@@ -160,16 +258,47 @@ export function SpecialistReportsTile({ isDark }: SpecialistReportsTileProps) {
                 </span>
               </div>
             </div>
-            <ChevronRight className={`w-4 h-4 flex-shrink-0 ${
-              isDark ? 'text-white/30' : 'text-gray-400'
-            }`} />
+            {!editMode && (
+              <ChevronRight className={`w-4 h-4 flex-shrink-0 ${
+                isDark ? 'text-white/30' : 'text-gray-400'
+              }`} />
+            )}
           </div>
         ))}
       </div>
 
       <p className={`text-xs mt-4 text-center ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-        Ask Flō Oracle about any of these reports
+        {editMode ? 'Tap the red icon to delete a report' : 'Ask Flō Oracle about any of these reports'}
       </p>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className={isDark ? 'bg-slate-900 border-white/10' : ''}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={isDark ? 'text-white' : ''}>
+              Delete Report?
+            </AlertDialogTitle>
+            <AlertDialogDescription className={isDark ? 'text-white/60' : ''}>
+              This will permanently remove "{documentToDelete?.title || 'Untitled Report'}" from your account and AI memory. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className={isDark ? 'bg-white/10 border-white/10 text-white hover:bg-white/20' : ''}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
