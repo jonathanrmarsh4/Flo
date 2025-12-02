@@ -13,6 +13,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Note: AVAudioSession is NOT configured on launch - it's configured on-demand 
         // by NativeMicrophonePlugin when voice chat starts, to avoid affecting other audio features.
         
+        // CRITICAL: Pre-warm the keyboard system on first launch to prevent 15s freeze
+        // This triggers iOS to initialize keyboard caches before user interaction
+        preWarmKeyboard()
+        
         // Disable WKWebView rubber band bounce to prevent white strip during overscroll
         // This must run after the window is set up, so we dispatch it to the next run loop
         DispatchQueue.main.async {
@@ -46,6 +50,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return true
     }
     
+    /// Pre-warm the iOS keyboard system to prevent first-input freeze
+    /// iOS initializes keyboard caches on first use which can cause 15s delays when combined with WKWebView
+    private func preWarmKeyboard() {
+        DispatchQueue.main.async {
+            // Create a hidden text field to trigger keyboard initialization
+            let hiddenField = UITextField(frame: CGRect(x: -1000, y: -1000, width: 100, height: 44))
+            hiddenField.autocorrectionType = .no
+            hiddenField.autocapitalizationType = .none
+            hiddenField.spellCheckingType = .no
+            
+            if let window = self.window {
+                window.addSubview(hiddenField)
+                
+                // Briefly become first responder to initialize keyboard system
+                hiddenField.becomeFirstResponder()
+                
+                // Immediately resign and remove
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    hiddenField.resignFirstResponder()
+                    hiddenField.removeFromSuperview()
+                    print("✅ Keyboard pre-warmed for first-run optimization")
+                }
+            }
+        }
+    }
+    
     // Configure WKWebView to disable bounce, set dark background, and enable media permissions
     private func configureWebView(_ bridgeVC: CAPBridgeViewController) {
         guard let webView = bridgeVC.webView else { return }
@@ -58,8 +88,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Set interactive keyboard dismiss mode to prevent gesture gate timeout
         webView.scrollView.keyboardDismissMode = .interactive
         
-        // Disable link preview to prevent gesture conflicts
+        // Disable link preview to prevent gesture conflicts with keyboard
         webView.allowsLinkPreview = false
+        
+        // CRITICAL: Disable long press gesture recognizer to prevent keyboard conflicts
+        // This is a known iOS WKWebView bug (Apple Forums thread 719620)
+        disableLongPressGesture(on: webView)
         
         // Set dark background to match app theme (#0f172a = slate-900)
         let darkBackground = UIColor(red: 15/255.0, green: 23/255.0, blue: 42/255.0, alpha: 1.0)
@@ -73,13 +107,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             webView.configuration.preferences.isElementFullscreenEnabled = true
         }
         
+        // CRITICAL: Inject JS to disable SharedWorker (iOS 16.1+ bug that causes WKWebView freezes)
+        let disableSharedWorkerScript = WKUserScript(
+            source: "delete window.SharedWorker;",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        )
+        webView.configuration.userContentController.addUserScript(disableSharedWorkerScript)
+        print("✅ SharedWorker disabled to prevent WKWebView freeze")
+        
         // Set UI delegate for media capture permissions and focus handling (iOS 15+)
         if #available(iOS 15.0, *) {
             webView.uiDelegate = WebViewUIDelegate.shared
             print("✅ WKUIDelegate configured for media capture permissions")
         }
         
+        // Set navigation delegate to handle process termination
+        webView.navigationDelegate = WebViewNavigationDelegate.shared
+        
         print("✅ WebView keyboard handling configured")
+    }
+    
+    /// Disable long press gesture recognizer to prevent keyboard conflicts
+    private func disableLongPressGesture(on webView: WKWebView) {
+        if let longPressGesture = webView.gestureRecognizers?.first(where: { $0 is UILongPressGestureRecognizer }) {
+            longPressGesture.isEnabled = false
+            print("✅ Long press gesture disabled to prevent keyboard freeze")
+        }
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -154,5 +208,26 @@ class WebViewUIDelegate: NSObject, WKUIDelegate {
             print("⚠️ Unknown media type, granting permission")
             decisionHandler(.grant)
         }
+    }
+}
+
+// MARK: - WKNavigationDelegate for Process Termination Recovery
+// Handles WKWebView content process crashes/freezes
+class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
+    static let shared = WebViewNavigationDelegate()
+    
+    private override init() {
+        super.init()
+    }
+    
+    // Called when WKWebView web content process terminates (freeze/crash recovery)
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        print("⚠️ WKWebView content process terminated - reloading")
+        webView.reload()
+    }
+    
+    // Called when navigation fails - can help recover from keyboard-related freezes
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        print("⚠️ WKWebView navigation failed: \(error.localizedDescription)")
     }
 }

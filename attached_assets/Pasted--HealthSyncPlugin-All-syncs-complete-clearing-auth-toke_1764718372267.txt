@@ -1,0 +1,83 @@
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+[Workouts] Found 4 workouts
+XPC connection interrupted
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250241 }
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x123f71cc0 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x123eed600.width == _UIButtonBarButton:0x123ee5e00.width   (active)>",
+    "<NSLayoutConstraint:0x123f71e00 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x134834000]   (active, names: '|':_UIButtonBarButton:0x123ee5e00 )>",
+    "<NSLayoutConstraint:0x123f71e50 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x134834000]-(8)-|   (active, names: '|':_UIButtonBarButton:0x123ee5e00 )>",
+    "<NSLayoutConstraint:0x123f723a0 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x123eed600.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x123f71e50 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x134834000]-(8)-|   (active, names: '|':_UIButtonBarButton:0x123ee5e00 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x123f72850 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x123eeda00.width == _UIButtonBarButton:0x123ee6300.width   (active)>",
+    "<NSLayoutConstraint:0x123f72990 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x134834380]   (active, names: '|':_UIButtonBarButton:0x123ee6300 )>",
+    "<NSLayoutConstraint:0x123f729e0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x134834380]-(8)-|   (active, names: '|':_UIButtonBarButton:0x123ee6300 )>",
+    "<NSLayoutConstraint:0x123f72e90 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x123eeda00.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x123f729e0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x134834380]-(8)-|   (active, names: '|':_UIButtonBarButton:0x123ee6300 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+Unable to simultaneously satisfy constraints.
+	Probably at least one of the constraints in the following list is one you don't want. 
+	Try this: 
+		(1) look at each constraint and try to figure out which you don't expect; 
+		(2) find the code that added the unwanted constraint or constraints and fix it. 
+(
+    "<NSLayoutConstraint:0x123f732a0 _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x123eede00.width == _UIButtonBarButton:0x123ee6800.width   (active)>",
+    "<NSLayoutConstraint:0x123f73390 'IB_Leading_Leading' H:|-(8)-[_UIModernBarButton:0x134834700]   (active, names: '|':_UIButtonBarButton:0x123ee6800 )>",
+    "<NSLayoutConstraint:0x123f733e0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x134834700]-(8)-|   (active, names: '|':_UIButtonBarButton:0x123ee6800 )>",
+    "<NSLayoutConstraint:0x123f73890 'UIView-Encapsulated-Layout-Width' _TtC5UIKitP33_DDE14AA6B49FCAFC5A54255A118E1D8713ButtonWrapper:0x123eede00.width == 0   (active)>"
+)
+
+Will attempt to recover by breaking constraint 
+<NSLayoutConstraint:0x123f733e0 'IB_Trailing_Trailing' H:[_UIModernBarButton:0x134834700]-(8)-|   (active, names: '|':_UIButtonBarButton:0x123ee6800 )>
+
+Make a symbolic breakpoint at UIViewAlertForUnsatisfiableConstraints to catch this in the debugger.
+The methods in the UIConstraintBasedLayoutDebugging category on UIView listed in <UIKitCore/UIView.h> may also be helpful.
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = E67B795D-BF7D-4814-9491-C3459C06898A
+<0x109e0a440> Gesture: System gesture gate timed out.
+containerToPush is nil, will not push anything to candidate receiver for request token: 0B574B74
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x1349947e0 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+View <(null):0x0> does not conform to UITextInput protocol
+View <(null):0x0> does not conform to UITextInput protocol
+Reporter disconnected or already stopped. { func=stop, reporterID=52892522250241 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+Reporter disconnected. { function=sendMessage, reporterID=52892522250242 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:textSuggestionsChanged:]  Can only set suggestions for an active session. sessionID = E67B795D-BF7D-4814-9491-C3459C06898A
