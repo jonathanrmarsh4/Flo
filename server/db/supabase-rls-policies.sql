@@ -3,22 +3,19 @@
 -- Note: Service role key bypasses RLS, but this blocks anon/authenticated roles
 
 -- =============================================================================
--- 1. insight_cards - AI-detected health patterns
+-- 1. insight_cards - AI-detected health patterns (FLAGGED)
 -- =============================================================================
 ALTER TABLE public.insight_cards ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies if any
 DROP POLICY IF EXISTS "insight_cards_owner_all" ON public.insight_cards;
 
--- Since we only use service role (bypasses RLS), create a restrictive default
--- that blocks all non-service-role access
 CREATE POLICY "insight_cards_owner_all" ON public.insight_cards
   FOR ALL
   USING (health_id = current_setting('app.current_health_id', true)::uuid)
   WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
 
 -- =============================================================================
--- 2. healthkit_workouts - iOS HealthKit workout sessions
+-- 2. healthkit_workouts - iOS HealthKit workout sessions (FLAGGED)
 -- =============================================================================
 ALTER TABLE public.healthkit_workouts ENABLE ROW LEVEL SECURITY;
 
@@ -30,13 +27,13 @@ CREATE POLICY "healthkit_workouts_owner_all" ON public.healthkit_workouts
   WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
 
 -- =============================================================================
--- 3. user_profiles - User health profiles
+-- 3. profiles - User health profiles
 -- =============================================================================
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "user_profiles_owner_all" ON public.user_profiles;
+DROP POLICY IF EXISTS "profiles_owner_all" ON public.profiles;
 
-CREATE POLICY "user_profiles_owner_all" ON public.user_profiles
+CREATE POLICY "profiles_owner_all" ON public.profiles
   FOR ALL
   USING (health_id = current_setting('app.current_health_id', true)::uuid)
   WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
@@ -138,16 +135,76 @@ CREATE POLICY "action_plan_items_owner_all" ON public.action_plan_items
   WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
 
 -- =============================================================================
--- 12. user_insights - Brain memory / embeddings
+-- 12. user_insights_embeddings - Brain memory / vector embeddings
 -- =============================================================================
-ALTER TABLE public.user_insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_insights_embeddings ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "user_insights_owner_all" ON public.user_insights;
+DROP POLICY IF EXISTS "user_insights_embeddings_owner_all" ON public.user_insights_embeddings;
 
-CREATE POLICY "user_insights_owner_all" ON public.user_insights
+CREATE POLICY "user_insights_embeddings_owner_all" ON public.user_insights_embeddings
   FOR ALL
   USING (health_id = current_setting('app.current_health_id', true)::uuid)
   WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
+
+-- =============================================================================
+-- 13. healthkit_samples - Raw HealthKit data samples
+-- =============================================================================
+ALTER TABLE public.healthkit_samples ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "healthkit_samples_owner_all" ON public.healthkit_samples;
+
+CREATE POLICY "healthkit_samples_owner_all" ON public.healthkit_samples
+  FOR ALL
+  USING (health_id = current_setting('app.current_health_id', true)::uuid)
+  WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
+
+-- =============================================================================
+-- 14. nutrition_daily_metrics - Daily nutrition data
+-- =============================================================================
+ALTER TABLE public.nutrition_daily_metrics ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "nutrition_daily_metrics_owner_all" ON public.nutrition_daily_metrics;
+
+CREATE POLICY "nutrition_daily_metrics_owner_all" ON public.nutrition_daily_metrics
+  FOR ALL
+  USING (health_id = current_setting('app.current_health_id', true)::uuid)
+  WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
+
+-- =============================================================================
+-- 15. mindfulness_sessions - Individual mindfulness sessions
+-- =============================================================================
+ALTER TABLE public.mindfulness_sessions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "mindfulness_sessions_owner_all" ON public.mindfulness_sessions;
+
+CREATE POLICY "mindfulness_sessions_owner_all" ON public.mindfulness_sessions
+  FOR ALL
+  USING (health_id = current_setting('app.current_health_id', true)::uuid)
+  WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
+
+-- =============================================================================
+-- 16. mindfulness_daily_metrics - Aggregated mindfulness data
+-- =============================================================================
+ALTER TABLE public.mindfulness_daily_metrics ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "mindfulness_daily_metrics_owner_all" ON public.mindfulness_daily_metrics;
+
+CREATE POLICY "mindfulness_daily_metrics_owner_all" ON public.mindfulness_daily_metrics
+  FOR ALL
+  USING (health_id = current_setting('app.current_health_id', true)::uuid)
+  WITH CHECK (health_id = current_setting('app.current_health_id', true)::uuid);
+
+-- =============================================================================
+-- 17. biomarkers - Reference biomarker definitions
+-- =============================================================================
+ALTER TABLE public.biomarkers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "biomarkers_public_read" ON public.biomarkers;
+
+-- Biomarkers is a reference table - allow public read access
+CREATE POLICY "biomarkers_public_read" ON public.biomarkers
+  FOR SELECT
+  USING (true);
 
 -- =============================================================================
 -- Verification: Check RLS status on all tables
@@ -161,7 +218,7 @@ WHERE schemaname = 'public'
   AND tablename IN (
     'insight_cards',
     'healthkit_workouts', 
-    'user_profiles',
+    'profiles',
     'biomarker_test_sessions',
     'biomarker_measurements',
     'sleep_nights',
@@ -170,6 +227,11 @@ WHERE schemaname = 'public'
     'diagnostics_studies',
     'flomentum_daily',
     'action_plan_items',
-    'user_insights'
+    'user_insights_embeddings',
+    'healthkit_samples',
+    'nutrition_daily_metrics',
+    'mindfulness_sessions',
+    'mindfulness_daily_metrics',
+    'biomarkers'
   )
 ORDER BY tablename;
