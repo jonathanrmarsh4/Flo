@@ -541,6 +541,33 @@ export async function createLifeEvent(userId: string, event: any) {
   throw new Error("Supabase health storage not enabled");
 }
 
+export async function getInsightCards(userId: string, activeOnly: boolean = true) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const results = await supabaseHealth.getInsightCards(userId, activeOnly);
+      // Normalize Supabase snake_case to camelCase for API compatibility
+      return results.map(r => ({
+        id: r.id,
+        userId: userId,
+        category: r.category,
+        pattern: r.pattern,
+        confidence: r.confidence,
+        supportingData: r.supporting_data,
+        details: r.details,
+        isNew: r.is_new,
+        isActive: r.is_active,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      }));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getInsightCards failed, falling back to Neon:", error);
+    }
+  }
+  
+  // Fallback to Neon - currently using direct db query
+  return [];
+}
+
 interface GetFlomentumDailyOptions {
   startDate?: Date;
   limit?: number;

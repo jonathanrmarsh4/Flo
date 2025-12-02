@@ -35,6 +35,19 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 - **Architecture clarification:** `flomentumScoringEngine.ts` is a pure calculation function (no DB access)
 - **Root cause fixed:** Data was written to Supabase but previously read from empty Neon tables; flomentum writes failed due to camelCase/snake_case mismatch
 
+**Flō Oracle Context Routing (Dec 2025):** Comprehensive update to route ALL health data reads through healthStorageRouter:
+- `floOracleContextBuilder.ts` - Updated to use healthStorageRouter functions for all health data sources:
+  - `getHealthRouterProfile()` for user profiles
+  - `getHealthRouterBiomarkerSessions()` and `getHealthRouterMeasurementsBySession()` for blood work
+  - `getHealthRouterDiagnosticsStudies()` for CAC/DEXA scans
+  - `getHealthRouterSleepNights()` for sleep data
+  - `getHealthRouterLifeEvents()` for behavioral logs
+  - `getHealthRouterFlomentumDaily()` for momentum scores
+  - `getHealthRouterInsightCards()` for AI-detected patterns
+  - `getSupabaseActionPlanItems()` for action plan items
+- Transition pattern: Try Supabase first, fall back to Neon if empty (for migration period)
+- Migration SQL: `server/db/supabase-action-plan-migration.sql` extends action_plan_items and adds insight_cards table
+
 **Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights using a 2-layer architecture: a RAG Layer (vector search + Gemini 2.5 Pro) and a safety net Layer D for out-of-range biomarkers. It includes confidence scoring, insight ranking, domain diversity limits, and natural language generation, with insights generated at 6 AM local time.
 
 **Conversational Life Event Logging System:** Automatically tracks and parses health narratives from Flō Oracle conversations into structured JSONB, stored in the `life_events` table for context integration.

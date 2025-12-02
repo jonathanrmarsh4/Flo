@@ -22,9 +22,16 @@ import {
   getNutritionDailyMetrics as getHealthRouterNutritionMetrics,
   getMindfulnessDailyMetrics as getHealthRouterMindfulnessMetrics,
   getBiomarkerSessions as getHealthRouterBiomarkerSessions,
-  getMeasurementsBySession as getHealthRouterMeasurementsBySession
+  getMeasurementsBySession as getHealthRouterMeasurementsBySession,
+  getDiagnosticsStudies as getHealthRouterDiagnosticsStudies,
+  getSleepNights as getHealthRouterSleepNights,
+  getProfile as getHealthRouterProfile,
+  getLifeEvents as getHealthRouterLifeEvents,
+  getFlomentumDaily as getHealthRouterFlomentumDaily,
+  getHealthkitWorkouts as getHealthRouterWorkouts,
+  getInsightCards as getHealthRouterInsightCards,
 } from './healthStorageRouter';
-import { getDailyMetrics as getSupabaseDailyMetrics } from './supabaseHealthStorage';
+import { getDailyMetrics as getSupabaseDailyMetrics, getActionPlanItems as getSupabaseActionPlanItems } from './supabaseHealthStorage';
 
 // In-memory cache for user health context (5 minute TTL)
 interface CachedContext {
@@ -277,14 +284,13 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     const userTimezone = user?.timezone || 'America/Los_Angeles';
     logger.info(`[FloOracle] Using timezone: ${userTimezone} for user ${userId}`);
     
-    const [userProfile] = await db
-      .select()
-      .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .limit(1);
+    // Fetch user profile from Supabase via healthStorageRouter
+    const userProfile = await getHealthRouterProfile(userId);
 
     if (userProfile) {
-      context.age = calculateAgeFromBirthYear(userProfile.birthYear);
+      // Handle both snake_case (Supabase) and camelCase (Neon) field names
+      const birthYear = userProfile.birth_year || userProfile.birthYear;
+      context.age = calculateAgeFromBirthYear(birthYear);
       context.sex = userProfile.sex || 'unknown';
       context.primaryGoals = Array.isArray(userProfile.goals) ? userProfile.goals : [];
     }
@@ -373,45 +379,32 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       }
     }
 
-    const latestCAC = await db
-      .select()
-      .from(diagnosticsStudies)
-      .where(
-        and(
-          eq(diagnosticsStudies.userId, userId),
-          eq(diagnosticsStudies.type, 'coronary_calcium_score')
-        )
-      )
-      .orderBy(desc(diagnosticsStudies.studyDate))
-      .limit(1);
-
-    if (latestCAC.length > 0) {
-      const cac = latestCAC[0];
-      const payload = cac.aiPayload as Record<string, any> || {};
-      context.latestCAC.score = cac.totalScoreNumeric ?? payload.cacScore ?? null;
-      context.latestCAC.percentile = cac.agePercentile?.toString() ?? payload.percentile ?? null;
-      context.latestCAC.date = formatDateInTimezone(cac.studyDate, userTimezone);
+    // Use healthStorageRouter to fetch CAC/DEXA from Supabase
+    try {
+      const cacStudies = await getHealthRouterDiagnosticsStudies(userId, 'coronary_calcium_score');
+      if (cacStudies.length > 0) {
+        const cac = cacStudies[0];
+        const payload = cac.aiPayload as Record<string, any> || {};
+        context.latestCAC.score = cac.totalScoreNumeric ?? payload.cacScore ?? null;
+        context.latestCAC.percentile = cac.agePercentile?.toString() ?? payload.percentile ?? null;
+        context.latestCAC.date = cac.studyDate ? formatDateInTimezone(new Date(cac.studyDate), userTimezone) : null;
+      }
+    } catch (error) {
+      logger.error('[FloOracle] Error fetching CAC from Supabase:', error);
     }
 
-    const latestDEXA = await db
-      .select()
-      .from(diagnosticsStudies)
-      .where(
-        and(
-          eq(diagnosticsStudies.userId, userId),
-          eq(diagnosticsStudies.type, 'dexa_scan')
-        )
-      )
-      .orderBy(desc(diagnosticsStudies.studyDate))
-      .limit(1);
-
-    if (latestDEXA.length > 0) {
-      const dexa = latestDEXA[0];
-      const payload = dexa.aiPayload as Record<string, any> || {};
-      context.latestDEXA.visceralFat = payload.visceralFatMass ?? null;
-      context.latestDEXA.leanMass = payload.totalLeanMass ?? null;
-      context.latestDEXA.bodyFat = payload.totalBodyFat ?? null;
-      context.latestDEXA.date = formatDateInTimezone(dexa.studyDate, userTimezone);
+    try {
+      const dexaStudies = await getHealthRouterDiagnosticsStudies(userId, 'dexa_scan');
+      if (dexaStudies.length > 0) {
+        const dexa = dexaStudies[0];
+        const payload = dexa.aiPayload as Record<string, any> || {};
+        context.latestDEXA.visceralFat = payload.visceralFatMass ?? null;
+        context.latestDEXA.leanMass = payload.totalLeanMass ?? null;
+        context.latestDEXA.bodyFat = payload.totalBodyFat ?? null;
+        context.latestDEXA.date = dexa.studyDate ? formatDateInTimezone(new Date(dexa.studyDate), userTimezone) : null;
+      }
+    } catch (error) {
+      logger.error('[FloOracle] Error fetching DEXA from Supabase:', error);
     }
 
     const sevenDaysAgo = new Date();
@@ -482,23 +475,22 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       }
     }
 
-    // Fetch sleep data from sleepNights table (more accurate than daily metrics sleep_hours)
-    const sleepData = await db
-      .select({
-        avgSleep: sql<number>`AVG(${sleepNights.totalSleepMin})`,
-      })
-      .from(sleepNights)
-      .where(
-        and(
-          eq(sleepNights.userId, userId),
-          gte(sleepNights.sleepDate, sevenDaysAgoStr)
-        )
-      );
-
-    if (sleepData.length > 0 && sleepData[0]?.avgSleep) {
-      const hours = Math.floor(sleepData[0].avgSleep / 60);
-      const mins = Math.round(sleepData[0].avgSleep % 60);
-      context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
+    // Fetch sleep data from sleepNights via router (routes to Supabase)
+    try {
+      const sleepNightsData = await getHealthRouterSleepNights(userId, 7);
+      if (sleepNightsData.length > 0) {
+        const totalSleepMins = sleepNightsData
+          .filter(s => s.totalSleepMin != null)
+          .map(s => s.totalSleepMin as number);
+        if (totalSleepMins.length > 0) {
+          const avgSleep = totalSleepMins.reduce((a, b) => a + b, 0) / totalSleepMins.length;
+          const hours = Math.floor(avgSleep / 60);
+          const mins = Math.round(avgSleep % 60);
+          context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
+        }
+      }
+    } catch (error) {
+      logger.error('[FloOracle] Error fetching sleep nights from Supabase:', error);
     }
     
     if (supabaseEnabled) {
@@ -1150,25 +1142,49 @@ Encourage them to upload their first blood panel or sync their HealthKit data to
 /**
  * Retrieve relevant insight cards for RAG-enhanced context
  * Returns the top discovered patterns to inject into Flō Oracle's context
+ * Reads from Supabase via healthStorageRouter
  */
 export async function getRelevantInsights(userId: string, limit: number = 5): Promise<string> {
   try {
-    const insights = await db
-      .select({
-        category: insightCards.category,
-        pattern: insightCards.pattern,
-        confidence: insightCards.confidence,
-        supportingData: insightCards.supportingData,
-      })
-      .from(insightCards)
-      .where(
-        and(
-          eq(insightCards.userId, userId),
-          eq(insightCards.isActive, true)
+    // Use healthStorageRouter to get insight cards from Supabase
+    let insights: any[] = [];
+    
+    if (isSupabaseHealthEnabled()) {
+      try {
+        const supabaseInsights = await getHealthRouterInsightCards(userId, true);
+        if (supabaseInsights.length > 0) {
+          insights = supabaseInsights.slice(0, limit);
+          logger.info(`[FloOracle] Retrieved ${insights.length} insight cards from Supabase for user ${userId}`);
+        }
+      } catch (error) {
+        logger.error('[FloOracle] Error fetching insight cards from Supabase, falling back to Neon:', error);
+      }
+    }
+    
+    // Fall back to Neon if Supabase returned no data (transition period)
+    if (insights.length === 0) {
+      const neonInsights = await db
+        .select({
+          category: insightCards.category,
+          pattern: insightCards.pattern,
+          confidence: insightCards.confidence,
+          supportingData: insightCards.supportingData,
+        })
+        .from(insightCards)
+        .where(
+          and(
+            eq(insightCards.userId, userId),
+            eq(insightCards.isActive, true)
+          )
         )
-      )
-      .orderBy(desc(insightCards.confidence), desc(insightCards.createdAt))
-      .limit(limit);
+        .orderBy(desc(insightCards.confidence), desc(insightCards.createdAt))
+        .limit(limit);
+      
+      insights = neonInsights;
+      if (insights.length > 0) {
+        logger.warn(`[FloOracle] Insight cards read from Neon (should be migrated to Supabase) for user ${userId}`);
+      }
+    }
 
     if (insights.length === 0) {
       return '';
@@ -1179,9 +1195,12 @@ export async function getRelevantInsights(userId: string, limit: number = 5): Pr
       'DISCOVERED PATTERNS (use these insights naturally in conversation):',
     ];
 
-    insights.forEach((insight, index) => {
-      const confidencePercent = Math.round(insight.confidence * 100);
-      lines.push(`${index + 1}. ${insight.pattern} (${confidencePercent}% confidence, ${insight.supportingData})`);
+    insights.forEach((insight: any, index: number) => {
+      const confidence = insight.confidence || 0;
+      const supportingData = insight.supportingData || insight.supporting_data || '';
+      const pattern = insight.pattern || '';
+      const confidencePercent = Math.round(confidence * 100);
+      lines.push(`${index + 1}. ${pattern} (${confidencePercent}% confidence, ${supportingData})`);
     });
 
     logger.info(`[FloOracle] Retrieved ${insights.length} insight cards for user ${userId}`);
@@ -1195,28 +1214,15 @@ export async function getRelevantInsights(userId: string, limit: number = 5): Pr
 /**
  * Get recent life events to enhance conversational context
  * Returns user's logged behaviors from the past 14 days
+ * Uses healthStorageRouter to read from Supabase
  */
 export async function getRecentLifeEvents(userId: string, days: number = 14): Promise<string> {
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    const events = await db
-      .select({
-        eventType: lifeEvents.eventType,
-        details: lifeEvents.details,
-        notes: lifeEvents.notes,
-        happenedAt: lifeEvents.happenedAt,
-      })
-      .from(lifeEvents)
-      .where(
-        and(
-          eq(lifeEvents.userId, userId),
-          gte(lifeEvents.happenedAt, cutoffDate)
-        )
-      )
-      .orderBy(desc(lifeEvents.happenedAt))
-      .limit(10);
+    // Use healthStorageRouter to fetch life events from Supabase
+    const events = await getHealthRouterLifeEvents(userId, { startDate: cutoffDate, limit: 10 });
 
     if (events.length === 0) {
       return '';
@@ -1227,14 +1233,16 @@ export async function getRecentLifeEvents(userId: string, days: number = 14): Pr
       'RECENT LOGGED BEHAVIORS (reference these naturally when relevant):',
     ];
 
-    events.forEach((event) => {
-      const date = new Date(event.happenedAt);
+    events.forEach((event: any) => {
+      const happenedAt = event.happened_at || event.happenedAt;
+      const date = new Date(happenedAt);
       const daysAgo = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
       const timeRef = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
       
-      let eventDesc = event.eventType.replace(/_/g, ' ');
-      if (event.details && typeof event.details === 'object') {
-        const details = event.details as Record<string, any>;
+      const eventType = event.event_type || event.eventType;
+      let eventDesc = eventType.replace(/_/g, ' ');
+      const details = event.details;
+      if (details && typeof details === 'object') {
         if (details.duration_min) eventDesc += ` (${details.duration_min} min)`;
         if (details.drinks) eventDesc += ` (${details.drinks} drinks)`;
         if (details.names) eventDesc += ` (${details.names.join(', ')})`;
@@ -1243,7 +1251,7 @@ export async function getRecentLifeEvents(userId: string, days: number = 14): Pr
       lines.push(`• ${timeRef}: ${eventDesc}`);
     });
 
-    logger.info(`[FloOracle] Retrieved ${events.length} life events for user ${userId}`);
+    logger.info(`[FloOracle] Retrieved ${events.length} life events from Supabase for user ${userId}`);
     return lines.join('\n');
   } catch (error) {
     logger.error('[FloOracle] Error retrieving life events:', error);
@@ -1274,31 +1282,66 @@ export async function getUserMemoriesContext(userId: string, limit: number = 20)
 /**
  * Get user's active action plan items
  * Returns personalized health goals and actions the user is working on
+ * Reads from Supabase via healthStorageRouter
  */
 export async function getActiveActionPlanItems(userId: string): Promise<string> {
   try {
-    const items = await db
-      .select({
-        title: actionPlanItems.snapshotTitle,
-        insight: actionPlanItems.snapshotInsight,
-        action: actionPlanItems.snapshotAction,
-        category: actionPlanItems.category,
-        targetBiomarker: actionPlanItems.targetBiomarker,
-        currentValue: actionPlanItems.currentValue,
-        targetValue: actionPlanItems.targetValue,
-        unit: actionPlanItems.unit,
-        status: actionPlanItems.status,
-        addedAt: actionPlanItems.addedAt,
-      })
-      .from(actionPlanItems)
-      .where(
-        and(
-          eq(actionPlanItems.userId, userId),
-          eq(actionPlanItems.status, 'active')
+    // Try to get action plan items from Supabase first
+    let items: any[] = [];
+    
+    if (isSupabaseHealthEnabled()) {
+      try {
+        const supabaseItems = await getSupabaseActionPlanItems(userId, 'active');
+        if (supabaseItems.length > 0) {
+          items = supabaseItems.map((item: any) => ({
+            title: item.snapshot_title || item.title,
+            insight: item.snapshot_insight || item.description,
+            action: item.snapshot_action,
+            category: item.category,
+            targetBiomarker: item.target_biomarker,
+            currentValue: item.current_value,
+            targetValue: item.target_value,
+            unit: item.unit || item.target_unit,
+            status: item.status,
+            addedAt: item.added_at || item.created_at,
+          }));
+          logger.info(`[FloOracle] Retrieved ${items.length} action plan items from Supabase for user ${userId}`);
+        }
+      } catch (error) {
+        logger.error('[FloOracle] Error fetching action plan items from Supabase, falling back to Neon:', error);
+      }
+    }
+    
+    // Fall back to Neon if Supabase returned no data (for transition period)
+    if (items.length === 0) {
+      const neonItems = await db
+        .select({
+          title: actionPlanItems.snapshotTitle,
+          insight: actionPlanItems.snapshotInsight,
+          action: actionPlanItems.snapshotAction,
+          category: actionPlanItems.category,
+          targetBiomarker: actionPlanItems.targetBiomarker,
+          currentValue: actionPlanItems.currentValue,
+          targetValue: actionPlanItems.targetValue,
+          unit: actionPlanItems.unit,
+          status: actionPlanItems.status,
+          addedAt: actionPlanItems.addedAt,
+        })
+        .from(actionPlanItems)
+        .where(
+          and(
+            eq(actionPlanItems.userId, userId),
+            eq(actionPlanItems.status, 'active')
+          )
         )
-      )
-      .orderBy(desc(actionPlanItems.addedAt))
-      .limit(10);
+        .orderBy(desc(actionPlanItems.addedAt))
+        .limit(10);
+      
+      items = neonItems;
+      if (items.length > 0) {
+        logger.warn(`[FloOracle] Action plan items read from Neon (should be migrated to Supabase) for user ${userId}`);
+      }
+    }
 
     if (items.length === 0) {
       return '';

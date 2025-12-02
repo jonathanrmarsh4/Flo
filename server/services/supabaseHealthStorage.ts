@@ -1599,11 +1599,12 @@ export async function upsertMindfulnessDailyMetrics(userId: string, mindfulness:
 }
 
 // ==================== ACTION PLAN ITEMS ====================
+// Extended to match Neon schema for Daily Insights integration
 
 export interface ActionPlanItem {
   id?: string;
   health_id: string;
-  title: string;
+  title?: string | null;
   description?: string | null;
   category: string;
   status: string;
@@ -1620,6 +1621,15 @@ export interface ActionPlanItem {
   metadata?: Record<string, any> | null;
   created_at?: Date;
   updated_at?: Date;
+  // Extended fields for Daily Insights integration (matches Neon schema)
+  daily_insight_id?: string | null;
+  snapshot_title?: string | null;
+  snapshot_insight?: string | null;
+  snapshot_action?: string | null;
+  biomarker_id?: string | null;
+  target_biomarker?: string | null;
+  unit?: string | null;
+  added_at?: Date | null;
 }
 
 export async function createActionPlanItem(userId: string, item: Omit<ActionPlanItem, 'health_id'>): Promise<ActionPlanItem> {
@@ -1679,6 +1689,86 @@ export async function updateActionPlanItem(itemId: string, updates: Partial<Acti
 
   if (error) {
     logger.error('[SupabaseHealth] Error updating action plan item:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+// ==================== INSIGHT CARDS ====================
+// AI-detected health patterns from data analysis
+
+export interface InsightCard {
+  id?: string;
+  health_id: string;
+  category: string;
+  pattern: string;
+  confidence: number;
+  supporting_data?: string | null;
+  details?: Record<string, any> | null;
+  is_new?: boolean;
+  is_active?: boolean;
+  created_at?: Date | string;
+  updated_at?: Date | string;
+}
+
+export async function getInsightCards(userId: string, activeOnly: boolean = true): Promise<InsightCard[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('insight_cards')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('confidence', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (activeOnly) {
+    query = query.eq('is_active', true);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching insight cards:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function createInsightCard(userId: string, card: Omit<InsightCard, 'health_id'>): Promise<InsightCard> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('insight_cards')
+    .insert({
+      ...card,
+      health_id: healthId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error creating insight card:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateInsightCard(cardId: string, updates: Partial<InsightCard>): Promise<InsightCard> {
+  const { data, error } = await supabase
+    .from('insight_cards')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', cardId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating insight card:', error);
     throw error;
   }
 
