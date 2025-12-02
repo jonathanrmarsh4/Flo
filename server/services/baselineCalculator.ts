@@ -1,7 +1,8 @@
 import { db } from "../db";
-import { userDailyMetrics, userMetricBaselines } from "@shared/schema";
+import { userMetricBaselines } from "@shared/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { logger } from "../logger";
+import * as healthRouter from "./healthStorageRouter";
 
 export type MetricKey = 
   | "sleep_hours" 
@@ -36,47 +37,44 @@ export async function calculateBaseline(
     // Calculate date threshold for rolling window
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - windowDays);
-    const cutoffDateStr = cutoffDate.toISOString().split('T')[0]; // YYYY-MM-DD
 
     logger.debug(`[Baseline] Calculating ${metricKey} baseline for user ${userId}, window: ${windowDays} days`);
 
-    // Get column name based on metric key
-    const columnMap: Record<MetricKey, any> = {
-      sleep_hours: userDailyMetrics.sleepHours,
-      resting_hr: userDailyMetrics.restingHrBpm,
-      hrv_ms: userDailyMetrics.hrvMs,
-      active_energy_kcal: userDailyMetrics.activeEnergyKcal,
-      // 5 newly added metrics for complete HealthKit coverage
-      basal_energy_kcal: userDailyMetrics.basalEnergyKcal,
-      walking_hr_avg_bpm: userDailyMetrics.walkingHrAvgBpm,
-      dietary_water_ml: userDailyMetrics.dietaryWaterMl,
-      oxygen_saturation_pct: userDailyMetrics.oxygenSaturationPct,
-      respiratory_rate_bpm: userDailyMetrics.respiratoryRateBpm,
+    // Fetch all daily metrics within the window via healthRouter (routes to Supabase when enabled)
+    const records = await healthRouter.getUserDailyMetrics(userId, { 
+      startDate: cutoffDate, 
+      limit: windowDays + 1 
+    });
+
+    // Map metric key to the corresponding field in the normalized response
+    const fieldMap: Record<MetricKey, string> = {
+      sleep_hours: 'sleepHours',
+      resting_hr: 'restingHrBpm',
+      hrv_ms: 'hrvMs',
+      active_energy_kcal: 'activeEnergyKcal',
+      basal_energy_kcal: 'basalEnergyKcal',
+      walking_hr_avg_bpm: 'walkingHrAvgBpm',
+      dietary_water_ml: 'dietaryWaterMl',
+      oxygen_saturation_pct: 'oxygenSaturationPct',
+      respiratory_rate_bpm: 'respiratoryRateBpm',
     };
 
-    const column = columnMap[metricKey];
+    const field = fieldMap[metricKey];
 
-    // Fetch all non-null values for this metric within the window
-    const records = await db
-      .select({
-        value: column,
-        date: userDailyMetrics.localDate,
-      })
-      .from(userDailyMetrics)
-      .where(
-        and(
-          eq(userDailyMetrics.userId, userId),
-          gte(userDailyMetrics.localDate, cutoffDateStr),
-          sql`${column} IS NOT NULL`
-        )
-      );
+    // Extract non-null values for the specified metric
+    const values: number[] = [];
+    for (const record of records) {
+      const value = (record as any)[field];
+      if (value != null) {
+        values.push(value);
+      }
+    }
 
-    if (records.length === 0) {
+    if (values.length === 0) {
       logger.debug(`[Baseline] No data for ${metricKey}, user ${userId}`);
       return null;
     }
 
-    const values = records.map(r => r.value as number);
     const numSamples = values.length;
 
     // Calculate mean

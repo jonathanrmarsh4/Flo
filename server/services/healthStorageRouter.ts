@@ -338,6 +338,96 @@ export async function upsertDailyMetrics(userId: string, metric: any) {
   throw new Error("Supabase health storage not enabled");
 }
 
+interface GetUserDailyMetricsOptions {
+  startDate?: Date;
+  endDate?: Date;
+  localDate?: string;
+  limit?: number;
+}
+
+function normalizeUserDailyMetric(r: any, userId: string) {
+  return {
+    id: r.id,
+    userId: userId,
+    localDate: r.local_date,
+    timezone: r.timezone,
+    utcDayStart: r.utc_day_start ? new Date(r.utc_day_start) : null,
+    utcDayEnd: r.utc_day_end ? new Date(r.utc_day_end) : null,
+    stepsNormalized: r.steps_normalized,
+    stepsRawSum: r.steps_raw_sum,
+    stepsSources: r.steps_sources,
+    activeEnergyKcal: r.active_energy_kcal,
+    exerciseMinutes: r.exercise_minutes,
+    sleepHours: r.sleep_hours,
+    restingHrBpm: r.resting_hr_bpm,
+    hrvMs: r.hrv_ms,
+    weightKg: r.weight_kg,
+    heightCm: r.height_cm,
+    bmi: r.bmi,
+    bodyFatPercent: r.body_fat_percent,
+    leanBodyMassKg: r.lean_body_mass_kg,
+    waistCircumferenceCm: r.waist_circumference_cm,
+    distanceMeters: r.distance_meters,
+    flightsClimbed: r.flights_climbed,
+    standHours: r.stand_hours,
+    avgHeartRateBpm: r.avg_heart_rate_bpm,
+    systolicBp: r.systolic_bp,
+    diastolicBp: r.diastolic_bp,
+    bloodGlucoseMgDl: r.blood_glucose_mg_dl,
+    vo2Max: r.vo2_max,
+    basalEnergyKcal: r.basal_energy_kcal,
+    walkingHrAvgBpm: r.walking_hr_avg_bpm,
+    dietaryWaterMl: r.dietary_water_ml,
+    oxygenSaturationPct: r.oxygen_saturation_pct,
+    respiratoryRateBpm: r.respiratory_rate_bpm,
+    bodyTempC: r.body_temp_c,
+    walkingSpeedMs: r.walking_speed_ms,
+    walkingStepLengthM: r.walking_step_length_m,
+    walkingDoubleSupportPct: r.walking_double_support_pct,
+    walkingAsymmetryPct: r.walking_asymmetry_pct,
+    appleWalkingSteadiness: r.apple_walking_steadiness,
+    sixMinuteWalkDistanceM: r.six_minute_walk_distance_m,
+    stairAscentSpeedMs: r.stair_ascent_speed_ms,
+    stairDescentSpeedMs: r.stair_descent_speed_ms,
+    normalizationVersion: r.normalization_version,
+    createdAt: r.created_at ? new Date(r.created_at) : null,
+    updatedAt: r.updated_at ? new Date(r.updated_at) : null,
+  };
+}
+
+export async function getUserDailyMetrics(userId: string, options: GetUserDailyMetricsOptions = {}) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const results = await supabaseHealth.getDailyMetricsFlexible(userId, options);
+      return results.map(r => normalizeUserDailyMetric(r, userId));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getUserDailyMetrics failed, falling back to Neon:", error);
+    }
+  }
+  
+  // Fallback to Neon
+  const { storage } = await import("../storage");
+  return await storage.getUserDailyMetrics(userId, options);
+}
+
+export async function getUserDailyMetricsByDate(userId: string, localDate: string) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const result = await supabaseHealth.getDailyMetricsByDate(userId, localDate);
+      if (result) {
+        return normalizeUserDailyMetric(result, userId);
+      }
+      return undefined;
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getUserDailyMetricsByDate failed, falling back to Neon:", error);
+    }
+  }
+  
+  // Fallback to Neon
+  const { storage } = await import("../storage");
+  return await storage.getUserDailyMetricsByDate(userId, localDate);
+}
+
 interface GetHealthkitSamplesOptions {
   dataTypes?: string[];
   startDate?: Date;

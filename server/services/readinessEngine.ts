@@ -1,8 +1,9 @@
 import { db } from "../db";
-import { userDailyMetrics, userDailyReadiness } from "@shared/schema";
+import { userDailyReadiness } from "@shared/schema";
 import { eq, and, lt, desc } from "drizzle-orm";
 import { logger } from "../logger";
 import { getBaseline, type BaselineStats } from "./baselineCalculator";
+import * as healthRouter from "./healthStorageRouter";
 
 export interface ReadinessResult {
   userId: string;
@@ -201,42 +202,22 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
   try {
     logger.info(`[Readiness] Computing readiness for user ${userId}, date ${date}`);
 
-    // Fetch today's metrics
-    const metrics = await db
-      .select()
-      .from(userDailyMetrics)
-      .where(
-        and(
-          eq(userDailyMetrics.userId, userId),
-          eq(userDailyMetrics.localDate, date)
-        )
-      )
-      .limit(1);
+    // Fetch today's metrics via healthRouter (routes to Supabase when enabled)
+    const todayMetrics = await healthRouter.getUserDailyMetricsByDate(userId, date);
 
-    if (metrics.length === 0) {
+    if (!todayMetrics) {
       logger.warn(`[Readiness] No metrics found for user ${userId}, date ${date}`);
       return null;
     }
 
-    const todayMetrics = metrics[0];
-
-    // Fetch yesterday's metrics for load score
+    // Fetch yesterday's metrics for load score via healthRouter (Supabase)
     const yesterday = new Date(date);
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-    const yesterdayMetrics = await db
-      .select()
-      .from(userDailyMetrics)
-      .where(
-        and(
-          eq(userDailyMetrics.userId, userId),
-          eq(userDailyMetrics.localDate, yesterdayStr)
-        )
-      )
-      .limit(1);
+    const yesterdayMetrics = await healthRouter.getUserDailyMetricsByDate(userId, yesterdayStr);
 
-    const yesterdayActiveEnergy = yesterdayMetrics.length > 0 ? yesterdayMetrics[0].activeEnergyKcal : null;
+    const yesterdayActiveEnergy = yesterdayMetrics?.activeEnergyKcal ?? null;
 
     // Fetch baselines
     const sleepBaseline = await getBaseline(userId, "sleep_hours");

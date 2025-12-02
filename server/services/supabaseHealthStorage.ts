@@ -927,6 +927,65 @@ export async function getDailyMetrics(userId: string, days = 7): Promise<UserDai
   return data || [];
 }
 
+export async function getDailyMetricsByDate(userId: string, localDate: string): Promise<UserDailyMetric | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('user_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('local_date', localDate)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching daily metrics by date:', error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+interface GetDailyMetricsFlexibleOptions {
+  startDate?: Date;
+  endDate?: Date;
+  localDate?: string;
+  limit?: number;
+}
+
+export async function getDailyMetricsFlexible(userId: string, options: GetDailyMetricsFlexibleOptions = {}): Promise<UserDailyMetric[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('user_daily_metrics')
+    .select('*')
+    .eq('health_id', healthId);
+
+  if (options.localDate) {
+    query = query.eq('local_date', options.localDate);
+  }
+  if (options.startDate) {
+    query = query.gte('local_date', options.startDate.toISOString().split('T')[0]);
+  }
+  if (options.endDate) {
+    query = query.lte('local_date', options.endDate.toISOString().split('T')[0]);
+  }
+  
+  query = query.order('local_date', { ascending: false });
+  
+  if (options.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching daily metrics (flexible):', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 // ==================== FLOMENTUM DAILY ====================
 
 export interface FlomentumDaily {

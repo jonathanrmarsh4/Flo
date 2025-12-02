@@ -4890,13 +4890,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // TIMEZONE FIX: Get today's date in user's timezone, not UTC
-      // Query the user's most recent daily metric to get their timezone
-      const [recentMetric] = await db
-        .select({ timezone: userDailyMetrics.timezone })
-        .from(userDailyMetrics)
-        .where(eq(userDailyMetrics.userId, userId))
-        .orderBy(desc(userDailyMetrics.localDate))
-        .limit(1);
+      // Query the user's most recent daily metric to get their timezone via healthRouter (Supabase)
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const recentMetric = recentMetrics.length > 0 ? recentMetrics[0] : null;
       
       const userTimezone = recentMetric?.timezone || 'UTC';
       
@@ -4922,8 +4918,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         )
         .limit(1);
 
-      // Fetch today's metrics for freshness check and display data via storage layer
-      const todayMetricsRecord = await storage.getUserDailyMetricsByDate(userId, today);
+      // Fetch today's metrics for freshness check and display data via healthRouter (Supabase)
+      const todayMetricsRecord = await healthRouter.getUserDailyMetricsByDate(userId, today);
       const todayMetricsData = todayMetricsRecord ? [todayMetricsRecord] : [];
 
       // CRITICAL GUARD: Can only return cached readiness if both exist AND metrics are fresh
@@ -4940,12 +4936,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // SAFE PATH: Cached readiness is fresh, metrics exist
           logger.info(`[Readiness] Returning cached readiness for user ${userId}, ${today}`);
           
-          // Fetch yesterday's metrics for Activity Load context via storage layer
+          // Fetch yesterday's metrics for Activity Load context via healthRouter (Supabase)
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayStr = yesterday.toISOString().split('T')[0];
           
-          const yesterdayMetricsRecord = await storage.getUserDailyMetricsByDate(userId, yesterdayStr);
+          const yesterdayMetricsRecord = await healthRouter.getUserDailyMetricsByDate(userId, yesterdayStr);
           const yesterdayMetricsData = yesterdayMetricsRecord ? [{ activeEnergyKcal: yesterdayMetricsRecord.activeEnergyKcal }] : [];
           
           const displayMetrics = {
@@ -5234,8 +5230,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
           const { calculateFlomentumBaselines } = await import("./services/flomentumBaselineCalculator");
           
-          // Get daily metrics for this date via storage layer
-          const dailyMetrics = await storage.getUserDailyMetricsByDate(userId, sleepDate);
+          // Get daily metrics for this date via healthRouter (Supabase)
+          const dailyMetrics = await healthRouter.getUserDailyMetricsByDate(userId, sleepDate);
           
           if (dailyMetrics) {
             const baselines = await calculateFlomentumBaselines(userId, sleepDate);
@@ -5452,13 +5448,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       
       // TIMEZONE FIX: Get today's date in user's timezone, not UTC
-      // Query the user's most recent daily metric to get their timezone
-      const [recentMetric] = await db
-        .select({ timezone: userDailyMetrics.timezone })
-        .from(userDailyMetrics)
-        .where(eq(userDailyMetrics.userId, userId))
-        .orderBy(desc(userDailyMetrics.localDate))
-        .limit(1);
+      // Query the user's most recent daily metric to get their timezone via healthRouter (Supabase)
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const recentMetric = recentMetrics.length > 0 ? recentMetrics[0] : null;
       
       const userTimezone = recentMetric?.timezone || 'UTC';
       
@@ -6680,13 +6672,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // TIMEZONE FIX: Get today's date in user's timezone, not UTC
-      // Query the user's most recent daily metric to get their timezone
-      const [recentMetric] = await db
-        .select({ timezone: userDailyMetrics.timezone })
-        .from(userDailyMetrics)
-        .where(eq(userDailyMetrics.userId, userId))
-        .orderBy(desc(userDailyMetrics.localDate))
-        .limit(1);
+      // Query the user's most recent daily metric to get their timezone via healthRouter (Supabase)
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const recentMetric = recentMetrics.length > 0 ? recentMetrics[0] : null;
       
       const userTimezone = recentMetric?.timezone || 'UTC';
       
@@ -6803,10 +6791,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .limit(1);
 
-      // Get today's health metrics for activity bars via storage layer
+      // Get today's health metrics for activity bars via healthRouter (Supabase)
       // Use userDailyMetrics as primary source (where iOS HealthKit sync stores data)
       // Also check healthDailyMetrics as fallback
-      const dailyMetrics = await storage.getUserDailyMetricsByDate(userId, today);
+      const dailyMetrics = await healthRouter.getUserDailyMetricsByDate(userId, today);
       
       const [healthMetrics] = await db
         .select()
@@ -6963,13 +6951,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { field, value } = parseResult.data;
 
-      // Get user timezone
-      const [recentMetric] = await db
-        .select({ timezone: userDailyMetrics.timezone })
-        .from(userDailyMetrics)
-        .where(eq(userDailyMetrics.userId, userId))
-        .orderBy(desc(userDailyMetrics.localDate))
-        .limit(1);
+      // Get user timezone via healthRouter (Supabase)
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const recentMetric = recentMetrics.length > 0 ? recentMetrics[0] : null;
       
       const userTimezone = recentMetric?.timezone || 'UTC';
       const today = new Date().toLocaleString('en-CA', { 
@@ -7021,13 +7005,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Helper function to update AI chat usage in engagement record
   async function markAiChatUsed(userId: string): Promise<void> {
     try {
-      // Get user timezone
-      const [recentMetric] = await db
-        .select({ timezone: userDailyMetrics.timezone })
-        .from(userDailyMetrics)
-        .where(eq(userDailyMetrics.userId, userId))
-        .orderBy(desc(userDailyMetrics.localDate))
-        .limit(1);
+      // Get user timezone via healthRouter (Supabase)
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const recentMetric = recentMetrics.length > 0 ? recentMetrics[0] : null;
       
       const userTimezone = recentMetric?.timezone || 'UTC';
       const today = new Date().toLocaleString('en-CA', { 
@@ -8570,8 +8550,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       }
 
       if (!syncType || syncType === 'all' || syncType === 'healthkit') {
-        // Get user's HealthKit daily metrics via storage layer
-        const healthKitData = await storage.getUserDailyMetrics(userId, { limit: 60 });
+        // Get user's HealthKit daily metrics via healthRouter (Supabase)
+        const healthKitData = await healthRouter.getUserDailyMetrics(userId, { limit: 60 });
 
         if (healthKitData.length > 0) {
           healthKitCount = await syncHealthKitEmbeddings(userId, healthKitData);

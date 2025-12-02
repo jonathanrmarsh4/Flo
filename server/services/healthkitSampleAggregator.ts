@@ -3,13 +3,13 @@
  * 
  * Aggregates individual HealthKit samples into daily metrics for metrics that
  * iOS doesn't automatically aggregate (oxygen saturation, respiratory rate, body temp, etc.)
+ * 
+ * IMPORTANT: Uses healthStorageRouter for all database access to respect dual-database architecture
  */
 
-import { db } from '../db';
-import { healthkitSamples, userDailyMetrics } from '@shared/schema';
-import { eq, and, gte, lte, lt, sql, desc } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { TZDate } from '@date-fns/tz';
+import * as healthRouter from './healthStorageRouter';
 
 // HealthKit data type names as they come from iOS
 const SAMPLE_TYPE_MAPPING: Record<string, string> = {
@@ -79,6 +79,8 @@ interface AggregatedMetrics {
 /**
  * Aggregate HealthKit samples for a user on a specific date
  * Returns aggregated values for metrics that iOS doesn't aggregate
+ * 
+ * USES healthStorageRouter to read from Supabase when enabled
  */
 export async function aggregateSamplesForDate(
   userId: string,
@@ -115,21 +117,11 @@ export async function aggregateSamplesForDate(
     
     logger.debug(`[SampleAggregator] Querying ${localDate} (${timezone}): UTC ${dayStartUTC.toISOString()} to ${dayEndUTC.toISOString()}`);
     
-    // Get all samples for this user on this date
-    const samples = await db
-      .select({
-        dataType: healthkitSamples.dataType,
-        value: healthkitSamples.value,
-        unit: healthkitSamples.unit,
-      })
-      .from(healthkitSamples)
-      .where(
-        and(
-          eq(healthkitSamples.userId, userId),
-          gte(healthkitSamples.startDate, dayStartUTC),
-          lte(healthkitSamples.startDate, dayEndUTC)
-        )
-      );
+    // Get all samples for this user on this date via healthStorageRouter (Supabase)
+    const samples = await healthRouter.getHealthkitSamples(userId, {
+      startDate: dayStartUTC,
+      endDate: dayEndUTC,
+    });
 
     if (samples.length === 0) {
       logger.debug(`[SampleAggregator] No samples found for ${userId} on ${localDate}`);
@@ -207,6 +199,8 @@ export async function aggregateSamplesForDate(
 /**
  * Update user_daily_metrics with aggregated sample data
  * Only updates fields that are currently null
+ * 
+ * USES healthStorageRouter for database access (Supabase when enabled)
  */
 export async function fillMissingMetricsFromSamples(
   userId: string,
@@ -214,17 +208,9 @@ export async function fillMissingMetricsFromSamples(
   timezone: string
 ): Promise<void> {
   try {
-    // Get current daily metrics
-    const [existing] = await db
-      .select()
-      .from(userDailyMetrics)
-      .where(
-        and(
-          eq(userDailyMetrics.userId, userId),
-          eq(userDailyMetrics.localDate, localDate)
-        )
-      )
-      .limit(1);
+    // Get current daily metrics via healthStorageRouter (routes to Supabase when enabled)
+    const healthRouter = await import("./healthStorageRouter");
+    const existing = await healthRouter.getUserDailyMetricsByDate(userId, localDate);
 
     if (!existing) {
       logger.debug(`[SampleAggregator] No daily metrics record for ${userId} on ${localDate}`);
@@ -304,18 +290,19 @@ export async function fillMissingMetricsFromSamples(
     }
 
     if (Object.keys(updates).length > 0) {
-      await db
-        .update(userDailyMetrics)
-        .set({
-          ...updates,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(userDailyMetrics.userId, userId),
-            eq(userDailyMetrics.localDate, localDate)
-          )
-        );
+      // Update via healthRouter which routes to Supabase when enabled
+      // Use upsert with merged existing data to update specific fields
+      await healthRouter.upsertDailyMetrics(userId, {
+        local_date: localDate,
+        timezone,
+        ...Object.fromEntries(
+          Object.entries(updates).map(([key, value]) => [
+            // Convert camelCase to snake_case for Supabase
+            key.replace(/([A-Z])/g, '_$1').toLowerCase(),
+            value
+          ])
+        ),
+      } as any);
 
       logger.info(`[SampleAggregator] Updated ${Object.keys(updates).length} metrics from samples for ${userId} on ${localDate}:`, updates);
     }
@@ -327,21 +314,16 @@ export async function fillMissingMetricsFromSamples(
 /**
  * Backfill missing metrics for recent days
  * Useful for running once to populate historical data
+ * 
+ * USES healthStorageRouter for database access (Supabase when enabled)
  */
 export async function backfillMissingMetrics(userId: string, days: number = 30): Promise<void> {
   try {
     logger.info(`[SampleAggregator] Starting backfill for ${userId}, last ${days} days`);
 
-    // Get recent daily metrics records
-    const recentMetrics = await db
-      .select({
-        localDate: userDailyMetrics.localDate,
-        timezone: userDailyMetrics.timezone,
-      })
-      .from(userDailyMetrics)
-      .where(eq(userDailyMetrics.userId, userId))
-      .orderBy(desc(userDailyMetrics.localDate))
-      .limit(days);
+    // Get recent daily metrics records via healthStorageRouter (routes to Supabase when enabled)
+    const healthRouter = await import("./healthStorageRouter");
+    const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: days });
 
     let updated = 0;
     for (const record of recentMetrics) {

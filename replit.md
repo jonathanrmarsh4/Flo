@@ -1,7 +1,7 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is a mobile-first, AI-powered health analytics platform that analyzes blood work, calculates biological age, and provides personalized health recommendations. It features a dashboard with intelligent tiles, integrating with OpenAI's GPT models, Apple HealthKit, and a Grok-powered voice chat coach called **Flō Oracle**. The platform includes a **Stripe-powered subscription system** with FREE and PREMIUM tiers. Flō's core purpose is to deliver trusted, clear, and actionable health information, offering deep health insights and significant market potential in personalized wellness.
+Flō is a mobile-first, AI-powered health analytics platform designed to analyze blood work, calculate biological age, and provide personalized health recommendations. It features an intelligent dashboard, integrates with AI models (OpenAI, Grok, Gemini), Apple HealthKit, and includes a voice chat coach, Flō Oracle. The platform incorporates a Stripe-powered subscription system with FREE and PREMIUM tiers. Flō's core purpose is to deliver trusted, clear, and actionable health information, offering deep health insights and significant market potential in personalized wellness.
 
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
@@ -12,108 +12,39 @@ Flō is a mobile-first, AI-powered health analytics platform that analyzes blood
 ## System Architecture
 
 ### UI/UX Decisions
-The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, utilizing Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. It includes locked tiles, paywall modals, and an admin panel. Recent updates include a dark theme overhaul, restructured navigation, and drag-and-drop reorderable dashboard tiles. iOS Safe Area support is implemented using `pt-[env(safe-area-inset-top)]` and `viewport-fit=cover`.
+The platform employs a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, utilizing Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. It features locked tiles, paywall modals, an admin panel, dark theme, restructured navigation, and drag-and-drop reorderable dashboard tiles. iOS Safe Area support is implemented.
 
 ### Technical Implementations
-**Frontend:** Built with React, TypeScript, and Vite, using TanStack Query and Wouter. Features include biomarker insights, AI-powered health reports, PDF upload, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, **Flō Oracle voice chat** using Gemini Live API, and a **Flōmentum tile** for daily health momentum scores.
+**Frontend:** Built with React, TypeScript, and Vite, utilizing TanStack Query and Wouter. Key features include biomarker insights, AI-powered health reports, PDF upload, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, Flō Oracle voice chat using Gemini Live API, and a Flōmentum tile for daily health momentum scores.
 
-**Backend:** Developed with Express.js and TypeScript, providing a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, **Flō Oracle integration** (Grok-powered chat via xAI's grok-3-mini), **ElevenLabs integration** for voice, a HealthKit Readiness System, Comprehensive Sleep Tracking, Workout Session Tracking, **Flōmentum Momentum Scoring System**, **Apple Push Notifications (APNs)**, and **Stripe Billing Integration** for subscriptions and feature gating. Password reset tokens are hashed and single-use. Uploaded lab PDFs are deleted after biomarker extraction for privacy. WebAuthn Passkey authentication is implemented with `@simplewebauthn/server`. Session data is isolated on login by clearing the React Query cache.
+**Backend:** Developed with Express.js and TypeScript, offering a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, Flō Oracle integration (Grok-powered chat via xAI's grok-3-mini), ElevenLabs integration for voice, a HealthKit Readiness System, Comprehensive Sleep Tracking, Workout Session Tracking, Flōmentum Momentum Scoring System, Apple Push Notifications (APNs), and Stripe Billing Integration for subscriptions and feature gating. Password reset tokens are hashed and single-use, and uploaded lab PDFs are deleted post-extraction.
 
-**Data Storage:** Dual-database architecture for enhanced security:
-- **Neon (Primary):** Identity data (users, sessions, email, credentials, billing, audit logs). Uses Drizzle ORM.
-- **Supabase (Health):** Sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events). Linked via pseudonymous `health_id` UUID.
+**Data Storage:** A dual-database architecture is used for enhanced security:
+- **Neon (Primary):** Stores identity data (users, sessions, email, credentials, billing, audit logs) using Drizzle ORM.
+- **Supabase (Health):** Stores sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events), linked via a pseudonymous `health_id` UUID. This includes Row-Level Security (RLS) and separation of 12 health-related tables. Birth year is stored instead of full date of birth for privacy.
 
-**Data Segregation Architecture (Phase 2 Complete - Ready for Production Testing):**
-- `users.health_id` column added to Neon for pseudonymous linking
-- 12 health tables created in Supabase with Row-Level Security (RLS)
-- Data migration completed: 11 profiles, 47 biomarker sessions, 17 daily metrics, 8 sleep nights migrated
-- Feature-flagged routing via `server/services/healthStorageRouter.ts` with `SUPABASE_HEALTH_ENABLED` flag
-- Service layer at `server/services/supabaseHealthStorage.ts` for Supabase operations
-- Logger utility at `server/utils/logger.ts` for consistent logging
-- **Birth Year Privacy Enhancement (Nov 2025):** Replaced full `date_of_birth` with `birth_year` integer only to prevent re-identification attacks if databases are compromised. Age calculations use July 1st mid-year assumption (±6 month accuracy). Shared utility at `shared/utils/ageCalculation.ts`. 12 existing profiles migrated successfully.
-- **Storage Layer Expansion (Nov 2025):** Complete healthRouter implementation covering:
-  - HealthKit samples (get/upsert with flexible filtering)
-  - Sleep nights (getSleepNights/getSleepNightByDate/upsertSleepNight)
-  - User daily metrics (get/getByDate/upsert)
-  - Life events (getLifeEvents/createLifeEvent)
-  - Flomentum daily (getFlomentumDaily/getFlomentumDailyByDate/upsertFlomentumDaily)
-  - Diagnostic studies (getDiagnosticsStudies/createDiagnosticStudy)
-  - Action plan items (getActionPlanItems/getActionPlanItem/updateActionPlanItemStatus)
-  - Biomarker sessions and measurements (getBiomarkerSessions/createBiomarkerSession/getMeasurementsBySession/createBiomarkerMeasurement)
-  - Health profiles (getProfile/upsertProfile)
-  - **Nutrition daily metrics (Nov 2025):** getNutritionDailyMetrics/getNutritionDailyByDate/upsertNutritionDailyMetrics - 38 nutrient fields
-  - **Mindfulness sessions (Nov 2025):** getMindfulnessSessions/upsertMindfulnessSession - individual meditation tracking
-  - **Mindfulness daily metrics (Nov 2025):** getMindfulnessDailyMetrics/upsertMindfulnessDailyMetrics - daily aggregations
-- **Response Normalization:** healthRouter converts Supabase snake_case responses to camelCase for API compatibility
-- **Predicate Safety:** All storage methods use safe predicate building (`whereClause = conditions.length === 1 ? conditions[0] : and(...conditions)`)
-- **Fully Refactored Tables (0 direct db calls):** sleepNights, healthkitSamples, lifeEvents, flomentumDaily, diagnosticsStudies, actionPlanItems, userDailyMetrics, healthDailyMetrics, biomarkerTestSessions, biomarkerMeasurements, profiles, nutritionDailyMetrics, mindfulnessSessions, mindfulnessDailyMetrics, healthkitWorkouts
-- **Non-Health Tables (remain in Neon):** 
-  - dailyInsights (AI-generated content, not health data)
-  - diagnosticMetrics (AI-generated summaries, not raw health data)
-  - flomentumWeekly (aggregated scores, reads from Supabase flomentum_daily)
-- **Activation:** Set `SUPABASE_HEALTH_ENABLED=true` environment variable to enable Supabase routing
+**Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights using a 2-layer architecture: a RAG Layer (vector search + Gemini 2.5 Pro) and a safety net Layer D for out-of-range biomarkers. It includes confidence scoring, insight ranking, domain diversity limits, and natural language generation, with insights generated at 6 AM local time.
 
-Production database schema changes require manual verification and careful migration to avoid data loss.
+**Conversational Life Event Logging System:** Automatically tracks and parses health narratives from Flō Oracle conversations into structured JSONB, stored in the `life_events` table for context integration.
 
-**Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights daily using a 2-layer architecture: **RAG Layer** (vector search + **Gemini 2.5 Pro**) and **Layer D** (out-of-range biomarker safety net). It incorporates confidence scoring, insight ranking, domain diversity limits, and natural language generation. Insights are generated at 6 AM local time, with automatic timezone syncing from the frontend.
+**Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (Gemini-based) for bidirectional AI learning. It uses `user_insights` (vector-embedded) and `flo_chat_messages` tables for hybrid retrieval.
 
-**Conversational Life Event Logging System:** Automatically tracks health narratives from Flō Oracle conversations, parsing events into structured JSONB logged to the `life_events` table for integration into Flō Oracle's context.
+**AI Usage Analytics System:** Tracks all OpenAI and Grok API calls including token counts, costs, and latency, displayed in the admin dashboard.
 
-**Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (Gemini-based) for bidirectional AI learning. It utilizes `user_insights` (vector-embedded with source and importance) and `flo_chat_messages` tables. Retrieval is hybrid (recency + semantic search). Insights flow from GPT to Brain, and relevant insights are injected from Brain to Grok. Grok's responses are parsed to extract and persist discoveries, with nightly GPT-4o summarization of chat transcripts.
+**Billing & Subscription System:** Supports FREE and PREMIUM tiers with dual payment provider support: StoreKit 2 (iOS) for in-app purchases with JWS verification, and Stripe for web-based transactions.
 
-**Admin User Management:** Implements Role-Based Access Control (RBAC) with `free`, `premium`, and `admin` roles, providing user management, system overview metrics, and audit logs.
+**Daily Reminder Notifications:** Utilizes Gemini 2.5 Flash for AI-driven personalized reminders based on user data and Action Plan items for premium users.
 
-**AI Usage Analytics System:** Tracks all OpenAI and Grok API calls with token counts, costs, and latency, stored in `openaiUsageEvents` and displayed in the admin dashboard.
-
-**Billing & Subscription System:** Supports FREE and PREMIUM tiers with dual payment provider support: **StoreKit 2 (iOS)** for in-app purchases with cryptographic JWS verification, and **Stripe (Web fallback)** for web-based transactions. Security includes mandatory JWS signature verification for App Store transactions in production.
-
-**Daily Reminder Notifications:** Uses **Gemini 2.5 Flash** for AI-driven personalized reminders based on user data and Action Plan items for premium users.
-
-**iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events, with pre-built templates and a frontend settings page for API key management.
+**iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events, with pre-built templates and an API key management settings page.
 
 ### Feature Specifications
-- **Flō Oracle (Gemini Live):** Natural conversational voice chat via WebSocket using Gemini Live API with real-time bidirectional voice streaming. It includes media recording (WebM/Opus), session management, and health context/brain memory integration.
-- **HealthKit Integration:** Background syncing for 26+ data types and workout sessions, including extended daily metrics like weight, BMI, heart rate, and blood pressure.
+- **Flō Oracle (Gemini Live):** Natural conversational voice chat via WebSocket using Gemini Live API with real-time bidirectional voice streaming, media recording, and health context/brain memory integration.
+- **HealthKit Integration:** Background syncing for 73+ data types (including core, gait & mobility, nutrition, and mindfulness metrics) and workout sessions.
 - **Flōmentum:** Daily health momentum scores.
 - **Stripe Billing:** Comprehensive subscription management and feature gating.
 - **Daily Insights Engine:** Personalized, evidence-based health insights.
 - **Life Event Logging:** Automated tracking of conversational health events.
 - **iOS Shortcuts:** Quick event logging via secure API keys and templates.
-
-### Extended HealthKit Metrics
-The platform now tracks **73+ HealthKit data types** across multiple tables with complete daily aggregation:
-
-**Core Metrics (26 in user_daily_metrics):** steps, distance, activeEnergy, heartRate, weight, HRV, restingHeartRate, bloodPressure (systolic/diastolic), height, BMI, bodyFatPercentage, leanBodyMass, flightsClimbed, bloodGlucose, vo2Max, waistCircumference, exerciseTime, standTime, sleepAnalysis, basalEnergy, walkingHR, dietaryWater, oxygenSaturation, respiratoryRate
-
-**Gait & Mobility Metrics (8 fields in user_daily_metrics, Nov 2025):**
-- `walkingSpeedMs` - Average walking speed in meters/second
-- `walkingStepLengthM` - Average step length in meters
-- `walkingDoubleSupportPct` - Double support percentage (fall risk indicator)
-- `walkingAsymmetryPct` - Walking asymmetry percentage
-- `walkingSteadiness` - Apple Walking Steadiness score (0-100%)
-- `sixMinuteWalkDistanceM` - 6-minute walk test distance
-- `stairAscentSpeedMs` - Stair climbing speed ascending
-- `stairDescentSpeedMs` - Stair climbing speed descending
-
-**Nutrition Metrics (38 fields in nutrition_daily_metrics, Nov 2025):**
-- **Macronutrients:** energyKcal, proteinG, carbohydratesG, fatTotalG, fatSaturatedG, fatPolyunsaturatedG, fatMonounsaturatedG, fiberG, sugarG
-- **Minerals:** calciumMg, ironMg, magnesiumMg, manganeseMg, phosphorusMg, potassiumMg, sodiumMg, zincMg, copperMg, seleniumMg, chromiumMg, iodineMg, chlorideMg, molybdenumMg
-- **Vitamins:** vitaminAMcg, vitaminB6Mg, vitaminB12Mcg, vitaminCMg, vitaminDMcg, vitaminEMg, vitaminKMcg, biotinMcg, folateMcg, niacinMg, pantothenicAcidMg, riboflavinMg, thiaminMg
-- **Other:** cholesterolMg, caffeineMg, waterMl
-
-**Mindfulness Tracking (Nov 2025):**
-- `mindfulness_sessions` table: Individual meditation/mindfulness sessions with duration, source app, HealthKit UUID
-- `mindfulness_daily_metrics` table: Daily aggregations (totalMinutes, sessionCount, avgSessionMinutes, longestSessionMinutes)
-
-**Aggregation Services:**
-- `healthkitSampleAggregator.ts` - Aggregates core + gait/mobility metrics daily
-- `nutritionMindfulnessAggregator.ts` - Aggregates nutrition and mindfulness data daily
-
-**API Routes:**
-- `POST /api/healthkit/nutrition` - Batch upload nutrition samples
-- `POST /api/healthkit/mindfulness` - Upload individual mindfulness sessions
-
-All new data types are included in Flō Oracle's AI context for personalized health insights.
 
 ## External Dependencies
 
@@ -126,3 +57,4 @@ All new data types are included in Flō Oracle's AI context for personalized hea
 - **OpenAI:** GPT-4o for blood work PDF extraction, text-embedding-3-small for RAG embeddings.
 - **xAI (Grok):** grok-3-mini model for Flō Oracle text chat and async brain memory extraction.
 - **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights, Gemini 2.5 Flash for daily reminders, Gemini Live API (gemini-2.5-flash-native-audio) for Flō Oracle voice conversations.
+- **ElevenLabs:** For voice synthesis.
