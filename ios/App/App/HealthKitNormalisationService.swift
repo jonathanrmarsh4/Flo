@@ -919,13 +919,9 @@ public class HealthKitNormalisationService {
         formatter.timeZone = TimeZone.current
         print("[ExerciseMinutes] Querying workouts for day: \(formatter.string(from: dayStart)) to \(formatter.string(from: dayEnd))")
         
-        // Check authorization first
-        let authStatus = healthStore.authorizationStatus(for: workoutType)
-        if authStatus == .sharingDenied {
-            print("[ExerciseMinutes] ⚠️ Workout authorization denied")
-            completion(nil)
-            return
-        }
+        // Note: We skip authorizationStatus check here because iOS privacy policy makes it unreliable.
+        // Per Apple documentation, authorizationStatus may return .sharingDenied even when permission
+        // is granted. Just attempt the query - if we have permission, we'll get data; if not, empty array.
         
         // Use generous window (12h before dayStart) to catch cross-midnight workouts
         let windowStart = calendar.date(byAdding: .hour, value: -12, to: dayStart)!
