@@ -1,43 +1,34 @@
 import { ArrowRight, Info, TrendingUp, AlertTriangle, Bone } from 'lucide-react';
 import { useState } from 'react';
 
-interface DexaScanTileProps {
-  isDark: boolean;
-  data?: {
-    id: string;
-    type: 'DEXA';
-    organ: string;
-    title: string;
-    spine_t_score: number;
-    total_hip_t_score: number;
-    who_classification: string;
-    fat_percent_total: number;
-    vat_area_cm2: number;
-    status_badge: string;
-    scan_date: string;
-    ai_summary_line: string;
-    report_link?: string;
-  };
+interface DexaData {
+  id: string;
+  type: 'DEXA';
+  organ: string;
+  title: string;
+  spine_t_score: number;
+  total_hip_t_score: number;
+  who_classification: string;
+  fat_percent_total: number;
+  vat_area_cm2: number;
+  status_badge: string;
+  scan_date: string;
+  ai_summary_line: string;
+  report_link?: string;
 }
 
-const DEFAULT_DATA = {
-  id: 'dexa_2025',
-  type: 'DEXA' as const,
-  organ: 'bones',
-  title: 'Bone density (DEXA)',
-  spine_t_score: -1.0,
-  total_hip_t_score: 0.0,
-  who_classification: 'Normal',
-  fat_percent_total: 15.1,
-  vat_area_cm2: 70.6,
-  status_badge: 'Normal',
-  scan_date: '2025-07-29',
-  ai_summary_line: 'Bone density is in the normal range with low body fat and modest visceral fat.',
-  report_link: 'https://...'
-};
+interface DexaScanTileProps {
+  isDark: boolean;
+  data?: DexaData | null;
+}
 
-export function DexaScanTile({ isDark, data = DEFAULT_DATA }: DexaScanTileProps) {
+export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
   const [showDetails, setShowDetails] = useState(false);
+
+  // Don't render anything if no real data exists
+  if (!data) {
+    return null;
+  }
 
   const avgTScore = (data.spine_t_score + data.total_hip_t_score) / 2;
 
