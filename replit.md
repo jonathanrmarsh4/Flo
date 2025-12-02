@@ -54,6 +54,18 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 
 **Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (Gemini-based) for bidirectional AI learning. It uses `user_insights` (vector-embedded) and `flo_chat_messages` tables for hybrid retrieval.
 
+**Medical Document Ingestion System (Dec 2025):** Ingests unstructured medical specialist reports that don't fit traditional database tables, making them searchable by AI:
+- `medicalDocumentService.ts` - Core service handling upload, extraction, chunking, and embedding:
+  - Supports 25+ document types (cardiology, radiology, pathology, neurology, genetic tests, etc.)
+  - PDF text extraction via pdf-parse
+  - GPT-4o summarization with key findings extraction
+  - Chunking into 500-800 token segments with overlap
+  - Vector embedding via text-embedding-3-small
+  - Storage in Supabase `user_insights` table with source='medical_document'
+- `UnifiedUploadModal.tsx` - Frontend UI with "Reports" tab for uploading specialist documents
+- Integration with Flō Oracle via brain memory semantic search (searchInsightsBySimilarity)
+- API endpoints: POST /api/medical-documents/upload, GET /api/medical-documents, POST /api/medical-documents/search
+
 **AI Usage Analytics System:** Tracks all OpenAI and Grok API calls including token counts, costs, and latency, displayed in the admin dashboard.
 
 **Billing & Subscription System:** Supports FREE and PREMIUM tiers with dual payment provider support: StoreKit 2 (iOS) for in-app purchases with JWS verification, and Stripe for web-based transactions.

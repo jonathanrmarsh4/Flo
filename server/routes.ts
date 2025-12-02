@@ -110,6 +110,15 @@ import {
   getMindfulnessSummary, 
   getNutritionSummary 
 } from "./services/nutritionMindfulnessAggregator";
+import {
+  createMedicalDocument,
+  getMedicalDocuments,
+  getMedicalDocument,
+  deleteMedicalDocument,
+  searchMedicalDocuments,
+  getDocumentTypes,
+  type MedicalDocumentType
+} from "./services/medicalDocumentService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -3272,6 +3281,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error getting lab upload history:', error);
       res.status(500).json({ error: "Failed to get lab upload history" });
+    }
+  });
+
+  // ============================================================================
+  // Medical Documents - Specialist Reports, Imaging, etc.
+  // ============================================================================
+
+  // GET /api/medical-documents/types - Get available document types
+  app.get("/api/medical-documents/types", isAuthenticated, async (req: any, res) => {
+    try {
+      const types = getDocumentTypes();
+      res.json({ types });
+    } catch (error) {
+      logger.error('Error getting document types:', error);
+      res.status(500).json({ error: "Failed to get document types" });
+    }
+  });
+
+  // POST /api/medical-documents/upload - Upload a medical document
+  app.post("/api/medical-documents/upload", isAuthenticated, uploadRateLimiter, upload.single('file'), async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const documentType = (req.body.documentType || 'specialist_consult') as MedicalDocumentType;
+      const title = req.body.title || null;
+      const providerName = req.body.providerName || null;
+      const documentDate = req.body.documentDate || null;
+
+      // Upload to object storage
+      const { uploadURL, objectPath } = await objectStorageService.getObjectEntityUploadURL();
+      
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: file.buffer,
+        headers: {
+          'Content-Type': file.mimetype || 'application/pdf',
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file to object storage');
+      }
+
+      // Create document record and start processing
+      const result = await createMedicalDocument(
+        userId,
+        documentType,
+        objectPath,
+        file.originalname,
+        file.size,
+        file.mimetype || 'application/pdf',
+        { title, providerName, documentDate }
+      );
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error('Error uploading medical document:', error);
+      res.status(500).json({ error: error.message || "Failed to upload document" });
+    }
+  });
+
+  // GET /api/medical-documents - List user's medical documents
+  app.get("/api/medical-documents", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentType = req.query.type as MedicalDocumentType | undefined;
+      const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+      const includeText = req.query.includeText === 'true';
+
+      const documents = await getMedicalDocuments(userId, {
+        documentType,
+        limit,
+        includeText
+      });
+
+      res.json({ documents });
+    } catch (error) {
+      logger.error('Error getting medical documents:', error);
+      res.status(500).json({ error: "Failed to get documents" });
+    }
+  });
+
+  // GET /api/medical-documents/:id - Get a specific document
+  app.get("/api/medical-documents/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = req.params.id;
+
+      const document = await getMedicalDocument(userId, documentId);
+
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+
+      res.json({ document });
+    } catch (error) {
+      logger.error('Error getting medical document:', error);
+      res.status(500).json({ error: "Failed to get document" });
+    }
+  });
+
+  // DELETE /api/medical-documents/:id - Delete a document
+  app.delete("/api/medical-documents/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = req.params.id;
+
+      const success = await deleteMedicalDocument(userId, documentId);
+
+      if (!success) {
+        return res.status(404).json({ error: "Document not found or already deleted" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error deleting medical document:', error);
+      res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+
+  // POST /api/medical-documents/search - Search medical documents
+  app.post("/api/medical-documents/search", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { query, limit = 5 } = req.body;
+
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ error: "Query is required" });
+      }
+
+      const results = await searchMedicalDocuments(userId, query, Math.min(limit, 20));
+
+      res.json({ results });
+    } catch (error) {
+      logger.error('Error searching medical documents:', error);
+      res.status(500).json({ error: "Failed to search documents" });
     }
   });
 

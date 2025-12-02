@@ -2534,7 +2534,8 @@ export const userInsightSourceEnum = pgEnum("user_insight_source", [
   "gpt_insights_job",    // From GPT-based daily insights generation
   "chat_brain_update",   // From Grok chat BRAIN_UPDATE_JSON
   "chat_summary_job",    // From nightly chat transcript summarization
-  "manual"               // Manual entry (future use)
+  "manual",              // Manual entry (future use)
+  "medical_document"     // From uploaded medical documents (specialist reports, imaging, etc.)
 ]);
 
 // Status of insight: whether it's still relevant
@@ -2576,7 +2577,7 @@ export const userInsights = pgTable("user_insights", {
 }));
 
 // Zod enums for validation
-export const UserInsightSourceEnum = z.enum(["gpt_insights_job", "chat_brain_update", "chat_summary_job", "manual"]);
+export const UserInsightSourceEnum = z.enum(["gpt_insights_job", "chat_brain_update", "chat_summary_job", "manual", "medical_document"]);
 export const UserInsightStatusEnum = z.enum(["active", "resolved", "dismissed"]);
 
 // Insert schema

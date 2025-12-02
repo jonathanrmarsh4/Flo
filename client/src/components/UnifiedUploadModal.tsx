@@ -8,15 +8,73 @@ import { useToast } from '@/hooks/use-toast';
 interface UnifiedUploadModalProps {
   isDark: boolean;
   onClose: () => void;
-  initialMode?: 'lab-results' | 'diagnostics';
+  initialMode?: 'lab-results' | 'diagnostics' | 'medical-documents';
 }
 
-type UploadMode = 'lab-results' | 'diagnostics';
+type UploadMode = 'lab-results' | 'diagnostics' | 'medical-documents';
 type DiagnosticType = 'calcium-score' | 'dexa';
+type MedicalDocumentType = 
+  | 'cardiology_report'
+  | 'radiology_report'
+  | 'pathology_report'
+  | 'dermatology_report'
+  | 'endocrinology_report'
+  | 'gastroenterology_report'
+  | 'neurology_report'
+  | 'oncology_report'
+  | 'orthopedic_report'
+  | 'pulmonology_report'
+  | 'rheumatology_report'
+  | 'urology_report'
+  | 'ophthalmology_report'
+  | 'ent_report'
+  | 'allergy_report'
+  | 'sleep_study'
+  | 'genetic_test'
+  | 'imaging_report'
+  | 'lab_narrative'
+  | 'specialist_consult'
+  | 'discharge_summary'
+  | 'operative_report'
+  | 'physical_therapy'
+  | 'mental_health'
+  | 'other';
+
+const MEDICAL_DOCUMENT_TYPES: { value: MedicalDocumentType; label: string }[] = [
+  { value: 'specialist_consult', label: 'Specialist Consultation' },
+  { value: 'cardiology_report', label: 'Cardiology Report' },
+  { value: 'radiology_report', label: 'Radiology/Imaging Report' },
+  { value: 'pathology_report', label: 'Pathology Report' },
+  { value: 'dermatology_report', label: 'Dermatology Report' },
+  { value: 'endocrinology_report', label: 'Endocrinology Report' },
+  { value: 'gastroenterology_report', label: 'Gastroenterology Report' },
+  { value: 'neurology_report', label: 'Neurology Report' },
+  { value: 'oncology_report', label: 'Oncology Report' },
+  { value: 'orthopedic_report', label: 'Orthopedic Report' },
+  { value: 'pulmonology_report', label: 'Pulmonology Report' },
+  { value: 'rheumatology_report', label: 'Rheumatology Report' },
+  { value: 'urology_report', label: 'Urology Report' },
+  { value: 'ophthalmology_report', label: 'Ophthalmology Report' },
+  { value: 'ent_report', label: 'ENT Report' },
+  { value: 'allergy_report', label: 'Allergy Report' },
+  { value: 'sleep_study', label: 'Sleep Study' },
+  { value: 'genetic_test', label: 'Genetic Test' },
+  { value: 'imaging_report', label: 'Imaging Report' },
+  { value: 'lab_narrative', label: 'Lab Narrative' },
+  { value: 'discharge_summary', label: 'Discharge Summary' },
+  { value: 'operative_report', label: 'Operative Report' },
+  { value: 'physical_therapy', label: 'Physical Therapy Report' },
+  { value: 'mental_health', label: 'Mental Health Report' },
+  { value: 'other', label: 'Other Medical Document' },
+];
 
 export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results' }: UnifiedUploadModalProps) {
   const [mode, setMode] = useState<UploadMode>(initialMode);
   const [diagnosticType, setDiagnosticType] = useState<DiagnosticType>('calcium-score');
+  const [medicalDocType, setMedicalDocType] = useState<MedicalDocumentType>('specialist_consult');
+  const [medicalDocTitle, setMedicalDocTitle] = useState('');
+  const [medicalDocProvider, setMedicalDocProvider] = useState('');
+  const [medicalDocDate, setMedicalDocDate] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [useExperimental, setUseExperimental] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -177,6 +235,50 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
     },
   });
 
+  const medicalDocUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('documentType', medicalDocType);
+      if (medicalDocTitle) formData.append('title', medicalDocTitle);
+      if (medicalDocProvider) formData.append('providerName', medicalDocProvider);
+      if (medicalDocDate) formData.append('documentDate', medicalDocDate);
+      
+      const baseUrl = getApiBaseUrl();
+      const fullUrl = baseUrl + '/api/medical-documents/upload';
+      const headers = await getAuthHeaders();
+      
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/medical-documents'] });
+      toast({
+        title: "Upload Complete",
+        description: "Your document is being processed. The AI will extract insights and make it searchable.",
+      });
+      setTimeout(() => onClose(), 2000);
+    },
+    onError: (error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload document",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -210,16 +312,20 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
     if (file) {
       if (mode === 'lab-results') {
         bloodWorkUploadMutation.mutate(file);
-      } else if (diagnosticType === 'calcium-score') {
-        calciumScoreUploadMutation.mutate(file);
-      } else if (diagnosticType === 'dexa') {
-        dexaScanUploadMutation.mutate(file);
+      } else if (mode === 'diagnostics') {
+        if (diagnosticType === 'calcium-score') {
+          calciumScoreUploadMutation.mutate(file);
+        } else if (diagnosticType === 'dexa') {
+          dexaScanUploadMutation.mutate(file);
+        }
+      } else if (mode === 'medical-documents') {
+        medicalDocUploadMutation.mutate(file);
       }
     }
   };
 
-  const isUploading = bloodWorkUploadMutation.isPending || calciumScoreUploadMutation.isPending || dexaScanUploadMutation.isPending;
-  const uploadSuccess = bloodWorkUploadMutation.isSuccess || calciumScoreUploadMutation.isSuccess || dexaScanUploadMutation.isSuccess;
+  const isUploading = bloodWorkUploadMutation.isPending || calciumScoreUploadMutation.isPending || dexaScanUploadMutation.isPending || medicalDocUploadMutation.isPending;
+  const uploadSuccess = bloodWorkUploadMutation.isSuccess || calciumScoreUploadMutation.isSuccess || dexaScanUploadMutation.isSuccess || medicalDocUploadMutation.isSuccess;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -254,7 +360,7 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
           }`}>
             <button
               onClick={() => setMode('lab-results')}
-              className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all min-h-[44px] ${
+              className={`flex-1 py-2 px-1 rounded-xl text-xs font-medium transition-all min-h-[44px] ${
                 mode === 'lab-results'
                   ? isDark
                     ? 'bg-white/10 text-white shadow-lg'
@@ -265,11 +371,11 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
               }`}
               data-testid="tab-lab-results"
             >
-              Lab Results
+              Labs
             </button>
             <button
               onClick={() => setMode('diagnostics')}
-              className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all min-h-[44px] ${
+              className={`flex-1 py-2 px-1 rounded-xl text-xs font-medium transition-all min-h-[44px] ${
                 mode === 'diagnostics'
                   ? isDark
                     ? 'bg-white/10 text-white shadow-lg'
@@ -280,7 +386,22 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
               }`}
               data-testid="tab-diagnostics"
             >
-              Diagnostics
+              Scans
+            </button>
+            <button
+              onClick={() => setMode('medical-documents')}
+              className={`flex-1 py-2 px-1 rounded-xl text-xs font-medium transition-all min-h-[44px] ${
+                mode === 'medical-documents'
+                  ? isDark
+                    ? 'bg-white/10 text-white shadow-lg'
+                    : 'bg-white text-gray-900 shadow-lg'
+                  : isDark
+                    ? 'text-white/50 hover:text-white/70'
+                    : 'text-gray-500 hover:text-gray-700'
+              }`}
+              data-testid="tab-medical-documents"
+            >
+              Reports
             </button>
           </div>
         </div>
@@ -334,6 +455,84 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
             </div>
           )}
 
+          {/* Medical Document Form - Only for Medical Documents */}
+          {mode === 'medical-documents' && (
+            <div className="space-y-3 mb-4">
+              {/* Document Type */}
+              <div className={`p-4 rounded-2xl border ${
+                isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Report Type
+                </label>
+                <select
+                  value={medicalDocType}
+                  onChange={(e) => setMedicalDocType(e.target.value as MedicalDocumentType)}
+                  className={`w-full px-4 py-3 rounded-xl border transition-colors ${
+                    isDark 
+                      ? 'bg-white/5 border-white/10 text-white hover:border-white/20 focus:border-cyan-400' 
+                      : 'bg-white border-gray-200 text-gray-900 hover:border-gray-300 focus:border-cyan-600'
+                  }`}
+                  style={{ minHeight: '44px' }}
+                  data-testid="select-medical-doc-type"
+                >
+                  {MEDICAL_DOCUMENT_TYPES.map((docType) => (
+                    <option key={docType.value} value={docType.value}>{docType.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Optional Fields */}
+              <div className={`p-4 rounded-2xl border ${
+                isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <label className={`block text-xs font-medium mb-3 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Optional Details
+                </label>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Title (e.g., Annual Cardiology Checkup)"
+                    value={medicalDocTitle}
+                    onChange={(e) => setMedicalDocTitle(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border transition-colors ${
+                      isDark 
+                        ? 'bg-white/5 border-white/10 text-white placeholder-white/40 hover:border-white/20 focus:border-cyan-400' 
+                        : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 hover:border-gray-300 focus:border-cyan-600'
+                    }`}
+                    style={{ minHeight: '44px' }}
+                    data-testid="input-medical-doc-title"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Provider/Doctor Name"
+                    value={medicalDocProvider}
+                    onChange={(e) => setMedicalDocProvider(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border transition-colors ${
+                      isDark 
+                        ? 'bg-white/5 border-white/10 text-white placeholder-white/40 hover:border-white/20 focus:border-cyan-400' 
+                        : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 hover:border-gray-300 focus:border-cyan-600'
+                    }`}
+                    style={{ minHeight: '44px' }}
+                    data-testid="input-medical-doc-provider"
+                  />
+                  <input
+                    type="date"
+                    value={medicalDocDate}
+                    onChange={(e) => setMedicalDocDate(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border transition-colors ${
+                      isDark 
+                        ? 'bg-white/5 border-white/10 text-white hover:border-white/20 focus:border-cyan-400' 
+                        : 'bg-white border-gray-200 text-gray-900 hover:border-gray-300 focus:border-cyan-600'
+                    }`}
+                    style={{ minHeight: '44px' }}
+                    data-testid="input-medical-doc-date"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Upload Area */}
           <div
             onDragEnter={handleDrag}
@@ -354,7 +553,7 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
             <input
               type="file"
               onChange={handleFileChange}
-              accept={mode === 'diagnostics' ? '.pdf' : '.pdf,image/*'}
+              accept={mode === 'diagnostics' || mode === 'medical-documents' ? '.pdf' : '.pdf,image/*'}
               className="hidden"
               id="file-upload"
               data-testid="input-file"
@@ -426,7 +625,7 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
                   Click to upload or drag and drop
                 </p>
                 <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                  {mode === 'diagnostics' ? 'PDF files only' : 'PDF or image files up to 10MB'}
+                  {mode === 'diagnostics' || mode === 'medical-documents' ? 'PDF files only' : 'PDF or image files up to 10MB'}
                 </p>
               </label>
             )}
@@ -439,9 +638,11 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
             <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
               {mode === 'lab-results' 
                 ? 'Upload your blood work PDF and our AI will automatically extract and analyze your biomarkers, calculate your biological age, and provide personalized health insights.'
-                : diagnosticType === 'calcium-score'
-                  ? 'Upload your coronary calcium score (CAC) report PDF. Our AI will extract your Agatston score, risk category, and vessel-specific measurements.'
-                  : 'Upload your DEXA bone density scan report. Our AI will extract your T-scores, Z-scores, and bone density measurements for spine, hip, and femoral neck.'}
+                : mode === 'diagnostics'
+                  ? diagnosticType === 'calcium-score'
+                    ? 'Upload your coronary calcium score (CAC) report PDF. Our AI will extract your Agatston score, risk category, and vessel-specific measurements.'
+                    : 'Upload your DEXA bone density scan report. Our AI will extract your T-scores, Z-scores, and bone density measurements for spine, hip, and femoral neck.'
+                  : 'Upload specialist reports, consult notes, or other medical documents. Our AI will extract key findings and make them searchable by Flō, so you can ask questions about your health history.'}
             </p>
           </div>
 
