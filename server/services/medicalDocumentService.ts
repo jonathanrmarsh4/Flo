@@ -6,10 +6,7 @@ import { ObjectStorageService } from "../objectStorage";
 import { logger } from "../logger";
 import OpenAI from "openai";
 import crypto from "crypto";
-import { createRequire } from "module";
-
-const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+import { PDFParse } from "pdf-parse";
 
 const openai = new OpenAI();
 const objectStorage = new ObjectStorageService();
@@ -308,11 +305,19 @@ async function processDocumentAsync(
 
 async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
   try {
-    const data = await pdfParse(pdfBuffer);
-    return data.text;
+    const parser = new PDFParse({ data: pdfBuffer });
+    const result = await parser.getInfo() as any;
+    await parser.destroy();
+    const text = result.text || "";
+    
+    if (!text || text.trim().length < 50) {
+      logger.warn('[MedicalDocService] PDF has minimal text - may be scanned/image-based');
+    }
+    
+    return text;
   } catch (error) {
     logger.error('[MedicalDocService] PDF parsing failed:', error);
-    throw new Error('Failed to extract text from PDF');
+    throw new Error('Failed to extract text from PDF. The document may be scanned or image-based.');
   }
 }
 
