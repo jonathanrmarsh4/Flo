@@ -23,6 +23,17 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 - **Neon (Primary):** Stores identity data (users, sessions, email, credentials, billing, audit logs) using Drizzle ORM.
 - **Supabase (Health):** Stores sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events), linked via a pseudonymous `health_id` UUID. This includes Row-Level Security (RLS) and separation of 12 health-related tables. Birth year is stored instead of full date of birth for privacy.
 
+**Health Data Routing (Dec 2025):** Critical fix for Flomentum and Daily Readiness tiles:
+- `healthStorageRouter.ts` - Central routing layer with `getUserDailyMetrics()` and `getUserDailyMetricsByDate()` functions
+- `supabaseHealthStorage.ts` - Supabase query layer with `getDailyMetricsByDate()` and `getDailyMetricsFlexible()`
+- All health data reads now route through healthStorageRouter to Supabase when `SUPABASE_HEALTH_ENABLED=true`
+- `readinessEngine.ts` - Reads daily metrics from Supabase via healthRouter
+- `baselineCalculator.ts` - Reads daily metrics from Supabase via healthRouter
+- `flomentumBaselineCalculator.ts` - Reads from `user_daily_metrics` via healthRouter (replaces legacy `health_daily_metrics`)
+- `healthkitSampleAggregator.ts` - Uses healthRouter for all reads/writes
+- **Architecture clarification:** `flomentumScoringEngine.ts` is a pure calculation function (no DB access)
+- **Root cause fixed:** Data was written to Supabase but previously read from empty Neon tables
+
 **Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights using a 2-layer architecture: a RAG Layer (vector search + Gemini 2.5 Pro) and a safety net Layer D for out-of-range biomarkers. It includes confidence scoring, insight ranking, domain diversity limits, and natural language generation, with insights generated at 6 AM local time.
 
 **Conversational Life Event Logging System:** Automatically tracks and parses health narratives from Flō Oracle conversations into structured JSONB, stored in the `life_events` table for context integration.
