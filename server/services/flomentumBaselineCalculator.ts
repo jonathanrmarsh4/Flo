@@ -1,19 +1,8 @@
 import { db } from "../db";
-import { healthDailyMetrics, healthBaselines } from "@shared/schema";
-import { eq, and, gte, sql } from "drizzle-orm";
+import { healthBaselines } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { logger } from "../logger";
-
-interface BaselineMetric {
-  metricKey: 'resting_hr' | 'hrv_sdnn_ms' | 'respiratory_rate';
-  columnName: string;
-  defaultValue: number | null;
-}
-
-const BASELINE_METRICS: BaselineMetric[] = [
-  { metricKey: 'resting_hr', columnName: 'resting_hr', defaultValue: 60 },
-  { metricKey: 'hrv_sdnn_ms', columnName: 'hrv_sdnn_ms', defaultValue: 50 },
-  { metricKey: 'respiratory_rate', columnName: 'respiratory_rate', defaultValue: 16 },
-];
+import * as healthRouter from "./healthStorageRouter";
 
 const WINDOW_DAYS = 30;
 const MIN_SAMPLES = 5;
@@ -34,102 +23,105 @@ export async function calculateFlomentumBaselines(
     respRateBaseline: null,
   };
 
-  const windowStartDate = new Date(currentDate);
-  windowStartDate.setDate(windowStartDate.getDate() - WINDOW_DAYS);
-  const windowStart = windowStartDate.toISOString().split('T')[0];
+  const endDate = new Date(currentDate);
+  const startDate = new Date(currentDate);
+  startDate.setDate(startDate.getDate() - WINDOW_DAYS);
 
-  for (const metric of BASELINE_METRICS) {
-    try {
-      const baseline = await calculateMetricBaseline(
-        userId,
-        metric.metricKey,
-        metric.columnName,
-        windowStart,
-        currentDate,
-        metric.defaultValue
-      );
+  try {
+    const metrics = await healthRouter.getUserDailyMetrics(userId, {
+      startDate: startDate,
+      endDate: endDate,
+      limit: WINDOW_DAYS + 1,
+    });
 
-      if (metric.metricKey === 'resting_hr') {
-        result.restingHrBaseline = baseline;
-      } else if (metric.metricKey === 'hrv_sdnn_ms') {
-        result.hrvBaseline = baseline;
-      } else if (metric.metricKey === 'respiratory_rate') {
-        result.respRateBaseline = baseline;
-      }
-    } catch (error) {
-      logger.error(`Failed to calculate Flōmentum baseline for ${metric.metricKey}`, { userId, error });
+    const restingHrValues: number[] = [];
+    const hrvValues: number[] = [];
+    const respRateValues: number[] = [];
+
+    for (const m of metrics) {
+      if (m.restingHrBpm != null) restingHrValues.push(m.restingHrBpm);
+      if (m.hrvMs != null) hrvValues.push(m.hrvMs);
+      if (m.respiratoryRateBpm != null) respRateValues.push(m.respiratoryRateBpm);
     }
+
+    if (restingHrValues.length >= MIN_SAMPLES) {
+      const avg = restingHrValues.reduce((a, b) => a + b, 0) / restingHrValues.length;
+      result.restingHrBaseline = avg;
+      await persistBaseline(userId, 'resting_hr', avg, restingHrValues.length);
+    } else {
+      result.restingHrBaseline = 60;
+      logger.debug(`Insufficient resting HR data for Flōmentum baseline`, {
+        userId,
+        sampleCount: restingHrValues.length,
+        minRequired: MIN_SAMPLES,
+      });
+    }
+
+    if (hrvValues.length >= MIN_SAMPLES) {
+      const avg = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
+      result.hrvBaseline = avg;
+      await persistBaseline(userId, 'hrv_sdnn_ms', avg, hrvValues.length);
+    } else {
+      result.hrvBaseline = 50;
+      logger.debug(`Insufficient HRV data for Flōmentum baseline`, {
+        userId,
+        sampleCount: hrvValues.length,
+        minRequired: MIN_SAMPLES,
+      });
+    }
+
+    if (respRateValues.length >= MIN_SAMPLES) {
+      const avg = respRateValues.reduce((a, b) => a + b, 0) / respRateValues.length;
+      result.respRateBaseline = avg;
+      await persistBaseline(userId, 'respiratory_rate', avg, respRateValues.length);
+    } else {
+      result.respRateBaseline = 16;
+      logger.debug(`Insufficient respiratory rate data for Flōmentum baseline`, {
+        userId,
+        sampleCount: respRateValues.length,
+        minRequired: MIN_SAMPLES,
+      });
+    }
+
+  } catch (error) {
+    logger.error(`Failed to calculate Flōmentum baselines`, { userId, error });
+    result.restingHrBaseline = 60;
+    result.hrvBaseline = 50;
+    result.respRateBaseline = 16;
   }
 
   return result;
 }
 
-async function calculateMetricBaseline(
+async function persistBaseline(
   userId: string,
   metricKey: string,
-  columnName: string,
-  windowStart: string,
-  currentDate: string,
-  defaultValue: number | null
-): Promise<number | null> {
-  // Validate column name against whitelist
-  const validColumns = ['resting_hr', 'hrv_sdnn_ms', 'respiratory_rate'];
-  if (!validColumns.includes(columnName)) {
-    logger.error(`Invalid column name for baseline calculation: ${columnName}`);
-    return defaultValue;
-  }
-
-  const query = sql`
-    SELECT 
-      AVG(${sql.raw(columnName)})::REAL as avg_value,
-      COUNT(*)::INTEGER as sample_count
-    FROM ${healthDailyMetrics}
-    WHERE user_id = ${userId}
-      AND date >= ${windowStart}
-      AND date <= ${currentDate}
-      AND ${sql.raw(columnName)} IS NOT NULL
-  `;
-
-  const result = await db.execute(query);
-  const row = result.rows[0] as { avg_value: number | null; sample_count: number };
-
-  const avgValue = row.avg_value;
-  const sampleCount = row.sample_count;
-
-  if (avgValue === null || avgValue === undefined || sampleCount < MIN_SAMPLES) {
-    logger.debug(`Insufficient data for Flōmentum ${metricKey} baseline`, {
-      userId,
-      sampleCount,
-      minRequired: MIN_SAMPLES,
-    });
-    return defaultValue;
-  }
-
+  baseline: number,
+  numSamples: number
+): Promise<void> {
   await db
     .insert(healthBaselines)
     .values({
       userId,
       metricKey,
-      baseline: avgValue,
+      baseline,
       windowDays: WINDOW_DAYS,
-      numSamples: sampleCount,
+      numSamples,
     })
     .onConflictDoUpdate({
       target: [healthBaselines.userId, healthBaselines.metricKey],
       set: {
-        baseline: avgValue,
-        numSamples: sampleCount,
+        baseline,
+        numSamples,
         lastCalculatedAt: new Date(),
       },
     });
 
   logger.debug(`Calculated Flōmentum baseline for ${metricKey}`, {
     userId,
-    baseline: avgValue,
-    numSamples: sampleCount,
+    baseline,
+    numSamples,
   });
-
-  return avgValue;
 }
 
 export async function getFlomentumBaselines(userId: string): Promise<FlomentumBaselineResult> {
