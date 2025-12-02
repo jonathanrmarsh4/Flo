@@ -1711,7 +1711,7 @@ export async function getActionPlanItems(userId: string, status?: string): Promi
   return data || [];
 }
 
-export async function updateActionPlanItem(itemId: string, updates: Partial<ActionPlanItem>): Promise<ActionPlanItem> {
+export async function updateActionPlanItem(itemId: string, updates: Partial<ActionPlanItem>): Promise<ActionPlanItem | null> {
   const { data, error } = await supabase
     .from('action_plan_items')
     .update({
@@ -1720,11 +1720,16 @@ export async function updateActionPlanItem(itemId: string, updates: Partial<Acti
     })
     .eq('id', itemId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     logger.error('[SupabaseHealth] Error updating action plan item:', error);
     throw error;
+  }
+
+  if (!data) {
+    logger.warn(`[SupabaseHealth] No action plan item found with id: ${itemId}`);
+    return null;
   }
 
   return data;

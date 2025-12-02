@@ -781,6 +781,13 @@ export async function updateActionPlanItemStatus(id: string, userId: string, sta
       updates.completed_at = completedAt;
     }
     const result = await supabaseHealth.updateActionPlanItem(id, updates);
+    
+    // Handle case where item wasn't found in Supabase
+    if (!result) {
+      logger.warn(`[HealthStorageRouter] Action plan item ${id} not found in Supabase`);
+      return null;
+    }
+    
     // Normalize Supabase snake_case to camelCase for API compatibility
     return {
       id: result.id,
