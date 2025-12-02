@@ -20,7 +20,9 @@ import { logger } from '../logger';
 import { 
   isSupabaseHealthEnabled, 
   getNutritionDailyMetrics as getHealthRouterNutritionMetrics,
-  getMindfulnessDailyMetrics as getHealthRouterMindfulnessMetrics
+  getMindfulnessDailyMetrics as getHealthRouterMindfulnessMetrics,
+  getBiomarkerSessions as getHealthRouterBiomarkerSessions,
+  getMeasurementsBySession as getHealthRouterMeasurementsBySession
 } from './healthStorageRouter';
 import { getDailyMetrics as getSupabaseDailyMetrics } from './supabaseHealthStorage';
 
@@ -288,62 +290,85 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     }
 
     // Fetch ALL blood panels from the last 12 months (for historical context)
+    // Use healthStorageRouter to get sessions from Supabase
     const twelveMonthsAgo = new Date();
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
     
-    const allSessions = await db
-      .select()
-      .from(biomarkerTestSessions)
-      .where(
-        and(
-          eq(biomarkerTestSessions.userId, userId),
-          gte(biomarkerTestSessions.testDate, twelveMonthsAgo)
-        )
-      )
-      .orderBy(desc(biomarkerTestSessions.testDate));
+    let allSessions: Array<{ id: string; testDate: Date | string | null }> = [];
+    
+    try {
+      const rawSessions = await getHealthRouterBiomarkerSessions(userId);
+      // Filter to last 12 months and sort by date descending, also filter out sessions without id
+      allSessions = rawSessions
+        .filter(s => {
+          if (!s.id) return false;
+          const testDate = s.testDate ? new Date(s.testDate) : null;
+          return testDate !== null && testDate >= twelveMonthsAgo;
+        })
+        .map(s => ({ id: s.id!, testDate: s.testDate }))
+        .sort((a, b) => {
+          const dateA = a.testDate ? new Date(a.testDate).getTime() : 0;
+          const dateB = b.testDate ? new Date(b.testDate).getTime() : 0;
+          return dateB - dateA;
+        });
+      logger.info(`[FloOracle] Found ${allSessions.length} biomarker sessions in last 12 months for user ${userId}`);
+    } catch (error) {
+      logger.error(`[FloOracle] Error fetching biomarker sessions:`, error);
+    }
 
     const bloodPanelHistory: BloodPanelHistory[] = [];
 
     if (allSessions.length > 0) {
       // Process latest panel for backward compatibility
       const latestSession = allSessions[0];
-      context.latestBloodPanel.date = formatDateInTimezone(latestSession.testDate, userTimezone);
+      const latestTestDate = latestSession.testDate ? new Date(latestSession.testDate) : new Date();
+      context.latestBloodPanel.date = formatDateInTimezone(latestTestDate, userTimezone);
       
-      // Fetch biomarkers for ALL sessions
+      // Fetch biomarkers for ALL sessions using healthStorageRouter
       for (const session of allSessions) {
-        const measurements = await db
-          .select({
-            biomarkerName: biomarkers.name,
-            value: biomarkerMeasurements.valueDisplay,
-          })
-          .from(biomarkerMeasurements)
-          .innerJoin(biomarkers, eq(biomarkerMeasurements.biomarkerId, biomarkers.id))
-          .where(eq(biomarkerMeasurements.sessionId, session.id));
-
-        const biomarkerMap: Record<string, string> = {};
-        measurements.forEach((m) => {
-          biomarkerMap[m.biomarkerName] = m.value;
-        });
-        
-        // Store this panel in history
-        if (Object.keys(biomarkerMap).length > 0) {
-          bloodPanelHistory.push({
-            date: formatDateInTimezone(session.testDate, userTimezone),
-            biomarkers: biomarkerMap,
-          });
-        }
-        
-        // For the LATEST panel, also store in context object for backward compatibility
-        if (session.id === latestSession.id) {
-          Object.keys(biomarkerMap).forEach((key) => {
-            context.latestBloodPanel[key] = biomarkerMap[key];
-          });
+        try {
+          const measurements = await getHealthRouterMeasurementsBySession(session.id);
           
-          context.latestBloodPanel.apob = biomarkerMap['ApoB'] || 'not recorded';
-          context.latestBloodPanel.glucose = biomarkerMap['Glucose'] || biomarkerMap['Fasting Glucose'] || 'not recorded';
-          context.latestBloodPanel.hba1c = biomarkerMap['HbA1c'] || 'not recorded';
-          context.latestBloodPanel.hscrp = biomarkerMap['hs-CRP'] || biomarkerMap['CRP'] || 'not recorded';
-          context.latestBloodPanel.testosterone = biomarkerMap['Testosterone'] || biomarkerMap['Total Testosterone'] || 'not recorded';
+          // Get biomarker names from the biomarkers table (reference data in Neon)
+          const biomarkerMap: Record<string, string> = {};
+          for (const m of measurements) {
+            if (m.biomarkerId && m.valueDisplay) {
+              // Look up biomarker name from Neon reference table
+              const [biomarker] = await db
+                .select({ name: biomarkers.name })
+                .from(biomarkers)
+                .where(eq(biomarkers.id, m.biomarkerId))
+                .limit(1);
+              
+              if (biomarker) {
+                biomarkerMap[biomarker.name] = m.valueDisplay;
+              }
+            }
+          }
+          
+          // Store this panel in history
+          if (Object.keys(biomarkerMap).length > 0) {
+            const sessionTestDate = session.testDate ? new Date(session.testDate) : new Date();
+            bloodPanelHistory.push({
+              date: formatDateInTimezone(sessionTestDate, userTimezone),
+              biomarkers: biomarkerMap,
+            });
+          }
+          
+          // For the LATEST panel, also store in context object for backward compatibility
+          if (session.id === latestSession.id) {
+            Object.keys(biomarkerMap).forEach((key) => {
+              context.latestBloodPanel[key] = biomarkerMap[key];
+            });
+            
+            context.latestBloodPanel.apob = biomarkerMap['ApoB'] || 'not recorded';
+            context.latestBloodPanel.glucose = biomarkerMap['Glucose'] || biomarkerMap['Fasting Glucose'] || 'not recorded';
+            context.latestBloodPanel.hba1c = biomarkerMap['HbA1c'] || 'not recorded';
+            context.latestBloodPanel.hscrp = biomarkerMap['hs-CRP'] || biomarkerMap['CRP'] || 'not recorded';
+            context.latestBloodPanel.testosterone = biomarkerMap['Testosterone'] || biomarkerMap['Total Testosterone'] || 'not recorded';
+          }
+        } catch (error) {
+          logger.error(`[FloOracle] Error fetching measurements for session ${session.id}:`, error);
         }
       }
     }
