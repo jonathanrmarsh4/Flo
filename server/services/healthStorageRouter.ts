@@ -1692,4 +1692,193 @@ export async function upsertMindfulnessDailyMetrics(userId: string, data: any): 
   }
 }
 
+// ==================== REMINDER CONTEXT AGGREGATIONS ====================
+
+export type { BiomarkerTrendResult, WearableAveragesResult, BehaviorMetricsResult, TrainingLoadResult } from "./supabaseHealthStorage";
+
+export async function getBiomarkerTrends(userId: string, minPercentChange: number = 5): Promise<supabaseHealth.BiomarkerTrendResult[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.getBiomarkerTrends(userId, minPercentChange);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getBiomarkerTrends failed:", error);
+      return [];
+    }
+  }
+  logger.warn("[HealthStorageRouter] getBiomarkerTrends requires Supabase - returning empty");
+  return [];
+}
+
+export async function getWearableAverages(userId: string): Promise<supabaseHealth.WearableAveragesResult | null> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.getWearableAverages(userId);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getWearableAverages failed:", error);
+      return null;
+    }
+  }
+  logger.warn("[HealthStorageRouter] getWearableAverages requires Supabase - returning null");
+  return null;
+}
+
+export async function getBehaviorMetrics14d(userId: string): Promise<supabaseHealth.BehaviorMetricsResult | null> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.getBehaviorMetrics14d(userId);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getBehaviorMetrics14d failed:", error);
+      return null;
+    }
+  }
+  logger.warn("[HealthStorageRouter] getBehaviorMetrics14d requires Supabase - returning null");
+  return null;
+}
+
+export async function getTrainingLoad7d(userId: string): Promise<supabaseHealth.TrainingLoadResult | null> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.getTrainingLoad7d(userId);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getTrainingLoad7d failed:", error);
+      return null;
+    }
+  }
+  logger.warn("[HealthStorageRouter] getTrainingLoad7d requires Supabase - returning null");
+  return null;
+}
+
+export async function getLatestDexaComparison(userId: string): Promise<{
+  latestScanDate: Date;
+  bodyFatPercentage?: number;
+  leanMassKg?: number;
+  visceralFatAreaCm2?: number;
+  prevBodyFatPercentage?: number;
+  prevVisceralFatAreaCm2?: number;
+  prevLeanMassKg?: number;
+  prevScanDate?: Date;
+  visceralFatChangeCm2?: number;
+} | null> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const studies = await supabaseHealth.getDiagnosticsStudies(userId);
+      const dexaScans = studies
+        .filter(s => s.type === 'dexa_scan' && s.study_date)
+        .sort((a, b) => new Date(b.study_date!).getTime() - new Date(a.study_date!).getTime());
+      
+      if (dexaScans.length === 0) return null;
+      
+      const latest = dexaScans[0];
+      const previous = dexaScans.length > 1 ? dexaScans[1] : null;
+      
+      // Extract body composition data from ai_payload
+      const latestComposition = (latest.ai_payload as any)?.body_composition || {};
+      const prevComposition = (previous?.ai_payload as any)?.body_composition || {};
+      
+      const latestBodyFat = latestComposition.fat_percent_total ?? undefined;
+      const latestLeanMass = latestComposition.lean_mass_kg ?? undefined;
+      const latestVisceralFat = latestComposition.vat_area_cm2 ?? undefined;
+      const prevVisceralFat = prevComposition.vat_area_cm2 ?? undefined;
+      
+      return {
+        latestScanDate: new Date(latest.study_date!),
+        bodyFatPercentage: latestBodyFat,
+        leanMassKg: latestLeanMass,
+        visceralFatAreaCm2: latestVisceralFat,
+        prevBodyFatPercentage: prevComposition.fat_percent_total ?? undefined,
+        prevVisceralFatAreaCm2: prevVisceralFat,
+        prevLeanMassKg: prevComposition.lean_mass_kg ?? undefined,
+        prevScanDate: previous?.study_date ? new Date(previous.study_date) : undefined,
+        visceralFatChangeCm2: prevVisceralFat != null && latestVisceralFat != null
+          ? Math.round((latestVisceralFat - prevVisceralFat) * 10) / 10
+          : undefined,
+      };
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getLatestDexaComparison failed:", error);
+      return null;
+    }
+  }
+  logger.warn("[HealthStorageRouter] getLatestDexaComparison requires Supabase - returning null");
+  return null;
+}
+
+export async function getReminderInsightCards(userId: string, limit: number = 3): Promise<{
+  category: string;
+  pattern: string;
+  confidence: number;
+  isNew: boolean;
+}[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const cards = await supabaseHealth.getInsightCards(userId, true);
+      // Sort by isNew (new first), then by confidence, and limit
+      const sorted = cards
+        .sort((a, b) => {
+          if ((b.is_new ?? false) !== (a.is_new ?? false)) {
+            return (b.is_new ?? false) ? 1 : -1;
+          }
+          return (b.confidence ?? 0) - (a.confidence ?? 0);
+        })
+        .slice(0, limit);
+      return sorted.map(c => ({
+        category: c.category || '',
+        pattern: c.pattern || '',
+        confidence: c.confidence ?? 0,
+        isNew: c.is_new ?? false,
+      }));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getReminderInsightCards failed:", error);
+      return [];
+    }
+  }
+  logger.warn("[HealthStorageRouter] getReminderInsightCards requires Supabase - returning empty");
+  return [];
+}
+
+export async function getReminderActionPlanItems(userId: string, limit: number = 5): Promise<{
+  title: string;
+  action: string;
+  category: string;
+  targetBiomarker?: string;
+  currentValue?: number;
+  targetValue?: number;
+  unit?: string;
+  addedAt?: Date;
+}[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const items = await supabaseHealth.getActionPlanItems(userId, 'active');
+      return items.slice(0, limit).map(i => ({
+        title: i.snapshot_title || i.title || '',
+        action: i.snapshot_action || i.description || '',
+        category: i.category || '',
+        targetBiomarker: (i as any).target_biomarker ?? undefined,
+        currentValue: i.current_value ?? undefined,
+        targetValue: i.target_value ?? undefined,
+        unit: i.target_unit ?? undefined,
+        addedAt: i.created_at ? new Date(i.created_at) : undefined,
+      }));
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getReminderActionPlanItems failed:", error);
+      return [];
+    }
+  }
+  logger.warn("[HealthStorageRouter] getReminderActionPlanItems requires Supabase - returning empty");
+  return [];
+}
+
+export async function getReminderGoals(userId: string): Promise<string[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      const profile = await supabaseHealth.getProfile(userId);
+      return Array.isArray(profile?.goals) ? profile.goals : [];
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getReminderGoals failed:", error);
+      return [];
+    }
+  }
+  logger.warn("[HealthStorageRouter] getReminderGoals requires Supabase - returning empty");
+  return [];
+}
+
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);

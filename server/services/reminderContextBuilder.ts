@@ -1,7 +1,5 @@
-import { db } from '../db';
-import { sql, eq, desc, and } from 'drizzle-orm';
+import * as healthRouter from './healthStorageRouter';
 import { logger } from '../logger';
-import { insightCards, actionPlanItems } from '@shared/schema';
 
 export interface ReminderContext {
   userId: string;
@@ -87,231 +85,117 @@ export interface TrainingMetrics {
 }
 
 /**
- * Query Neon views to build comprehensive clinical context for a user
- * This aggregates data from 5 optimized SQL views for the Grok reminder prompt
+ * Build comprehensive clinical context for a user using Supabase health data
+ * Routes all health data reads through healthStorageRouter to Supabase
  */
 export async function buildReminderContext(userId: string): Promise<ReminderContext> {
   try {
-    logger.info(`[ReminderContext] Building context for user ${userId}`);
+    logger.info(`[ReminderContext] Building context for user ${userId} via Supabase health router`);
 
-    // Query all 5 views + insight cards + action plan in parallel for efficiency
-    const [biomarkersRaw, dexaRaw, wearablesRaw, behaviorsRaw, trainingRaw, goalsRaw, insightsRaw, actionPlanRaw] = await Promise.all([
-      // View 1: Top 6 most interesting biomarker trends (filtered by significance)
-      db.execute(sql`
-        SELECT 
-          biomarker_name, 
-          current_value, 
-          unit, 
-          current_date,
-          previous_value,
-          previous_date,
-          percent_change
-        FROM user_current_biomarkers
-        WHERE user_id = ${userId}
-          AND recency_rank = 1
-          AND percent_change IS NOT NULL
-          AND ABS(percent_change) >= 5
-        ORDER BY ABS(percent_change) DESC
-        LIMIT 6
-      `),
-
-      // View 2: Latest DEXA scan comparison
-      db.execute(sql`
-        SELECT 
-          latest_scan_date,
-          body_fat_percentage,
-          lean_mass_kg,
-          visceral_fat_area_cm2,
-          prev_body_fat_percentage,
-          prev_visceral_fat_area_cm2,
-          prev_lean_mass_kg,
-          prev_scan_date,
-          visceral_fat_change_cm2
-        FROM user_dexa_latest
-        WHERE user_id = ${userId}
-          AND scan_rank = 1
-        LIMIT 1
-      `),
-
-      // View 3: 7-day and 30-day wearable averages
-      db.execute(sql`
-        SELECT 
-          hrv_7d_avg,
-          rhr_7d_avg,
-          sleep_7d_avg_hours,
-          active_kcal_7d_avg,
-          steps_7d_avg,
-          hrv_30d_avg,
-          rhr_30d_avg,
-          sleep_30d_avg_hours,
-          hrv_trend_percent
-        FROM user_wearable_7d
-        WHERE user_id = ${userId}
-        LIMIT 1
-      `),
-
-      // View 4: 14-day behavior tracking
-      db.execute(sql`
-        SELECT 
-          alcohol_events_14d,
-          total_drinks_14d,
-          zero_drink_streak_days,
-          sauna_sessions_14d,
-          avg_stress_level_14d,
-          supplement_events_14d,
-          ice_bath_sessions_14d
-        FROM user_behavior_14d
-        WHERE user_id = ${userId}
-        LIMIT 1
-      `),
-
-      // View 5: 7-day training load
-      db.execute(sql`
-        SELECT 
-          zone2_minutes_7d,
-          zone5_minutes_7d,
-          strength_sessions_7d,
-          total_workout_kcal_7d,
-          total_workout_minutes_7d
-        FROM user_training_load
-        WHERE user_id = ${userId}
-        LIMIT 1
-      `),
-
-      // User's active health goals
-      db.execute(sql`
-        SELECT goals 
-        FROM profiles 
-        WHERE user_id = ${userId}
-        LIMIT 1
-      `),
-
-      // User's active insight cards (top 3 by confidence, showing new ones first)
-      db
-        .select({
-          category: insightCards.category,
-          pattern: insightCards.pattern,
-          confidence: insightCards.confidence,
-          isNew: insightCards.isNew,
-        })
-        .from(insightCards)
-        .where(eq(insightCards.userId, userId))
-        .orderBy(desc(insightCards.isNew), desc(insightCards.confidence))
-        .limit(3),
-
-      // User's active action plan items (up to 5 most recent)
-      db
-        .select({
-          title: actionPlanItems.snapshotTitle,
-          action: actionPlanItems.snapshotAction,
-          category: actionPlanItems.category,
-          targetBiomarker: actionPlanItems.targetBiomarker,
-          currentValue: actionPlanItems.currentValue,
-          targetValue: actionPlanItems.targetValue,
-          unit: actionPlanItems.unit,
-          addedAt: actionPlanItems.addedAt,
-        })
-        .from(actionPlanItems)
-        .where(and(
-          eq(actionPlanItems.userId, userId),
-          eq(actionPlanItems.status, 'active')
-        ))
-        .orderBy(desc(actionPlanItems.addedAt))
-        .limit(5)
+    // Query all health data in parallel from Supabase via router
+    const [
+      biomarkerTrends,
+      dexaComparison,
+      wearableAverages,
+      behaviorMetrics,
+      trainingLoad,
+      goals,
+      insightCards,
+      actionPlanItems,
+    ] = await Promise.all([
+      healthRouter.getBiomarkerTrends(userId, 5),
+      healthRouter.getLatestDexaComparison(userId),
+      healthRouter.getWearableAverages(userId),
+      healthRouter.getBehaviorMetrics14d(userId),
+      healthRouter.getTrainingLoad7d(userId),
+      healthRouter.getReminderGoals(userId),
+      healthRouter.getReminderInsightCards(userId, 3),
+      healthRouter.getReminderActionPlanItems(userId, 5),
     ]);
 
-    // Parse biomarker trends
-    const biomarkers: BiomarkerTrend[] = (biomarkersRaw.rows || []).map((row: any) => ({
-      name: String(row.biomarker_name || ''),
-      currentValue: parseFloat(String(row.current_value || 0)),
-      unit: String(row.unit || ''),
-      currentDate: new Date(row.current_date as string),
-      previousValue: row.previous_value ? parseFloat(String(row.previous_value)) : undefined,
-      previousDate: row.previous_date ? new Date(row.previous_date as string) : undefined,
-      percentChange: row.percent_change ? parseFloat(String(row.percent_change)) : undefined,
+    // Transform biomarker trends
+    const biomarkers: BiomarkerTrend[] = biomarkerTrends.map(b => ({
+      name: b.biomarker_name,
+      currentValue: b.current_value,
+      unit: b.unit,
+      currentDate: b.current_date,
+      previousValue: b.previous_value,
+      previousDate: b.previous_date,
+      percentChange: b.percent_change,
     }));
 
-    // Parse DEXA data
-    const dexaRow: any = dexaRaw.rows?.[0];
-    const dexa: DexaComparison | null = dexaRow ? {
-      latestScanDate: new Date(String(dexaRow.latest_scan_date)),
-      bodyFatPercentage: dexaRow.body_fat_percentage ? parseFloat(String(dexaRow.body_fat_percentage)) : undefined,
-      leanMassKg: dexaRow.lean_mass_kg ? parseFloat(String(dexaRow.lean_mass_kg)) : undefined,
-      visceralFatAreaCm2: dexaRow.visceral_fat_area_cm2 ? parseFloat(String(dexaRow.visceral_fat_area_cm2)) : undefined,
-      prevBodyFatPercentage: dexaRow.prev_body_fat_percentage ? parseFloat(String(dexaRow.prev_body_fat_percentage)) : undefined,
-      prevVisceralFatAreaCm2: dexaRow.prev_visceral_fat_area_cm2 ? parseFloat(String(dexaRow.prev_visceral_fat_area_cm2)) : undefined,
-      prevLeanMassKg: dexaRow.prev_lean_mass_kg ? parseFloat(String(dexaRow.prev_lean_mass_kg)) : undefined,
-      prevScanDate: dexaRow.prev_scan_date ? new Date(String(dexaRow.prev_scan_date)) : undefined,
-      visceralFatChangeCm2: dexaRow.visceral_fat_change_cm2 ? parseFloat(String(dexaRow.visceral_fat_change_cm2)) : undefined,
+    // Transform DEXA comparison
+    const dexa: DexaComparison | null = dexaComparison ? {
+      latestScanDate: dexaComparison.latestScanDate,
+      bodyFatPercentage: dexaComparison.bodyFatPercentage,
+      leanMassKg: dexaComparison.leanMassKg,
+      visceralFatAreaCm2: dexaComparison.visceralFatAreaCm2,
+      prevBodyFatPercentage: dexaComparison.prevBodyFatPercentage,
+      prevVisceralFatAreaCm2: dexaComparison.prevVisceralFatAreaCm2,
+      prevLeanMassKg: dexaComparison.prevLeanMassKg,
+      prevScanDate: dexaComparison.prevScanDate,
+      visceralFatChangeCm2: dexaComparison.visceralFatChangeCm2,
     } : null;
 
-    // Parse wearable metrics
-    const wearableRow: any = wearablesRaw.rows?.[0];
-    const wearables: WearableMetrics | null = wearableRow ? {
-      hrv7dAvg: wearableRow.hrv_7d_avg ? parseFloat(String(wearableRow.hrv_7d_avg)) : undefined,
-      rhr7dAvg: wearableRow.rhr_7d_avg ? parseFloat(String(wearableRow.rhr_7d_avg)) : undefined,
-      sleep7dAvgHours: wearableRow.sleep_7d_avg_hours ? parseFloat(String(wearableRow.sleep_7d_avg_hours)) : undefined,
-      activeKcal7dAvg: wearableRow.active_kcal_7d_avg ? parseFloat(String(wearableRow.active_kcal_7d_avg)) : undefined,
-      steps7dAvg: wearableRow.steps_7d_avg ? parseFloat(String(wearableRow.steps_7d_avg)) : undefined,
-      exercise7dAvgMin: undefined, // Column doesn't exist in view
-      hrv30dAvg: wearableRow.hrv_30d_avg ? parseFloat(String(wearableRow.hrv_30d_avg)) : undefined,
-      rhr30dAvg: wearableRow.rhr_30d_avg ? parseFloat(String(wearableRow.rhr_30d_avg)) : undefined,
-      sleep30dAvgHours: wearableRow.sleep_30d_avg_hours ? parseFloat(String(wearableRow.sleep_30d_avg_hours)) : undefined,
-      hrvTrendPercent: wearableRow.hrv_trend_percent ? parseFloat(String(wearableRow.hrv_trend_percent)) : undefined,
+    // Transform wearable metrics
+    const wearables: WearableMetrics | null = wearableAverages ? {
+      hrv7dAvg: wearableAverages.hrv_7d_avg,
+      rhr7dAvg: wearableAverages.rhr_7d_avg,
+      sleep7dAvgHours: wearableAverages.sleep_7d_avg_hours,
+      activeKcal7dAvg: wearableAverages.active_kcal_7d_avg,
+      steps7dAvg: wearableAverages.steps_7d_avg,
+      hrv30dAvg: wearableAverages.hrv_30d_avg,
+      rhr30dAvg: wearableAverages.rhr_30d_avg,
+      sleep30dAvgHours: wearableAverages.sleep_30d_avg_hours,
+      hrvTrendPercent: wearableAverages.hrv_trend_percent,
     } : null;
 
-    // Parse behavior metrics
-    const behaviorRow: any = behaviorsRaw.rows?.[0];
-    const behaviors: BehaviorMetrics | null = behaviorRow ? {
-      alcoholEvents14d: parseInt(String(behaviorRow.alcohol_events_14d || 0)),
-      totalDrinks14d: parseInt(String(behaviorRow.total_drinks_14d || 0)),
-      zeroDrinkStreakDays: parseInt(String(behaviorRow.zero_drink_streak_days || 0)),
-      saunaSessions14d: parseInt(String(behaviorRow.sauna_sessions_14d || 0)),
-      avgStressLevel14d: behaviorRow.avg_stress_level_14d ? parseFloat(String(behaviorRow.avg_stress_level_14d)) : undefined,
-      supplementEvents14d: parseInt(String(behaviorRow.supplement_events_14d || 0)),
-      iceBathSessions14d: parseInt(String(behaviorRow.ice_bath_sessions_14d || 0)),
+    // Transform behavior metrics
+    const behaviors: BehaviorMetrics | null = behaviorMetrics ? {
+      alcoholEvents14d: behaviorMetrics.alcohol_events_14d,
+      totalDrinks14d: behaviorMetrics.total_drinks_14d,
+      zeroDrinkStreakDays: behaviorMetrics.zero_drink_streak_days,
+      saunaSessions14d: behaviorMetrics.sauna_sessions_14d,
+      avgStressLevel14d: undefined,
+      supplementEvents14d: behaviorMetrics.supplement_events_14d,
+      iceBathSessions14d: behaviorMetrics.ice_bath_sessions_14d,
     } : null;
 
-    // Parse training metrics
-    const trainingRow: any = trainingRaw.rows?.[0];
-    const training: TrainingMetrics | null = trainingRow ? {
-      zone2Minutes7d: trainingRow.zone2_minutes_7d ? parseFloat(String(trainingRow.zone2_minutes_7d)) : undefined,
-      zone5Minutes7d: trainingRow.zone5_minutes_7d ? parseFloat(String(trainingRow.zone5_minutes_7d)) : undefined,
-      strengthSessions7d: parseInt(String(trainingRow.strength_sessions_7d || 0)),
-      totalWorkoutKcal7d: trainingRow.total_workout_kcal_7d ? parseFloat(String(trainingRow.total_workout_kcal_7d)) : undefined,
-      totalWorkoutMinutes7d: trainingRow.total_workout_minutes_7d ? parseFloat(String(trainingRow.total_workout_minutes_7d)) : undefined,
+    // Transform training metrics
+    const training: TrainingMetrics | null = trainingLoad ? {
+      zone2Minutes7d: trainingLoad.zone2_minutes_7d,
+      zone5Minutes7d: trainingLoad.zone5_minutes_7d,
+      strengthSessions7d: trainingLoad.strength_sessions_7d,
+      totalWorkoutKcal7d: trainingLoad.total_workout_kcal_7d,
+      totalWorkoutMinutes7d: trainingLoad.total_workout_minutes_7d,
     } : null;
 
-    // Parse goals
-    const goalsRow: any = goalsRaw.rows?.[0];
-    const goals: string[] = Array.isArray(goalsRow?.goals) ? goalsRow.goals : [];
-
-    // Parse insights
-    const insights: InsightSummary[] = (insightsRaw || []).map((row: any) => ({
-      category: String(row.category || ''),
-      pattern: String(row.pattern || ''),
-      confidence: parseFloat(String(row.confidence || 0)),
-      isNew: Boolean(row.isNew),
+    // Transform insights
+    const insights: InsightSummary[] = insightCards.map(c => ({
+      category: c.category,
+      pattern: c.pattern,
+      confidence: c.confidence,
+      isNew: c.isNew,
     }));
 
-    // Parse action plan items
+    // Transform action plan items with daysSinceAdded calculation
     const now = new Date();
-    const actionPlan: ActionPlanItem[] = (actionPlanRaw || []).map((row: any) => {
-      const addedAt = row.addedAt ? new Date(row.addedAt) : now;
+    const actionPlan: ActionPlanItem[] = actionPlanItems.map(item => {
+      const addedAt = item.addedAt || now;
       const daysSinceAdded = Math.floor((now.getTime() - addedAt.getTime()) / (1000 * 60 * 60 * 24));
       return {
-        title: String(row.title || ''),
-        action: String(row.action || ''),
-        category: String(row.category || ''),
-        targetBiomarker: row.targetBiomarker ? String(row.targetBiomarker) : undefined,
-        currentValue: row.currentValue ? parseFloat(String(row.currentValue)) : undefined,
-        targetValue: row.targetValue ? parseFloat(String(row.targetValue)) : undefined,
-        unit: row.unit ? String(row.unit) : undefined,
+        title: item.title,
+        action: item.action,
+        category: item.category,
+        targetBiomarker: item.targetBiomarker,
+        currentValue: item.currentValue,
+        targetValue: item.targetValue,
+        unit: item.unit,
         daysSinceAdded,
       };
     });
 
-    logger.info(`[ReminderContext] Context built successfully for user ${userId}: ${biomarkers.length} biomarker trends, DEXA: ${dexa ? 'yes' : 'no'}, wearables: ${wearables ? 'yes' : 'no'}, insights: ${insights.length} (${insights.filter(i => i.isNew).length} new), actions: ${actionPlan.length}`);
+    logger.info(`[ReminderContext] Context built successfully for user ${userId}: ${biomarkers.length} biomarker trends, DEXA: ${dexa ? 'yes' : 'no'}, wearables: ${wearables ? 'yes' : 'no'}, behaviors: ${behaviors ? 'yes' : 'no'}, training: ${training ? 'yes' : 'no'}, insights: ${insights.length} (${insights.filter(i => i.isNew).length} new), actions: ${actionPlan.length}, goals: ${goals.length}`);
 
     return {
       userId,

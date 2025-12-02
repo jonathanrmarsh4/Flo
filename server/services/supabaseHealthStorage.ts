@@ -1837,6 +1837,287 @@ export async function upsertBiomarker(biomarker: Biomarker): Promise<Biomarker> 
   return data;
 }
 
+// ==================== AGGREGATION FUNCTIONS FOR REMINDER CONTEXT ====================
+
+/**
+ * Get biomarker measurements with trend calculation for reminder context
+ * Returns measurements from last 90 days grouped by biomarker with percent change
+ */
+export interface BiomarkerTrendResult {
+  biomarker_name: string;
+  current_value: number;
+  unit: string;
+  current_date: Date;
+  previous_value?: number;
+  previous_date?: Date;
+  percent_change?: number;
+}
+
+export async function getBiomarkerTrends(userId: string, minPercentChange: number = 5): Promise<BiomarkerTrendResult[]> {
+  const healthId = await getHealthId(userId);
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const { data: measurements, error } = await supabase
+    .from('biomarker_measurements')
+    .select(`
+      id,
+      biomarker_name,
+      value,
+      unit,
+      test_date,
+      session_id
+    `)
+    .eq('health_id', healthId)
+    .gte('test_date', ninetyDaysAgo.toISOString())
+    .not('value', 'is', null)
+    .order('biomarker_name')
+    .order('test_date', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching biomarker trends:', error);
+    throw error;
+  }
+
+  if (!measurements || measurements.length === 0) {
+    return [];
+  }
+
+  // Group by biomarker and calculate trends
+  const groupedByBiomarker = new Map<string, typeof measurements>();
+  for (const m of measurements) {
+    if (!groupedByBiomarker.has(m.biomarker_name)) {
+      groupedByBiomarker.set(m.biomarker_name, []);
+    }
+    groupedByBiomarker.get(m.biomarker_name)!.push(m);
+  }
+
+  const trends: BiomarkerTrendResult[] = [];
+  for (const [biomarkerName, biomarkerMeasurements] of groupedByBiomarker) {
+    if (biomarkerMeasurements.length < 1) continue;
+    
+    const current = biomarkerMeasurements[0];
+    const previous = biomarkerMeasurements.length > 1 ? biomarkerMeasurements[1] : null;
+    
+    let percentChange: number | undefined;
+    if (previous && previous.value !== 0) {
+      percentChange = Math.round(((current.value - previous.value) / previous.value) * 1000) / 10;
+    }
+
+    // Only include if percent change meets threshold
+    if (percentChange !== undefined && Math.abs(percentChange) >= minPercentChange) {
+      trends.push({
+        biomarker_name: biomarkerName,
+        current_value: current.value,
+        unit: current.unit || '',
+        current_date: new Date(current.test_date),
+        previous_value: previous?.value,
+        previous_date: previous?.test_date ? new Date(previous.test_date) : undefined,
+        percent_change: percentChange,
+      });
+    }
+  }
+
+  // Sort by absolute percent change descending
+  trends.sort((a, b) => Math.abs(b.percent_change || 0) - Math.abs(a.percent_change || 0));
+  return trends.slice(0, 6);
+}
+
+/**
+ * Get wearable averages for 7-day and 30-day windows
+ */
+export interface WearableAveragesResult {
+  hrv_7d_avg?: number;
+  rhr_7d_avg?: number;
+  sleep_7d_avg_hours?: number;
+  active_kcal_7d_avg?: number;
+  steps_7d_avg?: number;
+  hrv_30d_avg?: number;
+  rhr_30d_avg?: number;
+  sleep_30d_avg_hours?: number;
+  hrv_trend_percent?: number;
+}
+
+export async function getWearableAverages(userId: string): Promise<WearableAveragesResult | null> {
+  const healthId = await getHealthId(userId);
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const { data: metrics, error } = await supabase
+    .from('user_daily_metrics')
+    .select(`
+      local_date,
+      hrv_ms,
+      resting_hr_bpm,
+      sleep_hours,
+      active_energy_kcal,
+      steps
+    `)
+    .eq('health_id', healthId)
+    .gte('local_date', thirtyDaysAgo.toISOString().split('T')[0])
+    .order('local_date', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching wearable averages:', error);
+    throw error;
+  }
+
+  if (!metrics || metrics.length === 0) {
+    return null;
+  }
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+  const last7Days = metrics.filter(m => m.local_date >= sevenDaysAgoStr);
+  const last30Days = metrics;
+
+  const avg = (arr: (number | null | undefined)[]): number | undefined => {
+    const valid = arr.filter(v => v != null) as number[];
+    return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : undefined;
+  };
+
+  const hrv7d = avg(last7Days.map(m => m.hrv_ms));
+  const hrv30d = avg(last30Days.map(m => m.hrv_ms));
+
+  return {
+    hrv_7d_avg: hrv7d ? Math.round(hrv7d * 10) / 10 : undefined,
+    rhr_7d_avg: avg(last7Days.map(m => m.resting_hr_bpm)) ? Math.round(avg(last7Days.map(m => m.resting_hr_bpm))! * 10) / 10 : undefined,
+    sleep_7d_avg_hours: avg(last7Days.map(m => m.sleep_hours)) ? Math.round(avg(last7Days.map(m => m.sleep_hours))! * 100) / 100 : undefined,
+    active_kcal_7d_avg: avg(last7Days.map(m => m.active_energy_kcal)) ? Math.round(avg(last7Days.map(m => m.active_energy_kcal))!) : undefined,
+    steps_7d_avg: avg(last7Days.map(m => m.steps)) ? Math.round(avg(last7Days.map(m => m.steps))!) : undefined,
+    hrv_30d_avg: hrv30d ? Math.round(hrv30d * 10) / 10 : undefined,
+    rhr_30d_avg: avg(last30Days.map(m => m.resting_hr_bpm)) ? Math.round(avg(last30Days.map(m => m.resting_hr_bpm))! * 10) / 10 : undefined,
+    sleep_30d_avg_hours: avg(last30Days.map(m => m.sleep_hours)) ? Math.round(avg(last30Days.map(m => m.sleep_hours))! * 100) / 100 : undefined,
+    hrv_trend_percent: hrv7d && hrv30d && hrv30d > 0 
+      ? Math.round(((hrv7d - hrv30d) / hrv30d) * 1000) / 10 
+      : undefined,
+  };
+}
+
+/**
+ * Get behavior metrics for last 14 days from life events
+ */
+export interface BehaviorMetricsResult {
+  alcohol_events_14d: number;
+  total_drinks_14d: number;
+  zero_drink_streak_days: number;
+  sauna_sessions_14d: number;
+  ice_bath_sessions_14d: number;
+  supplement_events_14d: number;
+}
+
+export async function getBehaviorMetrics14d(userId: string): Promise<BehaviorMetricsResult | null> {
+  const healthId = await getHealthId(userId);
+  const fourteenDaysAgo = new Date();
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const { data: events, error } = await supabase
+    .from('life_events')
+    .select(`
+      event_type,
+      details,
+      happened_at
+    `)
+    .eq('health_id', healthId)
+    .gte('happened_at', fourteenDaysAgo.toISOString())
+    .order('happened_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching behavior metrics:', error);
+    throw error;
+  }
+
+  if (!events || events.length === 0) {
+    return null;
+  }
+
+  const alcoholEvents = events.filter(e => e.event_type === 'alcohol');
+  const totalDrinks = alcoholEvents.reduce((sum, e) => {
+    const drinks = (e.details as any)?.drinks;
+    return sum + (typeof drinks === 'number' ? drinks : 0);
+  }, 0);
+
+  // Calculate zero-drink streak
+  let zeroDrinkStreak = 0;
+  if (alcoholEvents.length === 0) {
+    zeroDrinkStreak = 14;
+  } else {
+    const lastAlcoholDate = new Date(alcoholEvents[0].happened_at);
+    zeroDrinkStreak = Math.floor((Date.now() - lastAlcoholDate.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  return {
+    alcohol_events_14d: alcoholEvents.length,
+    total_drinks_14d: totalDrinks,
+    zero_drink_streak_days: zeroDrinkStreak,
+    sauna_sessions_14d: events.filter(e => e.event_type === 'sauna').length,
+    ice_bath_sessions_14d: events.filter(e => e.event_type === 'ice_bath' || e.event_type === 'ice bath').length,
+    supplement_events_14d: events.filter(e => e.event_type === 'supplements').length,
+  };
+}
+
+/**
+ * Get training load metrics for last 7 days from healthkit workouts
+ */
+export interface TrainingLoadResult {
+  zone2_minutes_7d: number;
+  zone5_minutes_7d: number;
+  strength_sessions_7d: number;
+  total_workout_kcal_7d: number;
+  total_workout_minutes_7d: number;
+}
+
+export async function getTrainingLoad7d(userId: string): Promise<TrainingLoadResult | null> {
+  const healthId = await getHealthId(userId);
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data: workouts, error } = await supabase
+    .from('healthkit_workouts')
+    .select(`
+      workout_type,
+      duration_minutes,
+      total_energy_burned_kcal,
+      average_heart_rate_bpm
+    `)
+    .eq('health_id', healthId)
+    .gte('start_date', sevenDaysAgo.toISOString());
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching training load:', error);
+    throw error;
+  }
+
+  if (!workouts || workouts.length === 0) {
+    return null;
+  }
+
+  // Zone 2: Lower intensity workouts (walking, yoga, moderate cycling)
+  const zone2Types = ['Walking', 'Cycling', 'Yoga', 'Pilates', 'TraditionalStrengthTraining'];
+  const zone2Workouts = workouts.filter(w => 
+    zone2Types.includes(w.workout_type) && 
+    (!w.average_heart_rate_bpm || w.average_heart_rate_bpm < 140)
+  );
+  const zone2Minutes = zone2Workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0);
+
+  // Zone 5: High intensity workouts (HIIT, running with high HR)
+  const zone5Workouts = workouts.filter(w => 
+    (w.workout_type === 'HIIT' || w.workout_type === 'Running' || w.workout_type === 'Rowing') &&
+    w.average_heart_rate_bpm && w.average_heart_rate_bpm > 160
+  );
+  const zone5Minutes = zone5Workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0);
+
+  return {
+    zone2_minutes_7d: Math.round(zone2Minutes),
+    zone5_minutes_7d: Math.round(zone5Minutes),
+    strength_sessions_7d: workouts.filter(w => w.workout_type === 'TraditionalStrengthTraining').length,
+    total_workout_kcal_7d: Math.round(workouts.reduce((sum, w) => sum + (w.total_energy_burned_kcal || 0), 0)),
+    total_workout_minutes_7d: Math.round(workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0)),
+  };
+}
+
 // ==================== UTILITY FUNCTIONS ====================
 
 /**
