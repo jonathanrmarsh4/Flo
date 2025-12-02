@@ -116,6 +116,7 @@ import {
   getMedicalDocument,
   deleteMedicalDocument,
   searchMedicalDocuments,
+  updateMedicalDocumentType,
   getDocumentTypes,
   type MedicalDocumentType
 } from "./services/medicalDocumentService";
@@ -3384,6 +3385,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error getting medical document:', error);
       res.status(500).json({ error: "Failed to get document" });
+    }
+  });
+
+  // PATCH /api/medical-documents/:id - Update document metadata
+  app.patch("/api/medical-documents/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const documentId = req.params.id;
+      const { documentType } = req.body;
+
+      if (documentType) {
+        const success = await updateMedicalDocumentType(userId, documentId, documentType);
+        if (!success) {
+          return res.status(404).json({ error: "Document not found or update failed" });
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error updating medical document:', error);
+      res.status(500).json({ error: "Failed to update document" });
     }
   });
 

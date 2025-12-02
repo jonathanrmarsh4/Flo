@@ -635,6 +635,34 @@ export async function deleteMedicalDocument(
   }
 }
 
+export async function updateMedicalDocumentType(
+  userId: string,
+  documentId: string,
+  newDocumentType: MedicalDocumentType
+): Promise<boolean> {
+  try {
+    const healthId = await getHealthId(userId);
+    const supabase = getSupabaseClient();
+
+    const { error } = await supabase
+      .from('medical_documents')
+      .update({ document_type: newDocumentType })
+      .eq('id', documentId)
+      .eq('health_id', healthId);
+
+    if (error) {
+      logger.error('[MedicalDocService] Error updating document type:', error);
+      return false;
+    }
+
+    logger.info(`[MedicalDocService] Updated document ${documentId} type to ${newDocumentType}`);
+    return true;
+  } catch (error) {
+    logger.error('[MedicalDocService] Error updating document type:', error);
+    return false;
+  }
+}
+
 export async function searchMedicalDocuments(
   userId: string,
   query: string,

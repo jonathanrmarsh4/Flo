@@ -50,7 +50,7 @@ export function SpecialistReportsTile({ isDark }: SpecialistReportsTileProps) {
     queryKey: ['/api/medical-documents'],
   });
 
-  const documents = data?.documents?.filter(d => d.status === 'processed') || [];
+  const documents = data?.documents?.filter(d => d.status === 'completed') || [];
 
   if (isLoading) {
     return (
