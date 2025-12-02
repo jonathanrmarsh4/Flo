@@ -4,6 +4,7 @@ import { grokClient, GrokChatMessage } from './grokClient';
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
 import { storage } from '../storage';
 import { processAndPersistBrainUpdates } from './brainUpdateParser';
+import { getHybridInsights, formatInsightsForChat } from './brainService';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
@@ -68,21 +69,30 @@ class VoiceOrchestrator {
     let session = activeSessions.get(userId);
     
     if (!session) {
-      const [healthContext, actionPlanContext, insightsContext, lifeEventsContext, user] = await Promise.all([
+      const [healthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights, user] = await Promise.all([
         buildUserHealthContext(userId),
         getActiveActionPlanItems(userId),
         getRelevantInsights(userId),
         getRecentLifeEvents(userId),
+        getHybridInsights(userId, 'health medical reports specialist documents', { recentLimit: 15, semanticLimit: 10 })
+          .catch(err => {
+            logger.error('[VoiceOrchestrator] Failed to retrieve brain insights:', err);
+            return { merged: [] };
+          }),
         storage.getUser(userId),
       ]);
       
       const userName = user?.firstName || 'there';
+      
+      // Format brain memory insights (includes medical documents, chat learnings, etc.)
+      const brainContext = formatInsightsForChat(brainInsights.merged);
       
       const fullContext = [
         healthContext,
         actionPlanContext,
         insightsContext,
         lifeEventsContext,
+        brainContext ? `\n[BRAIN MEMORY - Medical Documents & Learned Insights]\n${brainContext}` : '',
       ].filter(Boolean).join('\n');
       
       session = {
@@ -98,7 +108,10 @@ class VoiceOrchestrator {
       };
       
       activeSessions.set(userId, session);
-      logger.info('[VoiceOrchestrator] Created new session for user with action plan context', { userId });
+      logger.info('[VoiceOrchestrator] Created new session for user with brain memory context', { 
+        userId, 
+        brainInsightsCount: brainInsights.merged.length 
+      });
     }
     
     session.lastActivity = new Date();

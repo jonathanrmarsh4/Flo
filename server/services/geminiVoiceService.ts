@@ -6,6 +6,7 @@
 
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
+import { getHybridInsights, formatInsightsForChat } from './brainService';
 import { logger } from '../logger';
 import { db } from '../db';
 import { floChatMessages, users, VOICE_NAME_TO_GEMINI } from '@shared/schema';
@@ -110,33 +111,43 @@ class GeminiVoiceService {
     
     let healthContext = '';
     try {
-      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext] = await Promise.all([
+      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights] = await Promise.all([
         buildUserHealthContext(userId),
         getActiveActionPlanItems(userId),
         getRelevantInsights(userId),
         getRecentLifeEvents(userId),
+        getHybridInsights(userId, 'health medical reports specialist documents cardiology', { recentLimit: 15, semanticLimit: 10 })
+          .catch(err => {
+            logger.error('[GeminiVoice] Failed to retrieve brain insights:', err);
+            return { merged: [] };
+          }),
       ]);
+      
+      // Format brain memory insights (includes medical documents, chat learnings, etc.)
+      const brainContext = formatInsightsForChat(brainInsights.merged);
       
       healthContext = [
         baseHealthContext,
         actionPlanContext,
         insightsContext,
         lifeEventsContext,
+        brainContext ? `\n[BRAIN MEMORY - Medical Documents & Learned Insights]\n${brainContext}` : '',
       ].filter(Boolean).join('\n');
       
       // Truncate if too large (Gemini Live may have limits on system instruction)
-      if (healthContext.length > 6000) {
+      if (healthContext.length > 8000) {
         logger.warn('[GeminiVoice] Health context truncated', { 
           originalLength: healthContext.length,
-          truncatedTo: 6000 
+          truncatedTo: 8000 
         });
-        healthContext = healthContext.substring(0, 6000) + '\n\n[Context truncated for voice session]';
+        healthContext = healthContext.substring(0, 8000) + '\n\n[Context truncated for voice session]';
       }
       
-      logger.info('[GeminiVoice] Built full health context with action plan', { 
+      logger.info('[GeminiVoice] Built full health context with brain memory', { 
         userId, 
         contextLength: healthContext.length,
-        hasActionPlan: actionPlanContext.length > 0 
+        hasActionPlan: actionPlanContext.length > 0,
+        brainInsightsCount: brainInsights.merged.length
       });
     } catch (contextError: any) {
       logger.error('[GeminiVoice] Failed to build health context', { error: contextError.message });
