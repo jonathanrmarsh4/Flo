@@ -1,39 +1,48 @@
 import { ArrowRight, Info, TrendingUp, AlertTriangle, Bone } from 'lucide-react';
 import { useState } from 'react';
 
-interface DexaData {
-  id: string;
-  type: 'DEXA';
-  organ: string;
-  title: string;
-  spine_t_score: number;
-  total_hip_t_score: number;
-  who_classification: string;
-  fat_percent_total: number;
-  vat_area_cm2: number;
-  status_badge: string;
-  scan_date: string;
-  ai_summary_line: string;
-  report_link?: string;
-}
-
 interface DexaScanTileProps {
   isDark: boolean;
-  data?: DexaData | null;
+  spineTScore: number | null;
+  hipTScore: number | null;
+  whoClassification: string | null;
+  bodyFatPercent: number | null;
+  vatArea: number | null;
+  testDate: string | null;
+  userSex?: 'Male' | 'Female' | 'Other' | null;
 }
 
-export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
+export function DexaScanTile({ 
+  isDark, 
+  spineTScore,
+  hipTScore,
+  whoClassification,
+  bodyFatPercent,
+  vatArea,
+  testDate,
+  userSex
+}: DexaScanTileProps) {
   const [showDetails, setShowDetails] = useState(false);
 
-  // Don't render anything if no real data exists
-  if (!data) {
+  // Don't render if no real data exists - check if we have any meaningful data
+  const hasData = spineTScore !== null || hipTScore !== null || bodyFatPercent !== null || vatArea !== null;
+  if (!hasData) {
     return null;
   }
 
-  const avgTScore = (data.spine_t_score + data.total_hip_t_score) / 2;
+  // Use safe defaults for display
+  const safeSpineTScore = spineTScore ?? 0;
+  const safeHipTScore = hipTScore ?? 0;
+  const safeBodyFatPercent = bodyFatPercent ?? 0;
+  const safeVatArea = vatArea ?? 0;
+  const safeWhoClassification = whoClassification ?? 'Unknown';
+  const safeTestDate = testDate ?? new Date().toISOString();
+
+  const avgTScore = (safeSpineTScore + safeHipTScore) / 2;
+  const leanPercentage = 100 - safeBodyFatPercent;
 
   const getWHOClassificationColor = () => {
-    const classification = data.who_classification.toLowerCase();
+    const classification = safeWhoClassification.toLowerCase();
     if (classification === 'normal') {
       return {
         bg: isDark ? 'bg-green-500/20' : 'bg-green-100',
@@ -59,12 +68,12 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
   };
 
   const getVATCategory = () => {
-    if (data.vat_area_cm2 < 100) return { 
+    if (safeVatArea < 100) return { 
       label: 'Low', 
       color: 'green',
       description: 'Healthy level'
     };
-    if (data.vat_area_cm2 < 150) return { 
+    if (safeVatArea < 150) return { 
       label: 'Moderate', 
       color: 'yellow',
       description: 'Monitor closely'
@@ -78,7 +87,6 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
 
   const whoColors = getWHOClassificationColor();
   const vatCategory = getVATCategory();
-  const leanPercentage = 100 - data.fat_percent_total;
 
   return (
     <>
@@ -97,10 +105,10 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
             <h3 className={`text-xs tracking-wide mb-1 ${
               isDark ? 'text-white/60' : 'text-gray-500'
             }`}>
-              {data.title.toUpperCase()}
+              BONE DENSITY (DEXA)
             </h3>
             <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-              {new Date(data.scan_date).toLocaleDateString('en-US', { 
+              {new Date(safeTestDate).toLocaleDateString('en-US', { 
                 month: 'short', 
                 day: 'numeric', 
                 year: 'numeric' 
@@ -113,7 +121,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="text-center">
             <div className={`text-3xl mb-1 ${whoColors.text}`} data-testid="text-body-fat">
-              {data.fat_percent_total}%
+              {safeBodyFatPercent}%
             </div>
             <div className={`text-[10px] ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
               Body Fat
@@ -138,8 +146,8 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
             ></div>
             <div 
               className="bg-gradient-to-r from-orange-400 to-orange-500"
-              style={{ width: `${data.fat_percent_total}%` }}
-              title={`Fat: ${data.fat_percent_total}%`}
+              style={{ width: `${safeBodyFatPercent}%` }}
+              title={`Fat: ${safeBodyFatPercent}%`}
             ></div>
           </div>
           <div className="flex items-center justify-between text-[10px]">
@@ -152,7 +160,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-orange-500"></div>
               <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
-                Fat {data.fat_percent_total}%
+                Fat {safeBodyFatPercent}%
               </span>
             </div>
           </div>
@@ -161,12 +169,12 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
         <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4 ${whoColors.bg}`} data-testid="badge-who-classification">
           <div className={`w-2 h-2 rounded-full ${whoColors.dot}`}></div>
           <span className={`text-xs ${whoColors.text}`}>
-            {data.status_badge} - {data.who_classification}
+            {safeWhoClassification} - {safeWhoClassification}
           </span>
         </div>
 
         <div className={`text-xs mb-4 leading-relaxed ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-          {data.ai_summary_line}
+          Bone density is in the {safeWhoClassification.toLowerCase()} range with {safeBodyFatPercent < 20 ? 'low' : safeBodyFatPercent < 30 ? 'moderate' : 'elevated'} body fat.
         </div>
 
         <button className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 transition-all ${
@@ -194,7 +202,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
             }`}>
               <div className="flex items-center justify-between">
                 <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  {data.title}
+                  Bone Density (DEXA)
                 </h2>
                 <button 
                   onClick={() => setShowDetails(false)}
@@ -221,7 +229,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
                       AI Summary
                     </h3>
                     <p className={`text-xs leading-relaxed ${isDark ? 'text-blue-100' : 'text-blue-800'}`}>
-                      {data.ai_summary_line}
+                      Bone density is in the {safeWhoClassification.toLowerCase()} range with {safeBodyFatPercent < 20 ? 'low' : safeBodyFatPercent < 30 ? 'moderate' : 'elevated'} body fat and {safeVatArea < 100 ? 'healthy' : 'elevated'} visceral fat.
                     </p>
                   </div>
                 </div>
@@ -236,13 +244,13 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
                     <div>
                       <div className={`text-xs mb-1 ${whoColors.text}`}>Spine T-Score</div>
                       <div className={`text-2xl ${whoColors.text}`} data-testid="text-spine-t-score">
-                        {data.spine_t_score > 0 ? '+' : ''}{data.spine_t_score.toFixed(1)}
+                        {safeSpineTScore > 0 ? '+' : ''}{safeSpineTScore.toFixed(1)}
                       </div>
                     </div>
                     <div>
                       <div className={`text-xs mb-1 ${whoColors.text}`}>Hip T-Score</div>
                       <div className={`text-2xl ${whoColors.text}`} data-testid="text-hip-t-score">
-                        {data.total_hip_t_score > 0 ? '+' : ''}{data.total_hip_t_score.toFixed(1)}
+                        {safeHipTScore > 0 ? '+' : ''}{safeHipTScore.toFixed(1)}
                       </div>
                     </div>
                   </div>
@@ -251,7 +259,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
                   }`}>
                     <Bone className={`w-4 h-4 ${whoColors.text}`} />
                     <span className={`text-sm ${whoColors.text}`}>
-                      WHO Classification: {data.who_classification}
+                      WHO Classification: {safeWhoClassification}
                     </span>
                   </div>
                 </div>
@@ -295,7 +303,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
                         Body Fat Percentage
                       </span>
                       <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {data.fat_percent_total}%
+                        {safeBodyFatPercent}%
                       </span>
                     </div>
                     <div className={`h-2 rounded-full overflow-hidden ${
@@ -303,7 +311,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
                     }`}>
                       <div 
                         className="h-full bg-gradient-to-r from-orange-400 to-orange-500"
-                        style={{ width: `${(data.fat_percent_total / 40) * 100}%` }}
+                        style={{ width: `${(safeBodyFatPercent / 40) * 100}%` }}
                       ></div>
                     </div>
                   </div>
@@ -356,7 +364,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
                           ? isDark ? 'text-yellow-400' : 'text-yellow-700'
                           : isDark ? 'text-red-400' : 'text-red-700'
                     }`} data-testid="text-vat-area">
-                      {data.vat_area_cm2.toFixed(1)} cm²
+                      {safeVatArea.toFixed(1)} cm²
                     </div>
                     <div className={`text-xs ${
                       vatCategory.color === 'green'
@@ -377,7 +385,7 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
                         vatCategory.color === 'yellow' ? 'bg-yellow-500' :
                         'bg-red-500'
                       }`}
-                      style={{ width: `${Math.min((data.vat_area_cm2 / 200) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((safeVatArea / 200) * 100, 100)}%` }}
                     ></div>
                   </div>
                 </div>
@@ -418,22 +426,18 @@ export function DexaScanTile({ isDark, data }: DexaScanTileProps) {
               }`}>
                 <div className="flex items-center justify-between mb-1">
                   <span>Scan Date:</span>
-                  <span>{new Date(data.scan_date).toLocaleDateString('en-US', { 
+                  <span>{new Date(safeTestDate).toLocaleDateString('en-US', { 
                     month: 'long', 
                     day: 'numeric', 
                     year: 'numeric' 
                   })}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Scan ID:</span>
-                  <span>{data.id}</span>
                 </div>
               </div>
 
               <div className={`text-[10px] p-3 rounded-xl ${
                 isDark ? 'bg-white/5 text-white/40' : 'bg-gray-100 text-gray-500'
               }`}>
-                ⚠️ This information is for educational purposes only. DEXA scan results should be interpreted 
+                This information is for educational purposes only. DEXA scan results should be interpreted 
                 by qualified healthcare professionals. Consult with your doctor before making significant changes 
                 to your diet or exercise routine.
               </div>
