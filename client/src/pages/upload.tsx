@@ -51,6 +51,7 @@ export default function UploadPage() {
       setUploadProgress(null);
       setSelectedFile(null);
       queryClient.invalidateQueries({ queryKey: ["/api/blood-work"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-work-overdue"] });
       toast({
         title: "Analysis Complete",
         description: "Your blood work has been analyzed successfully!",

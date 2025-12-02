@@ -140,6 +140,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
       queryClient.invalidateQueries({ queryKey: ['/api/blood-work'] });
       queryClient.invalidateQueries({ queryKey: ['/api/biomarker-sessions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/biomarkers'] }); // Invalidate biomarker insights cache
+      queryClient.invalidateQueries({ queryKey: ['/api/lab-work-overdue'] }); // Invalidate overdue tile
 
       onClose();
     } catch (error) {
@@ -248,6 +249,7 @@ export function AddTestResultsModal({ isOpen, onClose }: AddTestResultsModalProp
           queryClient.invalidateQueries({ queryKey: ['/api/blood-work'] });
           queryClient.invalidateQueries({ queryKey: ['/api/biomarker-sessions'] });
           queryClient.invalidateQueries({ queryKey: ['/api/biomarkers'] }); // Invalidate biomarker insights cache
+          queryClient.invalidateQueries({ queryKey: ['/api/lab-work-overdue'] }); // Invalidate overdue tile
         } else if (data.status === 'failed') {
           setJobError(data.error?.error || 'Processing failed');
           setUploading(false);

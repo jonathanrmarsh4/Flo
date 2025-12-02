@@ -114,6 +114,8 @@ export function UnifiedUploadModal({ isDark, onClose, initialMode = 'lab-results
       queryClient.invalidateQueries({ queryKey: ["/api/blood-work/latest"] });
       queryClient.invalidateQueries({ queryKey: ["/api/biomarker-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/biomarkers"] });
+      // Invalidate lab work overdue tile (new blood work updates overdue status)
+      queryClient.invalidateQueries({ queryKey: ["/api/lab-work-overdue"] });
       // Invalidate action plan progress charts (new blood work may update progress)
       queryClient.invalidateQueries({ 
         predicate: (query) => {

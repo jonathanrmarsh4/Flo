@@ -259,6 +259,7 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
       // Invalidate blood work cache so dashboard refreshes
       queryClient.invalidateQueries({ queryKey: ['/api/blood-work'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/lab-work-overdue'] });
       
       // Reset file selection
       setSelectedFile(null);
