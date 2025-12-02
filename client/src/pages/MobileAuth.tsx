@@ -703,8 +703,11 @@ export default function MobileAuth() {
                             <Input
                               {...field}
                               type="text"
+                              inputMode="text"
                               autoComplete="given-name"
                               autoCapitalize="words"
+                              autoCorrect="off"
+                              spellCheck={false}
                               enterKeyHint="next"
                               className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                               placeholder="John"
@@ -727,8 +730,11 @@ export default function MobileAuth() {
                             <Input
                               {...field}
                               type="text"
+                              inputMode="text"
                               autoComplete="family-name"
                               autoCapitalize="words"
+                              autoCorrect="off"
+                              spellCheck={false}
                               enterKeyHint="next"
                               className="h-11 bg-white/10 border-white/20 text-white placeholder:text-white/40"
                               placeholder="Doe"

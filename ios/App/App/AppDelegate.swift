@@ -54,6 +54,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView.scrollView.bounces = false
         webView.scrollView.alwaysBounceVertical = false
         
+        // CRITICAL: Fix keyboard focus deadlock that causes 15s freezes
+        // Set interactive keyboard dismiss mode to prevent gesture gate timeout
+        webView.scrollView.keyboardDismissMode = .interactive
+        
+        // Disable link preview to prevent gesture conflicts
+        webView.allowsLinkPreview = false
+        
         // Set dark background to match app theme (#0f172a = slate-900)
         let darkBackground = UIColor(red: 15/255.0, green: 23/255.0, blue: 42/255.0, alpha: 1.0)
         webView.scrollView.backgroundColor = darkBackground
@@ -66,11 +73,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             webView.configuration.preferences.isElementFullscreenEnabled = true
         }
         
-        // Set UI delegate for media capture permissions (iOS 15+)
+        // Set UI delegate for media capture permissions and focus handling (iOS 15+)
         if #available(iOS 15.0, *) {
             webView.uiDelegate = WebViewUIDelegate.shared
             print("✅ WKUIDelegate configured for media capture permissions")
         }
+        
+        print("✅ WebView keyboard handling configured")
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
