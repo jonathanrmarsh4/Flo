@@ -292,13 +292,13 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
           </div>
         )}
 
-        {/* Load Bar - shows recovery from YESTERDAY's activity */}
+        {/* Load Bar - shows activity load from yesterday (high score = recovered, low score = fatigued) */}
         {loadScore !== null && (
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2">
                 <Activity className={`w-3 h-3 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                <span className={isDark ? 'text-white/80' : 'text-gray-700'}>Recovery</span>
+                <span className={isDark ? 'text-white/80' : 'text-gray-700'}>Activity</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -306,7 +306,7 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
                 </span>
                 {metrics.yesterdayActiveKcal !== undefined && (
                   <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
-                    {Math.round(metrics.yesterdayActiveKcal)} kcal yesterday
+                    {loadScore >= 80 ? 'Light' : loadScore >= 50 ? 'Moderate' : 'High'} load
                   </span>
                 )}
               </div>
