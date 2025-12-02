@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "./supabaseClient";
+import { getHealthId as getHealthIdFromStorage } from "./supabaseHealthStorage";
 import { writeInsightToBrain } from "./brainService";
 import { generateEmbedding } from "./embeddingService";
 import { ObjectStorageService } from "../objectStorage";
@@ -122,17 +123,9 @@ export function getDocumentTypes(): { value: MedicalDocumentType; label: string 
 }
 
 async function getHealthId(userId: string): Promise<string> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('health_profiles')
-    .select('health_id')
-    .eq('user_id', userId)
-    .single();
-  
-  if (error || !data) {
-    throw new Error(`Health profile not found for user ${userId}`);
-  }
-  return data.health_id;
+  // Use the centralized getHealthId from supabaseHealthStorage
+  // which reads from Neon users table and caches the result
+  return getHealthIdFromStorage(userId);
 }
 
 export async function createMedicalDocument(

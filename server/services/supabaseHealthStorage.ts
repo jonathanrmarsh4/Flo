@@ -3,6 +3,7 @@ import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 import { logger } from '../utils/logger';
+import crypto from 'crypto';
 
 const supabase = getSupabaseClient();
 
@@ -12,6 +13,7 @@ const healthIdCache = new Map<string, string>();
 /**
  * Get the pseudonymous health_id for a user
  * This is the ONLY place where user_id maps to health_id
+ * If user doesn't have a health_id, one will be generated and assigned
  */
 export async function getHealthId(userId: string): Promise<string> {
   // Check cache first
@@ -25,8 +27,21 @@ export async function getHealthId(userId: string): Promise<string> {
     .where(eq(users.id, userId))
     .limit(1);
 
-  if (!user?.healthId) {
-    throw new Error(`No health_id found for user ${userId}`);
+  if (!user) {
+    throw new Error(`User ${userId} not found`);
+  }
+
+  // If user exists but has no health_id, generate one
+  if (!user.healthId) {
+    const newHealthId = crypto.randomUUID();
+    await db
+      .update(users)
+      .set({ healthId: newHealthId })
+      .where(eq(users.id, userId));
+    
+    logger.info(`[SupabaseHealth] Generated health_id for user ${userId}`);
+    healthIdCache.set(userId, newHealthId);
+    return newHealthId;
   }
 
   // Cache for future lookups
