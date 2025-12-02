@@ -7,6 +7,11 @@ import { logger } from "../logger";
 import OpenAI from "openai";
 import crypto from "crypto";
 import { PDFParse } from "pdf-parse";
+import { createWorker } from "tesseract.js";
+import { fromBuffer } from "pdf2pic";
+import fs from "fs/promises";
+import path from "path";
+import os from "os";
 
 const openai = new OpenAI();
 const objectStorage = new ObjectStorageService();
@@ -304,20 +309,96 @@ async function processDocumentAsync(
 }
 
 async function extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
+  logger.info('[MedicalDocService] Starting PDF text extraction with OCR fallback');
+  
   try {
     const parser = new PDFParse({ data: pdfBuffer });
     const result = await parser.getInfo() as any;
     await parser.destroy();
-    const text = result.text || "";
+    const initialText = result.text || "";
     
-    if (!text || text.trim().length < 50) {
-      logger.warn('[MedicalDocService] PDF has minimal text - may be scanned/image-based');
+    // Check if we have meaningful text content
+    const meaningfulLines = initialText.trim().split('\n').filter((line: string) => {
+      const trimmed = line.trim();
+      if (!trimmed) return false;
+      if (/^Page \d+ of \d+$/i.test(trimmed)) return false;
+      if (/^[-=_]{3,}$/.test(trimmed)) return false;
+      return trimmed.length > 3;
+    });
+    
+    const totalChars = meaningfulLines.join('').length;
+    const hasMinimalText = totalChars < 100;
+    
+    if (!hasMinimalText) {
+      logger.info(`[MedicalDocService] PDF has extractable text (${totalChars} chars), using direct extraction`);
+      return initialText;
     }
     
-    return text;
+    // Fall back to OCR for scanned/image-based PDFs
+    logger.info(`[MedicalDocService] PDF appears to be image-based (only ${totalChars} chars), using OCR`);
+    return await extractTextWithOCR(pdfBuffer, result);
+    
   } catch (error) {
     logger.error('[MedicalDocService] PDF parsing failed:', error);
-    throw new Error('Failed to extract text from PDF. The document may be scanned or image-based.');
+    throw new Error('Failed to extract text from PDF. The document may be corrupted.');
+  }
+}
+
+async function extractTextWithOCR(pdfBuffer: Buffer, pdfInfo: any): Promise<string> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'medical-doc-ocr-'));
+  let worker;
+  
+  try {
+    const converter = fromBuffer(pdfBuffer, {
+      density: 300,
+      saveFilename: "page",
+      savePath: tempDir,
+      format: "png",
+      width: 2480,
+      height: 3508
+    });
+    
+    worker = await createWorker('eng');
+    
+    let ocrText = '';
+    const numPages = pdfInfo.numpages || 1;
+    
+    logger.info(`[MedicalDocService] OCR processing ${numPages} page(s)`);
+    
+    for (let pageNum = 1; pageNum <= Math.min(numPages, 20); pageNum++) {
+      logger.debug(`[MedicalDocService] OCR processing page ${pageNum}/${numPages}`);
+      
+      try {
+        const pageResult = await converter(pageNum, { responseType: 'image' });
+        
+        if (!pageResult.path) {
+          logger.error(`[MedicalDocService] No path returned for page ${pageNum}`);
+          continue;
+        }
+        
+        const { data: { text } } = await worker.recognize(pageResult.path);
+        ocrText += text + '\n\n';
+        
+        await fs.unlink(pageResult.path);
+      } catch (pageError) {
+        logger.error(`[MedicalDocService] Error processing page ${pageNum}`, pageError);
+      }
+    }
+    
+    logger.info(`[MedicalDocService] OCR complete. Extracted ${ocrText.length} characters from ${numPages} pages`);
+    
+    if (ocrText.trim().length === 0) {
+      logger.warn('[MedicalDocService] OCR produced no text output');
+      throw new Error('Could not extract text from PDF. The document may be too low quality.');
+    }
+    
+    return ocrText;
+    
+  } finally {
+    if (worker) {
+      await worker.terminate();
+    }
+    await fs.rm(tempDir, { recursive: true, force: true });
   }
 }
 
