@@ -125,6 +125,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Set navigation delegate to handle process termination
         webView.navigationDelegate = WebViewNavigationDelegate.shared
         
+        // CRITICAL: Remove input accessory view after WebView content loads
+        // This must be delayed to ensure WKContentView exists
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.removeInputAccessoryView(from: webView)
+        }
+        
         print("✅ WebView keyboard handling configured")
     }
     
@@ -134,6 +140,49 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             longPressGesture.isEnabled = false
             print("✅ Long press gesture disabled to prevent keyboard freeze")
         }
+    }
+    
+    /// Remove the WKWebView keyboard accessory bar to prevent constraint conflicts
+    /// The keyboard toolbar has zero-width buttons that cause layout issues on first use
+    private func removeInputAccessoryView(from webView: WKWebView) {
+        // Use runtime method to disable the input accessory view
+        // This prevents the "UIButtonBarButton width == 0" constraint conflicts
+        guard let target = webView.scrollView.subviews.first(where: {
+            String(describing: type(of: $0)).hasPrefix("WKContent")
+        }), let superclass = target.superclass else {
+            print("⚠️ Could not find WKContentView to remove input accessory")
+            return
+        }
+        
+        let noInputAccessoryViewClassName = "\(superclass)_NoInputAccessoryView"
+        var newClass: AnyClass? = NSClassFromString(noInputAccessoryViewClassName)
+        
+        if newClass == nil,
+           let targetClass = object_getClass(target),
+           let classNameCString = noInputAccessoryViewClassName.cString(using: .ascii) {
+            newClass = objc_allocateClassPair(targetClass, classNameCString, 0)
+            if let newClass = newClass {
+                objc_registerClassPair(newClass)
+            }
+        }
+        
+        guard let noInputAccessoryClass = newClass,
+              let originalMethod = class_getInstanceMethod(
+                InputAccessoryHackHelper.self,
+                #selector(getter: InputAccessoryHackHelper.inputAccessoryView)
+              ) else {
+            return
+        }
+        
+        class_addMethod(
+            noInputAccessoryClass.self,
+            #selector(getter: InputAccessoryHackHelper.inputAccessoryView),
+            method_getImplementation(originalMethod),
+            method_getTypeEncoding(originalMethod)
+        )
+        
+        object_setClass(target, noInputAccessoryClass)
+        print("✅ WKWebView input accessory bar removed to prevent constraint conflicts")
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
@@ -229,5 +278,13 @@ class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
     // Called when navigation fails - can help recover from keyboard-related freezes
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         print("⚠️ WKWebView navigation failed: \(error.localizedDescription)")
+    }
+}
+
+// MARK: - Input Accessory View Helper
+// Helper class for removing WKWebView keyboard accessory bar
+@objc fileprivate final class InputAccessoryHackHelper: NSObject {
+    @objc var inputAccessoryView: AnyObject? {
+        return nil
     }
 }
