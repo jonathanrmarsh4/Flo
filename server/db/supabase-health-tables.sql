@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS flomentum_daily (
   health_id UUID NOT NULL,
   date TEXT NOT NULL,
   score INTEGER NOT NULL,
-  zone VARCHAR(20) NOT NULL CHECK (zone IN ('rising', 'flowing', 'coasting', 'recovering')),
+  zone VARCHAR(20) NOT NULL CHECK (zone IN ('BUILDING', 'MAINTAINING', 'DRAINING')),
   delta_vs_yesterday INTEGER,
   factors JSONB NOT NULL,
   daily_focus JSONB,
