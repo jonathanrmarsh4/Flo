@@ -895,25 +895,35 @@ export interface UserDailyMetric {
 }
 
 export async function upsertDailyMetrics(userId: string, metrics: Omit<UserDailyMetric, 'health_id'>): Promise<UserDailyMetric> {
-  const healthId = await getHealthId(userId);
+  logger.info(`[SupabaseHealth] upsertDailyMetrics called for user ${userId}, date: ${(metrics as any).local_date}`);
   
-  const { data, error } = await supabase
+  const healthId = await getHealthId(userId);
+  logger.info(`[SupabaseHealth] Got healthId ${healthId} for daily metrics upsert`);
+  
+  const payload = {
+    ...metrics,
+    health_id: healthId,
+    updated_at: new Date().toISOString(),
+  };
+  
+  logger.info(`[SupabaseHealth] Daily metrics upsert payload keys: ${Object.keys(payload).join(', ')}`);
+  
+  const { data, error, status, statusText } = await supabase
     .from('user_daily_metrics')
-    .upsert({
-      ...metrics,
-      health_id: healthId,
-      updated_at: new Date().toISOString(),
-    }, {
+    .upsert(payload, {
       onConflict: 'health_id,local_date',
     })
     .select()
     .single();
+
+  logger.info(`[SupabaseHealth] Daily metrics Supabase response - status: ${status}, statusText: ${statusText}, data: ${data ? 'present' : 'null'}, error: ${error ? JSON.stringify(error) : 'none'}`);
 
   if (error) {
     logger.error('[SupabaseHealth] Error upserting daily metrics:', error);
     throw error;
   }
 
+  logger.info(`[SupabaseHealth] Successfully upserted daily metrics for user ${userId}, date: ${(metrics as any).local_date}`);
   return data;
 }
 
