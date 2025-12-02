@@ -535,14 +535,19 @@ export interface HealthkitSample {
 }
 
 export async function createHealthkitSamples(userId: string, samples: Omit<HealthkitSample, 'health_id'>[]): Promise<number> {
+  logger.info(`[SupabaseHealth] createHealthkitSamples called for user ${userId} with ${samples.length} samples`);
+  
   const healthId = await getHealthId(userId);
+  logger.info(`[SupabaseHealth] Got healthId ${healthId} for user ${userId}`);
   
   const samplesWithHealthId = samples.map(s => ({
     ...s,
     health_id: healthId,
   }));
 
-  const { data, error } = await supabase
+  logger.info(`[SupabaseHealth] Attempting to upsert ${samplesWithHealthId.length} samples to healthkit_samples table`);
+  
+  const { data, error, status, statusText } = await supabase
     .from('healthkit_samples')
     .upsert(samplesWithHealthId, {
       onConflict: 'uuid',
@@ -550,11 +555,14 @@ export async function createHealthkitSamples(userId: string, samples: Omit<Healt
     })
     .select();
 
+  logger.info(`[SupabaseHealth] Supabase response - status: ${status}, statusText: ${statusText}, data length: ${data?.length ?? 'null'}, error: ${error ? JSON.stringify(error) : 'none'}`);
+
   if (error) {
     logger.error('[SupabaseHealth] Error creating healthkit samples:', error);
     throw error;
   }
 
+  logger.info(`[SupabaseHealth] Successfully inserted ${data?.length || 0} healthkit samples for user ${userId}`);
   return data?.length || 0;
 }
 
@@ -1002,25 +1010,34 @@ export interface FlomentumDaily {
 }
 
 export async function upsertFlomentumDaily(userId: string, flomentum: Omit<FlomentumDaily, 'health_id'>): Promise<FlomentumDaily> {
-  const healthId = await getHealthId(userId);
+  logger.info(`[SupabaseHealth] upsertFlomentumDaily called for user ${userId}, date: ${flomentum.date}, score: ${flomentum.score}`);
   
-  const { data, error } = await supabase
+  const healthId = await getHealthId(userId);
+  logger.info(`[SupabaseHealth] Got healthId ${healthId} for flomentum upsert`);
+  
+  const payload = {
+    ...flomentum,
+    health_id: healthId,
+    updated_at: new Date().toISOString(),
+  };
+  logger.info(`[SupabaseHealth] Flomentum upsert payload:`, JSON.stringify(payload));
+  
+  const { data, error, status, statusText } = await supabase
     .from('flomentum_daily')
-    .upsert({
-      ...flomentum,
-      health_id: healthId,
-      updated_at: new Date().toISOString(),
-    }, {
+    .upsert(payload, {
       onConflict: 'health_id,date',
     })
     .select()
     .single();
+
+  logger.info(`[SupabaseHealth] Flomentum Supabase response - status: ${status}, statusText: ${statusText}, data: ${data ? 'present' : 'null'}, error: ${error ? JSON.stringify(error) : 'none'}`);
 
   if (error) {
     logger.error('[SupabaseHealth] Error upserting flomentum daily:', error);
     throw error;
   }
 
+  logger.info(`[SupabaseHealth] Successfully upserted flomentum for user ${userId}, date: ${flomentum.date}`);
   return data;
 }
 
