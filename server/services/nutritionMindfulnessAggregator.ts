@@ -2,15 +2,18 @@
  * Nutrition & Mindfulness Aggregator Service
  * 
  * Aggregates nutrition and mindfulness HealthKit samples into daily metrics
- * Nutrition: 38 nutrient types → nutritionDailyMetrics table
- * Mindfulness: Individual sessions → mindfulnessSessions + mindfulnessDailyMetrics tables
+ * Nutrition: 38 nutrient types → nutrition_daily_metrics table (Supabase)
+ * Mindfulness: Individual sessions → mindfulness_sessions + mindfulness_daily_metrics tables
+ * 
+ * IMPORTANT: Uses healthStorageRouter to read from Supabase (where iOS sends data)
  */
 
 import { db } from '../db';
-import { healthkitSamples, nutritionDailyMetrics, mindfulnessSessions, mindfulnessDailyMetrics } from '@shared/schema';
+import { mindfulnessSessions, mindfulnessDailyMetrics } from '@shared/schema';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { TZDate } from '@date-fns/tz';
+import * as healthRouter from './healthStorageRouter';
 
 // HealthKit nutrition data type identifiers mapped to our field names
 const NUTRITION_TYPE_MAPPING: Record<string, string> = {
@@ -120,6 +123,7 @@ interface NutritionAggregated {
 
 /**
  * Aggregate nutrition samples for a user on a specific date
+ * Reads from Supabase's healthkit_samples table via healthStorageRouter
  */
 export async function aggregateNutritionForDate(
   userId: string,
@@ -140,36 +144,37 @@ export async function aggregateNutritionForDate(
     const dayStartUTC = new Date(localDayStart.toISOString());
     const dayEndUTC = new Date(localDayEnd.toISOString());
     
-    // Get all nutrition samples for this date
-    const samples = await db
-      .select({
-        dataType: healthkitSamples.dataType,
-        value: healthkitSamples.value,
-        unit: healthkitSamples.unit,
-      })
-      .from(healthkitSamples)
-      .where(
-        and(
-          eq(healthkitSamples.userId, userId),
-          gte(healthkitSamples.startDate, dayStartUTC),
-          lte(healthkitSamples.startDate, dayEndUTC)
-        )
-      );
+    // Get all nutrition samples for this date via healthStorageRouter (reads from Supabase)
+    // Filter by all dietary data types
+    const dietaryDataTypes = Object.keys(NUTRITION_TYPE_MAPPING);
+    
+    const samples = await healthRouter.getHealthkitSamples(userId, {
+      dataTypes: dietaryDataTypes,
+      startDate: dayStartUTC,
+      endDate: dayEndUTC,
+    });
+    
+    logger.debug(`[NutritionAggregator] Found ${samples.length} nutrition samples for ${userId} on ${localDate}`);
 
     // Group by nutrition field
     const groupedValues: Record<string, number[]> = {};
     
     for (const sample of samples) {
-      const targetField = NUTRITION_TYPE_MAPPING[sample.dataType];
-      if (targetField && sample.value != null) {
+      // healthStorageRouter returns camelCase field names
+      const dataType = sample.dataType;
+      const sampleValue = sample.value;
+      const sampleUnit = sample.unit;
+      
+      const targetField = NUTRITION_TYPE_MAPPING[dataType];
+      if (targetField && sampleValue != null) {
         if (!groupedValues[targetField]) {
           groupedValues[targetField] = [];
         }
         
-        let value = sample.value;
+        let value = sampleValue;
         
         // Convert water from liters to ml if needed
-        if (targetField === 'waterMl' && sample.unit === 'L') {
+        if (targetField === 'waterMl' && sampleUnit === 'L') {
           value = value * 1000;
         }
         
@@ -199,6 +204,7 @@ export async function aggregateNutritionForDate(
 
 /**
  * Upsert nutrition daily metrics for a user
+ * Writes to Supabase's nutrition_daily_metrics table via healthStorageRouter
  */
 export async function upsertNutritionDaily(
   userId: string,
@@ -215,45 +221,14 @@ export async function upsertNutritionDaily(
       return;
     }
 
-    // Check if record exists
-    const [existing] = await db
-      .select()
-      .from(nutritionDailyMetrics)
-      .where(
-        and(
-          eq(nutritionDailyMetrics.userId, userId),
-          eq(nutritionDailyMetrics.localDate, localDate)
-        )
-      )
-      .limit(1);
-
-    if (existing) {
-      // Update existing record
-      await db
-        .update(nutritionDailyMetrics)
-        .set({
-          ...aggregated,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(nutritionDailyMetrics.userId, userId),
-            eq(nutritionDailyMetrics.localDate, localDate)
-          )
-        );
-      logger.debug(`[NutritionAggregator] Updated nutrition for ${userId} on ${localDate}`);
-    } else {
-      // Insert new record
-      await db
-        .insert(nutritionDailyMetrics)
-        .values({
-          userId,
-          localDate,
-          timezone,
-          ...aggregated,
-        });
-      logger.info(`[NutritionAggregator] Created nutrition record for ${userId} on ${localDate}`);
-    }
+    // Use healthStorageRouter to write to Supabase
+    await healthRouter.upsertNutritionDailyMetrics(userId, {
+      localDate,
+      timezone,
+      ...aggregated,
+    });
+    
+    logger.info(`[NutritionAggregator] Upserted nutrition for ${userId} on ${localDate}`);
   } catch (error) {
     logger.error('[NutritionAggregator] Error upserting nutrition:', error);
   }
@@ -473,6 +448,7 @@ export async function getMindfulnessSummary(
 
 /**
  * Get nutrition summary for a user over a date range
+ * Reads from Supabase's nutrition_daily_metrics table via healthStorageRouter
  */
 export async function getNutritionSummary(
   userId: string,
@@ -488,16 +464,12 @@ export async function getNutritionSummary(
   daysTracked: number;
 }> {
   try {
-    const records = await db
-      .select()
-      .from(nutritionDailyMetrics)
-      .where(
-        and(
-          eq(nutritionDailyMetrics.userId, userId),
-          gte(nutritionDailyMetrics.localDate, startDate),
-          lte(nutritionDailyMetrics.localDate, endDate)
-        )
-      );
+    // Read from Supabase via healthStorageRouter
+    const records = await healthRouter.getNutritionDailyMetrics(userId, {
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      limit: 365, // Up to a year of data
+    });
 
     if (records.length === 0) {
       return {
