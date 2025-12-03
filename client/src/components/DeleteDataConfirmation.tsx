@@ -1,4 +1,4 @@
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Info } from 'lucide-react';
 
 interface DeleteDataConfirmationProps {
   isOpen: boolean;
@@ -13,13 +13,13 @@ export function DeleteDataConfirmation({ isOpen, onClose, onConfirm, isDeleting 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div 
-        className="relative w-full max-w-[280px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-[320px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden"
         style={{
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
         }}
       >
         {/* Warning Icon and Content */}
-        <div className="flex flex-col items-center pt-8 pb-6 px-6">
+        <div className="flex flex-col items-center pt-8 pb-4 px-6">
           {/* Circular warning icon with pink background */}
           <div className="w-14 h-14 rounded-full bg-red-100 flex items-center justify-center mb-5">
             <AlertTriangle className="w-7 h-7 text-red-500" strokeWidth={2} />
@@ -32,6 +32,16 @@ export function DeleteDataConfirmation({ isOpen, onClose, onConfirm, isDeleting 
           <p className="text-center text-slate-500 text-[13px] leading-[1.4]">
             This action cannot be undone. All your biomarker data, test results, and history will be permanently deleted.
           </p>
+        </div>
+        
+        {/* HealthKit Note */}
+        <div className="mx-4 mb-4 p-3 bg-blue-50 rounded-xl">
+          <div className="flex gap-2">
+            <Info className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-blue-700 leading-[1.4]">
+              If you have Apple Health connected, your data will sync again automatically. To prevent this, turn off sync in Privacy Settings before deleting.
+            </p>
+          </div>
         </div>
 
         {/* Action Buttons - iOS style */}
