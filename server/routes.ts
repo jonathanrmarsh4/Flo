@@ -4718,6 +4718,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Process mindfulness sessions into dedicated tables
+      const mindfulnessSamples = samples.filter(s => 
+        s.dataType === 'mindfulSession' || 
+        s.dataType === 'HKCategoryTypeIdentifierMindfulSession'
+      );
+      
+      if (mindfulnessSamples.length > 0) {
+        logger.info(`[HealthKit] Processing ${mindfulnessSamples.length} mindfulness sessions`);
+        
+        // Import mindfulness aggregator
+        const { processMindfulnessSession } = await import('./services/nutritionMindfulnessAggregator');
+        
+        for (const sample of mindfulnessSamples) {
+          try {
+            await processMindfulnessSession(
+              userId,
+              new Date(sample.startDate),
+              new Date(sample.endDate),
+              sample.sourceName || null,
+              sample.sourceBundleId || null,
+              sample.uuid || null,
+              { timezone: sample.metadata?.timezone || 'Australia/Perth' }
+            );
+          } catch (mindErr) {
+            logger.error(`[HealthKit] Mindfulness processing error:`, mindErr);
+          }
+        }
+        
+        logger.info(`[HealthKit] Processed ${mindfulnessSamples.length} mindfulness sessions into dedicated tables`);
+      }
+
       res.json({ 
         inserted,
         duplicates,

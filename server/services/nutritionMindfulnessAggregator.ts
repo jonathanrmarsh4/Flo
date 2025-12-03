@@ -237,6 +237,7 @@ export async function upsertNutritionDaily(
 /**
  * Process mindfulness session from HealthKit category sample
  * Mindfulness sessions have startTime/endTime - duration is calculated from the interval
+ * IMPORTANT: Routes to Supabase via healthStorageRouter for proper health data isolation
  */
 export async function processMindfulnessSession(
   userId: string,
@@ -256,64 +257,47 @@ export async function processMindfulnessSession(
     }
 
     // Determine timezone from metadata or default
-    const timezone = metadata?.timezone || 'America/Los_Angeles';
+    const timezone = metadata?.timezone || 'Australia/Perth';
     const localStart = new TZDate(startTime, timezone);
     const sessionDate = localStart.toISOString().split('T')[0];
 
-    // Check for duplicate by healthkit UUID or start time
-    if (healthkitUuid) {
-      const [existingByUuid] = await db
-        .select()
-        .from(mindfulnessSessions)
-        .where(
-          and(
-            eq(mindfulnessSessions.userId, userId),
-            eq(mindfulnessSessions.healthkitUuid, healthkitUuid)
-          )
-        )
-        .limit(1);
+    // Check for duplicate using healthStorageRouter (queries Supabase)
+    const existingSessions = await healthRouter.getMindfulnessSessions(userId, {
+      startDate: new Date(startTime.getTime() - 60000), // 1 minute buffer
+      endDate: new Date(startTime.getTime() + 60000),
+      limit: 10
+    });
 
-      if (existingByUuid) {
-        logger.debug(`[MindfulnessAggregator] Session already exists (by UUID) for ${userId}`);
-        return;
+    // Check for duplicate by UUID or start time
+    const isDuplicate = existingSessions.some(session => {
+      if (healthkitUuid && session.healthkit_uuid === healthkitUuid) {
+        return true;
       }
-    }
+      // Check if start times are within 1 minute of each other
+      const sessionStart = new Date(session.start_time).getTime();
+      return Math.abs(sessionStart - startTime.getTime()) < 60000;
+    });
 
-    // Check for duplicate by start time
-    const [existingByTime] = await db
-      .select()
-      .from(mindfulnessSessions)
-      .where(
-        and(
-          eq(mindfulnessSessions.userId, userId),
-          eq(mindfulnessSessions.startTime, startTime)
-        )
-      )
-      .limit(1);
-
-    if (existingByTime) {
-      logger.debug(`[MindfulnessAggregator] Session already exists (by time) for ${userId} at ${startTime.toISOString()}`);
+    if (isDuplicate) {
+      logger.debug(`[MindfulnessAggregator] Session already exists for ${userId} at ${startTime.toISOString()}`);
       return;
     }
 
-    // Insert session
-    await db
-      .insert(mindfulnessSessions)
-      .values({
-        userId,
-        sessionDate,
-        timezone,
-        startTime,
-        endTime,
-        durationMinutes,
-        sourceName,
-        sourceId,
-        healthkitUuid,
-      });
+    // Insert session via healthStorageRouter → Supabase
+    await healthRouter.createMindfulnessSession(userId, {
+      session_date: sessionDate,
+      timezone,
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      duration_minutes: durationMinutes,
+      source_name: sourceName,
+      source_id: sourceId,
+      healthkit_uuid: healthkitUuid,
+    });
 
     logger.info(`[MindfulnessAggregator] Recorded ${durationMinutes}min mindfulness session for ${userId} on ${sessionDate}`);
 
-    // Update daily aggregation
+    // Update daily aggregation via healthStorageRouter → Supabase
     await updateMindfulnessDaily(userId, sessionDate, timezone);
   } catch (error) {
     logger.error('[MindfulnessAggregator] Error processing mindfulness session:', error);
@@ -322,6 +306,7 @@ export async function processMindfulnessSession(
 
 /**
  * Update mindfulness daily metrics aggregation
+ * IMPORTANT: Routes to Supabase via healthStorageRouter for proper health data isolation
  */
 export async function updateMindfulnessDaily(
   userId: string,
@@ -329,16 +314,15 @@ export async function updateMindfulnessDaily(
   timezone: string
 ): Promise<void> {
   try {
-    // Get all sessions for this date
-    const sessions = await db
-      .select()
-      .from(mindfulnessSessions)
-      .where(
-        and(
-          eq(mindfulnessSessions.userId, userId),
-          eq(mindfulnessSessions.sessionDate, sessionDate)
-        )
-      );
+    // Get all sessions for this date via healthStorageRouter → Supabase
+    const dateStart = new Date(`${sessionDate}T00:00:00Z`);
+    const dateEnd = new Date(`${sessionDate}T23:59:59Z`);
+    
+    const sessions = await healthRouter.getMindfulnessSessions(userId, {
+      startDate: dateStart,
+      endDate: dateEnd,
+      limit: 100
+    });
 
     if (sessions.length === 0) {
       logger.debug(`[MindfulnessAggregator] No sessions for ${userId} on ${sessionDate}`);
@@ -347,56 +331,23 @@ export async function updateMindfulnessDaily(
 
     // Calculate aggregates
     const sessionCount = sessions.length;
-    const totalMinutes = sessions.reduce((sum, s) => sum + (s.durationMinutes || 0), 0);
+    const totalMinutes = sessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
     const avgSessionMinutes = Math.round((totalMinutes / sessionCount) * 10) / 10;
-    const longestSessionMinutes = Math.max(...sessions.map(s => s.durationMinutes || 0));
+    const longestSessionMinutes = Math.max(...sessions.map(s => s.duration_minutes || 0));
     
     // Collect sources
-    const sources = Array.from(new Set(sessions.map(s => s.sourceName).filter((s): s is string => s !== null)));
+    const sources = Array.from(new Set(sessions.map(s => s.source_name).filter((s): s is string => s !== null)));
 
-    // Upsert daily record
-    const [existing] = await db
-      .select()
-      .from(mindfulnessDailyMetrics)
-      .where(
-        and(
-          eq(mindfulnessDailyMetrics.userId, userId),
-          eq(mindfulnessDailyMetrics.localDate, sessionDate)
-        )
-      )
-      .limit(1);
-
-    if (existing) {
-      await db
-        .update(mindfulnessDailyMetrics)
-        .set({
-          totalMinutes,
-          sessionCount,
-          avgSessionMinutes,
-          longestSessionMinutes,
-          sources,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(mindfulnessDailyMetrics.userId, userId),
-            eq(mindfulnessDailyMetrics.localDate, sessionDate)
-          )
-        );
-    } else {
-      await db
-        .insert(mindfulnessDailyMetrics)
-        .values({
-          userId,
-          localDate: sessionDate,
-          timezone,
-          totalMinutes,
-          sessionCount,
-          avgSessionMinutes,
-          longestSessionMinutes,
-          sources,
-        });
-    }
+    // Upsert daily record via healthStorageRouter → Supabase
+    await healthRouter.upsertMindfulnessDailyMetrics(userId, {
+      local_date: sessionDate,
+      timezone,
+      total_minutes: totalMinutes,
+      session_count: sessionCount,
+      avg_session_minutes: avgSessionMinutes,
+      longest_session_minutes: longestSessionMinutes,
+      sources,
+    });
 
     logger.info(`[MindfulnessAggregator] Updated daily: ${sessionCount} sessions, ${totalMinutes}min total for ${userId} on ${sessionDate}`);
   } catch (error) {
@@ -406,6 +357,7 @@ export async function updateMindfulnessDaily(
 
 /**
  * Get mindfulness summary for a user over a date range
+ * IMPORTANT: Routes to Supabase via healthStorageRouter for proper health data isolation
  */
 export async function getMindfulnessSummary(
   userId: string,
@@ -418,19 +370,14 @@ export async function getMindfulnessSummary(
   daysWithPractice: number;
 }> {
   try {
-    const dailyRecords = await db
-      .select()
-      .from(mindfulnessDailyMetrics)
-      .where(
-        and(
-          eq(mindfulnessDailyMetrics.userId, userId),
-          gte(mindfulnessDailyMetrics.localDate, startDate),
-          lte(mindfulnessDailyMetrics.localDate, endDate)
-        )
-      );
+    const dailyRecords = await healthRouter.getMindfulnessDailyMetrics(userId, {
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      limit: 100
+    });
 
-    const totalMinutes = dailyRecords.reduce((sum, r) => sum + (r.totalMinutes || 0), 0);
-    const sessionCount = dailyRecords.reduce((sum, r) => sum + (r.sessionCount || 0), 0);
+    const totalMinutes = dailyRecords.reduce((sum, r) => sum + (r.total_minutes || 0), 0);
+    const sessionCount = dailyRecords.reduce((sum, r) => sum + (r.session_count || 0), 0);
     const daysWithPractice = dailyRecords.length;
     
     // Calculate date range span
