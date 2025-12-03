@@ -97,11 +97,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // This is a known iOS WKWebView bug (Apple Forums thread 719620)
         disableLongPressGesture(on: webView)
         
-        // CRITICAL: Disable PencilKit/Scribble to prevent RTIInputSystemClient session invalidation
-        // This is the primary cause of keyboard delays on iOS 17+
+        // CRITICAL: Disable find interaction to prevent RTIInputSystemClient session invalidation
+        // This is a cause of keyboard delays on iOS 16+
         if #available(iOS 16.0, *) {
-            webView.findInteraction?.isEnabled = false
-            print("✅ PencilKit findInteraction disabled")
+            webView.isFindInteractionEnabled = false
+            print("✅ Find interaction disabled")
         }
         
         // CRITICAL: Disable UITextInteraction on subviews to prevent session conflicts (iOS 17+)
