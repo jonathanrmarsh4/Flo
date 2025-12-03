@@ -2493,8 +2493,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Biomarker not found" });
       }
 
-      // Get latest measurement (or specific one if measurementId provided)
-      const measurement = await storage.getLatestMeasurementForBiomarker(userId, biomarkerId, measurementId);
+      // Get latest measurement (or specific one if measurementId provided) - route through healthRouter for Supabase
+      let measurement;
+      if (measurementId) {
+        // Get specific measurement by ID
+        measurement = await healthRouter.getMeasurementByIdForUser(measurementId, userId);
+        // Verify it's for the correct biomarker
+        if (measurement && measurement.biomarkerId !== biomarkerId) {
+          return res.status(400).json({ error: "Measurement does not belong to this biomarker" });
+        }
+      } else {
+        // Get most recent measurement for this biomarker
+        const measurements = await healthRouter.getMeasurementHistory(userId, biomarkerId, 1);
+        measurement = measurements[0];
+      }
+      
       if (!measurement) {
         return res.status(404).json({ error: "No measurement found for this biomarker" });
       }
