@@ -90,41 +90,41 @@ public struct NormalizedDailyMetrics: Codable {
     let vo2Max: Double?
     
     /// Walking average heart rate in BPM (average during walking activities)
-    let walkingHeartRateAvg: Double?
+    var walkingHeartRateAvg: Double? = nil
     
     // MARK: - Vital Signs Metrics
     
     /// Blood oxygen saturation percentage (0-100)
     /// Average of SpO2 samples for the day
-    let oxygenSaturation: Double?
+    var oxygenSaturation: Double? = nil
     
     /// Respiratory rate in breaths per minute
     /// Average of respiratory rate samples for the day
-    let respiratoryRate: Double?
+    var respiratoryRate: Double? = nil
     
     /// Body temperature in Celsius
     /// Most recent temperature sample of the day
-    let bodyTemperatureCelsius: Double?
+    var bodyTemperatureCelsius: Double? = nil
     
     // MARK: - Energy Metrics
     
     /// Basal (resting) energy burned in kcal
     /// Sum of basal energy samples for the full day
-    let basalEnergyKcal: Double?
+    var basalEnergyKcal: Double? = nil
     
     // MARK: - Hydration Metrics
     
     /// Dietary water intake in milliliters
     /// Sum of all water intake samples for the day
-    let dietaryWaterMl: Double?
+    var dietaryWaterMl: Double? = nil
     
     // MARK: - Metadata
     
     /// Steps sources metadata (for debugging/transparency)
-    let stepsSourcesMetadata: StepsSourcesMetadata?
+    var stepsSourcesMetadata: StepsSourcesMetadata? = nil
     
     /// Additional notes or flags (e.g., "calibrating", "partial_data")
-    let notes: String?
+    var notes: String? = nil
     
     enum CodingKeys: String, CodingKey {
         // Backend validation expects camelCase for these core fields
