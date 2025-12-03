@@ -48,11 +48,14 @@ class GeminiInsightsClient {
     jsonMode: boolean = true
   ): Promise<GeminiInsightResponse> {
     if (!this.client) {
+      logger.error('[GeminiInsights] Client not initialized - GOOGLE_AI_API_KEY missing');
       throw new Error('Gemini Insights client not initialized');
     }
 
-    logger.info('[GeminiInsights] Generating insights', { 
+    logger.info('[GeminiInsights] Starting generation', { 
+      model: this.modelName,
       promptLength: userPrompt.length,
+      systemPromptLength: systemPrompt.length,
       jsonMode 
     });
 
@@ -66,6 +69,8 @@ class GeminiInsightsClient {
         generationConfig.responseMimeType = 'application/json';
       }
 
+      logger.debug('[GeminiInsights] Calling Gemini API...', { model: this.modelName });
+      
       const result = await this.client.models.generateContent({
         model: this.modelName,
         contents: userPrompt,
@@ -77,9 +82,12 @@ class GeminiInsightsClient {
 
       const response = result.text || '';
       
-      logger.info('[GeminiInsights] Generated response', { 
+      logger.info('[GeminiInsights] SUCCESS - Generated response', { 
+        model: this.modelName,
         responseLength: response.length,
-        usageMetadata: result.usageMetadata
+        hasUsageMetadata: !!result.usageMetadata,
+        promptTokens: result.usageMetadata?.promptTokenCount,
+        completionTokens: result.usageMetadata?.candidatesTokenCount
       });
 
       return {
@@ -91,9 +99,13 @@ class GeminiInsightsClient {
         } : undefined,
       };
     } catch (error: any) {
-      logger.error('[GeminiInsights] Generation failed', { 
-        error: error.message,
-        code: error.code 
+      logger.error('[GeminiInsights] API CALL FAILED', { 
+        model: this.modelName,
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorStatus: error.status,
+        errorName: error.name,
+        stack: error.stack?.substring(0, 500)
       });
       throw error;
     }
