@@ -4869,6 +4869,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, null, 2));
 
       // Extract ALL extended health metrics from iOS (now in schema)
+      // Note: iOS sends camelCase field names that may differ from backend naming
       const extendedMetrics = {
         weightKg: dailyMetrics.weightKg ?? null,
         heightCm: dailyMetrics.heightCm ?? null,
@@ -4884,13 +4885,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         diastolicBp: dailyMetrics.diastolicBp ?? null,
         bloodGlucoseMgDl: dailyMetrics.bloodGlucoseMgDl ?? null,
         vo2Max: dailyMetrics.vo2Max ?? null,
-        // Extended metrics for complete HealthKit coverage
+        // Extended vital signs - iOS sends walkingHeartRateAvg, oxygenSaturation, etc.
         basalEnergyKcal: dailyMetrics.basalEnergyKcal ?? null,
-        walkingHrAvgBpm: dailyMetrics.walkingHrAvgBpm ?? null,
+        walkingHrAvgBpm: dailyMetrics.walkingHeartRateAvg ?? dailyMetrics.walkingHrAvgBpm ?? null,
         dietaryWaterMl: dailyMetrics.dietaryWaterMl ?? null,
-        oxygenSaturationPct: dailyMetrics.oxygenSaturationPct ?? null,
-        respiratoryRateBpm: dailyMetrics.respiratoryRateBpm ?? null,
-        bodyTempC: dailyMetrics.bodyTempC ?? null,
+        oxygenSaturationPct: dailyMetrics.oxygenSaturation ?? dailyMetrics.oxygenSaturationPct ?? null,
+        respiratoryRateBpm: dailyMetrics.respiratoryRate ?? dailyMetrics.respiratoryRateBpm ?? null,
+        bodyTempC: dailyMetrics.bodyTemperatureCelsius ?? dailyMetrics.bodyTempC ?? null,
       };
       
       // PRODUCTION DEBUG: Log ALL extended metrics to verify iOS is sending them

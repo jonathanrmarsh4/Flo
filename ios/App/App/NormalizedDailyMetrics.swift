@@ -89,6 +89,35 @@ public struct NormalizedDailyMetrics: Codable {
     /// VO2 max in mL/kg/min (most recent sample)
     let vo2Max: Double?
     
+    /// Walking average heart rate in BPM (average during walking activities)
+    let walkingHeartRateAvg: Double?
+    
+    // MARK: - Vital Signs Metrics
+    
+    /// Blood oxygen saturation percentage (0-100)
+    /// Average of SpO2 samples for the day
+    let oxygenSaturation: Double?
+    
+    /// Respiratory rate in breaths per minute
+    /// Average of respiratory rate samples for the day
+    let respiratoryRate: Double?
+    
+    /// Body temperature in Celsius
+    /// Most recent temperature sample of the day
+    let bodyTemperatureCelsius: Double?
+    
+    // MARK: - Energy Metrics
+    
+    /// Basal (resting) energy burned in kcal
+    /// Sum of basal energy samples for the full day
+    let basalEnergyKcal: Double?
+    
+    // MARK: - Hydration Metrics
+    
+    /// Dietary water intake in milliliters
+    /// Sum of all water intake samples for the day
+    let dietaryWaterMl: Double?
+    
     // MARK: - Metadata
     
     /// Steps sources metadata (for debugging/transparency)
@@ -124,6 +153,12 @@ public struct NormalizedDailyMetrics: Codable {
         case diastolicBp = "diastolicBp"
         case bloodGlucoseMgDl = "bloodGlucoseMgDl"
         case vo2Max = "vo2Max"
+        case walkingHeartRateAvg = "walkingHeartRateAvg"
+        case oxygenSaturation = "oxygenSaturation"
+        case respiratoryRate = "respiratoryRate"
+        case bodyTemperatureCelsius = "bodyTemperatureCelsius"
+        case basalEnergyKcal = "basalEnergyKcal"
+        case dietaryWaterMl = "dietaryWaterMl"
         case stepsSourcesMetadata = "stepsSourcesMetadata"
         case notes
     }

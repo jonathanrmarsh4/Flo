@@ -61,7 +61,29 @@ public class HealthKitNormalisationService {
                     }
                     
                     // Upload workouts to backend
-                    self.syncWorkouts(days: days, completion: completion)
+                    self.syncWorkouts(days: days) { workoutSuccess, workoutError in
+                        if !workoutSuccess {
+                            completion(workoutSuccess, workoutError)
+                            return
+                        }
+                        
+                        // Sync mindfulness sessions
+                        self.syncMindfulnessSessions(for: dayBoundaries) { mindfulSuccess, mindfulError in
+                            if !mindfulSuccess {
+                                print("[Sync] Mindfulness sync failed but continuing: \(mindfulError?.localizedDescription ?? "unknown")")
+                            }
+                            
+                            // Sync nutrition data
+                            self.syncNutritionData(for: dayBoundaries) { nutritionSuccess, nutritionError in
+                                if !nutritionSuccess {
+                                    print("[Sync] Nutrition sync failed but continuing: \(nutritionError?.localizedDescription ?? "unknown")")
+                                }
+                                
+                                // All syncs complete
+                                completion(true, nil)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -127,6 +149,12 @@ public class HealthKitNormalisationService {
             diastolicBp: nil,
             bloodGlucoseMgDl: nil,
             vo2Max: nil,
+            walkingHeartRateAvg: nil,
+            oxygenSaturation: nil,
+            respiratoryRate: nil,
+            bodyTemperatureCelsius: nil,
+            basalEnergyKcal: nil,
+            dietaryWaterMl: nil,
             stepsSourcesMetadata: nil,
             notes: nil
         )
@@ -161,6 +189,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -195,6 +229,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -229,6 +269,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -263,6 +309,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -297,6 +349,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -365,6 +423,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -399,6 +463,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -433,6 +503,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -467,6 +543,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -501,6 +583,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -535,6 +623,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -569,6 +663,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -603,6 +703,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -637,6 +743,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -671,6 +783,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -705,6 +823,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: diastolic,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -739,6 +863,12 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: glucose,
                 vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -773,6 +903,252 @@ public class HealthKitNormalisationService {
                 diastolicBp: metrics.diastolicBp,
                 bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
                 vo2Max: vo2,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Walking Heart Rate Average
+        dispatchGroup.enter()
+        aggregateWalkingHeartRate(dayStart: dayStart, dayEnd: dayEnd) { walkingHR in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: walkingHR,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Oxygen Saturation (SpO2)
+        dispatchGroup.enter()
+        aggregateOxygenSaturation(dayStart: dayStart, dayEnd: dayEnd) { spo2 in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: spo2,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Respiratory Rate
+        dispatchGroup.enter()
+        aggregateRespiratoryRate(dayStart: dayStart, dayEnd: dayEnd) { respRate in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: respRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Body Temperature
+        dispatchGroup.enter()
+        aggregateBodyTemperature(dayStart: dayStart, dayEnd: dayEnd) { temp in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: temp,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: metrics.dietaryWaterMl,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Basal Energy Burned
+        dispatchGroup.enter()
+        aggregateBasalEnergy(dayStart: dayStart, dayEnd: dayEnd) { basalEnergy in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: basalEnergy,
+                dietaryWaterMl: metrics.dietaryWaterMl,
+                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
+                notes: metrics.notes
+            )
+            dispatchGroup.leave()
+        }
+        
+        // Dietary Water
+        dispatchGroup.enter()
+        aggregateDietaryWater(dayStart: dayStart, dayEnd: dayEnd) { water in
+            metrics = NormalizedDailyMetrics(
+                localDate: metrics.localDate,
+                timezone: metrics.timezone,
+                utcDayStart: metrics.utcDayStart,
+                utcDayEnd: metrics.utcDayEnd,
+                sleepHours: metrics.sleepHours,
+                restingHrBpm: metrics.restingHrBpm,
+                hrvMs: metrics.hrvMs,
+                activeEnergyKcal: metrics.activeEnergyKcal,
+                weightKg: metrics.weightKg,
+                heightCm: metrics.heightCm,
+                bmi: metrics.bmi,
+                bodyFatPercent: metrics.bodyFatPercent,
+                leanBodyMassKg: metrics.leanBodyMassKg,
+                waistCircumferenceCm: metrics.waistCircumferenceCm,
+                stepCount: metrics.stepCount,
+                distanceMeters: metrics.distanceMeters,
+                flightsClimbed: metrics.flightsClimbed,
+                exerciseMinutes: metrics.exerciseMinutes,
+                standHours: metrics.standHours,
+                avgHeartRateBpm: metrics.avgHeartRateBpm,
+                systolicBp: metrics.systolicBp,
+                diastolicBp: metrics.diastolicBp,
+                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
+                vo2Max: metrics.vo2Max,
+                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
+                oxygenSaturation: metrics.oxygenSaturation,
+                respiratoryRate: metrics.respiratoryRate,
+                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
+                basalEnergyKcal: metrics.basalEnergyKcal,
+                dietaryWaterMl: water,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
                 notes: metrics.notes
             )
@@ -1423,6 +1799,149 @@ public class HealthKitNormalisationService {
         healthStore.execute(query)
     }
     
+    // MARK: - Vital Signs Aggregation
+    
+    /// Aggregate walking heart rate average for a day
+    private func aggregateWalkingHeartRate(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let walkingHRType = HKObjectType.quantityType(forIdentifier: .walkingHeartRateAverage) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: walkingHRType, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            let bpm = sample.quantity.doubleValue(for: HKUnit.count().unitDivided(by: HKUnit.minute()))
+            completion(bpm)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Aggregate oxygen saturation (SpO2) average for a day
+    private func aggregateOxygenSaturation(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let spo2Type = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        
+        let query = HKSampleQuery(sampleType: spo2Type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { (query, samples, error) in
+            guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            // Average all SpO2 samples for the day, convert from fraction to percentage
+            let sum = samples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: HKUnit.percent()) }
+            let avg = sum / Double(samples.count) * 100.0 // Convert to percentage (0-100)
+            completion(avg)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Aggregate respiratory rate average for a day
+    private func aggregateRespiratoryRate(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let respType = HKObjectType.quantityType(forIdentifier: .respiratoryRate) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        
+        let query = HKSampleQuery(sampleType: respType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { (query, samples, error) in
+            guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            // Average all respiratory rate samples for the day
+            let sum = samples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: HKUnit.count().unitDivided(by: HKUnit.minute())) }
+            let avg = sum / Double(samples.count)
+            completion(avg)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Aggregate body temperature (most recent sample) for a day
+    private func aggregateBodyTemperature(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let tempType = HKObjectType.quantityType(forIdentifier: .bodyTemperature) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: tempType, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            
+            // Body temperature in Celsius
+            let celsius = sample.quantity.doubleValue(for: HKUnit.degreeCelsius())
+            completion(celsius)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Aggregate basal energy burned (sum) for a day
+    private func aggregateBasalEnergy(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let basalType = HKObjectType.quantityType(forIdentifier: .basalEnergyBurned) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        
+        let query = HKStatisticsQuery(quantityType: basalType, quantitySamplePredicate: predicate, options: .cumulativeSum) { (query, statistics, error) in
+            guard let sum = statistics?.sumQuantity(), error == nil else {
+                completion(nil)
+                return
+            }
+            
+            // Basal energy in kcal
+            let kcal = sum.doubleValue(for: HKUnit.kilocalorie())
+            completion(kcal)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Aggregate dietary water intake (sum) for a day
+    private func aggregateDietaryWater(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let waterType = HKObjectType.quantityType(forIdentifier: .dietaryWater) else {
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        
+        let query = HKStatisticsQuery(quantityType: waterType, quantitySamplePredicate: predicate, options: .cumulativeSum) { (query, statistics, error) in
+            guard let sum = statistics?.sumQuantity(), error == nil else {
+                completion(nil)
+                return
+            }
+            
+            // Water in milliliters
+            let ml = sum.doubleValue(for: HKUnit.literUnit(with: .milli))
+            completion(ml)
+        }
+        
+        healthStore.execute(query)
+    }
+    
     // MARK: - Backend Upload
     
     /// Upload normalized metrics to backend
@@ -1721,6 +2240,262 @@ public class HealthKitNormalisationService {
             task.resume()
         } catch {
             print("[Sleep] JSON encoding error: \(error.localizedDescription)")
+            completion(false, error)
+        }
+    }
+    
+    // MARK: - Mindfulness Session Sync
+    
+    /// Sync mindfulness sessions to backend as raw samples
+    func syncMindfulnessSessions(for dayBoundaries: [(Date, Date, String)], completion: @escaping (Bool, Error?) -> Void) {
+        guard let token = getJWTToken() else {
+            print("[Mindfulness] No auth token for mindfulness upload")
+            completion(false, NSError(domain: "NormalisationService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No authentication token found"]))
+            return
+        }
+        
+        let dispatchGroup = DispatchGroup()
+        var allSamples: [[String: Any]] = []
+        
+        for (dayStart, dayEnd, _) in dayBoundaries {
+            dispatchGroup.enter()
+            collectMindfulnessSamples(dayStart: dayStart, dayEnd: dayEnd) { samples in
+                allSamples.append(contentsOf: samples)
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if allSamples.isEmpty {
+                print("[Mindfulness] No mindfulness sessions found")
+                completion(true, nil)
+                return
+            }
+            
+            self.uploadRawSamplesToBackend(samples: allSamples, token: token, dataTypeName: "Mindfulness") { success, error in
+                completion(success, error)
+            }
+        }
+    }
+    
+    /// Collect mindfulness session samples for a day
+    private func collectMindfulnessSamples(dayStart: Date, dayEnd: Date, completion: @escaping ([[String: Any]]) -> Void) {
+        guard let mindfulType = HKObjectType.categoryType(forIdentifier: .mindfulSession) else {
+            completion([])
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptors = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        
+        let query = HKSampleQuery(sampleType: mindfulType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: sortDescriptors) { (_, samples, error) in
+            guard let samples = samples as? [HKCategorySample], error == nil else {
+                print("[Mindfulness] Query error: \(error?.localizedDescription ?? "unknown")")
+                DispatchQueue.main.async { completion([]) }
+                return
+            }
+            
+            print("[Mindfulness] Found \(samples.count) mindfulness sessions")
+            
+            let iso8601 = ISO8601DateFormatter()
+            iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            
+            let rawSamples = samples.map { sample -> [String: Any] in
+                // Calculate duration in minutes
+                let durationMinutes = sample.endDate.timeIntervalSince(sample.startDate) / 60.0
+                
+                return [
+                    "dataType": "mindfulSession",
+                    "value": durationMinutes,
+                    "unit": "min",
+                    "startDate": iso8601.string(from: sample.startDate),
+                    "endDate": iso8601.string(from: sample.endDate),
+                    "sourceName": sample.sourceRevision.source.name,
+                    "sourceBundleId": sample.sourceRevision.source.bundleIdentifier ?? "unknown",
+                    "uuid": sample.uuid.uuidString
+                ]
+            }
+            
+            DispatchQueue.main.async { completion(rawSamples) }
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    // MARK: - Nutrition Data Sync
+    
+    /// Sync nutrition data to backend as raw samples
+    func syncNutritionData(for dayBoundaries: [(Date, Date, String)], completion: @escaping (Bool, Error?) -> Void) {
+        guard let token = getJWTToken() else {
+            print("[Nutrition] No auth token for nutrition upload")
+            completion(false, NSError(domain: "NormalisationService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No authentication token found"]))
+            return
+        }
+        
+        let dispatchGroup = DispatchGroup()
+        var allSamples: [[String: Any]] = []
+        
+        for (dayStart, dayEnd, _) in dayBoundaries {
+            dispatchGroup.enter()
+            collectNutritionSamples(dayStart: dayStart, dayEnd: dayEnd) { samples in
+                allSamples.append(contentsOf: samples)
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if allSamples.isEmpty {
+                print("[Nutrition] No nutrition data found")
+                completion(true, nil)
+                return
+            }
+            
+            self.uploadRawSamplesToBackend(samples: allSamples, token: token, dataTypeName: "Nutrition") { success, error in
+                completion(success, error)
+            }
+        }
+    }
+    
+    /// Nutrition types to query from HealthKit
+    private var nutritionTypes: [(HKQuantityTypeIdentifier, String, HKUnit)] {
+        return [
+            // Macronutrients
+            (.dietaryEnergyConsumed, "dietaryEnergyConsumed", HKUnit.kilocalorie()),
+            (.dietaryProtein, "dietaryProtein", HKUnit.gram()),
+            (.dietaryCarbohydrates, "dietaryCarbohydrates", HKUnit.gram()),
+            (.dietaryFatTotal, "dietaryFatTotal", HKUnit.gram()),
+            (.dietaryFiber, "dietaryFiber", HKUnit.gram()),
+            (.dietarySugar, "dietarySugar", HKUnit.gram()),
+            // Fat types
+            (.dietaryFatSaturated, "dietaryFatSaturated", HKUnit.gram()),
+            (.dietaryFatMonounsaturated, "dietaryFatMonounsaturated", HKUnit.gram()),
+            (.dietaryFatPolyunsaturated, "dietaryFatPolyunsaturated", HKUnit.gram()),
+            (.dietaryCholesterol, "dietaryCholesterol", HKUnit.gramUnit(with: .milli)),
+            // Minerals
+            (.dietarySodium, "dietarySodium", HKUnit.gramUnit(with: .milli)),
+            (.dietaryPotassium, "dietaryPotassium", HKUnit.gramUnit(with: .milli)),
+            (.dietaryCalcium, "dietaryCalcium", HKUnit.gramUnit(with: .milli)),
+            (.dietaryIron, "dietaryIron", HKUnit.gramUnit(with: .milli)),
+            (.dietaryMagnesium, "dietaryMagnesium", HKUnit.gramUnit(with: .milli)),
+            (.dietaryZinc, "dietaryZinc", HKUnit.gramUnit(with: .milli)),
+            // Vitamins
+            (.dietaryVitaminA, "dietaryVitaminA", HKUnit.gramUnit(with: .micro)),
+            (.dietaryVitaminC, "dietaryVitaminC", HKUnit.gramUnit(with: .milli)),
+            (.dietaryVitaminD, "dietaryVitaminD", HKUnit.gramUnit(with: .micro)),
+            (.dietaryVitaminE, "dietaryVitaminE", HKUnit.gramUnit(with: .milli)),
+            (.dietaryVitaminK, "dietaryVitaminK", HKUnit.gramUnit(with: .micro)),
+            (.dietaryVitaminB6, "dietaryVitaminB6", HKUnit.gramUnit(with: .milli)),
+            (.dietaryVitaminB12, "dietaryVitaminB12", HKUnit.gramUnit(with: .micro)),
+            (.dietaryFolate, "dietaryFolate", HKUnit.gramUnit(with: .micro)),
+            // Other
+            (.dietaryCaffeine, "dietaryCaffeine", HKUnit.gramUnit(with: .milli)),
+            (.dietaryWater, "dietaryWater", HKUnit.literUnit(with: .milli))
+        ]
+    }
+    
+    /// Collect nutrition samples for a day
+    private func collectNutritionSamples(dayStart: Date, dayEnd: Date, completion: @escaping ([[String: Any]]) -> Void) {
+        let dispatchGroup = DispatchGroup()
+        var allSamples: [[String: Any]] = []
+        let lock = NSLock()
+        
+        for (typeId, typeName, unit) in nutritionTypes {
+            guard let quantityType = HKObjectType.quantityType(forIdentifier: typeId) else {
+                continue
+            }
+            
+            dispatchGroup.enter()
+            
+            let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+            let sortDescriptors = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+            
+            let query = HKSampleQuery(sampleType: quantityType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: sortDescriptors) { (_, samples, error) in
+                defer { dispatchGroup.leave() }
+                
+                guard let samples = samples as? [HKQuantitySample], error == nil else {
+                    return
+                }
+                
+                let iso8601 = ISO8601DateFormatter()
+                iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                
+                let rawSamples = samples.map { sample -> [String: Any] in
+                    return [
+                        "dataType": typeName,
+                        "value": sample.quantity.doubleValue(for: unit),
+                        "unit": unit.unitString,
+                        "startDate": iso8601.string(from: sample.startDate),
+                        "endDate": iso8601.string(from: sample.endDate),
+                        "sourceName": sample.sourceRevision.source.name,
+                        "sourceBundleId": sample.sourceRevision.source.bundleIdentifier ?? "unknown",
+                        "uuid": sample.uuid.uuidString
+                    ]
+                }
+                
+                lock.lock()
+                allSamples.append(contentsOf: rawSamples)
+                lock.unlock()
+            }
+            
+            healthStore.execute(query)
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            print("[Nutrition] Collected \(allSamples.count) nutrition samples")
+            completion(allSamples)
+        }
+    }
+    
+    /// Generic function to upload raw samples to /api/healthkit/samples endpoint
+    private func uploadRawSamplesToBackend(samples: [[String: Any]], token: String, dataTypeName: String, completion: @escaping (Bool, Error?) -> Void) {
+        let baseURL = getBackendURL()
+        guard let url = URL(string: "\(baseURL)/api/healthkit/samples") else {
+            completion(false, NSError(domain: "NormalisationService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"]))
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let payload: [String: Any] = ["samples": samples]
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: payload)
+            request.httpBody = jsonData
+            
+            print("[\(dataTypeName)] Uploading \(samples.count) samples to backend")
+            
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("[\(dataTypeName)] Upload error: \(error.localizedDescription)")
+                    completion(false, error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(false, NSError(domain: "NormalisationService", code: 4, userInfo: [NSLocalizedDescriptionKey: "Invalid response"]))
+                    return
+                }
+                
+                if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    print("[\(dataTypeName)] Successfully uploaded \(samples.count) samples")
+                    completion(true, nil)
+                } else {
+                    var errorMsg = "HTTP \(httpResponse.statusCode)"
+                    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                        print("[\(dataTypeName)] Response: \(responseBody)")
+                        errorMsg += " - \(responseBody)"
+                    }
+                    print("[\(dataTypeName)] Upload failed: \(errorMsg)")
+                    completion(false, NSError(domain: "NormalisationService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg]))
+                }
+            }
+            
+            task.resume()
+        } catch {
+            print("[\(dataTypeName)] JSON encoding error: \(error.localizedDescription)")
             completion(false, error)
         }
     }
