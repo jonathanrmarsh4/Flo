@@ -47,22 +47,28 @@ export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
       if (Capacitor.isNativePlatform()) {
         try {
           // Write CSV to a temporary file using Capacitor Filesystem
-          const writeResult = await Filesystem.writeFile({
+          await Filesystem.writeFile({
             path: filename,
             data: csvText,
             directory: Directory.Cache,
             encoding: Encoding.UTF8,
           });
           
-          // Get the file URI for sharing
-          const fileUri = writeResult.uri;
+          // Get the proper file URI for sharing (required for iOS)
+          const uriResult = await Filesystem.getUri({
+            path: filename,
+            directory: Directory.Cache,
+          });
+          const fileUri = uriResult.uri;
+          
+          console.log('Export file URI:', fileUri);
           
           // Use native share to let user save or share the file
+          // Use 'files' array for better iOS compatibility
           await Share.share({
             title: 'Flō Health Data Export',
-            text: 'Your Flō health data export',
-            url: fileUri,
             dialogTitle: 'Save or Share Your Health Data',
+            files: [fileUri],
           });
           
           setExportComplete(true);
@@ -80,11 +86,24 @@ export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
           }, 60000); // Keep file for 1 minute in case user needs it
           
         } catch (shareError: any) {
+          // Log full error details for debugging
+          console.error('Native share error details:', {
+            message: shareError?.message,
+            code: shareError?.code,
+            name: shareError?.name,
+            errorInfo: shareError?.errorInfo,
+            stack: shareError?.stack,
+            fullError: JSON.stringify(shareError, Object.getOwnPropertyNames(shareError || {})),
+          });
+          
           // User cancelled share - this is not an error
-          if (shareError?.message?.includes('cancelled') || shareError?.message?.includes('canceled')) {
+          if (shareError?.message?.includes('cancelled') || 
+              shareError?.message?.includes('canceled') ||
+              shareError?.code === 'CANCELED' ||
+              shareError?.code === 'ERR_CANCELED') {
             console.log('Share cancelled by user');
+            setExportComplete(true); // File was written successfully, user just cancelled share
           } else {
-            console.error('Native share failed:', shareError);
             throw shareError;
           }
         }
@@ -107,9 +126,25 @@ export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
       }
       
       setTimeout(() => setExportComplete(false), 3000);
-    } catch (error) {
-      console.error('Export failed:', error);
-      setExportError('Failed to export data. Please try again.');
+    } catch (error: any) {
+      // Log full error details for debugging
+      console.error('Export failed:', {
+        message: error?.message,
+        code: error?.code,
+        name: error?.name,
+        stack: error?.stack,
+        fullError: JSON.stringify(error, Object.getOwnPropertyNames(error || {})),
+      });
+      
+      // Provide more helpful error message based on error type
+      let errorMessage = 'Failed to export data. Please try again.';
+      if (error?.message?.includes('network') || error?.message?.includes('fetch')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error?.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Please allow file access in Settings.';
+      }
+      
+      setExportError(errorMessage);
       setTimeout(() => setExportError(null), 5000);
     } finally {
       setIsExporting(false);
