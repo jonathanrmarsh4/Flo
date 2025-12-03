@@ -1,0 +1,406 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/959C42F1-F7D3-4613-8022-6E84F7EA28EC/App.app'
+⚡️  Loading app at https://get-flo.com...
+✅ SharedWorker disabled to prevent WKWebView freeze
+✅ WKUIDelegate configured for media capture permissions
+✅ WebView keyboard handling configured
+✅ HealthSyncPlugin registered manually
+✅ WebViewCachePlugin registered manually
+✅ NativeMicrophonePlugin registered manually
+Networking process (0x114054100) took 20.026162 seconds to launch
+GPU process (0x1141101e0) took 11.621912 seconds to launch
+WebContent process (0x1140d80c0) took 11.633475 seconds to launch
+XPC connection interrupted
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+Reporter disconnected. { function=sendMessage, reporterID=65446711656449 }
+✅ Keyboard pre-warmed for first-run optimization
+✅ WKWebView input accessory bar removed to prevent constraint conflicts
+Reporter disconnected or already stopped. { func=stop, reporterID=65446711656449 }
+WebContent[15245] Unable to hide query parameters from script (missing data)
+Error acquiring assertion: <Error Domain=RBSServiceErrorDomain Code=1 "((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))" UserInfo={NSLocalizedFailureReason=((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))}>
+0x114148300 - ProcessAssertion::acquireSync Failed to acquire RBS assertion 'XPCConnectionTerminationWatchdog' for process with PID=15242, error: (null)
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x122cd29d0 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x122cd2940 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+⚡️  [log] - [StoreKit] Module loaded, Subscriptions: object
+⚡️  [log] - [QueryClient] SecureStoragePlugin pre-loaded
+⚡️  To Native ->  App addListener 63395011
+⚡️  To Native ->  App addListener 63395012
+⚡️  To Native ->  App getLaunchUrl 63395013
+⚡️  To Native ->  SecureStoragePlugin get 63395014
+⚡️  TO JS undefined
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0NzQzNzcxLCJleHAiOjE3NjUzNDg1NzF9.hqfo
+⚡️  To Native ->  App addListener 63395015
+⚡️  To Native ->  Preferences get 63395016
+⚡️  TO JS {"value":"1764748727837"}
+⚡️  To Native ->  Preferences get 63395017
+⚡️  TO JS {"value":"1764748731238"}
+⚡️  [warn] - [Stripe Native] Missing VITE_STRIPE_PUBLISHABLE_KEY
+⚡️  To Native ->  Preferences get 63395018
+⚡️  TO JS {"value":"1.0.1"}
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering initial HealthKit sync...
+⚡️  To Native ->  SecureStoragePlugin get 63395019
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0NzQzNzcxLCJleHAiOjE3NjUzNDg1NzF9.hqfo
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 63395020
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+✅ [HealthSyncPlugin] Requesting authorization for 74 HealthKit data types
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"days":7,"message":"Background sync started","success":true}
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"days":7,"message":"Background sync started","success":true}
+⚡️  To Native ->  HealthSyncPlugin syncWorkouts 63395021
+⚡️  [log] - 🏋️ [AutoSync] Syncing workouts...
+💪 [HealthSyncPlugin] Queuing workout sync for last 7 days...
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+⚡️  TO JS {"days":7,"success":true,"message":"Workout sync started"}
+⚡️  [log] - 🏋️ [AutoSync] Workout sync result: {"days":7,"success":true,"message":"Workout sync started"}
+⚡️  To Native ->  ⚡️  [log] - ✅ [AutoSync] Sync success block entered
+Preferences set 63395022
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+⚡️  TO JS undefined
+⚡️  [log] - ⏳ [AutoSync] Waiting 4s for backend upload to complete...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-26 08:00:05 +0000 to 2025-12-03 08:00:05 +0000
+🔓 [HealthSyncPlugin] Authorization requested for 74 types, success: true
+🔓 [HealthSyncPlugin] Workout authorization requested, success: true
+[ExerciseMinutes] Querying workouts for day: 2025-11-26 00:00:00 to 2025-11-27 00:00:00
+[ExerciseMinutes] Querying workouts for day: 2025-11-27 00:00:00 to 2025-11-28 00:00:00
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes] ═══════════════════
+[Workouts] Found 5 workouts
+[ExerciseMinutes] Total: 0.0 min from 0 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3308 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1889 steps
+[Steps] Using iPhone primary source: 3308 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-28 00:00:00 to 2025-11-29 00:00:00
+[ExerciseMinutes] Querying workouts for day: 2025-11-29 00:00:00 to 2025-11-30 00:00:00
+[ExerciseMinutes] No workouts found
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3935 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2304 steps
+[Steps] Using iPhone primary source: 3935 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-30 00:00:00 to 2025-12-01 00:00:00
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes] Querying workouts for day: 2025-12-01 00:00:00 to 2025-12-02 00:00:00
+[ExerciseMinutes]  ✓  Train: 42.0 min
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.6 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 46.6 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5181 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2099 steps
+[Steps] Using iPhone primary source: 5181 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-02 00:00:00 to 2025-12-03 00:00:00
+[ExerciseMinutes] Processing 3 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 13.2 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 13.2 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6649 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3343 steps
+[Steps] Using iPhone primary source: 6649 steps (from 2 sources)
+[ExerciseMinutes] No workouts found
+[ExerciseMinutes] Querying workouts for day: 2025-12-03 00:00:00 to 2025-12-04 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3303 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1352 steps
+[Steps] Using iPhone primary source: 3303 steps (from 2 sources)
+[ExerciseMinutes] No workouts found
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3456 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2536 steps
+[Steps] Using iPhone primary source: 3456 steps (from 2 sources)
+[ExerciseMinutes] Processing 1 workouts with deduplication...
+[ExerciseMinutes]  ✓  Train: 32.7 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 32.7 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7219 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3077 steps
+[Steps] Using iPhone primary source: 7219 steps (from 2 sources)
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Train: 36.0 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 36.0 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 2923 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1199 steps
+[Steps] Using iPhone primary source: 2923 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-26: {"bodyFatPercent":7.381000518798827,"stepsNormalized":3308,"utcDayStart":"2025-11-25T16:00:00.000Z","avgHeartRateBpm":82.40352790805018,"utcDayEnd":"2025-11-26T16:00:00.000Z","weightKg":70.58900451660...
+[Normalisation] Sending payload for 2025-11-27: {"bodyFatPercent":7.340000152587891,"stepsSourcesMetadata":{"gaps_filled":0,"overlaps_detected":0,"final_steps":3935,"notes":"Using HKStatisticsQuery with .separateBySource for accurate deduplication"...
+[Normalisation] Sending payload for 2025-11-28: {"bodyFatPercent":7.788000583648682,"stepsNormalized":5181,"utcDayStart":"2025-11-27T16:00:00.000Z","avgHeartRateBpm":95.47521828674726,"utcDayEnd":"2025-11-28T16:00:00.000Z","standHours":1,"weightKg"...
+[Normalisation] Sending payload for 2025-11-29: {"exerciseMinutes":13.158221038182576,"flightsClimbed":1,"bodyFatPercent":7.518000125885011,"stepsSourcesMetadata":{"gaps_filled":0,"overlaps_detected":0,"final_steps":6649,"notes":"Using HKStatistics...
+[Normalisation] Sending payload for 2025-11-30: {"avgHeartRateBpm":86.48895713206166,"localDate":"2025-11-30","hrvMs":18.04169478904263,"stepsNormalized":3303,"distanceMeters":2532.046147113543,"utcDayStart":"2025-11-29T16:00:00.000Z","stepsSources...
+[Normalisation] Sending payload for 2025-12-01: {"bodyFatPercent":7.339000225067139,"stepsNormalized":3456,"utcDayStart":"2025-11-30T16:00:00.000Z","avgHeartRateBpm":89.48000436196122,"utcDayEnd":"2025-12-01T16:00:00.000Z","weightKg":69.35100555419...
+[Normalisation] Sending payload for 2025-12-02: {"exerciseMinutes":32.735123467445376,"flightsClimbed":1,"stepsSourcesMetadata":{"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1...
+[Normalisation] Sending payload for 2025-12-03: {"stepsNormalized":2923,"utcDayStart":"2025-12-02T16:00:00.000Z","avgHeartRateBpm":90.01009224639817,"utcDayEnd":"2025-12-03T16:00:00.000Z","restingHrBpm":63,"activeEnergyKcal":528.7013889729985,"exer...
+quic_conn_process_inbound [C1.1.1.1:2] [-f2172c1d17877b89] unable to parse packet
+⚡️  [log] - 🌍 [Timezone] Hook initialized - checking timezone on launch
+⚡️  To Native ->  Preferences get 63395023
+⚡️  To Native ->  Preferences get 63395024
+⚡️  To Native ->  LocalNotifications checkPermissions 63395025
+⚡️  TO JS {"value":"1764746869188"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - [API] Making request: GET https://get-flo.com/api/user/timezone
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  TO JS {"display":"granted"}
+⚡️  To Native ->  LocalNotifications addListener 63395026
+⚡️  To Native ->  LocalNotifications addListener 63395027
+⚡️  To Native ->  LocalNotifications cancel 63395028
+⚡️  TO JS undefined
+⚡️  [log] - [API] Response received: 200 OK
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  [log] - [Flōmentum Notifications] All scheduled notifications cancelled
+⚡️  To Native ->  LocalNotifications schedule 63395029
+⚡️  TO JS {"notifications":[{"id":100}]}
+⚡️  [log] - [Flōmentum Notifications] Daily score scheduled for 20:00
+⚡️  To Native ->  LocalNotifications schedule 63395030
+⚡️  TO JS {"notifications":[{"id":101}]}
+⚡️  [log] - [Flōmentum Notifications] Sync reminder scheduled for 09:00
+⚡️  To Native ->  LocalNotifications schedule 63395031
+⚡️  TO JS {"notifications":[{"id":102}]}
+⚡️  [log] - [Flōmentum Notifications] Weekly summary scheduled for Mondays at 8 AM
+⚡️  To Native ->  LocalNotifications schedule 63395032
+⚡️  TO JS {"notifications":[{"id":103}]}
+⚡️  To Native ->  LocalNotifications schedule 63395033
+⚡️  TO JS {"notifications":[{"id":104}]}
+⚡️  To Native ->  LocalNotifications schedule 63395034
+⚡️  TO JS {"notifications":[{"id":105}]}
+⚡️  [log] - [Flōmentum Notifications] Daily action reminders scheduled
+⚡️  [log] - [Flōmentum Notifications] Initialization complete
+[Normalisation] Successfully uploaded metrics for 2025-11-26
+[Normalisation] Successfully uploaded metrics for 2025-11-27
+[Normalisation] Successfully uploaded metrics for 2025-11-30
+[Normalisation] Successfully uploaded metrics for 2025-11-28
+[Normalisation] Successfully uploaded metrics for 2025-11-29
+[Normalisation] Successfully uploaded metrics for 2025-12-02
+[Normalisation] Successfully uploaded metrics for 2025-12-01
+[Normalisation] Successfully uploaded metrics for 2025-12-03
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-26, window: 2025-11-25 07:00:00 +0000 to 2025-11-26 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-27, window: 2025-11-26 07:00:00 +0000 to 2025-11-27 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-28, window: 2025-11-27 07:00:00 +0000 to 2025-11-28 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-29, window: 2025-11-28 07:00:00 +0000 to 2025-11-29 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-30, window: 2025-11-29 07:00:00 +0000 to 2025-11-30 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-01, window: 2025-11-30 07:00:00 +0000 to 2025-12-01 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-02, window: 2025-12-01 07:00:00 +0000 to 2025-12-02 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-03, window: 2025-12-02 07:00:00 +0000 to 2025-12-03 07:00:00 +0000
+[Sleep] Found 29 raw sleep samples for 2025-11-26
+[Sleep] Found 29 raw sleep samples for 2025-11-28
+[Sleep] Uploading 29 raw samples for 2025-11-26
+[Sleep] Found 31 raw sleep samples for 2025-11-27
+[Sleep] Uploading 29 raw samples for 2025-11-28
+[Sleep] Found 19 raw sleep samples for 2025-11-29
+[Sleep] Uploading 31 raw samples for 2025-11-27
+[Sleep] Uploading 19 raw samples for 2025-11-29
+[Sleep] Found 30 raw sleep samples for 2025-12-01
+[Sleep] Found 23 raw sleep samples for 2025-12-02
+[Sleep] Uploading 30 raw samples for 2025-12-01
+[Sleep] Found 26 raw sleep samples for 2025-12-03
+[Sleep] Uploading 23 raw samples for 2025-12-02
+[Sleep] Found 37 raw sleep samples for 2025-11-30
+[Sleep] Uploading 26 raw samples for 2025-12-03
+[Sleep] Uploading 37 raw samples for 2025-11-30
+[Sleep] Successfully uploaded raw samples for 2025-11-26
+[Sleep] Successfully uploaded raw samples for 2025-11-28
+[Sleep] Successfully uploaded raw samples for 2025-11-27
+[Sleep] Successfully uploaded raw samples for 2025-11-30
+[Sleep] Successfully uploaded raw samples for 2025-12-03
+[Sleep] Successfully uploaded raw samples for 2025-12-02
+[Sleep] Successfully uploaded raw samples for 2025-11-29
+[Sleep] Successfully uploaded raw samples for 2025-12-01
+[Sleep] Successfully uploaded 8 sleep nights
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Found 5 workouts
+[Workouts] Uploading 5 workouts to backend
+⚡️  [log] - 🔄 [AutoSync] Refetching dashboard queries...
+[Workouts] Upload successful: {"inserted":0,"duplicates":5,"total":5}
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+[Workouts] Found 5 workouts
+⚡️  [log] - ✅ [AutoSync] Dashboard refresh completed!
+⚡️  To Native ->  LocalNotifications schedule 63395035
+⚡️  TO JS {"notifications":[{"id":1}]}
+⚡️  [log] - [Notifications] Sent: Health data synced ✓
+⚡️  TO JS {"extra":{},"attachments":[],"schedule":{"at":"2025-12-03T08:00:12Z"},"body":"Your latest HealthKit metrics are ready","sound":"","id":1,"title":"Health data synced ✓","actionTypeId":""}
+⚡️  [log] - [Notifications] Received in foreground: {"extra":{},"attachments":[],"schedule":{"at":"2025-12-03T08:00:12Z"},"body":"Your latest HealthKit metrics are ready","sound":"","id":1,"title":"Health data synced ✓","actionTypeId":""}
+⚡️  To Native ->  SecureStoragePlugin get 63395036
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0NzQzNzcxLCJleHAiOjE3NjUzNDg1NzF9.hqfo
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 63395037
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+✅ [HealthSyncPlugin] Requesting authorization for 74 HealthKit data types
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"days":7,"success":true,"message":"Background sync started"}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, starting sync...
+[Normalisation] Syncing last 7 days: 2025-11-26 08:00:14 +0000 to 2025-12-03 08:00:14 +0000
+🔓 [HealthSyncPlugin] Authorization requested for 74 types, success: true
+[ExerciseMinutes] Querying workouts for day: 2025-11-26 00:00:00 to 2025-11-27 00:00:00
+[ExerciseMinutes] Querying workouts for day: 2025-11-27 00:00:00 to 2025-11-28 00:00:00
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 0.0 min from 0 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3308 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1889 steps
+[Steps] Using iPhone primary source: 3308 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-28 00:00:00 to 2025-11-29 00:00:00
+[ExerciseMinutes] Querying workouts for day: 2025-11-29 00:00:00 to 2025-11-30 00:00:00
+[ExerciseMinutes] No workouts found
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3935 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2304 steps
+[Steps] Using iPhone primary source: 3935 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-11-30 00:00:00 to 2025-12-01 00:00:00
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ✓  Train: 42.0 min
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.6 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 46.6 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5181 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2099 steps
+[Steps] Using iPhone primary source: 5181 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-01 00:00:00 to 2025-12-02 00:00:00
+[ExerciseMinutes] Querying workouts for day: 2025-12-02 00:00:00 to 2025-12-03 00:00:00
+[ExerciseMinutes] Processing 3 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 13.2 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 13.2 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 6649 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3343 steps
+[Steps] Using iPhone primary source: 6649 steps (from 2 sources)
+[ExerciseMinutes] No workouts found
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3303 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1352 steps
+[Steps] Using iPhone primary source: 3303 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-03 00:00:00 to 2025-12-04 00:00:00
+[ExerciseMinutes] No workouts found
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3456 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2536 steps
+[Steps] Using iPhone primary source: 3456 steps (from 2 sources)
+[ExerciseMinutes] Processing 1 workouts with deduplication...
+[ExerciseMinutes]  ✓  Train: 32.7 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 32.7 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7219 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3077 steps
+[Steps] Using iPhone primary source: 7219 steps (from 2 sources)
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Train: 36.0 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 36.0 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 2923 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1199 steps
+[Steps] Using iPhone primary source: 2923 steps (from 2 sources)
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-26: {"distanceMeters":2400.2523850755533,"bmi":23.585485458374023,"activeEnergyKcal":345.69294837814897,"localDate":"2025-11-26","stepsSourcesMetadata":{"priority_order":"iPhone","final_steps":3308,"notes...
+[Normalisation] Sending payload for 2025-11-27: {"avgHeartRateBpm":84.70100535787795,"activeEnergyKcal":370.39634254253843,"leanBodyMassKg":65.52300262451172,"timezone":"Australia\/Perth","bmi":23.626916885375977,"bodyFatPercent":7.340000152587891,...
+[Normalisation] Sending payload for 2025-11-28: {"exerciseMinutes":46.55461303194364,"distanceMeters":3795.950717620668,"bmi":23.46687126159668,"activeEnergyKcal":889.4373744112456,"localDate":"2025-11-28","stepsSourcesMetadata":{"priority_order":"...
+[Normalisation] Sending payload for 2025-11-29: {"exerciseMinutes":13.158221038182576,"activeEnergyKcal":611.1096261176737,"avgHeartRateBpm":90.10924615184932,"leanBodyMassKg":64.83100128173828,"standHours":1,"timezone":"Australia\/Perth","bmi":23....
+[Normalisation] Sending payload for 2025-11-30: {"activeEnergyKcal":390.8919207795939,"stepsNormalized":3303,"utcDayStart":"2025-11-29T16:00:00.000Z","localDate":"2025-11-30","restingHrBpm":72,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"...
+[Normalisation] Sending payload for 2025-12-01: {"distanceMeters":2754.733743050708,"bmi":23.17184066772461,"activeEnergyKcal":366.6854713419091,"localDate":"2025-12-01","stepsSourcesMetadata":{"source_identifiers":["com.apple.health.6E1CE527-B412-...
+[Normalisation] Sending payload for 2025-12-02: {"restingHrBpm":73,"activeEnergyKcal":824.1601224873087,"avgHeartRateBpm":90.79592795908704,"standHours":1,"timezone":"Australia\/Perth","stepsSourcesMetadata":{"final_steps":7219,"gaps_filled":0,"sou...
+[Normalisation] Sending payload for 2025-12-03: {"exerciseMinutes":35.99506040215492,"systolicBp":146,"distanceMeters":2129.5586665138835,"activeEnergyKcal":528.7013889729985,"localDate":"2025-12-03","stepsSourcesMetadata":{"source_identifiers":["c...
+[Normalisation] Successfully uploaded metrics for 2025-11-29
+[Normalisation] Successfully uploaded metrics for 2025-11-27
+[Normalisation] Successfully uploaded metrics for 2025-11-28
+[Normalisation] Successfully uploaded metrics for 2025-12-03
+[Normalisation] Successfully uploaded metrics for 2025-12-01
+[Normalisation] Successfully uploaded metrics for 2025-12-02
+[Normalisation] Successfully uploaded metrics for 2025-11-26
+[Normalisation] Successfully uploaded metrics for 2025-11-30
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-26, window: 2025-11-25 07:00:00 +0000 to 2025-11-26 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-27, window: 2025-11-26 07:00:00 +0000 to 2025-11-27 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-28, window: 2025-11-27 07:00:00 +0000 to 2025-11-28 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-29, window: 2025-11-28 07:00:00 +0000 to 2025-11-29 07:00:00 +0000
+[Sleep] Querying samples for 2025-11-30, window: 2025-11-29 07:00:00 +0000 to 2025-11-30 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-01, window: 2025-11-30 07:00:00 +0000 to 2025-12-01 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-02, window: 2025-12-01 07:00:00 +0000 to 2025-12-02 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-03, window: 2025-12-02 07:00:00 +0000 to 2025-12-03 07:00:00 +0000
+[Sleep] Found 29 raw sleep samples for 2025-11-28
+[Sleep] Found 31 raw sleep samples for 2025-11-27
+[Sleep] Uploading 29 raw samples for 2025-11-28
+[Sleep] Uploading 31 raw samples for 2025-11-27
+[Sleep] Found 29 raw sleep samples for 2025-11-26
+[Sleep] Uploading 29 raw samples for 2025-11-26
+[Sleep] Found 23 raw sleep samples for 2025-12-02
+[Sleep] Uploading 23 raw samples for 2025-12-02
+[Sleep] Found 19 raw sleep samples for 2025-11-29
+[Sleep] Found 37 raw sleep samples for 2025-11-30
+[Sleep] Uploading 19 raw samples for 2025-11-29
+[Sleep] Found 30 raw sleep samples for 2025-12-01
+[Sleep] Uploading 37 raw samples for 2025-11-30
+[Sleep] Found 26 raw sleep samples for 2025-12-03
+[Sleep] Uploading 30 raw samples for 2025-12-01
+[Sleep] Uploading 26 raw samples for 2025-12-03
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = dismissAutoFillPanel, customInfoType = UIUserInteractionRemoteInputOperations
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 63395038
+⚡️  TO JS undefined
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = dismissAutoFillPanel, customInfoType = UIUserInteractionRemoteInputOperations
+[Sleep] Successfully uploaded raw samples for 2025-11-26
+[Sleep] Successfully uploaded raw samples for 2025-12-02
+[Sleep] Successfully uploaded raw samples for 2025-11-28
+[Sleep] Successfully uploaded raw samples for 2025-11-27
+[Sleep] Successfully uploaded raw samples for 2025-12-01
+[Sleep] Successfully uploaded raw samples for 2025-12-03
+[Sleep] Successfully uploaded raw samples for 2025-11-29
+[Sleep] Successfully uploaded raw samples for 2025-11-30
+[Sleep] Successfully uploaded 8 sleep nights
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Found 5 workouts
+[Workouts] Uploading 5 workouts to backend
+[Workouts] Upload successful: {"inserted":0,"duplicates":5,"total":5}
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+[Workouts] Found 5 workouts
+Snapshotting a view (0x122dfa400, UIKeyboardImpl) that is not in a visible window requires afterScreenUpdates:YES.
+⚡️  To Native ->  Preferences set 63395039
+⚡️  TO JS undefined
+WebContent[15245] 0x600000162004150 - [sessionID=1] WebProcess::markAllLayersVolatile: Failed to mark layers as volatile for webPageID=35
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x12c680780 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+⚡️  To Native ->  Preferences get 63395040
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 63395041
+⚡️  To Native ->  Preferences get 63395042
+⚡️  To Native ->  Preferences get 63395043
+⚡️  TO JS {"value":"1764748819176"}
+⚡️  TO JS {"value":"1764748819176"}
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  TO JS {"value":"1764746869188"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 63395044
+⚡️  TO JS undefined
+Snapshotting a view (0x122dfb400, UIKeyboardImpl) that has not been rendered at least once requires afterScreenUpdates:YES.
