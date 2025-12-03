@@ -9381,35 +9381,78 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const queryEndDate = now < endDate ? now : endDate;
 
       // Map targetBiomarker to HealthKit daily metrics column names
+      // Include many synonyms to catch various stored formats
       const activityMetricsMap: Record<string, string> = {
+        // Steps variations
         'steps': 'steps_normalized',
         'steps_normalized': 'steps_normalized',
         'daily_steps': 'steps_normalized',
+        'step_count': 'steps_normalized',
+        'stepcount': 'steps_normalized',
+        'activity_steps': 'steps_normalized',
+        'total_steps': 'steps_normalized',
+        'steps_per_day': 'steps_normalized',
+        'average_steps': 'steps_normalized',
+        'avg_steps': 'steps_normalized',
+        // HRV variations
         'hrv': 'hrv_avg',
         'hrv_avg': 'hrv_avg',
         'heart_rate_variability': 'hrv_avg',
+        'heartratevariability': 'hrv_avg',
+        'average_hrv': 'hrv_avg',
+        'avg_hrv': 'hrv_avg',
+        // Resting HR variations
         'resting_hr': 'resting_hr',
         'resting_heart_rate': 'resting_hr',
+        'restingheartrate': 'resting_hr',
+        'rhr': 'resting_hr',
+        // Sleep variations
         'sleep_duration': 'sleep_duration_hours',
         'sleep_duration_hours': 'sleep_duration_hours',
         'sleep': 'sleep_duration_hours',
+        'total_sleep': 'sleep_duration_hours',
+        'sleep_hours': 'sleep_duration_hours',
+        'hours_of_sleep': 'sleep_duration_hours',
+        'average_sleep': 'sleep_duration_hours',
+        'avg_sleep': 'sleep_duration_hours',
         'deep_sleep': 'deep_sleep_hours',
         'deep_sleep_hours': 'deep_sleep_hours',
         'rem_sleep': 'rem_sleep_hours',
         'rem_sleep_hours': 'rem_sleep_hours',
+        // Exercise variations
         'exercise_minutes': 'exercise_minutes',
+        'exercise': 'exercise_minutes',
+        'workout_minutes': 'exercise_minutes',
+        'activity_minutes': 'exercise_minutes',
+        'active_minutes': 'exercise_minutes',
+        // Energy variations
         'active_energy': 'active_energy_kcal',
         'active_energy_kcal': 'active_energy_kcal',
+        'calories_burned': 'active_energy_kcal',
+        'active_calories': 'active_energy_kcal',
+        // Distance variations
         'distance': 'distance_meters',
         'distance_meters': 'distance_meters',
+        'walking_distance': 'distance_meters',
+        'daily_distance': 'distance_meters',
+        // Other metrics
         'vo2_max': 'vo2_max',
+        'vo2max': 'vo2_max',
         'respiratory_rate': 'respiratory_rate',
+        'breathing_rate': 'respiratory_rate',
         'oxygen_saturation': 'oxygen_saturation',
+        'spo2': 'oxygen_saturation',
+        'blood_oxygen': 'oxygen_saturation',
         'body_temperature': 'body_temperature_celsius',
+        'temperature': 'body_temperature_celsius',
       };
 
-      const biomarkerLower = item.targetBiomarker.toLowerCase().replace(/\s+/g, '_');
+      // Normalize the biomarker name: lowercase, replace spaces/hyphens with underscores
+      const biomarkerLower = item.targetBiomarker.toLowerCase().trim().replace(/[\s-]+/g, '_');
       const healthKitColumn = activityMetricsMap[biomarkerLower];
+      
+      // Debug logging to help identify unmapped biomarkers
+      logger.info(`[ActionPlan] Progress request for item ${id}: targetBiomarker="${item.targetBiomarker}", normalized="${biomarkerLower}", mapped=${healthKitColumn || 'NOT_FOUND'}, currentValue=${item.currentValue}, targetValue=${item.targetValue}, addedAt=${item.addedAt}`);
 
       // Check if this is an activity/HealthKit metric
       if (healthKitColumn) {
