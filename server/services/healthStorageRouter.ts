@@ -1598,16 +1598,19 @@ export async function createMindfulnessSession(userId: string, data: any): Promi
   }
   
   try {
+    // Accept both camelCase and snake_case field names for flexibility
     const supabaseData = {
-      session_date: data.sessionDate,
+      session_date: data.sessionDate || data.session_date,
       timezone: data.timezone,
-      start_time: data.startTime,
-      end_time: data.endTime,
-      duration_minutes: data.durationMinutes,
-      source_name: data.sourceName,
-      source_id: data.sourceId,
-      healthkit_uuid: data.healthkitUuid,
+      start_time: data.startTime || data.start_time,
+      end_time: data.endTime || data.end_time,
+      duration_minutes: data.durationMinutes || data.duration_minutes,
+      source_name: data.sourceName || data.source_name,
+      source_id: data.sourceId || data.source_id,
+      healthkit_uuid: data.healthkitUuid || data.healthkit_uuid,
     };
+    
+    logger.info(`[HealthStorageRouter] Creating mindfulness session for ${userId}: ${supabaseData.duration_minutes}min on ${supabaseData.session_date}`);
     return await supabaseHealth.createMindfulnessSession(userId, supabaseData);
   } catch (error) {
     logger.error("[HealthStorageRouter] Supabase createMindfulnessSession failed:", error);
@@ -1695,15 +1698,18 @@ export async function upsertMindfulnessDailyMetrics(userId: string, data: any): 
   }
   
   try {
+    // Accept both camelCase and snake_case field names for flexibility
     const supabaseData = {
-      local_date: data.localDate,
+      local_date: data.localDate || data.local_date,
       timezone: data.timezone,
-      total_minutes: data.totalMinutes,
-      session_count: data.sessionCount,
-      avg_session_minutes: data.avgSessionMinutes,
-      longest_session_minutes: data.longestSessionMinutes,
+      total_minutes: data.totalMinutes || data.total_minutes,
+      session_count: data.sessionCount || data.session_count,
+      avg_session_minutes: data.avgSessionMinutes || data.avg_session_minutes,
+      longest_session_minutes: data.longestSessionMinutes || data.longest_session_minutes,
       sources: data.sources,
     };
+    
+    logger.info(`[HealthStorageRouter] Upserting mindfulness daily for ${userId}: ${supabaseData.session_count} sessions, ${supabaseData.total_minutes}min on ${supabaseData.local_date}`);
     return await supabaseHealth.upsertMindfulnessDailyMetrics(userId, supabaseData);
   } catch (error) {
     logger.error("[HealthStorageRouter] Supabase upsertMindfulnessDailyMetrics failed:", error);
