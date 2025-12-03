@@ -823,6 +823,7 @@ export async function getActionPlanItem(id: string, userId: string) {
       const item = items.find(i => i.id === id);
       if (!item) return null;
       // Normalize Supabase snake_case to camelCase for API compatibility
+      // Include targetBiomarker, biomarkerId, addedAt for progress tracking
       return {
         id: item.id,
         userId: userId,
@@ -843,6 +844,10 @@ export async function getActionPlanItem(id: string, userId: string) {
         metadata: item.metadata,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
+        // Critical fields for progress tracking
+        targetBiomarker: item.target_biomarker,
+        biomarkerId: item.biomarker_id,
+        addedAt: item.added_at || item.created_at,
       };
     } catch (error) {
       logger.error("[HealthStorageRouter] Supabase getActionPlanItem failed, falling back to Neon:", error);

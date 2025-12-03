@@ -9416,7 +9416,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         logger.info(`[ActionPlan] Activity metric detected: ${item.targetBiomarker} -> ${healthKitColumn}`);
         
         // Query HealthKit daily metrics from Supabase
-        const dailyMetrics = await healthRouter.getUserDailyMetrics(userId, 365);
+        const dailyMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 365 });
         
         // Filter and map the metrics
         const startDateStr = startDate.toISOString().split('T')[0];
