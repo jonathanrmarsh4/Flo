@@ -2397,14 +2397,24 @@ public class HealthKitNormalisationService {
     private func collectNutritionSamples(dayStart: Date, dayEnd: Date, completion: @escaping ([[String: Any]]) -> Void) {
         let dispatchGroup = DispatchGroup()
         var allSamples: [[String: Any]] = []
+        var typesWithData: [String] = []
+        var typesQueried = 0
         let lock = NSLock()
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        let dateStr = dateFormatter.string(from: dayStart)
+        
+        print("[Nutrition] Querying \(nutritionTypes.count) nutrition types for \(dateStr)")
         
         for (typeId, typeName, unit) in nutritionTypes {
             guard let quantityType = HKObjectType.quantityType(forIdentifier: typeId) else {
+                print("[Nutrition] ⚠️ Could not create quantity type for \(typeName)")
                 continue
             }
             
             dispatchGroup.enter()
+            typesQueried += 1
             
             let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
             let sortDescriptors = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
@@ -2412,8 +2422,19 @@ public class HealthKitNormalisationService {
             let query = HKSampleQuery(sampleType: quantityType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: sortDescriptors) { (_, samples, error) in
                 defer { dispatchGroup.leave() }
                 
-                guard let samples = samples as? [HKQuantitySample], error == nil else {
+                if let error = error {
+                    print("[Nutrition] ❌ Error querying \(typeName): \(error.localizedDescription)")
                     return
+                }
+                
+                guard let samples = samples as? [HKQuantitySample] else {
+                    return
+                }
+                
+                if samples.count > 0 {
+                    lock.lock()
+                    typesWithData.append("\(typeName):\(samples.count)")
+                    lock.unlock()
                 }
                 
                 let iso8601 = ISO8601DateFormatter()
@@ -2441,7 +2462,13 @@ public class HealthKitNormalisationService {
         }
         
         dispatchGroup.notify(queue: .main) {
-            print("[Nutrition] Collected \(allSamples.count) nutrition samples")
+            print("[Nutrition] Queried \(typesQueried) types for \(dateStr)")
+            if typesWithData.isEmpty {
+                print("[Nutrition] ⚠️ No nutrition data found in Apple Health for \(dateStr)")
+            } else {
+                print("[Nutrition] ✅ Found data: \(typesWithData.joined(separator: ", "))")
+            }
+            print("[Nutrition] Total samples collected: \(allSamples.count)")
             completion(allSamples)
         }
     }
