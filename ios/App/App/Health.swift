@@ -412,7 +412,7 @@ enum FloHealthDataType: String, CaseIterable {
             return "percent"
         case .bloodGlucose:
             return "mg/dL"
-        case .bodyTemperature:
+        case .bodyTemperature, .appleSleepingWristTemperature:
             return "degC"
         case .vo2Max:
             return "mL/kg/min"
