@@ -53,25 +53,41 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// Pre-warm the iOS keyboard system to prevent first-input freeze
     /// iOS initializes keyboard caches on first use which can cause 15s delays when combined with WKWebView
     private func preWarmKeyboard() {
+        // Phase 1: Immediate pre-warm at launch
         DispatchQueue.main.async {
-            // Create a hidden text field to trigger keyboard initialization
-            let hiddenField = UITextField(frame: CGRect(x: -1000, y: -1000, width: 100, height: 44))
-            hiddenField.autocorrectionType = .no
-            hiddenField.autocapitalizationType = .none
-            hiddenField.spellCheckingType = .no
+            self.performKeyboardPreWarm(phase: 1)
+        }
+        
+        // Phase 2: Second pre-warm after 2 seconds (after WebView starts loading)
+        // This ensures RTI system is fully established for WKWebView interaction
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.performKeyboardPreWarm(phase: 2)
+        }
+    }
+    
+    /// Perform keyboard pre-warm by briefly showing and hiding a text field
+    private func performKeyboardPreWarm(phase: Int) {
+        // Create a hidden text field to trigger keyboard initialization
+        let hiddenField = UITextField(frame: CGRect(x: -1000, y: -1000, width: 100, height: 44))
+        hiddenField.autocorrectionType = .no
+        hiddenField.autocapitalizationType = .none
+        hiddenField.spellCheckingType = .no
+        hiddenField.keyboardType = .default
+        
+        if let window = self.window {
+            window.addSubview(hiddenField)
             
-            if let window = self.window {
-                window.addSubview(hiddenField)
-                
-                // Briefly become first responder to initialize keyboard system
-                hiddenField.becomeFirstResponder()
-                
-                // Immediately resign and remove
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    hiddenField.resignFirstResponder()
-                    hiddenField.removeFromSuperview()
-                    print("✅ Keyboard pre-warmed for first-run optimization")
-                }
+            // Briefly become first responder to initialize keyboard system
+            hiddenField.becomeFirstResponder()
+            
+            // Type a space character to force full keyboard session initialization
+            hiddenField.insertText(" ")
+            
+            // Keep keyboard active longer (0.5s) to ensure RTI session is established
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                hiddenField.resignFirstResponder()
+                hiddenField.removeFromSuperview()
+                print("✅ Keyboard pre-warmed (phase \(phase)) for first-run optimization")
             }
         }
     }
