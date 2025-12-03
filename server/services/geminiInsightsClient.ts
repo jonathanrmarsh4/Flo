@@ -19,7 +19,7 @@ export interface GeminiInsightResponse {
 
 class GeminiInsightsClient {
   private client: GoogleGenAI | null = null;
-  private modelName = 'gemini-2.5-pro-preview-06-05';
+  private modelName = 'gemini-2.5-pro';
 
   constructor() {
     const apiKey = process.env.GOOGLE_AI_API_KEY;
