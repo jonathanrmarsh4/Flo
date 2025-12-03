@@ -9347,7 +9347,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
-  // GET /api/action-plan/:id/progress - Get biomarker progress data for chart
+  // GET /api/action-plan/:id/progress - Get biomarker/activity progress data for chart
   app.get("/api/action-plan/:id/progress", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     const { id } = req.params;
@@ -9364,14 +9364,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         return res.status(404).json({ error: "Action plan item not found" });
       }
 
-      // Only return progress if biomarker tracking is set up
+      // Only return progress if tracking is set up
       if (!item.targetBiomarker || item.currentValue === null || item.targetValue === null) {
-        return res.json({ dataPoints: [] });
-      }
-
-      // Require biomarkerId for deterministic joins - legacy items without ID return empty until backfilled
-      if (!item.biomarkerId) {
-        logger.warn(`[ActionPlan] Item ${id} has no biomarkerId - returning empty progress (needs backfill)`);
         return res.json({ dataPoints: [] });
       }
 
@@ -9383,47 +9377,130 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const months = timeframe && monthsMap[timeframe as string] ? monthsMap[timeframe as string] : 3;
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + months);
+      const now = new Date();
+      const queryEndDate = now < endDate ? now : endDate;
 
-      // Add baseline point from when action was added (uses currentValue snapshot)
-      dataPoints.push({
-        date: startDate.toISOString(),
-        value: item.currentValue,
-        source: 'baseline'
-      });
+      // Map targetBiomarker to HealthKit daily metrics column names
+      const activityMetricsMap: Record<string, string> = {
+        'steps': 'steps_normalized',
+        'steps_normalized': 'steps_normalized',
+        'daily_steps': 'steps_normalized',
+        'hrv': 'hrv_avg',
+        'hrv_avg': 'hrv_avg',
+        'heart_rate_variability': 'hrv_avg',
+        'resting_hr': 'resting_hr',
+        'resting_heart_rate': 'resting_hr',
+        'sleep_duration': 'sleep_duration_hours',
+        'sleep_duration_hours': 'sleep_duration_hours',
+        'sleep': 'sleep_duration_hours',
+        'deep_sleep': 'deep_sleep_hours',
+        'deep_sleep_hours': 'deep_sleep_hours',
+        'rem_sleep': 'rem_sleep_hours',
+        'rem_sleep_hours': 'rem_sleep_hours',
+        'exercise_minutes': 'exercise_minutes',
+        'active_energy': 'active_energy_kcal',
+        'active_energy_kcal': 'active_energy_kcal',
+        'distance': 'distance_meters',
+        'distance_meters': 'distance_meters',
+        'vo2_max': 'vo2_max',
+        'respiratory_rate': 'respiratory_rate',
+        'oxygen_saturation': 'oxygen_saturation',
+        'body_temperature': 'body_temperature_celsius',
+      };
 
-      // Query blood work measurements AFTER action was added using deterministic biomarkerId join
-      const bloodWorkMeasurements = await db
-        .select({
-          value: biomarkerMeasurements.valueCanonical,
-          unit: biomarkerMeasurements.unitCanonical,
-          testDate: biomarkerTestSessions.testDate,
-        })
-        .from(biomarkerMeasurements)
-        .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
-        .where(
-          and(
-            eq(biomarkerMeasurements.biomarkerId, item.biomarkerId),
-            eq(biomarkerTestSessions.userId, userId),
-            gt(biomarkerTestSessions.testDate, startDate), // Changed to > (not >=) to exclude baseline
-            sql`${biomarkerTestSessions.testDate} <= ${endDate}`
-          )
-        )
-        .orderBy(biomarkerTestSessions.testDate);
+      const biomarkerLower = item.targetBiomarker.toLowerCase().replace(/\s+/g, '_');
+      const healthKitColumn = activityMetricsMap[biomarkerLower];
 
-      for (const measurement of bloodWorkMeasurements) {
+      // Check if this is an activity/HealthKit metric
+      if (healthKitColumn) {
+        logger.info(`[ActionPlan] Activity metric detected: ${item.targetBiomarker} -> ${healthKitColumn}`);
+        
+        // Query HealthKit daily metrics from Supabase
+        const dailyMetrics = await healthRouter.getUserDailyMetrics(userId, 365);
+        
+        // Filter and map the metrics
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = queryEndDate.toISOString().split('T')[0];
+        
+        for (const metric of dailyMetrics) {
+          const metricDate = metric.local_date || metric.localDate;
+          if (!metricDate) continue;
+          
+          // Check if date is within range
+          if (metricDate >= startDateStr && metricDate <= endDateStr) {
+            // Get the value from the appropriate column (handle both snake_case and camelCase)
+            let value: number | null = null;
+            
+            // Try snake_case first (Supabase format)
+            if (metric[healthKitColumn] !== undefined && metric[healthKitColumn] !== null) {
+              value = Number(metric[healthKitColumn]);
+            } else {
+              // Try camelCase version
+              const camelKey = healthKitColumn.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+              if (metric[camelKey] !== undefined && metric[camelKey] !== null) {
+                value = Number(metric[camelKey]);
+              }
+            }
+            
+            if (value !== null && !isNaN(value) && value > 0) {
+              dataPoints.push({
+                date: new Date(metricDate).toISOString(),
+                value: value,
+                source: 'healthkit'
+              });
+            }
+          }
+        }
+        
+        logger.info(`[ActionPlan] Found ${dataPoints.length} HealthKit data points for ${item.targetBiomarker}`);
+      } else if (item.biomarkerId) {
+        // This is a blood work biomarker - use existing logic
+        logger.info(`[ActionPlan] Blood work biomarker detected: ${item.targetBiomarker}`);
+        
+        // Add baseline point from when action was added (uses currentValue snapshot)
         dataPoints.push({
-          date: measurement.testDate.toISOString(),
-          value: measurement.value,
-          source: 'blood_work'
+          date: startDate.toISOString(),
+          value: item.currentValue,
+          source: 'baseline'
         });
+
+        // Query blood work measurements AFTER action was added using deterministic biomarkerId join
+        const bloodWorkMeasurements = await db
+          .select({
+            value: biomarkerMeasurements.valueCanonical,
+            unit: biomarkerMeasurements.unitCanonical,
+            testDate: biomarkerTestSessions.testDate,
+          })
+          .from(biomarkerMeasurements)
+          .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
+          .where(
+            and(
+              eq(biomarkerMeasurements.biomarkerId, item.biomarkerId),
+              eq(biomarkerTestSessions.userId, userId),
+              gt(biomarkerTestSessions.testDate, startDate),
+              sql`${biomarkerTestSessions.testDate} <= ${endDate}`
+            )
+          )
+          .orderBy(biomarkerTestSessions.testDate);
+
+        for (const measurement of bloodWorkMeasurements) {
+          dataPoints.push({
+            date: measurement.testDate.toISOString(),
+            value: measurement.value,
+            source: 'blood_work'
+          });
+        }
+        
+        logger.info(`[ActionPlan] Found ${dataPoints.length} blood work data points`);
+      } else {
+        logger.warn(`[ActionPlan] Item ${id} has unknown biomarker type: ${item.targetBiomarker}`);
+        return res.json({ dataPoints: [] });
       }
-      
-      logger.info(`[ActionPlan] Using deterministic biomarkerId ${item.biomarkerId}, found ${dataPoints.length} data points`);
 
       // Sort by date
       dataPoints.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      logger.info(`[ActionPlan] Progress data fetched for item ${id}: ${dataPoints.length} data points`);
+      logger.info(`[ActionPlan] Progress data fetched for item ${id}: ${dataPoints.length} total data points`);
       res.json({ dataPoints });
     } catch (error: any) {
       logger.error('[ActionPlan] Progress data error:', error);
