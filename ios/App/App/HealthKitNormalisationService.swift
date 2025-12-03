@@ -2402,8 +2402,78 @@ public class HealthKitNormalisationService {
             }
             
             self.uploadRawSamplesToBackend(samples: allSamples, token: token, dataTypeName: "Nutrition") { success, error in
-                completion(success, error)
+                if success {
+                    // Trigger aggregation for each day after successful upload
+                    self.triggerNutritionAggregation(for: dayBoundaries, token: token) { aggSuccess, aggError in
+                        if let aggError = aggError {
+                            print("[Nutrition] ⚠️ Aggregation warning: \(aggError.localizedDescription)")
+                        }
+                        // Don't fail overall sync if aggregation fails - samples are already uploaded
+                        completion(success, error)
+                    }
+                } else {
+                    completion(success, error)
+                }
             }
+        }
+    }
+    
+    /// Trigger nutrition aggregation on backend for each day
+    private func triggerNutritionAggregation(for dayBoundaries: [(Date, Date, String)], token: String, completion: @escaping (Bool, Error?) -> Void) {
+        let baseURL = getBackendURL()
+        guard let url = URL(string: "\(baseURL)/api/nutrition/aggregate") else {
+            completion(false, NSError(domain: "NormalisationService", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid backend URL"]))
+            return
+        }
+        
+        let dispatchGroup = DispatchGroup()
+        var anyFailed = false
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        
+        for (dayStart, _, timezone) in dayBoundaries {
+            dispatchGroup.enter()
+            
+            let localDate = dateFormatter.string(from: dayStart)
+            let body: [String: Any] = [
+                "localDate": localDate,
+                "timezone": timezone
+            ]
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            do {
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            } catch {
+                print("[Nutrition] Failed to encode aggregation request")
+                dispatchGroup.leave()
+                continue
+            }
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                defer { dispatchGroup.leave() }
+                
+                if let error = error {
+                    print("[Nutrition] ❌ Aggregation failed for \(localDate): \(error.localizedDescription)")
+                    anyFailed = true
+                    return
+                }
+                
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    print("[Nutrition] ✅ Aggregation triggered for \(localDate)")
+                } else {
+                    print("[Nutrition] ⚠️ Aggregation response not 200 for \(localDate)")
+                    anyFailed = true
+                }
+            }.resume()
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            completion(!anyFailed, nil)
         }
     }
     
