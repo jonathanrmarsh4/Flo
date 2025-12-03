@@ -26,8 +26,10 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 **HealthKit Sync Expansion (Dec 2025):** Extended iOS HealthKitNormalisationService to sync comprehensive vital signs and lifestyle data:
 - `NormalizedDailyMetrics.swift` - Added 6 new vital sign fields: walkingHeartRateAvg, oxygenSaturation, respiratoryRate, bodyTemperatureCelsius, basalEnergyKcal, dietaryWaterMl
 - New aggregation functions: aggregateWalkingHeartRate(), aggregateOxygenSaturation(), aggregateRespiratoryRate(), aggregateBodyTemperature(), aggregateBasalEnergy(), aggregateDietaryWater()
+- **Wrist Temperature Support:** Added `appleSleepingWristTemperature` (iOS 16+) for Apple Watch overnight temperature readings. `aggregateBodyTemperature()` now tries wrist temp first, falls back to manual body temp.
 - Mindfulness sync: syncMindfulnessSessions() queries HKCategorySample for mindfulSession and uploads to /api/healthkit/samples
-- Nutrition sync: syncNutritionData() queries 26 dietary HKQuantityTypes (macros, vitamins, minerals) and uploads raw samples
+- **Mindfulness Supabase Routing:** Backend `/api/healthkit/samples` now processes mindfulness sessions into dedicated `mindfulness_sessions` and `mindfulness_daily_metrics` tables via `nutritionMindfulnessAggregator.ts`
+- Nutrition sync: syncNutritionData() queries 26 dietary HKQuantityTypes (macros, vitamins, minerals) and uploads to `healthkit_samples` table
 - Updated syncLastNDays() chain: metrics → sleep → workouts → mindfulness → nutrition (non-blocking failures)
 - Backend mapping: /api/healthkit/daily-metrics handles iOS field names with fallbacks (e.g., walkingHeartRateAvg → walkingHrAvgBpm)
 - Migration SQL: `server/db/supabase-vital-signs-migration.sql` for new Supabase columns

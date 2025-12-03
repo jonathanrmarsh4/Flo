@@ -47,6 +47,7 @@ enum FloHealthDataType: String, CaseIterable {
     case flightsClimbed
     case bloodGlucose
     case bodyTemperature
+    case appleSleepingWristTemperature
     case vo2Max
     case walkingHeartRateAverage
     case waistCircumference
@@ -167,6 +168,12 @@ enum FloHealthDataType: String, CaseIterable {
                 identifier = .bloodGlucose
             case .bodyTemperature:
                 identifier = .bodyTemperature
+            case .appleSleepingWristTemperature:
+                if #available(iOS 16.0, *) {
+                    identifier = .appleSleepingWristTemperature
+                } else {
+                    throw FloHealthError.dataTypeUnavailable(rawValue)
+                }
             case .vo2Max:
                 identifier = .vo2Max
             case .walkingHeartRateAverage:
@@ -327,7 +334,7 @@ enum FloHealthDataType: String, CaseIterable {
             return HKUnit.count()
         case .bloodGlucose:
             return HKUnit.gramUnit(with: .milli).unitDivided(by: HKUnit.literUnit(with: .deci))
-        case .bodyTemperature:
+        case .bodyTemperature, .appleSleepingWristTemperature:
             return HKUnit.degreeCelsius()
         case .vo2Max:
             return HKUnit.literUnit(with: .milli).unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: HKUnit.minute()))

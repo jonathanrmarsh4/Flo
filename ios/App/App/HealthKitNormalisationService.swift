@@ -1873,7 +1873,57 @@ public class HealthKitNormalisationService {
     }
     
     /// Aggregate body temperature (most recent sample) for a day
+    /// Falls back to wrist temperature if no body temp available
     private func aggregateBodyTemperature(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        // First try wrist temperature (from Apple Watch during sleep) - more common
+        if #available(iOS 16.0, *) {
+            aggregateWristTemperature(dayStart: dayStart, dayEnd: dayEnd) { wristTemp in
+                if let temp = wristTemp {
+                    print("[Temperature] Using wrist temperature: \(temp)°C")
+                    completion(temp)
+                    return
+                }
+                
+                // Fall back to manual body temperature
+                self.aggregateManualBodyTemperature(dayStart: dayStart, dayEnd: dayEnd, completion: completion)
+            }
+        } else {
+            // iOS < 16, only manual body temp available
+            aggregateManualBodyTemperature(dayStart: dayStart, dayEnd: dayEnd, completion: completion)
+        }
+    }
+    
+    /// Aggregate Apple Watch wrist temperature (during sleep) for a day
+    @available(iOS 16.0, *)
+    private func aggregateWristTemperature(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
+        guard let wristTempType = HKObjectType.quantityType(forIdentifier: .appleSleepingWristTemperature) else {
+            print("[Temperature] Wrist temperature type not available")
+            completion(nil)
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: wristTempType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let samples = samples as? [HKQuantitySample], !samples.isEmpty, error == nil else {
+                print("[Temperature] No wrist temperature samples found")
+                completion(nil)
+                return
+            }
+            
+            // Average all wrist temperature samples for the day
+            let sum = samples.reduce(0.0) { $0 + $1.quantity.doubleValue(for: HKUnit.degreeCelsius()) }
+            let avg = sum / Double(samples.count)
+            print("[Temperature] Found \(samples.count) wrist temp samples, avg: \(avg)°C")
+            completion(avg)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Aggregate manual body temperature (thermometer readings) for a day
+    private func aggregateManualBodyTemperature(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
         guard let tempType = HKObjectType.quantityType(forIdentifier: .bodyTemperature) else {
             completion(nil)
             return
@@ -1890,6 +1940,7 @@ public class HealthKitNormalisationService {
             
             // Body temperature in Celsius
             let celsius = sample.quantity.doubleValue(for: HKUnit.degreeCelsius())
+            print("[Temperature] Using manual body temp: \(celsius)°C")
             completion(celsius)
         }
         
