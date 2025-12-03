@@ -1422,14 +1422,8 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         onConfirm={async () => {
           setIsDeleting(true);
           try {
-            const response = await fetch('/api/user/data', {
-              method: 'DELETE',
-              credentials: 'include',
-            });
-            
-            if (!response.ok) {
-              throw new Error('Failed to delete data');
-            }
+            // Use apiRequest which handles base URL for iOS and auth headers
+            await apiRequest('DELETE', '/api/user/data');
             
             toast({
               title: "Data Deleted",
@@ -1438,7 +1432,11 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
             
             setShowDeleteConfirmation(false);
             window.location.reload();
-          } catch (error) {
+          } catch (error: any) {
+            console.error('Delete data error:', {
+              message: error?.message,
+              stack: error?.stack,
+            });
             toast({
               title: "Delete Failed",
               description: "Failed to delete your data. Please try again.",
