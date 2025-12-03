@@ -23,6 +23,15 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 - **Neon (Primary):** Stores identity data (users, sessions, email, credentials, billing, audit logs) using Drizzle ORM.
 - **Supabase (Health):** Stores sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events), linked via a pseudonymous `health_id` UUID. This includes Row-Level Security (RLS) and separation of 12 health-related tables. Birth year is stored instead of full date of birth for privacy.
 
+**HealthKit Sync Expansion (Dec 2025):** Extended iOS HealthKitNormalisationService to sync comprehensive vital signs and lifestyle data:
+- `NormalizedDailyMetrics.swift` - Added 6 new vital sign fields: walkingHeartRateAvg, oxygenSaturation, respiratoryRate, bodyTemperatureCelsius, basalEnergyKcal, dietaryWaterMl
+- New aggregation functions: aggregateWalkingHeartRate(), aggregateOxygenSaturation(), aggregateRespiratoryRate(), aggregateBodyTemperature(), aggregateBasalEnergy(), aggregateDietaryWater()
+- Mindfulness sync: syncMindfulnessSessions() queries HKCategorySample for mindfulSession and uploads to /api/healthkit/samples
+- Nutrition sync: syncNutritionData() queries 26 dietary HKQuantityTypes (macros, vitamins, minerals) and uploads raw samples
+- Updated syncLastNDays() chain: metrics → sleep → workouts → mindfulness → nutrition (non-blocking failures)
+- Backend mapping: /api/healthkit/daily-metrics handles iOS field names with fallbacks (e.g., walkingHeartRateAvg → walkingHrAvgBpm)
+- Migration SQL: `server/db/supabase-vital-signs-migration.sql` for new Supabase columns
+
 **Health Data Routing (Dec 2025):** Critical fix for Flomentum and Daily Readiness tiles:
 - `healthStorageRouter.ts` - Central routing layer with `getUserDailyMetrics()` and `getUserDailyMetricsByDate()` functions
 - `supabaseHealthStorage.ts` - Supabase query layer with `getDailyMetricsByDate()` and `getDailyMetricsFlexible()`
@@ -85,7 +94,7 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 
 ### Feature Specifications
 - **Flō Oracle (Gemini Live):** Natural conversational voice chat via WebSocket using Gemini Live API with real-time bidirectional voice streaming, media recording, and health context/brain memory integration.
-- **HealthKit Integration:** Background syncing for 73+ data types (including core, gait & mobility, nutrition, and mindfulness metrics) and workout sessions.
+- **HealthKit Integration:** Background syncing for 91+ data types including core metrics, vital signs (SpO2, respiratory rate, body temp, walking HR), body composition, gait & mobility, 26 nutrition types, mindfulness sessions, and workout sessions.
 - **Flōmentum:** Daily health momentum scores.
 - **Stripe Billing:** Comprehensive subscription management and feature gating.
 - **Daily Insights Engine:** Personalized, evidence-based health insights.
