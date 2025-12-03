@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { getApiBaseUrl, getAuthHeaders } from '@/lib/queryClient';
 
 interface ExportDataScreenProps {
   isDark: boolean;
@@ -31,13 +32,22 @@ export function ExportDataScreen({ isDark, onClose }: ExportDataScreenProps) {
     setExportError(null);
 
     try {
-      const response = await fetch('/api/user/export-csv', {
+      // Use getApiBaseUrl for iOS compatibility and getAuthHeaders for auth
+      const baseUrl = getApiBaseUrl();
+      const headers = await getAuthHeaders();
+      
+      console.log('Export request to:', baseUrl + '/api/user/export-csv');
+      
+      const response = await fetch(baseUrl + '/api/user/export-csv', {
         method: 'GET',
         credentials: 'include',
+        headers,
       });
 
       if (!response.ok) {
-        throw new Error('Export failed');
+        const errorText = await response.text();
+        console.error('Export API error:', response.status, errorText);
+        throw new Error(`Export failed: ${response.status}`);
       }
 
       const csvText = await response.text();
