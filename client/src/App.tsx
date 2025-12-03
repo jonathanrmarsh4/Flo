@@ -9,7 +9,7 @@ import { useHealthKitAutoSync } from "@/hooks/useHealthKitAutoSync";
 import { useTimezoneAutoSync } from "@/hooks/useTimezoneAutoSync";
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { initializeNotifications } from "@/lib/notifications";
 import { initializeStripeNative } from "@/lib/stripe-native";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
@@ -87,13 +87,25 @@ function Router() {
   // Automatically sync device timezone for accurate insights scheduling
   useTimezoneAutoSync(user?.id);
 
+  // Track which launch URLs we've already processed to prevent re-navigation
+  // This is stored in a ref to persist across renders without triggering re-renders
+  const processedLaunchUrlRef = useRef<string | null>(null);
+
   // Handle deep links from Universal Links (native only)
   useEffect(() => {
     if (!isNative) return;
 
     // Handle URLs when app is opened via Universal Link
-    const handleDeepLink = (event: { url: string }) => {
-      console.log('[App] Deep link received:', event.url);
+    const handleDeepLink = (event: { url: string }, isLaunchUrl = false) => {
+      console.log('[App] Deep link received:', event.url, isLaunchUrl ? '(launch URL)' : '(appUrlOpen)');
+      
+      // For launch URLs, check if we've already processed this exact URL
+      // This prevents the bug where navigating away from /reset-password 
+      // causes re-navigation back to the same expired token URL
+      if (isLaunchUrl && processedLaunchUrlRef.current === event.url) {
+        console.log('[App] Skipping already-processed launch URL');
+        return;
+      }
       
       try {
         const url = new URL(event.url);
@@ -102,6 +114,11 @@ function Router() {
         
         console.log('[App] Navigating to:', path + search);
         
+        // Mark this launch URL as processed BEFORE navigating
+        if (isLaunchUrl) {
+          processedLaunchUrlRef.current = event.url;
+        }
+        
         // Navigate to the path (wouter will handle hash routing)
         setLocation(path + search);
       } catch (error) {
@@ -109,14 +126,16 @@ function Router() {
       }
     };
 
-    // Listen for app URL open events
-    CapacitorApp.addListener('appUrlOpen', handleDeepLink);
+    // Listen for app URL open events (when app is already running)
+    // These are always fresh intents so we process them without checking
+    CapacitorApp.addListener('appUrlOpen', (event) => handleDeepLink(event, false));
 
-    // Also check if app was launched with a URL (cold start)
+    // Check if app was launched with a URL (cold start)
+    // This URL persists across navigations, so we track if we've already handled it
     CapacitorApp.getLaunchUrl().then((result) => {
       if (result?.url) {
         console.log('[App] Launched with URL:', result.url);
-        handleDeepLink({ url: result.url });
+        handleDeepLink({ url: result.url }, true);
       }
     });
 
