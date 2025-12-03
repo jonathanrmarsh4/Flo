@@ -2407,6 +2407,21 @@ public class HealthKitNormalisationService {
         
         print("[Nutrition] Querying \(nutritionTypes.count) nutrition types for \(dateStr)")
         
+        // Check a sample nutrition type to see if we have authorization
+        if let testType = HKObjectType.quantityType(forIdentifier: .dietaryProtein) {
+            let testPredicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+            let testQuery = HKSampleQuery(sampleType: testType, predicate: testPredicate, limit: 1, sortDescriptors: nil) { (_, samples, error) in
+                if let error = error {
+                    print("[Nutrition] ❌ Authorization test failed: \(error.localizedDescription)")
+                } else if samples?.isEmpty == true {
+                    print("[Nutrition] ⚠️ Dietary Protein query returned 0 samples - check Health app permissions")
+                } else {
+                    print("[Nutrition] ✅ Authorization confirmed - found \(samples?.count ?? 0) sample(s)")
+                }
+            }
+            self.healthStore.execute(testQuery)
+        }
+        
         for (typeId, typeName, unit) in nutritionTypes {
             guard let quantityType = HKObjectType.quantityType(forIdentifier: typeId) else {
                 print("[Nutrition] ⚠️ Could not create quantity type for \(typeName)")
