@@ -71,9 +71,10 @@ class GeminiInsightsClient {
 
       logger.debug('[GeminiInsights] Calling Gemini API...', { model: this.modelName });
       
+      // Use explicit content structure (same as working dailyReminderService)
       const result = await this.client.models.generateContent({
         model: this.modelName,
-        contents: userPrompt,
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
         config: {
           systemInstruction: systemPrompt,
           ...generationConfig,
