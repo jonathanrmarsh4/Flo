@@ -97,6 +97,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // This is a known iOS WKWebView bug (Apple Forums thread 719620)
         disableLongPressGesture(on: webView)
         
+        // CRITICAL: Disable PencilKit/Scribble to prevent RTIInputSystemClient session invalidation
+        // This is the primary cause of keyboard delays on iOS 17+
+        if #available(iOS 16.0, *) {
+            webView.findInteraction?.isEnabled = false
+            print("✅ PencilKit findInteraction disabled")
+        }
+        
+        // CRITICAL: Disable UITextInteraction on subviews to prevent session conflicts (iOS 17+)
+        disableTextInteractions(on: webView)
+        
+        // CRITICAL: Add keyboard notification handler to reset scroll position
+        // Prevents gesture stalls when keyboard hides
+        setupKeyboardNotifications(for: webView)
+        
         // Set dark background to match app theme (#0f172a = slate-900)
         let darkBackground = UIColor(red: 15/255.0, green: 23/255.0, blue: 42/255.0, alpha: 1.0)
         webView.scrollView.backgroundColor = darkBackground
@@ -185,6 +199,58 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         
         object_setClass(target, noInputAccessoryClass)
         print("✅ WKWebView input accessory bar removed to prevent constraint conflicts")
+    }
+    
+    /// Disable UITextInteraction on WKWebView subviews to prevent RTI session conflicts (iOS 17+)
+    /// This addresses the "perform input operation requires a valid sessionID" error
+    private func disableTextInteractions(on webView: WKWebView) {
+        if #available(iOS 17.0, *) {
+            // Iterate through scrollView subviews to find and disable text interactions
+            for subview in webView.scrollView.subviews {
+                for interaction in subview.interactions {
+                    if String(describing: type(of: interaction)).contains("UITextInteraction") {
+                        subview.removeInteraction(interaction)
+                        print("✅ UITextInteraction removed from WKWebView subview")
+                    }
+                }
+            }
+            
+            // Also check the webView itself
+            for interaction in webView.interactions {
+                if String(describing: type(of: interaction)).contains("UITextInteraction") {
+                    webView.removeInteraction(interaction)
+                    print("✅ UITextInteraction removed from WKWebView")
+                }
+            }
+        }
+    }
+    
+    /// Setup keyboard notification handlers to prevent scroll position issues
+    /// Resets contentOffset when keyboard hides to prevent gesture stalls
+    private func setupKeyboardNotifications(for webView: WKWebView) {
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillHideNotification,
+            object: nil,
+            queue: .main
+        ) { [weak webView] _ in
+            // Reset scroll position when keyboard hides to prevent gesture stalls
+            webView?.scrollView.contentOffset = .zero
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            queue: .main
+        ) { [weak webView] notification in
+            // Ensure webView is responsive when keyboard appears
+            guard let webView = webView else { return }
+            
+            // Force layout update to prevent constraint conflicts
+            webView.setNeedsLayout()
+            webView.layoutIfNeeded()
+        }
+        
+        print("✅ Keyboard notification handlers configured")
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
