@@ -173,10 +173,8 @@ class GeminiLiveClient {
           },
         } : undefined,
         // Enable input audio transcription to get user speech as text
-        // Model name from Google's sample payload
-        inputAudioTranscription: {
-          model: 'google-search-v1',
-        },
+        // Empty object enables transcription with default settings
+        inputAudioTranscription: {},
       },
     };
 
