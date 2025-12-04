@@ -1,0 +1,32 @@
+# PROJECT: Predictive Health "Twin" Architecture using Gemini & Supabase
+
+## 1. MISSION
+We are upgrading an existing health app (Stack: Neon for Auth/User, Supabase for Health Data/Vectors) into a "Predictive Health Twin."
+Your goal is to build a Multi-Agent System on Google Cloud Vertex AI that acts as a clinical team. It must not just "chat" but actively crunch data using Python, simulate health outcomes, and generate visual graphs to demonstrate impact to the user.
+
+## 2. THE STACK & CONSTRAINTS
+* **Orchestrator:** Google Vertex AI Agent Builder.
+* **Model:** Gemini 1.5 Pro (Enabled: Code Execution, Context Caching).
+* **Data Layer (Existing):**
+    * **Neon:** User profiles, Auth, Subscription Tier.
+    * **Supabase:** `health_metrics` (JSONB), `lab_results` (Storage buckets), `chat_logs` (pgvector).
+* **Integration:** DO NOT migrate data to Vertex. Build a "Tool Bridge" using Supabase Edge Functions (Deno/TypeScript) that Vertex AI calls via OpenAPI.
+* **Compliance:** HIPAA strict. No user data stored in model training. Ephemeral processing only.
+
+## 3. CORE AGENTS TO BUILD
+You are building the instructions and tools for these three agents:
+1.  **Data Science Agent (The "Quant"):**
+    * *Capability:* Has "Code Execution" enabled.
+    * *Role:* Fetches raw JSON from Supabase. Writes Python (pandas/scikit-learn) to forecast trends (e.g., "Predict HbA1c in 90 days based on linear regression of last 30 days").
+    * *Output:* Returns a dataset + a generated matplotlib graph PNG.
+2.  **Medical Reasoning Agent (The "Doctor"):**
+    * *Capability:* Semantic Search over medical literature (Med-Gemini concept).
+    * *Role:* Interprets the Data Agent's numbers. (e.g., "A 5.9% HbA1c indicates pre-diabetes risk increasing").
+3.  **Demonstrator Agent (The "Coach"):**
+    * *Capability:* User-facing persona.
+    * *Role:* Synthesizes the graph and the medical risk into a "What-If" scenario.
+
+## 4. IMMEDIATE TASK
+I need you to generate the **OpenAPI Specification (YAML)** that defines the interface between Vertex AI and our Supabase backend.
+* It must act as the "Tool Definition" for the Gemini Agents.
+* It needs endpoints for: `get_health_trends`, `get_lab_history`, and `upload_prediction_graph`.
