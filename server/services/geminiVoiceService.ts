@@ -273,6 +273,7 @@ Start the conversation warmly, using their name if you have it.`;
 
   /**
    * Send text to an active session (for testing or accessibility)
+   * Also used by iOS app to send transcribed speech
    */
   async sendText(sessionId: string, text: string): Promise<void> {
     const state = this.sessionStates.get(sessionId);
@@ -282,6 +283,22 @@ Start the conversation warmly, using their name if you have it.`;
 
     // Add user text to transcript
     state.transcript.push(`[User]: ${text}`);
+    
+    // Parse life events from user text (fire-and-forget)
+    // This is the PRIMARY place where user speech transcripts come in
+    if (text && text.trim().length > 5) {
+      logger.info('[GeminiVoice] Parsing life event from sendText', {
+        sessionId,
+        userId: state.userId,
+        textPreview: text.substring(0, 80),
+      });
+      this.processLifeEventAsync(state.userId, text).catch(err => {
+        logger.error('[GeminiVoice] Life event processing from sendText failed', { 
+          sessionId, 
+          error: err.message 
+        });
+      });
+    }
     
     await geminiLiveClient.sendText(sessionId, text);
   }
@@ -438,6 +455,7 @@ Start the conversation warmly, using their name if you have it.`;
           sessionId,
           userId: state.userId,
           userTextLength: userText.length,
+          userTextPreview: userText.substring(0, 150),
         });
         this.processLifeEventAsync(state.userId, userText).catch(err => {
           logger.error('[GeminiVoice] Fallback life event processing failed', { 
