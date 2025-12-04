@@ -17,7 +17,7 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 ### Technical Implementations
 **Frontend:** Built with React, TypeScript, and Vite, utilizing TanStack Query and Wouter. Key features include biomarker insights, AI-powered health reports, PDF upload, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, Flō Oracle voice chat using Gemini Live API, and a Flōmentum tile for daily health momentum scores.
 
-**Backend:** Developed with Express.js and TypeScript, offering a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, Flō Oracle integration (Grok-powered chat via xAI's grok-3-mini), ElevenLabs integration for voice, a HealthKit Readiness System, Comprehensive Sleep Tracking, Workout Session Tracking, Flōmentum Momentum Scoring System, Apple Push Notifications (APNs), and Stripe Billing Integration for subscriptions and feature gating. Password reset tokens are hashed and single-use, and uploaded lab PDFs are deleted post-extraction.
+**Backend:** Developed with Express.js and TypeScript, offering a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, Flō Oracle integration (Gemini 2.5 Flash for text chat, Grok for life event parsing/brain updates), ElevenLabs integration for voice, a HealthKit Readiness System, Comprehensive Sleep Tracking, Workout Session Tracking, Flōmentum Momentum Scoring System, Apple Push Notifications (APNs), and Stripe Billing Integration for subscriptions and feature gating. Password reset tokens are hashed and single-use, and uploaded lab PDFs are deleted post-extraction.
 
 **Data Storage:** A dual-database architecture is used for enhanced security:
 - **Neon (Primary):** Stores identity data (users, sessions, email, credentials, billing, audit logs) using Drizzle ORM.
@@ -127,6 +127,6 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 - **Google Cloud Storage:** For object storage.
 - **Stripe:** Payment processing.
 - **OpenAI:** GPT-4o for blood work PDF extraction, text-embedding-3-small for RAG embeddings.
-- **xAI (Grok):** grok-3-mini model for Flō Oracle text chat and async brain memory extraction.
-- **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights, Gemini 2.5 Flash for daily reminders, Gemini Live API (gemini-2.5-flash-native-audio) for Flō Oracle voice conversations.
+- **xAI (Grok):** grok-3-mini model for life event parsing, async brain memory extraction, and ElevenLabs voice bridge.
+- **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights, Gemini 2.5 Flash for daily reminders and Flō Oracle text chat, Gemini Live API (gemini-2.5-flash-native-audio) for Flō Oracle voice conversations.
 - **ElevenLabs:** For voice synthesis.
