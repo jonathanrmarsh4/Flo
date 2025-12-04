@@ -46,6 +46,21 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 - **Architecture clarification:** `flomentumScoringEngine.ts` is a pure calculation function (no DB access)
 - **Root cause fixed:** Data was written to Supabase but previously read from empty Neon tables; flomentum writes failed due to camelCase/snake_case mismatch
 
+**Recovery Boost System (Dec 2025):** Logged recovery activities now positively impact readiness score:
+- `readinessEngine.ts` - New `calculateRecoveryBoost()` function queries life events from last 24 hours
+- **Boost values by activity type:**
+  - Ice bath/cold plunge: +3-5 points (duration-based: 2min=+3, 4min=+4, 6min=+5)
+  - Sauna: +2-4 points (duration-based: 10min=+2, 15min=+3, 20min=+4)
+  - Breathwork/meditation: +2-3 points (15min threshold for +3)
+  - Yoga/stretching: +1-2 points (30min threshold for +2)
+  - Massage: +3 points
+  - Supplements: +1 point
+- Total boost capped at 10 points to prevent gaming
+- Boost applied before score clamping, bucket determination uses boosted score
+- `RecoveryBoostResult` returned with activity breakdown for frontend display
+- Key factors include activity names with boost values (e.g., "Cold Exposure (+5)")
+- Explanations updated to mention recovery boost contribution
+
 **Flō Oracle Context Routing (Dec 2025):** Comprehensive update to route ALL health data reads through healthStorageRouter:
 - `floOracleContextBuilder.ts` - Updated to use healthStorageRouter functions for all health data sources:
   - `getHealthRouterProfile()` for user profiles
