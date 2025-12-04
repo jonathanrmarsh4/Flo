@@ -172,9 +172,8 @@ class GeminiLiveClient {
             },
           },
         } : undefined,
-        // Enable input audio transcription to get user speech as text
-        // Empty object enables transcription with default settings
-        inputAudioTranscription: {},
+        // NOTE: inputAudioTranscription feature not yet working with this SDK
+        // Will need alternative approach for getting user speech transcripts
       },
     };
 
