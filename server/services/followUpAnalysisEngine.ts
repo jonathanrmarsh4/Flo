@@ -50,7 +50,7 @@ function normalizeMetricName(metric: string): string {
 }
 
 export async function gatherMetricData(
-  userId: string,
+  healthId: string,
   metrics: string[],
   daysBack: number = 7
 ): Promise<MetricData[]> {
@@ -77,7 +77,7 @@ export async function gatherMetricData(
     
     try {
       if (mapping.table === 'daily_metrics') {
-        const dailyMetrics = await getUserDailyMetrics(userId, { startDate, endDate });
+        const dailyMetrics = await getUserDailyMetrics(healthId, { startDate, endDate });
         
         const values: Array<{ date: string; value: number | null }> = [];
         
@@ -111,7 +111,7 @@ export async function gatherMetricData(
         });
         
       } else if (mapping.table === 'sleep') {
-        const sleepNights = await getSleepNights(userId, { startDate, endDate });
+        const sleepNights = await getSleepNights(healthId, { startDate, endDate });
         
         const values: Array<{ date: string; value: number | null }> = [];
         
@@ -146,7 +146,7 @@ export async function gatherMetricData(
       }
     } catch (error: any) {
       logger.error('[FollowUpAnalysis] Error gathering metric data', { 
-        userId, 
+        healthId, 
         metric, 
         error: error.message 
       });
@@ -164,14 +164,14 @@ export async function gatherMetricData(
 
 export async function analyzeFollowUp(
   request: FollowUpRequest,
-  userId: string
+  healthId: string
 ): Promise<AnalysisResult> {
   const startTime = Date.now();
   
   const daysBack = 7;
-  const metricData = await gatherMetricData(userId, request.metrics, daysBack);
+  const metricData = await gatherMetricData(healthId, request.metrics, daysBack);
   
-  const lifeContext = await getActiveLifeContext(userId);
+  const lifeContext = await getActiveLifeContext(healthId);
   
   const hasData = metricData.some(m => m.values.some(v => v.value != null));
   
@@ -209,7 +209,7 @@ export async function analyzeFollowUp(
     
     logger.info('[FollowUpAnalysis] Analysis complete', {
       requestId: request.id,
-      userId,
+      healthId,
       metricsCount: metricData.length,
       duration: Date.now() - startTime,
     });
@@ -302,19 +302,21 @@ function generateFallbackAnalysis(
 
 export async function evaluateAndStoreFindings(
   request: FollowUpRequest & { health_id: string },
-  userId: string
+  neonUserId: string
 ): Promise<AnalysisResult | null> {
   const startTime = Date.now();
+  const healthId = request.health_id;
   
   try {
     logger.info('[FollowUpAnalysis] Evaluating follow-up request', {
       requestId: request.id,
-      userId,
+      healthId,
+      neonUserId,
       intent: request.intent_summary,
       metrics: request.metrics,
     });
     
-    const analysis = await analyzeFollowUp(request, userId);
+    const analysis = await analyzeFollowUp(request, healthId);
     
     await updateFollowUpRequest(request.id!, {
       status: 'completed',
@@ -336,7 +338,7 @@ export async function evaluateAndStoreFindings(
     
     logger.info('[FollowUpAnalysis] Follow-up evaluated and stored', {
       requestId: request.id,
-      userId,
+      healthId,
       trend: analysis.trend,
       confidence: analysis.confidence,
       duration: Date.now() - startTime,
@@ -346,7 +348,7 @@ export async function evaluateAndStoreFindings(
   } catch (error: any) {
     logger.error('[FollowUpAnalysis] Failed to evaluate follow-up', {
       requestId: request.id,
-      userId,
+      healthId,
       error: error.message,
     });
     
