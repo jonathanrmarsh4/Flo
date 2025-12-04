@@ -161,19 +161,23 @@ class GeminiLiveClient {
         },
       },
       config: {
-        // Native audio model requires AUDIO modality only
-        responseModalities: [Modality.AUDIO],
-        systemInstruction: config.systemInstruction,
-        // Voice configuration - use specified voice or default to Puck
-        speechConfig: config.voiceName ? {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: config.voiceName,
+        // Wrap audio config in generationConfig per Google's format
+        generationConfig: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: config.voiceName ? {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: config.voiceName,
+              },
             },
-          },
-        } : undefined,
-        // NOTE: inputAudioTranscription feature not yet working with this SDK
-        // Will need alternative approach for getting user speech transcripts
+          } : undefined,
+        },
+        // System instruction uses parts array format
+        systemInstruction: {
+          parts: [{ text: config.systemInstruction }],
+        },
+        // Enable input audio transcription to get user speech as text
+        inputAudioTranscription: {},
       },
     };
 
