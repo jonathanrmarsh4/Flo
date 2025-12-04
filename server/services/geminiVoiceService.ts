@@ -192,6 +192,15 @@ Start the conversation warmly, using their name if you have it.`;
     const wrappedCallbacks: LiveSessionCallbacks = {
       onAudioChunk: callbacks.onAudioChunk,
       onTranscript: (text: string, isFinal: boolean) => {
+        // Log ALL transcripts for debugging
+        logger.info('[GeminiVoice] onTranscript received', {
+          sessionId,
+          userId,
+          text: text?.substring(0, 100),
+          textLength: text?.length || 0,
+          isFinal,
+        });
+        
         if (text) {
           const currentState = this.sessionStates.get(sessionId);
           if (currentState) {
@@ -200,6 +209,11 @@ Start the conversation warmly, using their name if you have it.`;
           
           // Parse life events from final transcripts (fire-and-forget)
           if (isFinal && text.trim().length > 5) {
+            logger.info('[GeminiVoice] Processing life event from final transcript', {
+              sessionId,
+              userId,
+              textPreview: text.substring(0, 80),
+            });
             this.processLifeEventAsync(userId, text).catch(err => {
               logger.error('[GeminiVoice] Life event processing failed', { 
                 sessionId, 
@@ -416,6 +430,20 @@ Start the conversation warmly, using their name if you have it.`;
           });
         }).catch(err => {
           logger.error('[GeminiVoice] Failed to import memoryExtractionService:', err);
+        });
+        
+        // FALLBACK: Parse life events from combined user transcript
+        // This catches events that may have been missed by real-time parsing
+        logger.info('[GeminiVoice] Fallback life event parsing from full transcript', {
+          sessionId,
+          userId: state.userId,
+          userTextLength: userText.length,
+        });
+        this.processLifeEventAsync(state.userId, userText).catch(err => {
+          logger.error('[GeminiVoice] Fallback life event processing failed', { 
+            sessionId, 
+            error: err.message 
+          });
         });
       }
     } catch (error: any) {
