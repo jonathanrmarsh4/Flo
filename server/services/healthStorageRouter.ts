@@ -4,6 +4,13 @@ import { eq, gte, lte, and, desc } from "drizzle-orm";
 import * as supabaseHealth from "./supabaseHealthStorage";
 import { createLogger } from "../utils/logger";
 
+export type { 
+  FollowUpRequest, 
+  FollowUpRequestInput, 
+  LifeContextFact, 
+  LifeContextFactInput 
+} from "./supabaseHealthStorage";
+
 const logger = createLogger("HealthStorageRouter");
 
 export function isSupabaseHealthEnabled(): boolean {
