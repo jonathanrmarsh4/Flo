@@ -2425,4 +2425,287 @@ export async function deleteBiomarkerSession(userId: string, sessionId: string):
   logger.info(`[SupabaseHealth] Deleted biomarker session ${sessionId} and its measurements`);
 }
 
+// ==================== FOLLOW-UP REQUESTS ====================
+// Stores user requests like "check back with me in a few days about my HRV"
+
+export interface FollowUpRequest {
+  id?: string;
+  health_id: string;
+  intent_summary: string;
+  original_transcript?: string | null;
+  metrics: string[];
+  comparison_baseline?: string | null;
+  created_at?: Date;
+  evaluate_at: Date;
+  evaluated_at?: Date | null;
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'dismissed';
+  findings?: {
+    summary: string;
+    metrics?: Record<string, any>;
+    recommendation?: string;
+    data_points?: any[];
+  } | null;
+  notification_sent?: boolean;
+  notification_sent_at?: Date | null;
+  source: 'voice' | 'text' | 'system';
+  session_id?: string | null;
+}
+
+export interface FollowUpRequestInput {
+  intent_summary: string;
+  original_transcript?: string;
+  metrics?: string[];
+  comparison_baseline?: string;
+  evaluate_at: Date;
+  source?: 'voice' | 'text' | 'system';
+  session_id?: string;
+}
+
+export async function createFollowUpRequest(userId: string, input: FollowUpRequestInput): Promise<FollowUpRequest> {
+  const healthId = await getHealthId(userId);
+  
+  const insertData = {
+    health_id: healthId,
+    intent_summary: input.intent_summary,
+    original_transcript: input.original_transcript || null,
+    metrics: input.metrics || [],
+    comparison_baseline: input.comparison_baseline || null,
+    evaluate_at: input.evaluate_at.toISOString(),
+    status: 'pending',
+    source: input.source || 'voice',
+    session_id: input.session_id || null,
+  };
+  
+  logger.info('[SupabaseHealth] Creating follow-up request:', { 
+    userId, 
+    intentSummary: input.intent_summary,
+    evaluateAt: input.evaluate_at,
+    metrics: input.metrics,
+  });
+  
+  const { data, error } = await supabase
+    .from('follow_up_requests')
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error creating follow-up request:', error);
+    throw error;
+  }
+  
+  logger.info('[SupabaseHealth] Follow-up request created:', { id: data.id });
+  return data;
+}
+
+export async function getFollowUpRequests(userId: string, status?: string): Promise<FollowUpRequest[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('follow_up_requests')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('created_at', { ascending: false });
+  
+  if (status) {
+    query = query.eq('status', status);
+  }
+  
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching follow-up requests:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getPendingFollowUpsToEvaluate(): Promise<Array<FollowUpRequest & { health_id: string }>> {
+  const { data, error } = await supabase
+    .from('follow_up_requests')
+    .select('*')
+    .eq('status', 'pending')
+    .lte('evaluate_at', new Date().toISOString())
+    .order('evaluate_at', { ascending: true })
+    .limit(50);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching pending follow-ups:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function updateFollowUpRequest(
+  requestId: string, 
+  updates: Partial<Pick<FollowUpRequest, 'status' | 'findings' | 'evaluated_at' | 'notification_sent' | 'notification_sent_at'>>
+): Promise<FollowUpRequest> {
+  const { data, error } = await supabase
+    .from('follow_up_requests')
+    .update(updates)
+    .eq('id', requestId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating follow-up request:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+// ==================== LIFE CONTEXT FACTS ====================
+// Stores contextual information about user's life that affects health expectations
+
+export type LifeContextCategory = 
+  | 'travel'
+  | 'training_pause'
+  | 'illness'
+  | 'stress'
+  | 'sleep_disruption'
+  | 'diet_change'
+  | 'medication'
+  | 'life_event'
+  | 'other';
+
+export interface LifeContextFact {
+  id?: string;
+  health_id: string;
+  category: LifeContextCategory;
+  description: string;
+  start_date?: string | null;
+  end_date?: string | null;
+  expected_impact?: {
+    hrv?: 'higher' | 'lower' | 'variable';
+    sleep?: 'better' | 'worse' | 'disrupted';
+    training?: 'increased' | 'reduced' | 'none';
+    rhr?: 'higher' | 'lower';
+    energy?: 'higher' | 'lower';
+  } | null;
+  source: 'voice' | 'text' | 'system';
+  confidence: number;
+  created_at?: Date;
+  updated_at?: Date;
+  is_active: boolean;
+}
+
+export interface LifeContextFactInput {
+  category: LifeContextCategory;
+  description: string;
+  start_date?: Date | string;
+  end_date?: Date | string;
+  expected_impact?: LifeContextFact['expected_impact'];
+  source?: 'voice' | 'text' | 'system';
+  confidence?: number;
+}
+
+export async function createLifeContextFact(userId: string, input: LifeContextFactInput): Promise<LifeContextFact> {
+  const healthId = await getHealthId(userId);
+  
+  const insertData = {
+    health_id: healthId,
+    category: input.category,
+    description: input.description,
+    start_date: input.start_date ? (input.start_date instanceof Date ? input.start_date.toISOString().split('T')[0] : input.start_date) : null,
+    end_date: input.end_date ? (input.end_date instanceof Date ? input.end_date.toISOString().split('T')[0] : input.end_date) : null,
+    expected_impact: input.expected_impact || null,
+    source: input.source || 'voice',
+    confidence: input.confidence ?? 1.0,
+    is_active: true,
+  };
+  
+  logger.info('[SupabaseHealth] Creating life context fact:', { 
+    userId, 
+    category: input.category,
+    description: input.description,
+  });
+  
+  const { data, error } = await supabase
+    .from('life_context_facts')
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error creating life context fact:', error);
+    throw error;
+  }
+  
+  logger.info('[SupabaseHealth] Life context fact created:', { id: data.id });
+  return data;
+}
+
+export async function getActiveLifeContext(userId: string): Promise<LifeContextFact[]> {
+  const healthId = await getHealthId(userId);
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('life_context_facts')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('is_active', true)
+    .or(`end_date.is.null,end_date.gte.${today}`)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching active life context:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getAllLifeContextFacts(userId: string, includeInactive = false): Promise<LifeContextFact[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('life_context_facts')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('created_at', { ascending: false });
+  
+  if (!includeInactive) {
+    query = query.eq('is_active', true);
+  }
+  
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching life context facts:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function updateLifeContextFact(
+  factId: string, 
+  updates: Partial<Pick<LifeContextFact, 'end_date' | 'is_active' | 'description' | 'expected_impact'>>
+): Promise<LifeContextFact> {
+  const { data, error } = await supabase
+    .from('life_context_facts')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', factId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating life context fact:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function deactivateLifeContextFact(factId: string): Promise<void> {
+  await updateLifeContextFact(factId, { is_active: false });
+  logger.info('[SupabaseHealth] Life context fact deactivated:', { id: factId });
+}
+
 logger.info('[SupabaseHealth] Health storage service initialized');
