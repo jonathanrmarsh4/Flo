@@ -7435,13 +7435,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Step 2: Load user's health context + RAG-retrieved insights + recent life events + shared brain + conversational memories
-      const { buildUserHealthContext, getRelevantInsights, getRecentLifeEvents, getUserMemoriesContext } = await import('./services/floOracleContextBuilder');
-      const [healthContext, insightsContext, lifeEventsContext, memoriesContext, brainInsights] = await Promise.all([
+      // Step 2: Load user's health context + RAG-retrieved insights + recent life events + shared brain + conversational memories + life context
+      const { buildUserHealthContext, getRelevantInsights, getRecentLifeEvents, getUserMemoriesContext, getActiveLifeContextForOracle } = await import('./services/floOracleContextBuilder');
+      const [healthContext, insightsContext, lifeEventsContext, memoriesContext, lifeContextForOracle, brainInsights] = await Promise.all([
         buildUserHealthContext(userId),
         getRelevantInsights(userId, 5),
         getRecentLifeEvents(userId, 14),
         getUserMemoriesContext(userId, 20),
+        getActiveLifeContextForOracle(userId),
         getHybridInsights(userId, message.trim(), { recentLimit: 10, semanticLimit: 5 })
           .catch(err => {
             logger.error('[FloOracle] Failed to retrieve brain insights:', err);
@@ -7453,6 +7454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (insightsContext) fullContext += `\n${insightsContext}`;
       if (lifeEventsContext) fullContext += `\n${lifeEventsContext}`;
       if (memoriesContext) fullContext += `\n${memoriesContext}`;
+      if (lifeContextForOracle) fullContext += `\n${lifeContextForOracle}`;
       if (correlationInsight) fullContext += `\n\nREAL-TIME CORRELATION DETECTED:\n${correlationInsight}`;
       
       // Add shared brain insights and BRAIN_UPDATE capability

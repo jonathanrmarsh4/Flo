@@ -30,6 +30,7 @@ import {
   getFlomentumDaily as getHealthRouterFlomentumDaily,
   getHealthkitWorkouts as getHealthRouterWorkouts,
   getInsightCards as getHealthRouterInsightCards,
+  getActiveLifeContext,
 } from './healthStorageRouter';
 import { getDailyMetrics as getSupabaseDailyMetrics, getActionPlanItems as getSupabaseActionPlanItems } from './supabaseHealthStorage';
 
@@ -1275,6 +1276,43 @@ export async function getUserMemoriesContext(userId: string, limit: number = 20)
     return '\n\nCONVERSATIONAL MEMORY (things the user has told you before - use naturally):\n' + memoriesContext;
   } catch (error) {
     logger.error('[FloOracle] Error retrieving conversational memories:', error);
+    return '';
+  }
+}
+
+/**
+ * Get user's current life context (travel, stress, disruptions, etc.)
+ * Returns active situational factors that may affect their health data interpretation
+ */
+export async function getActiveLifeContextForOracle(userId: string): Promise<string> {
+  try {
+    const contexts = await getActiveLifeContext(userId);
+    
+    if (!contexts || contexts.length === 0) {
+      return '';
+    }
+    
+    const lines = [
+      '',
+      'CURRENT LIFE CONTEXT (temporary situations affecting their health - use to adjust recommendations):',
+    ];
+    
+    for (const context of contexts) {
+      const dateRange = context.end_date 
+        ? `(${new Date(context.start_date).toLocaleDateString()} - ${new Date(context.end_date).toLocaleDateString()})`
+        : `(since ${new Date(context.start_date).toLocaleDateString()})`;
+      
+      lines.push(`• ${context.category}: ${context.description} ${dateRange}`);
+      
+      if (context.expected_impact) {
+        lines.push(`  Expected impact: ${context.expected_impact}`);
+      }
+    }
+    
+    logger.info(`[FloOracle] Retrieved ${contexts.length} active life context facts for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving life context:', error);
     return '';
   }
 }
