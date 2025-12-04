@@ -5,6 +5,15 @@ import { logger } from "../logger";
 import { getBaseline, type BaselineStats } from "./baselineCalculator";
 import * as healthRouter from "./healthStorageRouter";
 
+export interface RecoveryBoostResult {
+  totalBoost: number;
+  activities: {
+    type: string;
+    boost: number;
+    details?: string;
+  }[];
+}
+
 export interface ReadinessResult {
   userId: string;
   date: string;
@@ -14,6 +23,7 @@ export interface ReadinessResult {
   recoveryScore: number | null;
   loadScore: number | null;
   trendScore: number | null;
+  recoveryBoost?: RecoveryBoostResult;
   isCalibrating: boolean;
   explanations: {
     summary: string;
@@ -152,6 +162,156 @@ function calculateLoadScore(
 }
 
 /**
+ * Calculate recovery boost from logged life events
+ * Rewards users for intentional recovery activities in the last 24 hours
+ * @param userId User ID
+ * @param date Date string (YYYY-MM-DD)
+ * @returns RecoveryBoostResult with total boost and activity breakdown
+ */
+async function calculateRecoveryBoost(userId: string, date: string): Promise<RecoveryBoostResult> {
+  const activities: RecoveryBoostResult['activities'] = [];
+  
+  try {
+    // Fetch life events from the last 24 hours
+    const targetDate = new Date(date);
+    const startDate = new Date(targetDate);
+    startDate.setHours(startDate.getHours() - 24);
+    
+    const lifeEvents = await healthRouter.getLifeEvents(userId, {
+      startDate,
+      limit: 50,
+    });
+    
+    if (!lifeEvents || lifeEvents.length === 0) {
+      logger.debug(`[Readiness] No life events found for recovery boost calculation`);
+      return { totalBoost: 0, activities: [] };
+    }
+    
+    logger.info(`[Readiness] Found ${lifeEvents.length} life events for recovery boost calculation`);
+    
+    // Track which activity types we've already counted (one boost per type per day)
+    const countedTypes = new Set<string>();
+    
+    for (const event of lifeEvents) {
+      // Handle both Supabase (snake_case) and Neon (camelCase) field names
+      const eventType = ((event as any).event_type || (event as any).eventType || '').toLowerCase();
+      const details = (event.details || {}) as Record<string, any>;
+      
+      // Skip if we've already counted this type today
+      if (countedTypes.has(eventType)) continue;
+      
+      switch (eventType) {
+        case 'ice_bath':
+        case 'cold_plunge': {
+          // Ice bath: +3-5 points based on duration
+          // 2+ min = +3, 4+ min = +4, 6+ min = +5
+          const duration = details.duration_min || details.duration || 0;
+          let boost = 3;
+          if (duration >= 6) boost = 5;
+          else if (duration >= 4) boost = 4;
+          
+          activities.push({
+            type: 'Cold Exposure',
+            boost,
+            details: duration ? `${duration} min` : undefined,
+          });
+          countedTypes.add(eventType);
+          break;
+        }
+        
+        case 'sauna': {
+          // Sauna: +2-4 points based on duration
+          // 10+ min = +2, 15+ min = +3, 20+ min = +4
+          const duration = details.duration_min || details.duration || 0;
+          let boost = 2;
+          if (duration >= 20) boost = 4;
+          else if (duration >= 15) boost = 3;
+          
+          activities.push({
+            type: 'Sauna',
+            boost,
+            details: duration ? `${duration} min` : undefined,
+          });
+          countedTypes.add(eventType);
+          break;
+        }
+        
+        case 'breathwork':
+        case 'meditation': {
+          // Breathwork/meditation: +2-3 points
+          const duration = details.duration_min || details.duration || 0;
+          let boost = 2;
+          if (duration >= 15) boost = 3;
+          
+          activities.push({
+            type: eventType === 'breathwork' ? 'Breathwork' : 'Meditation',
+            boost,
+            details: duration ? `${duration} min` : undefined,
+          });
+          countedTypes.add(eventType);
+          break;
+        }
+        
+        case 'yoga':
+        case 'stretching': {
+          // Yoga/stretching: +1-2 points
+          const duration = details.duration_min || details.duration || 0;
+          let boost = 1;
+          if (duration >= 30) boost = 2;
+          
+          activities.push({
+            type: eventType === 'yoga' ? 'Yoga' : 'Stretching',
+            boost,
+            details: duration ? `${duration} min` : undefined,
+          });
+          countedTypes.add(eventType);
+          break;
+        }
+        
+        case 'massage': {
+          // Massage: +3 points
+          activities.push({
+            type: 'Massage',
+            boost: 3,
+          });
+          countedTypes.add(eventType);
+          break;
+        }
+        
+        case 'supplements': {
+          // Supplements: +1 point (general health behavior)
+          activities.push({
+            type: 'Supplements',
+            boost: 1,
+            details: details.names?.join(', '),
+          });
+          countedTypes.add(eventType);
+          break;
+        }
+        
+        // Note: Alcohol would have a NEGATIVE effect, but we're not penalizing here
+        // That's handled elsewhere - this is purely for recovery BOOSTS
+      }
+    }
+    
+    // Calculate total boost (capped at 10 points max to prevent gaming)
+    const totalBoost = Math.min(
+      activities.reduce((sum, a) => sum + a.boost, 0),
+      10
+    );
+    
+    if (totalBoost > 0) {
+      logger.info(`[Readiness] Recovery boost calculated: +${totalBoost} points from ${activities.length} activities`);
+    }
+    
+    return { totalBoost, activities };
+  } catch (error) {
+    logger.error(`[Readiness] Error calculating recovery boost:`, error);
+    return { totalBoost: 0, activities: [] };
+  }
+}
+
+/**
  * Calculate trend score from recent readiness history
  * Smooths out day-to-day noise by averaging last 3 days
  * @param userId User ID
@@ -242,6 +402,9 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
     );
     const loadScore = calculateLoadScore(yesterdayActiveEnergy, activityBaseline);
     const trendScore = await calculateTrendScore(userId, date);
+    
+    // Calculate recovery boost from logged life events
+    const recoveryBoost = await calculateRecoveryBoost(userId, date);
 
     // Define weights
     const weights = {
@@ -272,15 +435,22 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
 
     // Calculate weighted average
     let readinessScore = normalizedScores.reduce((sum, item) => sum + item.score * item.weight, 0);
+    
+    // Apply recovery boost from logged life events BEFORE clamping
+    if (recoveryBoost.totalBoost > 0) {
+      const preBoostScore = readinessScore;
+      readinessScore += recoveryBoost.totalBoost;
+      logger.info(`[Readiness] Applied recovery boost: +${recoveryBoost.totalBoost} points (${preBoostScore.toFixed(1)} → ${readinessScore.toFixed(1)})`);
+    }
 
-    // Clamp to narrower range if calibrating
+    // Clamp to range AFTER applying boost
     if (isCalibrating) {
       readinessScore = clamp(readinessScore, 50, 90);
     } else {
       readinessScore = clamp(readinessScore, 0, 100);
     }
 
-    // Determine bucket
+    // Determine bucket AFTER boost and clamp
     let readinessBucket: "recover" | "ok" | "ready";
     if (readinessScore < 60) {
       readinessBucket = "recover";
@@ -290,11 +460,11 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
       readinessBucket = "ready";
     }
 
-    // Generate explanations
+    // Generate explanations with boost-aware summary
     const explanations = {
-      summary: generateSummary(readinessBucket, isCalibrating),
+      summary: generateSummary(readinessBucket, isCalibrating, recoveryBoost.totalBoost > 0),
       sleep: generateSleepExplanation(sleepScore, todayMetrics.sleepHours),
-      recovery: generateRecoveryExplanation(recoveryScore, todayMetrics.hrvMs, todayMetrics.restingHrBpm),
+      recovery: generateRecoveryExplanation(recoveryScore, todayMetrics.hrvMs, todayMetrics.restingHrBpm, recoveryBoost),
       load: generateLoadExplanation(loadScore, yesterdayActiveEnergy),
       trend: "Recent trend smoothing applied based on last 3 days.",
     };
@@ -339,6 +509,13 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
     if (recoveryScore !== null && recoveryScore >= 85) {
       keyFactors.push("Strong Recovery");
     }
+    
+    // Add recovery boost activities as positive factors
+    if (recoveryBoost.totalBoost > 0) {
+      for (const activity of recoveryBoost.activities) {
+        keyFactors.push(`${activity.type} (+${activity.boost})`);
+      }
+    }
 
     return {
       userId,
@@ -349,6 +526,7 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
       recoveryScore: recoveryScore !== null ? Math.round(recoveryScore) : null,
       loadScore: loadScore !== null ? Math.round(loadScore) : null,
       trendScore: trendScore !== null ? Math.round(trendScore) : null,
+      recoveryBoost: recoveryBoost.totalBoost > 0 ? recoveryBoost : undefined,
       isCalibrating,
       explanations,
       metrics: displayMetrics,
@@ -361,18 +539,20 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
   }
 }
 
-function generateSummary(bucket: "recover" | "ok" | "ready", calibrating: boolean): string {
+function generateSummary(bucket: "recover" | "ok" | "ready", calibrating: boolean, hasRecoveryBoost: boolean = false): string {
   if (calibrating) {
     return "Still calibrating to your baseline. Score accuracy will improve over time.";
   }
 
+  const boostNote = hasRecoveryBoost ? " Recovery activities boosted your score." : "";
+
   switch (bucket) {
     case "ready":
-      return "You're ready for a challenging day. Great recovery and sleep quality.";
+      return `You're ready for a challenging day. Great recovery and sleep quality.${boostNote}`;
     case "ok":
-      return "Proceed with caution. Moderate intensity recommended today.";
+      return `Proceed with caution. Moderate intensity recommended today.${boostNote}`;
     case "recover":
-      return "Prioritize recovery today. Your body needs rest.";
+      return `Prioritize recovery today. Your body needs rest.${boostNote}`;
   }
 }
 
@@ -396,7 +576,12 @@ function generateSleepExplanation(score: number | null, hours: number | null): s
   }
 }
 
-function generateRecoveryExplanation(score: number | null, hrv: number | null, rhr: number | null): string {
+function generateRecoveryExplanation(
+  score: number | null, 
+  hrv: number | null, 
+  rhr: number | null,
+  recoveryBoost?: RecoveryBoostResult
+): string {
   if (score === null) {
     return "No recovery metrics available.";
   }
@@ -409,11 +594,20 @@ function generateRecoveryExplanation(score: number | null, hrv: number | null, r
     parts.push(`RHR ${rhr.toFixed(0)} bpm`);
   }
 
-  if (parts.length === 0) {
+  if (parts.length === 0 && (!recoveryBoost || recoveryBoost.totalBoost === 0)) {
     return "No recovery data.";
   }
 
-  return parts.join(", ");
+  let explanation = parts.length > 0 ? parts.join(", ") : "";
+  
+  // Add recovery boost info if present
+  if (recoveryBoost && recoveryBoost.totalBoost > 0) {
+    const activities = recoveryBoost.activities.map(a => a.type).join(", ");
+    const boostInfo = `+${recoveryBoost.totalBoost} pts from ${activities}`;
+    explanation = explanation ? `${explanation}. ${boostInfo}` : boostInfo;
+  }
+
+  return explanation;
 }
 
 function generateLoadExplanation(score: number | null, energy: number | null): string {
