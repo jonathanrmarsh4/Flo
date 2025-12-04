@@ -813,15 +813,37 @@ export interface LifeEvent {
   created_at?: Date;
 }
 
-export async function createLifeEvent(userId: string, event: Omit<LifeEvent, 'health_id'>): Promise<LifeEvent> {
+// Input type that accepts both camelCase (from code) and snake_case (from DB)
+export interface LifeEventInput {
+  eventType?: string;
+  event_type?: string;
+  details?: Record<string, any>;
+  notes?: string | null;
+  happenedAt?: Date;
+  happened_at?: Date;
+}
+
+export async function createLifeEvent(userId: string, event: LifeEventInput): Promise<LifeEvent> {
   const healthId = await getHealthId(userId);
+  
+  // Convert camelCase to snake_case for Supabase, with fallbacks
+  const insertData = {
+    health_id: healthId,
+    event_type: event.event_type || event.eventType,
+    details: event.details || {},
+    notes: event.notes || null,
+    happened_at: event.happened_at || event.happenedAt || new Date(),
+  };
+  
+  logger.info('[SupabaseHealth] Creating life event:', { 
+    userId, 
+    eventType: insertData.event_type,
+    hasDetails: !!insertData.details,
+  });
   
   const { data, error } = await supabase
     .from('life_events')
-    .insert({
-      ...event,
-      health_id: healthId,
-    })
+    .insert(insertData)
     .select()
     .single();
 
@@ -829,6 +851,8 @@ export async function createLifeEvent(userId: string, event: Omit<LifeEvent, 'he
     logger.error('[SupabaseHealth] Error creating life event:', error);
     throw error;
   }
+  
+  logger.info('[SupabaseHealth] Life event created successfully:', { id: data.id });
 
   return data;
 }
