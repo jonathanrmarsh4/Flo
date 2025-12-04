@@ -1911,4 +1911,89 @@ export async function getReminderGoals(userId: string): Promise<string[]> {
   return [];
 }
 
+// ==================== FOLLOW-UP REQUESTS ====================
+
+export async function createFollowUpRequest(
+  userId: string, 
+  input: supabaseHealth.FollowUpRequestInput
+): Promise<supabaseHealth.FollowUpRequest> {
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot create follow-up request");
+  }
+  return supabaseHealth.createFollowUpRequest(userId, input);
+}
+
+export async function getFollowUpRequests(
+  userId: string, 
+  status?: string
+): Promise<supabaseHealth.FollowUpRequest[]> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  return supabaseHealth.getFollowUpRequests(userId, status);
+}
+
+export async function getPendingFollowUpsToEvaluate(): Promise<Array<supabaseHealth.FollowUpRequest & { health_id: string }>> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  return supabaseHealth.getPendingFollowUpsToEvaluate();
+}
+
+export async function updateFollowUpRequest(
+  requestId: string,
+  updates: Partial<Pick<supabaseHealth.FollowUpRequest, 'status' | 'findings' | 'evaluated_at' | 'notification_sent' | 'notification_sent_at'>>
+): Promise<supabaseHealth.FollowUpRequest> {
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot update follow-up request");
+  }
+  return supabaseHealth.updateFollowUpRequest(requestId, updates);
+}
+
+// ==================== LIFE CONTEXT FACTS ====================
+
+export async function createLifeContextFact(
+  userId: string, 
+  input: supabaseHealth.LifeContextFactInput
+): Promise<supabaseHealth.LifeContextFact> {
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot create life context");
+  }
+  return supabaseHealth.createLifeContextFact(userId, input);
+}
+
+export async function getActiveLifeContext(userId: string): Promise<supabaseHealth.LifeContextFact[]> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  return supabaseHealth.getActiveLifeContext(userId);
+}
+
+export async function getAllLifeContextFacts(
+  userId: string, 
+  includeInactive = false
+): Promise<supabaseHealth.LifeContextFact[]> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  return supabaseHealth.getAllLifeContextFacts(userId, includeInactive);
+}
+
+export async function updateLifeContextFact(
+  factId: string,
+  updates: Partial<Pick<supabaseHealth.LifeContextFact, 'end_date' | 'is_active' | 'description' | 'expected_impact'>>
+): Promise<supabaseHealth.LifeContextFact> {
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot update life context");
+  }
+  return supabaseHealth.updateLifeContextFact(factId, updates);
+}
+
+export async function deactivateLifeContextFact(factId: string): Promise<void> {
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot deactivate life context");
+  }
+  return supabaseHealth.deactivateLifeContextFact(factId);
+}
+
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);

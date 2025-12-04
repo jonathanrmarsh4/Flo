@@ -7351,6 +7351,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
+      
+      // Step 1.2: Check for conversational intents (follow-up requests, life context)
+      let intentAcknowledgment: string | null = null;
+      const { parseConversationalIntent } = await import('./services/conversationalIntentParser');
+      const { createFollowUpRequest, createLifeContextFact, isSupabaseHealthEnabled } = await import('./services/healthStorageRouter');
+      
+      // Fire-and-forget: process intents asynchronously to not block the response
+      parseConversationalIntent(message).then(async (intentResult) => {
+        if (!intentResult) return;
+        
+        // Process follow-up request
+        if (intentResult.follow_up) {
+          const evaluateAt = new Date();
+          evaluateAt.setDate(evaluateAt.getDate() + intentResult.follow_up.days_until_check);
+          
+          try {
+            await createFollowUpRequest(userId, {
+              intent_summary: intentResult.follow_up.intent_summary,
+              original_transcript: intentResult.follow_up.original_text,
+              metrics: intentResult.follow_up.metrics,
+              comparison_baseline: intentResult.follow_up.comparison_baseline,
+              evaluate_at: evaluateAt,
+              source: 'text',
+            });
+            
+            logger.info('[FloOracle] Follow-up request created from text chat', {
+              userId,
+              intentSummary: intentResult.follow_up.intent_summary,
+              metrics: intentResult.follow_up.metrics,
+              evaluateAt: evaluateAt.toISOString(),
+            });
+          } catch (err: any) {
+            logger.error('[FloOracle] Failed to create follow-up request', {
+              userId,
+              error: err.message,
+            });
+          }
+        }
+        
+        // Process life context
+        if (intentResult.life_context) {
+          try {
+            await createLifeContextFact(userId, {
+              category: intentResult.life_context.category,
+              description: intentResult.life_context.description,
+              start_date: intentResult.life_context.start_date,
+              end_date: intentResult.life_context.end_date,
+              expected_impact: intentResult.life_context.expected_impact,
+              source: 'text',
+              confidence: 0.9,
+            });
+            
+            logger.info('[FloOracle] Life context created from text chat', {
+              userId,
+              category: intentResult.life_context.category,
+              description: intentResult.life_context.description,
+            });
+          } catch (err: any) {
+            logger.error('[FloOracle] Failed to create life context', {
+              userId,
+              error: err.message,
+            });
+          }
+        }
+      }).catch(err => {
+        logger.error('[FloOracle] Conversational intent processing failed', {
+          userId,
+          error: err.message,
+        });
+      });
 
       // Step 1.5: Real-time correlation check
       let correlationInsight: string | null = null;

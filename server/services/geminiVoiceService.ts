@@ -8,6 +8,8 @@ import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './gemi
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
 import { couldContainLifeEvent, extractLifeEvent } from './lifeEventParser';
+import { parseConversationalIntent } from './conversationalIntentParser';
+import { createFollowUpRequest, createLifeContextFact } from './supabaseHealthStorage';
 import { logger } from '../logger';
 import { db } from '../db';
 import { floChatMessages, users, VOICE_NAME_TO_GEMINI } from '@shared/schema';
@@ -473,6 +475,14 @@ Start the conversation warmly, using their name if you have it.`;
             error: err.message 
           });
         });
+        
+        // Process conversational intents (follow-ups, life context)
+        this.processConversationalIntentsAsync(state.userId, userText, sessionId).catch(err => {
+          logger.error('[GeminiVoice] Conversational intent processing failed', { 
+            sessionId, 
+            error: err.message 
+          });
+        });
       }
     } catch (error: any) {
       logger.error('[GeminiVoice] Failed to persist conversation', { 
@@ -539,6 +549,102 @@ Start the conversation warmly, using their name if you have it.`;
       });
     } catch (error: any) {
       logger.error('[GeminiVoice] Life event processing error', { 
+        userId, 
+        error: error.message,
+        stack: error.stack?.substring(0, 300),
+        totalTimeMs: Date.now() - startTime,
+      });
+    }
+  }
+
+  /**
+   * Process conversational intents (follow-up requests, life context)
+   * Extracts and stores structured intents from voice transcripts
+   */
+  private async processConversationalIntentsAsync(
+    userId: string, 
+    transcript: string,
+    sessionId: string
+  ): Promise<void> {
+    const startTime = Date.now();
+    try {
+      const result = await parseConversationalIntent(transcript);
+      
+      if (!result) {
+        logger.debug('[GeminiVoice] No conversational intents found', { 
+          userId,
+          transcriptLength: transcript.length 
+        });
+        return;
+      }
+      
+      // Process follow-up request
+      if (result.follow_up) {
+        const evaluateAt = new Date();
+        evaluateAt.setDate(evaluateAt.getDate() + result.follow_up.days_until_check);
+        
+        try {
+          const followUp = await createFollowUpRequest(userId, {
+            intent_summary: result.follow_up.intent_summary,
+            original_transcript: result.follow_up.original_text,
+            metrics: result.follow_up.metrics,
+            comparison_baseline: result.follow_up.comparison_baseline,
+            evaluate_at: evaluateAt,
+            source: 'voice',
+            session_id: sessionId,
+          });
+          
+          logger.info('[GeminiVoice] Follow-up request created from voice', {
+            userId,
+            intentSummary: result.follow_up.intent_summary,
+            metrics: result.follow_up.metrics,
+            evaluateAt: evaluateAt.toISOString(),
+            followUpId: followUp.id,
+          });
+        } catch (err: any) {
+          logger.error('[GeminiVoice] Failed to create follow-up request', {
+            userId,
+            error: err.message,
+          });
+        }
+      }
+      
+      // Process life context
+      if (result.life_context) {
+        try {
+          const context = await createLifeContextFact(userId, {
+            category: result.life_context.category,
+            description: result.life_context.description,
+            start_date: result.life_context.start_date,
+            end_date: result.life_context.end_date,
+            expected_impact: result.life_context.expected_impact,
+            source: 'voice',
+            confidence: 0.9,
+          });
+          
+          logger.info('[GeminiVoice] Life context created from voice', {
+            userId,
+            category: result.life_context.category,
+            description: result.life_context.description,
+            contextId: context.id,
+          });
+        } catch (err: any) {
+          logger.error('[GeminiVoice] Failed to create life context', {
+            userId,
+            error: err.message,
+          });
+        }
+      }
+      
+      logger.info('[GeminiVoice] Conversational intent processing complete', {
+        userId,
+        hasFollowUp: !!result.follow_up,
+        hasLifeContext: !!result.life_context,
+        acknowledgment: result.acknowledgment,
+        totalTimeMs: Date.now() - startTime,
+      });
+    } catch (error: any) {
+      logger.error('[GeminiVoice] Conversational intent processing error', { 
         userId, 
         error: error.message,
         stack: error.stack?.substring(0, 300),
