@@ -297,6 +297,7 @@ Start the conversation warmly, using their name if you have it.`;
 
   /**
    * Persist conversation to database for brain memory system
+   * Parses transcript to save user and Flō messages separately with correct attribution
    */
   private async persistConversation(sessionId: string): Promise<void> {
     const state = this.sessionStates.get(sessionId);
@@ -305,22 +306,107 @@ Start the conversation warmly, using their name if you have it.`;
     }
 
     try {
-      // Combine transcript into a single conversation record
-      const fullTranscript = state.transcript.join('\n');
+      // Parse transcript to separate user and AI messages
+      const messages: Array<{ sender: 'user' | 'flo'; message: string }> = [];
+      let currentUserBuffer: string[] = [];
       
-      // Insert using the correct schema (sender, message fields)
-      await db.insert(floChatMessages).values({
+      for (const entry of state.transcript) {
+        // Check for explicit prefixes
+        if (entry.startsWith('[Flō]: ') || entry.startsWith('[AI]: ')) {
+          // Flush any accumulated user messages first
+          if (currentUserBuffer.length > 0) {
+            messages.push({
+              sender: 'user',
+              message: currentUserBuffer.join(' ').trim(),
+            });
+            currentUserBuffer = [];
+          }
+          
+          // Add AI message
+          const aiMessage = entry.replace(/^\[(Flō|AI)\]: /, '').trim();
+          if (aiMessage) {
+            messages.push({
+              sender: 'flo',
+              message: aiMessage,
+            });
+          }
+        } else if (entry.startsWith('[User]: ')) {
+          // Flush any accumulated user messages first
+          if (currentUserBuffer.length > 0) {
+            messages.push({
+              sender: 'user',
+              message: currentUserBuffer.join(' ').trim(),
+            });
+            currentUserBuffer = [];
+          }
+          
+          // Add explicit user message
+          const userMessage = entry.replace(/^\[User\]: /, '').trim();
+          if (userMessage) {
+            messages.push({
+              sender: 'user',
+              message: userMessage,
+            });
+          }
+        } else {
+          // Raw transcript text (from voice recognition) - accumulate as user speech
+          const trimmed = entry.trim();
+          if (trimmed) {
+            currentUserBuffer.push(trimmed);
+          }
+        }
+      }
+      
+      // Flush any remaining user messages
+      if (currentUserBuffer.length > 0) {
+        messages.push({
+          sender: 'user',
+          message: currentUserBuffer.join(' ').trim(),
+        });
+      }
+      
+      // Filter out empty messages
+      const validMessages = messages.filter(m => m.message.length > 0);
+      
+      if (validMessages.length === 0) {
+        logger.info('[GeminiVoice] No valid messages to persist', { sessionId });
+        return;
+      }
+      
+      // Save each message separately with correct sender attribution
+      const insertValues = validMessages.map(m => ({
         userId: state.userId,
-        sender: 'flo',
-        message: fullTranscript,
+        sender: m.sender,
+        message: m.message,
         sessionId: sessionId,
-      });
+      }));
+      
+      await db.insert(floChatMessages).values(insertValues);
 
-      logger.info('[GeminiVoice] Conversation persisted', { 
+      const userMsgCount = validMessages.filter(m => m.sender === 'user').length;
+      const floMsgCount = validMessages.filter(m => m.sender === 'flo').length;
+      
+      logger.info('[GeminiVoice] Conversation persisted with proper attribution', { 
         sessionId, 
         userId: state.userId,
-        messageCount: state.transcript.length 
+        totalMessages: validMessages.length,
+        userMessages: userMsgCount,
+        floMessages: floMsgCount,
       });
+      
+      // Trigger memory extraction for voice conversations (like text chat does)
+      if (userMsgCount > 0 && floMsgCount > 0) {
+        const userText = validMessages.filter(m => m.sender === 'user').map(m => m.message).join('\n');
+        const floText = validMessages.filter(m => m.sender === 'flo').map(m => m.message).join('\n');
+        
+        import('./memoryExtractionService').then(({ processAndStoreFromChatTurn }) => {
+          processAndStoreFromChatTurn(state.userId, userText, floText).catch(err => {
+            logger.error('[GeminiVoice] Failed to extract memories from voice chat:', err);
+          });
+        }).catch(err => {
+          logger.error('[GeminiVoice] Failed to import memoryExtractionService:', err);
+        });
+      }
     } catch (error: any) {
       logger.error('[GeminiVoice] Failed to persist conversation', { 
         sessionId, 
