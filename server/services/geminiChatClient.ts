@@ -106,7 +106,19 @@ class GeminiChatClient {
         },
       });
 
-      const response = result.text || '';
+      // Extract response text with multiple fallback strategies
+      let response = '';
+      if (result.text) {
+        response = result.text;
+      } else if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+        response = result.candidates[0].content.parts[0].text;
+      }
+      
+      if (!response) {
+        logger.warn('[GeminiChat] Empty response from Gemini API', { model });
+        throw new Error('Empty response from Gemini API');
+      }
+      
       const latencyMs = Date.now() - startTime;
 
       // Track usage

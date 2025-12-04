@@ -6,6 +6,7 @@ import { db } from "./db";
 import { calculateAgeFromBirthYear } from "@shared/utils/ageCalculation";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import type { GrokChatMessage } from "./services/grokClient";
+import { geminiChatClient, type GeminiChatMessage } from "./services/geminiChatClient";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { analyzeBloodWork } from "./openai";
 import { generateBiomarkerInsightsGemini } from "./services/geminiInsightsClient";
@@ -7519,25 +7520,27 @@ ${fullContext}`;
         logger.info('[FloOracle] Using caring companion mode for admin user', { userId, role: user?.role });
       }
 
-      const messages: GrokChatMessage[] = [
+      const messages: GeminiChatMessage[] = [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: message.trim() }
       ];
 
-      // Call Grok
-      const grokResponse = await grokClient.chat(messages, {
+      // Call Gemini 2.5 Flash (consistent with voice chat)
+      const geminiResponse = await geminiChatClient.chat(messages, {
+        model: 'gemini-2.5-flash',
         temperature: 0.7,
         maxTokens: 1000,
+        userId,
       });
 
-      logger.info('[FloOracle] Grok response received', { 
+      logger.info('[FloOracle] Gemini response received', { 
         userId,
-        responseLength: grokResponse.length 
+        responseLength: geminiResponse.length 
       });
 
       // Apply guardrails
       const { applyGuardrails } = await import('./middleware/floOracleGuardrails');
-      const guardrailResult = applyGuardrails(message, grokResponse);
+      const guardrailResult = applyGuardrails(message, geminiResponse);
 
       // Check if guardrails blocked the response
       if (!guardrailResult.safe && guardrailResult.violation?.replacement) {
@@ -7545,8 +7548,8 @@ ${fullContext}`;
       }
 
       // Step 4: Process BRAIN_UPDATE_JSON and clean response
-      const grokReply = guardrailResult.sanitizedOutput || grokResponse;
-      const { cleanedResponse, persistedCount } = await processAndPersistBrainUpdates(userId, grokReply);
+      const geminiReply = guardrailResult.sanitizedOutput || geminiResponse;
+      const { cleanedResponse, persistedCount } = await processAndPersistBrainUpdates(userId, geminiReply);
       
       if (persistedCount > 0) {
         logger.info('[FloOracle] Persisted brain updates from chat', { userId, count: persistedCount });
