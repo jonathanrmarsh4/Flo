@@ -188,6 +188,9 @@ Start the conversation warmly, using their name if you have it.`;
     };
     this.sessionStates.set(sessionId, state);
 
+    // Buffer for accumulating user speech transcripts within a turn
+    let currentTurnTranscript = '';
+    
     // Wrap callbacks to track transcript
     const wrappedCallbacks: LiveSessionCallbacks = {
       onAudioChunk: callbacks.onAudioChunk,
@@ -202,26 +205,33 @@ Start the conversation warmly, using their name if you have it.`;
         });
         
         if (text) {
+          // Accumulate transcript text for this turn
+          currentTurnTranscript += (currentTurnTranscript ? ' ' : '') + text;
+          
           const currentState = this.sessionStates.get(sessionId);
           if (currentState) {
             currentState.transcript.push(text);
           }
-          
-          // Parse life events from final transcripts (fire-and-forget)
-          if (isFinal && text.trim().length > 5) {
-            logger.info('[GeminiVoice] Processing life event from final transcript', {
-              sessionId,
-              userId,
-              textPreview: text.substring(0, 80),
-            });
-            this.processLifeEventAsync(userId, text).catch(err => {
-              logger.error('[GeminiVoice] Life event processing failed', { 
-                sessionId, 
-                error: err.message 
-              });
-            });
-          }
         }
+        
+        // On turn complete, parse accumulated transcript for life events
+        if (isFinal && currentTurnTranscript.trim().length > 5) {
+          logger.info('[GeminiVoice] Processing life event from completed turn transcript', {
+            sessionId,
+            userId,
+            transcriptLength: currentTurnTranscript.length,
+            textPreview: currentTurnTranscript.substring(0, 100),
+          });
+          this.processLifeEventAsync(userId, currentTurnTranscript).catch(err => {
+            logger.error('[GeminiVoice] Life event processing failed', { 
+              sessionId, 
+              error: err.message 
+            });
+          });
+          // Reset for next turn
+          currentTurnTranscript = '';
+        }
+        
         callbacks.onTranscript(text, isFinal);
       },
       onModelText: (text: string) => {

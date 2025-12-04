@@ -172,6 +172,8 @@ class GeminiLiveClient {
             },
           },
         } : undefined,
+        // Enable input audio transcription to get user speech as text
+        inputAudioTranscription: {},
       },
     };
 
@@ -230,6 +232,19 @@ class GeminiLiveClient {
       if (message.data) {
         const audioBuffer = Buffer.from(message.data, 'base64');
         callbacks.onAudioChunk(audioBuffer);
+      }
+
+      // Handle input audio transcription (user's speech as text)
+      // This comes from the inputAudioTranscription config option
+      const serverContent = message.serverContent as any;
+      if (serverContent?.inputTranscript) {
+        const transcript = serverContent.inputTranscript;
+        logger.info('[GeminiLive] Received input transcript', { 
+          transcriptLength: transcript.length,
+          transcriptPreview: transcript.substring(0, 100)
+        });
+        // Send the user's speech transcript - NOT final until turn complete
+        callbacks.onTranscript(transcript, false);
       }
 
       // Handle model's text response if present in serverContent
