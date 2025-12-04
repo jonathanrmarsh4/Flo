@@ -242,30 +242,16 @@ class GeminiLiveClient {
       // This comes from the inputAudioTranscription config option
       const serverContent = message.serverContent as any;
       
-      // Debug: Log all serverContent properties when it's not just audio
-      if (serverContent && !message.data) {
-        const contentKeys = Object.keys(serverContent);
-        logger.info('[GeminiLive] ServerContent keys (non-audio)', { 
-          keys: contentKeys,
-          hasInputTranscript: !!serverContent.inputTranscript,
-          hasInputAudioTranscription: !!serverContent.inputAudioTranscription,
-          hasTurnComplete: !!serverContent.turnComplete,
-          rawContent: JSON.stringify(serverContent).substring(0, 300)
-        });
-      }
-      
-      // Try multiple possible property names for transcript
-      const transcript = serverContent?.inputTranscript 
-        || serverContent?.inputAudioTranscription?.transcript
-        || serverContent?.inputAudioTranscription?.text;
-        
-      if (transcript) {
-        logger.info('[GeminiLive] Received input transcript', { 
-          transcriptLength: transcript.length,
-          transcriptPreview: transcript.substring(0, 100)
+      // Handle USER TRANSCRIPT (what the user said)
+      // Per Google's documentation: serverContent.inputTranscription.text
+      if (serverContent?.inputTranscription?.text) {
+        const userText = serverContent.inputTranscription.text;
+        logger.info('[GeminiLive] Received user transcript', { 
+          transcriptLength: userText.length,
+          transcriptPreview: userText.substring(0, 100)
         });
         // Send the user's speech transcript - NOT final until turn complete
-        callbacks.onTranscript(transcript, false);
+        callbacks.onTranscript(userText, false);
       }
 
       // Handle model's text response if present in serverContent
