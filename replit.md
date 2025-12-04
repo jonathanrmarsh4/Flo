@@ -76,7 +76,7 @@ The platform employs a mobile-first, content-focused minimalist design inspired 
 
 **Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights using a 2-layer architecture: a RAG Layer (vector search + Gemini 2.5 Pro) and a safety net Layer D for out-of-range biomarkers. It includes confidence scoring, insight ranking, domain diversity limits, and natural language generation, with insights generated at 6 AM local time.
 
-**Conversational Life Event Logging System:** Automatically tracks and parses health narratives from Flō Oracle conversations into structured JSONB, stored in the `life_events` table for context integration.
+**Conversational Life Event Logging System:** Automatically tracks and parses health narratives from both text and voice Flō Oracle conversations into structured JSONB, stored in the `life_events` table for context integration. Uses Gemini 2.5 Flash for consistent parsing across all chat modalities. Voice transcripts are parsed in real-time as they are finalized.
 
 **Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (Gemini-based) for bidirectional AI learning. It uses `user_insights` (vector-embedded) and `flo_chat_messages` tables for hybrid retrieval.
 

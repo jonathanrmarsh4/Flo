@@ -1,9 +1,10 @@
 import { logger } from '../logger';
+import { geminiChatClient } from './geminiChatClient';
 
 /**
- * Grok-powered life event parser
+ * Gemini-powered life event parser
  * Extracts structured life events from natural language messages
- * Cost: ~$0.00002 per parsed message (only triggers when relevant)
+ * Uses Gemini 2.5 Flash for consistency with text/voice chat
  */
 
 interface LifeEventExtraction {
@@ -63,14 +64,17 @@ export function couldContainLifeEvent(message: string): boolean {
 }
 
 /**
- * Extract life event using Grok (grok-3-mini model)
+ * Extract life event using Gemini 2.5 Flash
  * Returns null if no event detected
  */
 export async function extractLifeEvent(
   message: string
 ): Promise<LifeEventExtraction | null> {
   try {
-    const { grokClient } = await import('./grokClient');
+    if (!geminiChatClient.isAvailable()) {
+      logger.warn('[LifeEventParser] Gemini client not available');
+      return null;
+    }
 
     const systemPrompt = `You are a health behavior extraction system. Extract structured life events from user messages.
 
@@ -150,15 +154,16 @@ User: "what does my blood work show?"
 
 Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observations. Return null for questions or general discussion.`;
 
-    const response = await grokClient.chat([
+    const response = await geminiChatClient.chat([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: message }
     ], {
+      model: 'gemini-2.5-flash',
       temperature: 0.3, // Low temp for consistent extraction
       maxTokens: 200,
     });
 
-    logger.info('[LifeEventParser] Grok response:', { response: response.substring(0, 200) });
+    logger.info('[LifeEventParser] Gemini response:', { response: response.substring(0, 200) });
 
     // Parse JSON response
     const jsonMatch = response.match(/\{[\s\S]*\}/);

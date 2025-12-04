@@ -7,6 +7,7 @@
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
+import { couldContainLifeEvent, extractLifeEvent } from './lifeEventParser';
 import { logger } from '../logger';
 import { db } from '../db';
 import { floChatMessages, users, VOICE_NAME_TO_GEMINI } from '@shared/schema';
@@ -195,6 +196,16 @@ Start the conversation warmly, using their name if you have it.`;
           const currentState = this.sessionStates.get(sessionId);
           if (currentState) {
             currentState.transcript.push(text);
+          }
+          
+          // Parse life events from final transcripts (fire-and-forget)
+          if (isFinal && text.trim().length > 5) {
+            this.processLifeEventAsync(userId, text).catch(err => {
+              logger.error('[GeminiVoice] Life event processing failed', { 
+                sessionId, 
+                error: err.message 
+              });
+            });
           }
         }
         callbacks.onTranscript(text, isFinal);
@@ -411,6 +422,71 @@ Start the conversation warmly, using their name if you have it.`;
       logger.error('[GeminiVoice] Failed to persist conversation', { 
         sessionId, 
         error: error.message 
+      });
+    }
+  }
+
+  /**
+   * Process life events from voice transcripts (fire-and-forget)
+   * Uses same Gemini-powered parser as text chat for consistency
+   */
+  private async processLifeEventAsync(userId: string, transcript: string): Promise<void> {
+    const startTime = Date.now();
+    try {
+      // Quick pre-filter to avoid unnecessary AI calls
+      if (!couldContainLifeEvent(transcript)) {
+        logger.debug('[GeminiVoice] Transcript skipped - no trigger words', { 
+          userId,
+          transcriptLength: transcript.length 
+        });
+        return;
+      }
+      
+      logger.info('[GeminiVoice] Potential life event in voice transcript', { 
+        userId, 
+        transcriptPreview: transcript.substring(0, 50) 
+      });
+      
+      const extraction = await extractLifeEvent(transcript);
+      
+      if (!extraction) {
+        logger.info('[GeminiVoice] No life event extracted from transcript', {
+          userId,
+          parseTimeMs: Date.now() - startTime,
+        });
+        return;
+      }
+      
+      // Log to Supabase
+      const { isSupabaseHealthEnabled, createLifeEvent } = await import('./healthStorageRouter');
+      
+      if (!isSupabaseHealthEnabled()) {
+        logger.warn('[GeminiVoice] Supabase not enabled - life event not logged', {
+          userId,
+          eventType: extraction.eventType,
+        });
+        return;
+      }
+      
+      const result = await createLifeEvent(userId, {
+        eventType: extraction.eventType,
+        details: extraction.details,
+        notes: `Voice: ${transcript.trim().substring(0, 200)}`,
+      });
+      
+      logger.info('[GeminiVoice] Life event logged from voice transcript', {
+        userId,
+        eventType: extraction.eventType,
+        eventId: result?.id,
+        acknowledgment: extraction.acknowledgment,
+        totalTimeMs: Date.now() - startTime,
+      });
+    } catch (error: any) {
+      logger.error('[GeminiVoice] Life event processing error', { 
+        userId, 
+        error: error.message,
+        stack: error.stack?.substring(0, 300),
+        totalTimeMs: Date.now() - startTime,
       });
     }
   }
