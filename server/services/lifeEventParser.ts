@@ -45,10 +45,21 @@ const TRIGGER_WORDS = [
 
 /**
  * Check if message potentially contains a life event
+ * Logs matched trigger words for debugging
  */
 export function couldContainLifeEvent(message: string): boolean {
   const lowerMessage = message.toLowerCase();
-  return TRIGGER_WORDS.some(word => lowerMessage.includes(word));
+  const matchedWords = TRIGGER_WORDS.filter(word => lowerMessage.includes(word));
+  
+  if (matchedWords.length > 0) {
+    logger.info('[LifeEventParser] Trigger words matched', {
+      matchedWords,
+      messagePreview: message.substring(0, 100),
+    });
+    return true;
+  }
+  
+  return false;
 }
 
 /**

@@ -7323,19 +7323,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { isSupabaseHealthEnabled, createLifeEvent } = await import('./services/healthStorageRouter');
           
           if (isSupabaseHealthEnabled()) {
-            await createLifeEvent(userId, {
-              eventType: extraction.eventType,
-              details: eventDetails,
-              notes: message.trim(),
-            });
-            
-            eventAcknowledgment = extraction.acknowledgment;
-            logger.info('[FloOracle] Life event logged to Supabase', {
-              userId,
-              eventType: extraction.eventType,
-              acknowledgment: eventAcknowledgment,
-              dosage: dosageInfo || 'none',
-            });
+            try {
+              await createLifeEvent(userId, {
+                eventType: extraction.eventType,
+                details: eventDetails,
+                notes: message.trim(),
+              });
+              
+              eventAcknowledgment = extraction.acknowledgment;
+              logger.info('[FloOracle] Life event logged to Supabase', {
+                userId,
+                eventType: extraction.eventType,
+                acknowledgment: eventAcknowledgment,
+                dosage: dosageInfo || 'none',
+              });
+            } catch (lifeEventError: any) {
+              logger.error('[FloOracle] Failed to create life event in Supabase', {
+                userId,
+                eventType: extraction.eventType,
+                error: lifeEventError?.message || lifeEventError,
+              });
+              // Don't fail the whole request - just log the error
+            }
           } else {
             logger.warn('[FloOracle] Supabase not enabled - life event not logged');
           }

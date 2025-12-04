@@ -1,9 +1,10 @@
 import { db } from "../db";
-import { users, userSettings } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { logger } from "../logger";
 import { syncBloodWorkEmbeddings, syncHealthKitEmbeddings } from "./embeddingService";
 import { generateInsightCards } from "./correlationEngine";
+import * as healthRouter from "./healthStorageRouter";
 
 let schedulerInterval: NodeJS.Timeout | null = null;
 
@@ -116,46 +117,38 @@ async function runInsightsGeneration() {
 /**
  * Sync embeddings for a single user
  * Returns count of new embeddings created
+ * Now uses healthStorageRouter to read from Supabase when enabled
  */
 async function syncUserEmbeddings(userId: string): Promise<number> {
   try {
-    // Get recent blood work and HealthKit data
-    // The embedding service is idempotent - it only processes new data
-    const { bloodWorkRecords, analysisResults } = await import("@shared/schema");
-    const { desc, eq } = await import("drizzle-orm");
-
-    // Get blood work with analysis using proper Drizzle join
-    const bloodWorkRaw = await db
-      .select()
-      .from(bloodWorkRecords)
-      .leftJoin(analysisResults, eq(bloodWorkRecords.id, analysisResults.recordId))
-      .where(eq(bloodWorkRecords.userId, userId))
-      .orderBy(desc(bloodWorkRecords.uploadedAt))
-      .limit(10);
-
-    // Transform joined data to flat structure expected by embedding service
-    const bloodWorkData = bloodWorkRaw.map(row => ({
-      ...row.bloodWorkRecords,
-      analysis: row.analysisResults,
-    }));
-
-    // Get recent HealthKit metrics
-    const { userDailyMetrics } = await import("@shared/schema");
-    const { gte } = await import("drizzle-orm");
+    // Get recent blood work sessions from Supabase via healthStorageRouter
+    const biomarkerSessions = await healthRouter.getBiomarkerSessions(userId, 10);
     
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Get measurements for each session to build blood work data for embeddings
+    const bloodWorkData: any[] = [];
+    for (const session of biomarkerSessions) {
+      if (!session.id) continue;
+      
+      try {
+        const measurements = await healthRouter.getMeasurementsBySession(session.id);
+        if (measurements.length > 0) {
+          bloodWorkData.push({
+            id: session.id,
+            testDate: session.testDate,
+            biomarkers: measurements.map(m => ({
+              name: m.biomarkerId, // Use biomarkerId as identifier
+              value: m.valueCanonical,
+              unit: m.unitCanonical,
+            })),
+          });
+        }
+      } catch (err: any) {
+        logger.warn(`[InsightsScheduler] Failed to get measurements for session ${session.id}:`, err?.message || err);
+      }
+    }
 
-    const healthKitData = await db
-      .select()
-      .from(userDailyMetrics)
-      .where(
-        and(
-          eq(userDailyMetrics.userId, userId),
-          gte(userDailyMetrics.utcDayStart, thirtyDaysAgo)
-        )
-      )
-      .orderBy(desc(userDailyMetrics.localDate));
+    // Get recent HealthKit metrics from Supabase via healthStorageRouter
+    const healthKitData = await healthRouter.getUserDailyMetrics(userId, { limit: 30 });
 
     let count = 0;
 
