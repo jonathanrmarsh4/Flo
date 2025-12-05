@@ -78,6 +78,8 @@ struct ContentView: View {
             
             Stepper("Days to import: \(daysToImport)", value: $daysToImport, in: 7...365, step: 7)
             
+            Toggle("Include raw samples (HR, vitals)", isOn: $importManager.includeSamples)
+            
             Button("Save Credentials") {
                 saveCredentials()
             }
@@ -177,7 +179,8 @@ struct ContentView: View {
                     email: email,
                     apiKey: apiKey,
                     serverURL: serverURL,
-                    daysToImport: daysToImport
+                    daysToImport: daysToImport,
+                    includeSamples: importManager.includeSamples
                 )
                 
                 await MainActor.run {

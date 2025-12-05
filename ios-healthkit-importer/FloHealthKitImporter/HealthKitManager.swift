@@ -440,6 +440,68 @@ class HealthKitManager: ObservableObject {
         return results
     }
     
+    // MARK: - Raw Samples (for granular data like heart rate)
+    
+    func fetchRawSamples(startDate: Date, endDate: Date, maxSamplesPerType: Int = 5000) async throws -> [[String: Any]] {
+        var results: [[String: Any]] = []
+        let utcFormatter = ISO8601DateFormatter()
+        
+        // Sample types to fetch (high-frequency data useful for analytics)
+        let sampleTypesConfig: [(HKQuantityTypeIdentifier, String, HKUnit)] = [
+            (.heartRate, "heart_rate", HKUnit(from: "count/min")),
+            (.oxygenSaturation, "oxygen_saturation", .percent()),
+            (.respiratoryRate, "respiratory_rate", HKUnit(from: "count/min")),
+            (.bodyTemperature, "body_temperature", .degreeCelsius()),
+            (.bloodPressureSystolic, "blood_pressure_systolic", .millimeterOfMercury()),
+            (.bloodPressureDiastolic, "blood_pressure_diastolic", .millimeterOfMercury()),
+            (.bloodGlucose, "blood_glucose", HKUnit(from: "mg/dL")),
+        ]
+        
+        for (identifier, dataType, unit) in sampleTypesConfig {
+            guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { continue }
+            
+            let predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
+            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            
+            do {
+                let samples = try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Error>) in
+                    let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: maxSamplesPerType, sortDescriptors: [sortDescriptor]) { _, samples, error in
+                        if let error = error {
+                            continuation.resume(throwing: error)
+                        } else {
+                            continuation.resume(returning: samples as? [HKQuantitySample] ?? [])
+                        }
+                    }
+                    healthStore.execute(query)
+                }
+                
+                for sample in samples {
+                    var sampleData: [String: Any] = [:]
+                    sampleData["dataType"] = dataType
+                    sampleData["value"] = sample.quantity.doubleValue(for: unit)
+                    sampleData["unit"] = unit.unitString
+                    sampleData["startDate"] = utcFormatter.string(from: sample.startDate)
+                    sampleData["endDate"] = utcFormatter.string(from: sample.endDate)
+                    sampleData["sourceName"] = sample.sourceRevision.source.name
+                    sampleData["sourceBundleId"] = sample.sourceRevision.source.bundleIdentifier
+                    sampleData["uuid"] = sample.uuid.uuidString
+                    
+                    if let device = sample.device {
+                        sampleData["deviceName"] = device.name
+                        sampleData["deviceManufacturer"] = device.manufacturer
+                        sampleData["deviceModel"] = device.model
+                    }
+                    
+                    results.append(sampleData)
+                }
+            } catch {
+                print("Error fetching \(dataType) samples: \(error)")
+            }
+        }
+        
+        return results
+    }
+    
     // MARK: - Query Helpers
     
     private func querySum(_ identifier: HKQuantityTypeIdentifier, unit: HKUnit, start: Date, end: Date) async throws -> Double {

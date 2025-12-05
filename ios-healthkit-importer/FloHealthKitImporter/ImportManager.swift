@@ -14,13 +14,15 @@ struct ImportProgress {
 @MainActor
 class ImportManager: ObservableObject {
     @Published var progress: ImportProgress?
+    @Published var includeSamples: Bool = true
     
     func importHealthKitData(
         healthKitManager: HealthKitManager,
         email: String,
         apiKey: String,
         serverURL: String,
-        daysToImport: Int
+        daysToImport: Int,
+        includeSamples: Bool = true
     ) async throws -> String {
         let calendar = Calendar.current
         let endDate = Date()
@@ -28,29 +30,42 @@ class ImportManager: ObservableObject {
             throw ImportError.invalidDateRange
         }
         
-        progress = ImportProgress(currentPhase: "Fetching daily metrics...", processed: 0, total: 4)
+        let totalPhases = includeSamples ? 6 : 5
+        
+        progress = ImportProgress(currentPhase: "Fetching daily metrics...", processed: 0, total: totalPhases)
         
         // Fetch all data
         let dailyMetrics = try await healthKitManager.fetchDailyMetrics(startDate: startDate, endDate: endDate)
-        progress = ImportProgress(currentPhase: "Fetching sleep data...", processed: 1, total: 4)
+        progress = ImportProgress(currentPhase: "Fetching sleep data...", processed: 1, total: totalPhases)
         
         let sleepNights = try await healthKitManager.fetchSleepData(startDate: startDate, endDate: endDate)
-        progress = ImportProgress(currentPhase: "Fetching workouts...", processed: 2, total: 4)
+        progress = ImportProgress(currentPhase: "Fetching workouts...", processed: 2, total: totalPhases)
         
         let workouts = try await healthKitManager.fetchWorkouts(startDate: startDate, endDate: endDate)
-        progress = ImportProgress(currentPhase: "Fetching nutrition...", processed: 3, total: 4)
+        progress = ImportProgress(currentPhase: "Fetching nutrition...", processed: 3, total: totalPhases)
         
         let nutrition = try await healthKitManager.fetchNutrition(startDate: startDate, endDate: endDate)
-        progress = ImportProgress(currentPhase: "Uploading to server...", processed: 4, total: 4)
+        
+        var samples: [[String: Any]] = []
+        if includeSamples {
+            progress = ImportProgress(currentPhase: "Fetching raw samples (heart rate, vitals)...", processed: 4, total: totalPhases)
+            samples = try await healthKitManager.fetchRawSamples(startDate: startDate, endDate: endDate)
+        }
+        
+        progress = ImportProgress(currentPhase: "Uploading to server...", processed: totalPhases - 1, total: totalPhases)
         
         // Build request body
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "email": email,
             "dailyMetrics": dailyMetrics,
             "sleepNights": sleepNights,
             "workouts": workouts,
             "nutritionData": nutrition
         ]
+        
+        if includeSamples && !samples.isEmpty {
+            requestBody["samples"] = samples
+        }
         
         // Make API request
         let result = try await uploadToServer(
@@ -61,7 +76,11 @@ class ImportManager: ObservableObject {
         
         progress = nil
         
-        return "Daily: \(dailyMetrics.count), Sleep: \(sleepNights.count), Workouts: \(workouts.count), Nutrition: \(nutrition.count)"
+        var summary = "Daily: \(dailyMetrics.count), Sleep: \(sleepNights.count), Workouts: \(workouts.count), Nutrition: \(nutrition.count)"
+        if includeSamples {
+            summary += ", Samples: \(samples.count)"
+        }
+        return summary
     }
     
     private func uploadToServer(serverURL: String, apiKey: String, body: [String: Any]) async throws -> [String: Any] {
@@ -73,9 +92,12 @@ class ImportManager: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "X-Dev-Import-Key")
+        request.timeoutInterval = 120 // 2 minutes for large payloads
         
         let jsonData = try JSONSerialization.data(withJSONObject: body, options: [])
         request.httpBody = jsonData
+        
+        print("[ImportManager] Uploading \(jsonData.count) bytes to \(url)")
         
         let (data, response) = try await URLSession.shared.data(for: request)
         
