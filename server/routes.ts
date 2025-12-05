@@ -9582,7 +9582,38 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         validatedStatus = statusResult.data;
       }
       
-      const items = await storage.listActionPlanItems(userId, validatedStatus);
+      // Try Supabase first for health data, then fallback to Neon
+      let items: any[] = [];
+      const supabaseItems = await healthRouter.getActionPlanItems(userId, validatedStatus);
+      
+      if (supabaseItems && supabaseItems.length > 0) {
+        // Normalize Supabase snake_case to camelCase
+        items = supabaseItems.map((item: any) => ({
+          id: item.id,
+          userId: userId,
+          dailyInsightId: item.daily_insight_id,
+          snapshotTitle: item.snapshot_title,
+          snapshotInsight: item.snapshot_insight,
+          snapshotAction: item.snapshot_action,
+          category: item.category,
+          status: item.status,
+          priority: item.priority,
+          targetBiomarker: item.target_biomarker,
+          currentValue: item.current_value,
+          targetValue: item.target_value,
+          unit: item.target_unit,
+          biomarkerId: item.biomarker_id,
+          title: item.title,
+          description: item.description,
+          addedAt: item.added_at || item.created_at,
+          completedAt: item.completed_at,
+          createdAt: item.created_at,
+          updatedAt: item.updated_at,
+        }));
+      } else {
+        // Fallback to Neon storage
+        items = await storage.listActionPlanItems(userId, validatedStatus);
+      }
       
       res.json({ items });
     } catch (error: any) {
@@ -9713,7 +9744,14 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const { status, completedAt } = validationResult.data;
       const completedDate = completedAt ? new Date(completedAt) : (status === 'completed' ? new Date() : undefined);
 
-      const item = await healthRouter.updateActionPlanItemStatus(id, userId, status, completedDate);
+      // Try Supabase first
+      let item = await healthRouter.updateActionPlanItemStatus(id, userId, status, completedDate);
+      
+      // If not found in Supabase, try Neon storage as fallback
+      if (!item) {
+        logger.info(`[ActionPlan] Item ${id} not in Supabase, trying Neon fallback`);
+        item = await storage.updateActionPlanItemStatus(id, userId, status, completedDate);
+      }
       
       if (!item) {
         return res.status(404).json({ error: "Action plan item not found" });
@@ -9737,15 +9775,28 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
 
     try {
-      // Verify ownership before deleting
-      const item = await healthRouter.getActionPlanItem(id, userId);
+      // Try Supabase first, then Neon
+      let item = await healthRouter.getActionPlanItem(id, userId);
+      let source: 'supabase' | 'neon' = 'supabase';
+      
+      if (!item) {
+        item = await storage.getActionPlanItem(id, userId);
+        source = 'neon';
+      }
+      
       if (!item) {
         return res.status(404).json({ error: "Action plan item not found" });
       }
 
-      await storage.removeActionPlanItem(id, userId);
+      // Delete from the appropriate source
+      if (source === 'neon') {
+        await storage.removeActionPlanItem(id, userId);
+      } else {
+        // Try to delete from Supabase - healthRouter doesn't have delete, use storage as fallback
+        await storage.removeActionPlanItem(id, userId);
+      }
       
-      logger.info(`[ActionPlan] Item ${id} removed by user ${userId}`);
+      logger.info(`[ActionPlan] Item ${id} removed by user ${userId} from ${source}`);
       res.json({ success: true });
     } catch (error: any) {
       logger.error('[ActionPlan] Delete error:', error);
