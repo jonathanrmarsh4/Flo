@@ -5506,7 +5506,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Nutrition Routes
   // ============================================
 
+  // Track users who have already had backfill triggered (in-memory, resets on server restart)
+  const nutritionBackfillTriggered = new Set<string>();
+
   // Get nutrition daily metrics for a user - uses healthStorageRouter for dual-database support
+  // AUTO-BACKFILL: If no aggregated data exists but raw samples do, triggers backfill automatically
   app.get("/api/nutrition/daily", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -5518,6 +5522,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (limit) options.limit = Number(limit);
       
       const records = await healthRouter.getNutritionDailyMetrics(userId, options);
+      
+      // AUTO-BACKFILL: Check if user needs backfill (no aggregated data, never triggered before)
+      if (records.length === 0 && !nutritionBackfillTriggered.has(userId)) {
+        nutritionBackfillTriggered.add(userId);
+        
+        // Check if user has raw nutrition samples in Supabase
+        const { getSupabaseClient } = await import('./services/supabaseHealthStorage');
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          const { data: samples } = await supabase
+            .from('healthkit_samples')
+            .select('id')
+            .eq('user_id', userId)
+            .ilike('sample_type', '%Dietary%')
+            .limit(1);
+          
+          if (samples && samples.length > 0) {
+            // User has raw samples but no aggregated data - trigger backfill
+            logger.info(`[Nutrition] Auto-triggering backfill for ${userId} (has samples but no aggregates)`);
+            
+            // Get user timezone
+            const profile = await storage.getProfile(userId);
+            const timezone = profile?.timezone || 'America/Los_Angeles';
+            
+            // Run backfill in background (don't await)
+            (async () => {
+              try {
+                const today = new Date();
+                for (let i = 0; i < 90; i++) {
+                  const date = new Date(today);
+                  date.setDate(date.getDate() - i);
+                  const localDate = date.toISOString().split('T')[0];
+                  await upsertNutritionDaily(userId, localDate, timezone);
+                }
+                logger.info(`[Nutrition] Auto-backfill complete for ${userId}`);
+              } catch (err) {
+                logger.error(`[Nutrition] Auto-backfill error for ${userId}:`, err);
+              }
+            })();
+          }
+        }
+      }
       
       return res.json(records);
     } catch (error: any) {
