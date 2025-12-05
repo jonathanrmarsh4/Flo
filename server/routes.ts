@@ -9695,7 +9695,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       }
 
       // Prepare data for Supabase (snake_case)
+      // Note: 'title' is required NOT NULL in Supabase - use snapshotTitle
       const supabaseItem = {
+        title: data.snapshotTitle,
+        description: data.snapshotAction,
         daily_insight_id: data.dailyInsightId || null,
         snapshot_title: data.snapshotTitle,
         snapshot_insight: data.snapshotInsight,
@@ -9705,6 +9708,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         current_value: data.currentValue ?? null,
         target_value: data.targetValue ?? null,
         target_unit: data.unit || null,
+        unit: data.unit || null,
         biomarker_id: biomarkerId || null,
         status: 'active',
         priority: 1,

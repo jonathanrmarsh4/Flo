@@ -881,6 +881,140 @@ export async function deleteActionPlanItem(id: string, userId: string): Promise<
   }
 }
 
+// ==================== DAILY INSIGHTS (SUPABASE-ONLY for PHI privacy) ====================
+
+export async function getDailyInsights(
+  userId: string, 
+  options?: { startDate?: Date; limit?: number; generatedDate?: string }
+) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    logger.warn("[HealthStorageRouter] Daily insights require Supabase health storage");
+    return [];
+  }
+  
+  try {
+    return await supabaseHealth.getDailyInsights(userId, options);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase getDailyInsights failed:", error);
+    return [];
+  }
+}
+
+export async function getDailyInsightsByDate(userId: string, generatedDate: string) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    logger.warn("[HealthStorageRouter] Daily insights require Supabase health storage");
+    return [];
+  }
+  
+  try {
+    return await supabaseHealth.getDailyInsightsByDate(userId, generatedDate);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase getDailyInsightsByDate failed:", error);
+    return [];
+  }
+}
+
+export async function getDailyInsightById(userId: string, insightId: string) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    return null;
+  }
+  
+  try {
+    return await supabaseHealth.getDailyInsightById(userId, insightId);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase getDailyInsightById failed:", error);
+    return null;
+  }
+}
+
+export async function createDailyInsight(userId: string, insight: any) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot store health data");
+  }
+  
+  try {
+    return await supabaseHealth.createDailyInsight(userId, insight);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase createDailyInsight failed:", error);
+    throw error;
+  }
+}
+
+export async function updateDailyInsight(insightId: string, updates: any) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot update health data");
+  }
+  
+  try {
+    return await supabaseHealth.updateDailyInsight(insightId, updates);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase updateDailyInsight failed:", error);
+    throw error;
+  }
+}
+
+export async function dismissDailyInsight(insightId: string, userId: string) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot update health data");
+  }
+  
+  try {
+    const healthId = await supabaseHealth.getHealthId(userId);
+    return await supabaseHealth.dismissDailyInsight(insightId, healthId);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase dismissDailyInsight failed:", error);
+    throw error;
+  }
+}
+
+export async function markDailyInsightsAsRead(userId: string, generatedDate: string) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    return false;
+  }
+  
+  try {
+    return await supabaseHealth.markDailyInsightsAsRead(userId, generatedDate);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase markDailyInsightsAsRead failed:", error);
+    return false;
+  }
+}
+
+export async function deleteDailyInsights(userId: string, generatedDate: string) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot delete health data");
+  }
+  
+  try {
+    return await supabaseHealth.deleteDailyInsights(userId, generatedDate);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase deleteDailyInsights failed:", error);
+    throw error;
+  }
+}
+
+export async function getAllDailyInsights(userId: string) {
+  // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  
+  try {
+    return await supabaseHealth.getAllDailyInsights(userId);
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase getAllDailyInsights failed:", error);
+    return [];
+  }
+}
+
 export async function getBiomarkerSessions(userId: string, limit = 100) {
   if (isSupabaseHealthEnabled()) {
     try {

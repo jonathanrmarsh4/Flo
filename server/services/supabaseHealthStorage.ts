@@ -1861,6 +1861,211 @@ export async function updateInsightCard(cardId: string, updates: Partial<Insight
   return data;
 }
 
+// ==================== DAILY INSIGHTS ====================
+// AI-generated personalized health insights (PHI - stored in Supabase for privacy)
+
+export interface DailyInsight {
+  id?: string;
+  health_id: string;
+  generated_date: string; // YYYY-MM-DD
+  title: string;
+  body: string;
+  action?: string | null;
+  target_biomarker?: string | null;
+  current_value?: number | null;
+  target_value?: number | null;
+  unit?: string | null;
+  confidence_score: number;
+  impact_score: number;
+  actionability_score: number;
+  freshness_score: number;
+  overall_score: number;
+  evidence_tier: string;
+  primary_sources: string[];
+  category: string;
+  generating_layer: string;
+  details: Record<string, any>;
+  is_new: boolean;
+  is_dismissed: boolean;
+  created_at?: Date | string;
+}
+
+export async function getDailyInsights(
+  userId: string, 
+  options?: { startDate?: Date; limit?: number; generatedDate?: string }
+): Promise<DailyInsight[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('daily_insights')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('overall_score', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (options?.generatedDate) {
+    query = query.eq('generated_date', options.generatedDate);
+  }
+  
+  if (options?.startDate) {
+    const startDateStr = options.startDate.toISOString().split('T')[0];
+    query = query.gte('generated_date', startDateStr);
+  }
+  
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching daily insights:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getDailyInsightsByDate(userId: string, generatedDate: string): Promise<DailyInsight[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('daily_insights')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('generated_date', generatedDate)
+    .eq('is_dismissed', false)
+    .order('overall_score', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching daily insights by date:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getDailyInsightById(userId: string, insightId: string): Promise<DailyInsight | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('daily_insights')
+    .select('*')
+    .eq('id', insightId)
+    .eq('health_id', healthId)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching daily insight by id:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function createDailyInsight(userId: string, insight: Omit<DailyInsight, 'health_id'>): Promise<DailyInsight> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('daily_insights')
+    .insert({
+      ...insight,
+      health_id: healthId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error creating daily insight:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateDailyInsight(insightId: string, updates: Partial<DailyInsight>): Promise<DailyInsight | null> {
+  const { data, error } = await supabase
+    .from('daily_insights')
+    .update(updates)
+    .eq('id', insightId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating daily insight:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function dismissDailyInsight(insightId: string, healthId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('daily_insights')
+    .update({ is_dismissed: true })
+    .eq('id', insightId)
+    .eq('health_id', healthId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error dismissing daily insight:', error);
+    throw error;
+  }
+
+  return true;
+}
+
+export async function markDailyInsightsAsRead(userId: string, generatedDate: string): Promise<boolean> {
+  const healthId = await getHealthId(userId);
+  
+  const { error } = await supabase
+    .from('daily_insights')
+    .update({ is_new: false })
+    .eq('health_id', healthId)
+    .eq('generated_date', generatedDate)
+    .eq('is_new', true);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error marking daily insights as read:', error);
+    throw error;
+  }
+
+  return true;
+}
+
+export async function deleteDailyInsights(userId: string, generatedDate: string): Promise<boolean> {
+  const healthId = await getHealthId(userId);
+  
+  const { error } = await supabase
+    .from('daily_insights')
+    .delete()
+    .eq('health_id', healthId)
+    .eq('generated_date', generatedDate);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error deleting daily insights:', error);
+    throw error;
+  }
+
+  return true;
+}
+
+export async function getAllDailyInsights(userId: string): Promise<DailyInsight[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('daily_insights')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching all daily insights:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 // ==================== BIOMARKERS REFERENCE ====================
 
 export interface Biomarker {
