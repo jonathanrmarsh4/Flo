@@ -192,6 +192,15 @@ Start the conversation warmly, using their name if you have it.`;
 
     // Buffer for accumulating user speech transcripts within a turn
     let currentTurnTranscript = '';
+    // Accumulate ALL user speech across the entire session for better life event detection
+    let fullSessionUserTranscript = '';
+    // Track AI mentions of activities (if AI says "sauna", user said it even if transcript missed it)
+    const aiMentionedActivities: string[] = [];
+    
+    // Activity keywords to detect in AI responses - if AI mentions these, user talked about them
+    const ACTIVITY_KEYWORDS = ['sauna', 'ice bath', 'cold plunge', 'workout', 'exercise', 
+      'meditation', 'breathwork', 'supplements', 'vitamins', 'alcohol', 'wine', 'beer',
+      'coffee', 'caffeine', 'yoga', 'massage', 'run', 'gym', 'creatine', 'nmn', 'protein'];
     
     // Wrap callbacks to track transcript
     const wrappedCallbacks: LiveSessionCallbacks = {
@@ -207,8 +216,9 @@ Start the conversation warmly, using their name if you have it.`;
         });
         
         if (text) {
-          // Accumulate transcript text for this turn
+          // Accumulate transcript text for this turn AND full session
           currentTurnTranscript += (currentTurnTranscript ? ' ' : '') + text;
+          fullSessionUserTranscript += (fullSessionUserTranscript ? ' ' : '') + text;
           
           const currentState = this.sessionStates.get(sessionId);
           if (currentState) {
@@ -216,21 +226,17 @@ Start the conversation warmly, using their name if you have it.`;
           }
         }
         
-        // On turn complete, parse accumulated transcript for life events
+        // On turn complete, DON'T process immediately - defer to session end
+        // This ensures we capture late-arriving transcript chunks and AI context
         if (isFinal && currentTurnTranscript.trim().length > 5) {
-          logger.info('[GeminiVoice] Processing life event from completed turn transcript', {
+          logger.info('[GeminiVoice] Turn completed - deferring life event to session end', {
             sessionId,
             userId,
-            transcriptLength: currentTurnTranscript.length,
-            textPreview: currentTurnTranscript.substring(0, 100),
+            turnTranscriptLength: currentTurnTranscript.length,
+            fullSessionLength: fullSessionUserTranscript.length,
+            turnPreview: currentTurnTranscript.substring(0, 100),
           });
-          this.processLifeEventAsync(userId, currentTurnTranscript).catch(err => {
-            logger.error('[GeminiVoice] Life event processing failed', { 
-              sessionId, 
-              error: err.message 
-            });
-          });
-          // Reset for next turn
+          // Reset turn buffer but keep full session transcript
           currentTurnTranscript = '';
         }
         
@@ -241,6 +247,20 @@ Start the conversation warmly, using their name if you have it.`;
         const currentState = this.sessionStates.get(sessionId);
         if (currentState && text) {
           currentState.transcript.push(`[Flō]: ${text}`);
+          
+          // Check if AI mentions any activities - this indicates user spoke about them
+          // even if the transcript didn't fully capture it (due to interruption)
+          const lowerText = text.toLowerCase();
+          for (const keyword of ACTIVITY_KEYWORDS) {
+            if (lowerText.includes(keyword) && !aiMentionedActivities.includes(keyword)) {
+              aiMentionedActivities.push(keyword);
+              logger.info('[GeminiVoice] AI mentioned activity keyword', { 
+                sessionId, 
+                keyword,
+                aiMentionedActivities,
+              });
+            }
+          }
         }
         callbacks.onModelText(text);
       },
@@ -461,15 +481,38 @@ Start the conversation warmly, using their name if you have it.`;
           logger.error('[GeminiVoice] Failed to import memoryExtractionService:', err);
         });
         
-        // FALLBACK: Parse life events from combined user transcript
-        // This catches events that may have been missed by real-time parsing
+        // ENHANCED FALLBACK: Parse life events from user transcript + AI context
+        // If AI mentions activities (e.g., "your sauna session"), it means user talked about them
+        // even if the user's transcript was cut short by interruption
+        const activityKeywords = ['sauna', 'ice bath', 'cold plunge', 'workout', 'exercise', 
+          'meditation', 'breathwork', 'supplements', 'vitamins', 'alcohol', 'wine', 'beer',
+          'coffee', 'caffeine', 'yoga', 'massage', 'creatine', 'nmn', 'protein', 'nap', 'sleep'];
+        
+        const lowerFloText = floText.toLowerCase();
+        const aiMentionedActivities = activityKeywords.filter(kw => lowerFloText.includes(kw));
+        
+        // Combine user transcript with AI-detected context
+        let enhancedUserText = userText;
+        if (aiMentionedActivities.length > 0) {
+          // Append AI-detected activities as context for the life event parser
+          enhancedUserText += `\n[AI context: User mentioned ${aiMentionedActivities.join(', ')}]`;
+          logger.info('[GeminiVoice] AI detected activities not in user transcript', {
+            sessionId,
+            userId: state.userId,
+            aiMentionedActivities,
+            userTextPreview: userText.substring(0, 100),
+          });
+        }
+        
         logger.info('[GeminiVoice] Fallback life event parsing from full transcript', {
           sessionId,
           userId: state.userId,
           userTextLength: userText.length,
+          enhancedTextLength: enhancedUserText.length,
+          aiMentionedActivities,
           userTextPreview: userText.substring(0, 150),
         });
-        this.processLifeEventAsync(state.userId, userText).catch(err => {
+        this.processLifeEventWithContext(state.userId, enhancedUserText, aiMentionedActivities).catch(err => {
           logger.error('[GeminiVoice] Fallback life event processing failed', { 
             sessionId, 
             error: err.message 
@@ -497,11 +540,27 @@ Start the conversation warmly, using their name if you have it.`;
    * Uses same Gemini-powered parser as text chat for consistency
    */
   private async processLifeEventAsync(userId: string, transcript: string): Promise<void> {
+    return this.processLifeEventWithContext(userId, transcript, []);
+  }
+
+  /**
+   * Process life events with AI context fallback
+   * If user transcript doesn't contain trigger words but AI mentioned activities,
+   * we still try to log the event because AI understood what user said
+   */
+  private async processLifeEventWithContext(
+    userId: string, 
+    transcript: string, 
+    aiMentionedActivities: string[]
+  ): Promise<void> {
     const startTime = Date.now();
     try {
-      // Quick pre-filter to avoid unnecessary AI calls
-      if (!couldContainLifeEvent(transcript)) {
-        logger.debug('[GeminiVoice] Transcript skipped - no trigger words', { 
+      // Check if transcript has trigger words OR AI mentioned activities
+      const hasTriggerWords = couldContainLifeEvent(transcript);
+      const hasAiContext = aiMentionedActivities.length > 0;
+      
+      if (!hasTriggerWords && !hasAiContext) {
+        logger.debug('[GeminiVoice] Transcript skipped - no trigger words or AI context', { 
           userId,
           transcriptLength: transcript.length 
         });
@@ -510,15 +569,33 @@ Start the conversation warmly, using their name if you have it.`;
       
       logger.info('[GeminiVoice] Potential life event in voice transcript', { 
         userId, 
-        transcriptPreview: transcript.substring(0, 50) 
+        hasTriggerWords,
+        hasAiContext,
+        aiMentionedActivities,
+        transcriptPreview: transcript.substring(0, 100) 
       });
       
-      const extraction = await extractLifeEvent(transcript);
+      // If transcript doesn't have keywords but AI mentioned activities,
+      // create a synthetic transcript with the AI context for extraction
+      let extractionText = transcript;
+      if (!hasTriggerWords && hasAiContext) {
+        // Create a more parseable version with AI-detected activities
+        extractionText = `User mentioned: ${aiMentionedActivities.join(', ')}. Full context: ${transcript}`;
+        logger.info('[GeminiVoice] Using AI-enhanced transcript for extraction', {
+          userId,
+          aiMentionedActivities,
+          originalLength: transcript.length,
+        });
+      }
+      
+      const extraction = await extractLifeEvent(extractionText);
       
       if (!extraction) {
         logger.info('[GeminiVoice] No life event extracted from transcript', {
           userId,
           parseTimeMs: Date.now() - startTime,
+          hasTriggerWords,
+          hasAiContext,
         });
         return;
       }
@@ -545,6 +622,7 @@ Start the conversation warmly, using their name if you have it.`;
         eventType: extraction.eventType,
         eventId: result?.id,
         acknowledgment: extraction.acknowledgment,
+        usedAiContext: hasAiContext && !hasTriggerWords,
         totalTimeMs: Date.now() - startTime,
       });
     } catch (error: any) {

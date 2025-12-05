@@ -1,0 +1,57 @@
+⚡️  [log] - [VoiceChat] Starting Gemini Live conversation...
+⚡️  [log] - [GeminiLive] WebSocket connected
+⚡️  [log] - [GeminiLive] Session started: voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764910361345
+⚡️  [log] - [VoiceChat] Connected to Gemini Live
+⚡️  [warn] - [GeminiLive] Wake lock not available: {}
+🎤 Media capture permission requested - type: WKMediaCaptureType(rawValue: 1)
+✅ Granting microphone permission
+⚡️  [log] - [GeminiLive] Device sample rate: 48000
+⚡️  [log] - [GeminiLive] Started listening - capturing and resampling to 16kHz
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [VoiceChat] Transcript:  Ye Final: false
+⚡️  [log] - [VoiceChat] Transcript: ah Final: false
+⚡️  [log] - [VoiceChat] Transcript: , Final: false
+⚡️  [log] - [VoiceChat] Transcript:  just Final: false
+⚡️  [log] - [VoiceChat] Transcript:  want Final: false
+⚡️  [log] - [VoiceChat] Transcript:  to Final: false
+⚡️  [log] - [VoiceChat] Transcript:  let Final: false
+⚡️  [log] - [VoiceChat] Transcript:  you Final: false
+⚡️  [log] - [VoiceChat] Transcript:  know Final: false
+⚡️  [log] - [VoiceChat] Transcript:  that Final: false
+⚡️  [log] - [VoiceChat] Transcript:  I Final: false
+⚡️  [log] - [VoiceChat] Transcript:  just Final: false
+⚡️  [log] - [VoiceChat] Transcript:  had Final: false
+⚡️  [log] - [VoiceChat] Transcript:  a um Final: false
+⚡️  [log] - [VoiceChat] Transcript:  a Final: false
+⚡️  [log] - [VoiceChat] Transcript:  20 minute Final: false
+⚡️  [log] - [GeminiLive] Model response: **Addressing Wellness Insights**
+
+I've just receiv
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [VoiceChat] Transcript:  No Final: false
+⚡️  [log] - [VoiceChat] Transcript: , I Final: false
+⚡️  [log] - [VoiceChat] Transcript:  just Final: false
+⚡️  [log] - [VoiceChat] Transcript:  want Final: false
+⚡️  [log] - [VoiceChat] Transcript:  you Final: false
+⚡️  [log] - [VoiceChat] Transcript:  to Final: false
+⚡️  [log] - [VoiceChat] Transcript:  log Final: false
+⚡️  [log] - [VoiceChat] Transcript:  it Final: false
+⚡️  [log] - [VoiceChat] Transcript:  so Final: false
+⚡️  [log] - [VoiceChat] Transcript:  um Final: false
+⚡️  [log] - [VoiceChat] Transcript:  I Final: false
+⚡️  [log] - [VoiceChat] Transcript:  could Final: false
+⚡️  [log] - [VoiceChat] Transcript:  re Final: false
+⚡️  [log] - [VoiceChat] Transcript: tri Final: false
+⚡️  [log] - [VoiceChat] Transcript: eve Final: false
+⚡️  [log] - [VoiceChat] Transcript:  it Final: false
+⚡️  [log] - [VoiceChat] Transcript:  la Final: false
+⚡️  [log] - [VoiceChat] Transcript: ter Final: false
+⚡️  [log] - [VoiceChat] Transcript: . Final: false
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [VoiceChat] Ending conversation...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] WebSocket closed: 1005 
+⚡️  [log] - [VoiceChat] Disconnected from Gemini Live
