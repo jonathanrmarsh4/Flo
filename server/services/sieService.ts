@@ -202,7 +202,7 @@ async function introspectDataSources(): Promise<DataLandscape> {
       tableMap.get(row.table_name)!.push(`${row.column_name} (${row.data_type})`);
     }
 
-    for (const [tableName, columns] of tableMap) {
+    tableMap.forEach((columns, tableName) => {
       landscape.neonTables.push({
         name: tableName,
         schema: 'neon',
@@ -210,7 +210,7 @@ async function introspectDataSources(): Promise<DataLandscape> {
         rowCount: rowCounts.get(tableName) || 0,
         description: `User/auth table (${columns.length} columns, ${rowCounts.get(tableName) || 0} rows)`,
       });
-    }
+    });
     
     logger.info(`[SIE] Discovered ${landscape.neonTables.length} Neon tables`);
   } catch (error: any) {
@@ -477,35 +477,78 @@ export async function runSIEAnalysis(generateAudio: boolean = true): Promise<SIE
       const openai = getOpenAIClient();
       
       // Clean up text for TTS (remove markdown formatting)
-      const ttsText = responseText
+      const cleanedText = responseText
         .replace(/\*\*/g, '')
         .replace(/\*/g, '')
         .replace(/#{1,6}\s/g, '')
         .replace(/```[\s\S]*?```/g, '')
-        .substring(0, 4000); // TTS limit
+        .replace(/\n{3,}/g, '\n\n'); // Reduce excessive newlines
+      
+      // OpenAI TTS limit is 4096 chars per request - chunk longer responses
+      const MAX_CHUNK_SIZE = 4000;
+      const chunks: string[] = [];
+      
+      // Split at sentence boundaries to avoid cutting mid-sentence
+      let remaining = cleanedText;
+      while (remaining.length > 0) {
+        if (remaining.length <= MAX_CHUNK_SIZE) {
+          chunks.push(remaining);
+          break;
+        }
+        
+        // Find last sentence boundary within limit
+        let splitIndex = MAX_CHUNK_SIZE;
+        const lastPeriod = remaining.lastIndexOf('. ', MAX_CHUNK_SIZE);
+        const lastQuestion = remaining.lastIndexOf('? ', MAX_CHUNK_SIZE);
+        const lastExclaim = remaining.lastIndexOf('! ', MAX_CHUNK_SIZE);
+        const lastNewline = remaining.lastIndexOf('\n', MAX_CHUNK_SIZE);
+        
+        splitIndex = Math.max(lastPeriod, lastQuestion, lastExclaim, lastNewline);
+        if (splitIndex < MAX_CHUNK_SIZE / 2) {
+          // No good split point found, just split at limit
+          splitIndex = MAX_CHUNK_SIZE;
+        } else {
+          splitIndex += 1; // Include the punctuation
+        }
+        
+        chunks.push(remaining.substring(0, splitIndex).trim());
+        remaining = remaining.substring(splitIndex).trim();
+      }
       
       logger.info('[SIE] Generating TTS audio', {
         model: 'tts-1-hd',
         voice: 'onyx',
-        inputLength: ttsText.length,
+        totalLength: cleanedText.length,
+        chunks: chunks.length,
         format: 'mp3',
       });
       
-      const audioResponse = await openai.audio.speech.create({
-        model: 'tts-1-hd',
-        voice: 'onyx', // Deep, authoritative voice for strategic analysis
-        input: ttsText,
-        response_format: 'mp3',
-      });
-
-      const audioBuffer = Buffer.from(await audioResponse.arrayBuffer());
-      audioBase64 = audioBuffer.toString('base64');
+      // Generate audio for each chunk and concatenate
+      const audioBuffers: Buffer[] = [];
+      
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        logger.info(`[SIE] Generating audio chunk ${i + 1}/${chunks.length}`, { chunkLength: chunk.length });
+        
+        const audioResponse = await openai.audio.speech.create({
+          model: 'tts-1-hd',
+          voice: 'onyx', // Deep, authoritative voice for strategic analysis
+          input: chunk,
+          response_format: 'mp3',
+        });
+        
+        audioBuffers.push(Buffer.from(await audioResponse.arrayBuffer()));
+      }
+      
+      // Concatenate all audio buffers
+      const combinedBuffer = Buffer.concat(audioBuffers);
+      audioBase64 = combinedBuffer.toString('base64');
       audioContentType = 'audio/mpeg';
       
       logger.info('[SIE] Audio generated successfully', { 
-        audioSizeBytes: audioBuffer.length,
-        base64Length: audioBase64.length,
-        contentType: audioContentType,
+        audioSizeBytes: combinedBuffer.length,
+        chunks: chunks.length,
+        estimatedMinutes: Math.round(combinedBuffer.length / 16000 / 60), // Rough estimate
       });
     } catch (audioError: any) {
       logger.error('[SIE] Audio generation failed:', {
