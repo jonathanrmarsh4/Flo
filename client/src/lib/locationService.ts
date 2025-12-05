@@ -11,7 +11,7 @@ export interface LocationData {
 }
 
 export interface LocationPermissionStatus {
-  location: 'prompt' | 'granted' | 'denied';
+  location: 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied';
 }
 
 class LocationService {

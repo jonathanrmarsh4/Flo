@@ -8,6 +8,7 @@ import { HealthSyncPlugin } from '@/plugins/healthSync';
 import { logger } from '@/lib/logger';
 import { sendNotification } from '@/lib/notifications';
 import { queryClient } from '@/lib/queryClient';
+import { locationService } from '@/lib/locationService';
 
 // Preferences keys for persistent storage
 const PREF_LAST_BACKGROUND_AT = 'healthkit_last_background_at';
@@ -95,6 +96,41 @@ export function useHealthKitAutoSync() {
         // Don't fail the whole sync if workouts fail
         console.warn('⚠️ [AutoSync] Workout sync failed:', workoutError);
         logger.warn('Workout sync failed', { error: workoutError });
+      }
+      
+      // Sync location for environmental data (weather, air quality)
+      try {
+        console.log('📍 [AutoSync] Syncing location for environmental data...');
+        
+        // Check current permission status
+        const permStatus = await locationService.checkPermissions();
+        console.log('📍 [AutoSync] Location permission status:', permStatus.location);
+        
+        if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
+          // Request permission on first sync
+          console.log('📍 [AutoSync] Requesting location permissions...');
+          const requestResult = await locationService.requestPermissions();
+          console.log('📍 [AutoSync] Permission request result:', requestResult.location);
+        }
+        
+        // Sync location if we have permission
+        const currentPermission = await locationService.checkPermissions();
+        if (currentPermission.location === 'granted') {
+          const syncSuccess = await locationService.syncLocationToServer();
+          if (syncSuccess) {
+            console.log('📍 [AutoSync] Location synced successfully');
+            logger.info('Location synced for environmental data');
+            
+            // Invalidate environmental data queries to refresh AQI tile
+            queryClient.invalidateQueries({ queryKey: ['/api/environmental'] });
+          }
+        } else {
+          console.log('📍 [AutoSync] Location permission not granted, skipping sync');
+        }
+      } catch (locationError) {
+        // Don't fail the whole sync if location fails
+        console.warn('⚠️ [AutoSync] Location sync failed:', locationError);
+        logger.warn('Location sync failed', { error: locationError });
       }
       
       if (syncResult.success) {
