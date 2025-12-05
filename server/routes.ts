@@ -2048,6 +2048,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Build biomarker panels
       const panels = [];
       for (const session of sortedSessions) {
+        // Skip sessions without valid IDs
+        if (!session.id) continue;
+        
         const measurements = await healthRouter.getMeasurementsBySession(session.id);
         if (measurements.length === 0) continue;
 
@@ -2068,9 +2071,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         });
 
+        // Safely convert testDate to ISO string
+        const testDate = session.testDate;
+        const timestamp = testDate instanceof Date 
+          ? testDate.toISOString() 
+          : typeof testDate === 'string' 
+            ? new Date(testDate).toISOString()
+            : new Date().toISOString();
+
         panels.push({
           panel_id: session.id,
-          timestamp: session.testDate.toISOString(),
+          timestamp,
           markers,
         });
       }
@@ -2187,6 +2198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Build report input
+      // Note: Supabase returns snake_case fields, so we map accordingly
       const reportInput = {
         user_profile: {
           age_years: ageYears,
@@ -2199,20 +2211,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rag_insights: dailyInsightsData.map((insight: any) => ({
           category: insight.category,
           insightText: insight.body,
-          confidence: insight.confidenceScore,
+          confidence: insight.confidence_score ?? insight.confidenceScore,
           evidenceSummary: {
             title: insight.title,
             action: insight.action,
-            impactScore: insight.impactScore,
-            actionabilityScore: insight.actionabilityScore,
+            impactScore: insight.impact_score ?? insight.impactScore,
+            actionabilityScore: insight.actionability_score ?? insight.actionabilityScore,
           },
-          createdAt: insight.createdAt.toISOString(),
+          createdAt: insight.created_at ? new Date(insight.created_at).toISOString() : new Date().toISOString(),
         })),
         healthkit_summary: healthkitSummary,
         life_events: lifeEventsData.map((event: any) => ({
-          eventType: event.eventType,
+          eventType: event.event_type ?? event.eventType,
           eventDetails: event.details,
-          timestamp: event.happenedAt.toISOString(),
+          timestamp: event.happened_at ? new Date(event.happened_at).toISOString() : new Date().toISOString(),
         })),
         flomentum_data: flomentumData,
       };
@@ -2259,6 +2271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const biomarkerMap = new Map<string, any>();
       
       for (const session of sessions) {
+        if (!session.id) continue; // Skip sessions without valid IDs
         const measurements = await healthRouter.getMeasurementsBySession(session.id);
         
         for (const measurement of measurements) {
