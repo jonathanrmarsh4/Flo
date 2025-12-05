@@ -9,7 +9,7 @@
  */
 
 import { db } from '../db';
-import { users, dailyInsights, healthkitSamples, biomarkerMeasurements, biomarkerTestSessions, biomarkers, lifeEvents, healthDailyMetrics, healthkitWorkouts } from '../../shared/schema';
+import { users, dailyInsights, biomarkerMeasurements, biomarkerTestSessions, biomarkers } from '../../shared/schema';
 import * as healthRouter from './healthStorageRouter';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
@@ -110,49 +110,88 @@ export interface HealthDataSnapshot {
     totalEnergyBurned: number | null; // kcal
     averageHeartRate: number | null;
   }>;
+  
+  // Nutrition data (90-day aggregates)
+  nutrition: Array<{
+    localDate: string;
+    // Macros
+    energyKcal: number | null;
+    proteinG: number | null;
+    carbsG: number | null;
+    fatG: number | null;
+    fiberG: number | null;
+    sugarG: number | null;
+    // Vitamins
+    vitaminAMcg: number | null;
+    vitaminB6Mg: number | null;
+    vitaminB12Mcg: number | null;
+    vitaminCMg: number | null;
+    vitaminDMcg: number | null;
+    vitaminEMg: number | null;
+    vitaminKMcg: number | null;
+    folateMcg: number | null;
+    thiaminMg: number | null;
+    riboflavinMg: number | null;
+    niacinMg: number | null;
+    // Minerals
+    calciumMg: number | null;
+    ironMg: number | null;
+    magnesiumMg: number | null;
+    potassiumMg: number | null;
+    zincMg: number | null;
+    phosphorusMg: number | null;
+    seleniumMcg: number | null;
+    copperMg: number | null;
+    manganeseMg: number | null;
+    sodiumMg: number | null;
+    // Other
+    caffeineMg: number | null;
+    cholesterolMg: number | null;
+    waterMl: number | null;
+  }>;
 }
 
 /**
  * Fetch comprehensive health data for a user
- * Includes past 90 days of HealthKit, blood work, and life events
+ * Routes through healthStorageRouter to read from Supabase when enabled
+ * Includes past 90 days of HealthKit, blood work, life events, and nutrition
  */
 export async function fetchHealthData(userId: string): Promise<HealthDataSnapshot> {
   const ninetyDaysAgo = subDays(new Date(), 90);
   
-  // Fetch HealthKit samples (past 90 days)
-  const rawHealthkitSamples = await db
-    .select({
-      dataType: healthkitSamples.dataType,
-      value: healthkitSamples.value,
-      unit: healthkitSamples.unit,
-      startDate: healthkitSamples.startDate,
-    })
-    .from(healthkitSamples)
-    .where(
-      and(
-        eq(healthkitSamples.userId, userId.toString()),
-        gte(healthkitSamples.startDate, ninetyDaysAgo)
-      )
-    )
-    .orderBy(desc(healthkitSamples.startDate));
+  // Fetch HealthKit samples via healthStorageRouter (routes to Supabase)
+  let rawHealthkitSamples: any[] = [];
+  try {
+    rawHealthkitSamples = await healthRouter.getHealthkitSamples(userId, {
+      startDate: ninetyDaysAgo,
+      limit: 10000, // Large limit for 90 days of samples
+    });
+    logger.info(`[InsightsEngineV2] Fetched ${rawHealthkitSamples.length} HealthKit samples via healthRouter`);
+  } catch (error) {
+    logger.error('[InsightsEngineV2] Failed to fetch HealthKit samples via healthRouter:', error);
+  }
   
-  // Fetch daily aggregated metrics
-  const rawDailyMetrics = await db
-    .select()
-    .from(healthDailyMetrics)
-    .where(
-      and(
-        eq(healthDailyMetrics.userId, userId.toString()),
-        gte(healthDailyMetrics.date, format(ninetyDaysAgo, 'yyyy-MM-dd'))
-      )
-    );
+  // Fetch daily aggregated metrics via healthStorageRouter
+  let rawDailyMetrics: any[] = [];
+  try {
+    rawDailyMetrics = await healthRouter.getUserDailyMetrics(userId, {
+      startDate: ninetyDaysAgo,
+      limit: 90,
+    });
+    logger.info(`[InsightsEngineV2] Fetched ${rawDailyMetrics.length} daily metrics via healthRouter`);
+  } catch (error) {
+    logger.error('[InsightsEngineV2] Failed to fetch daily metrics via healthRouter:', error);
+  }
   
   // CRITICAL FIX: Sort in-memory to guarantee newest-first ordering
-  // String date comparison can fail with lexicographic sorting (e.g., "2025-2-1" > "2025-11-20")
-  rawDailyMetrics.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  rawDailyMetrics.sort((a: any, b: any) => {
+    const dateA = a.date || a.local_date || a.localDate;
+    const dateB = b.date || b.local_date || b.localDate;
+    return new Date(dateB).getTime() - new Date(dateA).getTime();
+  });
   
   // Fetch biomarker results (all time - we need historical data)
-  // Join measurements with sessions and biomarkers
+  // NOTE: Biomarkers stay in Neon as they are reference data, not PHI
   const rawBiomarkers = await db
     .select({
       name: biomarkers.name,
@@ -167,71 +206,76 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
     .where(eq(biomarkerTestSessions.userId, userId.toString()))
     .orderBy(desc(biomarkerTestSessions.testDate));
   
-  // Fetch life events (past 90 days)
-  const rawLifeEvents = await db
-    .select({
-      eventType: lifeEvents.eventType,
-      details: lifeEvents.details,
-      happenedAt: lifeEvents.happenedAt,
-    })
-    .from(lifeEvents)
-    .where(
-      and(
-        eq(lifeEvents.userId, userId.toString()),
-        gte(lifeEvents.happenedAt, ninetyDaysAgo)
-      )
-    )
-    .orderBy(desc(lifeEvents.happenedAt));
+  // Fetch life events via healthStorageRouter (routes to Supabase)
+  let rawLifeEvents: any[] = [];
+  try {
+    rawLifeEvents = await healthRouter.getLifeEvents(userId, {
+      startDate: ninetyDaysAgo,
+      limit: 500,
+    });
+    logger.info(`[InsightsEngineV2] Fetched ${rawLifeEvents.length} life events via healthRouter`);
+  } catch (error) {
+    logger.error('[InsightsEngineV2] Failed to fetch life events via healthRouter:', error);
+  }
   
-  // Fetch workout sessions (past 90 days)
-  const rawWorkouts = await db
-    .select({
-      workoutType: healthkitWorkouts.workoutType,
-      startDate: healthkitWorkouts.startDate,
-      duration: healthkitWorkouts.duration,
-      totalDistance: healthkitWorkouts.totalDistance,
-      totalEnergyBurned: healthkitWorkouts.totalEnergyBurned,
-      averageHeartRate: healthkitWorkouts.averageHeartRate,
-    })
-    .from(healthkitWorkouts)
-    .where(
-      and(
-        eq(healthkitWorkouts.userId, userId.toString()),
-        gte(healthkitWorkouts.startDate, ninetyDaysAgo)
-      )
-    )
-    .orderBy(desc(healthkitWorkouts.startDate));
+  // Fetch workout sessions via healthStorageRouter (routes to Supabase)
+  let rawWorkouts: any[] = [];
+  try {
+    rawWorkouts = await healthRouter.getHealthkitWorkouts(userId, 500);
+    // Filter to past 90 days
+    rawWorkouts = rawWorkouts.filter((w: any) => {
+      const workoutDate = new Date(w.start_date || w.startDate);
+      return workoutDate >= ninetyDaysAgo;
+    });
+    logger.info(`[InsightsEngineV2] Fetched ${rawWorkouts.length} workouts via healthRouter`);
+  } catch (error) {
+    logger.error('[InsightsEngineV2] Failed to fetch workouts via healthRouter:', error);
+  }
+  
+  // Fetch nutrition data via healthStorageRouter (routes to Supabase)
+  let rawNutrition: any[] = [];
+  try {
+    rawNutrition = await healthRouter.getNutritionDailyMetrics(userId, {
+      startDate: ninetyDaysAgo,
+      limit: 90,
+    });
+    logger.info(`[InsightsEngineV2] Fetched ${rawNutrition.length} nutrition days via healthRouter`);
+  } catch (error) {
+    logger.error('[InsightsEngineV2] Failed to fetch nutrition via healthRouter:', error);
+  }
   
   return {
-    healthkitSamples: rawHealthkitSamples.map(s => ({
-      ...s,
-      startDate: new Date(s.startDate),
+    healthkitSamples: rawHealthkitSamples.map((s: any) => ({
+      dataType: s.data_type || s.dataType,
+      value: s.value,
+      unit: s.unit,
+      startDate: new Date(s.start_date || s.startDate),
     })),
-    dailyMetrics: rawDailyMetrics.map(m => ({
-      date: m.date,
-      // Sleep
-      sleepTotalMinutes: m.sleepTotalMinutes || null,
-      sleepDeepMinutes: null, // Not in schema
-      sleepRemMinutes: null, // Not in schema
-      // Cardiovascular
-      hrvSdnnMs: m.hrvSdnnMs || null,
-      restingHr: m.restingHr || null,
-      respiratoryRate: m.respiratoryRate || null,
-      oxygenSaturationAvg: m.oxygenSaturationAvg || null,
-      // Activity
-      steps: m.steps || null,
+    dailyMetrics: rawDailyMetrics.map((m: any) => ({
+      date: m.localDate || m.local_date || m.date,
+      // Sleep - router normalizes to sleepHours (convert to minutes)
+      sleepTotalMinutes: m.sleepHours ? m.sleepHours * 60 : (m.sleepTotalMinutes || null),
+      sleepDeepMinutes: m.sleepDeepMinutes || null,
+      sleepRemMinutes: m.sleepRemMinutes || null,
+      // Cardiovascular - router normalizes to hrvMs, restingHrBpm, respiratoryRateBpm, oxygenSaturationPct
+      hrvSdnnMs: m.hrvMs || m.hrvSdnnMs || null,
+      restingHr: m.restingHrBpm || m.restingHr || null,
+      respiratoryRate: m.respiratoryRateBpm || m.respiratoryRate || null,
+      oxygenSaturationAvg: m.oxygenSaturationPct || m.oxygenSaturationAvg || null,
+      // Activity - router normalizes to activeEnergyKcal, stepsNormalized
+      steps: m.stepsNormalized || m.stepsRawSum || m.steps || null,
       distanceMeters: m.distanceMeters || null,
-      activeKcal: m.activeKcal || null,
+      activeKcal: m.activeEnergyKcal || m.activeKcal || null,
       exerciseMinutes: m.exerciseMinutes || null,
       standHours: m.standHours || null,
-      // Body Composition
+      // Body Composition - router normalizes to bodyFatPercent, leanBodyMassKg
       weightKg: m.weightKg || null,
-      bodyFatPct: m.bodyFatPct || null,
-      leanMassKg: m.leanMassKg || null,
+      bodyFatPct: m.bodyFatPercent || m.bodyFatPct || null,
+      leanMassKg: m.leanBodyMassKg || m.leanMassKg || null,
       bmi: m.bmi || null,
       waistCircumferenceCm: m.waistCircumferenceCm || null,
-      // Vitals
-      bodyTempDeviationC: m.bodyTempDeviationC || null,
+      // Vitals - router normalizes to bodyTempC
+      bodyTempDeviationC: m.bodyTempC || m.bodyTempDeviationC || null,
     })),
     biomarkers: rawBiomarkers.map(b => ({
       ...b,
@@ -239,17 +283,55 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
       testDate: new Date(b.testDate),
       isAbnormal: b.isAbnormal || false,
     })),
-    lifeEvents: rawLifeEvents.map(e => ({
-      ...e,
-      happenedAt: new Date(e.happenedAt),
+    lifeEvents: rawLifeEvents.map((e: any) => ({
+      eventType: e.event_type || e.eventType,
+      details: e.details,
+      happenedAt: new Date(e.happened_at || e.happenedAt),
     })),
-    workouts: rawWorkouts.map(w => ({
-      workoutType: w.workoutType,
-      startDate: new Date(w.startDate),
+    workouts: rawWorkouts.map((w: any) => ({
+      workoutType: w.workout_type || w.workoutType,
+      startDate: new Date(w.start_date || w.startDate),
       duration: w.duration,
-      totalDistance: w.totalDistance,
-      totalEnergyBurned: w.totalEnergyBurned,
-      averageHeartRate: w.averageHeartRate,
+      totalDistance: w.total_distance || w.totalDistance,
+      totalEnergyBurned: w.total_energy_burned || w.totalEnergyBurned,
+      averageHeartRate: w.average_heart_rate || w.averageHeartRate,
+    })),
+    nutrition: rawNutrition.map((n: any) => ({
+      localDate: n.local_date,
+      // Macros - Supabase returns snake_case, fat is fat_total_g, carbs is carbohydrates_g
+      energyKcal: n.energy_kcal ?? null,
+      proteinG: n.protein_g ?? null,
+      carbsG: n.carbohydrates_g ?? null,
+      fatG: n.fat_total_g ?? null,
+      fiberG: n.fiber_g ?? null,
+      sugarG: n.sugar_g ?? null,
+      // Vitamins
+      vitaminAMcg: n.vitamin_a_mcg ?? null,
+      vitaminB6Mg: n.vitamin_b6_mg ?? null,
+      vitaminB12Mcg: n.vitamin_b12_mcg ?? null,
+      vitaminCMg: n.vitamin_c_mg ?? null,
+      vitaminDMcg: n.vitamin_d_mcg ?? null,
+      vitaminEMg: n.vitamin_e_mg ?? null,
+      vitaminKMcg: n.vitamin_k_mcg ?? null,
+      folateMcg: n.folate_mcg ?? null,
+      thiaminMg: n.thiamin_mg ?? null,
+      riboflavinMg: n.riboflavin_mg ?? null,
+      niacinMg: n.niacin_mg ?? null,
+      // Minerals
+      calciumMg: n.calcium_mg ?? null,
+      ironMg: n.iron_mg ?? null,
+      magnesiumMg: n.magnesium_mg ?? null,
+      potassiumMg: n.potassium_mg ?? null,
+      zincMg: n.zinc_mg ?? null,
+      phosphorusMg: n.phosphorus_mg ?? null,
+      seleniumMcg: n.selenium_mcg ?? null,
+      copperMg: n.copper_mg ?? null,
+      manganeseMg: n.manganese_mg ?? null,
+      sodiumMg: n.sodium_mg ?? null,
+      // Other
+      caffeineMg: n.caffeine_mg ?? null,
+      cholesterolMg: n.cholesterol_mg ?? null,
+      waterMl: n.water_ml ?? null,
     })),
   };
 }
@@ -1083,7 +1165,7 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     // Step 2: Fetch user's comprehensive health data (90 days)
     logger.info('[InsightsEngineV2] Fetching health data');
     const healthData = await fetchHealthData(userId);
-    logger.info(`[InsightsEngineV2] Data fetched - HealthKit: ${healthData.healthkitSamples.length}, Daily Metrics: ${healthData.dailyMetrics.length}, Biomarkers: ${healthData.biomarkers.length}, Life Events: ${healthData.lifeEvents.length}, Workouts: ${healthData.workouts.length}`);
+    logger.info(`[InsightsEngineV2] Data fetched - HealthKit: ${healthData.healthkitSamples.length}, Daily Metrics: ${healthData.dailyMetrics.length}, Biomarkers: ${healthData.biomarkers.length}, Life Events: ${healthData.lifeEvents.length}, Workouts: ${healthData.workouts.length}, Nutrition: ${healthData.nutrition.length}`);
     
     // Step 3: NEW RAG-BASED APPROACH - Detect data changes and use AI to find patterns
     logger.info('[InsightsEngineV2] Detecting significant data changes');
