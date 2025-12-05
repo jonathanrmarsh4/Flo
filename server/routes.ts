@@ -7597,17 +7597,26 @@ ${fullContext}`;
         { role: 'user', content: message.trim() }
       ];
 
-      // Call Gemini 2.5 Flash (consistent with voice chat)
-      const geminiResponse = await geminiChatClient.chat(messages, {
+      // Import data tools for on-demand data retrieval
+      const { dataToolDeclarations, executeDataTool } = await import('./services/floOracleDataTools');
+      
+      // Call Gemini 2.5 Flash with function calling support (consistent with voice chat)
+      const { text: geminiResponse, toolsUsed } = await geminiChatClient.chatWithTools(messages, {
         model: 'gemini-2.5-flash',
         temperature: 0.7,
-        maxTokens: 1000,
+        maxTokens: 2000,
         userId,
+        tools: dataToolDeclarations,
+        toolExecutor: async (name, args) => {
+          const result = await executeDataTool(name, args, userId);
+          return result;
+        },
       });
 
       logger.info('[FloOracle] Gemini response received', { 
         userId,
-        responseLength: geminiResponse.length 
+        responseLength: geminiResponse.length,
+        toolsUsed: toolsUsed.length > 0 ? toolsUsed : 'none',
       });
 
       // Apply guardrails

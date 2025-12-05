@@ -37,6 +37,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Daily Reminder Notifications:** Uses Gemini 2.5 Flash for AI-driven personalized reminders based on user data, routing all health data reads through `healthStorageRouter`.
 - **iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events, with pre-built templates.
 - **Proactive AI Conversational Intelligence:** Detects user intentions in conversations using Gemini Flash, proactively follows up on requests, and integrates life context for AI personalization.
+- **On-Demand Data Retrieval (Function Calling):** Flō Oracle uses Gemini function calling to fetch detailed health data when users ask specific questions. Available tools: `get_nutrition_trend`, `get_body_composition_history`, `get_workout_summary`, `get_sleep_analysis`, `get_biomarker_history`, `get_vitals_trend`, `get_life_events`, `correlate_metrics`. Enables complex queries like "how has my protein intake affected my body composition" by fetching and analyzing raw data on-demand.
 
 ## External Dependencies
 
