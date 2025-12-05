@@ -857,13 +857,28 @@ export async function getActionPlanItem(id: string, userId: string) {
         addedAt: item.added_at || item.created_at,
       };
     } catch (error) {
-      logger.error("[HealthStorageRouter] Supabase getActionPlanItem failed, falling back to Neon:", error);
+      logger.error("[HealthStorageRouter] Supabase getActionPlanItem failed:", error);
+      return null;
     }
   }
+  return null;
+}
+
+export async function deleteActionPlanItem(id: string, userId: string): Promise<boolean> {
+  // SUPABASE-ONLY: Health data must go to Supabase for privacy/security
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot delete health data");
+  }
   
-  // Fallback to Neon
-  const { storage } = await import("../storage");
-  return await storage.getActionPlanItem(id, userId);
+  try {
+    const healthId = await supabaseHealth.getHealthId(userId);
+    await supabaseHealth.deleteActionPlanItem(id, healthId);
+    logger.info(`[HealthStorageRouter] Action plan item ${id} deleted for user ${userId}`);
+    return true;
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Supabase deleteActionPlanItem failed:", error);
+    throw error;
+  }
 }
 
 export async function getBiomarkerSessions(userId: string, limit = 100) {

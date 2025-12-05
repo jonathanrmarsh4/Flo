@@ -1766,6 +1766,21 @@ export async function updateActionPlanItem(itemId: string, updates: Partial<Acti
   return data;
 }
 
+export async function deleteActionPlanItem(itemId: string, healthId: string): Promise<boolean> {
+  const { error, count } = await supabase
+    .from('action_plan_items')
+    .delete()
+    .eq('id', itemId)
+    .eq('health_id', healthId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error deleting action plan item:', error);
+    throw error;
+  }
+
+  return true;
+}
+
 // ==================== INSIGHT CARDS ====================
 // AI-detected health patterns from data analysis
 

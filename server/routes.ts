@@ -9564,7 +9564,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ACTION PLAN API
   // ===============================
 
-  // GET /api/action-plan - List user's action plan items
+  // GET /api/action-plan - List user's action plan items (SUPABASE ONLY)
   app.get("/api/action-plan", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
@@ -9582,38 +9582,32 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         validatedStatus = statusResult.data;
       }
       
-      // Try Supabase first for health data, then fallback to Neon
-      let items: any[] = [];
+      // SUPABASE ONLY - Health data must be stored in Supabase for privacy
       const supabaseItems = await healthRouter.getActionPlanItems(userId, validatedStatus);
       
-      if (supabaseItems && supabaseItems.length > 0) {
-        // Normalize Supabase snake_case to camelCase
-        items = supabaseItems.map((item: any) => ({
-          id: item.id,
-          userId: userId,
-          dailyInsightId: item.daily_insight_id,
-          snapshotTitle: item.snapshot_title,
-          snapshotInsight: item.snapshot_insight,
-          snapshotAction: item.snapshot_action,
-          category: item.category,
-          status: item.status,
-          priority: item.priority,
-          targetBiomarker: item.target_biomarker,
-          currentValue: item.current_value,
-          targetValue: item.target_value,
-          unit: item.target_unit,
-          biomarkerId: item.biomarker_id,
-          title: item.title,
-          description: item.description,
-          addedAt: item.added_at || item.created_at,
-          completedAt: item.completed_at,
-          createdAt: item.created_at,
-          updatedAt: item.updated_at,
-        }));
-      } else {
-        // Fallback to Neon storage
-        items = await storage.listActionPlanItems(userId, validatedStatus);
-      }
+      // Normalize Supabase snake_case to camelCase
+      const items = (supabaseItems || []).map((item: any) => ({
+        id: item.id,
+        userId: userId,
+        dailyInsightId: item.daily_insight_id,
+        snapshotTitle: item.snapshot_title,
+        snapshotInsight: item.snapshot_insight,
+        snapshotAction: item.snapshot_action,
+        category: item.category,
+        status: item.status,
+        priority: item.priority,
+        targetBiomarker: item.target_biomarker,
+        currentValue: item.current_value,
+        targetValue: item.target_value,
+        unit: item.target_unit,
+        biomarkerId: item.biomarker_id,
+        title: item.title,
+        description: item.description,
+        addedAt: item.added_at || item.created_at,
+        completedAt: item.completed_at,
+        createdAt: item.created_at,
+        updatedAt: item.updated_at,
+      }));
       
       res.json({ items });
     } catch (error: any) {
@@ -9700,19 +9694,54 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         }
       }
 
-      // Log what we're about to save
-      const itemData = { ...data, biomarkerId };
-      logger.info(`[ActionPlan] Saving item:`, {
-        targetBiomarker: itemData.targetBiomarker,
-        currentValue: itemData.currentValue,
-        targetValue: itemData.targetValue,
-        unit: itemData.unit,
-        biomarkerId: itemData.biomarkerId
+      // Prepare data for Supabase (snake_case)
+      const supabaseItem = {
+        daily_insight_id: data.dailyInsightId || null,
+        snapshot_title: data.snapshotTitle,
+        snapshot_insight: data.snapshotInsight,
+        snapshot_action: data.snapshotAction,
+        category: data.category,
+        target_biomarker: data.targetBiomarker || null,
+        current_value: data.currentValue ?? null,
+        target_value: data.targetValue ?? null,
+        target_unit: data.unit || null,
+        biomarker_id: biomarkerId || null,
+        status: 'active',
+        priority: 1,
+      };
+      
+      logger.info(`[ActionPlan] Saving item to Supabase:`, {
+        targetBiomarker: supabaseItem.target_biomarker,
+        currentValue: supabaseItem.current_value,
+        targetValue: supabaseItem.target_value,
+        unit: supabaseItem.target_unit,
+        biomarkerId: supabaseItem.biomarker_id
       });
       
-      const item = await storage.addActionPlanItem(userId, itemData as any);
+      // SUPABASE ONLY - Health data must be stored in Supabase for privacy
+      const result = await healthRouter.createActionPlanItem(userId, supabaseItem);
       
-      logger.info(`[ActionPlan] Item added - ID: ${item.id}, biomarkerId: ${item.biomarkerId}, targetBiomarker: ${item.targetBiomarker}, currentValue: ${item.currentValue}`);
+      // Normalize response to camelCase
+      const item = {
+        id: result.id,
+        userId: userId,
+        dailyInsightId: result.daily_insight_id,
+        snapshotTitle: result.snapshot_title,
+        snapshotInsight: result.snapshot_insight,
+        snapshotAction: result.snapshot_action,
+        category: result.category,
+        status: result.status,
+        priority: result.priority,
+        targetBiomarker: result.target_biomarker,
+        currentValue: result.current_value,
+        targetValue: result.target_value,
+        unit: result.target_unit,
+        biomarkerId: result.biomarker_id,
+        createdAt: result.created_at,
+        updatedAt: result.updated_at,
+      };
+      
+      logger.info(`[ActionPlan] Item added to Supabase - ID: ${item.id}, biomarkerId: ${item.biomarkerId}, targetBiomarker: ${item.targetBiomarker}`);
       res.json({ item });
     } catch (error: any) {
       logger.error('[ActionPlan] Add error:', error);
@@ -9720,7 +9749,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
-  // PATCH /api/action-plan/:id - Update action plan item status
+  // PATCH /api/action-plan/:id - Update action plan item status (SUPABASE ONLY)
   app.patch("/api/action-plan/:id", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     const { id } = req.params;
@@ -9744,14 +9773,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const { status, completedAt } = validationResult.data;
       const completedDate = completedAt ? new Date(completedAt) : (status === 'completed' ? new Date() : undefined);
 
-      // Try Supabase first
-      let item = await healthRouter.updateActionPlanItemStatus(id, userId, status, completedDate);
-      
-      // If not found in Supabase, try Neon storage as fallback
-      if (!item) {
-        logger.info(`[ActionPlan] Item ${id} not in Supabase, trying Neon fallback`);
-        item = await storage.updateActionPlanItemStatus(id, userId, status, completedDate);
-      }
+      // SUPABASE ONLY - Health data must be stored in Supabase for privacy
+      const item = await healthRouter.updateActionPlanItemStatus(id, userId, status, completedDate);
       
       if (!item) {
         return res.status(404).json({ error: "Action plan item not found" });
@@ -9765,7 +9788,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
-  // DELETE /api/action-plan/:id - Remove action plan item
+  // DELETE /api/action-plan/:id - Remove action plan item (SUPABASE ONLY)
   app.delete("/api/action-plan/:id", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     const { id } = req.params;
@@ -9775,28 +9798,16 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
 
     try {
-      // Try Supabase first, then Neon
-      let item = await healthRouter.getActionPlanItem(id, userId);
-      let source: 'supabase' | 'neon' = 'supabase';
-      
-      if (!item) {
-        item = await storage.getActionPlanItem(id, userId);
-        source = 'neon';
-      }
+      // SUPABASE ONLY - Health data must be stored in Supabase for privacy
+      const item = await healthRouter.getActionPlanItem(id, userId);
       
       if (!item) {
         return res.status(404).json({ error: "Action plan item not found" });
       }
 
-      // Delete from the appropriate source
-      if (source === 'neon') {
-        await storage.removeActionPlanItem(id, userId);
-      } else {
-        // Try to delete from Supabase - healthRouter doesn't have delete, use storage as fallback
-        await storage.removeActionPlanItem(id, userId);
-      }
+      await healthRouter.deleteActionPlanItem(id, userId);
       
-      logger.info(`[ActionPlan] Item ${id} removed by user ${userId} from ${source}`);
+      logger.info(`[ActionPlan] Item ${id} removed by user ${userId} from Supabase`);
       res.json({ success: true });
     } catch (error: any) {
       logger.error('[ActionPlan] Delete error:', error);
