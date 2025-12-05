@@ -774,13 +774,15 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.info(`[FloOracle] Nutrition query returned ${nutritionRecords.length} records`);
 
       if (nutritionRecords.length > 0) {
-        const avgField = (field: 'energyKcal' | 'proteinG' | 'carbohydratesG' | 'fatTotalG' | 'fiberG' | 'caffeineMg' | 'sugarG' | 'sodiumMg' | 'cholesterolMg') => {
+        // Generic average function that works with any field name
+        const avgField = (field: string) => {
           const values = nutritionRecords.map(r => r[field]).filter((v): v is number => v != null);
           if (values.length === 0) return null;
           return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
         };
 
         context.nutritionSummary = {
+          // Macros
           avgDailyCalories: avgField('energyKcal'),
           avgDailyProtein: avgField('proteinG'),
           avgDailyCarbs: avgField('carbohydratesG'),
@@ -790,9 +792,34 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
           avgDailySugar: avgField('sugarG'),
           avgDailySodium: avgField('sodiumMg'),
           avgDailyCholesterol: avgField('cholesterolMg'),
+          // Vitamins
+          avgDailyVitaminA: avgField('vitaminAMcg'),
+          avgDailyVitaminB6: avgField('vitaminB6Mg'),
+          avgDailyVitaminB12: avgField('vitaminB12Mcg'),
+          avgDailyVitaminC: avgField('vitaminCMg'),
+          avgDailyVitaminD: avgField('vitaminDMcg'),
+          avgDailyVitaminE: avgField('vitaminEMg'),
+          avgDailyVitaminK: avgField('vitaminKMcg'),
+          avgDailyThiamin: avgField('thiaminMg'),
+          avgDailyRiboflavin: avgField('riboflavinMg'),
+          avgDailyNiacin: avgField('niacinMg'),
+          avgDailyFolate: avgField('folateMcg'),
+          avgDailyBiotin: avgField('biotinMcg'),
+          avgDailyPantothenicAcid: avgField('pantothenicAcidMg'),
+          // Minerals
+          avgDailyPotassium: avgField('potassiumMg'),
+          avgDailyCalcium: avgField('calciumMg'),
+          avgDailyIron: avgField('ironMg'),
+          avgDailyMagnesium: avgField('magnesiumMg'),
+          avgDailyPhosphorus: avgField('phosphorusMg'),
+          avgDailyZinc: avgField('zincMg'),
+          avgDailyCopper: avgField('copperMg'),
+          avgDailyManganese: avgField('manganeseMg'),
+          avgDailySelenium: avgField('seleniumMcg'),
+          avgDailyWater: avgField('waterMl'),
           daysTracked: nutritionRecords.length,
         };
-        logger.info(`[FloOracle] Fetched nutrition: ${nutritionRecords.length} days tracked, avgCalories: ${context.nutritionSummary.avgDailyCalories}`);
+        logger.info(`[FloOracle] Fetched nutrition: ${nutritionRecords.length} days tracked, avgCalories: ${context.nutritionSummary.avgDailyCalories}, vitaminD: ${context.nutritionSummary.avgDailyVitaminD}`);
       } else {
         logger.warn(`[FloOracle] No nutrition records found for user`);
       }
@@ -800,8 +827,19 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.warn('[FloOracle] Failed to fetch nutrition data:', error);
     }
 
-    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory);
-    logger.info(`[FloOracle] Context built successfully (${contextString.length} chars)`);
+    // Fetch life events (last 30 days) - uses healthStorageRouter for Supabase access
+    let lifeEventsContext = '';
+    try {
+      lifeEventsContext = await getRecentLifeEvents(userId, 30);
+      if (lifeEventsContext) {
+        logger.info(`[FloOracle] Fetched life events for user ${userId}`);
+      }
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch life events:', error);
+    }
+
+    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory) + lifeEventsContext;
+    logger.info(`[FloOracle] Context built successfully (${contextString.length} chars, includesLifeEvents: ${lifeEventsContext.length > 0})`);
     
     // Cache the result
     contextCache.set(userId, {
@@ -1136,8 +1174,39 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     if (nutrition.avgDailyCaffeine) nutrientParts.push(`Caffeine ${nutrition.avgDailyCaffeine.toFixed(0)}mg`);
     if (nutrientParts.length > 0) lines.push(`  Other: ${nutrientParts.join(', ')}`);
     
+    // Vitamins line
+    const vitaminParts: string[] = [];
+    if (nutrition.avgDailyVitaminA) vitaminParts.push(`A ${nutrition.avgDailyVitaminA.toFixed(0)}mcg`);
+    if (nutrition.avgDailyVitaminB6) vitaminParts.push(`B6 ${nutrition.avgDailyVitaminB6.toFixed(1)}mg`);
+    if (nutrition.avgDailyVitaminB12) vitaminParts.push(`B12 ${nutrition.avgDailyVitaminB12.toFixed(1)}mcg`);
+    if (nutrition.avgDailyVitaminC) vitaminParts.push(`C ${nutrition.avgDailyVitaminC.toFixed(0)}mg`);
+    if (nutrition.avgDailyVitaminD) vitaminParts.push(`D ${nutrition.avgDailyVitaminD.toFixed(1)}mcg`);
+    if (nutrition.avgDailyVitaminE) vitaminParts.push(`E ${nutrition.avgDailyVitaminE.toFixed(1)}mg`);
+    if (nutrition.avgDailyVitaminK) vitaminParts.push(`K ${nutrition.avgDailyVitaminK.toFixed(0)}mcg`);
+    if (nutrition.avgDailyFolate) vitaminParts.push(`Folate ${nutrition.avgDailyFolate.toFixed(0)}mcg`);
+    if (nutrition.avgDailyThiamin) vitaminParts.push(`Thiamin ${nutrition.avgDailyThiamin.toFixed(2)}mg`);
+    if (nutrition.avgDailyRiboflavin) vitaminParts.push(`Riboflavin ${nutrition.avgDailyRiboflavin.toFixed(2)}mg`);
+    if (nutrition.avgDailyNiacin) vitaminParts.push(`Niacin ${nutrition.avgDailyNiacin.toFixed(1)}mg`);
+    if (vitaminParts.length > 0) lines.push(`  Vitamins: ${vitaminParts.join(', ')}`);
+    
+    // Minerals line
+    const mineralParts: string[] = [];
+    if (nutrition.avgDailyCalcium) mineralParts.push(`Calcium ${nutrition.avgDailyCalcium.toFixed(0)}mg`);
+    if (nutrition.avgDailyIron) mineralParts.push(`Iron ${nutrition.avgDailyIron.toFixed(1)}mg`);
+    if (nutrition.avgDailyMagnesium) mineralParts.push(`Magnesium ${nutrition.avgDailyMagnesium.toFixed(0)}mg`);
+    if (nutrition.avgDailyPotassium) mineralParts.push(`Potassium ${nutrition.avgDailyPotassium.toFixed(0)}mg`);
+    if (nutrition.avgDailyZinc) mineralParts.push(`Zinc ${nutrition.avgDailyZinc.toFixed(1)}mg`);
+    if (nutrition.avgDailyPhosphorus) mineralParts.push(`Phosphorus ${nutrition.avgDailyPhosphorus.toFixed(0)}mg`);
+    if (nutrition.avgDailySelenium) mineralParts.push(`Selenium ${nutrition.avgDailySelenium.toFixed(0)}mcg`);
+    if (nutrition.avgDailyCopper) mineralParts.push(`Copper ${nutrition.avgDailyCopper.toFixed(2)}mg`);
+    if (nutrition.avgDailyManganese) mineralParts.push(`Manganese ${nutrition.avgDailyManganese.toFixed(2)}mg`);
+    if (mineralParts.length > 0) lines.push(`  Minerals: ${mineralParts.join(', ')}`);
+    
+    // Water intake
+    if (nutrition.avgDailyWater) lines.push(`  Water: ${(nutrition.avgDailyWater / 1000).toFixed(1)}L/day`);
+    
     lines.push(`  Days tracked: ${nutrition.daysTracked}`);
-    logger.info(`[FloOracle] Added nutrition summary to context (${nutrition.daysTracked} days)`);
+    logger.info(`[FloOracle] Added nutrition summary to context (${nutrition.daysTracked} days, vitamins: ${vitaminParts.length}, minerals: ${mineralParts.length})`);
   }
   
   if (context.flomentumCurrent.score !== null) {
