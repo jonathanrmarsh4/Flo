@@ -2182,4 +2182,200 @@ export async function deactivateLifeContextFact(factId: string): Promise<void> {
   return supabaseHealth.deactivateLifeContextFact(factId);
 }
 
+// ==================== ENVIRONMENTAL DATA ====================
+
+export interface EnvironmentalContext {
+  date: string;
+  location: {
+    latitude: number;
+    longitude: number;
+  } | null;
+  weather: {
+    temperature: number;
+    feelsLike: number;
+    humidity: number;
+    pressure: number;
+    windSpeed: number;
+    weatherMain: string;
+    weatherDescription: string;
+    cityName?: string;
+  } | null;
+  airQuality: {
+    aqi: number;
+    aqiLabel: string;
+    pm2_5: number;
+    pm10: number;
+    o3: number;
+  } | null;
+  stressFactors: string[];
+}
+
+export async function getEnvironmentalContext(
+  userId: string, 
+  date?: string
+): Promise<EnvironmentalContext | null> {
+  if (!isSupabaseHealthEnabled()) {
+    return null;
+  }
+  
+  try {
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    const cachedWeather = await supabaseHealth.getCachedWeather(userId, targetDate);
+    
+    if (!cachedWeather) {
+      const location = await supabaseHealth.getLatestLocation(userId);
+      if (location) {
+        return {
+          date: targetDate,
+          location: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+          weather: null,
+          airQuality: null,
+          stressFactors: [],
+        };
+      }
+      return null;
+    }
+    
+    const weather = cachedWeather.weather_data;
+    const airQuality = cachedWeather.air_quality_data;
+    
+    const stressFactors: string[] = [];
+    
+    if (weather) {
+      const temp = weather.temperature;
+      if (temp > 35) stressFactors.push('Extreme heat conditions');
+      else if (temp > 30) stressFactors.push('High heat conditions');
+      else if (temp < 0) stressFactors.push('Freezing temperatures');
+      else if (temp < 5) stressFactors.push('Cold conditions');
+      
+      if (weather.humidity > 80) stressFactors.push('High humidity');
+    }
+    
+    if (airQuality) {
+      const aqi = airQuality.aqi;
+      if (aqi === 5) stressFactors.push('Very poor air quality');
+      else if (aqi === 4) stressFactors.push('Poor air quality');
+      else if (aqi === 3) stressFactors.push('Moderate air quality');
+    }
+    
+    return {
+      date: targetDate,
+      location: {
+        latitude: cachedWeather.latitude,
+        longitude: cachedWeather.longitude,
+      },
+      weather: weather ? {
+        temperature: weather.temperature,
+        feelsLike: weather.feelsLike,
+        humidity: weather.humidity,
+        pressure: weather.pressure,
+        windSpeed: weather.windSpeed,
+        weatherMain: weather.weatherMain,
+        weatherDescription: weather.weatherDescription,
+        cityName: weather.cityName,
+      } : null,
+      airQuality: airQuality ? {
+        aqi: airQuality.aqi,
+        aqiLabel: airQuality.aqiLabel,
+        pm2_5: airQuality.components?.pm2_5 || 0,
+        pm10: airQuality.components?.pm10 || 0,
+        o3: airQuality.components?.o3 || 0,
+      } : null,
+      stressFactors,
+    };
+  } catch (error) {
+    logger.error("[HealthStorageRouter] getEnvironmentalContext failed:", error);
+    return null;
+  }
+}
+
+export async function getEnvironmentalHistory(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<EnvironmentalContext[]> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  
+  try {
+    const weatherHistory = await supabaseHealth.getWeatherHistory(userId, startDate, endDate);
+    
+    return weatherHistory.map(record => {
+      const weather = record.weather_data;
+      const airQuality = record.air_quality_data;
+      const stressFactors: string[] = [];
+      
+      if (weather) {
+        const temp = weather.temperature;
+        if (temp > 35) stressFactors.push('Extreme heat');
+        else if (temp > 30) stressFactors.push('High heat');
+        else if (temp < 0) stressFactors.push('Freezing');
+        else if (temp < 5) stressFactors.push('Cold');
+        
+        if (weather.humidity > 80) stressFactors.push('High humidity');
+      }
+      
+      if (airQuality?.aqi >= 4) stressFactors.push('Poor air quality');
+      else if (airQuality?.aqi === 3) stressFactors.push('Moderate air quality');
+      
+      return {
+        date: record.date,
+        location: {
+          latitude: record.latitude,
+          longitude: record.longitude,
+        },
+        weather: weather ? {
+          temperature: weather.temperature,
+          feelsLike: weather.feelsLike,
+          humidity: weather.humidity,
+          pressure: weather.pressure,
+          windSpeed: weather.windSpeed,
+          weatherMain: weather.weatherMain,
+          weatherDescription: weather.weatherDescription,
+          cityName: weather.cityName,
+        } : null,
+        airQuality: airQuality ? {
+          aqi: airQuality.aqi,
+          aqiLabel: airQuality.aqiLabel,
+          pm2_5: airQuality.components?.pm2_5 || 0,
+          pm10: airQuality.components?.pm10 || 0,
+          o3: airQuality.components?.o3 || 0,
+        } : null,
+        stressFactors,
+      };
+    });
+  } catch (error) {
+    logger.error("[HealthStorageRouter] getEnvironmentalHistory failed:", error);
+    return [];
+  }
+}
+
+export async function saveLocationUpdate(
+  userId: string,
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    source: 'gps' | 'network' | 'manual';
+    timestamp?: string;
+  }
+): Promise<supabaseHealth.LocationRecord> {
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot save location");
+  }
+  return supabaseHealth.saveLocation(userId, location);
+}
+
+export async function getLatestLocation(userId: string): Promise<supabaseHealth.LocationRecord | null> {
+  if (!isSupabaseHealthEnabled()) {
+    return null;
+  }
+  return supabaseHealth.getLatestLocation(userId);
+}
+
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);

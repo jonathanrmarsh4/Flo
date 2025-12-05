@@ -31,6 +31,8 @@ import {
   getHealthkitWorkouts as getHealthRouterWorkouts,
   getInsightCards as getHealthRouterInsightCards,
   getActiveLifeContext,
+  getEnvironmentalContext,
+  type EnvironmentalContext,
 } from './healthStorageRouter';
 import { getDailyMetrics as getSupabaseDailyMetrics, getActionPlanItems as getSupabaseActionPlanItems } from './supabaseHealthStorage';
 
@@ -132,6 +134,7 @@ interface UserHealthContext {
     avgDailyCholesterol: number | null;
     daysTracked: number;
   } | null;
+  environmentalContext: EnvironmentalContext | null;
 }
 
 // Import age calculation utility that uses mid-year (July 1st) assumption for ±6 month accuracy
@@ -275,6 +278,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       bodyCompositionExplanation: null,
       mindfulnessSummary: null,
       nutritionSummary: null,
+      environmentalContext: null,
     };
 
     // Fetch user's timezone from users table
@@ -827,6 +831,16 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.warn('[FloOracle] Failed to fetch nutrition data:', error);
     }
 
+    // Fetch environmental context (weather, air quality) for today
+    try {
+      context.environmentalContext = await getEnvironmentalContext(userId);
+      if (context.environmentalContext?.weather || context.environmentalContext?.airQuality) {
+        logger.info(`[FloOracle] Fetched environmental context for user ${userId}: ${context.environmentalContext?.weather?.weatherDescription || 'no weather'}, AQI ${context.environmentalContext?.airQuality?.aqi || 'unknown'}`);
+      }
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch environmental context:', error);
+    }
+
     // Fetch life events (last 30 days) - uses healthStorageRouter for Supabase access
     let lifeEventsContext = '';
     try {
@@ -1218,6 +1232,31 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     lines.push('');
     lines.push('BODY COMPOSITION DATA SOURCES:');
     lines.push(context.bodyCompositionExplanation);
+  }
+  
+  // Add environmental context (weather, air quality)
+  if (context.environmentalContext) {
+    const env = context.environmentalContext;
+    lines.push('');
+    lines.push('ENVIRONMENTAL CONDITIONS (today):');
+    
+    if (env.weather) {
+      const w = env.weather;
+      lines.push(`  Weather: ${w.weatherDescription}, ${Math.round(w.temperature)}°C (feels like ${Math.round(w.feelsLike)}°C)`);
+      lines.push(`  Humidity: ${w.humidity}% | Wind: ${w.windSpeed.toFixed(1)} m/s | Pressure: ${w.pressure} hPa`);
+      if (w.cityName) lines.push(`  Location: ${w.cityName}`);
+    }
+    
+    if (env.airQuality) {
+      const aq = env.airQuality;
+      lines.push(`  Air Quality: ${aq.aqiLabel} (AQI ${aq.aqi})`);
+      lines.push(`  PM2.5: ${aq.pm2_5.toFixed(1)} µg/m³ | PM10: ${aq.pm10.toFixed(1)} µg/m³ | O₃: ${aq.o3.toFixed(1)} µg/m³`);
+    }
+    
+    if (env.stressFactors.length > 0) {
+      lines.push(`  ⚠️ Environmental stress factors: ${env.stressFactors.join(', ')}`);
+      lines.push('  (Consider these when interpreting HRV, sleep quality, and recovery metrics)');
+    }
   }
   
   return lines.join('\n');

@@ -47,6 +47,16 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - **Brainstorming Chat Mode:** Interactive follow-up conversation to discuss priorities, evaluate feasibility/scalability, and plan features together
   - API: POST `/api/sandbox/sie` (initial analysis), POST `/api/sandbox/sie/chat` (brainstorming)
   - Frontend: AdminSIE component in admin dashboard Settings tab
+- **Environmental Data Integration (OpenWeather API):** Correlates weather and air quality with health metrics for retrospective analysis and predictive insights. Features:
+  - iOS location tracking via Capacitor Geolocation plugin (stored in Supabase `user_location_history`)
+  - OpenWeather Current Weather and Air Pollution APIs with daily caching (`weather_daily_cache` table)
+  - Environmental context integration in Flō Oracle conversations (temperature, humidity, AQI, pollution levels)
+  - Environmental stress factors in Readiness Engine (heat/cold stress, poor air quality penalties)
+  - Weather-aware daily focus messages in Flōmentum scoring (heat advisories, air quality alerts)
+  - Centralized `getEnvironmentalContext()` function in `healthStorageRouter.ts` for unified access
+  - Backend service: `server/services/openWeatherService.ts`
+  - Frontend service: `client/src/lib/locationService.ts`
+  - API: POST `/api/location/update` for iOS location sync
 
 ## External Dependencies
 
@@ -60,3 +70,4 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **xAI (Grok):** grok-3-mini model for life event parsing, async brain memory extraction, and ElevenLabs voice bridge.
 - **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights, Gemini 2.5 Flash for daily reminders and Flō Oracle text chat, Gemini Live API (gemini-2.5-flash-native-audio) for Flō Oracle voice conversations.
 - **ElevenLabs:** For voice synthesis.
+- **OpenWeather:** Current Weather, Air Pollution, and Historical Weather APIs for environmental context and health correlations.

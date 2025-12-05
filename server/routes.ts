@@ -4753,6 +4753,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Location & Environmental Data Routes
+  // Receive location updates from iOS app for weather/AQI correlation
+  app.post("/api/location", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { latitude, longitude, accuracy, timestamp, source } = req.body;
+      
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        return res.status(400).json({ error: "Valid latitude and longitude required" });
+      }
+      
+      if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return res.status(400).json({ error: "Coordinates out of valid range" });
+      }
+      
+      logger.info(`[Location] Received location from user ${userId}: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+      
+      const { saveLocation, getCachedWeather, saveWeatherCache } = await import('./services/supabaseHealthStorage');
+      const { getEnvironmentalData } = await import('./services/openWeatherService');
+      
+      const locationRecord = await saveLocation(userId, {
+        latitude,
+        longitude,
+        accuracy: accuracy || 0,
+        source: source || 'gps',
+        timestamp: timestamp || new Date().toISOString(),
+      });
+      
+      const today = new Date().toISOString().split('T')[0];
+      const existingCache = await getCachedWeather(userId, today);
+      
+      let weatherData = null;
+      let airQualityData = null;
+      
+      if (!existingCache && process.env.OPENWEATHER_API_KEY) {
+        try {
+          const envData = await getEnvironmentalData(latitude, longitude);
+          weatherData = envData.weather;
+          airQualityData = envData.airQuality;
+          
+          await saveWeatherCache(userId, today, { latitude, longitude }, weatherData, airQualityData);
+          logger.info(`[Location] Weather data cached for user ${userId}, date ${today}`);
+        } catch (weatherError) {
+          logger.error(`[Location] Failed to fetch weather data:`, weatherError);
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        locationId: locationRecord.id,
+        weatherCached: !!weatherData,
+      });
+    } catch (error: any) {
+      logger.error(`[Location] Error saving location:`, error);
+      res.status(500).json({ error: error.message || "Failed to save location" });
+    }
+  });
+  
+  app.get("/api/location/current", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { getLatestLocation } = await import('./services/supabaseHealthStorage');
+      const location = await getLatestLocation(userId);
+      
+      if (!location) {
+        return res.status(404).json({ error: "No location data available" });
+      }
+      
+      res.json(location);
+    } catch (error: any) {
+      logger.error(`[Location] Error fetching current location:`, error);
+      res.status(500).json({ error: error.message || "Failed to fetch location" });
+    }
+  });
+  
+  app.get("/api/environmental/today", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { getCachedWeather, getLatestLocation, saveWeatherCache } = await import('./services/supabaseHealthStorage');
+      
+      let cache = await getCachedWeather(userId, today);
+      
+      if (!cache && process.env.OPENWEATHER_API_KEY) {
+        const location = await getLatestLocation(userId);
+        if (location) {
+          const { getEnvironmentalData } = await import('./services/openWeatherService');
+          const envData = await getEnvironmentalData(location.latitude, location.longitude);
+          
+          cache = await saveWeatherCache(
+            userId, 
+            today, 
+            { latitude: location.latitude, longitude: location.longitude },
+            envData.weather,
+            envData.airQuality
+          );
+        }
+      }
+      
+      if (!cache) {
+        return res.status(404).json({ error: "No environmental data available" });
+      }
+      
+      res.json({
+        date: cache.date,
+        weather: cache.weather_data,
+        airQuality: cache.air_quality_data,
+        location: { lat: cache.latitude, lon: cache.longitude },
+        fetchedAt: cache.fetched_at,
+      });
+    } catch (error: any) {
+      logger.error(`[Environmental] Error fetching today's data:`, error);
+      res.status(500).json({ error: error.message || "Failed to fetch environmental data" });
+    }
+  });
+  
+  app.get("/api/environmental/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { startDate, endDate } = req.query;
+      
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: "startDate and endDate query params required" });
+      }
+      
+      const { getWeatherHistory } = await import('./services/supabaseHealthStorage');
+      const history = await getWeatherHistory(userId, startDate as string, endDate as string);
+      
+      res.json({
+        count: history.length,
+        data: history.map(h => ({
+          date: h.date,
+          weather: h.weather_data,
+          airQuality: h.air_quality_data,
+          location: { lat: h.latitude, lon: h.longitude },
+        })),
+      });
+    } catch (error: any) {
+      logger.error(`[Environmental] Error fetching history:`, error);
+      res.status(500).json({ error: error.message || "Failed to fetch environmental history" });
+    }
+  });
+
   // HealthKit Integration Routes
   // Batch upload HealthKit samples from iOS app
   app.post("/api/healthkit/samples", isAuthenticated, async (req: any, res) => {

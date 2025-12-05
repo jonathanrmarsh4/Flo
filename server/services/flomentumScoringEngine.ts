@@ -1,4 +1,5 @@
 import { logger } from "../logger";
+import { type EnvironmentalContext } from "./healthStorageRouter";
 
 export type FlomentumZone = 'BUILDING' | 'MAINTAINING' | 'DRAINING';
 
@@ -21,6 +22,7 @@ export interface FlomentumContext {
   restingHrBaseline: number | null;
   hrvBaseline: number | null;
   respRateBaseline: number | null;
+  environmental?: EnvironmentalContext | null;
 }
 
 export interface FlomentumFactor {
@@ -79,8 +81,8 @@ export function calculateFlomentumScore(
   // Determine zone
   const zone = determineZone(score);
 
-  // Generate daily focus
-  const dailyFocus = generateDailyFocus(factors);
+  // Generate daily focus (with environmental awareness)
+  const dailyFocus = generateDailyFocus(factors, context.environmental);
 
   return {
     score,
@@ -421,7 +423,7 @@ function determineZone(score: number): FlomentumZone {
   return 'DRAINING';
 }
 
-function generateDailyFocus(factors: FlomentumFactor[]): DailyFocus {
+function generateDailyFocus(factors: FlomentumFactor[], environmental?: EnvironmentalContext | null): DailyFocus {
   // Group factors by component and find the most negative one
   const componentScores = new Map<string, number>();
   
@@ -478,11 +480,61 @@ function generateDailyFocus(factors: FlomentumFactor[]): DailyFocus {
     },
   };
 
-  const message = focusMessages[weakestComponent] || focusMessages.steps;
+  let message = focusMessages[weakestComponent] || focusMessages.steps;
+  
+  // Add environmental context to daily focus if relevant conditions exist
+  if (environmental?.stressFactors && environmental.stressFactors.length > 0) {
+    const envModifiers = getEnvironmentalFocusModifier(environmental, weakestComponent);
+    if (envModifiers) {
+      message = {
+        title: envModifiers.title || message.title,
+        body: envModifiers.body || message.body,
+      };
+    }
+  }
 
   return {
     title: message.title,
     body: message.body,
     componentKey: weakestComponent,
   };
+}
+
+/**
+ * Get environmental-aware focus message modifications
+ */
+function getEnvironmentalFocusModifier(
+  env: EnvironmentalContext, 
+  weakestComponent: string
+): { title?: string; body?: string } | null {
+  if (!env.weather && !env.airQuality) return null;
+  
+  const hasHeatStress = env.stressFactors.some(f => f.toLowerCase().includes('heat'));
+  const hasColdStress = env.stressFactors.some(f => f.toLowerCase().includes('cold') || f.toLowerCase().includes('freezing'));
+  const hasPoorAir = env.stressFactors.some(f => f.toLowerCase().includes('air quality'));
+  
+  if (weakestComponent === 'steps' || weakestComponent === 'intensity') {
+    if (hasHeatStress) {
+      const temp = env.weather?.temperature ? `${Math.round(env.weather.temperature)}°C` : 'hot';
+      return {
+        title: 'Move smart in the heat',
+        body: `It's ${temp} outside. Stay hydrated and consider indoor activity or early morning/evening walks.`,
+      };
+    }
+    if (hasPoorAir) {
+      return {
+        title: 'Air quality advisory',
+        body: 'Consider indoor activity today due to air quality. If exercising outside, reduce intensity.',
+      };
+    }
+    if (hasColdStress) {
+      const temp = env.weather?.temperature ? `${Math.round(env.weather.temperature)}°C` : 'cold';
+      return {
+        title: 'Bundle up for movement',
+        body: `It's ${temp} outside. Warm up well before outdoor activity and protect extremities.`,
+      };
+    }
+  }
+  
+  return null;
 }

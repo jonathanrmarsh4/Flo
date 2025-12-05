@@ -2998,4 +2998,202 @@ export async function deactivateLifeContextFact(factId: string): Promise<void> {
   logger.info('[SupabaseHealth] Life context fact deactivated:', { id: factId });
 }
 
+// ==================== LOCATION HISTORY ====================
+
+export interface LocationRecord {
+  id?: string;
+  health_id: string;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  source: 'gps' | 'network' | 'manual';
+  recorded_at: string;
+  created_at?: string;
+}
+
+export async function saveLocation(
+  userId: string, 
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    source: 'gps' | 'network' | 'manual';
+    timestamp?: string;
+  }
+): Promise<LocationRecord> {
+  const healthId = await getHealthId(userId);
+  
+  const insertData = {
+    health_id: healthId,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    accuracy: location.accuracy,
+    source: location.source,
+    recorded_at: location.timestamp || new Date().toISOString(),
+  };
+  
+  logger.info('[SupabaseHealth] Saving location:', { 
+    userId, 
+    lat: location.latitude.toFixed(4), 
+    lon: location.longitude.toFixed(4),
+  });
+  
+  const { data, error } = await supabase
+    .from('user_location_history')
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error saving location:', error);
+    throw error;
+  }
+  
+  return data;
+}
+
+export async function getLatestLocation(userId: string): Promise<LocationRecord | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('user_location_history')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('recorded_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching latest location:', error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+export async function getLocationHistory(
+  userId: string, 
+  options?: { startDate?: string; endDate?: string; limit?: number }
+): Promise<LocationRecord[]> {
+  const healthId = await getHealthId(userId);
+  
+  let query = supabase
+    .from('user_location_history')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('recorded_at', { ascending: false });
+  
+  if (options?.startDate) {
+    query = query.gte('recorded_at', options.startDate);
+  }
+  if (options?.endDate) {
+    query = query.lte('recorded_at', options.endDate);
+  }
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+  
+  const { data, error } = await query;
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching location history:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+// ==================== WEATHER CACHE ====================
+
+export interface WeatherCacheRecord {
+  id?: string;
+  health_id: string;
+  date: string;
+  latitude: number;
+  longitude: number;
+  weather_data: Record<string, any> | null;
+  air_quality_data: Record<string, any> | null;
+  fetched_at: string;
+  created_at?: string;
+}
+
+export async function getCachedWeather(
+  userId: string, 
+  date: string
+): Promise<WeatherCacheRecord | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('weather_daily_cache')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('date', date)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching cached weather:', error);
+    throw error;
+  }
+
+  return data || null;
+}
+
+export async function saveWeatherCache(
+  userId: string,
+  date: string,
+  location: { latitude: number; longitude: number },
+  weatherData: Record<string, any> | null,
+  airQualityData: Record<string, any> | null
+): Promise<WeatherCacheRecord> {
+  const healthId = await getHealthId(userId);
+  
+  const insertData = {
+    health_id: healthId,
+    date,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    weather_data: weatherData,
+    air_quality_data: airQualityData,
+    fetched_at: new Date().toISOString(),
+  };
+  
+  logger.info('[SupabaseHealth] Saving weather cache:', { userId, date });
+  
+  const { data, error } = await supabase
+    .from('weather_daily_cache')
+    .upsert(insertData, { onConflict: 'health_id,date' })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error saving weather cache:', error);
+    throw error;
+  }
+  
+  return data;
+}
+
+export async function getWeatherHistory(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<WeatherCacheRecord[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('weather_daily_cache')
+    .select('*')
+    .eq('health_id', healthId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching weather history:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 logger.info('[SupabaseHealth] Health storage service initialized');

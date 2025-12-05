@@ -4,6 +4,7 @@ import { eq, and, lt, desc } from "drizzle-orm";
 import { logger } from "../logger";
 import { getBaseline, type BaselineStats } from "./baselineCalculator";
 import * as healthRouter from "./healthStorageRouter";
+import { getEnvironmentalContext, type EnvironmentalContext } from "./healthStorageRouter";
 
 export interface RecoveryBoostResult {
   totalBoost: number;
@@ -12,6 +13,70 @@ export interface RecoveryBoostResult {
     boost: number;
     details?: string;
   }[];
+}
+
+export interface EnvironmentalStressResult {
+  totalPenalty: number;
+  factors: {
+    type: string;
+    penalty: number;
+    details?: string;
+  }[];
+}
+
+/**
+ * Calculate environmental stress penalty from weather and air quality
+ * Environmental factors that may affect HRV, sleep, and recovery
+ */
+function calculateEnvironmentalStress(envContext: EnvironmentalContext | null): EnvironmentalStressResult {
+  if (!envContext) {
+    return { totalPenalty: 0, factors: [] };
+  }
+  
+  const factors: EnvironmentalStressResult['factors'] = [];
+  
+  if (envContext.weather) {
+    const temp = envContext.weather.temperature;
+    const humidity = envContext.weather.humidity;
+    
+    if (temp > 35) {
+      factors.push({ type: 'Extreme Heat', penalty: 5, details: `${Math.round(temp)}°C` });
+    } else if (temp > 32) {
+      factors.push({ type: 'High Heat', penalty: 3, details: `${Math.round(temp)}°C` });
+    } else if (temp < -5) {
+      factors.push({ type: 'Extreme Cold', penalty: 4, details: `${Math.round(temp)}°C` });
+    } else if (temp < 0) {
+      factors.push({ type: 'Freezing', penalty: 2, details: `${Math.round(temp)}°C` });
+    }
+    
+    if (humidity > 85 && temp > 28) {
+      factors.push({ type: 'Oppressive Humidity', penalty: 3, details: `${humidity}%` });
+    } else if (humidity > 80 && temp > 25) {
+      factors.push({ type: 'High Humidity', penalty: 1, details: `${humidity}%` });
+    }
+  }
+  
+  if (envContext.airQuality) {
+    const aqi = envContext.airQuality.aqi;
+    if (aqi === 5) {
+      factors.push({ type: 'Very Poor Air Quality', penalty: 6, details: `AQI ${aqi}` });
+    } else if (aqi === 4) {
+      factors.push({ type: 'Poor Air Quality', penalty: 4, details: `AQI ${aqi}` });
+    } else if (aqi === 3) {
+      factors.push({ type: 'Moderate Air Quality', penalty: 2, details: `AQI ${aqi}` });
+    }
+  }
+  
+  const totalPenalty = Math.min(
+    factors.reduce((sum, f) => sum + f.penalty, 0),
+    12
+  );
+  
+  if (totalPenalty > 0) {
+    logger.info(`[Readiness] Environmental stress: -${totalPenalty} points from ${factors.length} factors`);
+  }
+  
+  return { totalPenalty, factors };
 }
 
 export interface ReadinessResult {
@@ -405,6 +470,10 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
     
     // Calculate recovery boost from logged life events
     const recoveryBoost = await calculateRecoveryBoost(userId, date);
+    
+    // Calculate environmental stress from weather and air quality
+    const envContext = await getEnvironmentalContext(userId, date);
+    const environmentalStress = calculateEnvironmentalStress(envContext);
 
     // Define weights
     const weights = {
@@ -442,8 +511,15 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
       readinessScore += recoveryBoost.totalBoost;
       logger.info(`[Readiness] Applied recovery boost: +${recoveryBoost.totalBoost} points (${preBoostScore.toFixed(1)} → ${readinessScore.toFixed(1)})`);
     }
+    
+    // Apply environmental stress penalty (heat, cold, air quality)
+    if (environmentalStress.totalPenalty > 0) {
+      const preStressScore = readinessScore;
+      readinessScore -= environmentalStress.totalPenalty;
+      logger.info(`[Readiness] Applied environmental stress: -${environmentalStress.totalPenalty} points (${preStressScore.toFixed(1)} → ${readinessScore.toFixed(1)})`);
+    }
 
-    // Clamp to range AFTER applying boost
+    // Clamp to range AFTER applying boost and penalty
     if (isCalibrating) {
       readinessScore = clamp(readinessScore, 50, 90);
     } else {
@@ -514,6 +590,13 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
     if (recoveryBoost.totalBoost > 0) {
       for (const activity of recoveryBoost.activities) {
         keyFactors.push(`${activity.type} (+${activity.boost})`);
+      }
+    }
+    
+    // Add environmental stress factors as negative factors
+    if (environmentalStress.totalPenalty > 0) {
+      for (const factor of environmentalStress.factors) {
+        keyFactors.push(`${factor.type} (-${factor.penalty})`);
       }
     }
 
