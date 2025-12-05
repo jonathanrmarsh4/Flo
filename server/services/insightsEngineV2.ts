@@ -9,9 +9,8 @@
  */
 
 import { db } from '../db';
-import { users, dailyInsights, biomarkerMeasurements, biomarkerTestSessions, biomarkers } from '../../shared/schema';
+import { biomarkers } from '../../shared/schema';
 import * as healthRouter from './healthStorageRouter';
-import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
 import { type EvidenceTier, EVIDENCE_TIERS } from './evidenceHierarchy';
@@ -190,21 +189,14 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
     return new Date(dateB).getTime() - new Date(dateA).getTime();
   });
   
-  // Fetch biomarker results (all time - we need historical data)
-  // NOTE: Biomarkers stay in Neon as they are reference data, not PHI
-  const rawBiomarkers = await db
-    .select({
-      name: biomarkers.name,
-      value: biomarkerMeasurements.valueCanonical,
-      unit: biomarkerMeasurements.unitCanonical,
-      testDate: biomarkerTestSessions.testDate,
-      isAbnormal: sql<boolean>`COALESCE(array_length(${biomarkerMeasurements.flags}, 1) > 0, false)`,
-    })
-    .from(biomarkerMeasurements)
-    .innerJoin(biomarkerTestSessions, eq(biomarkerMeasurements.sessionId, biomarkerTestSessions.id))
-    .innerJoin(biomarkers, eq(biomarkerMeasurements.biomarkerId, biomarkers.id))
-    .where(eq(biomarkerTestSessions.userId, userId.toString()))
-    .orderBy(desc(biomarkerTestSessions.testDate));
+  // Fetch biomarker results via healthStorageRouter (routes to Supabase PHI)
+  let rawBiomarkers: any[] = [];
+  try {
+    rawBiomarkers = await healthRouter.getAllBiomarkerMeasurements(userId);
+    logger.info(`[InsightsEngineV2] Fetched ${rawBiomarkers.length} biomarker measurements via healthRouter`);
+  } catch (error) {
+    logger.error('[InsightsEngineV2] Failed to fetch biomarker measurements via healthRouter:', error);
+  }
   
   // Fetch life events via healthStorageRouter (routes to Supabase)
   let rawLifeEvents: any[] = [];
@@ -1131,35 +1123,26 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
   try {
     const today = format(new Date(), 'yyyy-MM-dd');
     
-    // Step 1: Check idempotency - skip if already generated for today (unless force regenerate)
+    // Step 1: Check idempotency via Supabase - skip if already generated for today (unless force regenerate)
     if (!forceRegenerate) {
-      const existingInsights = await db
-        .select()
-        .from(dailyInsights)
-        .where(
-          and(
-            eq(dailyInsights.userId, userId.toString()),
-            eq(dailyInsights.generatedDate, today)
-          )
-        );
-      
-      if (existingInsights.length > 0) {
-        logger.info(`[InsightsEngineV2] Insights already generated for user ${userId} on ${today} (${existingInsights.length} insights), returning existing`);
-        // Transform DB records to GeneratedInsight format for API consistency
-        // Return empty - API will fetch from DB
-        return [];
+      try {
+        const existingInsights = await healthRouter.getDailyInsightsByDate(userId, today);
+        
+        if (existingInsights.length > 0) {
+          logger.info(`[InsightsEngineV2] Insights already generated for user ${userId} on ${today} (${existingInsights.length} insights), returning existing`);
+          return [];
+        }
+      } catch (error: any) {
+        logger.warn(`[InsightsEngineV2] Failed to check existing insights in Supabase, proceeding: ${error?.message || error}`);
       }
     } else {
-      // Force regenerate - delete existing insights for today first
-      await db
-        .delete(dailyInsights)
-        .where(
-          and(
-            eq(dailyInsights.userId, userId.toString()),
-            eq(dailyInsights.generatedDate, today)
-          )
-        );
-      logger.info(`[InsightsEngineV2] Deleted existing insights for user ${userId} on ${today} (force regenerate)`);
+      // Force regenerate - delete existing insights for today first via Supabase
+      try {
+        await healthRouter.deleteDailyInsights(userId, today);
+        logger.info(`[InsightsEngineV2] Deleted existing insights for user ${userId} on ${today} (force regenerate)`);
+      } catch (error: any) {
+        logger.warn(`[InsightsEngineV2] Failed to delete existing insights in Supabase: ${error?.message || error}`);
+      }
     }
     
     // Step 2: Fetch user's comprehensive health data (90 days)

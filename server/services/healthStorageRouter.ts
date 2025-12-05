@@ -1897,7 +1897,20 @@ export async function upsertMindfulnessDailyMetrics(userId: string, data: any): 
 
 // ==================== REMINDER CONTEXT AGGREGATIONS ====================
 
-export type { BiomarkerTrendResult, WearableAveragesResult, BehaviorMetricsResult, TrainingLoadResult } from "./supabaseHealthStorage";
+export type { BiomarkerTrendResult, WearableAveragesResult, BehaviorMetricsResult, TrainingLoadResult, BiomarkerMeasurementResult } from "./supabaseHealthStorage";
+
+export async function getAllBiomarkerMeasurements(userId: string): Promise<supabaseHealth.BiomarkerMeasurementResult[]> {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.getAllBiomarkerMeasurements(userId);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getAllBiomarkerMeasurements failed:", error);
+      return [];
+    }
+  }
+  logger.warn("[HealthStorageRouter] getAllBiomarkerMeasurements requires Supabase - returning empty");
+  return [];
+}
 
 export async function getBiomarkerTrends(userId: string, minPercentChange: number = 5): Promise<supabaseHealth.BiomarkerTrendResult[]> {
   if (isSupabaseHealthEnabled()) {

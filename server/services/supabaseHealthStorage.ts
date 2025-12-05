@@ -2149,21 +2149,19 @@ export async function getBiomarkerTrends(userId: string, minPercentChange: numbe
   const ninetyDaysAgo = new Date();
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
+  // Join through biomarker_test_sessions to filter by health_id and get biomarker name from biomarkers table
   const { data: measurements, error } = await supabase
     .from('biomarker_measurements')
     .select(`
       id,
-      biomarker_name,
-      value,
-      unit,
-      test_date,
-      session_id
+      value_canonical,
+      unit_canonical,
+      biomarkers!inner(name),
+      biomarker_test_sessions!inner(health_id, test_date)
     `)
-    .eq('health_id', healthId)
-    .gte('test_date', ninetyDaysAgo.toISOString())
-    .not('value', 'is', null)
-    .order('biomarker_name')
-    .order('test_date', { ascending: false });
+    .eq('biomarker_test_sessions.health_id', healthId)
+    .gte('biomarker_test_sessions.test_date', ninetyDaysAgo.toISOString())
+    .not('value_canonical', 'is', null);
 
   if (error) {
     logger.error('[SupabaseHealth] Error fetching biomarker trends:', error);
@@ -2174,9 +2172,25 @@ export async function getBiomarkerTrends(userId: string, minPercentChange: numbe
     return [];
   }
 
+  // Normalize measurement data with joined biomarker name and session date
+  const normalizedMeasurements = measurements.map((m: any) => ({
+    biomarker_name: m.biomarkers?.name || 'Unknown',
+    value: m.value_canonical,
+    unit: m.unit_canonical,
+    test_date: m.biomarker_test_sessions?.test_date,
+  }));
+
+  // Sort by biomarker name and test date descending
+  normalizedMeasurements.sort((a, b) => {
+    if (a.biomarker_name !== b.biomarker_name) {
+      return a.biomarker_name.localeCompare(b.biomarker_name);
+    }
+    return new Date(b.test_date).getTime() - new Date(a.test_date).getTime();
+  });
+
   // Group by biomarker and calculate trends
-  const groupedByBiomarker = new Map<string, typeof measurements>();
-  for (const m of measurements) {
+  const groupedByBiomarker = new Map<string, typeof normalizedMeasurements>();
+  for (const m of normalizedMeasurements) {
     if (!groupedByBiomarker.has(m.biomarker_name)) {
       groupedByBiomarker.set(m.biomarker_name, []);
     }
@@ -2184,7 +2198,7 @@ export async function getBiomarkerTrends(userId: string, minPercentChange: numbe
   }
 
   const trends: BiomarkerTrendResult[] = [];
-  for (const [biomarkerName, biomarkerMeasurements] of groupedByBiomarker) {
+  for (const [biomarkerName, biomarkerMeasurements] of Array.from(groupedByBiomarker.entries())) {
     if (biomarkerMeasurements.length < 1) continue;
     
     const current = biomarkerMeasurements[0];
@@ -2215,6 +2229,55 @@ export async function getBiomarkerTrends(userId: string, minPercentChange: numbe
 }
 
 /**
+ * Get all biomarker measurements for a user (for insights engine)
+ * Returns complete measurement history with biomarker name, value, unit, and test date
+ */
+export interface BiomarkerMeasurementResult {
+  name: string;
+  value: number;
+  unit: string;
+  testDate: Date;
+  isAbnormal: boolean;
+}
+
+export async function getAllBiomarkerMeasurements(userId: string): Promise<BiomarkerMeasurementResult[]> {
+  const healthId = await getHealthId(userId);
+
+  // Join biomarker_measurements with biomarker_test_sessions and biomarkers to get complete data
+  const { data: measurements, error } = await supabase
+    .from('biomarker_measurements')
+    .select(`
+      id,
+      value_canonical,
+      unit_canonical,
+      flags,
+      biomarkers!inner(name),
+      biomarker_test_sessions!inner(health_id, test_date)
+    `)
+    .eq('biomarker_test_sessions.health_id', healthId)
+    .not('value_canonical', 'is', null)
+    .order('biomarker_test_sessions(test_date)', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching all biomarker measurements:', error);
+    throw error;
+  }
+
+  if (!measurements || measurements.length === 0) {
+    return [];
+  }
+
+  // Transform to standardized format
+  return measurements.map((m: any) => ({
+    name: m.biomarkers?.name || 'Unknown',
+    value: m.value_canonical,
+    unit: m.unit_canonical || '',
+    testDate: new Date(m.biomarker_test_sessions?.test_date),
+    isAbnormal: Array.isArray(m.flags) && m.flags.length > 0,
+  }));
+}
+
+/**
  * Get wearable averages for 7-day and 30-day windows
  */
 export interface WearableAveragesResult {
@@ -2242,7 +2305,7 @@ export async function getWearableAverages(userId: string): Promise<WearableAvera
       resting_hr_bpm,
       sleep_hours,
       active_energy_kcal,
-      steps
+      steps_normalized
     `)
     .eq('health_id', healthId)
     .gte('local_date', thirtyDaysAgo.toISOString().split('T')[0])
@@ -2277,7 +2340,7 @@ export async function getWearableAverages(userId: string): Promise<WearableAvera
     rhr_7d_avg: avg(last7Days.map(m => m.resting_hr_bpm)) ? Math.round(avg(last7Days.map(m => m.resting_hr_bpm))! * 10) / 10 : undefined,
     sleep_7d_avg_hours: avg(last7Days.map(m => m.sleep_hours)) ? Math.round(avg(last7Days.map(m => m.sleep_hours))! * 100) / 100 : undefined,
     active_kcal_7d_avg: avg(last7Days.map(m => m.active_energy_kcal)) ? Math.round(avg(last7Days.map(m => m.active_energy_kcal))!) : undefined,
-    steps_7d_avg: avg(last7Days.map(m => m.steps)) ? Math.round(avg(last7Days.map(m => m.steps))!) : undefined,
+    steps_7d_avg: avg(last7Days.map(m => m.steps_normalized)) ? Math.round(avg(last7Days.map(m => m.steps_normalized))!) : undefined,
     hrv_30d_avg: hrv30d ? Math.round(hrv30d * 10) / 10 : undefined,
     rhr_30d_avg: avg(last30Days.map(m => m.resting_hr_bpm)) ? Math.round(avg(last30Days.map(m => m.resting_hr_bpm))! * 10) / 10 : undefined,
     sleep_30d_avg_hours: avg(last30Days.map(m => m.sleep_hours)) ? Math.round(avg(last30Days.map(m => m.sleep_hours))! * 100) / 100 : undefined,
@@ -2369,7 +2432,7 @@ export async function getTrainingLoad7d(userId: string): Promise<TrainingLoadRes
     .from('healthkit_workouts')
     .select(`
       workout_type,
-      duration_minutes,
+      duration,
       total_energy_burned_kcal,
       average_heart_rate_bpm
     `)
@@ -2391,21 +2454,21 @@ export async function getTrainingLoad7d(userId: string): Promise<TrainingLoadRes
     zone2Types.includes(w.workout_type) && 
     (!w.average_heart_rate_bpm || w.average_heart_rate_bpm < 140)
   );
-  const zone2Minutes = zone2Workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0);
+  const zone2Minutes = zone2Workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
 
   // Zone 5: High intensity workouts (HIIT, running with high HR)
   const zone5Workouts = workouts.filter(w => 
     (w.workout_type === 'HIIT' || w.workout_type === 'Running' || w.workout_type === 'Rowing') &&
     w.average_heart_rate_bpm && w.average_heart_rate_bpm > 160
   );
-  const zone5Minutes = zone5Workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0);
+  const zone5Minutes = zone5Workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
 
   return {
     zone2_minutes_7d: Math.round(zone2Minutes),
     zone5_minutes_7d: Math.round(zone5Minutes),
     strength_sessions_7d: workouts.filter(w => w.workout_type === 'TraditionalStrengthTraining').length,
     total_workout_kcal_7d: Math.round(workouts.reduce((sum, w) => sum + (w.total_energy_burned_kcal || 0), 0)),
-    total_workout_minutes_7d: Math.round(workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0)),
+    total_workout_minutes_7d: Math.round(workouts.reduce((sum, w) => sum + (w.duration || 0), 0)),
   };
 }
 
