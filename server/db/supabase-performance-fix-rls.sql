@@ -43,12 +43,16 @@ CREATE POLICY "health_embeddings_service" ON public.health_embeddings
   WITH CHECK (true);
 
 -- ==================== FIX 2: daily_reminders ====================
+-- Note: daily_reminders uses user_id (VARCHAR), not health_id
 DROP POLICY IF EXISTS "Users can view own reminders" ON public.daily_reminders;
 DROP POLICY IF EXISTS "Service role full access" ON public.daily_reminders;
+DROP POLICY IF EXISTS "Service role can insert reminders" ON public.daily_reminders;
+DROP POLICY IF EXISTS "Service role can update reminders" ON public.daily_reminders;
+DROP POLICY IF EXISTS "Service role can delete reminders" ON public.daily_reminders;
 
 CREATE POLICY "daily_reminders_select" ON public.daily_reminders 
   FOR SELECT TO authenticated 
-  USING (health_id = (select health_id from profiles where user_id = (select auth.uid())::text limit 1));
+  USING (user_id = (select auth.uid())::text);
 
 CREATE POLICY "daily_reminders_service" ON public.daily_reminders 
   FOR ALL TO service_role 
@@ -72,13 +76,14 @@ CREATE POLICY "life_context_facts_service" ON public.life_context_facts
   WITH CHECK ((select auth.role()) = 'service_role');
 
 -- ==================== FIX 5: healthkit_workouts ====================
+-- Note: Uses current_setting('app.current_health_id') set by backend
 DROP POLICY IF EXISTS "healthkit_workouts_owner_all" ON public.healthkit_workouts;
 DROP POLICY IF EXISTS "healthkit_workouts_service" ON public.healthkit_workouts;
 
 CREATE POLICY "healthkit_workouts_owner" ON public.healthkit_workouts 
   FOR ALL TO authenticated 
-  USING (health_id = (select health_id from profiles where user_id = (select auth.uid())::text limit 1))
-  WITH CHECK (health_id = (select health_id from profiles where user_id = (select auth.uid())::text limit 1));
+  USING (health_id = (select current_setting('app.current_health_id', true))::uuid)
+  WITH CHECK (health_id = (select current_setting('app.current_health_id', true))::uuid);
 
 CREATE POLICY "healthkit_workouts_service" ON public.healthkit_workouts 
   FOR ALL TO service_role 
@@ -86,13 +91,14 @@ CREATE POLICY "healthkit_workouts_service" ON public.healthkit_workouts
   WITH CHECK (true);
 
 -- ==================== FIX 6: insight_cards ====================
+-- Note: Uses current_setting('app.current_health_id') set by backend
 DROP POLICY IF EXISTS "insight_cards_owner_all" ON public.insight_cards;
 DROP POLICY IF EXISTS "insight_cards_service" ON public.insight_cards;
 
 CREATE POLICY "insight_cards_owner" ON public.insight_cards 
   FOR ALL TO authenticated 
-  USING (health_id = (select health_id from profiles where user_id = (select auth.uid())::text limit 1))
-  WITH CHECK (health_id = (select health_id from profiles where user_id = (select auth.uid())::text limit 1));
+  USING (health_id = (select current_setting('app.current_health_id', true))::uuid)
+  WITH CHECK (health_id = (select current_setting('app.current_health_id', true))::uuid);
 
 CREATE POLICY "insight_cards_service" ON public.insight_cards 
   FOR ALL TO service_role 
