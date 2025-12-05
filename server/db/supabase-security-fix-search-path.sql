@@ -1,6 +1,7 @@
 -- Security Fix: Add fixed search_path to all functions
 -- Purpose: Resolve Supabase security warnings about mutable search_path
 -- Run this in Supabase SQL Editor
+-- NOTE: Includes 'extensions' schema for pgvector operators (<=>)
 
 -- ==================== FIX 1: match_health_embeddings ====================
 CREATE OR REPLACE FUNCTION match_health_embeddings(
@@ -17,7 +18,7 @@ RETURNS TABLE (
   similarity float
 )
 LANGUAGE sql STABLE
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   SELECT
     id,
@@ -55,7 +56,7 @@ RETURNS TABLE (
   created_at TIMESTAMPTZ
 )
 LANGUAGE sql STABLE
-SET search_path = public
+SET search_path = public, extensions
 AS $$
   SELECT
     insight_id,
@@ -82,7 +83,7 @@ GRANT EXECUTE ON FUNCTION match_user_insights TO authenticated;
 CREATE OR REPLACE FUNCTION get_active_life_context(p_health_id UUID)
 RETURNS SETOF life_context_facts
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
   RETURN QUERY
@@ -102,7 +103,7 @@ GRANT EXECUTE ON FUNCTION get_active_life_context TO service_role;
 CREATE OR REPLACE FUNCTION get_pending_followups_to_evaluate()
 RETURNS SETOF follow_up_requests
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
   RETURN QUERY
