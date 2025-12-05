@@ -5,6 +5,7 @@ import { ReadinessTile } from './dashboard/ReadinessTile';
 import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
 import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
+import { AirQualityTile } from './dashboard/AirQualityTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell } from 'lucide-react';
@@ -415,6 +416,9 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           </div>
         </div>
       </header>
+
+      {/* Air Quality Tile - Fixed below header */}
+      <AirQualityTile isDark={isDark} />
 
       {/* Dashboard Content */}
       <main className="px-4 py-6 space-y-4 max-w-2xl mx-auto">
