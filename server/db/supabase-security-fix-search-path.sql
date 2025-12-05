@@ -3,6 +3,13 @@
 -- Run this in Supabase SQL Editor
 -- NOTE: Includes 'extensions' schema for pgvector operators (<=>)
 
+-- ==================== DROP EXISTING FUNCTIONS FIRST ====================
+-- Need to drop first because return types may differ
+DROP FUNCTION IF EXISTS match_health_embeddings(vector, text, int);
+DROP FUNCTION IF EXISTS match_user_insights(vector, text, int, int);
+DROP FUNCTION IF EXISTS get_active_life_context(uuid);
+DROP FUNCTION IF EXISTS get_pending_followups_to_evaluate();
+
 -- ==================== FIX 1: match_health_embeddings ====================
 CREATE OR REPLACE FUNCTION match_health_embeddings(
   query_embedding vector(1536),
