@@ -79,10 +79,7 @@ export function AirQualityTile({ isDark }: AirQualityTileProps) {
   };
 
   const aqiInfo = getAQIInfo(aqi);
-
-  if (!envData?.airQuality) {
-    return null;
-  }
+  const hasData = !!envData?.airQuality;
 
   return (
     <div
@@ -114,59 +111,71 @@ export function AirQualityTile({ isDark }: AirQualityTileProps) {
           </div>
 
           <div className="flex-1 flex items-center justify-end overflow-hidden">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentIndex}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.4 }}
-                className="flex items-center gap-1"
-              >
-                <span
-                  className={`text-xs ${
-                    isDark ? "text-white/50" : "text-gray-500"
-                  }`}
+            {hasData ? (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentIndex}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.4 }}
+                  className="flex items-center gap-1"
                 >
-                  {pollutants[currentIndex].label}:
-                </span>
-                <span
-                  className={`text-xs ${
-                    isDark ? "text-white/80" : "text-gray-700"
-                  }`}
-                >
-                  {pollutants[currentIndex].value.toFixed(1)}
                   <span
-                    className={`ml-0.5 ${
-                      isDark ? "text-white/40" : "text-gray-400"
+                    className={`text-xs ${
+                      isDark ? "text-white/50" : "text-gray-500"
                     }`}
                   >
-                    {pollutants[currentIndex].unit}
+                    {pollutants[currentIndex].label}:
                   </span>
-                </span>
-              </motion.div>
-            </AnimatePresence>
+                  <span
+                    className={`text-xs ${
+                      isDark ? "text-white/80" : "text-gray-700"
+                    }`}
+                  >
+                    {pollutants[currentIndex].value.toFixed(1)}
+                    <span
+                      className={`ml-0.5 ${
+                        isDark ? "text-white/40" : "text-gray-400"
+                      }`}
+                    >
+                      {pollutants[currentIndex].unit}
+                    </span>
+                  </span>
+                </motion.div>
+              </AnimatePresence>
+            ) : (
+              <span
+                className={`text-xs ${
+                  isDark ? "text-white/40" : "text-gray-400"
+                }`}
+              >
+                Enable location to see air quality
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {pollutants.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentIndex(index)}
-                className={`h-1 rounded-full transition-all ${
-                  index === currentIndex
-                    ? isDark
-                      ? "bg-white/70 w-3"
-                      : "bg-gray-700 w-3"
-                    : isDark
-                      ? "bg-white/20 w-1"
-                      : "bg-gray-400/40 w-1"
-                }`}
-                aria-label={`View ${pollutants[index].label}`}
-                data-testid={`button-pollutant-${index}`}
-              />
-            ))}
-          </div>
+          {hasData && (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {pollutants.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentIndex(index)}
+                  className={`h-1 rounded-full transition-all ${
+                    index === currentIndex
+                      ? isDark
+                        ? "bg-white/70 w-3"
+                        : "bg-gray-700 w-3"
+                      : isDark
+                        ? "bg-white/20 w-1"
+                        : "bg-gray-400/40 w-1"
+                  }`}
+                  aria-label={`View ${pollutants[index].label}`}
+                  data-testid={`button-pollutant-${index}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
