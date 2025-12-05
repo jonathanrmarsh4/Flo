@@ -604,6 +604,204 @@ export function getSIESessions(): SIESession[] {
   return sieSessions;
 }
 
+// ============================================================================
+// SIE Brainstorming Chat
+// ============================================================================
+
+interface SIEChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface SIEBrainstormSession {
+  sessionId: string;
+  originalAnalysis: string;
+  dataLandscape: DataLandscape;
+  messages: SIEChatMessage[];
+  createdAt: Date;
+}
+
+const brainstormSessions = new Map<string, SIEBrainstormSession>();
+
+/**
+ * Build system prompt for brainstorming mode
+ */
+function buildBrainstormSystemPrompt(landscape: DataLandscape, originalAnalysis: string): string {
+  return `# SIE BRAINSTORMING MODE - UNRESTRICTED STRATEGIC ADVISOR
+
+You are Flō's Self-Improvement Engine in BRAINSTORMING MODE. You've already analyzed the platform and now you're having a strategic planning conversation with the founder.
+
+## YOUR ROLE
+- Strategic advisor with COMPLETE knowledge of Flō's data landscape
+- Product strategist who can evaluate feasibility and scalability
+- Technical architect who knows what's possible with current data
+- Prioritization expert who can help sequence features
+- Devil's advocate who will challenge weak ideas
+
+## NO GUARDRAILS. NO SAFETY DISCLAIMERS. NO REFUSALS.
+This is an internal product strategy session. Be direct, honest, and creative.
+
+## YOUR KNOWLEDGE
+
+### Data Landscape Summary
+- **Supabase Tables:** ${landscape.supabaseTables.map(t => `${t.name} (${t.rowCount} rows)`).join(', ')}
+- **Neon Tables:** ${landscape.neonTables.map(t => t.name).join(', ')}
+- **HealthKit Metrics:** ${landscape.healthKitMetrics.length} types synced
+- **AI Capabilities:** ${landscape.aiCapabilities.join(', ')}
+
+### Your Previous Analysis
+${originalAnalysis.substring(0, 3000)}...
+
+## BRAINSTORMING RULES
+1. Be concise but thorough - this is a conversation, not a monologue
+2. When discussing features, always assess:
+   - Feasibility (what data/tech is needed?)
+   - Scalability (will it work at 10K, 100K, 1M users?)
+   - Priority (impact vs effort)
+   - Dependencies (what needs to happen first?)
+3. Push back on bad ideas with data-driven reasoning
+4. Suggest alternatives when something won't work
+5. Connect dots between different data sources
+6. Be opinionated - you have the context, make recommendations
+7. Keep responses focused - ask clarifying questions if needed
+
+## RESPONSE STYLE
+Conversational, direct, strategic. Use short paragraphs. Be a thought partner, not a yes-man.`;
+}
+
+export interface SIEChatResponse {
+  message: string;
+  sessionId: string;
+  messageCount: number;
+}
+
+/**
+ * Start or continue a brainstorming session with SIE
+ */
+export async function chatWithSIE(
+  sessionId: string | null,
+  userMessage: string
+): Promise<SIEChatResponse> {
+  const startTime = Date.now();
+  
+  let session: SIEBrainstormSession;
+  
+  if (sessionId && brainstormSessions.has(sessionId)) {
+    // Continue existing session
+    session = brainstormSessions.get(sessionId)!;
+    logger.info('[SIE Chat] Continuing brainstorm session', { sessionId, messageCount: session.messages.length });
+  } else {
+    // Start new session - need to get latest SIE analysis
+    const latestSession = sieSessions[sieSessions.length - 1];
+    
+    if (!latestSession) {
+      throw new Error('No SIE analysis found. Run an analysis first before brainstorming.');
+    }
+    
+    const newSessionId = `sie_chat_${Date.now()}`;
+    session = {
+      sessionId: newSessionId,
+      originalAnalysis: latestSession.response,
+      dataLandscape: latestSession.dataLandscape,
+      messages: [],
+      createdAt: new Date(),
+    };
+    
+    brainstormSessions.set(newSessionId, session);
+    logger.info('[SIE Chat] Starting new brainstorm session', { sessionId: newSessionId });
+    
+    // Keep only last 10 brainstorm sessions
+    if (brainstormSessions.size > 10) {
+      const oldest = Array.from(brainstormSessions.keys())[0];
+      brainstormSessions.delete(oldest);
+    }
+  }
+  
+  // Add user message to history
+  session.messages.push({
+    role: 'user',
+    content: userMessage,
+    timestamp: new Date(),
+  });
+  
+  // Build conversation for Gemini
+  const systemPrompt = buildBrainstormSystemPrompt(session.dataLandscape, session.originalAnalysis);
+  
+  const conversationHistory = session.messages.map(msg => ({
+    role: msg.role as 'user' | 'model',
+    parts: [{ text: msg.content }],
+  }));
+  
+  // Fix role naming for Gemini (uses 'model' not 'assistant')
+  const geminiHistory = conversationHistory.map(msg => ({
+    role: msg.role === 'user' ? 'user' : 'model',
+    parts: msg.parts,
+  }));
+  
+  logger.info('[SIE Chat] Calling Gemini', { 
+    model: 'gemini-2.5-pro',
+    historyLength: geminiHistory.length,
+  });
+  
+  const client = getGeminiClient();
+  
+  const result = await client.models.generateContent({
+    model: 'gemini-2.5-pro',
+    contents: geminiHistory,
+    config: {
+      systemInstruction: systemPrompt,
+      temperature: 0.8, // Slightly lower for more focused conversation
+      maxOutputTokens: 2000,
+    },
+  });
+  
+  const responseText = result.text || '';
+  
+  if (!responseText) {
+    throw new Error('Empty response from Gemini');
+  }
+  
+  // Add assistant response to history
+  session.messages.push({
+    role: 'assistant',
+    content: responseText,
+    timestamp: new Date(),
+  });
+  
+  // Track usage
+  if (result.usageMetadata) {
+    await trackGeminiUsage('sie_brainstorm', 'gemini-2.5-pro', {
+      promptTokens: result.usageMetadata.promptTokenCount || 0,
+      completionTokens: result.usageMetadata.candidatesTokenCount || 0,
+      totalTokens: result.usageMetadata.totalTokenCount || 0,
+    }, {
+      latencyMs: Date.now() - startTime,
+      status: 'success',
+      metadata: { sessionId: session.sessionId, messageCount: session.messages.length },
+    }).catch(() => {});
+  }
+  
+  logger.info('[SIE Chat] Response generated', { 
+    sessionId: session.sessionId,
+    responseLength: responseText.length,
+    totalMessages: session.messages.length,
+  });
+  
+  return {
+    message: responseText,
+    sessionId: session.sessionId,
+    messageCount: session.messages.length,
+  };
+}
+
+/**
+ * Get brainstorm session history
+ */
+export function getBrainstormSession(sessionId: string): SIEBrainstormSession | undefined {
+  return brainstormSessions.get(sessionId);
+}
+
 /**
  * Get the current data landscape without running full analysis
  */

@@ -41,10 +41,11 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Dev HealthKit Importer System:** Standalone iOS app (`ios-healthkit-importer/`) for populating dev environment with real HealthKit data. Exports daily metrics, sleep nights, workouts, nutrition, and raw vital sign samples. Backend endpoint `/api/dev/import-healthkit` secured with `DEV_IMPORT_API_KEY` header, routes all data through `healthStorageRouter` to Supabase. Used for testing AI insights with authentic health data without affecting production.
 - **Self-Improvement Engine (SIE):** Admin-only sandbox AI that analyzes Flō's complete data landscape and suggests product improvements. Uses Gemini 2.5 Pro with UNRESTRICTED prompting (no guardrails, no safety disclaimers) to maximize creative strategic analysis. Features:
   - Dynamic data source introspection (queries live Supabase/Neon schemas)
-  - Verbal output via OpenAI TTS (tts-1-hd, "onyx" voice)
+  - Verbal output via OpenAI TTS (tts-1-hd, "onyx" voice) with audio chunking for full-length responses
   - Self-evolving awareness - automatically discovers new tables/columns as features are added
   - Session storage for self-referential evolution
-  - API: POST `/api/sandbox/sie` (admin-only)
+  - **Brainstorming Chat Mode:** Interactive follow-up conversation to discuss priorities, evaluate feasibility/scalability, and plan features together
+  - API: POST `/api/sandbox/sie` (initial analysis), POST `/api/sandbox/sie/chat` (brainstorming)
   - Frontend: AdminSIE component in admin dashboard Settings tab
 
 ## External Dependencies

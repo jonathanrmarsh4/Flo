@@ -4658,6 +4658,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch data landscape" });
     }
   });
+  
+  // SIE Brainstorming Chat - interactive follow-up conversation
+  app.post("/api/sandbox/sie/chat", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { message, sessionId } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: "Message is required" });
+      }
+      
+      logger.info('[SIE Chat] Message received', { adminId, sessionId, messageLength: message.length });
+      
+      const { chatWithSIE } = await import('./services/sieService');
+      const result = await chatWithSIE(sessionId || null, message);
+      
+      logger.info('[SIE Chat] Response sent', { 
+        adminId, 
+        sessionId: result.sessionId,
+        messageCount: result.messageCount,
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[SIE Chat] Failed:', error);
+      res.status(500).json({ 
+        error: error.message || "Brainstorming chat failed",
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      });
+    }
+  });
 
   // Stripe billing routes (referenced from javascript_stripe blueprint)
   // Initialize Stripe only if API key is available

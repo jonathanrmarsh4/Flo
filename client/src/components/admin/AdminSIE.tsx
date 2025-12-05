@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle } from 'lucide-react';
+import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, MessageSquare, Send, Sparkles } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
 
 interface SIEResponse {
   text: string;
@@ -16,6 +17,17 @@ interface SIEResponse {
   sessionId: string;
   dataSourcesDiscovered: number;
   processingTimeMs: number;
+}
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ChatResponse {
+  message: string;
+  sessionId: string;
+  messageCount: number;
 }
 
 export function AdminSIE() {
@@ -27,8 +39,13 @@ export function AdminSIE() {
   const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
+  
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const [showChat, setShowChat] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
       if (audioRef.current) {
@@ -42,6 +59,12 @@ export function AdminSIE() {
     };
   }, []);
 
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
   const runSIEMutation = useMutation({
     mutationFn: async () => {
       setError(null);
@@ -50,6 +73,9 @@ export function AdminSIE() {
     },
     onSuccess: (data) => {
       setResponse(data);
+      setChatMessages([]);
+      setChatSessionId(null);
+      setShowChat(true);
       toast({
         title: 'SIE Analysis Complete',
         description: `Discovered ${data.dataSourcesDiscovered} data sources in ${(data.processingTimeMs / 1000).toFixed(1)}s`,
@@ -70,9 +96,46 @@ export function AdminSIE() {
     },
   });
 
+  const chatMutation = useMutation({
+    mutationFn: async (message: string) => {
+      const res = await apiRequest('POST', '/api/sandbox/sie/chat', { 
+        message, 
+        sessionId: chatSessionId 
+      });
+      return await res.json() as ChatResponse;
+    },
+    onSuccess: (data) => {
+      setChatSessionId(data.sessionId);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Chat Failed',
+        description: err.message || 'Failed to send message',
+        variant: 'destructive',
+      });
+      setChatMessages(prev => prev.slice(0, -1));
+    },
+  });
+
+  const handleSendMessage = () => {
+    if (!chatInput.trim() || chatMutation.isPending) return;
+    
+    const message = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: message }]);
+    chatMutation.mutate(message);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   const playAudio = (base64Audio: string, contentType: string) => {
     try {
-      // Clean up previous audio
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -93,10 +156,7 @@ export function AdminSIE() {
       const audio = new Audio(audioUrl);
       audioRef.current = audio;
       
-      audio.onended = () => {
-        setIsPlayingAudio(false);
-      };
-      
+      audio.onended = () => setIsPlayingAudio(false);
       audio.onplay = () => setIsPlayingAudio(true);
       audio.onpause = () => setIsPlayingAudio(false);
       audio.onerror = () => {
@@ -168,7 +228,7 @@ export function AdminSIE() {
           Self-Improvement Engine (SIE)
         </CardTitle>
         <CardDescription className="text-white/60">
-          Unrestricted AI analysis of Flō's data landscape. The AI dynamically discovers all data sources and suggests product improvements with verbal output.
+          Unrestricted AI analysis of Flō's data landscape. Run an analysis, then brainstorm and prioritize together.
         </CardDescription>
       </CardHeader>
       
@@ -203,7 +263,7 @@ export function AdminSIE() {
           ) : (
             <>
               <Brain className="w-4 h-4 mr-2" />
-              Run SIE Analysis
+              {response ? 'Run New Analysis' : 'Run SIE Analysis'}
             </>
           )}
         </Button>
@@ -282,10 +342,107 @@ export function AdminSIE() {
               
               {showFullResponse && (
                 <ScrollArea className="h-96 p-4">
-                  <pre className="text-xs text-white/80 whitespace-pre-wrap font-mono">
+                  <pre className="text-xs text-white/80 whitespace-pre-wrap font-mono" data-testid="text-sie-response">
                     {response.text}
                   </pre>
                 </ScrollArea>
+              )}
+            </div>
+
+            <div className="rounded-lg border bg-black/30 border-white/10 overflow-hidden">
+              <button
+                onClick={() => setShowChat(!showChat)}
+                className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors"
+                data-testid="button-toggle-sie-chat"
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm text-white/70">Brainstorm with SIE</span>
+                  {chatMessages.length > 0 && (
+                    <span className="text-xs bg-purple-500/30 px-2 py-0.5 rounded-full text-purple-300">
+                      {chatMessages.length} messages
+                    </span>
+                  )}
+                </div>
+                {showChat ? (
+                  <ChevronUp className="w-4 h-4 text-white/50" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-white/50" />
+                )}
+              </button>
+              
+              {showChat && (
+                <div className="border-t border-white/10">
+                  <ScrollArea 
+                    className="h-80 p-4" 
+                    ref={chatScrollRef}
+                    data-testid="container-sie-chat-messages"
+                  >
+                    {chatMessages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center text-white/40 space-y-2">
+                        <Sparkles className="w-8 h-8" />
+                        <p className="text-sm">Start brainstorming with SIE</p>
+                        <p className="text-xs">Ask about priorities, feasibility, scalability, or explore new ideas together</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {chatMessages.map((msg, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                            data-testid={`chat-message-${msg.role}-${idx}`}
+                          >
+                            <div
+                              className={`max-w-[85%] rounded-lg p-3 ${
+                                msg.role === 'user'
+                                  ? 'bg-purple-500/30 text-white'
+                                  : 'bg-white/10 text-white/90'
+                              }`}
+                            >
+                              <pre className="text-sm whitespace-pre-wrap font-sans">
+                                {msg.content}
+                              </pre>
+                            </div>
+                          </div>
+                        ))}
+                        {chatMutation.isPending && (
+                          <div className="flex justify-start">
+                            <div className="bg-white/10 rounded-lg p-3">
+                              <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </ScrollArea>
+                  
+                  <div className="border-t border-white/10 p-3">
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Ask about priorities, what's feasible, what should we build first..."
+                        className="min-h-[60px] bg-white/5 border-white/20 text-white placeholder:text-white/30 resize-none"
+                        disabled={chatMutation.isPending}
+                        data-testid="input-sie-chat"
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!chatInput.trim() || chatMutation.isPending}
+                        size="icon"
+                        className="h-auto bg-purple-500 hover:bg-purple-600"
+                        data-testid="button-send-sie-chat"
+                      >
+                        {chatMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -293,9 +450,7 @@ export function AdminSIE() {
 
         <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
           <p className="text-xs text-purple-300">
-            <strong>SIE v1.0:</strong> Uses Gemini 2.5 Pro with unrestricted prompting to analyze the complete data landscape. 
-            Dynamically discovers all Supabase and Neon tables, HealthKit metrics, and AI capabilities. 
-            Suggests data gaps to fill, features to build, and moonshot opportunities.
+            <strong>SIE v1.1:</strong> Uses Gemini 2.5 Pro with unrestricted prompting. Run an analysis first, then use the brainstorming chat to discuss priorities, evaluate feasibility, and plan what to build next.
           </p>
         </div>
       </CardContent>
