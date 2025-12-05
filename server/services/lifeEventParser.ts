@@ -20,6 +20,11 @@ interface LifeEventExtraction {
   acknowledgment: string;
 }
 
+interface MultipleLifeEventsExtraction {
+  events: LifeEventExtraction[];
+  acknowledgment: string;
+}
+
 // Cheap pre-filter to avoid calling Grok on every message
 // Uses specific phrases and high-signal terms to avoid false positives
 const TRIGGER_WORDS = [
@@ -71,95 +76,87 @@ export function couldContainLifeEvent(message: string): boolean {
 }
 
 /**
- * Extract life event using Gemini 2.5 Flash
- * Returns null if no event detected
+ * Extract life events using Gemini/OpenAI
+ * Returns array of events (can be multiple from one message)
  */
-export async function extractLifeEvent(
+export async function extractLifeEvents(
   message: string
-): Promise<LifeEventExtraction | null> {
+): Promise<LifeEventExtraction[]> {
   try {
-    if (!geminiChatClient.isAvailable()) {
-      logger.warn('[LifeEventParser] Gemini client not available');
-      return null;
+    if (!geminiChatClient.isAvailable() && !process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+      logger.warn('[LifeEventParser] No AI providers available');
+      return [];
     }
 
-    const systemPrompt = `You are a health behavior extraction system. Extract structured life events from user messages.
+    const systemPrompt = `You are a health behavior extraction system. Extract ALL life events from user messages as SEPARATE entries.
 
-Output JSON with this exact structure (or null if no event):
+CRITICAL: When a user mentions MULTIPLE activities, return EACH as a SEPARATE event in the array.
+
+Output JSON array with this structure (empty array [] if no events):
 {
-  "eventType": "ice_bath|sauna|alcohol|late_meal|supplements|workout|stress|breathwork|caffeine|symptoms|health_goal|observation|other",
-  "details": {
-    // For ice_bath/cold_plunge: {duration_min: 6, temp_c: 7}
-    // For alcohol: {drinks: 2, type: "wine"}
-    // For late_meal: {food: "pizza", hour: 22}
-    // For supplements: {names: ["NMN", "Creatine"], dosage: "1g"}
-    // For workout: {type: "run", duration_min: 30}
-    // For stress: {severity: "high", trigger: "work"}
-    // For caffeine: {source: "coffee", cups: 2, hour: 14}
-    // For symptoms: {symptoms: ["headache", "fever"], severity: "moderate", duration: "3 days", triggers: "poor sleep"}
-    // For health_goal: {goal: "lose weight", target: "5kg", timeframe: "3 months", area: "weight|sleep|fitness|nutrition|recovery"}
-    // For observation: {area: "energy|sleep|mood|focus|recovery", sentiment: "positive|negative|neutral", context: "after workout", note: "felt more alert"}
-  },
-  "acknowledgment": "Short, casual acknowledgment (1 sentence max)"
+  "events": [
+    {
+      "eventType": "ice_bath|sauna|alcohol|late_meal|supplements|workout|stress|breathwork|caffeine|symptoms|health_goal|observation",
+      "details": {...},
+      "acknowledgment": "Short acknowledgment for this specific event"
+    }
+  ],
+  "combinedAcknowledgment": "Brief overall acknowledgment (1 sentence)"
 }
 
-Examples - Behaviors:
+Event Type Mappings:
+- swim/swimming/ocean swim → workout (with type: "swim")
+- run/running/jog → workout (with type: "run")
+- gym/weights/lifting → workout (with type: "gym")
+- walk/walking/hike → workout (with type: "walk")
+- yoga/stretch → workout (with type: "yoga")
+- sauna/steam room → sauna
+- ice bath/cold plunge/cold water → ice_bath
+- meditation/breathwork → breathwork
+- coffee/caffeine/energy drink → caffeine
+- alcohol/wine/beer/drinks → alcohol
+- supplements/vitamins/NMN/creatine → supplements
+
+MULTIPLE ACTIVITIES EXAMPLE:
+User: "I had a 20 minute swim and a 40 minute sauna"
+→ {
+  "events": [
+    {"eventType": "workout", "details": {"type": "swim", "duration_min": 20}, "acknowledgment": "20-min swim logged."},
+    {"eventType": "sauna", "details": {"duration_min": 40}, "acknowledgment": "40-min sauna logged."}
+  ],
+  "combinedAcknowledgment": "Nice recovery session! Both logged."
+}
+
+User: "just got back from the beach, did a 20 minute ocean swim plus a 20 minute sauna"
+→ {
+  "events": [
+    {"eventType": "workout", "details": {"type": "swim", "duration_min": 20}, "acknowledgment": "Ocean swim logged."},
+    {"eventType": "sauna", "details": {"duration_min": 20}, "acknowledgment": "Sauna session logged."}
+  ],
+  "combinedAcknowledgment": "Beach day activities logged!"
+}
+
+User: "took my supplements and had a coffee this morning"
+→ {
+  "events": [
+    {"eventType": "supplements", "details": {}, "acknowledgment": "Supplements noted."},
+    {"eventType": "caffeine", "details": {"source": "coffee"}, "acknowledgment": "Morning coffee logged."}
+  ],
+  "combinedAcknowledgment": "Morning routine logged."
+}
+
+SINGLE ACTIVITY EXAMPLES:
 User: "just did a 6-min ice bath at 7°C"
-→ {"eventType": "ice_bath", "details": {"duration_min": 6, "temp_c": 7}, "acknowledgment": "6 minutes at 7°C — logged."}
-
-User: "had two glasses of wine and pizza at 10pm"
-→ {"eventType": "late_meal", "details": {"food": "pizza and wine", "hour": 22, "drinks": 2}, "acknowledgment": "Late night pizza + wine — logged."}
-
-User: "took my usual NMN and creatine stack"
-→ {"eventType": "supplements", "details": {"names": ["NMN", "Creatine"]}, "acknowledgment": "Supplement stack logged."}
+→ {"events": [{"eventType": "ice_bath", "details": {"duration_min": 6, "temp_c": 7}, "acknowledgment": "6 minutes at 7°C — logged."}], "combinedAcknowledgment": "Ice bath logged."}
 
 User: "feeling super stressed about work today"
-→ {"eventType": "stress", "details": {"severity": "high", "trigger": "work"}, "acknowledgment": "Stress level noted."}
+→ {"events": [{"eventType": "stress", "details": {"severity": "high", "trigger": "work"}, "acknowledgment": "Stress level noted."}], "combinedAcknowledgment": "Stress noted."}
 
-Examples - Symptoms:
-User: "I'm feeling sick with a headache and fever"
-→ {"eventType": "symptoms", "details": {"symptoms": ["headache", "fever"], "severity": "moderate"}, "acknowledgment": "Symptoms logged — feel better soon."}
-
-User: "been having lower back pain for 3 days now"
-→ {"eventType": "symptoms", "details": {"symptoms": ["lower back pain"], "severity": "moderate", "duration": "3 days"}, "acknowledgment": "Back pain noted."}
-
-User: "woke up with a sore throat and congestion"
-→ {"eventType": "symptoms", "details": {"symptoms": ["sore throat", "congestion"], "severity": "mild"}, "acknowledgment": "Morning symptoms logged."}
-
-Examples - Health Goals:
-User: "I want to lose 5kg by summer"
-→ {"eventType": "health_goal", "details": {"goal": "lose weight", "target": "5kg", "timeframe": "by summer", "area": "weight"}, "acknowledgment": "Weight loss goal set — tracking."}
-
-User: "trying to improve my sleep quality"
-→ {"eventType": "health_goal", "details": {"goal": "improve sleep quality", "area": "sleep"}, "acknowledgment": "Sleep improvement goal noted."}
-
-User: "goal is to get my HRV above 60"
-→ {"eventType": "health_goal", "details": {"goal": "increase HRV", "target": "above 60", "area": "recovery"}, "acknowledgment": "HRV target set."}
-
-User: "working on building more muscle mass"
-→ {"eventType": "health_goal", "details": {"goal": "build muscle", "area": "fitness"}, "acknowledgment": "Muscle building goal logged."}
-
-Examples - Observations:
-User: "feeling really energized today"
-→ {"eventType": "observation", "details": {"area": "energy", "sentiment": "positive"}, "acknowledgment": "Energy boost noted."}
-
-User: "noticed I'm more focused on days I skip coffee"
-→ {"eventType": "observation", "details": {"area": "focus", "sentiment": "positive", "context": "without caffeine", "note": "better focus without coffee"}, "acknowledgment": "Caffeine-focus pattern logged."}
-
-User: "sleep has been terrible this week"
-→ {"eventType": "observation", "details": {"area": "sleep", "sentiment": "negative", "note": "poor sleep quality this week"}, "acknowledgment": "Sleep quality decline noted."}
-
-User: "feeling mentally sharp after my morning workout"
-→ {"eventType": "observation", "details": {"area": "focus", "sentiment": "positive", "context": "after workout", "note": "mental clarity post-exercise"}, "acknowledgment": "Workout clarity boost logged."}
-
-Non-events (return null):
+Non-events (return empty events array):
 User: "how's my HRV looking?"
-→ null (question, not an event)
+→ {"events": [], "combinedAcknowledgment": ""}
 
-User: "what does my blood work show?"
-→ null (question, not an event)
-
-Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observations. Return null for questions or general discussion.`;
+IMPORTANT: NEVER combine multiple activities into a single "other" event. Each activity gets its own properly-typed event.`;
 
     let response: string | null = null;
     let provider = 'gemini';
@@ -191,7 +188,6 @@ Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observat
     if (!response && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
       provider = 'openai';
       try {
-        // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
         const openaiResponse = await openai.chat.completions.create({
           model: 'gpt-4o-mini', // Use fast, cheap model for extraction
           messages: [
@@ -199,7 +195,7 @@ Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observat
             { role: 'user', content: message }
           ],
           temperature: 0.3,
-          max_tokens: 200,
+          max_tokens: 500, // Increased for multiple events
         });
         response = openaiResponse.choices[0]?.message?.content || null;
         logger.info('[LifeEventParser] OpenAI fallback succeeded');
@@ -207,46 +203,69 @@ Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observat
         logger.error('[LifeEventParser] OpenAI fallback also failed', { 
           error: openaiError.message 
         });
-        return null;
+        return [];
       }
     }
 
     if (!response) {
       logger.error('[LifeEventParser] All providers failed');
-      return null;
+      return [];
     }
 
     logger.info('[LifeEventParser] Response received', { 
       provider,
-      responsePreview: response.substring(0, 200) 
+      responsePreview: response.substring(0, 300) 
     });
 
     // Parse JSON response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       logger.info('[LifeEventParser] No event detected in message');
-      return null;
+      return [];
     }
 
-    const extraction = JSON.parse(jsonMatch[0]) as LifeEventExtraction;
+    const parsed = JSON.parse(jsonMatch[0]) as MultipleLifeEventsExtraction;
     
-    // Validate extraction
-    if (!extraction.eventType || !extraction.acknowledgment) {
-      logger.info('[LifeEventParser] Invalid extraction format');
-      return null;
+    // Handle new format with events array
+    if (parsed.events && Array.isArray(parsed.events)) {
+      const validEvents = parsed.events.filter(e => e.eventType && e.details);
+      
+      logger.info('[LifeEventParser] Extracted multiple events:', {
+        provider,
+        eventCount: validEvents.length,
+        types: validEvents.map(e => e.eventType),
+      });
+      
+      return validEvents;
     }
-
-    logger.info('[LifeEventParser] Extracted event:', {
-      provider,
-      type: extraction.eventType,
-      details: extraction.details,
-    });
-
-    return extraction;
+    
+    // Fallback: handle old single-event format for backward compatibility
+    const singleEvent = parsed as unknown as LifeEventExtraction;
+    if (singleEvent.eventType && singleEvent.details) {
+      logger.info('[LifeEventParser] Extracted single event (legacy format):', {
+        provider,
+        type: singleEvent.eventType,
+      });
+      return [singleEvent];
+    }
+    
+    logger.info('[LifeEventParser] Invalid extraction format');
+    return [];
   } catch (error: any) {
     logger.error('[LifeEventParser] Extraction error:', error);
-    return null;
+    return [];
   }
+}
+
+/**
+ * Legacy function for backward compatibility
+ * Returns first event or null
+ */
+export async function extractLifeEvent(
+  message: string
+): Promise<LifeEventExtraction | null> {
+  const events = await extractLifeEvents(message);
+  return events.length > 0 ? events[0] : null;
 }
 
 /**

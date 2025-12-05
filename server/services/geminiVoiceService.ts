@@ -7,7 +7,7 @@
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
-import { couldContainLifeEvent, extractLifeEvent } from './lifeEventParser';
+import { couldContainLifeEvent, extractLifeEvents } from './lifeEventParser';
 import { parseConversationalIntent } from './conversationalIntentParser';
 import { createFollowUpRequest, createLifeContextFact } from './supabaseHealthStorage';
 import { logger } from '../logger';
@@ -81,6 +81,8 @@ export interface VoiceSessionState {
   // Accumulated transcripts for life event detection
   fullUserTranscript: string;
   fullAIResponse: string;
+  // Flag to prevent duplicate life event processing
+  lifeEventsProcessed: boolean;
 }
 
 class GeminiVoiceService {
@@ -227,6 +229,7 @@ Start the conversation warmly, using their name if you have it.`;
       transcript: [],
       fullUserTranscript: '',
       fullAIResponse: '',
+      lifeEventsProcessed: false,
     };
     this.sessionStates.set(sessionId, state);
 
@@ -360,24 +363,12 @@ Start the conversation warmly, using their name if you have it.`;
       throw new Error('Session not active');
     }
 
-    // Add user text to transcript
+    // Add user text to transcript (accumulate for session-end processing)
     state.transcript.push(`[User]: ${text}`);
+    state.fullUserTranscript += (state.fullUserTranscript ? ' ' : '') + text;
     
-    // Parse life events from user text (fire-and-forget)
-    // This is the PRIMARY place where user speech transcripts come in
-    if (text && text.trim().length > 5) {
-      logger.info('[GeminiVoice] Parsing life event from sendText', {
-        sessionId,
-        userId: state.userId,
-        textPreview: text.substring(0, 80),
-      });
-      this.processLifeEventAsync(state.userId, text).catch(err => {
-        logger.error('[GeminiVoice] Life event processing from sendText failed', { 
-          sessionId, 
-          error: err.message 
-        });
-      });
-    }
+    // Life events are processed at session end to avoid duplicates
+    // and to capture the full AI context
     
     await geminiLiveClient.sendText(sessionId, text);
   }
@@ -682,7 +673,11 @@ Start the conversation warmly, using their name if you have it.`;
       // CRITICAL: Process life events using AI context as fallback
       // Since Gemini's transcription is unreliable, we use the AI's response
       // to infer what activities the user mentioned
-      if (aiMentionedActivities.length > 0 || userContent) {
+      // Only process ONCE per session to avoid duplicates
+      if (!state.lifeEventsProcessed && (aiMentionedActivities.length > 0 || userContent)) {
+        // Mark as processed FIRST to prevent race conditions
+        state.lifeEventsProcessed = true;
+        
         let extractionText = userContent;
         
         // If AI mentioned activities that aren't in the user transcript,
@@ -707,7 +702,7 @@ Start the conversation warmly, using their name if you have it.`;
           }
         }
         
-        logger.info('[GeminiVoice] Processing life event with context', {
+        logger.info('[GeminiVoice] Processing life event with context (single time)', {
           sessionId,
           userId: state.userId,
           extractionTextLength: extractionText.length,
@@ -721,6 +716,8 @@ Start the conversation warmly, using their name if you have it.`;
             error: err.message 
           });
         });
+      } else if (state.lifeEventsProcessed) {
+        logger.info('[GeminiVoice] Skipping duplicate life event processing', { sessionId });
       }
       
       // Process conversational intents
@@ -750,8 +747,7 @@ Start the conversation warmly, using their name if you have it.`;
 
   /**
    * Process life events with AI context fallback
-   * If user transcript doesn't contain trigger words but AI mentioned activities,
-   * we still try to log the event because AI understood what user said
+   * Extracts and saves MULTIPLE separate events from one voice session
    */
   private async processLifeEventWithContext(
     userId: string, 
@@ -772,7 +768,7 @@ Start the conversation warmly, using their name if you have it.`;
         return;
       }
       
-      logger.info('[GeminiVoice] Potential life event in voice transcript', { 
+      logger.info('[GeminiVoice] Potential life events in voice transcript', { 
         userId, 
         hasTriggerWords,
         hasAiContext,
@@ -793,10 +789,11 @@ Start the conversation warmly, using their name if you have it.`;
         });
       }
       
-      const extraction = await extractLifeEvent(extractionText);
+      // Extract ALL life events (can be multiple from one message)
+      const extractions = await extractLifeEvents(extractionText);
       
-      if (!extraction) {
-        logger.info('[GeminiVoice] No life event extracted from transcript', {
+      if (!extractions || extractions.length === 0) {
+        logger.info('[GeminiVoice] No life events extracted from transcript', {
           userId,
           parseTimeMs: Date.now() - startTime,
           hasTriggerWords,
@@ -805,28 +802,51 @@ Start the conversation warmly, using their name if you have it.`;
         return;
       }
       
-      // Log to Supabase
+      logger.info('[GeminiVoice] Extracted life events from voice', {
+        userId,
+        eventCount: extractions.length,
+        eventTypes: extractions.map(e => e.eventType),
+      });
+      
+      // Log to Supabase - save EACH event separately
       const { isSupabaseHealthEnabled, createLifeEvent } = await import('./healthStorageRouter');
       
       if (!isSupabaseHealthEnabled()) {
-        logger.warn('[GeminiVoice] Supabase not enabled - life event not logged', {
+        logger.warn('[GeminiVoice] Supabase not enabled - life events not logged', {
           userId,
-          eventType: extraction.eventType,
+          eventCount: extractions.length,
         });
         return;
       }
       
-      const result = await createLifeEvent(userId, {
-        eventType: extraction.eventType,
-        details: extraction.details,
-        notes: `Voice: ${transcript.trim().substring(0, 200)}`,
-      });
+      // Save each event separately with proper typing
+      const savedEvents = [];
+      for (const extraction of extractions) {
+        try {
+          const result = await createLifeEvent(userId, {
+            eventType: extraction.eventType,
+            details: extraction.details,
+            notes: `Voice: ${extraction.acknowledgment}`,
+          });
+          
+          savedEvents.push({
+            eventType: extraction.eventType,
+            eventId: result?.id,
+          });
+        } catch (saveError: any) {
+          logger.error('[GeminiVoice] Failed to save individual event', {
+            userId,
+            eventType: extraction.eventType,
+            error: saveError.message,
+          });
+        }
+      }
       
-      logger.info('[GeminiVoice] Life event logged from voice transcript', {
+      logger.info('[GeminiVoice] Life events logged from voice transcript', {
         userId,
-        eventType: extraction.eventType,
-        eventId: result?.id,
-        acknowledgment: extraction.acknowledgment,
+        totalEvents: extractions.length,
+        savedEvents: savedEvents.length,
+        eventTypes: savedEvents.map(e => e.eventType),
         usedAiContext: hasAiContext && !hasTriggerWords,
         totalTimeMs: Date.now() - startTime,
       });
@@ -1053,7 +1073,7 @@ IMPORTANT: When the session starts, immediately greet ${firstName} warmly by nam
       userId,
     };
 
-    // Create session state
+    // Create session state (sandbox sessions skip life event processing)
     const state: VoiceSessionState = {
       sessionId,
       userId,
@@ -1061,6 +1081,9 @@ IMPORTANT: When the session starts, immediately greet ${firstName} warmly by nam
       isActive: true,
       startedAt: new Date(),
       transcript: [],
+      fullUserTranscript: '',
+      fullAIResponse: '',
+      lifeEventsProcessed: true, // Skip life events for sandbox
     };
     this.sessionStates.set(sessionId, state);
 
