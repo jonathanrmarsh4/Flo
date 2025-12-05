@@ -78,6 +78,9 @@ export interface VoiceSessionState {
   isActive: boolean;
   startedAt: Date;
   transcript: string[];
+  // Accumulated transcripts for life event detection
+  fullUserTranscript: string;
+  fullAIResponse: string;
 }
 
 class GeminiVoiceService {
@@ -179,7 +182,7 @@ Start the conversation warmly, using their name if you have it.`;
       userId,
     };
 
-    // Create session state
+    // Create session state with accumulated transcript fields
     const state: VoiceSessionState = {
       sessionId,
       userId,
@@ -187,15 +190,13 @@ Start the conversation warmly, using their name if you have it.`;
       isActive: true,
       startedAt: new Date(),
       transcript: [],
+      fullUserTranscript: '',
+      fullAIResponse: '',
     };
     this.sessionStates.set(sessionId, state);
 
     // Buffer for accumulating user speech transcripts within a turn
     let currentTurnTranscript = '';
-    // Accumulate ALL user speech across the entire session for better life event detection
-    let fullSessionUserTranscript = '';
-    // Accumulate ALL AI response text (since it comes in chunks)
-    let fullSessionAIResponse = '';
     
     // Activity keywords to detect in AI responses - if AI mentions these, user talked about them
     // Expanded list to cover common activities
@@ -209,6 +210,8 @@ Start the conversation warmly, using their name if you have it.`;
     const wrappedCallbacks: LiveSessionCallbacks = {
       onAudioChunk: callbacks.onAudioChunk,
       onTranscript: (text: string, isFinal: boolean) => {
+        const currentState = this.sessionStates.get(sessionId);
+        
         // Log ALL transcripts for debugging
         logger.info('[GeminiVoice] onTranscript received', {
           sessionId,
@@ -218,40 +221,36 @@ Start the conversation warmly, using their name if you have it.`;
           isFinal,
         });
         
-        if (text) {
-          // Accumulate transcript text for this turn AND full session
+        if (text && currentState) {
+          // Accumulate transcript text for this turn AND full session (stored in state)
           currentTurnTranscript += (currentTurnTranscript ? ' ' : '') + text;
-          fullSessionUserTranscript += (fullSessionUserTranscript ? ' ' : '') + text;
-          
-          const currentState = this.sessionStates.get(sessionId);
-          if (currentState) {
-            currentState.transcript.push(text);
-          }
+          currentState.fullUserTranscript += (currentState.fullUserTranscript ? ' ' : '') + text;
+          currentState.transcript.push(text);
         }
         
         // On turn complete, DON'T process immediately - defer to session end
         // This ensures we capture late-arriving transcript chunks and AI context
-        if (isFinal && currentTurnTranscript.trim().length > 5) {
+        if (isFinal && currentTurnTranscript.trim().length > 5 && currentState) {
           logger.info('[GeminiVoice] Turn completed - deferring life event to session end', {
             sessionId,
             userId,
             turnTranscriptLength: currentTurnTranscript.length,
-            fullSessionLength: fullSessionUserTranscript.length,
+            fullSessionLength: currentState.fullUserTranscript.length,
             turnPreview: currentTurnTranscript.substring(0, 100),
           });
-          // Reset turn buffer but keep full session transcript
+          // Reset turn buffer but keep full session transcript in state
           currentTurnTranscript = '';
         }
         
         callbacks.onTranscript(text, isFinal);
       },
       onModelText: (text: string) => {
-        // Track model's text response
+        // Track model's text response and accumulate in session state
         const currentState = this.sessionStates.get(sessionId);
         if (currentState && text) {
           currentState.transcript.push(`[Flō]: ${text}`);
           // Accumulate full AI response for keyword detection at session end
-          fullSessionAIResponse += text;
+          currentState.fullAIResponse += text;
         }
         callbacks.onModelText(text);
       },
@@ -263,15 +262,15 @@ Start the conversation warmly, using their name if you have it.`;
           
           // CRITICAL: Also process life events on error, not just clean close
           // WebSocket errors (1006) can happen but we still have accumulated data
-          if (fullSessionUserTranscript || fullSessionAIResponse) {
+          if (currentState.fullUserTranscript || currentState.fullAIResponse) {
             logger.info('[GeminiVoice] Processing life events despite session error', {
               sessionId,
               userId,
-              userTranscriptLength: fullSessionUserTranscript.length,
-              aiResponseLength: fullSessionAIResponse.length,
+              userTranscriptLength: currentState.fullUserTranscript.length,
+              aiResponseLength: currentState.fullAIResponse.length,
             });
             
-            const lowerAIResponse = fullSessionAIResponse.toLowerCase();
+            const lowerAIResponse = currentState.fullAIResponse.toLowerCase();
             const aiMentionedActivities: string[] = [];
             for (const keyword of ACTIVITY_KEYWORDS) {
               if (lowerAIResponse.includes(keyword)) {
@@ -281,8 +280,8 @@ Start the conversation warmly, using their name if you have it.`;
             
             this.persistConversationWithContext(
               sessionId, 
-              fullSessionUserTranscript, 
-              fullSessionAIResponse,
+              currentState.fullUserTranscript, 
+              currentState.fullAIResponse,
               aiMentionedActivities
             ).catch(err => {
               logger.error('[GeminiVoice] Failed to persist on error', { sessionId, error: err.message });
@@ -292,41 +291,9 @@ Start the conversation warmly, using their name if you have it.`;
         callbacks.onError(error);
       },
       onClose: () => {
-        logger.info('[GeminiVoice] Session closed', { sessionId });
-        const currentState = this.sessionStates.get(sessionId);
-        if (currentState) {
-          currentState.isActive = false;
-          
-          // Detect activity keywords from FULL accumulated AI response
-          // This catches keywords even when they span multiple response chunks
-          const lowerAIResponse = fullSessionAIResponse.toLowerCase();
-          const aiMentionedActivities: string[] = [];
-          for (const keyword of ACTIVITY_KEYWORDS) {
-            if (lowerAIResponse.includes(keyword)) {
-              aiMentionedActivities.push(keyword);
-            }
-          }
-          
-          if (aiMentionedActivities.length > 0) {
-            logger.info('[GeminiVoice] Session end - detected activities from AI response', { 
-              sessionId,
-              userId,
-              aiMentionedActivities,
-              aiResponseLength: fullSessionAIResponse.length,
-              aiResponsePreview: fullSessionAIResponse.substring(0, 200),
-            });
-          }
-          
-          // Persist conversation with AI-detected activities for fallback parsing
-          this.persistConversationWithContext(
-            sessionId, 
-            fullSessionUserTranscript, 
-            fullSessionAIResponse,
-            aiMentionedActivities
-          ).catch(err => {
-            logger.error('[GeminiVoice] Failed to persist conversation', { sessionId, error: err.message });
-          });
-        }
+        logger.info('[GeminiVoice] Session closed via callback', { sessionId });
+        // Note: The actual persistence is now handled by endSession method
+        // This callback is just for logging and cleanup
         callbacks.onClose();
       },
     };
@@ -389,7 +356,37 @@ Start the conversation warmly, using their name if you have it.`;
       state.isActive = false;
       // Only persist non-sandbox sessions to brain memory
       if (!sessionId.startsWith('sandbox_')) {
-        await this.persistConversation(sessionId);
+        // Activity keywords for detection
+        const ACTIVITY_KEYWORDS = ['sauna', 'ice bath', 'cold plunge', 'cold water', 'workout', 'exercise', 
+          'meditation', 'breathwork', 'supplements', 'vitamins', 'alcohol', 'wine', 'beer', 'drink',
+          'coffee', 'caffeine', 'yoga', 'massage', 'run', 'running', 'gym', 'creatine', 'nmn', 'protein',
+          'swim', 'swimming', 'beach', 'ocean', 'walk', 'walking', 'hike', 'hiking', 'bike', 'cycling',
+          'stretch', 'stretching', 'sleep', 'nap', 'fast', 'fasting', 'meal', 'breakfast', 'lunch', 'dinner'];
+        
+        // Detect activity keywords from FULL accumulated AI response
+        const lowerAIResponse = state.fullAIResponse.toLowerCase();
+        const aiMentionedActivities: string[] = [];
+        for (const keyword of ACTIVITY_KEYWORDS) {
+          if (lowerAIResponse.includes(keyword)) {
+            aiMentionedActivities.push(keyword);
+          }
+        }
+        
+        logger.info('[GeminiVoice] Ending session with context', { 
+          sessionId,
+          userId: state.userId,
+          userTranscriptLength: state.fullUserTranscript.length,
+          aiResponseLength: state.fullAIResponse.length,
+          aiMentionedActivities,
+        });
+        
+        // Use the new context-aware persistence method
+        await this.persistConversationWithContext(
+          sessionId,
+          state.fullUserTranscript,
+          state.fullAIResponse,
+          aiMentionedActivities
+        );
       } else {
         logger.info('[GeminiVoice] Skipping persistence for sandbox session', { sessionId });
       }
