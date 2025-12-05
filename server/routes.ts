@@ -5564,6 +5564,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Backfill nutrition aggregation for multiple days (re-aggregate from HealthKit samples)
+  app.post("/api/nutrition/backfill", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { days = 90, timezone } = req.body;
+      
+      if (!timezone) {
+        return res.status(400).json({ error: "timezone is required" });
+      }
+
+      const daysToProcess = Math.min(Number(days), 365);
+      logger.info(`[Nutrition] Starting backfill for user ${userId}, last ${daysToProcess} days`);
+
+      // Run backfill asynchronously so we don't timeout
+      (async () => {
+        try {
+          let processed = 0;
+          const today = new Date();
+          
+          for (let i = 0; i < daysToProcess; i++) {
+            const date = new Date(today);
+            date.setDate(date.getDate() - i);
+            const localDate = date.toISOString().split('T')[0];
+            
+            await upsertNutritionDaily(userId, localDate, timezone);
+            processed++;
+            
+            if (processed % 10 === 0) {
+              logger.info(`[Nutrition] Backfill progress: ${processed}/${daysToProcess} days`);
+            }
+          }
+          
+          logger.info(`[Nutrition] Backfill complete for ${userId}: ${processed} days processed`);
+        } catch (err) {
+          logger.error(`[Nutrition] Backfill error for ${userId}:`, err);
+        }
+      })();
+
+      return res.json({ 
+        status: "started", 
+        message: `Backfill started for last ${daysToProcess} days`,
+        days: daysToProcess 
+      });
+    } catch (error: any) {
+      logger.error("[Nutrition] Error starting backfill:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // Mindfulness Routes
   // ============================================

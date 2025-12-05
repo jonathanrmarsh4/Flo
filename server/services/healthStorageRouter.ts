@@ -1572,16 +1572,21 @@ export async function getNutritionDailyMetrics(userId: string, options: GetNutri
     }
   }
   
-  let query = db.select().from(nutritionDailyMetrics).where(eq(nutritionDailyMetrics.userId, userId));
+  // Build conditions array for Neon fallback
+  const conditions = [eq(nutritionDailyMetrics.userId, userId)];
   
   if (options.startDate) {
-    query = query.where(gte(nutritionDailyMetrics.localDate, options.startDate.toISOString().split('T')[0]));
+    conditions.push(gte(nutritionDailyMetrics.localDate, options.startDate.toISOString().split('T')[0]));
   }
   if (options.endDate) {
-    query = query.where(lte(nutritionDailyMetrics.localDate, options.endDate.toISOString().split('T')[0]));
+    conditions.push(lte(nutritionDailyMetrics.localDate, options.endDate.toISOString().split('T')[0]));
   }
   
-  let result = await query.orderBy(desc(nutritionDailyMetrics.localDate)).limit(options.limit ?? 7);
+  let result = await db.select()
+    .from(nutritionDailyMetrics)
+    .where(and(...conditions))
+    .orderBy(desc(nutritionDailyMetrics.localDate))
+    .limit(options.limit ?? 7);
   return result;
 }
 
@@ -1741,16 +1746,21 @@ export async function getMindfulnessSessions(userId: string, options: GetMindful
     }
   }
   
-  let query = db.select().from(mindfulnessSessions).where(eq(mindfulnessSessions.userId, userId));
+  // Build conditions array for Neon fallback
+  const conditions = [eq(mindfulnessSessions.userId, userId)];
   
   if (options.startDate) {
-    query = query.where(gte(mindfulnessSessions.sessionDate, options.startDate.toISOString().split('T')[0]));
+    conditions.push(gte(mindfulnessSessions.sessionDate, options.startDate.toISOString().split('T')[0]));
   }
   if (options.endDate) {
-    query = query.where(lte(mindfulnessSessions.sessionDate, options.endDate.toISOString().split('T')[0]));
+    conditions.push(lte(mindfulnessSessions.sessionDate, options.endDate.toISOString().split('T')[0]));
   }
   
-  let result = await query.orderBy(desc(mindfulnessSessions.startTime)).limit(options.limit ?? 70);
+  let result = await db.select()
+    .from(mindfulnessSessions)
+    .where(and(...conditions))
+    .orderBy(desc(mindfulnessSessions.startTime))
+    .limit(options.limit ?? 70);
   return result;
 }
 
@@ -1811,16 +1821,21 @@ export async function getMindfulnessDailyMetrics(userId: string, options: GetMin
     }
   }
   
-  let query = db.select().from(mindfulnessDailyMetrics).where(eq(mindfulnessDailyMetrics.userId, userId));
+  // Build conditions array for Neon fallback
+  const dailyConditions = [eq(mindfulnessDailyMetrics.userId, userId)];
   
   if (options.startDate) {
-    query = query.where(gte(mindfulnessDailyMetrics.localDate, options.startDate.toISOString().split('T')[0]));
+    dailyConditions.push(gte(mindfulnessDailyMetrics.localDate, options.startDate.toISOString().split('T')[0]));
   }
   if (options.endDate) {
-    query = query.where(lte(mindfulnessDailyMetrics.localDate, options.endDate.toISOString().split('T')[0]));
+    dailyConditions.push(lte(mindfulnessDailyMetrics.localDate, options.endDate.toISOString().split('T')[0]));
   }
   
-  let result = await query.orderBy(desc(mindfulnessDailyMetrics.localDate)).limit(options.limit ?? 7);
+  let result = await db.select()
+    .from(mindfulnessDailyMetrics)
+    .where(and(...dailyConditions))
+    .orderBy(desc(mindfulnessDailyMetrics.localDate))
+    .limit(options.limit ?? 7);
   return result;
 }
 
