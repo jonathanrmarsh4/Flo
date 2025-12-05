@@ -61,6 +61,10 @@
         <string>Flō uses your microphone for voice conversations with Flō Oracle, your AI health coach.</string>
         <key>NSSpeechRecognitionUsageDescription</key>
         <string>Flō uses speech recognition to understand your voice commands when talking with Flō Oracle.</string>
+        <key>NSLocationWhenInUseUsageDescription</key>
+        <string>Flō uses your location to correlate local weather and air quality with your health metrics, helping identify environmental factors that may affect your wellbeing.</string>
+        <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+        <string>Flō uses your location to correlate local weather and air quality with your health metrics, helping identify environmental factors that may affect your wellbeing.</string>
         <key>UIBackgroundModes</key>
         <array>
                 <string>audio</string>
