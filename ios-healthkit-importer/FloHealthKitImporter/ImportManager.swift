@@ -30,7 +30,7 @@ class ImportManager: ObservableObject {
             throw ImportError.invalidDateRange
         }
         
-        let totalPhases = includeSamples ? 6 : 5
+        let totalPhases = includeSamples ? 7 : 6
         
         progress = ImportProgress(currentPhase: "Fetching daily metrics...", processed: 0, total: totalPhases)
         
@@ -45,10 +45,13 @@ class ImportManager: ObservableObject {
         progress = ImportProgress(currentPhase: "Fetching nutrition...", processed: 3, total: totalPhases)
         
         let nutrition = try await healthKitManager.fetchNutrition(startDate: startDate, endDate: endDate)
+        progress = ImportProgress(currentPhase: "Fetching mindfulness sessions...", processed: 4, total: totalPhases)
+        
+        let mindfulness = try await healthKitManager.fetchMindfulnessSessions(startDate: startDate, endDate: endDate)
         
         var samples: [[String: Any]] = []
         if includeSamples {
-            progress = ImportProgress(currentPhase: "Fetching raw samples (heart rate, vitals)...", processed: 4, total: totalPhases)
+            progress = ImportProgress(currentPhase: "Fetching raw samples (heart rate, vitals)...", processed: 5, total: totalPhases)
             samples = try await healthKitManager.fetchRawSamples(startDate: startDate, endDate: endDate)
         }
         
@@ -60,7 +63,8 @@ class ImportManager: ObservableObject {
             "dailyMetrics": dailyMetrics,
             "sleepNights": sleepNights,
             "workouts": workouts,
-            "nutritionData": nutrition
+            "nutritionData": nutrition,
+            "mindfulnessSessions": mindfulness
         ]
         
         if includeSamples && !samples.isEmpty {
@@ -76,7 +80,7 @@ class ImportManager: ObservableObject {
         
         progress = nil
         
-        var summary = "Daily: \(dailyMetrics.count), Sleep: \(sleepNights.count), Workouts: \(workouts.count), Nutrition: \(nutrition.count)"
+        var summary = "Daily: \(dailyMetrics.count), Sleep: \(sleepNights.count), Workouts: \(workouts.count), Nutrition: \(nutrition.count), Mindfulness: \(mindfulness.count)"
         if includeSamples {
             summary += ", Samples: \(samples.count)"
         }

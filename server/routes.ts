@@ -5677,7 +5677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get target user by email
-      const { email, dailyMetrics, sleepNights, workouts, samples, nutritionData } = req.body;
+      const { email, dailyMetrics, sleepNights, workouts, samples, nutritionData, mindfulnessSessions } = req.body;
       
       if (!email) {
         return res.status(400).json({ error: "Email required to identify target user" });
@@ -5699,6 +5699,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         workouts: { inserted: 0, errors: 0 },
         samples: { inserted: 0, errors: 0 },
         nutrition: { inserted: 0, errors: 0 },
+        mindfulness: { inserted: 0, errors: 0 },
       };
       
       // Import daily metrics
@@ -5728,6 +5729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               distance_meters: metric.distanceMeters ?? null,
               flights_climbed: metric.flightsClimbed ?? null,
               stand_hours: metric.standHours ?? null,
+              stand_time_minutes: metric.standTimeMinutes ?? null,
               avg_heart_rate_bpm: metric.avgHeartRateBpm ?? null,
               systolic_bp: metric.systolicBp ?? null,
               diastolic_bp: metric.diastolicBp ?? null,
@@ -5739,7 +5741,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
               oxygen_saturation_pct: metric.oxygenSaturation ?? null,
               respiratory_rate_bpm: metric.respiratoryRate ?? null,
               body_temp_c: metric.bodyTemperatureCelsius ?? null,
-              normalization_version: 'dev_import_v1',
+              wrist_temperature: metric.wristTemperature ?? null,
+              heart_rate_recovery_bpm: metric.heartRateRecoveryBpm ?? null,
+              // Mobility metrics
+              walking_speed_ms: metric.walkingSpeedMs ?? null,
+              walking_step_length_m: metric.walkingStepLengthM ?? null,
+              walking_double_support_pct: metric.walkingDoubleSupportPct ?? null,
+              walking_asymmetry_pct: metric.walkingAsymmetryPct ?? null,
+              apple_walking_steadiness: metric.appleWalkingSteadiness ?? null,
+              six_minute_walk_distance_m: metric.sixMinuteWalkDistanceM ?? null,
+              stair_ascent_speed_ms: metric.stairAscentSpeedMs ?? null,
+              stair_descent_speed_ms: metric.stairDescentSpeedMs ?? null,
+              // Audio exposure
+              environmental_audio_exposure_dba: metric.environmentalAudioExposureDbA ?? null,
+              normalization_version: 'dev_import_v2',
             };
             
             await healthRouter.upsertDailyMetrics(userId, supabaseMetric);
@@ -5850,29 +5865,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Import nutrition data
+      // Import nutrition data (expanded with all 38 nutrients)
       if (nutritionData && Array.isArray(nutritionData)) {
         logger.info(`[DevImport] Importing ${nutritionData.length} nutrition records`);
         for (const nutrition of nutritionData) {
           try {
-            await healthRouter.upsertNutritionDaily(userId, {
-              date: nutrition.date,
+            await healthRouter.upsertNutritionDailyMetrics(userId, {
+              localDate: nutrition.date,
               timezone: nutrition.timezone || 'Australia/Perth',
-              calories_kcal: nutrition.caloriesKcal ?? null,
-              protein_g: nutrition.proteinG ?? null,
-              carbs_g: nutrition.carbsG ?? null,
-              fat_g: nutrition.fatG ?? null,
-              fiber_g: nutrition.fiberG ?? null,
-              sugar_g: nutrition.sugarG ?? null,
-              sodium_mg: nutrition.sodiumMg ?? null,
-              cholesterol_mg: nutrition.cholesterolMg ?? null,
-              caffeine_mg: nutrition.caffeineMg ?? null,
-              water_ml: nutrition.waterMl ?? null,
+              // Macronutrients
+              energyKcal: nutrition.energyKcal ?? nutrition.caloriesKcal ?? null,
+              proteinG: nutrition.proteinG ?? null,
+              carbohydratesG: nutrition.carbohydratesG ?? nutrition.carbsG ?? null,
+              fatTotalG: nutrition.fatTotalG ?? nutrition.fatG ?? null,
+              fiberG: nutrition.fiberG ?? null,
+              sugarG: nutrition.sugarG ?? null,
+              // Fat breakdown
+              fatSaturatedG: nutrition.fatSaturatedG ?? null,
+              fatMonounsaturatedG: nutrition.fatMonounsaturatedG ?? null,
+              fatPolyunsaturatedG: nutrition.fatPolyunsaturatedG ?? null,
+              cholesterolMg: nutrition.cholesterolMg ?? null,
+              // Minerals
+              sodiumMg: nutrition.sodiumMg ?? null,
+              potassiumMg: nutrition.potassiumMg ?? null,
+              calciumMg: nutrition.calciumMg ?? null,
+              ironMg: nutrition.ironMg ?? null,
+              magnesiumMg: nutrition.magnesiumMg ?? null,
+              phosphorusMg: nutrition.phosphorusMg ?? null,
+              zincMg: nutrition.zincMg ?? null,
+              copperMg: nutrition.copperMg ?? null,
+              manganeseMg: nutrition.manganeseMg ?? null,
+              seleniumMcg: nutrition.seleniumMcg ?? null,
+              chromiumMcg: nutrition.chromiumMcg ?? null,
+              molybdenumMcg: nutrition.molybdenumMcg ?? null,
+              iodineMcg: nutrition.iodineMcg ?? null,
+              chlorideMg: nutrition.chlorideMg ?? null,
+              // Vitamins
+              vitaminAMcg: nutrition.vitaminAMcg ?? null,
+              vitaminB6Mg: nutrition.vitaminB6Mg ?? null,
+              vitaminB12Mcg: nutrition.vitaminB12Mcg ?? null,
+              vitaminCMg: nutrition.vitaminCMg ?? null,
+              vitaminDMcg: nutrition.vitaminDMcg ?? null,
+              vitaminEMg: nutrition.vitaminEMg ?? null,
+              vitaminKMcg: nutrition.vitaminKMcg ?? null,
+              thiaminMg: nutrition.thiaminMg ?? null,
+              riboflavinMg: nutrition.riboflavinMg ?? null,
+              niacinMg: nutrition.niacinMg ?? null,
+              folateMcg: nutrition.folateMcg ?? null,
+              biotinMcg: nutrition.biotinMcg ?? null,
+              pantothenicAcidMg: nutrition.pantothenicAcidMg ?? null,
+              // Other
+              caffeineMg: nutrition.caffeineMg ?? null,
+              waterMl: nutrition.waterMl ?? null,
             });
             results.nutrition.inserted++;
           } catch (err: any) {
             logger.error(`[DevImport] Nutrition error for ${nutrition.date}:`, err.message);
             results.nutrition.errors++;
+          }
+        }
+      }
+      
+      // Import mindfulness sessions
+      if (mindfulnessSessions && Array.isArray(mindfulnessSessions)) {
+        logger.info(`[DevImport] Importing ${mindfulnessSessions.length} mindfulness sessions`);
+        const { processMindfulnessSession } = await import('./services/nutritionMindfulnessAggregator');
+        
+        for (const session of mindfulnessSessions) {
+          try {
+            const startTime = new Date(session.startTime);
+            const endTime = new Date(session.endTime);
+            
+            await processMindfulnessSession(
+              userId,
+              startTime,
+              endTime,
+              session.sourceName || 'DevImporter',
+              session.sourceBundleId || 'com.flo.devimporter',
+              session.healthkitUuid || null,
+              { timezone: session.timezone || 'Australia/Perth' }
+            );
+            results.mindfulness.inserted++;
+          } catch (err: any) {
+            logger.error(`[DevImport] Mindfulness error for ${session.sessionDate}:`, err.message);
+            results.mindfulness.errors++;
           }
         }
       }
