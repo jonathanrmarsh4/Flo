@@ -1,11 +1,18 @@
 import { logger } from '../logger';
 import { geminiChatClient } from './geminiChatClient';
+import OpenAI from 'openai';
 
 /**
- * Gemini-powered life event parser
+ * Life event parser with multi-provider support
  * Extracts structured life events from natural language messages
- * Uses Gemini 2.5 Flash for consistency with text/voice chat
+ * Primary: Gemini 2.5 Pro, Fallback: OpenAI GPT-5
  */
+
+// OpenAI client using Replit AI Integrations (no API key needed)
+const openai = new OpenAI({
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+});
 
 interface LifeEventExtraction {
   eventType: string;
@@ -154,16 +161,65 @@ User: "what does my blood work show?"
 
 Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observations. Return null for questions or general discussion.`;
 
-    const response = await geminiChatClient.chat([
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: message }
-    ], {
-      model: 'gemini-2.5-pro', // Use pro model for reliability (flash returns empty)
-      temperature: 0.3, // Low temp for consistent extraction
-      maxTokens: 200,
-    });
+    let response: string | null = null;
+    let provider = 'gemini';
 
-    logger.info('[LifeEventParser] Gemini response:', { response: response.substring(0, 200) });
+    // Try Gemini first
+    try {
+      if (geminiChatClient.isAvailable()) {
+        response = await geminiChatClient.chat([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ], {
+          model: 'gemini-2.5-pro',
+          temperature: 0.3,
+          maxTokens: 200,
+        });
+        
+        if (!response || response.trim().length === 0) {
+          logger.warn('[LifeEventParser] Gemini returned empty, trying OpenAI fallback');
+          response = null;
+        }
+      }
+    } catch (geminiError: any) {
+      logger.warn('[LifeEventParser] Gemini failed, trying OpenAI fallback', { 
+        error: geminiError.message 
+      });
+    }
+
+    // Fallback to OpenAI if Gemini failed
+    if (!response && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+      provider = 'openai';
+      try {
+        // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+        const openaiResponse = await openai.chat.completions.create({
+          model: 'gpt-4o-mini', // Use fast, cheap model for extraction
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          temperature: 0.3,
+          max_tokens: 200,
+        });
+        response = openaiResponse.choices[0]?.message?.content || null;
+        logger.info('[LifeEventParser] OpenAI fallback succeeded');
+      } catch (openaiError: any) {
+        logger.error('[LifeEventParser] OpenAI fallback also failed', { 
+          error: openaiError.message 
+        });
+        return null;
+      }
+    }
+
+    if (!response) {
+      logger.error('[LifeEventParser] All providers failed');
+      return null;
+    }
+
+    logger.info('[LifeEventParser] Response received', { 
+      provider,
+      responsePreview: response.substring(0, 200) 
+    });
 
     // Parse JSON response
     const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -181,6 +237,7 @@ Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observat
     }
 
     logger.info('[LifeEventParser] Extracted event:', {
+      provider,
       type: extraction.eventType,
       details: extraction.details,
     });
