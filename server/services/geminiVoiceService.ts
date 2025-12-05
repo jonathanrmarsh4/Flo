@@ -92,6 +92,7 @@ class GeminiVoiceService {
 
   /**
    * Start a new voice session for a user
+   * @param deviceTimezone - Optional timezone from device (e.g., 'Australia/Sydney')
    */
   async startSession(
     userId: string,
@@ -101,7 +102,8 @@ class GeminiVoiceService {
       onModelText: (text: string) => void;
       onError: (error: Error) => void;
       onClose: () => void;
-    }
+    },
+    deviceTimezone?: string
   ): Promise<string> {
     const sessionId = `voice_${userId}_${Date.now()}`;
     
@@ -113,7 +115,36 @@ class GeminiVoiceService {
     const voicePreference = user?.voicePreference || 'Amanda';
     const geminiVoiceName = VOICE_NAME_TO_GEMINI[voicePreference] || 'Puck';
     
-    logger.info('[GeminiVoice] User voice preference', { userId, voicePreference, geminiVoiceName });
+    // Prefer device timezone (from iOS app), fallback to user profile, then default
+    const userTimezone = deviceTimezone || user?.timezone || 'America/Los_Angeles';
+    
+    // Get current local time in user's timezone
+    const now = new Date();
+    let localTimeStr: string;
+    try {
+      localTimeStr = now.toLocaleString('en-US', { 
+        timeZone: userTimezone, 
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (tzError) {
+      // Invalid timezone, fallback to UTC
+      logger.warn('[GeminiVoice] Invalid timezone, using UTC', { userTimezone, error: tzError });
+      localTimeStr = now.toUTCString();
+    }
+    
+    logger.info('[GeminiVoice] User voice preference', { 
+      userId, 
+      voicePreference, 
+      geminiVoiceName, 
+      timezone: userTimezone,
+      timezoneSource: deviceTimezone ? 'device' : (user?.timezone ? 'profile' : 'default')
+    });
     
     let healthContext = '';
     try {
@@ -160,14 +191,18 @@ class GeminiVoiceService {
       healthContext = 'Health data is currently loading...';
     }
 
-    // Build the full system prompt
+    // Build the full system prompt with timezone context
     const systemInstruction = `${FLO_ORACLE_SYSTEM_PROMPT}
 
 USER PROFILE:
 - First Name: ${firstName || 'User'}
+- Timezone: ${userTimezone}
+- Current Local Time: ${localTimeStr}
 
 CURRENT HEALTH CONTEXT:
 ${healthContext}
+
+IMPORTANT: When the user mentions time references like "yesterday", "this morning", "last night", etc., interpret them relative to their current local time shown above. The user is in ${userTimezone}.
 
 Start the conversation warmly, using their name if you have it.`;
 

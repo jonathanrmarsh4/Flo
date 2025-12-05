@@ -10231,7 +10231,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         return;
       }
       
-      logger.info('[GeminiLive WS] Authenticated user', { userId });
+      // Get device timezone from URL params (iOS app sends this)
+      const deviceTimezone = url.searchParams.get('timezone') || undefined;
+      
+      logger.info('[GeminiLive WS] Authenticated user', { userId, deviceTimezone });
       
       // Import and start Gemini voice session
       const { geminiVoiceService } = await import('./services/geminiVoiceService');
@@ -10242,7 +10245,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         return;
       }
       
-      // Start the voice session
+      // Start the voice session with device timezone
       sessionId = await geminiVoiceService.startSession(userId, {
         onAudioChunk: (audioData: Buffer) => {
           // Send audio back to client as base64
@@ -10284,7 +10287,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
             ws.close(1000, 'Session ended');
           }
         },
-      });
+      }, deviceTimezone);
       
       ws.send(JSON.stringify({ type: 'connected', sessionId }));
       logger.info('[GeminiLive WS] Session started', { userId, sessionId });
