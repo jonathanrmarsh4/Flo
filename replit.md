@@ -39,6 +39,13 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Proactive AI Conversational Intelligence:** Detects user intentions in conversations using Gemini Flash, proactively follows up on requests, and integrates life context for AI personalization.
 - **On-Demand Data Retrieval (Function Calling):** Flō Oracle uses Gemini function calling to fetch detailed health data when users ask specific questions. Available tools: `get_nutrition_trend`, `get_body_composition_history`, `get_workout_summary`, `get_sleep_analysis`, `get_biomarker_history`, `get_vitals_trend`, `get_life_events`, `correlate_metrics`. Enables complex queries like "how has my protein intake affected my body composition" by fetching and analyzing raw data on-demand.
 - **Dev HealthKit Importer System:** Standalone iOS app (`ios-healthkit-importer/`) for populating dev environment with real HealthKit data. Exports daily metrics, sleep nights, workouts, nutrition, and raw vital sign samples. Backend endpoint `/api/dev/import-healthkit` secured with `DEV_IMPORT_API_KEY` header, routes all data through `healthStorageRouter` to Supabase. Used for testing AI insights with authentic health data without affecting production.
+- **Self-Improvement Engine (SIE):** Admin-only sandbox AI that analyzes Flō's complete data landscape and suggests product improvements. Uses Gemini 2.5 Pro with UNRESTRICTED prompting (no guardrails, no safety disclaimers) to maximize creative strategic analysis. Features:
+  - Dynamic data source introspection (queries live Supabase/Neon schemas)
+  - Verbal output via OpenAI TTS (tts-1-hd, "onyx" voice)
+  - Self-evolving awareness - automatically discovers new tables/columns as features are added
+  - Session storage for self-referential evolution
+  - API: POST `/api/sandbox/sie` (admin-only)
+  - Frontend: AdminSIE component in admin dashboard Settings tab
 
 ## External Dependencies
 

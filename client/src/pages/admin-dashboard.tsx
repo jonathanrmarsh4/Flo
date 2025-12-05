@@ -13,6 +13,7 @@ import { AdminReportModelSettings } from '@/components/admin/AdminReportModelSet
 import { AdminAnalyticsTab } from '@/components/admin/AdminAnalyticsTab';
 import { AdminSandboxVoice } from '@/components/admin/AdminSandboxVoice';
 import { AdminMessagesManager } from '@/components/admin/AdminMessagesManager';
+import { AdminSIE } from '@/components/admin/AdminSIE';
 
 interface AdminUserSummary {
   id: string;
@@ -898,6 +899,8 @@ export default function AdminDashboard() {
             <h3 className="text-lg text-white mb-4">
               System Settings
             </h3>
+
+            <AdminSIE />
 
             <AdminSandboxVoice />
 

@@ -4587,6 +4587,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // Self-Improvement Engine (SIE) - Sandbox Mode
+  // Unrestricted AI analysis of Flō's data landscape for product improvements
+  // ============================================================================
+  
+  app.post("/api/sandbox/sie", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { generateAudio = true } = req.body;
+      
+      logger.info('[SIE] Analysis requested by admin', { adminId, generateAudio });
+      
+      const { runSIEAnalysis } = await import('./services/sieService');
+      const result = await runSIEAnalysis(generateAudio);
+      
+      logger.info('[SIE] Analysis complete', { 
+        adminId, 
+        sessionId: result.sessionId,
+        hasAudio: !!result.audioBase64,
+        processingTimeMs: result.processingTimeMs,
+      });
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[SIE] Analysis failed:', error);
+      res.status(500).json({ 
+        error: "SIE analysis failed", 
+        message: error.message,
+      });
+    }
+  });
+  
+  app.get("/api/sandbox/sie/sessions", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { getSIESessions } = await import('./services/sieService');
+      const sessions = getSIESessions();
+      
+      res.json({
+        sessions: sessions.map(s => ({
+          id: s.id,
+          timestamp: s.timestamp,
+          audioGenerated: s.audioGenerated,
+          responseLength: s.response.length,
+        })),
+        total: sessions.length,
+      });
+    } catch (error: any) {
+      logger.error('[SIE] Sessions fetch failed:', error);
+      res.status(500).json({ error: "Failed to fetch sessions" });
+    }
+  });
+  
+  app.get("/api/sandbox/sie/data-landscape", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { getDataLandscape } = await import('./services/sieService');
+      const landscape = await getDataLandscape();
+      
+      res.json({
+        supabaseTables: landscape.supabaseTables.length,
+        neonTables: landscape.neonTables.length,
+        healthKitMetrics: landscape.healthKitMetrics.length,
+        aiCapabilities: landscape.aiCapabilities.length,
+        integrations: landscape.integrations.length,
+        gaps: landscape.recentChanges.length,
+        details: landscape,
+      });
+    } catch (error: any) {
+      logger.error('[SIE] Data landscape fetch failed:', error);
+      res.status(500).json({ error: "Failed to fetch data landscape" });
+    }
+  });
+
   // Stripe billing routes (referenced from javascript_stripe blueprint)
   // Initialize Stripe only if API key is available
   const stripe = process.env.STRIPE_SECRET_KEY 
