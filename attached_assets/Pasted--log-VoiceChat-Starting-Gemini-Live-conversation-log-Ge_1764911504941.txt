@@ -1,0 +1,57 @@
+⚡️  [log] - [VoiceChat] Starting Gemini Live conversation...
+⚡️  [log] - [GeminiLive] WebSocket connected
+⚡️  [log] - [GeminiLive] Session started: voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764911395284
+⚡️  [log] - [VoiceChat] Connected to Gemini Live
+⚡️  [warn] - [GeminiLive] Wake lock not available: {}
+🎤 Media capture permission requested - type: WKMediaCaptureType(rawValue: 1)
+✅ Granting microphone permission
+⚡️  [log] - [GeminiLive] Device sample rate: 48000
+⚡️  [log] - [GeminiLive] Started listening - capturing and resampling to 16kHz
+⚡️  [log] - [GeminiLive] Model response: **Greeting Health Data Access**
+
+Okay, I've got a 
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [VoiceChat] Transcript:  Hey Final: false
+⚡️  [log] - [VoiceChat] Transcript:  Flo Final: false
+⚡️  [log] - [VoiceChat] Transcript: , Final: false
+⚡️  [log] - [VoiceChat] Transcript:  I Final: false
+⚡️  [log] - [VoiceChat] Transcript:  just Final: false
+⚡️  [log] - [VoiceChat] Transcript:  wanted Final: false
+⚡️  [log] - [VoiceChat] Transcript:  to Final: false
+⚡️  [log] - [VoiceChat] Transcript:  let Final: false
+⚡️  [log] - [VoiceChat] Transcript:  you Final: false
+⚡️  [log] - [VoiceChat] Transcript:  know Final: false
+⚡️  [log] - [VoiceChat] Transcript:  that Final: false
+⚡️  [log] - [VoiceChat] Transcript:  I Final: false
+⚡️  [log] - [VoiceChat] Transcript:  had Final: false
+⚡️  [log] - [VoiceChat] Transcript:  a Final: false
+⚡️  [log] - [VoiceChat] Transcript:  just Final: false
+⚡️  [log] - [VoiceChat] Transcript:  be Final: false
+⚡️  [log] - [VoiceChat] Transcript: fo Final: false
+⚡️  [log] - [VoiceChat] Transcript: re Final: false
+⚡️  [log] - [VoiceChat] Transcript:  um Final: false
+⚡️  [log] - [VoiceChat] Transcript:  and Final: false
+⚡️  [log] - [VoiceChat] Transcript:  then Final: false
+⚡️  [log] - [VoiceChat] Transcript:  I Final: false
+⚡️  [log] - [VoiceChat] Transcript:  had Final: false
+⚡️  [log] - [VoiceChat] Transcript:  to swim at the beach. Final: false
+⚡️  [log] - [GeminiLive] Model response: **Expressing Curiosity About Jon**
+
+I've been thin
+⚡️  [log] - [VoiceChat] Ending conversation...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] WebSocket closed: 1005 
+⚡️  [log] - [VoiceChat] Disconnected from Gemini Live
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = dismissAutoFillPanel, customInfoType = UIUserInteractionRemoteInputOperations
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+Reporter disconnected or already stopped. { func=stop, reporterID=103074920136705 }
+⚡️  To Native ->  Preferences set 105010745
+⚡️  TO JS undefined
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = dismissAutoFillPanel, customInfoType = UIUserInteractionRemoteInputOperations
+Snapshotting a view (0x11a212000, UIKeyboardImpl) that is not in a visible window requires afterScreenUpdates:YES.
+⚡️  To Native ->  Preferences set 105010746
+⚡️  TO JS undefined

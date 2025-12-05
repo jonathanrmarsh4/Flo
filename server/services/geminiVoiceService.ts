@@ -194,13 +194,16 @@ Start the conversation warmly, using their name if you have it.`;
     let currentTurnTranscript = '';
     // Accumulate ALL user speech across the entire session for better life event detection
     let fullSessionUserTranscript = '';
-    // Track AI mentions of activities (if AI says "sauna", user said it even if transcript missed it)
-    const aiMentionedActivities: string[] = [];
+    // Accumulate ALL AI response text (since it comes in chunks)
+    let fullSessionAIResponse = '';
     
     // Activity keywords to detect in AI responses - if AI mentions these, user talked about them
-    const ACTIVITY_KEYWORDS = ['sauna', 'ice bath', 'cold plunge', 'workout', 'exercise', 
-      'meditation', 'breathwork', 'supplements', 'vitamins', 'alcohol', 'wine', 'beer',
-      'coffee', 'caffeine', 'yoga', 'massage', 'run', 'gym', 'creatine', 'nmn', 'protein'];
+    // Expanded list to cover common activities
+    const ACTIVITY_KEYWORDS = ['sauna', 'ice bath', 'cold plunge', 'cold water', 'workout', 'exercise', 
+      'meditation', 'breathwork', 'supplements', 'vitamins', 'alcohol', 'wine', 'beer', 'drink',
+      'coffee', 'caffeine', 'yoga', 'massage', 'run', 'running', 'gym', 'creatine', 'nmn', 'protein',
+      'swim', 'swimming', 'beach', 'ocean', 'walk', 'walking', 'hike', 'hiking', 'bike', 'cycling',
+      'stretch', 'stretching', 'sleep', 'nap', 'fast', 'fasting', 'meal', 'breakfast', 'lunch', 'dinner'];
     
     // Wrap callbacks to track transcript
     const wrappedCallbacks: LiveSessionCallbacks = {
@@ -247,20 +250,8 @@ Start the conversation warmly, using their name if you have it.`;
         const currentState = this.sessionStates.get(sessionId);
         if (currentState && text) {
           currentState.transcript.push(`[Flō]: ${text}`);
-          
-          // Check if AI mentions any activities - this indicates user spoke about them
-          // even if the transcript didn't fully capture it (due to interruption)
-          const lowerText = text.toLowerCase();
-          for (const keyword of ACTIVITY_KEYWORDS) {
-            if (lowerText.includes(keyword) && !aiMentionedActivities.includes(keyword)) {
-              aiMentionedActivities.push(keyword);
-              logger.info('[GeminiVoice] AI mentioned activity keyword', { 
-                sessionId, 
-                keyword,
-                aiMentionedActivities,
-              });
-            }
-          }
+          // Accumulate full AI response for keyword detection at session end
+          fullSessionAIResponse += text;
         }
         callbacks.onModelText(text);
       },
@@ -277,8 +268,34 @@ Start the conversation warmly, using their name if you have it.`;
         const currentState = this.sessionStates.get(sessionId);
         if (currentState) {
           currentState.isActive = false;
-          // Persist conversation to database
-          this.persistConversation(sessionId).catch(err => {
+          
+          // Detect activity keywords from FULL accumulated AI response
+          // This catches keywords even when they span multiple response chunks
+          const lowerAIResponse = fullSessionAIResponse.toLowerCase();
+          const aiMentionedActivities: string[] = [];
+          for (const keyword of ACTIVITY_KEYWORDS) {
+            if (lowerAIResponse.includes(keyword)) {
+              aiMentionedActivities.push(keyword);
+            }
+          }
+          
+          if (aiMentionedActivities.length > 0) {
+            logger.info('[GeminiVoice] Session end - detected activities from AI response', { 
+              sessionId,
+              userId,
+              aiMentionedActivities,
+              aiResponseLength: fullSessionAIResponse.length,
+              aiResponsePreview: fullSessionAIResponse.substring(0, 200),
+            });
+          }
+          
+          // Persist conversation with AI-detected activities for fallback parsing
+          this.persistConversationWithContext(
+            sessionId, 
+            fullSessionUserTranscript, 
+            fullSessionAIResponse,
+            aiMentionedActivities
+          ).catch(err => {
             logger.error('[GeminiVoice] Failed to persist conversation', { sessionId, error: err.message });
           });
         }
@@ -529,6 +546,134 @@ Start the conversation warmly, using their name if you have it.`;
       }
     } catch (error: any) {
       logger.error('[GeminiVoice] Failed to persist conversation', { 
+        sessionId, 
+        error: error.message 
+      });
+    }
+  }
+
+  /**
+   * Persist conversation with pre-accumulated context
+   * This version receives the full user transcript and AI response directly,
+   * avoiding the need to re-parse from session state
+   */
+  private async persistConversationWithContext(
+    sessionId: string,
+    fullUserTranscript: string,
+    fullAIResponse: string,
+    aiMentionedActivities: string[]
+  ): Promise<void> {
+    const state = this.sessionStates.get(sessionId);
+    if (!state) {
+      logger.warn('[GeminiVoice] No session state for persistence', { sessionId });
+      return;
+    }
+
+    try {
+      // Build messages array from the accumulated transcripts
+      const messages: Array<{ sender: 'user' | 'flo'; message: string }> = [];
+      
+      // Add user message if we have content
+      const userContent = fullUserTranscript.trim();
+      if (userContent) {
+        messages.push({ sender: 'user', message: userContent });
+      }
+      
+      // Add AI message if we have content
+      const aiContent = fullAIResponse.trim();
+      if (aiContent) {
+        messages.push({ sender: 'flo', message: aiContent });
+      }
+      
+      if (messages.length === 0) {
+        logger.info('[GeminiVoice] No messages to persist', { sessionId });
+        return;
+      }
+      
+      // Save messages to database
+      const insertValues = messages.map(m => ({
+        userId: state.userId,
+        sender: m.sender,
+        message: m.message,
+        sessionId: sessionId,
+      }));
+      
+      await db.insert(floChatMessages).values(insertValues);
+
+      logger.info('[GeminiVoice] Conversation persisted with context', { 
+        sessionId, 
+        userId: state.userId,
+        userTranscriptLength: userContent.length,
+        aiResponseLength: aiContent.length,
+        aiMentionedActivities,
+      });
+      
+      // Trigger memory extraction
+      if (userContent && aiContent) {
+        import('./memoryExtractionService').then(({ processAndStoreFromChatTurn }) => {
+          processAndStoreFromChatTurn(state.userId, userContent, aiContent).catch(err => {
+            logger.error('[GeminiVoice] Failed to extract memories from voice chat:', err);
+          });
+        }).catch(err => {
+          logger.error('[GeminiVoice] Failed to import memoryExtractionService:', err);
+        });
+      }
+      
+      // CRITICAL: Process life events using AI context as fallback
+      // Since Gemini's transcription is unreliable, we use the AI's response
+      // to infer what activities the user mentioned
+      if (aiMentionedActivities.length > 0 || userContent) {
+        let extractionText = userContent;
+        
+        // If AI mentioned activities that aren't in the user transcript,
+        // prepend them as context for the life event parser
+        if (aiMentionedActivities.length > 0) {
+          // Check which activities are NOT in the user transcript
+          const lowerUserContent = userContent.toLowerCase();
+          const missingActivities = aiMentionedActivities.filter(
+            act => !lowerUserContent.includes(act)
+          );
+          
+          if (missingActivities.length > 0) {
+            // Prepend AI-detected activities that weren't in transcript
+            extractionText = `User activities (from AI response): ${missingActivities.join(', ')}. User said: ${userContent}`;
+            logger.info('[GeminiVoice] Using AI-detected activities for extraction', {
+              sessionId,
+              userId: state.userId,
+              missingActivities,
+              allAiMentioned: aiMentionedActivities,
+              userTranscriptPreview: userContent.substring(0, 100),
+            });
+          }
+        }
+        
+        logger.info('[GeminiVoice] Processing life event with context', {
+          sessionId,
+          userId: state.userId,
+          extractionTextLength: extractionText.length,
+          extractionTextPreview: extractionText.substring(0, 150),
+          aiMentionedActivities,
+        });
+        
+        this.processLifeEventWithContext(state.userId, extractionText, aiMentionedActivities).catch(err => {
+          logger.error('[GeminiVoice] Life event processing failed', { 
+            sessionId, 
+            error: err.message 
+          });
+        });
+      }
+      
+      // Process conversational intents
+      if (userContent) {
+        this.processConversationalIntentsAsync(state.userId, userContent, sessionId).catch(err => {
+          logger.error('[GeminiVoice] Conversational intent processing failed', { 
+            sessionId, 
+            error: err.message 
+          });
+        });
+      }
+    } catch (error: any) {
+      logger.error('[GeminiVoice] Failed to persist conversation with context', { 
         sessionId, 
         error: error.message 
       });
