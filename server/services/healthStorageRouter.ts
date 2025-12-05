@@ -1366,7 +1366,9 @@ interface GetNutritionDailyOptions {
 export async function getNutritionDailyMetrics(userId: string, options: GetNutritionDailyOptions = { limit: 7 }): Promise<any[]> {
   if (isSupabaseHealthEnabled()) {
     try {
+      logger.info(`[HealthStorageRouter] Fetching nutrition metrics for userId: ${userId}, options: ${JSON.stringify(options)}`);
       const data = await supabaseHealth.getNutritionDailyMetricsFlexible(userId, options);
+      logger.info(`[HealthStorageRouter] Supabase returned ${data.length} nutrition records`);
       return data.map(row => ({
         id: row.id,
         userId: userId,

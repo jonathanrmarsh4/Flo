@@ -1380,6 +1380,7 @@ interface GetNutritionDailyOptions {
 
 export async function getNutritionDailyMetricsFlexible(userId: string, options: GetNutritionDailyOptions = {}): Promise<NutritionDailyMetrics[]> {
   const healthId = await getHealthId(userId);
+  logger.info(`[SupabaseHealth] Nutrition query - userId: ${userId} -> healthId: ${healthId}`);
   
   let query = supabase
     .from('nutrition_daily_metrics')
@@ -1389,6 +1390,7 @@ export async function getNutritionDailyMetricsFlexible(userId: string, options: 
 
   if (options.startDate) {
     const startDateStr = options.startDate.toISOString().split('T')[0];
+    logger.info(`[SupabaseHealth] Nutrition query filter - startDate: ${startDateStr}`);
     query = query.gte('local_date', startDateStr);
   }
   if (options.endDate) {
@@ -1404,6 +1406,11 @@ export async function getNutritionDailyMetricsFlexible(userId: string, options: 
   if (error) {
     logger.error('[SupabaseHealth] Error fetching nutrition daily metrics (flexible):', error);
     throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Nutrition query returned ${data?.length || 0} records`);
+  if (data && data.length > 0) {
+    logger.info(`[SupabaseHealth] First nutrition record: ${JSON.stringify(data[0])}`);
   }
 
   return data || [];
