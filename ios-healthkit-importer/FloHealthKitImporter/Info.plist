@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>Flo HealthKit Importer</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.flo.healthkit-importer</string>
+    <key>CFBundleName</key>
+    <string>FloHealthKitImporter</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+        <string>healthkit</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+    <key>NSHealthShareUsageDescription</key>
+    <string>Flo HealthKit Importer needs access to your health data to export it to your Flo development environment for testing.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>Flo HealthKit Importer may need to update health data for testing purposes.</string>
+</dict>
+</plist>
