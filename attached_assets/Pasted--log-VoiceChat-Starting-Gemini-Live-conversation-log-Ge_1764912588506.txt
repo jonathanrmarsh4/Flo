@@ -1,0 +1,80 @@
+⚡️  [log] - [VoiceChat] Starting Gemini Live conversation...
+⚡️  [log] - [GeminiLive] WebSocket connected
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x1570ea730 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+⚡️  [log] - [GeminiLive] Session started: voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1764912465289
+⚡️  [log] - [VoiceChat] Connected to Gemini Live
+⚡️  [log] - [GeminiLive] Wake lock acquired - screen will stay awake
+🎤 Media capture permission requested - type: WKMediaCaptureType(rawValue: 1)
+✅ Granting microphone permission
+⚡️  [log] - [GeminiLive] Device sample rate: 48000
+⚡️  [log] - [GeminiLive] Started listening - capturing and resampling to 16kHz
+⚡️  [log] - [GeminiLive] Model response: **Offering Initial Assistance**
+
+Hey Jon, I'm read
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [VoiceChat] Transcript:  Hey Flo, how are you? Final: false
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [VoiceChat] Transcript:  Just Final: false
+⚡️  [log] - [VoiceChat] Transcript:  want Final: false
+⚡️  [log] - [VoiceChat] Transcript:  to Final: false
+⚡️  [log] - [VoiceChat] Transcript:  let Final: false
+⚡️  [log] - [VoiceChat] Transcript:  you Final: false
+⚡️  [log] - [VoiceChat] Transcript:  know Final: false
+⚡️  [log] - [VoiceChat] Transcript:  that Final: false
+⚡️  [log] - [VoiceChat] Transcript:  I Final: false
+⚡️  [log] - [VoiceChat] Transcript:  just Final: false
+⚡️  [log] - [VoiceChat] Transcript:  had Final: false
+⚡️  [log] - [VoiceChat] Transcript:  a Final: false
+⚡️  [log] - [VoiceChat] Transcript:  swi Final: false
+⚡️  [log] - [VoiceChat] Transcript: m in Final: false
+⚡️  [log] - [VoiceChat] Transcript:  the Final: false
+⚡️  [log] - [VoiceChat] Transcript:  o Final: false
+⚡️  [log] - [VoiceChat] Transcript: cean Final: false
+⚡️  [log] - [VoiceChat] Transcript:  and Final: false
+⚡️  [log] - [VoiceChat] Transcript:  then Final: false
+⚡️  [log] - [VoiceChat] Transcript:  wen Final: false
+⚡️  [log] - [VoiceChat] Transcript: t Final: false
+⚡️  [log] - [VoiceChat] Transcript:  for Final: false
+⚡️  [log] - [VoiceChat] Transcript:   Final: false
+⚡️  [log] - [VoiceChat] Transcript: a beach. Final: false
+⚡️  [log] - [GeminiLive] Model response: **Processing Jon's Update**
+
+My analysis is underw
+⚡️  [log] - [VoiceChat] Ending conversation...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Wake lock released
+⚡️  [log] - [GeminiLive] Wake lock released
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [error] - [GeminiLive] WebSocket error: {"isTrusted":true}
+⚡️  [error] - [VoiceChat] Gemini error: Connection error
+⚡️  [log] - [GeminiLive] WebSocket closed: 1006 
+⚡️  [log] - [VoiceChat] Disconnected from Gemini Live
+⚡️  [log] - [VoiceChat] Closing chat window...
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = dismissAutoFillPanel, customInfoType = UIUserInteractionRemoteInputOperations
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+Reporter disconnected or already stopped. { func=stop, reporterID=103641855819777 }
+⚡️  To Native ->  Preferences set 92538041
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 92538042
+⚡️  TO JS {"value":"1764912508762"}
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  To Native ->  Preferences get 92538043
+⚡️  To Native ->  Preferences get 92538044
+⚡️  TO JS {"value":"1764912355879"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+Snapshotting a view (0x156d72800, UIKeyboardImpl) that is not in a visible window requires afterScreenUpdates:YES.
+⚡️  To Native ->  Preferences set 92538045
+⚡️  TO JS undefined
+⚡️  To Native ->  Preferences set 92538046
+⚡️  TO JS undefined

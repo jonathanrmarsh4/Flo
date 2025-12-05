@@ -260,6 +260,34 @@ Start the conversation warmly, using their name if you have it.`;
         const currentState = this.sessionStates.get(sessionId);
         if (currentState) {
           currentState.isActive = false;
+          
+          // CRITICAL: Also process life events on error, not just clean close
+          // WebSocket errors (1006) can happen but we still have accumulated data
+          if (fullSessionUserTranscript || fullSessionAIResponse) {
+            logger.info('[GeminiVoice] Processing life events despite session error', {
+              sessionId,
+              userId,
+              userTranscriptLength: fullSessionUserTranscript.length,
+              aiResponseLength: fullSessionAIResponse.length,
+            });
+            
+            const lowerAIResponse = fullSessionAIResponse.toLowerCase();
+            const aiMentionedActivities: string[] = [];
+            for (const keyword of ACTIVITY_KEYWORDS) {
+              if (lowerAIResponse.includes(keyword)) {
+                aiMentionedActivities.push(keyword);
+              }
+            }
+            
+            this.persistConversationWithContext(
+              sessionId, 
+              fullSessionUserTranscript, 
+              fullSessionAIResponse,
+              aiMentionedActivities
+            ).catch(err => {
+              logger.error('[GeminiVoice] Failed to persist on error', { sessionId, error: err.message });
+            });
+          }
         }
         callbacks.onError(error);
       },
