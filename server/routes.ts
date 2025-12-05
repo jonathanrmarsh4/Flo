@@ -5654,6 +5654,243 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // Dev Import Endpoint (for HealthKit Importer iOS app)
+  // ============================================
+  
+  // Dev-only endpoint to import HealthKit data from standalone importer app
+  // Secured with DEV_IMPORT_API_KEY - not for production use
+  app.post("/api/dev/import-healthkit", async (req: any, res) => {
+    try {
+      // Verify dev import API key
+      const apiKey = req.headers['x-dev-import-key'];
+      const expectedKey = process.env.DEV_IMPORT_API_KEY;
+      
+      if (!expectedKey) {
+        logger.error("[DevImport] DEV_IMPORT_API_KEY not configured");
+        return res.status(503).json({ error: "Dev import not configured" });
+      }
+      
+      if (apiKey !== expectedKey) {
+        logger.warn("[DevImport] Invalid API key attempt");
+        return res.status(401).json({ error: "Invalid API key" });
+      }
+      
+      // Get target user by email
+      const { email, dailyMetrics, sleepNights, workouts, samples, nutritionData } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email required to identify target user" });
+      }
+      
+      // Find user by email
+      const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      
+      if (!user) {
+        return res.status(404).json({ error: `User not found: ${email}` });
+      }
+      
+      const userId = user.id;
+      logger.info(`[DevImport] Starting import for user ${email} (${userId})`);
+      
+      const results = {
+        dailyMetrics: { inserted: 0, errors: 0 },
+        sleepNights: { inserted: 0, errors: 0 },
+        workouts: { inserted: 0, errors: 0 },
+        samples: { inserted: 0, errors: 0 },
+        nutrition: { inserted: 0, errors: 0 },
+      };
+      
+      // Import daily metrics
+      if (dailyMetrics && Array.isArray(dailyMetrics)) {
+        logger.info(`[DevImport] Importing ${dailyMetrics.length} daily metrics`);
+        for (const metric of dailyMetrics) {
+          try {
+            const supabaseMetric = {
+              local_date: metric.localDate,
+              timezone: metric.timezone || 'Australia/Perth',
+              utc_day_start: metric.utcDayStart,
+              utc_day_end: metric.utcDayEnd,
+              steps_normalized: metric.stepsNormalized ?? null,
+              steps_raw_sum: metric.stepsRawSum ?? metric.stepCount ?? null,
+              steps_sources: metric.stepsSources ?? null,
+              active_energy_kcal: metric.activeEnergyKcal ?? null,
+              exercise_minutes: metric.exerciseMinutes ?? null,
+              sleep_hours: metric.sleepHours ?? null,
+              resting_hr_bpm: metric.restingHrBpm ?? null,
+              hrv_ms: metric.hrvMs ?? null,
+              weight_kg: metric.weightKg ?? null,
+              height_cm: metric.heightCm ?? null,
+              bmi: metric.bmi ?? null,
+              body_fat_percent: metric.bodyFatPercent ?? null,
+              lean_body_mass_kg: metric.leanBodyMassKg ?? null,
+              waist_circumference_cm: metric.waistCircumferenceCm ?? null,
+              distance_meters: metric.distanceMeters ?? null,
+              flights_climbed: metric.flightsClimbed ?? null,
+              stand_hours: metric.standHours ?? null,
+              avg_heart_rate_bpm: metric.avgHeartRateBpm ?? null,
+              systolic_bp: metric.systolicBp ?? null,
+              diastolic_bp: metric.diastolicBp ?? null,
+              blood_glucose_mg_dl: metric.bloodGlucoseMgDl ?? null,
+              vo2_max: metric.vo2Max ?? null,
+              basal_energy_kcal: metric.basalEnergyKcal ?? null,
+              walking_hr_avg_bpm: metric.walkingHeartRateAvg ?? null,
+              dietary_water_ml: metric.dietaryWaterMl ?? null,
+              oxygen_saturation_pct: metric.oxygenSaturation ?? null,
+              respiratory_rate_bpm: metric.respiratoryRate ?? null,
+              body_temp_c: metric.bodyTemperatureCelsius ?? null,
+              normalization_version: 'dev_import_v1',
+            };
+            
+            await healthRouter.upsertDailyMetrics(userId, supabaseMetric);
+            results.dailyMetrics.inserted++;
+          } catch (err: any) {
+            logger.error(`[DevImport] Daily metric error for ${metric.localDate}:`, err.message);
+            results.dailyMetrics.errors++;
+          }
+        }
+      }
+      
+      // Import sleep nights
+      if (sleepNights && Array.isArray(sleepNights)) {
+        logger.info(`[DevImport] Importing ${sleepNights.length} sleep nights`);
+        for (const sleep of sleepNights) {
+          try {
+            await healthRouter.upsertSleepNight(userId, {
+              sleepDate: sleep.sleepDate,
+              timezone: sleep.timezone || 'Australia/Perth',
+              nightStart: sleep.nightStart ? new Date(sleep.nightStart) : null,
+              finalWake: sleep.finalWake ? new Date(sleep.finalWake) : null,
+              sleepOnset: sleep.sleepOnset ? new Date(sleep.sleepOnset) : null,
+              timeInBedMin: sleep.timeInBedMin ?? null,
+              totalSleepMin: sleep.totalSleepMin ?? null,
+              sleepEfficiencyPct: sleep.sleepEfficiencyPct ?? null,
+              sleepLatencyMin: sleep.sleepLatencyMin ?? null,
+              wasoMin: sleep.wasoMin ?? null,
+              numAwakenings: sleep.numAwakenings ?? null,
+              coreSleepMin: sleep.coreSleepMin ?? null,
+              deepSleepMin: sleep.deepSleepMin ?? null,
+              remSleepMin: sleep.remSleepMin ?? null,
+              unspecifiedSleepMin: sleep.unspecifiedSleepMin ?? null,
+              awakeInBedMin: sleep.awakeInBedMin ?? null,
+              midSleepTimeLocal: sleep.midSleepTimeLocal ?? null,
+              fragmentationIndex: sleep.fragmentationIndex ?? null,
+              deepPct: sleep.deepPct ?? null,
+              remPct: sleep.remPct ?? null,
+              corePct: sleep.corePct ?? null,
+              bedtimeLocal: sleep.bedtimeLocal ?? null,
+              waketimeLocal: sleep.waketimeLocal ?? null,
+              restingHrBpm: sleep.restingHrBpm ?? null,
+              hrvMs: sleep.hrvMs ?? null,
+              respiratoryRate: sleep.respiratoryRate ?? null,
+              wristTemperature: sleep.wristTemperature ?? null,
+              oxygenSaturation: sleep.oxygenSaturation ?? null,
+            });
+            results.sleepNights.inserted++;
+          } catch (err: any) {
+            logger.error(`[DevImport] Sleep night error for ${sleep.sleepDate}:`, err.message);
+            results.sleepNights.errors++;
+          }
+        }
+      }
+      
+      // Import workouts
+      if (workouts && Array.isArray(workouts)) {
+        logger.info(`[DevImport] Importing ${workouts.length} workouts`);
+        const formattedWorkouts = workouts.map(w => ({
+          workout_type: w.workoutType || w.workout_type,
+          start_date: w.startDate || w.start_date,
+          end_date: w.endDate || w.end_date,
+          duration_minutes: w.durationMinutes || w.duration_minutes,
+          total_energy_kcal: w.totalEnergyKcal || w.total_energy_kcal || null,
+          active_energy_kcal: w.activeEnergyKcal || w.active_energy_kcal || null,
+          distance_meters: w.distanceMeters || w.distance_meters || null,
+          avg_heart_rate_bpm: w.avgHeartRateBpm || w.avg_heart_rate_bpm || null,
+          max_heart_rate_bpm: w.maxHeartRateBpm || w.max_heart_rate_bpm || null,
+          elevation_ascended_m: w.elevationAscendedM || w.elevation_ascended_m || null,
+          source_name: w.sourceName || w.source_name || 'DevImporter',
+          source_bundle_id: w.sourceBundleId || w.source_bundle_id || 'com.flo.devimporter',
+          metadata: w.metadata || null,
+          healthkit_uuid: w.healthkitUuid || w.healthkit_uuid || null,
+        }));
+        
+        try {
+          const inserted = await healthRouter.createHealthkitWorkouts(userId, formattedWorkouts);
+          results.workouts.inserted = inserted;
+        } catch (err: any) {
+          logger.error(`[DevImport] Workouts batch error:`, err.message);
+          results.workouts.errors = workouts.length;
+        }
+      }
+      
+      // Import raw samples
+      if (samples && Array.isArray(samples)) {
+        logger.info(`[DevImport] Importing ${samples.length} samples`);
+        const formattedSamples = samples.map(s => ({
+          data_type: s.dataType || s.data_type,
+          value: s.value,
+          unit: s.unit,
+          start_date: new Date(s.startDate || s.start_date).toISOString(),
+          end_date: new Date(s.endDate || s.end_date).toISOString(),
+          source_name: s.sourceName || s.source_name || 'DevImporter',
+          source_bundle_id: s.sourceBundleId || s.source_bundle_id || 'com.flo.devimporter',
+          device_name: s.deviceName || s.device_name || null,
+          device_manufacturer: s.deviceManufacturer || s.device_manufacturer || null,
+          device_model: s.deviceModel || s.device_model || null,
+          metadata: s.metadata || null,
+          uuid: s.uuid || null,
+        }));
+        
+        try {
+          const inserted = await healthRouter.createHealthkitSamples(userId, formattedSamples);
+          results.samples.inserted = inserted;
+        } catch (err: any) {
+          logger.error(`[DevImport] Samples batch error:`, err.message);
+          results.samples.errors = samples.length;
+        }
+      }
+      
+      // Import nutrition data
+      if (nutritionData && Array.isArray(nutritionData)) {
+        logger.info(`[DevImport] Importing ${nutritionData.length} nutrition records`);
+        for (const nutrition of nutritionData) {
+          try {
+            await healthRouter.upsertNutritionDaily(userId, {
+              date: nutrition.date,
+              timezone: nutrition.timezone || 'Australia/Perth',
+              calories_kcal: nutrition.caloriesKcal ?? null,
+              protein_g: nutrition.proteinG ?? null,
+              carbs_g: nutrition.carbsG ?? null,
+              fat_g: nutrition.fatG ?? null,
+              fiber_g: nutrition.fiberG ?? null,
+              sugar_g: nutrition.sugarG ?? null,
+              sodium_mg: nutrition.sodiumMg ?? null,
+              cholesterol_mg: nutrition.cholesterolMg ?? null,
+              caffeine_mg: nutrition.caffeineMg ?? null,
+              water_ml: nutrition.waterMl ?? null,
+            });
+            results.nutrition.inserted++;
+          } catch (err: any) {
+            logger.error(`[DevImport] Nutrition error for ${nutrition.date}:`, err.message);
+            results.nutrition.errors++;
+          }
+        }
+      }
+      
+      logger.info(`[DevImport] Import complete for ${email}:`, results);
+      
+      return res.json({
+        success: true,
+        user: { email, userId },
+        results,
+      });
+      
+    } catch (error: any) {
+      logger.error("[DevImport] Import error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // Sleep Score Routes
   // Get today's sleep score and metrics
   app.get("/api/sleep/today", isAuthenticated, async (req: any, res) => {
