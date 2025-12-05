@@ -127,6 +127,9 @@ interface UserHealthContext {
     avgDailyFat: number | null;
     avgDailyFiber: number | null;
     avgDailyCaffeine: number | null;
+    avgDailySugar: number | null;
+    avgDailySodium: number | null;
+    avgDailyCholesterol: number | null;
     daysTracked: number;
   } | null;
 }
@@ -758,18 +761,20 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.warn('[FloOracle] Failed to fetch mindfulness data');
     }
 
-    // Fetch nutrition summary (last 7 days) - uses healthStorageRouter for dual-database support
+    // Fetch nutrition summary (last 90 days / 3 months) - uses healthStorageRouter for dual-database support
     try {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
       const nutritionRecords = await getHealthRouterNutritionMetrics(userId, { 
-        startDate: sevenDaysAgo, 
-        limit: 7 
+        startDate: ninetyDaysAgo, 
+        limit: 90 
       });
 
+      logger.info(`[FloOracle] Nutrition query returned ${nutritionRecords.length} records`);
+
       if (nutritionRecords.length > 0) {
-        const avgField = (field: 'energyKcal' | 'proteinG' | 'carbohydratesG' | 'fatTotalG' | 'fiberG' | 'caffeineMg') => {
+        const avgField = (field: 'energyKcal' | 'proteinG' | 'carbohydratesG' | 'fatTotalG' | 'fiberG' | 'caffeineMg' | 'sugarG' | 'sodiumMg' | 'cholesterolMg') => {
           const values = nutritionRecords.map(r => r[field]).filter((v): v is number => v != null);
           if (values.length === 0) return null;
           return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 10) / 10;
@@ -782,12 +787,17 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
           avgDailyFat: avgField('fatTotalG'),
           avgDailyFiber: avgField('fiberG'),
           avgDailyCaffeine: avgField('caffeineMg'),
+          avgDailySugar: avgField('sugarG'),
+          avgDailySodium: avgField('sodiumMg'),
+          avgDailyCholesterol: avgField('cholesterolMg'),
           daysTracked: nutritionRecords.length,
         };
-        logger.info(`[FloOracle] Fetched nutrition: ${nutritionRecords.length} days tracked`);
+        logger.info(`[FloOracle] Fetched nutrition: ${nutritionRecords.length} days tracked, avgCalories: ${context.nutritionSummary.avgDailyCalories}`);
+      } else {
+        logger.warn(`[FloOracle] No nutrition records found for user`);
       }
     } catch (error) {
-      logger.warn('[FloOracle] Failed to fetch nutrition data');
+      logger.warn('[FloOracle] Failed to fetch nutrition data:', error);
     }
 
     const contextString = buildContextString(context, bloodPanelHistory, workoutHistory);
@@ -1103,21 +1113,31 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     logger.info(`[FloOracle] Added mindfulness summary to context`);
   }
 
-  // Add nutrition summary if available
+  // Add nutrition summary if available (90-day lookback)
   const nutrition = context.nutritionSummary as any;
   if (nutrition && nutrition.daysTracked > 0) {
     lines.push('');
-    lines.push('NUTRITION (7-day averages):');
-    const nutritionParts: string[] = [];
-    if (nutrition.avgDailyCalories) nutritionParts.push(`Calories ${nutrition.avgDailyCalories.toFixed(0)} kcal`);
-    if (nutrition.avgDailyProtein) nutritionParts.push(`Protein ${nutrition.avgDailyProtein.toFixed(0)}g`);
-    if (nutrition.avgDailyCarbs) nutritionParts.push(`Carbs ${nutrition.avgDailyCarbs.toFixed(0)}g`);
-    if (nutrition.avgDailyFat) nutritionParts.push(`Fat ${nutrition.avgDailyFat.toFixed(0)}g`);
-    if (nutrition.avgDailyFiber) nutritionParts.push(`Fiber ${nutrition.avgDailyFiber.toFixed(0)}g`);
-    if (nutrition.avgDailyCaffeine) nutritionParts.push(`Caffeine ${nutrition.avgDailyCaffeine.toFixed(0)}mg`);
-    lines.push(`  ${nutritionParts.join(', ')}`);
+    lines.push(`NUTRITION (${nutrition.daysTracked}-day averages):`);
+    
+    // Macros line
+    const macroParts: string[] = [];
+    if (nutrition.avgDailyCalories) macroParts.push(`Calories ${nutrition.avgDailyCalories.toFixed(0)} kcal`);
+    if (nutrition.avgDailyProtein) macroParts.push(`Protein ${nutrition.avgDailyProtein.toFixed(0)}g`);
+    if (nutrition.avgDailyCarbs) macroParts.push(`Carbs ${nutrition.avgDailyCarbs.toFixed(0)}g`);
+    if (nutrition.avgDailyFat) macroParts.push(`Fat ${nutrition.avgDailyFat.toFixed(0)}g`);
+    if (macroParts.length > 0) lines.push(`  Macros: ${macroParts.join(', ')}`);
+    
+    // Additional nutrients line
+    const nutrientParts: string[] = [];
+    if (nutrition.avgDailyFiber) nutrientParts.push(`Fiber ${nutrition.avgDailyFiber.toFixed(0)}g`);
+    if (nutrition.avgDailySugar) nutrientParts.push(`Sugar ${nutrition.avgDailySugar.toFixed(0)}g`);
+    if (nutrition.avgDailySodium) nutrientParts.push(`Sodium ${nutrition.avgDailySodium.toFixed(0)}mg`);
+    if (nutrition.avgDailyCholesterol) nutrientParts.push(`Cholesterol ${nutrition.avgDailyCholesterol.toFixed(0)}mg`);
+    if (nutrition.avgDailyCaffeine) nutrientParts.push(`Caffeine ${nutrition.avgDailyCaffeine.toFixed(0)}mg`);
+    if (nutrientParts.length > 0) lines.push(`  Other: ${nutrientParts.join(', ')}`);
+    
     lines.push(`  Days tracked: ${nutrition.daysTracked}`);
-    logger.info(`[FloOracle] Added nutrition summary to context`);
+    logger.info(`[FloOracle] Added nutrition summary to context (${nutrition.daysTracked} days)`);
   }
   
   if (context.flomentumCurrent.score !== null) {
