@@ -158,7 +158,7 @@ Be concise. Extract only clear, loggable behaviors, symptoms, goals, or observat
       { role: 'system', content: systemPrompt },
       { role: 'user', content: message }
     ], {
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash', // Use 1.5-flash for reliability (2.5 returns empty)
       temperature: 0.3, // Low temp for consistent extraction
       maxTokens: 200,
     });
