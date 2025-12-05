@@ -7,12 +7,63 @@ const Subscriptions = SubscriptionsPlugin as any;
 
 console.log('[StoreKit] Module loaded, Subscriptions:', typeof Subscriptions);
 
+// Helper function to extract currency code from a formatted price string
+function extractCurrencyFromPrice(priceString: string): string {
+  // Common currency symbol to code mappings
+  const symbolToCode: Record<string, string> = {
+    '$': 'USD',
+    '€': 'EUR',
+    '£': 'GBP',
+    '¥': 'JPY',
+    'A$': 'AUD',
+    'AU$': 'AUD',
+    'C$': 'CAD',
+    'CA$': 'CAD',
+    'NZ$': 'NZD',
+    'HK$': 'HKD',
+    'S$': 'SGD',
+    'R$': 'BRL',
+    '₹': 'INR',
+    '₩': 'KRW',
+    '₽': 'RUB',
+    'kr': 'SEK', // Could be SEK, NOK, DKK - default to SEK
+    'CHF': 'CHF',
+    'zł': 'PLN',
+    'Kč': 'CZK',
+    'Ft': 'HUF',
+    '฿': 'THB',
+    'RM': 'MYR',
+    '₱': 'PHP',
+    '₫': 'VND',
+    '₪': 'ILS',
+    'R': 'ZAR',
+    'Mex$': 'MXN',
+  };
+  
+  // Check for multi-character prefixes first (A$, C$, etc.)
+  for (const [symbol, code] of Object.entries(symbolToCode)) {
+    if (symbol.length > 1 && priceString.startsWith(symbol)) {
+      return code;
+    }
+  }
+  
+  // Check for single character symbols
+  const firstChar = priceString.charAt(0);
+  if (symbolToCode[firstChar]) {
+    return symbolToCode[firstChar];
+  }
+  
+  // Default to USD if we can't determine
+  return 'USD';
+}
+
 export interface StoreKitProduct {
   productId: string;
   displayName: string;
   description: string;
   price: number;
   priceLocale: string;
+  currencyCode: string;
   displayPrice: string;
   subscriptionPeriod?: string;
 }
@@ -80,16 +131,70 @@ export async function getProducts(productIds: string[]): Promise<StoreKitProduct
       // responseCode 0 = success
       if (result.responseCode === 0 && result.data) {
         const product = result.data;
+        
+        // Log full product response to debug currency/locale fields
+        console.log('[StoreKit] Full product data:', JSON.stringify(product, null, 2));
+        
+        // The plugin returns localized price as a formatted string (e.g., "$9.99", "A$12.99", "€8.99")
+        // Some locales use comma as decimal separator (e.g., "8,99 €" in Germany)
+        const priceString = product.price || product.localizedPrice || product.displayPrice || '0';
+        
+        // Try to get numeric price from plugin's numeric fields first (more reliable)
+        // Then fall back to parsing the formatted string
+        let numericPrice: number;
+        if (typeof product.priceAmountMicros === 'number') {
+          // micros = price * 1,000,000 (common in StoreKit/Google Play)
+          numericPrice = product.priceAmountMicros / 1000000;
+        } else if (typeof product.priceValue === 'number') {
+          numericPrice = product.priceValue;
+        } else if (typeof product.amount === 'number') {
+          numericPrice = product.amount;
+        } else {
+          // Parse from string - handle both dot and comma decimals
+          // Remove thousands separators (spaces, commas in US format, dots in EU format for thousands)
+          // Then normalize comma decimal to dot
+          let cleanPrice = priceString.replace(/[^\d.,]/g, ''); // Keep only digits, dots, commas
+          
+          // Determine if comma is decimal separator (e.g., "8,99") or thousands (e.g., "1,000.99")
+          const lastComma = cleanPrice.lastIndexOf(',');
+          const lastDot = cleanPrice.lastIndexOf('.');
+          
+          if (lastComma > lastDot && cleanPrice.length - lastComma <= 3) {
+            // Comma appears to be the decimal separator (e.g., "8,99" or "1.000,99")
+            cleanPrice = cleanPrice.replace(/\./g, '').replace(',', '.');
+          } else if (lastDot > lastComma && cleanPrice.length - lastDot <= 3) {
+            // Dot is decimal separator (e.g., "8.99" or "1,000.99")
+            cleanPrice = cleanPrice.replace(/,/g, '');
+          } else {
+            // No decimal portion found, just remove all non-digits
+            cleanPrice = cleanPrice.replace(/[^\d]/g, '');
+          }
+          
+          numericPrice = parseFloat(cleanPrice) || 0;
+        }
+        
+        // Try to get currency code from the product data
+        // Different plugins may return this in different fields
+        const currencyCode = product.currencyCode || 
+                            product.currency || 
+                            product.priceLocale?.currencyCode ||
+                            extractCurrencyFromPrice(priceString);
+        
+        // The displayPrice should be the fully localized string from App Store
+        // This already includes the correct currency symbol and formatting for the user's region
+        const displayPrice = product.price || product.localizedPrice || product.displayPrice || `$${numericPrice.toFixed(2)}`;
+        
         products.push({
           productId: product.productIdentifier,
           displayName: product.displayName || product.productIdentifier,
           description: product.description || '',
-          price: parseFloat(product.price?.replace(/[^0-9.]/g, '') || '0'),
-          priceLocale: 'AUD',
-          displayPrice: product.price || '$0',
-          subscriptionPeriod: undefined,
+          price: numericPrice,
+          priceLocale: product.priceLocale || product.locale || 'en_US',
+          currencyCode: currencyCode,
+          displayPrice: displayPrice,
+          subscriptionPeriod: product.subscriptionPeriod || undefined,
         });
-        console.log('[StoreKit] Added product:', product.displayName);
+        console.log('[StoreKit] Added product:', product.displayName, 'displayPrice:', displayPrice, 'currency:', currencyCode);
       } else {
         console.warn('[StoreKit] Product not found:', productId, 'responseCode:', result.responseCode);
       }
