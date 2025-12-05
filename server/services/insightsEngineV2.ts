@@ -10,6 +10,7 @@
 
 import { db } from '../db';
 import { users, dailyInsights, healthkitSamples, biomarkerMeasurements, biomarkerTestSessions, biomarkers, lifeEvents, healthDailyMetrics, healthkitWorkouts } from '../../shared/schema';
+import * as healthRouter from './healthStorageRouter';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
@@ -1123,40 +1124,39 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
       try {
         logger.info(`[InsightsEngineV2] Storing ${ragInsights.length} RAG insights in database`);
         
-        const ragInsightsToInsert = ragInsights.map(insight => {
-          // Classify RAG insight based on relatedMetrics
+        // Store RAG insights to Supabase via healthRouter
+        for (const insight of ragInsights) {
           const category = classifyRAGInsight(insight.relatedMetrics);
           
-          return {
-            userId: userId.toString(),
-            generatedDate: today,
+          const ragInsight = {
+            generated_date: today,
             title: insight.title,
             body: insight.body,
             action: insight.action || null,
-            // Progress tracking fields (from AI generation)
-            targetBiomarker: insight.targetBiomarker || null,
-            currentValue: insight.currentValue || null,
-            targetValue: insight.targetValue || null,
+            target_biomarker: insight.targetBiomarker || null,
+            current_value: insight.currentValue || null,
+            target_value: insight.targetValue || null,
             unit: insight.unit || null,
-            // Scoring
-            confidenceScore: insight.confidence,
-            impactScore: 0.7, // Default impact score for RAG insights
-            actionabilityScore: 0.8, // RAG insights are designed to be actionable
-            freshnessScore: 0.9, // RAG insights use recent data changes
-            overallScore: insight.confidence * 0.85, // Weight by confidence
-            evidenceTier: '1' as const, // RAG uses vector search + GPT-4o = highest tier
-            primarySources: insight.relatedMetrics,
-            category: category as any,
-            generatingLayer: 'RAG_holistic' as any, // New layer type for RAG
+            confidence_score: insight.confidence,
+            impact_score: 0.7,
+            actionability_score: 0.8,
+            freshness_score: 0.9,
+            overall_score: insight.confidence * 0.85,
+            evidence_tier: 'Highest',
+            primary_sources: insight.relatedMetrics,
+            category: category,
+            generating_layer: 'RAG_holistic',
             details: {
               method: 'RAG_vector_search',
               relatedMetrics: insight.relatedMetrics,
             },
+            is_new: true,
+            is_dismissed: false,
           };
-        });
-        
-        await db.insert(dailyInsights).values(ragInsightsToInsert);
-        logger.info(`[InsightsEngineV2] Successfully stored ${ragInsightsToInsert.length} RAG insights`);
+          
+          await healthRouter.createDailyInsight(userId, ragInsight);
+        }
+        logger.info(`[InsightsEngineV2] Successfully stored ${ragInsights.length} RAG insights in Supabase`);
       } catch (dbError: any) {
         logger.error(`[InsightsEngineV2] Failed to store RAG insights:`, dbError);
         // Don't throw - continue with Layer D
@@ -1271,45 +1271,46 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
           return value;
         };
         
-        const insightsToInsert = insightPairs.map(pair => {
-          // Defensive fallback: ensure category is always valid
+        // Store insights to Supabase via healthRouter (snake_case)
+        for (const pair of insightPairs) {
           const category = categoryMap[pair.ranked.healthDomain];
           if (!category) {
             logger.warn(`[InsightsEngineV2] Unknown healthDomain "${pair.ranked.healthDomain}", defaulting to "general"`);
           }
           
-          return {
-            userId: userId.toString(),
-            generatedDate: today,
+          const insight = {
+            generated_date: today,
             title: pair.narrative.title,
             body: `${pair.narrative.summary}\n\n${pair.narrative.details}`,
             action: pair.narrative.actionable || null,
-            targetBiomarker: pair.narrative.targetBiomarker || null,
-            currentValue: pair.narrative.currentValue ?? null,
-            targetValue: pair.narrative.targetValue ?? null,
+            target_biomarker: pair.narrative.targetBiomarker || null,
+            current_value: pair.narrative.currentValue ?? null,
+            target_value: pair.narrative.targetValue ?? null,
             unit: pair.narrative.unit || null,
-            confidenceScore: clampScore(pair.ranked.confidenceScore),
-            impactScore: clampScore(pair.ranked.impactScore),
-            actionabilityScore: clampScore(pair.ranked.actionabilityScore),
-            freshnessScore: clampScore(pair.ranked.freshnessScore),
-            overallScore: clampScore(pair.ranked.rankScore),
-            evidenceTier: pair.ranked.evidenceTier,
-            primarySources: pair.narrative.primarySources.length > 0 
+            confidence_score: clampScore(pair.ranked.confidenceScore),
+            impact_score: clampScore(pair.ranked.impactScore),
+            actionability_score: clampScore(pair.ranked.actionabilityScore),
+            freshness_score: clampScore(pair.ranked.freshnessScore),
+            overall_score: clampScore(pair.ranked.rankScore),
+            evidence_tier: pair.ranked.evidenceTier,
+            primary_sources: pair.narrative.primarySources.length > 0 
               ? pair.narrative.primarySources 
-              : pair.ranked.variables, // Fallback to variable names if primarySources is empty
-            category: (category || 'general') as any, // Defensive fallback to 'general'
-            generatingLayer: layerMap[pair.ranked.layer] || 'A_physiological',
+              : pair.ranked.variables,
+            category: (category || 'general'),
+            generating_layer: layerMap[pair.ranked.layer] || 'A_physiological',
             details: {
               variables: pair.ranked.variables,
               layer: pair.ranked.layer,
               healthDomain: pair.ranked.healthDomain,
             },
+            is_new: true,
+            is_dismissed: false,
           };
-        });
+          
+          await healthRouter.createDailyInsight(userId, insight);
+        }
         
-        await db.insert(dailyInsights).values(insightsToInsert);
-        
-        logger.info(`[InsightsEngineV2] Successfully stored ${insightsToInsert.length} insights for user ${userId}`);
+        logger.info(`[InsightsEngineV2] Successfully stored ${insightPairs.length} insights for user ${userId} in Supabase`);
         
         // Async write to shared brain (fire-and-forget, non-blocking)
         const brainInsights = insightPairs.map(pair => ({

@@ -2093,7 +2093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info('Biological age calculation failed, continuing without it');
       }
 
-      // Get daily insights (last 10 days) - stays in Neon (AI-generated content)
+      // Get daily insights (last 10 days) - SUPABASE-ONLY for PHI privacy
       const { systemSettings } = await import("@shared/schema");
       
       const tenDaysAgo = new Date();
@@ -2101,7 +2101,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let dailyInsightsData: any[] = [];
       try {
-        dailyInsightsData = await storage.getDailyInsights(userId, { startDate: tenDaysAgo, limit: 10 });
+        dailyInsightsData = await healthRouter.getDailyInsights(userId, { startDate: tenDaysAgo, limit: 10 });
       } catch (error) {
         logger.info('Daily insights fetch failed, continuing without them');
       }
@@ -7378,15 +7378,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Auto-detect if user has insights/actions today to mark checklist
-      // Check for today's insights (dailyInsights table uses generatedDate as YYYY-MM-DD text)
-      const [hasInsightsToday] = await db
-        .select({ count: sql<number>`COUNT(*)::int` })
-        .from(dailyInsights)
-        .where(and(
-          eq(dailyInsights.userId, userId),
-          eq(dailyInsights.generatedDate, today)
-        ));
-      const hasInsights = (hasInsightsToday?.count || 0) > 0;
+      // Check for today's insights - SUPABASE-ONLY for PHI privacy
+      const todaysInsights = await healthRouter.getDailyInsightsByDate(userId, today);
+      const hasInsights = todaysInsights.length > 0;
       
       // Check for any active action items (actionPlanItems table already imported)
       const [hasActionsToday] = await db
@@ -9282,35 +9276,26 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      const rawInsights = await db
-        .select()
-        .from(dailyInsights)
-        .where(
-          and(
-            eq(dailyInsights.userId, userId),
-            eq(dailyInsights.generatedDate, today),
-            eq(dailyInsights.isDismissed, false)
-          )
-        )
-        .orderBy(desc(dailyInsights.overallScore));
+      // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+      const rawInsights = await healthRouter.getDailyInsightsByDate(userId, today);
 
-      // Map new dailyInsights fields to old insightCards format for frontend compatibility
-      const insights = rawInsights.map(insight => ({
+      // Map Supabase snake_case to camelCase for frontend compatibility
+      const insights = rawInsights.map((insight: any) => ({
         id: insight.id,
-        userId: insight.userId,
+        userId: userId,
         category: insight.category,
         pattern: insight.title, // Map title -> pattern
-        confidence: insight.confidenceScore, // Already 0-1 range from scoring functions
+        confidence: insight.confidence_score, // Supabase uses snake_case
         supportingData: insight.body, // Map body -> supportingData
         action: insight.action, // CRITICAL FIX: Include actionable recommendations
-        targetBiomarker: insight.targetBiomarker,
-        currentValue: insight.currentValue,
-        targetValue: insight.targetValue,
+        targetBiomarker: insight.target_biomarker,
+        currentValue: insight.current_value,
+        targetValue: insight.target_value,
         unit: insight.unit,
         details: insight.details,
-        isNew: insight.isNew,
-        isActive: !insight.isDismissed,
-        createdAt: insight.createdAt,
+        isNew: insight.is_new,
+        isActive: !insight.is_dismissed,
+        createdAt: insight.created_at,
       }));
 
       res.json({
@@ -9345,11 +9330,9 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         .where(eq(users.id, userId))
         .limit(1);
 
-      // Count data
-      const [insightCount] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(dailyInsights)
-        .where(eq(dailyInsights.userId, userId));
+      // Count data - SUPABASE-ONLY for daily insights
+      const allInsights = await healthRouter.getAllDailyInsights(userId);
+      const insightCount = { count: allInsights.length };
 
       const [actionCount] = await db
         .select({ count: sql<number>`count(*)` })
@@ -9380,8 +9363,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      // Use storage layer (stays in Neon as AI-generated content)
-      const rawInsights = await storage.getDailyInsightsByDate(userId, today);
+      // SUPABASE-ONLY for PHI privacy
+      const rawInsights = await healthRouter.getDailyInsightsByDate(userId, today);
 
       res.json({
         date: today,
@@ -9429,19 +9412,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
       const { insightId, patternSignature, isHelpful, isAccurate, feedbackNotes } = validationResult.data;
       
-      // Verify insight belongs to user
-      const insight = await db
-        .select()
-        .from(dailyInsights)
-        .where(
-          and(
-            eq(dailyInsights.id, insightId),
-            eq(dailyInsights.userId, userId)
-          )
-        )
-        .limit(1);
+      // Verify insight belongs to user - SUPABASE-ONLY
+      const insight = await healthRouter.getDailyInsightById(userId, insightId);
 
-      if (insight.length === 0) {
+      if (!insight) {
         return res.status(404).json({ error: "Insight not found" });
       }
 
@@ -9474,15 +9448,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
 
     try {
-      await db
-        .update(dailyInsights)
-        .set({ isDismissed: true, isNew: false })
-        .where(
-          and(
-            eq(dailyInsights.id, id),
-            eq(dailyInsights.userId, userId)
-          )
-        );
+      // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+      await healthRouter.dismissDailyInsight(id, userId);
 
       res.json({ success: true });
     } catch (error: any) {
@@ -9501,16 +9468,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       
-      await db
-        .update(dailyInsights)
-        .set({ isNew: false })
-        .where(
-          and(
-            eq(dailyInsights.userId, userId),
-            eq(dailyInsights.generatedDate, today),
-            eq(dailyInsights.isNew, true)
-          )
-        );
+      // SUPABASE-ONLY: Daily insights are PHI and must be stored in Supabase
+      await healthRouter.markDailyInsightsAsRead(userId, today);
 
       res.json({ success: true });
     } catch (error: any) {
@@ -9530,15 +9489,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const today = format(new Date(), 'yyyy-MM-dd');
       logger.info(`[DailyInsightsV2] Refreshing insights for user ${userId}`);
       
-      // Delete today's existing insights
-      await db
-        .delete(dailyInsights)
-        .where(
-          and(
-            eq(dailyInsights.userId, userId),
-            eq(dailyInsights.generatedDate, today)
-          )
-        );
+      // Delete today's existing insights - SUPABASE-ONLY
+      await healthRouter.deleteDailyInsights(userId, today);
       
       logger.info(`[DailyInsightsV2] Deleted existing insights for user ${userId}`);
       
@@ -9646,20 +9598,11 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
       const data = validationResult.data;
       
-      // If dailyInsightId provided, verify it exists and belongs to user
+      // If dailyInsightId provided, verify it exists and belongs to user - SUPABASE-ONLY
       if (data.dailyInsightId) {
-        const insight = await db
-          .select()
-          .from(dailyInsights)
-          .where(
-            and(
-              eq(dailyInsights.id, data.dailyInsightId),
-              eq(dailyInsights.userId, userId)
-            )
-          )
-          .limit(1);
+        const insight = await healthRouter.getDailyInsightById(userId, data.dailyInsightId);
 
-        if (insight.length === 0) {
+        if (!insight) {
           return res.status(404).json({ error: "Insight not found" });
         }
       }
