@@ -44,6 +44,9 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [isConnecting, setIsConnecting] = useState(false); // Explicit connecting state
   
+  // Use ref for accumulated transcript to avoid stale closure in callback
+  const accumulatedTranscriptRef = useRef('');
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -63,24 +66,30 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   } = useGeminiLiveVoice({
     onTranscript: (text, isFinal) => {
       console.log('[VoiceChat] Transcript:', text, 'Final:', isFinal);
-      setCurrentTranscript(text);
       
-      if (isFinal && text.trim()) {
-        // Add user message
+      // Accumulate transcript chunks within a turn using ref
+      const prev = accumulatedTranscriptRef.current;
+      const newAccumulated = prev + (prev && text ? ' ' : '') + (text || '');
+      accumulatedTranscriptRef.current = newAccumulated;
+      setCurrentTranscript(newAccumulated); // Display accumulated text
+      
+      if (isFinal && newAccumulated.trim()) {
+        // Add user message with FULL accumulated transcript
         const userMessage: Message = {
           id: Date.now().toString(),
           type: 'user',
-          content: text,
+          content: newAccumulated.trim(),
           timestamp: new Date(),
           isVoice: true,
         };
         setMessages(prev => [...prev, userMessage]);
         setCurrentTranscript('');
+        accumulatedTranscriptRef.current = ''; // Reset for next turn
         
-        // Update conversation history
+        // Update conversation history with accumulated transcript
         setConversationHistory(prev => [
           ...prev,
-          { role: 'user' as const, content: text }
+          { role: 'user' as const, content: newAccumulated.trim() }
         ].slice(-20));
       }
     },
