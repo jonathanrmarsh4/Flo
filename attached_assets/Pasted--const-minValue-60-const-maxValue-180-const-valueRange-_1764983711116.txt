@@ -1,0 +1,120 @@
+
+  const minValue = 60;
+  const maxValue = 180;
+  const valueRange = maxValue - minValue;
+  
+  // Target range
+  const targetMin = 70;
+  const targetMax = 140;
+  
+  const points = data.map((d, index) => {
+    const x = (index / Math.max(data.length - 1, 1)) * chartWidth;
+    const y = padding.top + (1 - (d.value - minValue) / valueRange) * innerHeight;
+    const inRange = d.value >= targetMin && d.value <= targetMax;
+    return { x, y, value: d.value, inRange };
+  });
+  
+  const targetMinY = padding.top + (1 - (targetMin - minValue) / valueRange) * innerHeight;
+  const targetMaxY = padding.top + (1 - (targetMax - minValue) / valueRange) * innerHeight;
+  
+  return (
+    <div className="w-full">
+      <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
+        <defs>
+          <linearGradient id="glucose-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+        
+        {/* Target range band */}
+        <rect
+          x={0}
+          y={targetMaxY}
+          width={chartWidth}
+          height={targetMinY - targetMaxY}
+          fill="url(#glucose-gradient)"
+          rx={4}
+        />
+        
+        {/* Target range lines */}
+        <line
+          x1={0}
+          y1={targetMaxY}
+          x2={chartWidth}
+          y2={targetMaxY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="4 4"
+          opacity={0.4}
+        />
+        <line
+          x1={0}
+          y1={targetMinY}
+          x2={chartWidth}
+          y2={targetMinY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="4 4"
+          opacity={0.4}
+        />
+        
+        {/* Gradient fill under curve */}
+        <defs>
+          <linearGradient id="area-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+        
+        <path
+          d={`
+            M 0 ${chartHeight - padding.bottom}
+            L ${points.map(p => `${p.x} ${p.y}`).join(' L ')}
+            L ${chartWidth} ${chartHeight - padding.bottom}
+            Z
+          `}
+          fill="url(#area-gradient)"
+        />
+        
+        {/* Line */}
+        <path
+          d={`M ${points.map(p => `${p.x} ${p.y}`).join(' L ')}`}
+          fill="none"
+          stroke="#06b6d4"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Y-axis labels */}
+        <text
+          x={chartWidth - 5}
+          y={padding.top - 5}
+          className={`text-[10px] ${isDark ? 'fill-white/40' : 'fill-gray-500'}`}
+          textAnchor="end"
+        >
+          {maxValue}
+        </text>
+        <text
+          x={chartWidth - 5}
+          y={chartHeight - padding.bottom + 12}
+          className={`text-[10px] ${isDark ? 'fill-white/40' : 'fill-gray-500'}`}
+          textAnchor="end"
+        >
+          {minValue}
+        </text>
+      </svg>
+      
+      {/* Legend */}
+      <div className="flex items-center justify-center gap-4 mt-4 text-xs">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
+            Target: {targetMin}-{targetMax} mg/dL
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}

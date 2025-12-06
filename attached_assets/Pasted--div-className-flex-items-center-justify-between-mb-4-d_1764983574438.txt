@@ -1,0 +1,350 @@
+      }`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Dumbbell className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+            <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Workouts
+            </h3>
+          </div>
+          <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+        </div>
+        
+        <div className="mb-4">
+          <div className={`text-3xl mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {workoutsToday} workouts · {workoutsDuration} min
+          </div>
+          <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            {workoutsEnergy} cal burned
+          </div>
+        </div>
+        
+        {/* Last Workout */}
+        <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+          <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            Last workout
+          </div>
+          <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {lastWorkout.distance} km {lastWorkout.type} · {lastWorkout.avgHeartRate} bpm avg
+          </div>
+          {lastWorkout.elevation > 0 && (
+            <div className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs ${
+              isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
+            }`}>
+              <TrendingUp className="w-3 h-3" />
+              +{lastWorkout.elevation} m
+            </div>
+          )}
+        </div>
+      </button>
+      
+      {/* Tile 3 - Cardio Fitness */}
+      <button 
+        className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
+          isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Heart className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+            <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Cardio Fitness
+            </h3>
+          </div>
+          <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+        </div>
+        
+        <div className="flex items-baseline gap-2 mb-3">
+          <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {vo2Max}
+          </span>
+          <span className={`text-lg ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+            ml/kg/min
+          </span>
+          <span className={`ml-2 px-3 py-1 rounded-full text-xs ${
+            isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+          }`}>
+            {vo2Level}
+          </span>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-4 mb-3">
+          <div>
+            <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              Resting HR (7d avg)
+            </div>
+            <div className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {restingHeartRate} bpm
+            </div>
+          </div>
+          <div>
+            <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              6-min walk
+            </div>
+            <div className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {sixMinWalk} m
+            </div>
+          </div>
+        </div>
+        
+        {/* 30-day trend indicator */}
+        <div className={`flex items-center gap-2 text-sm ${
+          vo2Trend === 'up' ? isDark ? 'text-green-400' : 'text-green-600' :
+          vo2Trend === 'down' ? isDark ? 'text-red-400' : 'text-red-600' :
+          isDark ? 'text-white/50' : 'text-gray-500'
+        }`}>
+          {vo2Trend === 'up' && <TrendingUp className="w-4 h-4" />}
+          {vo2Trend === 'stable' && <span className="w-4 h-0.5 bg-current"></span>}
+          {vo2Trend === 'down' && <TrendingDown className="w-4 h-4" />}
+          <span className="text-xs">
+            {vo2Trend === 'up' ? 'Improving' : vo2Trend === 'down' ? 'Declining' : 'Stable'} (30d)
+          </span>
+        </div>
+      </button>
+      
+      {/* Tile 4 - Recovery & Strain */}
+      <button 
+        className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
+          isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Battery className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+            <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Recovery & Strain
+            </h3>
+          </div>
+          <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+        </div>
+        
+        <div className="flex items-baseline gap-2 mb-3">
+          <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            HRV:
+          </span>
+          <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {hrv}
+          </span>
+          <span className={`text-lg ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+            ms
+          </span>
+          <span className={`ml-2 px-3 py-1 rounded-full text-xs ${
+            hrvStatus === 'recovered' 
+              ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+              : hrvStatus === 'strained'
+                ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
+                : isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+          }`}>
+            {hrvStatus === 'recovered' ? 'Recovered' : hrvStatus === 'strained' ? 'Strained' : 'OK'}
+          </span>
+        </div>
+        
+        <div className={`mb-4 text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+          Resting HR: {rhrStatus}
+        </div>
+        
+        {/* Traffic light style indicator */}
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${
+            hrvStatus === 'recovered' ? 'bg-green-500' :
+            hrvStatus === 'strained' ? 'bg-red-500' : 'bg-yellow-500'
+          }`}></div>
+          <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+            {hrvStatus === 'recovered' 
+              ? 'Ready to push hard today' 
+              : hrvStatus === 'strained'
+                ? 'Consider taking it easier'
+                : 'Normal recovery status'}
+          </span>
+        </div>
+      </button>
+      
+      {/* Tile 5 - Movement Quality */}
+      <button 
+        className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
+          isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Waves className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Movement Quality
+            </h3>
+          </div>
+          <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+        </div>
+        
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative w-20 h-20">
+            <svg className="w-20 h-20 -rotate-90" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}
+                strokeWidth="8"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="42"
+                fill="none"
+                stroke={
+                  movementQuality === 'stable' ? '#10b981' :
+                  movementQuality === 'watch' ? '#f59e0b' : '#ef4444'
+                }
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={`${movementScore * 2.64} 264`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                {movementScore}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            <div className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Movement quality: 
+              <span className={`ml-2 ${
+                movementQuality === 'stable' ? isDark ? 'text-green-400' : 'text-green-600' :
+                movementQuality === 'watch' ? isDark ? 'text-yellow-400' : 'text-yellow-600' :
+                isDark ? 'text-red-400' : 'text-red-600'
+              }`}>
+                {movementQuality === 'stable' ? 'Stable' :
+                 movementQuality === 'watch' ? 'Watch' : 'Needs attention'}
+              </span>
+            </div>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              {movementDelta > 0 ? '+' : ''}{movementDelta} vs last week
+            </div>
+          </div>
+        </div>
+        
+        {/* Key metrics */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className={`p-2 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Walking speed</div>
+            <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{walkingSpeed} km/h</div>
+          </div>
+          <div className={`p-2 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Step length</div>
+            <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{stepLength} cm</div>
+          </div>
+          <div className={`p-2 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Double support</div>
+            <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{doubleSupport}%</div>
+          </div>
+          <div className={`p-2 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Asymmetry</div>
+            <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{asymmetry}%</div>
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+// Nutrition Tab Content
+function NutritionTabContent({ isDark }: { isDark: boolean }) {
+  // User profile for personalization
+  const userProfile = {
+    sex: 'male' as 'male' | 'female',
+    age: 42,
+    weight: 78, // kg
+    activityLevel: 'active' as 'sedentary' | 'lightly_active' | 'active' | 'very_active',
+    goal: 'maintain' as 'lose' | 'maintain' | 'gain'
+  };
+  
+  // Calculate personalized targets
+  const calculateTargets = () => {
+    // Protein target: 1.2 g/kg for active adult
+    const proteinTarget = userProfile.weight * 1.2; // 93.6g
+    
+    // BMR (Mifflin-St Jeor for males): 10*weight + 6.25*height - 5*age + 5
+    // Simplified: using typical height assumptions
+    const bmr = 10 * userProfile.weight + 6.25 * 175 - 5 * userProfile.age + 5; // ~1695
+    
+    // Activity multiplier
+    const activityMultipliers = {
+      sedentary: 1.2,
+      lightly_active: 1.375,
+      active: 1.55,
+      very_active: 1.725
+    };
+    
+    const tdee = bmr * activityMultipliers[userProfile.activityLevel]; // ~2627
+    
+    // Goal adjustment
+    const goalAdjustments = {
+      lose: 0.85,
+      maintain: 1.0,
+      gain: 1.15
+    };
+    
+    const calorieTarget = tdee * goalAdjustments[userProfile.goal]; // 2627
+    
+    return {
+      protein: Math.round(proteinTarget),
+      calories: Math.round(calorieTarget),
+      carbs: Math.round((calorieTarget * 0.45) / 4), // 45% of cals
+      fats: Math.round((calorieTarget * 0.30) / 9), // 30% of cals
+      water: userProfile.weight * 35 // ml/kg
+    };
+  };
+  
+  const targets = calculateTargets();
+  
+  // Today's intake (mock data)
+  const intake = {
+    protein: 88, // g
+    calories: 2420,
+    carbs: 285,
+    fats: 78,
+    fiber: 28,
+    water: 2400, // ml
+    caffeine: 280, // mg
+    sodium: 2100, // mg
+    sugar: 45 // g
+  };
+  
+  // Scoring functions
+  const scoreNutrient = (actual: number, target: number, type: 'protein' | 'calories' | 'general') => {
+    const percent = (actual / target) * 100;
+    
+    if (type === 'protein') {
+      if (percent >= 90 && percent <= 130) return 'green';
+      if ((percent >= 70 && percent < 90) || (percent > 130 && percent <= 150)) return 'amber';
+      return 'red';
+    } else if (type === 'calories') {
+      if (percent >= 90 && percent <= 110) return 'green';
+      if ((percent >= 80 && percent < 90) || (percent > 110 && percent <= 120)) return 'amber';
+      return 'red';
+    } else {
+      if (percent >= 90 && percent <= 110) return 'green';
+      if (percent >= 70 && percent < 90) return 'amber';
+      return 'red';
+    }
+  };
+  
+  // Calculate scores
+  const proteinScore = scoreNutrient(intake.protein, targets.protein, 'protein');
+  const calorieScore = scoreNutrient(intake.calories, targets.calories, 'calories');
+  
+  // Micronutrient coverage (mock - would be calculated from RDAs)
+  const microsCovered = 16;
+  const microsTotal = 20;
+  const lowMicros = ['Vitamin D', 'Folate', 'Omega-3', 'Magnesium'];
+  
+  // Overall nutrition score (0-100)
+  const calculateNutritionScore = () => {
+    let score = 0;
+    // Protein (25 points)
+    if (proteinScore === 'green') score += 25;
+    else if (proteinScore === 'amber') score += 18;
+    else score += 10;
+    
