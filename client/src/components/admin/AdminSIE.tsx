@@ -52,6 +52,7 @@ export function AdminSIE() {
   
   const [showHistory, setShowHistory] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   
   const { data: sessionsResponse, refetch: refetchSessions } = useQuery<{ sessions: SavedSession[] }>({
     queryKey: ['/api/sandbox/sie/brainstorm-sessions'],
@@ -234,6 +235,57 @@ export function AdminSIE() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+  
+  const handleDownloadAudio = async (sessionId: string) => {
+    try {
+      const response = await fetch(`/api/sandbox/sie/brainstorm-sessions/${sessionId}/audio`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to download audio');
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sie-session-${sessionId}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: 'Audio Downloaded',
+        description: 'Session audio saved to your device',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Download Failed',
+        description: err.message || 'Could not download audio',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  const handleDownloadTranscript = (session: SavedSession) => {
+    const transcriptText = session.transcript.map(t => 
+      `[${t.role.toUpperCase()}] ${t.text}`
+    ).join('\n\n');
+    
+    const blob = new Blob([transcriptText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sie-transcript-${session.id}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: 'Transcript Downloaded',
+      description: 'Session transcript saved to your device',
+    });
   };
 
   const handleToggleMic = async () => {
@@ -673,26 +725,79 @@ export function AdminSIE() {
                           <p>No saved sessions yet</p>
                         </div>
                       ) : (
-                        <ScrollArea className="h-48">
+                        <ScrollArea className="h-72">
                           <div className="space-y-2">
                             {savedSessions.map((session) => (
                               <div
                                 key={session.id}
-                                className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                                className="p-3 rounded-lg bg-white/5 border border-white/10 transition-colors"
                                 data-testid={`session-${session.id}`}
                               >
                                 <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-sm text-white/80">{session.title}</span>
                                     <span className="text-xs bg-purple-500/20 px-2 py-0.5 rounded-full text-purple-300">
                                       {session.transcript.length} exchanges
                                     </span>
+                                    {session.hasAudio && (
+                                      <span className="text-xs bg-green-500/20 px-2 py-0.5 rounded-full text-green-300">
+                                        Has Audio
+                                      </span>
+                                    )}
                                   </div>
+                                </div>
+                                
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-3 text-xs text-white/40">
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      {format(new Date(session.createdAt), 'MMM d, yyyy')}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="w-3 h-3" />
+                                      {formatDuration(session.durationSeconds)}
+                                    </span>
+                                  </div>
+                                  
                                   <div className="flex items-center gap-1">
                                     <Button
                                       size="icon"
                                       variant="ghost"
+                                      onClick={() => setExpandedSessionId(expandedSessionId === session.id ? null : session.id)}
+                                      title="View Transcript"
+                                      data-testid={`button-expand-session-${session.id}`}
+                                    >
+                                      {expandedSessionId === session.id ? (
+                                        <ChevronUp className="w-4 h-4 text-white/50" />
+                                      ) : (
+                                        <ChevronDown className="w-4 h-4 text-white/50" />
+                                      )}
+                                    </Button>
+                                    {session.hasAudio && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => handleDownloadAudio(session.id)}
+                                        title="Download Audio"
+                                        data-testid={`button-download-audio-${session.id}`}
+                                      >
+                                        <Volume2 className="w-4 h-4 text-green-400/70" />
+                                      </Button>
+                                    )}
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => handleDownloadTranscript(session)}
+                                      title="Download Transcript"
+                                      data-testid={`button-download-transcript-${session.id}`}
+                                    >
+                                      <Download className="w-4 h-4 text-blue-400/70" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
                                       onClick={() => handleLoadSession(session)}
+                                      title="Load to Current Session"
                                       data-testid={`button-load-session-${session.id}`}
                                     >
                                       <MessageSquare className="w-4 h-4 text-white/50" />
@@ -702,22 +807,36 @@ export function AdminSIE() {
                                       variant="ghost"
                                       onClick={() => deleteSessionMutation.mutate(session.id)}
                                       disabled={deleteSessionMutation.isPending}
+                                      title="Delete Session"
                                       data-testid={`button-delete-session-${session.id}`}
                                     >
                                       <Trash2 className="w-4 h-4 text-red-400/70" />
                                     </Button>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-3 text-xs text-white/40">
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {format(new Date(session.createdAt), 'MMM d, yyyy')}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {formatDuration(session.durationSeconds)}
-                                  </span>
-                                </div>
+                                
+                                {expandedSessionId === session.id && (
+                                  <div className="mt-3 pt-3 border-t border-white/10">
+                                    <div className="text-xs text-white/50 mb-2">Transcript:</div>
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                      {session.transcript.map((entry, idx) => (
+                                        <div
+                                          key={idx}
+                                          className={`p-2 rounded text-xs ${
+                                            entry.role === 'user'
+                                              ? 'bg-blue-500/10 border-l-2 border-blue-500'
+                                              : 'bg-purple-500/10 border-l-2 border-purple-500'
+                                          }`}
+                                        >
+                                          <span className={`font-medium ${entry.role === 'user' ? 'text-blue-400' : 'text-purple-400'}`}>
+                                            {entry.role === 'user' ? 'You' : 'SIE'}:
+                                          </span>{' '}
+                                          <span className="text-white/70">{entry.text}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>

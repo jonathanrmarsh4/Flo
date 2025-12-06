@@ -1207,8 +1207,8 @@ LIVE DATA LANDSCAPE:
       ? `\n\nPREVIOUS SIE ANALYSIS (from ${new Date(latestSession.timestamp).toLocaleDateString()}):\n${latestSession.response.substring(0, 2000)}...`
       : '';
 
-    // SIE-specific voice for strategic discussions
-    const sieVoice = 'Kore'; // Confident, analytical voice
+    // SIE-specific voice for strategic discussions - male voice to match SIE's analytical personality
+    const sieVoice = 'Puck'; // Deep, analytical male voice - consistent with SIE's main voice (OpenAI onyx)
 
     const systemInstruction = `# SIE BRAINSTORMING MODE - VOICE CONVERSATION
 
