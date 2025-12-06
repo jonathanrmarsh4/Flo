@@ -147,8 +147,8 @@ export class ClickHouseBaselineEngine {
         .from('user_daily_metrics')
         .select('*')
         .eq('health_id', healthId)
-        .gte('date', startDateStr)
-        .order('date', { ascending: true });
+        .gte('local_date', startDateStr)
+        .order('local_date', { ascending: true });
 
       if (error) {
         logger.error('[ClickHouseML] Error fetching from Supabase:', error);
@@ -161,16 +161,14 @@ export class ClickHouseBaselineEngine {
       }
 
       const metricMappings: Record<string, string> = {
-        hrv_avg: 'hrv',
-        resting_hr: 'resting_heart_rate',
-        steps: 'steps',
-        active_kcal: 'active_energy',
-        sleep_minutes: 'sleep_duration',
-        deep_sleep_minutes: 'deep_sleep',
-        rem_sleep_minutes: 'rem_sleep',
-        respiratory_rate_avg: 'respiratory_rate',
-        oxygen_saturation_avg: 'oxygen_saturation',
-        wrist_temp_deviation: 'wrist_temperature_deviation',
+        hrv_ms: 'hrv',
+        resting_hr_bpm: 'resting_heart_rate',
+        steps_normalized: 'steps',
+        active_energy_kcal: 'active_energy',
+        sleep_hours: 'sleep_duration',
+        exercise_minutes: 'exercise',
+        weight_kg: 'weight',
+        bmi: 'bmi',
       };
 
       const rows: any[] = [];
@@ -183,8 +181,8 @@ export class ClickHouseBaselineEngine {
               health_id: healthId,
               metric_type: metricType,
               value: Number(value),
-              recorded_at: new Date(row.date + 'T12:00:00Z').toISOString(),
-              local_date: row.date,
+              recorded_at: new Date(row.local_date + 'T12:00:00Z').toISOString(),
+              local_date: row.local_date,
               source: 'healthkit',
             });
           }
