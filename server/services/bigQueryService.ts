@@ -1,31 +1,39 @@
 import { BigQuery, Table } from '@google-cloud/bigquery';
 import { logger } from '../utils/logger';
 
-const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 const DATASET_ID = 'flo_analytics';
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
 
-if (!PROJECT_ID) {
-  logger.warn('[BigQuery] GOOGLE_CLOUD_PROJECT not set - BigQuery features will be disabled');
+function initializeBigQueryClient(): BigQuery | null {
+  const serviceAccountJson = process.env.BIGQUERY_SERVICE_ACCOUNT_JSON;
+  
+  if (!serviceAccountJson) {
+    logger.warn('[BigQuery] BIGQUERY_SERVICE_ACCOUNT_JSON not set - BigQuery features will be disabled');
+    logger.info('[BigQuery] To enable BigQuery, add a service account JSON key as the BIGQUERY_SERVICE_ACCOUNT_JSON secret');
+    return null;
+  }
+
+  try {
+    const credentials = JSON.parse(serviceAccountJson);
+    const projectId = credentials.project_id;
+
+    if (!projectId) {
+      logger.error('[BigQuery] Service account JSON missing project_id field');
+      return null;
+    }
+
+    logger.info(`[BigQuery] Initializing with service account for project: ${projectId}`);
+    
+    return new BigQuery({
+      credentials,
+      projectId,
+    });
+  } catch (error) {
+    logger.error('[BigQuery] Failed to parse BIGQUERY_SERVICE_ACCOUNT_JSON', { error });
+    return null;
+  }
 }
 
-export const bigQueryClient = PROJECT_ID ? new BigQuery({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
-      },
-    },
-    universe_domain: "googleapis.com",
-  } as any,
-  projectId: PROJECT_ID,
-}) : null;
+export const bigQueryClient = initializeBigQueryClient();
 
 export const TABLE_SCHEMAS = {
   health_metrics: [
