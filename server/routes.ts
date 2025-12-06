@@ -4166,6 +4166,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get correlation insights (ML-detected patterns with user feedback)
+  app.get("/api/correlation/insights", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const insights = await db.select()
+        .from(userInsights)
+        .where(and(
+          eq(userInsights.userId, userId),
+          eq(userInsights.source, 'correlation_insight'),
+          eq(userInsights.status, 'active')
+        ))
+        .orderBy(userInsights.createdAt);
+
+      res.json({
+        insights: insights.map(i => ({
+          id: i.id,
+          text: i.text,
+          tags: i.tags,
+          importance: i.importance,
+          createdAt: i.createdAt.toISOString(),
+        })),
+      });
+    } catch (error) {
+      logger.error('Error fetching correlation insights:', error);
+      res.status(500).json({ error: "Failed to fetch correlation insights" });
+    }
+  });
+
+  // Delete a correlation insight
+  app.delete("/api/correlation/insights/:insightId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { insightId } = req.params;
+      
+      const [insight] = await db.select()
+        .from(userInsights)
+        .where(eq(userInsights.id, insightId))
+        .limit(1);
+
+      if (!insight) {
+        return res.status(404).json({ error: "Insight not found" });
+      }
+
+      if (insight.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to delete this insight" });
+      }
+
+      await db.update(userInsights)
+        .set({ status: 'dismissed' })
+        .where(eq(userInsights.id, insightId));
+
+      logger.info('[CorrelationInsight] Insight deleted', { userId, insightId });
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error deleting correlation insight:', error);
+      res.status(500).json({ error: "Failed to delete insight" });
+    }
+  });
+
   // Get pending feedback question by ID
   app.get("/api/correlation/feedback/:feedbackId", isAuthenticated, async (req: any, res) => {
     try {

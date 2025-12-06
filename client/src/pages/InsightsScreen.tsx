@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { Sparkles, TrendingUp, Plus, Check, Loader2, Filter, RefreshCw } from "lucide-react";
+import { Sparkles, TrendingUp, Plus, Check, Loader2, Filter, RefreshCw, AlertTriangle, X, Heart, Trash2 } from "lucide-react";
 
 interface DailyInsight {
   id: string;
@@ -13,10 +13,18 @@ interface DailyInsight {
   action: string;
   confidence: number;
   isNew: boolean;
-  targetBiomarker?: string; // Name of the biomarker being tracked (e.g., "Vitamin D")
-  currentValue?: number; // Current value (e.g., 28)
-  targetValue?: number; // Target value to achieve (e.g., 50)
-  unit?: string; // Unit of measurement (e.g., "ng/mL")
+  targetBiomarker?: string;
+  currentValue?: number;
+  targetValue?: number;
+  unit?: string;
+}
+
+interface CorrelationInsight {
+  id: string;
+  text: string;
+  tags: string[];
+  importance: number;
+  createdAt: string;
 }
 
 const categoryColors = {
@@ -128,6 +136,33 @@ export default function InsightsScreen() {
   });
 
   const insights = data?.insights || [];
+  
+  // Fetch correlation insights (ML-detected patterns with user responses)
+  const { data: correlationData } = useQuery<{ insights: CorrelationInsight[] }>({
+    queryKey: ['/api/correlation/insights'],
+  });
+  const correlationInsights = correlationData?.insights || [];
+
+  // Delete correlation insight mutation
+  const deleteCorrelationMutation = useMutation({
+    mutationFn: async (insightId: string) => {
+      return apiRequest('DELETE', `/api/correlation/insights/${insightId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/correlation/insights'] });
+      toast({
+        title: "Insight removed",
+        description: "The health pattern has been removed from your history.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove insight",
+        variant: "destructive",
+      });
+    },
+  });
   
   // Filter insights based on selected category
   const filteredInsights = selectedCategory === 'all' 
@@ -329,6 +364,99 @@ export default function InsightsScreen() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ML Detected Patterns Section */}
+          {correlationInsights.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <h2 className="text-lg font-semibold text-white">ML Detected Patterns</h2>
+                <span className="text-xs text-white/50">({correlationInsights.length})</span>
+              </div>
+              <p className="text-sm text-white/60 mb-4">
+                Health patterns detected by our machine learning engine based on your data.
+              </p>
+              <div className="flex flex-col gap-3">
+                {correlationInsights.map((insight) => {
+                  const patternType = insight.tags.find(t => t !== 'ml_anomaly') || 'pattern';
+                  const isIllness = patternType === 'illness_precursor';
+                  const isRecovery = patternType === 'recovery_deficit';
+                  
+                  return (
+                    <div
+                      key={insight.id}
+                      className={`rounded-xl border p-4 ${
+                        isIllness 
+                          ? 'bg-amber-500/10 border-amber-500/30' 
+                          : isRecovery 
+                            ? 'bg-rose-500/10 border-rose-500/30'
+                            : 'bg-cyan-500/10 border-cyan-500/30'
+                      }`}
+                      data-testid={`card-correlation-${insight.id}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg ${
+                          isIllness 
+                            ? 'bg-amber-500/20' 
+                            : isRecovery 
+                              ? 'bg-rose-500/20'
+                              : 'bg-cyan-500/20'
+                        }`}>
+                          {isIllness ? (
+                            <AlertTriangle className={`w-4 h-4 text-amber-500`} />
+                          ) : isRecovery ? (
+                            <Heart className={`w-4 h-4 text-rose-500`} />
+                          ) : (
+                            <TrendingUp className={`w-4 h-4 text-cyan-500`} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-white/60">
+                              {isIllness 
+                                ? 'ILLNESS PATTERN' 
+                                : isRecovery 
+                                  ? 'RECOVERY CONCERN'
+                                  : 'HEALTH PATTERN'}
+                            </span>
+                            <span className={`px-2 py-0.5 text-xs rounded-full ${
+                              insight.importance >= 4 
+                                ? 'bg-red-500/20 text-red-400' 
+                                : insight.importance >= 3
+                                  ? 'bg-amber-500/20 text-amber-400'
+                                  : 'bg-white/10 text-white/50'
+                            }`}>
+                              {insight.importance >= 4 ? 'High' : insight.importance >= 3 ? 'Medium' : 'Low'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/90 leading-relaxed">
+                            {insight.text}
+                          </p>
+                          <div className="flex items-center justify-between mt-3">
+                            <span className="text-xs text-white/40">
+                              {new Date(insight.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </span>
+                            <button
+                              onClick={() => deleteCorrelationMutation.mutate(insight.id)}
+                              disabled={deleteCorrelationMutation.isPending}
+                              className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/50 hover:text-white/80"
+                              data-testid={`button-delete-correlation-${insight.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
