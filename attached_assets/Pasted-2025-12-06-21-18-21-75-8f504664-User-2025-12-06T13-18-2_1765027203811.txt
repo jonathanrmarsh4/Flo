@@ -1,0 +1,60 @@
+2025-12-06 21:18:21.75
+8f504664
+User
+[2025-12-06T13:18:21.750Z] [INFO] [BioAge] Session e6cc0921-c113-4614-b5d4-d4daf47d6d6b (2025-07-14T00:00:00): 4 matches - [Hemoglobin, MCV, MCH, MCHC, RDW, WBC, Neutrophils, Lymphocytes, Monocytes, Eosinophils, Platelets, Basophils]
+2025-12-06 21:18:22.02
+8f504664
+User
+[2025-12-06T13:18:22.027Z] [INFO] [BioAge] Session d11269ce-7308-4d69-b09e-7059bce0900d (2025-02-19T00:00:00): 9 matches - [IGF-1, Growth Hormone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Uric Acid, Bilirubin, Globulin, Progesterone, RBC, MCHC, Lymphocytes, Platelets, LDL Cholesterol, Transferrin, hs-CRP, Testosterone, Adjusted Calcium, Total Protein, GGT, FSH, Prolactin, Hematocrit, RDW, Monocytes, MPV, Non-HDL Cholesterol, Transferrin Saturation, Free T4, SHBG, Phosphate, Albumin, AST, LH, DHEA-S, MCV, WBC, Eosinophils, Total Cholesterol, Triglycerides, Ferritin, TSH, Free Testosterone, Magnesium, ALP, ALT, Estradiol (E2), Hemoglobin, MCH, Neutrophils, Basophils, HDL Cholesterol, Iron, Glucose, Free T3, Cortisol (AM)]
+2025-12-06 21:18:22.11
+8f504664
+User
+[2025-12-06T13:18:22.113Z] [INFO] [Readiness] Found 17 life events for recovery boost calculation
+2025-12-06 21:18:22.11
+8f504664
+User
+[2025-12-06T13:18:22.113Z] [INFO] [Readiness] Recovery boost calculated: +2 points from 1 activities
+2025-12-06 21:18:22.27
+8f504664
+User
+[2025-12-06T13:18:22.272Z] [INFO] [BioAge] Session 575e6e2c-a976-4a2c-9e87-1e0c3472dd8b (2024-08-19T00:00:00): 9 matches - [Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Magnesium, Uric Acid, Total Protein, Albumin, ALP, Bilirubin, GGT, AST, ALT, Globulin, Progesterone, Testosterone, DHEA-S, LDL Cholesterol, Transferrin, Hemoglobin, MCH, Neutrophils, Basophils, FSH, Free T4, SHBG, Cortisol (AM), Non-HDL Cholesterol, Transferrin Saturation, RBC, MCHC, Lymphocytes, Platelets, LH, TSH, Free Testosterone, Total Cholesterol, Triglycerides, Ferritin, Hematocrit, RDW, Monocytes, MPV, Estradiol (E2), Free T3, hs-CRP, HDL Cholesterol, Iron, Glucose, MCV, WBC, Eosinophils]
+2025-12-06 21:18:22.35
+8f504664
+User
+[2025-12-06T13:18:22.356Z] [INFO] [Readiness] Applied recovery boost: +2 points (79.9 → 81.9)
+2025-12-06 21:18:22.39
+8f504664
+User
+[2025-12-06T13:18:22.393Z] [INFO] [Readiness] Updated stale readiness for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, 2025-12-06: 82
+2025-12-06 21:18:22.39
+8f504664
+User
+1:18:22 PM [express] GET /api/readiness/today 200 in 1806ms :: {"userId":"095f8978-a3ad-4fe1-af39-1b…
+2025-12-06 21:18:22.51
+8f504664
+User
+[2025-12-06T13:18:22.513Z] [INFO] [BioAge] Session 274a5bf1-a3f0-4d4a-a67e-91444a7210b3 (2024-07-15T00:00:00): 1 matches - [Glucose, Testosterone, SHBG, Free Testosterone, PSA, Free PSA Ratio, AFP, Total Cholesterol, HDL Cholesterol, LDL Cholesterol, Non-HDL Cholesterol, Triglycerides]
+2025-12-06 21:18:22.76
+8f504664
+User
+[2025-12-06T13:18:22.761Z] [INFO] [BioAge] Session 4678a602-e22f-4ff7-8e60-6c562c0218f2 (2024-02-20T00:00:00): 9 matches - [Growth Hormone, Free T4, TSH, Free T3, FSH, LH, Estradiol (E2), Progesterone, Testosterone, SHBG, Free Testosterone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Adjusted Calcium, Phosphate, Albumin, AST, DHEA-S, Non-HDL Cholesterol, Transferrin Saturation, Hemoglobin, MCH, Neutrophils, Basophils, Magnesium, ALP, ALT, Total Cholesterol, Triglycerides, Ferritin, RBC, MCHC, Lymphocytes, Platelets, Uric Acid, Bilirubin, Globulin, HDL Cholesterol, Iron, Glucose, Hematocrit, RDW, Monocytes, MPV, Total Protein, GGT, Cortisol (AM), LDL Cholesterol, Transferrin, hs-CRP, MCV, WBC, Eosinophils]
+2025-12-06 21:18:22.76
+8f504664
+User
+[2025-12-06T13:18:22.761Z] [INFO] [BioAge] Using session d11269ce-7308-4d69-b09e-7059bce0900d with 62 measurements
+2025-12-06 21:18:22.76
+8f504664
+User
+[2025-12-06T13:18:22.761Z] [INFO] [BioAge] Best session: d11269ce-7308-4d69-b09e-7059bce0900d with 9 matches
+2025-12-06 21:18:22.84
+8f504664
+User
+[2025-12-06T13:18:22.841Z] [INFO] [BioAge] Missing biomarkers: []
+2025-12-06 21:18:22.84
+8f504664
+User
+[2025-12-06T13:18:22.841Z] [INFO] [BioAge] SUCCESS! PhenoAge=43.1, ChronoAge=52, Accel=-8.9
+2025-12-06 21:18:22.84
+8f504664
+User
+[2025-12-06T13:18:22.840Z] [INFO] [BioAge] Measurement map keys: [IGF-1, Growth Hormone, Sodium, Potassium, Chloride, CO2, Anion Gap, BUN, Creatinine, eGFR, Calcium, Uric Acid, Bilirubin, Globulin, Progesterone, RBC, MCHC, Lymphocytes, Platelets, LDL Cholesterol, Transferrin, hs-CRP, Testosterone, Adjusted Calcium, Total Protein, GGT, FSH, Prolactin, Hematocrit, RDW, Monocytes, MPV, Non-HDL Cholesterol, Transferrin Saturation, Free T4, SHBG, Phosphate, Albumin, AST, LH, DHEA-S, MCV, WBC, Eosinophils, Total Cholesterol, Triglycerides, Ferritin, TSH, Free Testosterone, Magnesium, ALP, ALT, Estradiol (E2), Hemoglobin, MCH, Neutrophils, Basophils, HDL Cholesterol, Iron, Glucose, Free T3, Cortisol (AM)]
