@@ -2801,12 +2801,16 @@ export const pendingCorrelationFeedback = pgTable("pending_correlation_feedback"
   triggerPattern: varchar("trigger_pattern", { length: 100 }),
   triggerMetrics: jsonb("trigger_metrics").$type<Record<string, { value: number; deviation: number }>>(),
   urgency: feedbackUrgencyEnum("urgency").default("medium").notNull(),
+  focusMetric: varchar("focus_metric", { length: 50 }),
+  deliveryWindow: varchar("delivery_window", { length: 20 }),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  visibleAt: timestamp("visible_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
 }, (table) => ({
   userIdIdx: index("idx_pending_feedback_user").on(table.userId),
   expiresAtIdx: index("idx_pending_feedback_expires").on(table.expiresAt),
+  visibleAtIdx: index("idx_pending_feedback_visible").on(table.visibleAt),
 }));
 
 export const insertPendingCorrelationFeedbackSchema = createInsertSchema(pendingCorrelationFeedback).omit({

@@ -4631,16 +4631,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
       const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays });
       
-      // Generate feedback question if anomalies found AND store it for the tile
-      let feedbackQuestion = null;
-      let feedbackId = null;
+      // Generate multiple feedback questions (top 3 by severity/confidence) with staggered delivery
+      const feedbackQuestions: any[] = [];
+      const feedbackIds: string[] = [];
       if (anomalies.length > 0) {
-        feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+        const questions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
         
-        if (feedbackQuestion) {
-          feedbackId = randomUUID();
-          await correlationInsightService.storePendingFeedback(userId, feedbackId, feedbackQuestion);
-          logger.info(`[Admin] Stored feedback question ${feedbackId} for user ${userId}`);
+        const deliveryOffsets = {
+          morning: 0,
+          midday: 4 * 60 * 60 * 1000,
+          evening: 8 * 60 * 60 * 1000,
+        };
+
+        for (const question of questions) {
+          const feedbackId = randomUUID();
+          const offset = deliveryOffsets[question.deliveryWindow || 'morning'];
+          const visibleAt = new Date(Date.now() + offset);
+          
+          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt);
+          feedbackQuestions.push({ ...question, feedbackId, visibleAt: visibleAt.toISOString() });
+          feedbackIds.push(feedbackId);
+          logger.info(`[Admin] Stored feedback question ${feedbackId} (${question.deliveryWindow}) for user ${userId}`);
         }
       }
       
@@ -4651,7 +4662,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info('[Admin] ClickHouse analysis complete', { 
         userId, 
         baselines: baselines.length, 
-        anomalies: anomalies.length 
+        anomalies: anomalies.length,
+        questionsGenerated: feedbackQuestions.length,
       });
       
       res.json({
@@ -4659,9 +4671,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         healthId,
         baselines,
         anomalies,
-        feedbackQuestion,
-        feedbackId,
-        feedbackStored: !!feedbackId,
+        feedbackQuestion: feedbackQuestions[0] || null,
+        feedbackQuestions,
+        feedbackIds,
+        feedbackStored: feedbackIds.length > 0,
+        questionsGenerated: feedbackQuestions.length,
         mlInsights,
         learningContext,
       });
@@ -4694,28 +4708,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const healthId = await getHealthId(userId);
       const anomalies = await clickhouseBaselineEngine.simulateAnomaly(healthId, scenario as 'illness' | 'recovery' | 'single_metric');
       
-      let feedbackQuestion = null;
-      let feedbackId = null;
+      const feedbackQuestions: any[] = [];
+      const feedbackIds: string[] = [];
       if (anomalies.length > 0) {
-        feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+        const questions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
         
-        if (feedbackQuestion) {
-          feedbackId = randomUUID();
-          await correlationInsightService.storePendingFeedback(userId, feedbackId, feedbackQuestion);
-          logger.info(`[Admin] Stored simulated feedback question ${feedbackId} for user ${userId}`);
+        const deliveryOffsets = {
+          morning: 0,
+          midday: 4 * 60 * 60 * 1000,
+          evening: 8 * 60 * 60 * 1000,
+        };
+
+        for (const question of questions) {
+          const feedbackId = randomUUID();
+          const offset = deliveryOffsets[question.deliveryWindow || 'morning'];
+          const visibleAt = new Date(Date.now() + offset);
+          
+          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt);
+          feedbackQuestions.push({ ...question, feedbackId, visibleAt: visibleAt.toISOString() });
+          feedbackIds.push(feedbackId);
+          logger.info(`[Admin] Stored simulated feedback question ${feedbackId} (${question.deliveryWindow}) for user ${userId}`);
         }
       }
       
-      logger.info('[Admin] ClickHouse simulation complete', { userId, scenario, anomalies: anomalies.length });
+      logger.info('[Admin] ClickHouse simulation complete', { userId, scenario, anomalies: anomalies.length, questionsGenerated: feedbackQuestions.length });
       
       res.json({
         success: true,
         scenario,
         healthId,
         anomalies,
-        feedbackQuestion,
-        feedbackId,
-        feedbackStored: !!feedbackId,
+        feedbackQuestion: feedbackQuestions[0] || null,
+        feedbackQuestions,
+        feedbackIds,
+        feedbackStored: feedbackIds.length > 0,
+        questionsGenerated: feedbackQuestions.length,
       });
     } catch (error) {
       logger.error('[Admin] ClickHouse simulation error:', error);

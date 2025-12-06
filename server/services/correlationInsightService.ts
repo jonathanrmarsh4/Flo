@@ -38,7 +38,7 @@ export interface AnalysisResult {
 }
 
 class CorrelationInsightService {
-  async runFullAnalysis(userId: string): Promise<AnalysisResult> {
+  async runFullAnalysis(userId: string): Promise<AnalysisResult & { feedbackQuestions: GeneratedQuestion[] }> {
     const healthId = await getHealthId(userId);
     const timestamp = new Date();
 
@@ -49,6 +49,7 @@ class CorrelationInsightService {
         timestamp,
         anomalies: [],
         feedbackQuestion: null,
+        feedbackQuestions: [],
         insights: [],
         patterns: [],
       };
@@ -59,15 +60,23 @@ class CorrelationInsightService {
     const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId);
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
-    let feedbackQuestion: GeneratedQuestion | null = null;
-    let feedbackId: string | null = null;
+    let feedbackQuestions: GeneratedQuestion[] = [];
     if (anomalies.length > 0) {
-      feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+      feedbackQuestions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
       
-      if (feedbackQuestion) {
-        feedbackId = randomUUID();
-        await this.storePendingFeedback(userId, feedbackId, feedbackQuestion);
-        logger.info(`[CorrelationInsight] Stored feedback question ${feedbackId} for user ${userId}`);
+      const deliveryOffsets = {
+        morning: 0,
+        midday: 4 * 60 * 60 * 1000,
+        evening: 8 * 60 * 60 * 1000,
+      };
+
+      for (const question of feedbackQuestions) {
+        const feedbackId = randomUUID();
+        const offset = deliveryOffsets[question.deliveryWindow || 'morning'];
+        const visibleAt = new Date(Date.now() + offset);
+        
+        await this.storePendingFeedback(userId, feedbackId, question, visibleAt);
+        logger.info(`[CorrelationInsight] Stored feedback question ${feedbackId} (${question.deliveryWindow}) for user ${userId}`);
       }
     }
 
@@ -79,11 +88,12 @@ class CorrelationInsightService {
       await this.storeInsights(healthId, insights);
     }
 
-    const result: AnalysisResult = {
+    const result = {
       healthId,
       timestamp,
       anomalies,
-      feedbackQuestion,
+      feedbackQuestion: feedbackQuestions[0] || null,
+      feedbackQuestions,
       insights,
       patterns,
     };
@@ -92,7 +102,7 @@ class CorrelationInsightService {
       anomalies: anomalies.length,
       patterns: patterns.length,
       insights: insights.length,
-      hasFeedbackQuestion: !!feedbackQuestion,
+      feedbackQuestionsGenerated: feedbackQuestions.length,
     });
 
     return result;
@@ -260,8 +270,14 @@ class CorrelationInsightService {
     return stored;
   }
 
-  async storePendingFeedback(userId: string, feedbackId: string, question: GeneratedQuestion): Promise<void> {
+  async storePendingFeedback(
+    userId: string,
+    feedbackId: string,
+    question: GeneratedQuestion,
+    visibleAt?: Date
+  ): Promise<void> {
     const expiresAt = new Date(Date.now() + FEEDBACK_EXPIRY_HOURS * 60 * 60 * 1000);
+    const effectiveVisibleAt = visibleAt || new Date();
     
     await db.insert(pendingCorrelationFeedback).values({
       feedbackId,
@@ -272,6 +288,9 @@ class CorrelationInsightService {
       triggerPattern: question.triggerPattern,
       triggerMetrics: question.triggerMetrics,
       urgency: question.urgency,
+      focusMetric: question.focusMetric || null,
+      deliveryWindow: question.deliveryWindow || null,
+      visibleAt: effectiveVisibleAt,
       expiresAt,
     }).onConflictDoUpdate({
       target: pendingCorrelationFeedback.feedbackId,
@@ -282,11 +301,14 @@ class CorrelationInsightService {
         triggerPattern: question.triggerPattern,
         triggerMetrics: question.triggerMetrics,
         urgency: question.urgency,
+        focusMetric: question.focusMetric || null,
+        deliveryWindow: question.deliveryWindow || null,
+        visibleAt: effectiveVisibleAt,
         expiresAt,
       },
     });
 
-    logger.debug(`[CorrelationInsight] Stored pending feedback ${feedbackId} for user ${userId}`);
+    logger.debug(`[CorrelationInsight] Stored pending feedback ${feedbackId} for user ${userId}, visible at ${effectiveVisibleAt.toISOString()}`);
   }
 
   async getPendingFeedback(feedbackId: string): Promise<{
@@ -337,12 +359,19 @@ class CorrelationInsightService {
     question: GeneratedQuestion;
     createdAt: Date;
     expiresAt: Date;
+    visibleAt: Date;
+    focusMetric: string | null;
+    deliveryWindow: string | null;
   }>> {
     await this.cleanupExpiredFeedback();
     
+    const now = new Date();
     const rows = await db.select()
       .from(pendingCorrelationFeedback)
-      .where(eq(pendingCorrelationFeedback.userId, userId))
+      .where(and(
+        eq(pendingCorrelationFeedback.userId, userId),
+        lt(pendingCorrelationFeedback.visibleAt, now)
+      ))
       .orderBy(pendingCorrelationFeedback.createdAt);
 
     return rows.map(row => ({
@@ -355,9 +384,14 @@ class CorrelationInsightService {
         triggerMetrics: row.triggerMetrics || {},
         urgency: row.urgency,
         suggestedChannel: 'in_app' as const,
+        focusMetric: row.focusMetric || undefined,
+        deliveryWindow: row.deliveryWindow as 'morning' | 'midday' | 'evening' | undefined,
       },
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,
+      visibleAt: row.visibleAt,
+      focusMetric: row.focusMetric,
+      deliveryWindow: row.deliveryWindow,
     }));
   }
 
