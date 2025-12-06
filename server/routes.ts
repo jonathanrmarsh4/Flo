@@ -4503,10 +4503,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin: Sync user data to ClickHouse
+  // Admin: Sync user data to ClickHouse (COMPREHENSIVE - all data types)
   app.post("/api/admin/clickhouse/sync", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      const { userId, daysBack = 30 } = req.body;
+      const { userId, daysBack = 90, comprehensive = true } = req.body;
       
       if (!userId) {
         return res.status(400).json({ error: "userId is required" });
@@ -4516,13 +4516,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { getHealthId } = await import('./services/supabaseHealthStorage');
       
       const healthId = await getHealthId(userId);
-      const rowsSynced = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, daysBack);
       
-      logger.info('[Admin] ClickHouse sync complete', { userId, healthId, rowsSynced });
-      res.json({ success: true, rowsSynced, healthId });
+      let result;
+      if (comprehensive) {
+        result = await clickhouseBaselineEngine.syncAllHealthData(healthId, daysBack);
+        logger.info('[Admin] ClickHouse comprehensive sync complete', { userId, healthId, ...result });
+        res.json({ 
+          success: true, 
+          healthId,
+          syncType: 'comprehensive',
+          dataSources: {
+            healthMetrics: result.healthMetrics,
+            nutrition: result.nutrition,
+            biomarkers: result.biomarkers,
+            lifeEvents: result.lifeEvents,
+            environmental: result.environmental,
+            bodyComposition: result.bodyComposition,
+          },
+          totalRecords: result.total,
+        });
+      } else {
+        const rowsSynced = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, daysBack);
+        logger.info('[Admin] ClickHouse basic sync complete', { userId, healthId, rowsSynced });
+        res.json({ success: true, rowsSynced, healthId, syncType: 'basic' });
+      }
     } catch (error) {
       logger.error('[Admin] ClickHouse sync error:', error);
       res.status(500).json({ error: "Failed to sync data to ClickHouse" });
+    }
+  });
+
+  // Admin: Get data coverage summary from ClickHouse
+  app.get("/api/admin/clickhouse/coverage/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const coverage = await clickhouseBaselineEngine.getDataCoverageSummary(healthId);
+      
+      res.json({ 
+        healthId, 
+        coverage,
+        summary: {
+          totalRecords: Object.values(coverage).reduce((acc: number, c: any) => acc + c.count, 0),
+          dataSources: Object.fromEntries(
+            Object.entries(coverage).map(([key, val]: [string, any]) => [key, val.count > 0])
+          ),
+        }
+      });
+    } catch (error) {
+      logger.error('[Admin] ClickHouse coverage error:', error);
+      res.status(500).json({ error: "Failed to get data coverage" });
     }
   });
 
@@ -4541,8 +4588,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const healthId = await getHealthId(userId);
       
-      // First sync latest data
-      await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 30);
+      // First sync ALL latest data (comprehensive)
+      await clickhouseBaselineEngine.syncAllHealthData(healthId, 30);
       
       // Calculate baselines and detect anomalies
       const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);

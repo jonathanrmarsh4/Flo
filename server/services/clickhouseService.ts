@@ -215,7 +215,147 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully');
+    // Comprehensive nutrition data table
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.nutrition_metrics (
+          health_id String,
+          local_date Date,
+          energy_kcal Nullable(Float64),
+          protein_g Nullable(Float64),
+          carbohydrates_g Nullable(Float64),
+          fat_total_g Nullable(Float64),
+          fat_saturated_g Nullable(Float64),
+          fat_monounsaturated_g Nullable(Float64),
+          fat_polyunsaturated_g Nullable(Float64),
+          fiber_g Nullable(Float64),
+          sugar_g Nullable(Float64),
+          sodium_mg Nullable(Float64),
+          potassium_mg Nullable(Float64),
+          calcium_mg Nullable(Float64),
+          iron_mg Nullable(Float64),
+          magnesium_mg Nullable(Float64),
+          zinc_mg Nullable(Float64),
+          vitamin_a_mcg Nullable(Float64),
+          vitamin_c_mg Nullable(Float64),
+          vitamin_d_mcg Nullable(Float64),
+          vitamin_e_mg Nullable(Float64),
+          vitamin_k_mcg Nullable(Float64),
+          vitamin_b6_mg Nullable(Float64),
+          vitamin_b12_mcg Nullable(Float64),
+          folate_mcg Nullable(Float64),
+          water_ml Nullable(Float64),
+          caffeine_mg Nullable(Float64),
+          cholesterol_mg Nullable(Float64),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, local_date)
+      `,
+    });
+
+    // Biomarker/blood work data table
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.biomarkers (
+          health_id String,
+          biomarker_id String,
+          biomarker_name LowCardinality(String),
+          value Float64,
+          unit Nullable(String),
+          reference_low Nullable(Float64),
+          reference_high Nullable(Float64),
+          test_date Date,
+          session_id Nullable(String),
+          source LowCardinality(String) DEFAULT 'blood_work',
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(test_date)
+        ORDER BY (health_id, biomarker_name, test_date, biomarker_id)
+      `,
+    });
+
+    // Life events table for behavioral context
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.life_events (
+          health_id String,
+          event_id String,
+          event_type LowCardinality(String),
+          category Nullable(String),
+          description Nullable(String),
+          severity Nullable(Int8),
+          occurred_at DateTime64(3),
+          local_date Date,
+          metadata Nullable(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, event_type, local_date, event_id)
+      `,
+    });
+
+    // Environmental data (location, weather, AQI)
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.environmental_data (
+          health_id String,
+          local_date Date,
+          latitude Nullable(Float64),
+          longitude Nullable(Float64),
+          temperature_c Nullable(Float64),
+          humidity_pct Nullable(Float64),
+          pressure_hpa Nullable(Float64),
+          uv_index Nullable(Float64),
+          aqi Nullable(Int32),
+          pm25 Nullable(Float64),
+          pm10 Nullable(Float64),
+          ozone Nullable(Float64),
+          no2 Nullable(Float64),
+          weather_condition Nullable(String),
+          heat_stress_score Nullable(Float64),
+          air_quality_impact Nullable(Float64),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, local_date)
+      `,
+    });
+
+    // DEXA / Body composition scans
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.body_composition (
+          health_id String,
+          scan_id String,
+          scan_date Date,
+          scan_type LowCardinality(String) DEFAULT 'dexa',
+          total_body_fat_pct Nullable(Float64),
+          visceral_fat_mass_g Nullable(Float64),
+          visceral_fat_area_cm2 Nullable(Float64),
+          total_lean_mass_kg Nullable(Float64),
+          appendicular_lean_mass_kg Nullable(Float64),
+          bone_mineral_density Nullable(Float64),
+          bone_mineral_content_g Nullable(Float64),
+          android_fat_pct Nullable(Float64),
+          gynoid_fat_pct Nullable(Float64),
+          trunk_fat_pct Nullable(Float64),
+          leg_fat_pct Nullable(Float64),
+          arm_fat_pct Nullable(Float64),
+          resting_metabolic_rate Nullable(Float64),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(scan_date)
+        ORDER BY (health_id, scan_date, scan_id)
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including nutrition, biomarkers, life_events, environmental, body_composition)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

@@ -160,7 +160,9 @@ export class ClickHouseBaselineEngine {
         return 0;
       }
 
+      // Comprehensive mapping of ALL health metrics from user_daily_metrics
       const metricMappings: Record<string, string> = {
+        // Core HealthKit metrics
         hrv_ms: 'hrv',
         resting_hr_bpm: 'resting_heart_rate',
         steps_normalized: 'steps',
@@ -169,6 +171,32 @@ export class ClickHouseBaselineEngine {
         exercise_minutes: 'exercise',
         weight_kg: 'weight',
         bmi: 'bmi',
+        // Extended vital signs
+        walking_hr_avg_bpm: 'walking_heart_rate',
+        oxygen_saturation_pct: 'oxygen_saturation',
+        respiratory_rate_bpm: 'respiratory_rate',
+        body_temp_celsius: 'body_temperature',
+        basal_energy_kcal: 'basal_energy',
+        dietary_water_ml: 'water_intake',
+        // Wrist temperature
+        wrist_temp_baseline_c: 'wrist_temperature_baseline',
+        wrist_temp_deviation_c: 'wrist_temperature_deviation',
+        // Sleep metrics
+        deep_sleep_hours: 'deep_sleep',
+        rem_sleep_hours: 'rem_sleep',
+        core_sleep_hours: 'core_sleep',
+        sleep_awakenings: 'sleep_awakenings',
+        time_in_bed_hours: 'time_in_bed',
+        sleep_latency_min: 'sleep_latency',
+        // Body composition
+        body_fat_pct: 'body_fat',
+        lean_mass_kg: 'lean_mass',
+        // Activity metrics
+        stand_hours: 'stand_hours',
+        flights_climbed: 'flights_climbed',
+        distance_km: 'distance',
+        // Mindfulness
+        mindfulness_minutes: 'mindfulness',
       };
 
       const rows: any[] = [];
@@ -809,6 +837,391 @@ export class ClickHouseBaselineEngine {
     }
 
     return anomalies;
+  }
+
+  // ==================== COMPREHENSIVE DATA SYNC METHODS ====================
+
+  async syncNutritionData(healthId: string, daysBack: number = 90): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      const { data: nutrition, error } = await supabase
+        .from('nutrition_daily_metrics')
+        .select('*')
+        .eq('health_id', healthId)
+        .gte('local_date', startDateStr)
+        .order('local_date', { ascending: true });
+
+      if (error) {
+        logger.error('[ClickHouseML] Error fetching nutrition from Supabase:', error);
+        return 0;
+      }
+
+      if (!nutrition || nutrition.length === 0) {
+        logger.debug(`[ClickHouseML] No nutrition data to sync for ${healthId}`);
+        return 0;
+      }
+
+      const rows = nutrition.map(n => ({
+        health_id: healthId,
+        local_date: n.local_date,
+        energy_kcal: n.energy_kcal,
+        protein_g: n.protein_g,
+        carbohydrates_g: n.carbohydrates_g,
+        fat_total_g: n.fat_total_g,
+        fat_saturated_g: n.fat_saturated_g,
+        fat_monounsaturated_g: n.fat_monounsaturated_g,
+        fat_polyunsaturated_g: n.fat_polyunsaturated_g,
+        fiber_g: n.fiber_g,
+        sugar_g: n.sugar_g,
+        sodium_mg: n.sodium_mg,
+        potassium_mg: n.potassium_mg,
+        calcium_mg: n.calcium_mg,
+        iron_mg: n.iron_mg,
+        magnesium_mg: n.magnesium_mg,
+        zinc_mg: n.zinc_mg,
+        vitamin_a_mcg: n.vitamin_a_mcg,
+        vitamin_c_mg: n.vitamin_c_mg,
+        vitamin_d_mcg: n.vitamin_d_mcg,
+        vitamin_e_mg: n.vitamin_e_mg,
+        vitamin_k_mcg: n.vitamin_k_mcg,
+        vitamin_b6_mg: n.vitamin_b6_mg,
+        vitamin_b12_mcg: n.vitamin_b12_mcg,
+        folate_mcg: n.folate_mcg,
+        water_ml: n.dietary_water_ml,
+        caffeine_mg: n.caffeine_mg,
+        cholesterol_mg: n.cholesterol_mg,
+      }));
+
+      await clickhouse.insert('nutrition_metrics', rows);
+      logger.info(`[ClickHouseML] Synced ${rows.length} nutrition records for ${healthId}`);
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Nutrition sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncBiomarkerData(healthId: string, daysBack: number = 365): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Get all biomarker measurements with their sessions
+      const { data: measurements, error } = await supabase
+        .from('biomarker_measurements')
+        .select(`
+          *,
+          biomarker_test_sessions!inner (
+            test_date,
+            health_id,
+            source
+          )
+        `)
+        .eq('biomarker_test_sessions.health_id', healthId)
+        .gte('biomarker_test_sessions.test_date', startDateStr)
+        .order('biomarker_test_sessions(test_date)', { ascending: true });
+
+      if (error) {
+        logger.error('[ClickHouseML] Error fetching biomarkers from Supabase:', error);
+        return 0;
+      }
+
+      if (!measurements || measurements.length === 0) {
+        logger.debug(`[ClickHouseML] No biomarker data to sync for ${healthId}`);
+        return 0;
+      }
+
+      const rows = measurements.map(m => ({
+        health_id: healthId,
+        biomarker_id: m.id,
+        biomarker_name: m.biomarker_id || 'unknown',
+        value: m.value,
+        unit: m.unit,
+        reference_low: m.reference_low,
+        reference_high: m.reference_high,
+        test_date: m.biomarker_test_sessions?.test_date,
+        session_id: m.session_id,
+        source: m.biomarker_test_sessions?.source || 'blood_work',
+      }));
+
+      await clickhouse.insert('biomarkers', rows);
+      logger.info(`[ClickHouseML] Synced ${rows.length} biomarker records for ${healthId}`);
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Biomarker sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncLifeEvents(healthId: string, daysBack: number = 180): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+
+      const { data: events, error } = await supabase
+        .from('life_events')
+        .select('*')
+        .eq('health_id', healthId)
+        .gte('occurred_at', startDate.toISOString())
+        .order('occurred_at', { ascending: true });
+
+      if (error) {
+        logger.error('[ClickHouseML] Error fetching life events from Supabase:', error);
+        return 0;
+      }
+
+      if (!events || events.length === 0) {
+        logger.debug(`[ClickHouseML] No life events to sync for ${healthId}`);
+        return 0;
+      }
+
+      const rows = events.map(e => ({
+        health_id: healthId,
+        event_id: e.id,
+        event_type: e.event_type || 'unknown',
+        category: e.category,
+        description: e.description,
+        severity: e.severity,
+        occurred_at: new Date(e.occurred_at).toISOString(),
+        local_date: new Date(e.occurred_at).toISOString().split('T')[0],
+        metadata: e.parsed_data ? JSON.stringify(e.parsed_data) : null,
+      }));
+
+      await clickhouse.insert('life_events', rows);
+      logger.info(`[ClickHouseML] Synced ${rows.length} life events for ${healthId}`);
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Life events sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncEnvironmentalData(healthId: string, daysBack: number = 90): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Get weather/environmental data
+      const { data: weather, error } = await supabase
+        .from('weather_daily_cache')
+        .select('*')
+        .eq('health_id', healthId)
+        .gte('date', startDateStr)
+        .order('date', { ascending: true });
+
+      if (error) {
+        logger.error('[ClickHouseML] Error fetching weather from Supabase:', error);
+        return 0;
+      }
+
+      if (!weather || weather.length === 0) {
+        logger.debug(`[ClickHouseML] No environmental data to sync for ${healthId}`);
+        return 0;
+      }
+
+      const rows = weather.map(w => ({
+        health_id: healthId,
+        local_date: w.date,
+        latitude: w.latitude,
+        longitude: w.longitude,
+        temperature_c: w.temperature_celsius,
+        humidity_pct: w.humidity_percent,
+        pressure_hpa: w.pressure_hpa,
+        uv_index: w.uv_index,
+        aqi: w.aqi,
+        pm25: w.pm25,
+        pm10: w.pm10,
+        ozone: w.ozone,
+        no2: w.no2,
+        weather_condition: w.condition,
+        heat_stress_score: null, // Can be calculated
+        air_quality_impact: w.aqi ? (w.aqi > 100 ? (w.aqi - 100) / 100 : 0) : null,
+      }));
+
+      await clickhouse.insert('environmental_data', rows);
+      logger.info(`[ClickHouseML] Synced ${rows.length} environmental records for ${healthId}`);
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Environmental sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncBodyCompositionData(healthId: string): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      // Get DEXA scans from diagnostics_studies
+      const { data: dexaScans, error } = await supabase
+        .from('diagnostics_studies')
+        .select('*')
+        .eq('health_id', healthId)
+        .eq('type', 'dexa_scan')
+        .order('study_date', { ascending: true });
+
+      if (error) {
+        logger.error('[ClickHouseML] Error fetching DEXA from Supabase:', error);
+        return 0;
+      }
+
+      if (!dexaScans || dexaScans.length === 0) {
+        logger.debug(`[ClickHouseML] No body composition data to sync for ${healthId}`);
+        return 0;
+      }
+
+      const rows = dexaScans.map(d => {
+        const payload = d.ai_payload as Record<string, any> || {};
+        const bodyComp = payload.body_composition || {};
+        return {
+          health_id: healthId,
+          scan_id: d.id,
+          scan_date: d.study_date,
+          scan_type: 'dexa',
+          total_body_fat_pct: bodyComp.total_body_fat_percent,
+          visceral_fat_mass_g: bodyComp.vat_mass_g || payload.visceralFatMass,
+          visceral_fat_area_cm2: bodyComp.vat_area_cm2,
+          total_lean_mass_kg: bodyComp.total_lean_mass_kg || payload.totalLeanMass,
+          appendicular_lean_mass_kg: bodyComp.appendicular_lean_mass_kg,
+          bone_mineral_density: bodyComp.bone_mineral_density,
+          bone_mineral_content_g: bodyComp.bone_mineral_content_g,
+          android_fat_pct: bodyComp.android_fat_percent,
+          gynoid_fat_pct: bodyComp.gynoid_fat_percent,
+          trunk_fat_pct: bodyComp.trunk_fat_percent,
+          leg_fat_pct: bodyComp.leg_fat_percent,
+          arm_fat_pct: bodyComp.arm_fat_percent,
+          resting_metabolic_rate: bodyComp.resting_metabolic_rate,
+        };
+      });
+
+      await clickhouse.insert('body_composition', rows);
+      logger.info(`[ClickHouseML] Synced ${rows.length} body composition records for ${healthId}`);
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Body composition sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncAllHealthData(healthId: string, daysBack: number = 90): Promise<{
+    healthMetrics: number;
+    nutrition: number;
+    biomarkers: number;
+    lifeEvents: number;
+    environmental: number;
+    bodyComposition: number;
+    total: number;
+  }> {
+    logger.info(`[ClickHouseML] Starting comprehensive data sync for ${healthId} (${daysBack} days back)`);
+
+    const results = await Promise.all([
+      this.syncHealthDataFromSupabase(healthId, daysBack),
+      this.syncNutritionData(healthId, daysBack),
+      this.syncBiomarkerData(healthId, 365), // Biomarkers go back further
+      this.syncLifeEvents(healthId, Math.min(daysBack, 180)),
+      this.syncEnvironmentalData(healthId, daysBack),
+      this.syncBodyCompositionData(healthId),
+    ]);
+
+    const summary = {
+      healthMetrics: results[0],
+      nutrition: results[1],
+      biomarkers: results[2],
+      lifeEvents: results[3],
+      environmental: results[4],
+      bodyComposition: results[5],
+      total: results.reduce((a, b) => a + b, 0),
+    };
+
+    logger.info(`[ClickHouseML] Comprehensive sync complete: ${summary.total} total records`, summary);
+    return summary;
+  }
+
+  async getDataCoverageSummary(healthId: string): Promise<{
+    healthMetrics: { count: number; earliestDate: string | null; latestDate: string | null };
+    nutrition: { count: number; earliestDate: string | null; latestDate: string | null };
+    biomarkers: { count: number; earliestDate: string | null; latestDate: string | null };
+    lifeEvents: { count: number; earliestDate: string | null; latestDate: string | null };
+    environmental: { count: number; earliestDate: string | null; latestDate: string | null };
+    bodyComposition: { count: number; earliestDate: string | null; latestDate: string | null };
+  }> {
+    if (!await this.ensureInitialized()) {
+      const empty = { count: 0, earliestDate: null, latestDate: null };
+      return {
+        healthMetrics: empty,
+        nutrition: empty,
+        biomarkers: empty,
+        lifeEvents: empty,
+        environmental: empty,
+        bodyComposition: empty,
+      };
+    }
+
+    const queryTable = async (table: string, dateCol: string) => {
+      try {
+        const result = await clickhouse.query<{
+          cnt: number;
+          earliest: string | null;
+          latest: string | null;
+        }>(`
+          SELECT
+            count() as cnt,
+            min(${dateCol}) as earliest,
+            max(${dateCol}) as latest
+          FROM flo_health.${table}
+          WHERE health_id = {healthId:String}
+        `, { healthId });
+
+        if (result.length > 0) {
+          return {
+            count: Number(result[0].cnt),
+            earliestDate: result[0].earliest,
+            latestDate: result[0].latest,
+          };
+        }
+      } catch (e) {
+        logger.warn(`[ClickHouseML] Error querying ${table}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      return { count: 0, earliestDate: null, latestDate: null };
+    };
+
+    const [healthMetrics, nutrition, biomarkers, lifeEvents, environmental, bodyComposition] = await Promise.all([
+      queryTable('health_metrics', 'local_date'),
+      queryTable('nutrition_metrics', 'local_date'),
+      queryTable('biomarkers', 'test_date'),
+      queryTable('life_events', 'local_date'),
+      queryTable('environmental_data', 'local_date'),
+      queryTable('body_composition', 'scan_date'),
+    ]);
+
+    return { healthMetrics, nutrition, biomarkers, lifeEvents, environmental, bodyComposition };
   }
 }
 
