@@ -5,7 +5,7 @@
  */
 
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
-import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getRecentChatHistory } from './floOracleContextBuilder';
+import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getRecentChatHistory, getUserMemoriesContext } from './floOracleContextBuilder';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
 import { couldContainLifeEvent, extractLifeEvents } from './lifeEventParser';
 import { parseConversationalIntent } from './conversationalIntentParser';
@@ -156,7 +156,7 @@ class GeminiVoiceService {
     
     let healthContext = '';
     try {
-      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights, chatHistory] = await Promise.all([
+      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights, chatHistory, memoriesContext] = await Promise.all([
         buildUserHealthContext(userId),
         getActiveActionPlanItems(userId),
         getRelevantInsights(userId),
@@ -171,6 +171,11 @@ class GeminiVoiceService {
             logger.error('[GeminiVoice] Failed to retrieve chat history:', err);
             return '';
           }),
+        getUserMemoriesContext(userId, 15)
+          .catch(err => {
+            logger.error('[GeminiVoice] Failed to retrieve conversational memories:', err);
+            return '';
+          }),
       ]);
       
       // Format brain memory insights (includes medical documents, chat learnings, etc.)
@@ -183,6 +188,7 @@ class GeminiVoiceService {
         lifeEventsContext,
         brainContext ? `\n[BRAIN MEMORY - Medical Documents & Learned Insights]\n${brainContext}` : '',
         chatHistory ? `\n${chatHistory}` : '',
+        memoriesContext ? `\n${memoriesContext}` : '',
       ].filter(Boolean).join('\n');
       
       // Truncate if too large (Gemini Live may have limits on system instruction)
@@ -194,12 +200,14 @@ class GeminiVoiceService {
         healthContext = healthContext.substring(0, 8000) + '\n\n[Context truncated for voice session]';
       }
       
-      logger.info('[GeminiVoice] Built full health context with brain memory and chat history', { 
+      logger.info('[GeminiVoice] Built full health context with brain memory, chat history, and memories', { 
         userId, 
         contextLength: healthContext.length,
         hasActionPlan: actionPlanContext.length > 0,
         brainInsightsCount: brainInsights.merged.length,
-        hasChatHistory: chatHistory.length > 0
+        hasChatHistory: chatHistory.length > 0,
+        hasMemories: memoriesContext.length > 0,
+        memoriesLength: memoriesContext.length
       });
     } catch (contextError: any) {
       logger.error('[GeminiVoice] Failed to build health context', { error: contextError.message });

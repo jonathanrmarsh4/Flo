@@ -4,20 +4,32 @@ import { storeMultipleMemories, MemoryPayload } from './userMemoryService';
 
 const openai = new OpenAI();
 
-const EXTRACTION_PROMPT = `You are an expert personal context extractor. Extract every concrete fact, goal, preference, symptom, mood, habit, interest, relationship, stress factor, life event, or other personal detail from the conversation below. Include aspects of mental wellbeing, daily habits, and broader life context that could influence health or behavior.
+const EXTRACTION_PROMPT = `You are an expert personal context extractor for a health AI assistant. Extract every concrete fact, goal, preference, symptom, mood, habit, interest, relationship, stress factor, life event, health concern, or medical discussion from the conversation below.
+
+CRITICAL: Pay special attention to health discussions that should NOT be repeated in future conversations:
+- Biomarker concerns (high/low PSA, cholesterol, glucose, A1C, etc.)
+- Medical conditions being monitored
+- Medications and supplements being taken
+- Health goals and targets
+- Past medical procedures or tests
+- Ongoing health issues or concerns the user has discussed
 
 Return valid JSON only (no markdown). Use this exact schema:
 
 {
   "memories": [
     {
-      "type": "goal_set|goal_update|symptom|mood_report|habit|personal_interest|life_context|preference|relationship|health_observation",
+      "type": "goal_set|goal_update|symptom|mood_report|habit|personal_interest|life_context|preference|relationship|health_observation|biomarker_concern|medical_condition|medication|health_discussion",
       "raw": "exact quote or paraphrase from user",
       "extracted": {
         // structured data varies by type, include all relevant fields
+        // For biomarker_concern: include biomarker name, value if mentioned, whether high/low/normal
+        // For medical_condition: include condition name, status (active/resolved/monitoring)
+        // For medication: include name, purpose if known
+        // For health_discussion: include topic, key points discussed, any conclusions
       },
       "importance": "low|medium|high",
-      "linked_to": ["optional array of related health metrics or topics"]
+      "linked_to": ["optional array of related health metrics or biomarkers"]
     }
   ]
 }
@@ -31,9 +43,12 @@ Guidelines:
 - Include life events (travel, work changes, family events)
 - Include health observations and symptoms
 - Include goals and aspirations
+- ALWAYS extract biomarker discussions (PSA, cholesterol, A1C, glucose, testosterone, etc.)
+- ALWAYS extract medical conditions or diagnoses mentioned
+- ALWAYS extract medications, supplements, or treatments discussed
 - Set importance based on:
-  - high: goals, significant symptoms, major life events, mental health concerns
-  - medium: habits, preferences, regular patterns
+  - high: health concerns, biomarker issues, medical conditions, medications, goals, significant symptoms, major life events, mental health concerns
+  - medium: habits, preferences, regular patterns, supplement routines
   - low: casual mentions, minor details
 
 If no meaningful personal context is found, return: {"memories": []}`;

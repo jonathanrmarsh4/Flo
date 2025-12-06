@@ -23,7 +23,7 @@ function getRelativeTime(date: Date): string {
 }
 
 export interface MemoryPayload {
-  type: 'goal_set' | 'goal_update' | 'symptom' | 'mood_report' | 'habit' | 'personal_interest' | 'life_context' | 'preference' | 'relationship' | 'health_observation';
+  type: 'goal_set' | 'goal_update' | 'symptom' | 'mood_report' | 'habit' | 'personal_interest' | 'life_context' | 'preference' | 'relationship' | 'health_observation' | 'biomarker_concern' | 'medical_condition' | 'medication' | 'health_discussion';
   raw: string;
   extracted: Record<string, any>;
   importance?: 'low' | 'medium' | 'high';
@@ -252,6 +252,18 @@ function extractTagsFromMemory(memory: MemoryPayload): string[] {
   }
   if (memory.type === 'personal_interest') {
     tags.push('interest', 'wellbeing');
+  }
+  if (memory.type === 'biomarker_concern') {
+    tags.push('health', 'biomarker', 'medical');
+  }
+  if (memory.type === 'medical_condition') {
+    tags.push('health', 'medical', 'condition');
+  }
+  if (memory.type === 'medication') {
+    tags.push('health', 'medication', 'treatment');
+  }
+  if (memory.type === 'health_discussion') {
+    tags.push('health', 'discussion');
   }
   
   if (memory.importance === 'high') {
