@@ -1,4 +1,5 @@
-import { X, Heart, Activity, Brain, Bone, Stethoscope, FileText } from 'lucide-react';
+import { X, Heart, Activity, Brain, Bone, Stethoscope, FileText, Droplet } from 'lucide-react';
+import { Link } from 'wouter';
 import { CalciumScoreTile } from './CalciumScoreTile';
 import { DexaScanTile } from './DexaScanTile';
 import { SpecialistReportsTile } from './SpecialistReportsTile';
@@ -49,6 +50,21 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
                   Advanced health scans
                 </p>
               </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link 
+                href="/labs"
+                className={`flex flex-col items-center gap-0.5 p-2 rounded-lg transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                data-testid="link-labs"
+                aria-label="Labs"
+              >
+                <Droplet className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                <span className={`text-[10px] ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                  Labs
+                </span>
+              </Link>
             </div>
           </div>
         </div>

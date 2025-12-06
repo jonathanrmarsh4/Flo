@@ -269,7 +269,7 @@ export default function Dashboard() {
               >
                 <Activity className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 <span className={`text-[10px] ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                  Activity
+                  Diagnostics
                 </span>
               </Link>
               <Link 
