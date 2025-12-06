@@ -21,7 +21,7 @@ interface UseGeminiLiveVoiceOptions {
   onError?: (error: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
-  endpoint?: 'gemini-live' | 'admin-sandbox';
+  endpoint?: 'gemini-live' | 'admin-sandbox' | 'sie-brainstorm';
 }
 
 // Simple moving average low-pass filter

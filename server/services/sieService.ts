@@ -446,7 +446,7 @@ export async function runSIEAnalysis(generateAudio: boolean = true): Promise<SIE
     config: {
       systemInstruction: systemPrompt,
       temperature: 0.9, // High creativity for strategic analysis
-      maxOutputTokens: 4000,
+      maxOutputTokens: 16384, // Extended to capture full recommendations without cutoff
     },
   });
 

@@ -10792,7 +10792,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   httpServer.on('upgrade', (request, socket, head) => {
     const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
     
-    if (pathname === '/api/voice/gemini-live' || pathname === '/api/voice/admin-sandbox') {
+    if (pathname === '/api/voice/gemini-live' || pathname === '/api/voice/admin-sandbox' || pathname === '/api/voice/sie-brainstorm') {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
@@ -10808,6 +10808,12 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     // Route to admin sandbox handler if that's the path
     if (pathname === '/api/voice/admin-sandbox') {
       handleAdminSandboxConnection(ws, req, WebSocket);
+      return;
+    }
+    
+    // Route to SIE brainstorm handler if that's the path
+    if (pathname === '/api/voice/sie-brainstorm') {
+      handleSIEBrainstormConnection(ws, req, WebSocket);
       return;
     }
     
@@ -11140,6 +11146,175 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       
     } catch (error: any) {
       logger.error('[AdminSandbox WS] Connection error', { error: error.message });
+      ws.close(4002, 'Server error');
+    }
+  }
+
+  // SIE Brainstorm connection handler function
+  async function handleSIEBrainstormConnection(ws: any, req: any, WebSocket: any) {
+    logger.info('[SIE Brainstorm WS] New connection attempt');
+    
+    let userId: string | null = null;
+    let sessionId: string | null = null;
+    
+    try {
+      const url = new URL(req.url || '', `http://${req.headers.host}`);
+      const token = url.searchParams.get('token');
+      
+      const jwtSecret = process.env.SESSION_SECRET;
+      if (!jwtSecret) {
+        logger.error('[SIE Brainstorm WS] SESSION_SECRET not configured');
+        ws.close(4003, 'Server configuration error');
+        return;
+      }
+      
+      if (token) {
+        const jwt = await import('jsonwebtoken');
+        try {
+          const decoded = jwt.default.verify(token, jwtSecret) as { sub: string };
+          userId = decoded.sub;
+        } catch (jwtError: any) {
+          logger.error('[SIE Brainstorm WS] JWT verification failed', { error: jwtError.message });
+          ws.close(4001, 'Invalid token');
+          return;
+        }
+      } else {
+        logger.warn('[SIE Brainstorm WS] No token provided');
+        ws.close(4001, 'Authentication required');
+        return;
+      }
+      
+      if (!userId) {
+        ws.close(4001, 'Invalid authentication');
+        return;
+      }
+      
+      // CRITICAL: Verify user is an admin
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user || user.role !== 'admin') {
+        logger.warn('[SIE Brainstorm WS] Non-admin access attempt', { userId, role: user?.role });
+        ws.close(4003, 'Admin access required');
+        return;
+      }
+      
+      logger.info('[SIE Brainstorm WS] Admin authenticated', { userId });
+      
+      const { geminiVoiceService } = await import('./services/geminiVoiceService');
+      
+      if (!geminiVoiceService.isAvailable()) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Gemini Live not available' }));
+        ws.close(4003, 'Service unavailable');
+        return;
+      }
+      
+      // Start the SIE brainstorm voice session
+      try {
+        sessionId = await geminiVoiceService.startSIEBrainstormSession(userId, {
+          onAudioChunk: (audioData: Buffer) => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'audio',
+                data: audioData.toString('base64'),
+              }));
+            }
+          },
+          onTranscript: (text: string, isFinal: boolean) => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'transcript',
+                text,
+                isFinal,
+              }));
+            }
+          },
+          onModelText: (text: string) => {
+            if (ws.readyState === WebSocket.default.OPEN && text) {
+              ws.send(JSON.stringify({
+                type: 'response_text',
+                text,
+              }));
+            }
+          },
+          onError: (error: Error) => {
+            logger.error('[SIE Brainstorm WS] Session error callback', { error: error.message });
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: error.message,
+              }));
+            }
+          },
+          onClose: () => {
+            logger.info('[SIE Brainstorm WS] Session closed callback');
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.close(1000, 'Session ended');
+            }
+          },
+        });
+        
+        ws.send(JSON.stringify({ type: 'connected', sessionId }));
+        logger.info('[SIE Brainstorm WS] Session started successfully', { userId, sessionId });
+      } catch (sessionError: any) {
+        logger.error('[SIE Brainstorm WS] Failed to start session', { 
+          userId, 
+          error: sessionError.message,
+          stack: sessionError.stack 
+        });
+        ws.send(JSON.stringify({ type: 'error', message: 'Failed to start voice session: ' + sessionError.message }));
+        ws.close(4004, 'Session start failed');
+        return;
+      }
+      
+      // Handle incoming messages
+      ws.on('message', async (data: Buffer) => {
+        try {
+          const message = JSON.parse(data.toString());
+          
+          if (message.type === 'audio' && sessionId) {
+            const audioBuffer = Buffer.from(message.data, 'base64');
+            await geminiVoiceService.sendAudio(sessionId, audioBuffer);
+          } else if (message.type === 'text' && sessionId) {
+            await geminiVoiceService.sendText(sessionId, message.text);
+          } else if (message.type === 'end') {
+            if (sessionId) {
+              await geminiVoiceService.endSession(sessionId);
+              sessionId = null;
+            }
+            ws.close(1000, 'Session ended by client');
+          }
+        } catch (error: any) {
+          logger.error('[SIE Brainstorm WS] Message error', { error: error.message });
+        }
+      });
+      
+      // Handle close
+      ws.on('close', async () => {
+        logger.info('[SIE Brainstorm WS] Connection closed', { userId, sessionId });
+        if (sessionId) {
+          try {
+            await geminiVoiceService.endSession(sessionId);
+            sessionId = null;
+          } catch (cleanupError: any) {
+            logger.error('[SIE Brainstorm WS] Session cleanup error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+      // Handle errors
+      ws.on('error', async (error: Error) => {
+        logger.error('[SIE Brainstorm WS] WebSocket error', { userId, sessionId, error: error.message });
+        if (sessionId) {
+          try {
+            await geminiVoiceService.endSession(sessionId);
+            sessionId = null;
+          } catch (cleanupError: any) {
+            logger.error('[SIE Brainstorm WS] Session cleanup error on error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+    } catch (error: any) {
+      logger.error('[SIE Brainstorm WS] Connection error', { error: error.message });
       ws.close(4002, 'Server error');
     }
   }

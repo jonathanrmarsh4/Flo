@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, MessageSquare, Send, Sparkles } from 'lucide-react';
+import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, Mic, MicOff, MessageSquare, XCircle } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Textarea } from '@/components/ui/textarea';
+import { useGeminiLiveVoice } from '@/hooks/useGeminiLiveVoice';
 
 interface SIEResponse {
   text: string;
@@ -18,15 +18,10 @@ interface SIEResponse {
   processingTimeMs: number;
 }
 
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface ChatResponse {
-  message: string;
-  sessionId: string;
-  messageCount: number;
+interface TranscriptEntry {
+  role: 'user' | 'sie';
+  text: string;
+  timestamp: Date;
 }
 
 export function AdminSIE() {
@@ -39,11 +34,63 @@ export function AdminSIE() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
-  const [showChat, setShowChat] = useState(false);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [showBrainstorm, setShowBrainstorm] = useState(false);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+  const [currentUserText, setCurrentUserText] = useState('');
+  const [sieResponseText, setSieResponseText] = useState('');
+  const transcriptScrollRef = useRef<HTMLDivElement>(null);
+
+  const handleTranscript = useCallback((text: string, isFinal: boolean) => {
+    setCurrentUserText(text);
+    if (isFinal && text.trim()) {
+      setTranscript(prev => [...prev, { role: 'user', text: text.trim(), timestamp: new Date() }]);
+      setCurrentUserText('');
+    }
+  }, []);
+
+  const handleSieResponse = useCallback((text: string) => {
+    setSieResponseText(prev => prev + text);
+  }, []);
+
+  const handleVoiceError = useCallback((error: string) => {
+    toast({
+      title: 'Voice Error',
+      description: error,
+      variant: 'destructive',
+    });
+  }, [toast]);
+
+  const handleConnected = useCallback(() => {
+    toast({
+      title: 'Voice Brainstorm Connected',
+      description: 'SIE is ready to brainstorm with you',
+    });
+  }, [toast]);
+
+  const handleDisconnected = useCallback(() => {
+    if (sieResponseText.trim()) {
+      setTranscript(prev => [...prev, { role: 'sie', text: sieResponseText.trim(), timestamp: new Date() }]);
+      setSieResponseText('');
+    }
+  }, [sieResponseText]);
+
+  const {
+    isConnected,
+    isListening,
+    isSpeaking,
+    error: voiceError,
+    connect,
+    disconnect,
+    startListening,
+    stopListening,
+  } = useGeminiLiveVoice({
+    endpoint: 'sie-brainstorm',
+    onTranscript: handleTranscript,
+    onFloResponse: handleSieResponse,
+    onError: handleVoiceError,
+    onConnected: handleConnected,
+    onDisconnected: handleDisconnected,
+  });
 
   useEffect(() => {
     return () => {
@@ -59,10 +106,34 @@ export function AdminSIE() {
   }, []);
 
   useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    if (transcriptScrollRef.current) {
+      transcriptScrollRef.current.scrollTop = transcriptScrollRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+  }, [transcript, currentUserText, sieResponseText]);
+
+  useEffect(() => {
+    if (!isSpeaking && sieResponseText.trim()) {
+      setTranscript(prev => [...prev, { role: 'sie', text: sieResponseText.trim(), timestamp: new Date() }]);
+      setSieResponseText('');
+    }
+  }, [isSpeaking, sieResponseText]);
+
+  const handleToggleConnection = async () => {
+    if (isConnected) {
+      disconnect();
+    } else {
+      await connect();
+      await startListening();
+    }
+  };
+
+  const handleToggleMic = async () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      await startListening();
+    }
+  };
 
   const runSIEMutation = useMutation({
     mutationFn: async () => {
@@ -72,9 +143,7 @@ export function AdminSIE() {
     },
     onSuccess: (data) => {
       setResponse(data);
-      setChatMessages([]);
-      setChatSessionId(null);
-      setShowChat(true);
+      setShowBrainstorm(true);
       toast({
         title: 'SIE Analysis Complete',
         description: `Discovered ${data.dataSourcesDiscovered} data sources in ${(data.processingTimeMs / 1000).toFixed(1)}s`,
@@ -94,44 +163,6 @@ export function AdminSIE() {
       });
     },
   });
-
-  const chatMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const res = await apiRequest('POST', '/api/sandbox/sie/chat', { 
-        message, 
-        sessionId: chatSessionId 
-      });
-      return await res.json() as ChatResponse;
-    },
-    onSuccess: (data) => {
-      setChatSessionId(data.sessionId);
-      setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
-    },
-    onError: (err: any) => {
-      toast({
-        title: 'Chat Failed',
-        description: err.message || 'Failed to send message',
-        variant: 'destructive',
-      });
-      setChatMessages(prev => prev.slice(0, -1));
-    },
-  });
-
-  const handleSendMessage = () => {
-    if (!chatInput.trim() || chatMutation.isPending) return;
-    
-    const message = chatInput.trim();
-    setChatInput('');
-    setChatMessages(prev => [...prev, { role: 'user', content: message }]);
-    chatMutation.mutate(message);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
 
   const playAudio = (base64Audio: string, contentType: string) => {
     try {
@@ -350,97 +381,145 @@ export function AdminSIE() {
 
             <div className="rounded-lg border bg-black/30 border-white/10 overflow-hidden">
               <button
-                onClick={() => setShowChat(!showChat)}
+                onClick={() => setShowBrainstorm(!showBrainstorm)}
                 className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors"
-                data-testid="button-toggle-sie-chat"
+                data-testid="button-toggle-sie-brainstorm"
               >
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm text-white/70">Brainstorm with SIE</span>
-                  {chatMessages.length > 0 && (
+                  <Mic className="w-4 h-4 text-purple-400" />
+                  <span className="text-sm text-white/70">Voice Brainstorm with SIE</span>
+                  {isConnected && (
+                    <span className="text-xs bg-green-500/30 px-2 py-0.5 rounded-full text-green-300">
+                      Connected
+                    </span>
+                  )}
+                  {transcript.length > 0 && (
                     <span className="text-xs bg-purple-500/30 px-2 py-0.5 rounded-full text-purple-300">
-                      {chatMessages.length} messages
+                      {transcript.length} exchanges
                     </span>
                   )}
                 </div>
-                {showChat ? (
+                {showBrainstorm ? (
                   <ChevronUp className="w-4 h-4 text-white/50" />
                 ) : (
                   <ChevronDown className="w-4 h-4 text-white/50" />
                 )}
               </button>
               
-              {showChat && (
+              {showBrainstorm && (
                 <div className="border-t border-white/10">
-                  <ScrollArea 
-                    className="h-80 p-4" 
-                    ref={chatScrollRef}
-                    data-testid="container-sie-chat-messages"
-                  >
-                    {chatMessages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center text-white/40 space-y-2">
-                        <Sparkles className="w-8 h-8" />
-                        <p className="text-sm">Start brainstorming with SIE</p>
-                        <p className="text-xs">Ask about priorities, feasibility, scalability, or explore new ideas together</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {chatMessages.map((msg, idx) => (
-                          <div
-                            key={idx}
-                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                            data-testid={`chat-message-${msg.role}-${idx}`}
-                          >
-                            <div
-                              className={`max-w-[85%] rounded-lg p-3 ${
-                                msg.role === 'user'
-                                  ? 'bg-purple-500/30 text-white'
-                                  : 'bg-white/10 text-white/90'
-                              }`}
-                            >
-                              <pre className="text-sm whitespace-pre-wrap font-sans">
-                                {msg.content}
-                              </pre>
-                            </div>
-                          </div>
-                        ))}
-                        {chatMutation.isPending && (
-                          <div className="flex justify-start">
-                            <div className="bg-white/10 rounded-lg p-3">
-                              <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
-                            </div>
-                          </div>
+                  <div className="p-4 border-b border-white/10">
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        onClick={handleToggleConnection}
+                        variant={isConnected ? 'destructive' : 'default'}
+                        className={!isConnected ? 'bg-purple-500 hover:bg-purple-600' : ''}
+                        data-testid="button-sie-voice-connect"
+                      >
+                        {isConnected ? (
+                          <>
+                            <XCircle className="w-4 h-4 mr-2" />
+                            End Session
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="w-4 h-4 mr-2" />
+                            Start Voice Brainstorm
+                          </>
+                        )}
+                      </Button>
+                      
+                      {isConnected && (
+                        <Button
+                          onClick={handleToggleMic}
+                          variant={isListening ? 'secondary' : 'outline'}
+                          data-testid="button-sie-voice-mic"
+                        >
+                          {isListening ? (
+                            <>
+                              <MicOff className="w-4 h-4 mr-2" />
+                              Mute
+                            </>
+                          ) : (
+                            <>
+                              <Mic className="w-4 h-4 mr-2" />
+                              Unmute
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {isConnected && (
+                      <div className="flex items-center gap-4 mt-3 text-xs text-white/50">
+                        {isListening && (
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                            Listening...
+                          </span>
+                        )}
+                        {isSpeaking && (
+                          <span className="flex items-center gap-1">
+                            <Volume2 className="w-3 h-3 text-purple-400" />
+                            SIE Speaking...
+                          </span>
                         )}
                       </div>
                     )}
-                  </ScrollArea>
-                  
-                  <div className="border-t border-white/10 p-3">
-                    <div className="flex gap-2">
-                      <Textarea
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Ask about priorities, what's feasible, what should we build first..."
-                        className="min-h-[60px] bg-white/5 border-white/20 text-white placeholder:text-white/30 resize-none"
-                        disabled={chatMutation.isPending}
-                        data-testid="input-sie-chat"
-                      />
-                      <Button
-                        onClick={handleSendMessage}
-                        disabled={!chatInput.trim() || chatMutation.isPending}
-                        size="icon"
-                        className="h-auto bg-purple-500 hover:bg-purple-600"
-                        data-testid="button-send-sie-chat"
-                      >
-                        {chatMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
+                    
+                    {voiceError && (
+                      <div className="mt-3 text-sm text-red-400">{voiceError}</div>
+                    )}
                   </div>
+                  
+                  <ScrollArea className="h-64 p-4" ref={transcriptScrollRef} data-testid="container-sie-voice-transcript">
+                    <div className="space-y-3">
+                      {transcript.map((entry, idx) => (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-lg ${
+                            entry.role === 'user'
+                              ? 'bg-blue-500/10 border border-blue-500/20 ml-8'
+                              : 'bg-purple-500/10 border border-purple-500/20 mr-8'
+                          }`}
+                          data-testid={`transcript-${entry.role}-${idx}`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-medium ${entry.role === 'user' ? 'text-blue-400' : 'text-purple-400'}`}>
+                              {entry.role === 'user' ? 'You' : 'SIE'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/70">{entry.text}</p>
+                        </div>
+                      ))}
+                      
+                      {currentUserText && (
+                        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 ml-8 animate-pulse">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-blue-400">You (speaking...)</span>
+                          </div>
+                          <p className="text-sm text-white/70 italic">{currentUserText}</p>
+                        </div>
+                      )}
+                      
+                      {sieResponseText && (
+                        <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 mr-8">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-purple-400">SIE (responding...)</span>
+                          </div>
+                          <p className="text-sm text-white/70">{sieResponseText}</p>
+                        </div>
+                      )}
+                      
+                      {transcript.length === 0 && !currentUserText && !sieResponseText && !isConnected && (
+                        <div className="text-center py-8 text-white/40 text-sm">
+                          <Mic className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>Start a voice session to brainstorm with SIE</p>
+                          <p className="text-xs mt-1">Discuss priorities, feasibility, and what to build next</p>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
             </div>
@@ -449,7 +528,7 @@ export function AdminSIE() {
 
         <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
           <p className="text-xs text-purple-300">
-            <strong>SIE v1.1:</strong> Uses Gemini 2.5 Pro with unrestricted prompting. Run an analysis first, then use the brainstorming chat to discuss priorities, evaluate feasibility, and plan what to build next.
+            <strong>SIE v2.0:</strong> Uses Gemini 2.5 Pro for analysis and Gemini Live for voice brainstorming. Run an analysis first, then start a voice session to discuss priorities and plan features together.
           </p>
         </div>
       </div>
