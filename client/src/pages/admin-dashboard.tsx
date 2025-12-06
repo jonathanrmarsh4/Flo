@@ -161,6 +161,48 @@ export default function AdminDashboard() {
     },
   });
 
+  const correlationAnalysisMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest('POST', '/api/admin/correlation/analyze', { userId });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Correlation Analysis Complete',
+        description: data.message || `Anomalies: ${data.anomaliesDetected}, Questions: ${data.questionsGenerated}`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('Correlation analysis error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to run correlation analysis',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const simulateAnomalyMutation = useMutation({
+    mutationFn: async ({ userId, scenario }: { userId: string; scenario: string }) => {
+      const res = await apiRequest('POST', '/api/admin/correlation/simulate', { userId, scenario });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Anomaly Simulation Complete',
+        description: data.questionText ? `Generated question: "${data.questionText.substring(0, 50)}..."` : `Simulated ${data.scenario} scenario with ${data.anomaliesGenerated} anomalies`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('Simulation error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to simulate anomaly',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSaveUser = (userId: string) => {
     updateUserMutation.mutate({ userId, role: editRole, status: editStatus });
   };
@@ -838,6 +880,70 @@ export default function AdminDashboard() {
                   <div className="mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                     <div className="text-xs text-blue-400">
                       <strong>Daily Insights Engine v2.0:</strong> First button generates insights for YOU immediately (bypasses time check). Second button runs the scheduler for all users at exactly 06:00 local time. Analyzes 4 analytical layers to generate 0-5 personalized insights.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl border bg-white/5 border-white/10">
+                  <div className="text-sm text-white mb-2">BigQuery Correlation Engine</div>
+                  <div className="text-xs text-white/50 mb-4">
+                    ML-powered anomaly detection using BigQuery. Analyzes health baselines, detects patterns (illness precursor, recovery deficit), and generates dynamic feedback questions via Gemini.
+                  </div>
+                  
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => {
+                        const userId = prompt('Enter User ID to analyze:');
+                        if (userId) correlationAnalysisMutation.mutate(userId);
+                      }}
+                      disabled={correlationAnalysisMutation.isPending}
+                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      data-testid="button-correlation-analyze"
+                    >
+                      {correlationAnalysisMutation.isPending ? (
+                        <>
+                          <Activity className="w-4 h-4 animate-spin" />
+                          <span className="text-sm">Analyzing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Database className="w-4 h-4" />
+                          <span className="text-sm">Run Correlation Analysis</span>
+                        </>
+                      )}
+                    </button>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const userId = prompt('Enter User ID:');
+                          if (userId) simulateAnomalyMutation.mutate({ userId, scenario: 'illness' });
+                        }}
+                        disabled={simulateAnomalyMutation.isPending}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-400 transition-all disabled:opacity-50"
+                        data-testid="button-simulate-illness"
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        <span className="text-xs">Simulate Illness</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const userId = prompt('Enter User ID:');
+                          if (userId) simulateAnomalyMutation.mutate({ userId, scenario: 'recovery' });
+                        }}
+                        disabled={simulateAnomalyMutation.isPending}
+                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 hover:bg-yellow-500/30 text-yellow-400 transition-all disabled:opacity-50"
+                        data-testid="button-simulate-recovery"
+                      >
+                        <Activity className="w-3 h-3" />
+                        <span className="text-xs">Simulate Recovery</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 p-3 rounded-lg bg-teal-500/10 border border-teal-500/20">
+                    <div className="text-xs text-teal-400">
+                      <strong>BigQuery Correlation Engine:</strong> Runs anomaly detection against user baselines, generates ML-powered questions via Gemini, stores responses in BigQuery for predictive model training.
                     </div>
                   </div>
                 </div>

@@ -4270,6 +4270,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Trigger correlation analysis for a user
+  app.post("/api/admin/correlation/analyze", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      
+      logger.info('[Admin] Triggering correlation analysis', { userId, adminId: req.user.claims.sub });
+      
+      const result = await correlationInsightService.runFullAnalysisWithNotification(userId);
+      
+      res.json({ 
+        success: true, 
+        anomaliesDetected: result?.anomalies?.length || 0,
+        questionsGenerated: result?.feedbackQuestion ? 1 : 0,
+        insightsGenerated: result?.insights?.length || 0,
+        notificationSent: result?.notificationSent || false,
+        message: `Found ${result?.anomalies?.length || 0} anomalies, generated ${result?.insights?.length || 0} insights`
+      });
+    } catch (error) {
+      logger.error('[Admin] Correlation analysis error:', error);
+      res.status(500).json({ error: "Failed to run correlation analysis" });
+    }
+  });
+
+  // Admin: Get correlation insights for a user
+  app.get("/api/admin/correlation/insights/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      
+      const insights = await correlationInsightService.getRecentInsights(userId, 20);
+      
+      res.json({ insights });
+    } catch (error) {
+      logger.error('[Admin] Error fetching correlation insights:', error);
+      res.status(500).json({ error: "Failed to fetch correlation insights" });
+    }
+  });
+
+  // Admin: Simulate anomaly for testing
+  app.post("/api/admin/correlation/simulate", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, scenario } = req.body;
+      
+      if (!userId || !scenario) {
+        return res.status(400).json({ error: "userId and scenario are required" });
+      }
+
+      const validScenarios = ['illness', 'recovery', 'single_metric'];
+      if (!validScenarios.includes(scenario)) {
+        return res.status(400).json({ error: `Invalid scenario. Valid options: ${validScenarios.join(', ')}` });
+      }
+
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      
+      logger.info('[Admin] Simulating anomaly scenario', { userId, scenario, adminId: req.user.claims.sub });
+      
+      const result = await correlationInsightService.simulateAnomalyForTesting(userId, scenario as 'illness' | 'recovery' | 'single_metric');
+      
+      res.json({ 
+        success: true,
+        scenario,
+        anomaliesGenerated: result?.anomalies?.length || 0,
+        hasFeedbackQuestion: !!result?.feedbackQuestion,
+        questionText: result?.feedbackQuestion?.questionText || null
+      });
+    } catch (error) {
+      logger.error('[Admin] Anomaly simulation error:', error);
+      res.status(500).json({ error: "Failed to simulate anomaly" });
+    }
+  });
+
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
