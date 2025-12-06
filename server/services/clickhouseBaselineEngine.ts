@@ -961,18 +961,23 @@ export class ClickHouseBaselineEngine {
         return 0;
       }
 
-      const rows = measurements.map(m => ({
-        health_id: healthId,
-        biomarker_id: m.id,
-        biomarker_name: m.biomarker_id || 'unknown',
-        value: m.value,
-        unit: m.unit,
-        reference_low: m.reference_low,
-        reference_high: m.reference_high,
-        test_date: m.biomarker_test_sessions?.test_date,
-        session_id: m.session_id,
-        source: m.biomarker_test_sessions?.source || 'blood_work',
-      }));
+      const rows = measurements.map(m => {
+        const rawDate = m.biomarker_test_sessions?.test_date;
+        const testDate = rawDate ? rawDate.split('T')[0] : new Date().toISOString().split('T')[0];
+        
+        return {
+          health_id: healthId,
+          biomarker_id: m.id,
+          biomarker_name: m.biomarker_id || 'unknown',
+          value: m.value,
+          unit: m.unit,
+          reference_low: m.reference_low,
+          reference_high: m.reference_high,
+          test_date: testDate,
+          session_id: m.session_id,
+          source: m.biomarker_test_sessions?.source || 'blood_work',
+        };
+      });
 
       await clickhouse.insert('biomarkers', rows);
       logger.info(`[ClickHouseML] Synced ${rows.length} biomarker records for ${healthId}`);
@@ -994,12 +999,12 @@ export class ClickHouseBaselineEngine {
         .from('life_events')
         .select('*')
         .eq('health_id', healthId)
-        .order('occurred_at', { ascending: true });
+        .order('happened_at', { ascending: true });
 
       if (daysBack !== null) {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - daysBack);
-        query = query.gte('occurred_at', startDate.toISOString());
+        query = query.gte('happened_at', startDate.toISOString());
       }
 
       const { data: events, error } = await query;
@@ -1021,8 +1026,8 @@ export class ClickHouseBaselineEngine {
         category: e.category,
         description: e.description,
         severity: e.severity,
-        occurred_at: new Date(e.occurred_at).toISOString(),
-        local_date: new Date(e.occurred_at).toISOString().split('T')[0],
+        occurred_at: new Date(e.happened_at).toISOString(),
+        local_date: new Date(e.happened_at).toISOString().split('T')[0],
         metadata: e.parsed_data ? JSON.stringify(e.parsed_data) : null,
       }));
 
@@ -1327,13 +1332,13 @@ export class ClickHouseBaselineEngine {
         rows.push({
           health_id: healthId,
           local_date: dm.local_date,
-          acute_load: acuteLoad,
-          chronic_load: chronicLoad,
-          training_load_ratio: ratio,
-          strain_score: dailyLoad,
-          workout_count: dm.workout_count || 0,
-          total_workout_minutes: dm.exercise_minutes || 0,
-          total_active_kcal: dm.active_energy_kcal || 0,
+          acute_load: Number(acuteLoad.toFixed(4)),
+          chronic_load: Number(chronicLoad.toFixed(4)),
+          training_load_ratio: Number(ratio.toFixed(4)),
+          strain_score: Number(dailyLoad.toFixed(4)),
+          workout_count: Math.floor(dm.workout_count || 0),
+          total_workout_minutes: Math.floor(dm.exercise_minutes || 0),
+          total_active_kcal: Number((dm.active_energy_kcal || 0).toFixed(4)),
           zone_distribution: null,
           recovery_status: recoveryStatus,
         });

@@ -1,0 +1,54 @@
+025-12-06 20:50:08.68
+51de14eb
+User
+[2025-12-06T12:50:08.681Z] [INFO] [ClickHouseML] [ClickHouseML] Starting comprehensive data sync for 29d2a63e-44a2-472c-a825-89be5a07cbeb (30 days back)
+2025-12-06 20:50:09.05
+51de14eb
+User
+[2025-12-06T12:50:09.059Z] [ERROR] [ClickHouseML] [ClickHouseML] Error fetching life events from Supabase: {"error":{"code":"42703","details":null,"hint":null,"message":"column life_events.occurred_at does not exist"}}
+2025-12-06 20:50:09.05
+51de14eb
+User
+[2025-12-06T12:50:09.059Z] [ERROR] [ClickHouseML] [ClickHouseML] Error fetching life events from Supabase: {"error":{"code":"42703","details":null,"hint":null,"message":"column life_events.occurred_at does not exist"}}
+2025-12-06 20:50:09.77
+51de14eb
+User
+[2025-12-06T12:50:09.771Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 12 readiness records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-06 20:50:09.88
+51de14eb
+User
+[2025-12-06T12:50:09.881Z] [ERROR] [ClickHouseML] [ClickHouseML] Biomarker sync error: {"error":{"message":"Cannot parse input: expected '\"' before: 'T00:00:00\",\"session_id\":\"b5c21065-834b-49f5-9d4b-cce08adbc1f1\",\"source\":\"ai_extracted\"}\\n{\"health_id\":\"29d2a63e-44a2-472c-a825-89be5a07cbeb\",\"biomarker_id\":\"7235': (while reading the value of key test_date): (at row 1)\n: While executing ParallelParsingBlockInputFormat. ","stack":"Error: Cannot parse input: expected '\"' before: 'T00:00:00\",\"session_id\":\"b5c21065-834b-49f5-9d4b-cce08adbc1f1\",\"source\":\"ai_extracted\"}\\n{\"health_id\":\"29d2a63e-44a2-472c-a825-89be5a07cbeb\",\"biomarker_id\":\"7235': (while reading the value of key test_date): (at row 1)\n: While executing ParallelParsingBlockInputFormat. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-06 20:50:09.89
+51de14eb
+User
+[2025-12-06T12:50:09.894Z] [ERROR] [ClickHouseML] [ClickHouseML] Training load sync error: {"error":{"message":"Cannot parse input: expected ',' before: '.2413,\"total_active_kcal\":681.742,\"zone_distribution\":null,\"recovery_status\":\"optimal\"}\\n{\"health_id\":\"29d2a63e-44a2-472c-a825-89be5a07cbeb\",\"local_date\":\"2025-1': (at row 3)\n: While executing ParallelParsingBlockInputFormat. ","stack":"Error: Cannot parse input: expected ',' before: '.2413,\"total_active_kcal\":681.742,\"zone_distribution\":null,\"recovery_status\":\"optimal\"}\\n{\"health_id\":\"29d2a63e-44a2-472c-a825-89be5a07cbeb\",\"local_date\":\"2025-1': (at row 3)\n: While executing ParallelParsingBlockInputFormat. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-06 20:50:09.96
+51de14eb
+User
+[2025-12-06T12:50:09.969Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 150 metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-06 20:50:09.97
+51de14eb
+User
+[2025-12-06T12:50:09.974Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 2 environmental records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-06 20:50:09.98
+51de14eb
+User
+[2025-12-06T12:50:09.989Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 11 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-06 20:50:09.98
+51de14eb
+User
+[2025-12-06T12:50:09.989Z] [INFO] [ClickHouseML] [ClickHouseML] Comprehensive sync complete: 175 total records {"healthMetrics":150,"nutrition":11,"biomarkers":0,"lifeEvents":0,"environmental":2,"bodyComposition":0,"demographics":0,"readiness":12,"trainingLoad":0,"total":175}
+2025-12-06 20:50:09.98
+51de14eb
+User
+[2025-12-06T12:50:09.989Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 11 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+
+2025-12-06 20:50:09.98
+51de14eb
+User
+[2025-12-06T12:50:09.989Z] [INFO] [ClickHouseML] [ClickHouseML] Comprehensive sync complete: 175 total records {"healthMetrics":150,"nutrition":11,"biomarkers":0,"lifeEvents":0,"environmental":2,"bodyComposition":0,"demographics":0,"readiness":12,"trainingLoad":0,"total":175}
+2025-12-06 20:50:09.99
+51de14eb
+User
+[2025-12-06T12:50:09.989Z] [INFO] [Admin] ClickHouse comprehensive sync complete {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","healthId":"29d2a63e-44a2-472c-a825-89be5a07cbeb","healthMetrics":150,"nutrition":11,"biomarkers":0,"lifeEvents":0,"environmental":2,"bodyComposition":0,"demographics":0,"readiness":12,"trainingLoad":0,"total":175}
+2025-12-06 20:50:09.99
