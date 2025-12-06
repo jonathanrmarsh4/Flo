@@ -529,6 +529,46 @@ export class ClickHouseBaselineEngine {
     }
   }
 
+  async storeFeedbackResponse(
+    healthId: string,
+    feedbackId: string,
+    data: {
+      questionType: string;
+      questionText: string;
+      responseValue?: number;
+      responseBoolean?: boolean;
+      responseOption?: string;
+      responseText?: string;
+      triggerPattern?: string;
+      triggerMetrics?: Record<string, { value: number; deviation: number }>;
+      collectionChannel: 'voice' | 'push' | 'in_app';
+    }
+  ): Promise<void> {
+    if (!await this.ensureInitialized()) return;
+
+    try {
+      await clickhouse.insert('user_feedback', [{
+        feedback_id: feedbackId,
+        health_id: healthId,
+        collected_at: new Date().toISOString(),
+        question_type: data.questionType,
+        question_text: data.questionText,
+        response_value: data.responseValue ?? null,
+        response_boolean: data.responseBoolean ?? null,
+        response_option: data.responseOption ?? null,
+        response_text: data.responseText ?? null,
+        trigger_pattern: data.triggerPattern ?? null,
+        trigger_metrics: data.triggerMetrics ? JSON.stringify(data.triggerMetrics) : null,
+        anomaly_id: null,
+        collection_channel: data.collectionChannel,
+      }]);
+
+      logger.info(`[ClickHouseML] Stored feedback response ${feedbackId} for ${healthId}`);
+    } catch (error) {
+      logger.error('[ClickHouseML] Error storing feedback response:', error);
+    }
+  }
+
   private async updateMLTrainingData(healthId: string, anomalyId: string, wasConfirmed: boolean): Promise<void> {
     try {
       const anomalyData = await clickhouse.query<{

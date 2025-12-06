@@ -4377,6 +4377,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         channel || 'in_app'
       );
 
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const healthId = await getHealthId(userId);
+      
+      await clickhouseBaselineEngine.storeFeedbackResponse(healthId, feedbackId, {
+        questionType: pending.question.questionType,
+        questionText: pending.question.questionText,
+        responseValue,
+        responseBoolean,
+        responseOption: selectedOption,
+        responseText,
+        triggerPattern: pending.question.triggerPattern,
+        triggerMetrics: pending.question.triggerMetrics,
+        collectionChannel: channel || 'in_app',
+      });
+
       // Save to user_insights for future reference
       const patternLabel = pending.question.triggerPattern === 'illness_precursor' 
         ? 'Possible illness pattern' 
