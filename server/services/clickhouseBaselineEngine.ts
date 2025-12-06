@@ -99,6 +99,7 @@ export interface AnomalyResult {
   patternFingerprint: string | null;
   relatedMetrics: Record<string, any> | null;
   modelConfidence: number;
+  detectedAt: string | null;
 }
 
 export interface MLModelStats {
@@ -677,6 +678,7 @@ export class ClickHouseBaselineEngine {
         severity: string;
         pattern_fingerprint: string | null;
         model_confidence: number;
+        detected_at: string;
       }>(`
         SELECT *
         FROM flo_health.detected_anomalies
@@ -697,6 +699,7 @@ export class ClickHouseBaselineEngine {
         patternFingerprint: r.pattern_fingerprint,
         relatedMetrics: null,
         modelConfidence: r.model_confidence,
+        detectedAt: r.detected_at || null,
       }));
 
       return {

@@ -1560,9 +1560,32 @@ export async function getUserMemoriesContext(userId: string, limit: number = 20)
 }
 
 /**
+ * Get the timestamp of the user's last conversation with Flō Oracle
+ * Used to determine if an anomaly is NEW (detected after last conversation)
+ */
+async function getLastConversationTimestamp(userId: string): Promise<Date | null> {
+  try {
+    const lastChat = await db.select({ createdAt: floChatMessages.createdAt })
+      .from(floChatMessages)
+      .where(eq(floChatMessages.userId, userId))
+      .orderBy(desc(floChatMessages.createdAt))
+      .limit(1);
+    
+    if (lastChat.length > 0) {
+      return lastChat[0].createdAt;
+    }
+    return null;
+  } catch (error) {
+    logger.error('[FloOracle] Error fetching last conversation timestamp:', error);
+    return null;
+  }
+}
+
+/**
  * Get ML correlation insights for enhanced AI context
  * Tries ClickHouse first (primary), falls back to BigQuery if unavailable
  * Returns detected anomalies and patterns from the ML engine
+ * Marks anomalies as [NEW] if detected after last conversation, [PREVIOUSLY DISCUSSED] otherwise
  */
 export async function getCorrelationInsightsContext(userId: string): Promise<string> {
   const { getHealthId } = await import('./supabaseHealthStorage');
@@ -1573,6 +1596,9 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
     return '';
   }
   
+  // Get last conversation timestamp to determine NEW vs PREVIOUSLY DISCUSSED
+  const lastConversation = await getLastConversationTimestamp(userId);
+  
   // Try ClickHouse first (primary ML engine)
   try {
     const { clickhouseBaselineEngine } = await import('./clickhouseBaselineEngine');
@@ -1582,29 +1608,69 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
       const lines = ['', 'ML CORRELATION ENGINE INSIGHTS (detected patterns - reference when relevant):'];
       
       const recentAnomalies = mlInsights.recentAnomalies.slice(0, 5);
-      lines.push('Detected anomalies:');
+      
+      // Separate NEW vs PREVIOUSLY DISCUSSED anomalies
+      const newAnomalies: typeof recentAnomalies = [];
+      const previouslyDiscussed: typeof recentAnomalies = [];
+      
       recentAnomalies.forEach(a => {
-        const direction = a.direction === 'above' ? 'elevated' : 'low';
-        const metricName = a.metricType.replace(/_/g, ' ');
-        const deviationStr = Math.abs(Math.round(a.deviationPct));
-        const confidenceStr = Math.round(a.modelConfidence * 100);
-        
-        let patternNote = '';
-        if (a.patternFingerprint === 'illness_precursor') {
-          patternNote = ' [possible illness pattern]';
-        } else if (a.patternFingerprint === 'recovery_deficit') {
-          patternNote = ' [recovery concern]';
+        // Check if anomaly was detected after last conversation
+        // If detectedAt is missing, treat as PREVIOUSLY DISCUSSED (safer default)
+        if (!a.detectedAt) {
+          previouslyDiscussed.push(a);
+          return;
         }
         
-        lines.push(`  • ${metricName}: ${direction} (${deviationStr}% from baseline) - ${a.severity} severity, ${confidenceStr}% confidence${patternNote}`);
+        const anomalyTime = new Date(a.detectedAt);
+        const isNew = !lastConversation || anomalyTime > lastConversation;
+        
+        if (isNew) {
+          newAnomalies.push(a);
+        } else {
+          previouslyDiscussed.push(a);
+        }
       });
+      
+      // Format NEW anomalies first (these should be proactively discussed)
+      if (newAnomalies.length > 0) {
+        lines.push('');
+        lines.push('[NEW] ANOMALIES TO PROACTIVELY DISCUSS (mention these at the START of the conversation):');
+        newAnomalies.forEach(a => {
+          const direction = a.direction === 'above' ? 'elevated' : 'low';
+          const metricName = a.metricType.replace(/_/g, ' ');
+          const deviationStr = Math.abs(Math.round(a.deviationPct));
+          const confidenceStr = Math.round(a.modelConfidence * 100);
+          
+          let patternNote = '';
+          if (a.patternFingerprint === 'illness_precursor') {
+            patternNote = ' [possible illness pattern]';
+          } else if (a.patternFingerprint === 'recovery_deficit') {
+            patternNote = ' [recovery concern]';
+          }
+          
+          lines.push(`  • [NEW] ${metricName}: ${direction} (${deviationStr}% from baseline) - ${a.severity} severity, ${confidenceStr}% confidence${patternNote}`);
+        });
+      }
+      
+      // Format PREVIOUSLY DISCUSSED anomalies (only reference if relevant)
+      if (previouslyDiscussed.length > 0) {
+        lines.push('');
+        lines.push('[PREVIOUSLY DISCUSSED] Known patterns (only reference if user asks or directly relevant):');
+        previouslyDiscussed.forEach(a => {
+          const direction = a.direction === 'above' ? 'elevated' : 'low';
+          const metricName = a.metricType.replace(/_/g, ' ');
+          const deviationStr = Math.abs(Math.round(a.deviationPct));
+          
+          lines.push(`  • ${metricName}: ${direction} (${deviationStr}% from baseline) - ${a.severity} severity`);
+        });
+      }
       
       if (mlInsights.accuracyRate > 0 && mlInsights.totalPredictions > 3) {
         const accuracyPct = Math.round(mlInsights.accuracyRate * 100);
         lines.push(`\nML model accuracy for this user: ${accuracyPct}% (${mlInsights.confirmedCount}/${mlInsights.totalPredictions} confirmed)`);
       }
       
-      logger.info(`[FloOracle] Added ${recentAnomalies.length} ClickHouse anomalies to context`);
+      logger.info(`[FloOracle] Added ${newAnomalies.length} NEW and ${previouslyDiscussed.length} PREVIOUSLY DISCUSSED anomalies to context`);
       return lines.join('\n');
     }
   } catch (clickhouseError) {
@@ -1629,14 +1695,51 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
     const lines = ['', 'CORRELATION ENGINE INSIGHTS (ML-detected patterns - reference when relevant):'];
     
     if (anomalies.length > 0) {
-      lines.push('Active anomalies (detected in last 48h):');
-      anomalies.slice(0, 3).forEach(a => {
-        const direction = a.deviationPct > 0 ? 'elevated' : 'low';
-        lines.push(`  • ${a.metricType.replace(/_/g, ' ')}: ${direction} (${Math.abs(Math.round(a.deviationPct))}% from baseline) - ${a.severity} severity`);
+      // Apply same NEW vs PREVIOUSLY DISCUSSED logic as ClickHouse path
+      const newAnomalies: typeof anomalies = [];
+      const previouslyDiscussed: typeof anomalies = [];
+      
+      anomalies.slice(0, 5).forEach(a => {
+        // Check if anomaly was detected after last conversation
+        // If detectedAt is missing, treat as PREVIOUSLY DISCUSSED (safer default)
+        if (!a.detectedAt) {
+          previouslyDiscussed.push(a);
+          return;
+        }
+        
+        const anomalyTime = new Date(a.detectedAt);
+        const isNew = !lastConversation || anomalyTime > lastConversation;
+        
+        if (isNew) {
+          newAnomalies.push(a);
+        } else {
+          previouslyDiscussed.push(a);
+        }
       });
+      
+      if (newAnomalies.length > 0) {
+        lines.push('');
+        lines.push('[NEW] ANOMALIES TO PROACTIVELY DISCUSS (mention these at the START of the conversation):');
+        newAnomalies.forEach(a => {
+          const direction = a.deviationPct > 0 ? 'elevated' : 'low';
+          lines.push(`  • [NEW] ${a.metricType.replace(/_/g, ' ')}: ${direction} (${Math.abs(Math.round(a.deviationPct))}% from baseline) - ${a.severity} severity`);
+        });
+      }
+      
+      if (previouslyDiscussed.length > 0) {
+        lines.push('');
+        lines.push('[PREVIOUSLY DISCUSSED] Known patterns (only reference if user asks or directly relevant):');
+        previouslyDiscussed.forEach(a => {
+          const direction = a.deviationPct > 0 ? 'elevated' : 'low';
+          lines.push(`  • ${a.metricType.replace(/_/g, ' ')}: ${direction} (${Math.abs(Math.round(a.deviationPct))}% from baseline) - ${a.severity} severity`);
+        });
+      }
+      
+      logger.info(`[FloOracle] Added ${newAnomalies.length} NEW and ${previouslyDiscussed.length} PREVIOUSLY DISCUSSED anomalies to context (BigQuery fallback)`);
     }
     
     if (insights.length > 0) {
+      lines.push('');
       lines.push('Recent correlation findings:');
       insights.forEach(i => {
         const confidencePct = Math.round(i.confidence * 100);
@@ -1644,7 +1747,6 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
       });
     }
     
-    logger.info(`[FloOracle] Added ${anomalies.length} anomalies and ${insights.length} correlation insights to context (BigQuery fallback)`);
     return lines.join('\n');
   } catch (bigQueryError) {
     logger.debug('[FloOracle] Correlation insights not available from either ClickHouse or BigQuery');

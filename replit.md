@@ -43,6 +43,7 @@ The platform adopts a mobile-first, content-focused minimalist design, drawing i
   - **Pattern Context for Flō Oracle:** Enriches AI responses with pattern memory context via `getPatternContextForOracle()`
   - **Real-time Auto-sync:** Triggers on all data ingestion endpoints (non-blocking)
   - **90-day Baseline + Z-score Anomaly Detection:** Multi-metric pattern recognition with ACWR training load analysis
+  - **Proactive Anomaly Alerts:** Flō Oracle proactively addresses NEW anomalies at conversation start. Anomalies detected after user's last conversation are marked [NEW] and announced at session open; older anomalies are marked [PREVIOUSLY DISCUSSED] and only referenced when relevant. Logic compares anomaly `detected_at` timestamp vs last chat message timestamp.
   - Data pipeline: iOS → Supabase (PHI storage) → ClickHouse auto-sync → Pattern matching → Anomaly detection → LLM feedback generation
 - **Self-Improvement Engine (SIE):** An admin-only sandbox AI (Gemini 2.5 Pro) for product improvement suggestions, featuring dynamic data introspection, verbal output, and a brainstorming chat mode.
 
