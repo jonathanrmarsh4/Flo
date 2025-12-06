@@ -6,6 +6,7 @@ import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
 import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AirQualityTile } from './dashboard/AirQualityTile';
+import { AnomalyAlertTile } from './dashboard/AnomalyAlertTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell } from 'lucide-react';
@@ -430,6 +431,9 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           </div>
         ) : (
           <>
+            {/* Anomaly Alert Tile - Shows when ML detects a health pattern */}
+            <AnomalyAlertTile isDark={isDark} />
+
             {/* Hero Tile - Flō Overview (Locked at top, not draggable) */}
             <FloOverviewTile 
               isDark={isDark}

@@ -325,6 +325,35 @@ class CorrelationInsightService {
       .where(eq(pendingCorrelationFeedback.feedbackId, feedbackId));
   }
 
+  async getPendingFeedbackForUser(userId: string): Promise<Array<{
+    feedbackId: string;
+    question: GeneratedQuestion;
+    createdAt: Date;
+    expiresAt: Date;
+  }>> {
+    await this.cleanupExpiredFeedback();
+    
+    const rows = await db.select()
+      .from(pendingCorrelationFeedback)
+      .where(eq(pendingCorrelationFeedback.userId, userId))
+      .orderBy(pendingCorrelationFeedback.createdAt);
+
+    return rows.map(row => ({
+      feedbackId: row.feedbackId,
+      question: {
+        questionText: row.questionText,
+        questionType: row.questionType,
+        options: row.options || undefined,
+        triggerPattern: row.triggerPattern || '',
+        triggerMetrics: row.triggerMetrics || {},
+        urgency: row.urgency,
+        suggestedChannel: 'in_app' as const,
+      },
+      createdAt: row.createdAt,
+      expiresAt: row.expiresAt,
+    }));
+  }
+
   async cleanupExpiredFeedback(): Promise<number> {
     const result = await db.delete(pendingCorrelationFeedback)
       .where(lt(pendingCorrelationFeedback.expiresAt, new Date()))

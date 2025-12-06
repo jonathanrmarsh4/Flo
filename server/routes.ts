@@ -76,6 +76,7 @@ import {
   developerMessageReads,
   userFeedback,
   sieBrainstormSessions,
+  userInsights,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -4138,6 +4139,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all pending anomaly alerts for current user (for dashboard tile)
+  app.get("/api/anomaly-alerts/pending", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      
+      const pendingAlerts = await correlationInsightService.getPendingFeedbackForUser(userId);
+      
+      res.json({
+        alerts: pendingAlerts.map(alert => ({
+          feedbackId: alert.feedbackId,
+          questionText: alert.question.questionText,
+          questionType: alert.question.questionType,
+          options: alert.question.options,
+          triggerPattern: alert.question.triggerPattern,
+          triggerMetrics: alert.question.triggerMetrics,
+          urgency: alert.question.urgency,
+          createdAt: alert.createdAt.toISOString(),
+          expiresAt: alert.expiresAt.toISOString(),
+        })),
+      });
+    } catch (error) {
+      logger.error('Error fetching pending anomaly alerts:', error);
+      res.status(500).json({ error: "Failed to fetch anomaly alerts" });
+    }
+  });
+
   // Get pending feedback question by ID
   app.get("/api/correlation/feedback/:feedbackId", isAuthenticated, async (req: any, res) => {
     try {
@@ -4254,6 +4282,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         channel || 'in_app'
       );
+
+      // Save to user_insights for future reference
+      const patternLabel = pending.question.triggerPattern === 'illness_precursor' 
+        ? 'Possible illness pattern' 
+        : pending.question.triggerPattern === 'recovery_deficit' 
+          ? 'Recovery concern' 
+          : 'Health pattern';
+      
+      const responseDesc = questionType === 'scale_1_10' 
+        ? `Feeling: ${responseValue}/10`
+        : questionType === 'yes_no'
+          ? responseBoolean ? 'Confirmed' : 'Not confirmed'
+          : questionType === 'multiple_choice'
+            ? `Selected: ${selectedOption}`
+            : responseText || '';
+
+      const insightText = `${patternLabel} detected by ML: "${pending.question.questionText}" - User response: ${responseDesc}`;
+      
+      await db.insert(userInsights).values({
+        userId,
+        text: insightText,
+        source: 'correlation_insight',
+        tags: ['ml_anomaly', pending.question.triggerPattern || 'pattern'].filter(Boolean),
+        importance: pending.question.urgency === 'high' ? 4 : pending.question.urgency === 'medium' ? 3 : 2,
+        status: 'active',
+      });
 
       await correlationInsightService.deletePendingFeedback(feedbackId);
 
