@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 import { 
   Users, DollarSign, Activity, TrendingUp, Search,
   Settings, BarChart3, Zap, Database, AlertCircle, CheckCircle, XCircle,
@@ -33,6 +34,7 @@ interface AdminUserSummary {
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'billing' | 'api' | 'analytics' | 'settings' | 'logs' | 'healthkit' | 'systems' | 'notifications'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'suspended'>('all');
@@ -40,6 +42,12 @@ export default function AdminDashboard() {
   const [editRole, setEditRole] = useState<'free' | 'premium' | 'admin'>('free');
   const [editStatus, setEditStatus] = useState<'active' | 'suspended'>('active');
   const [correlationUserId, setCorrelationUserId] = useState<string>('');
+
+  useEffect(() => {
+    if (user?.id && !correlationUserId) {
+      setCorrelationUserId(user.id);
+    }
+  }, [user?.id]);
 
   const { data: overviewData } = useQuery({
     queryKey: ['/api/admin/overview'],
