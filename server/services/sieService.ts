@@ -118,7 +118,8 @@ async function introspectDataSources(): Promise<DataLandscape> {
           'nutrition_daily_metrics', 'life_events', 'biomarker_measurements',
           'daily_insights', 'insight_cards', 'diagnostics_studies', 'mindfulness_sessions',
           'follow_up_requests', 'life_context_facts', 'user_insights', 'flo_chat_messages',
-          'daily_action_plans', 'daily_reminders', 'flomentum_scores', 'flomentum_weekly'
+          'daily_action_plans', 'daily_reminders', 'flomentum_scores', 'flomentum_weekly',
+          'user_location_history', 'weather_daily_cache'
         ];
         
         for (const tableName of knownTables) {
@@ -276,6 +277,8 @@ async function introspectDataSources(): Promise<DataLandscape> {
     'Google Gemini (Oracle, Insights, Reminders)',
     'Resend (transactional email)',
     'WebAuthn/Passkeys (authentication)',
+    'OpenWeather API (current weather, air quality, historical data)',
+    'iOS Geolocation (Capacitor plugin for location tracking)',
   ];
 
   // What we DON'T have (gaps)
