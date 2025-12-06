@@ -2746,3 +2746,33 @@ export type InsertDeveloperMessage = z.infer<typeof insertDeveloperMessageSchema
 export type DeveloperMessage = typeof developerMessages.$inferSelect;
 export type InsertDeveloperMessageRead = z.infer<typeof insertDeveloperMessageReadSchema>;
 export type DeveloperMessageRead = typeof developerMessageReads.$inferSelect;
+
+// SIE Brainstorm Sessions - stores voice brainstorming sessions for admin review
+export const sieBrainstormSessions = pgTable("sie_brainstorm_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").notNull().references(() => users.id),
+  
+  title: varchar("title", { length: 255 }).notNull(),
+  transcript: jsonb("transcript").$type<Array<{
+    role: 'user' | 'sie';
+    text: string;
+    timestamp: string;
+  }>>().notNull(),
+  
+  audioFilePath: text("audio_file_path"),
+  durationSeconds: integer("duration_seconds"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  adminIdIdx: index("idx_sie_sessions_admin").on(table.adminId),
+  createdAtIdx: index("idx_sie_sessions_created").on(table.createdAt),
+}));
+
+// Insert schema
+export const insertSIEBrainstormSessionSchema = createInsertSchema(sieBrainstormSessions).omit({
+  createdAt: true,
+} as const);
+
+// Types
+export type InsertSIEBrainstormSession = z.infer<typeof insertSIEBrainstormSessionSchema>;
+export type SIEBrainstormSession = typeof sieBrainstormSessions.$inferSelect;
