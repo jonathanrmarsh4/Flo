@@ -28,6 +28,7 @@ import History from "@/pages/history";
 import Results from "@/pages/results";
 import Profile from "@/pages/profile";
 import DiagnosticsPage from "@/pages/diagnostics";
+import ActivityPage from "@/pages/activity";
 import HealthKitPage from "@/pages/healthkit";
 import FlomentumScreen from "@/pages/FlomentumScreen";
 import AdminUsers from "@/pages/admin-users";
@@ -276,6 +277,7 @@ function Router() {
           <Route path="/billing" component={BillingPage} />
           <Route path="/shortcuts" component={ShortcutsPage} />
           <Route path="/diagnostics" component={DiagnosticsPage} />
+          <Route path="/activity" component={ActivityPage} />
           <Route path="/healthkit" component={HealthKitPage} />
           <Route path="/flomentum" component={FlomentumScreen} />
           <Route path="/admin" component={AdminDashboard} />
