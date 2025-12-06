@@ -653,4 +653,120 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ error: "Failed to update system setting" });
     }
   });
+
+  // ==========================================
+  // BigQuery Correlation Engine Admin Routes
+  // ==========================================
+
+  app.post('/api/admin/correlation/analyze', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const { correlationInsightService } = await import('../services/correlationInsightService');
+      const result = await correlationInsightService.runFullAnalysis(userId);
+
+      logger.info(`[Admin] Correlation analysis triggered for ${userId}`, {
+        anomalies: result.anomalies.length,
+        insights: result.insights.length,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[Admin] Correlation analysis failed:', error);
+      res.status(500).json({ error: error.message || "Failed to run correlation analysis" });
+    }
+  });
+
+  app.post('/api/admin/correlation/simulate', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, scenario } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const validScenarios = ['illness', 'recovery', 'single_metric'];
+      const selectedScenario = validScenarios.includes(scenario) ? scenario : 'single_metric';
+
+      const { correlationInsightService } = await import('../services/correlationInsightService');
+      const result = await correlationInsightService.simulateAnomalyForTesting(userId, selectedScenario);
+
+      logger.info(`[Admin] Simulated ${selectedScenario} scenario for ${userId}`);
+
+      res.json({
+        scenario: selectedScenario,
+        ...result,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Simulation failed:', error);
+      res.status(500).json({ error: error.message || "Failed to simulate anomaly" });
+    }
+  });
+
+  app.post('/api/admin/correlation/backfill', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const { getHealthId } = await import('../services/supabaseHealthStorage');
+      const { bigQuerySyncService } = await import('../services/bigQuerySyncService');
+      
+      const healthId = await getHealthId(userId);
+      const result = await bigQuerySyncService.backfillUserFromSupabase(healthId);
+
+      logger.info(`[Admin] BigQuery backfill complete for ${userId}`, {
+        totalRows: result.totalRows,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[Admin] Backfill failed:', error);
+      res.status(500).json({ error: error.message || "Failed to backfill user data" });
+    }
+  });
+
+  app.get('/api/admin/correlation/insights/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const { correlationInsightService } = await import('../services/correlationInsightService');
+      const insights = await correlationInsightService.getRecentInsights(userId, limit);
+
+      res.json({ insights });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to fetch correlation insights:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch insights" });
+    }
+  });
+
+  app.post('/api/admin/correlation/feedback', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, feedbackId, question, responseValue, responseText, channel } = req.body;
+      
+      if (!userId || !feedbackId || !question || responseValue === undefined) {
+        return res.status(400).json({ error: "userId, feedbackId, question, and responseValue are required" });
+      }
+
+      const { correlationInsightService } = await import('../services/correlationInsightService');
+      await correlationInsightService.recordFeedbackResponse(
+        userId,
+        feedbackId,
+        question,
+        responseValue,
+        responseText,
+        channel || 'in_app'
+      );
+
+      logger.info(`[Admin] Recorded feedback response for ${userId}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to record feedback:', error);
+      res.status(500).json({ error: error.message || "Failed to record feedback" });
+    }
+  });
 }

@@ -953,7 +953,18 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.warn('[FloOracle] Failed to fetch life events:', error);
     }
 
-    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory) + lifeEventsContext;
+    // Fetch BigQuery correlation insights (anomalies and patterns)
+    let correlationContext = '';
+    try {
+      correlationContext = await getCorrelationInsightsContext(userId);
+      if (correlationContext) {
+        logger.info(`[FloOracle] Fetched correlation insights for user ${userId}`);
+      }
+    } catch (error) {
+      logger.debug('[FloOracle] Correlation insights not available:', error);
+    }
+
+    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory) + lifeEventsContext + correlationContext;
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars, includesLifeEvents: ${lifeEventsContext.length > 0})`);
     
     // Cache the result
@@ -1544,6 +1555,58 @@ export async function getUserMemoriesContext(userId: string, limit: number = 20)
     return '\n\nCONVERSATIONAL MEMORY (things the user has told you before - use naturally):\n' + memoriesContext;
   } catch (error) {
     logger.error('[FloOracle] Error retrieving conversational memories:', error);
+    return '';
+  }
+}
+
+/**
+ * Get BigQuery correlation insights for enhanced AI context
+ * Returns detected anomalies and patterns from the correlation engine
+ */
+export async function getCorrelationInsightsContext(userId: string): Promise<string> {
+  try {
+    const { bigQueryService } = await import('./bigQueryService');
+    const { getHealthId } = await import('./supabaseHealthStorage');
+    
+    if (!bigQueryService.isEnabled()) {
+      return '';
+    }
+    
+    const healthId = await getHealthId(userId);
+    if (!healthId) {
+      logger.debug('[FloOracle] No healthId found for correlation insights');
+      return '';
+    }
+    
+    const insights = await bigQueryService.getCorrelationInsights(healthId, 5);
+    const anomalies = await bigQueryService.getDetectedAnomalies(healthId, new Date(Date.now() - 48 * 60 * 60 * 1000));
+    
+    if (insights.length === 0 && anomalies.length === 0) {
+      return '';
+    }
+    
+    const lines = ['', 'CORRELATION ENGINE INSIGHTS (ML-detected patterns - reference when relevant):'];
+    
+    if (anomalies.length > 0) {
+      lines.push('Active anomalies (detected in last 48h):');
+      anomalies.slice(0, 3).forEach(a => {
+        const direction = a.deviationPct > 0 ? 'elevated' : 'low';
+        lines.push(`  • ${a.metricType.replace(/_/g, ' ')}: ${direction} (${Math.abs(Math.round(a.deviationPct))}% from baseline) - ${a.severity} severity`);
+      });
+    }
+    
+    if (insights.length > 0) {
+      lines.push('Recent correlation findings:');
+      insights.forEach(i => {
+        const confidencePct = Math.round(i.confidence * 100);
+        lines.push(`  • ${i.title}: ${i.description} (${confidencePct}% confidence)`);
+      });
+    }
+    
+    logger.info(`[FloOracle] Added ${anomalies.length} anomalies and ${insights.length} correlation insights to context`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.debug('[FloOracle] Correlation insights not available (BigQuery may not be initialized)');
     return '';
   }
 }

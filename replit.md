@@ -58,6 +58,19 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - Backend service: `server/services/openWeatherService.ts`
   - Frontend service: `client/src/lib/locationService.ts`
   - API: POST `/api/location/update` for iOS location sync
+- **BigQuery Correlation Engine:** Scalable ML-powered health correlation system for personalized anomaly detection and predictive insights. Features:
+  - **BigQuery Data Warehouse:** Stores health_metrics, biomarkers, life_events, user_feedback, environmental_data, cgm_readings, baselines, detected_anomalies, and correlation_insights tables with time partitioning and clustering
+  - **Streaming Sync Service:** Syncs Supabase health data to BigQuery on each HealthKit ingestion (`bigQuerySyncService.ts`)
+  - **Baseline Engine:** Calculates rolling 7/14/30-day baselines with mean, std dev, percentiles per metric per user
+  - **Anomaly Detection:** Z-score and percentage deviation detection with metric-specific thresholds (15% for HRV, 8% for RHR, 50% for wrist temp deviation)
+  - **Multi-Metric Pattern Recognition:** Detects combined patterns like "illness_precursor" (elevated wrist temp + respiratory rate + RHR + low HRV) and "recovery_deficit" (low HRV + poor sleep)
+  - **Dynamic Feedback Generator:** LLM-powered (Gemini 2.0 Flash) contextual question generation based on detected anomalies ("Your overnight temperature is elevated - how are you feeling?")
+  - **User Feedback Loop:** Collects 1-10 scale responses via push notifications, in-app surveys, or voice to train personalized prediction models
+  - **Correlation Insights Integration:** Injects BigQuery insights into Flō Oracle context for AI awareness of detected patterns
+  - **Admin Testing Tools:** Endpoints to manually trigger analysis, simulate anomaly scenarios (illness/recovery), backfill user data, and view insights
+  - Backend services: `bigQueryService.ts`, `bigQuerySyncService.ts`, `bigQueryBaselineEngine.ts`, `dynamicFeedbackGenerator.ts`, `correlationInsightService.ts`
+  - Admin API: POST `/api/admin/correlation/analyze`, POST `/api/admin/correlation/simulate`, POST `/api/admin/correlation/backfill`, GET `/api/admin/correlation/insights/:userId`
+  - Future: CGM data integration, predictive alerting, closed-loop model learning from feedback outcomes
 
 ## External Dependencies
 
