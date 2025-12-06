@@ -4619,6 +4619,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
       const { getHealthId } = await import('./services/supabaseHealthStorage');
       const { dynamicFeedbackGenerator } = await import('./services/dynamicFeedbackGenerator');
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      const { randomUUID } = await import('crypto');
       
       const healthId = await getHealthId(userId);
       
@@ -4629,10 +4631,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
       const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays });
       
-      // Generate feedback question if anomalies found
+      // Generate feedback question if anomalies found AND store it for the tile
       let feedbackQuestion = null;
+      let feedbackId = null;
       if (anomalies.length > 0) {
         feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+        
+        if (feedbackQuestion) {
+          feedbackId = randomUUID();
+          await correlationInsightService.storePendingFeedback(userId, feedbackId, feedbackQuestion);
+          logger.info(`[Admin] Stored feedback question ${feedbackId} for user ${userId}`);
+        }
       }
       
       // Get ML insights
@@ -4651,6 +4660,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         baselines,
         anomalies,
         feedbackQuestion,
+        feedbackId,
+        feedbackStored: !!feedbackId,
         mlInsights,
         learningContext,
       });
@@ -4677,13 +4688,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
       const { getHealthId } = await import('./services/supabaseHealthStorage');
       const { dynamicFeedbackGenerator } = await import('./services/dynamicFeedbackGenerator');
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      const { randomUUID } = await import('crypto');
       
       const healthId = await getHealthId(userId);
       const anomalies = await clickhouseBaselineEngine.simulateAnomaly(healthId, scenario as 'illness' | 'recovery' | 'single_metric');
       
       let feedbackQuestion = null;
+      let feedbackId = null;
       if (anomalies.length > 0) {
         feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+        
+        if (feedbackQuestion) {
+          feedbackId = randomUUID();
+          await correlationInsightService.storePendingFeedback(userId, feedbackId, feedbackQuestion);
+          logger.info(`[Admin] Stored simulated feedback question ${feedbackId} for user ${userId}`);
+        }
       }
       
       logger.info('[Admin] ClickHouse simulation complete', { userId, scenario, anomalies: anomalies.length });
@@ -4694,6 +4714,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         healthId,
         anomalies,
         feedbackQuestion,
+        feedbackId,
+        feedbackStored: !!feedbackId,
       });
     } catch (error) {
       logger.error('[Admin] ClickHouse simulation error:', error);

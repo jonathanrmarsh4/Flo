@@ -60,8 +60,15 @@ class CorrelationInsightService {
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
     let feedbackQuestion: GeneratedQuestion | null = null;
+    let feedbackId: string | null = null;
     if (anomalies.length > 0) {
       feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+      
+      if (feedbackQuestion) {
+        feedbackId = randomUUID();
+        await this.storePendingFeedback(userId, feedbackId, feedbackQuestion);
+        logger.info(`[CorrelationInsight] Stored feedback question ${feedbackId} for user ${userId}`);
+      }
     }
 
     const patterns = this.extractPatterns(anomalies);
