@@ -6024,6 +6024,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // Activity Routes (for Activity Page)
+  // ============================================
+
+  // Get activity summary for today - aggregates daily metrics, workouts, and recovery data
+  app.get("/api/activity/summary", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { date } = req.query;
+      
+      // Get user's timezone from their most recent daily metric
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const userTimezone = recentMetrics.length > 0 ? recentMetrics[0].timezone : 'UTC';
+      
+      // Calculate the target date in user's timezone
+      const targetDate = date 
+        ? (date as string) 
+        : new Date().toLocaleString('en-CA', { 
+            timeZone: userTimezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).split(',')[0];
+      
+      // Fetch daily metrics for today
+      const todayMetrics = await healthRouter.getUserDailyMetricsByDate(userId, targetDate);
+      
+      // Fetch profile for user-specific targets (weight, sex, age)
+      const profile = await healthRouter.getProfile(userId);
+      
+      // Fetch 7-day history for HRV baseline and VO2 trend
+      const weekMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 7 });
+      
+      // Calculate HRV baseline (7-day average)
+      const hrvValues = weekMetrics.filter(m => m.hrvMs != null).map(m => m.hrvMs!);
+      const hrvBaseline = hrvValues.length > 0 
+        ? Math.round(hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length) 
+        : null;
+      
+      // Calculate VO2 trend (compare current to 30-day average if available)
+      const thirtyDayMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 30 });
+      const vo2Values = thirtyDayMetrics.filter(m => m.vo2Max != null).map(m => m.vo2Max!);
+      const vo2Avg = vo2Values.length > 0 
+        ? vo2Values.reduce((a, b) => a + b, 0) / vo2Values.length 
+        : null;
+      
+      const currentVo2 = todayMetrics?.vo2Max ?? null;
+      let vo2Trend: 'up' | 'stable' | 'down' = 'stable';
+      if (currentVo2 != null && vo2Avg != null) {
+        if (currentVo2 > vo2Avg + 1) vo2Trend = 'up';
+        else if (currentVo2 < vo2Avg - 1) vo2Trend = 'down';
+      }
+      
+      // Determine recovery status based on HRV
+      const hrv = todayMetrics?.hrvMs ?? null;
+      let hrvStatus: 'recovered' | 'ok' | 'strained' = 'ok';
+      if (hrv != null && hrvBaseline != null) {
+        if (hrv >= hrvBaseline + 5) hrvStatus = 'recovered';
+        else if (hrv < hrvBaseline - 5) hrvStatus = 'strained';
+      }
+      
+      // VO2 level categorization based on fitness standards
+      const vo2Level = currentVo2 != null
+        ? currentVo2 >= 50 ? 'Excellent' : currentVo2 >= 42 ? 'Good' : currentVo2 >= 35 ? 'Fair' : 'Below Average'
+        : null;
+      
+      return res.json({
+        date: targetDate,
+        steps: todayMetrics?.stepsNormalized ?? todayMetrics?.stepsRawSum ?? null,
+        stepsGoal: 10000,
+        distance: todayMetrics?.distanceMeters ? Math.round(todayMetrics.distanceMeters) / 1000 : null,
+        activeEnergy: todayMetrics?.activeEnergyKcal ?? null,
+        exerciseMinutes: todayMetrics?.exerciseMinutes ?? null,
+        exerciseGoal: 30,
+        standHours: todayMetrics?.standHours ?? null,
+        flightsClimbed: todayMetrics?.flightsClimbed ?? null,
+        // Cardio fitness
+        vo2Max: currentVo2,
+        vo2Level,
+        vo2Trend,
+        restingHeartRate: todayMetrics?.restingHrBpm ?? null,
+        // Recovery metrics
+        hrv,
+        hrvBaseline,
+        hrvStatus,
+        // Movement quality (computed from available data)
+        walkingSpeed: null, // Could be derived from distance/time if available
+        stepLength: null,
+        doubleSupport: null,
+        asymmetry: null,
+        // User profile for personalization
+        weight: profile?.weight ?? null,
+        sex: profile?.sex ?? null,
+        birthYear: profile?.birthYear ?? null,
+      });
+    } catch (error: any) {
+      logger.error("[Activity] Error fetching summary:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get today's workouts
+  app.get("/api/activity/workouts", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { date } = req.query;
+      
+      // Get user's timezone
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const userTimezone = recentMetrics.length > 0 ? recentMetrics[0].timezone : 'UTC';
+      
+      const targetDate = date 
+        ? (date as string) 
+        : new Date().toLocaleString('en-CA', { 
+            timeZone: userTimezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).split(',')[0];
+      
+      const workouts = await healthRouter.getHealthkitWorkoutsByDate(userId, targetDate);
+      
+      // Aggregate workout stats
+      const totalDuration = workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
+      const totalEnergy = workouts.reduce((sum, w) => sum + (w.total_energy_burned || 0), 0);
+      
+      // Get last workout details
+      const lastWorkout = workouts.length > 0 ? workouts[0] : null;
+      
+      return res.json({
+        date: targetDate,
+        count: workouts.length,
+        totalDurationMinutes: Math.round(totalDuration / 60),
+        totalEnergyKcal: Math.round(totalEnergy),
+        lastWorkout: lastWorkout ? {
+          type: lastWorkout.workout_type,
+          distanceKm: lastWorkout.total_distance ? Math.round(lastWorkout.total_distance / 1000 * 10) / 10 : null,
+          avgHeartRate: lastWorkout.average_heart_rate,
+          durationMinutes: Math.round((lastWorkout.duration || 0) / 60),
+          energyKcal: lastWorkout.total_energy_burned ? Math.round(lastWorkout.total_energy_burned) : null,
+        } : null,
+        workouts: workouts.map(w => ({
+          id: w.id,
+          type: w.workout_type,
+          startDate: w.start_date,
+          endDate: w.end_date,
+          durationMinutes: Math.round((w.duration || 0) / 60),
+          distanceKm: w.total_distance ? Math.round(w.total_distance / 1000 * 10) / 10 : null,
+          energyKcal: w.total_energy_burned ? Math.round(w.total_energy_burned) : null,
+          avgHeartRate: w.average_heart_rate,
+          maxHeartRate: w.max_heart_rate,
+        })),
+      });
+    } catch (error: any) {
+      logger.error("[Activity] Error fetching workouts:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
+  // Glucose Routes (for Activity Page - Glucose Tab)
+  // ============================================
+
+  // Get glucose summary for a date
+  app.get("/api/glucose/daily", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { date, range = 'day' } = req.query;
+      
+      // Get user's timezone
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const userTimezone = recentMetrics.length > 0 ? recentMetrics[0].timezone : 'UTC';
+      
+      const targetDate = date 
+        ? (date as string) 
+        : new Date().toLocaleString('en-CA', { 
+            timeZone: userTimezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).split(',')[0];
+      
+      // Fetch today's metrics for glucose data
+      const todayMetrics = await healthRouter.getUserDailyMetricsByDate(userId, targetDate);
+      
+      // Get historical data for trend and 7-day averages
+      const rangeLimit = range === '14d' ? 14 : range === '7d' ? 7 : 1;
+      const historicalMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: rangeLimit });
+      
+      // Calculate 7-day time in range average
+      const sevenDayMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 7 });
+      const tirValues = sevenDayMetrics.filter(m => m.bloodGlucoseMgDl != null).map(m => m.bloodGlucoseMgDl!);
+      const avgGlucose7d = tirValues.length > 0 
+        ? Math.round(tirValues.reduce((a, b) => a + b, 0) / tirValues.length) 
+        : null;
+      
+      // Current glucose from today's metrics (or most recent)
+      const currentGlucose = todayMetrics?.bloodGlucoseMgDl ?? null;
+      
+      // Glucose status
+      let glucoseStatus: 'low' | 'normal' | 'high' = 'normal';
+      if (currentGlucose != null) {
+        if (currentGlucose < 70) glucoseStatus = 'low';
+        else if (currentGlucose > 140) glucoseStatus = 'high';
+      }
+      
+      // Build trend data from historical metrics
+      const trendData = historicalMetrics
+        .filter(m => m.bloodGlucoseMgDl != null)
+        .map(m => ({
+          date: m.localDate,
+          value: m.bloodGlucoseMgDl!,
+        }))
+        .reverse();
+      
+      return res.json({
+        date: targetDate,
+        currentGlucose,
+        glucoseStatus,
+        // Time in range (mock for now - would need continuous glucose data)
+        timeInRangeToday: null,
+        timeInRange7d: null,
+        // Daily stats
+        avgToday: currentGlucose,
+        minToday: null,
+        maxToday: null,
+        // 7-day average
+        avgGlucose7d,
+        // Lows and highs events
+        lowsToday: { count: 0, minutes: 0 },
+        highsToday: { count: 0, minutes: 0 },
+        // Trend data for chart
+        trendData,
+        // Target range
+        targetMin: 70,
+        targetMax: 140,
+      });
+    } catch (error: any) {
+      logger.error("[Glucose] Error fetching daily summary:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================
   // Dev Import Endpoint (for HealthKit Importer iOS app)
   // ============================================
   
