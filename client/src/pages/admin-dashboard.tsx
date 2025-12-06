@@ -85,6 +85,11 @@ export default function AdminDashboard() {
     refetchInterval: 60000,
   });
 
+  const { data: mlCostsData } = useQuery({
+    queryKey: ['/api/admin/ml-usage/costs'],
+    refetchInterval: 60000,
+  });
+
   const updateUserMutation = useMutation({
     mutationFn: async ({ userId, role, status }: { userId: string; role?: string; status?: string }) => {
       return await apiRequest('PATCH', `/api/admin/users/${userId}`, { role, status });
@@ -409,15 +414,22 @@ export default function AdminDashboard() {
               <div className="rounded-2xl p-6 border bg-white/5 border-white/10" data-testid="metric-api-cost">
                 <div className="flex items-center justify-between mb-4">
                   <Activity className="w-8 h-8 text-blue-400" />
+                  <span className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-400">
+                    MTD
+                  </span>
                 </div>
                 <div className="text-3xl mb-1 text-white">
-                  ${apiCost7d.toFixed(2)}
+                  ${((mlCostsData as any)?.month?.totalEstimate ?? apiCost7d).toFixed(2)}
                 </div>
                 <div className="text-sm text-white/50">
-                  AI API Costs
+                  AI + ML Costs
                 </div>
                 <div className="text-xs mt-2 text-white/40">
-                  Last 7 days
+                  {mlCostsData ? (
+                    <>AI: ${((mlCostsData as any).month?.totalAICost || 0).toFixed(2)} | ClickHouse: ${((mlCostsData as any).month?.clickhouseStorageEstimate || 0).toFixed(2)}</>
+                  ) : (
+                    <span className="animate-pulse">Loading costs...</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -834,6 +846,73 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="text-center py-4 text-white/50 text-sm">No windows configured</div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <DollarSign className="w-5 h-5 text-green-400" />
+                ML Processing Costs
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="p-4 rounded-xl border bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/20">
+                  <div className="text-xs text-green-400 mb-2">Today's Costs</div>
+                  <div className="text-3xl text-white mb-3">
+                    ${mlCostsData ? ((mlCostsData as any).today?.totalEstimate || 0).toFixed(4) : '0.00'}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/50">AI Processing</span>
+                      <span className="text-white">${mlCostsData ? ((mlCostsData as any).today?.totalAICost || 0).toFixed(4) : '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/50">ClickHouse Compute (est.)</span>
+                      <span className="text-white">${mlCostsData ? ((mlCostsData as any).today?.clickhouseComputeEstimate || 0).toFixed(4) : '0.00'}</span>
+                    </div>
+                  </div>
+                  {mlCostsData && (mlCostsData as any).today?.aiCosts?.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                      <div className="text-xs text-white/50 mb-2">By Provider</div>
+                      {(mlCostsData as any).today.aiCosts.map((c: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-xs mb-1">
+                          <span className="text-white/70 capitalize">{c.provider}</span>
+                          <span className="text-green-400">${c.cost.toFixed(4)} ({c.queries} calls)</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 rounded-xl border bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border-blue-500/20">
+                  <div className="text-xs text-blue-400 mb-2">Monthly Estimate</div>
+                  <div className="text-3xl text-white mb-3">
+                    ${mlCostsData ? ((mlCostsData as any).month?.totalEstimate || 0).toFixed(2) : '0.00'}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/50">AI Processing (MTD)</span>
+                      <span className="text-white">${mlCostsData ? ((mlCostsData as any).month?.totalAICost || 0).toFixed(2) : '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/50">ClickHouse Storage (est.)</span>
+                      <span className="text-white">${mlCostsData ? ((mlCostsData as any).month?.clickhouseStorageEstimate || 0).toFixed(2) : '0.00'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/50">Total AI Queries</span>
+                      <span className="text-white">{mlCostsData ? ((mlCostsData as any).month?.aiQueries || 0).toLocaleString() : '0'}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-white/50">Total Tokens</span>
+                      <span className="text-white">{mlCostsData ? ((mlCostsData as any).month?.aiTokens || 0).toLocaleString() : '0'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {mlCostsData && (mlCostsData as any).clickhouse && (
+                <div className="p-3 rounded-lg bg-white/5 text-xs text-white/50">
+                  ClickHouse: {(mlCostsData as any).clickhouse.totalSizeGB} GB stored | 
+                  Storage: ~${(mlCostsData as any).clickhouse.storageCostMonthly}/mo | 
+                  Compute: ~${(mlCostsData as any).clickhouse.computeCostDaily}/day (4 windows)
+                </div>
               )}
             </div>
 

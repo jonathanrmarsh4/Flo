@@ -5038,6 +5038,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get ML processing costs (AI + ClickHouse estimates)
+  app.get("/api/admin/ml-usage/costs", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      const todayAICosts = await db
+        .select({
+          provider: sql<string>`
+            CASE 
+              WHEN ${openaiUsageEvents.model} LIKE 'gpt%' THEN 'openai'
+              WHEN ${openaiUsageEvents.model} LIKE 'grok%' THEN 'grok'
+              WHEN ${openaiUsageEvents.model} LIKE 'gemini%' THEN 'gemini'
+              ELSE 'other'
+            END
+          `,
+          totalCost: sql<number>`COALESCE(SUM(${openaiUsageEvents.cost}), 0)`,
+          totalTokens: sql<number>`COALESCE(SUM(${openaiUsageEvents.totalTokens}), 0)`,
+          queryCount: sql<number>`COUNT(*)`,
+        })
+        .from(openaiUsageEvents)
+        .where(sql`${openaiUsageEvents.createdAt} >= ${todayStart}`)
+        .groupBy(sql`CASE 
+          WHEN ${openaiUsageEvents.model} LIKE 'gpt%' THEN 'openai'
+          WHEN ${openaiUsageEvents.model} LIKE 'grok%' THEN 'grok'
+          WHEN ${openaiUsageEvents.model} LIKE 'gemini%' THEN 'gemini'
+          ELSE 'other'
+        END`);
+      
+      const monthAICosts = await db
+        .select({
+          totalCost: sql<number>`COALESCE(SUM(${openaiUsageEvents.cost}), 0)`,
+          totalTokens: sql<number>`COALESCE(SUM(${openaiUsageEvents.totalTokens}), 0)`,
+          queryCount: sql<number>`COUNT(*)`,
+        })
+        .from(openaiUsageEvents)
+        .where(sql`${openaiUsageEvents.createdAt} >= ${monthStart}`);
+      
+      let clickhouseCostEstimate = { 
+        storageCostMonthly: 0, 
+        computeCostDaily: 0, 
+        totalSizeGB: 0,
+        windowsRunToday: 0,
+        estimatedComputeCredits: 0,
+      };
+      
+      try {
+        const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
+        const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
+        
+        if (isClickHouseEnabled()) {
+          const storageStats = await clickhouse.query<{
+            total_bytes: number;
+          }>(`
+            SELECT sum(data_uncompressed_bytes) AS total_bytes
+            FROM system.parts
+            WHERE database = 'flo_health' AND active = 1
+          `, {});
+          
+          const totalBytes = Number(storageStats[0]?.total_bytes || 0);
+          const totalGB = totalBytes / (1024 * 1024 * 1024);
+          
+          const metrics = clickhouseOrchestrator.getUsageMetrics();
+          const windowsToday = metrics.totalWindowsToday || 0;
+          const avgDurationMs = metrics.dailyStats.totalDurationMs / Math.max(windowsToday, 1);
+          const estimatedCreditsPerWindow = (avgDurationMs / 1000 / 60) * 0.10;
+          
+          clickhouseCostEstimate = {
+            totalSizeGB: Math.round(totalGB * 100) / 100,
+            storageCostMonthly: Math.round(totalGB * 0.025 * 100) / 100,
+            computeCostDaily: Math.round(estimatedCreditsPerWindow * 4 * 100) / 100,
+            windowsRunToday: windowsToday,
+            estimatedComputeCredits: Math.round(estimatedCreditsPerWindow * 1000) / 1000,
+          };
+        }
+      } catch (e) {
+        logger.debug('[Admin] ClickHouse cost estimate unavailable');
+      }
+      
+      const todayAITotal = todayAICosts.reduce((acc, c) => acc + Number(c.totalCost), 0);
+      const monthAITotal = Number(monthAICosts[0]?.totalCost || 0);
+      
+      res.json({
+        today: {
+          aiCosts: todayAICosts.map(c => ({
+            provider: c.provider,
+            cost: Math.round(Number(c.totalCost) * 10000) / 10000,
+            tokens: Number(c.totalTokens),
+            queries: Number(c.queryCount),
+          })),
+          totalAICost: Math.round(todayAITotal * 10000) / 10000,
+          clickhouseComputeEstimate: clickhouseCostEstimate.computeCostDaily,
+          totalEstimate: Math.round((todayAITotal + clickhouseCostEstimate.computeCostDaily) * 10000) / 10000,
+        },
+        month: {
+          totalAICost: Math.round(monthAITotal * 10000) / 10000,
+          aiQueries: Number(monthAICosts[0]?.queryCount || 0),
+          aiTokens: Number(monthAICosts[0]?.totalTokens || 0),
+          clickhouseStorageEstimate: clickhouseCostEstimate.storageCostMonthly,
+          totalEstimate: Math.round((monthAITotal + clickhouseCostEstimate.storageCostMonthly + clickhouseCostEstimate.computeCostDaily * 30) * 100) / 100,
+        },
+        clickhouse: clickhouseCostEstimate,
+      });
+    } catch (error) {
+      logger.error('[Admin] ML usage costs error:', error);
+      res.status(500).json({ error: "Failed to fetch ML usage costs" });
+    }
+  });
+
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
