@@ -22,7 +22,7 @@ export function getClickHouseClient(): ClickHouseClient | null {
       url: host.startsWith('https://') ? host : `https://${host}`,
       username,
       password,
-      request_timeout: 30000,
+      request_timeout: 90000,
       compression: {
         request: true,
         response: true,

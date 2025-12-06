@@ -77,6 +77,8 @@ import {
   userFeedback,
   sieBrainstormSessions,
   userInsights,
+  openaiUsageEvents,
+  sessions,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
