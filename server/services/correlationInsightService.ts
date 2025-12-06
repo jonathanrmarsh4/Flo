@@ -2,10 +2,17 @@ import { bigQueryService } from './bigQueryService';
 import { bigQueryBaselineEngine, AnomalyResult } from './bigQueryBaselineEngine';
 import { dynamicFeedbackGenerator, GeneratedQuestion } from './dynamicFeedbackGenerator';
 import { getHealthId } from './supabaseHealthStorage';
+import { writeInsightToBrain, checkDuplicateInsight } from './brainService';
+import { apnsService } from './apnsService';
+import { db } from '../db';
+import { users, pendingCorrelationFeedback } from '@shared/schema';
+import { eq, and, lt } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { randomUUID } from 'crypto';
 
 const DATASET_ID = 'flo_analytics';
+
+const FEEDBACK_EXPIRY_HOURS = 48;
 
 export interface CorrelationInsight {
   insightId: string;
@@ -206,6 +213,193 @@ class CorrelationInsightService {
     await bigQueryService.insertRows('correlation_insights', rows);
   }
 
+  async storeInsightsToBrain(userId: string, insights: CorrelationInsight[]): Promise<number> {
+    let stored = 0;
+
+    for (const insight of insights) {
+      try {
+        const insightText = `${insight.title}: ${insight.description} (Confidence: ${Math.round(insight.confidence * 100)}%, Metrics: ${insight.metricsInvolved.join(', ')})`;
+
+        const isDuplicate = await checkDuplicateInsight(userId, insightText, 0.85);
+        if (isDuplicate) {
+          logger.debug(`[CorrelationInsight] Skipping duplicate insight for user ${userId}`);
+          continue;
+        }
+
+        const tags = [
+          'correlation',
+          insight.insightType,
+          ...insight.metricsInvolved.map(m => m.replace(/_/g, '-')),
+        ];
+
+        const importance = insight.confidence >= 0.8 ? 4 : insight.confidence >= 0.6 ? 3 : 2;
+
+        await writeInsightToBrain(userId, insightText, {
+          source: 'correlation_insight',
+          tags,
+          importance,
+        });
+
+        stored++;
+        logger.info(`[CorrelationInsight] Stored insight to brain for user ${userId}`, {
+          title: insight.title,
+          importance,
+        });
+      } catch (error) {
+        logger.error(`[CorrelationInsight] Failed to store insight to brain`, { error, insight });
+      }
+    }
+
+    return stored;
+  }
+
+  async storePendingFeedback(userId: string, feedbackId: string, question: GeneratedQuestion): Promise<void> {
+    const expiresAt = new Date(Date.now() + FEEDBACK_EXPIRY_HOURS * 60 * 60 * 1000);
+    
+    await db.insert(pendingCorrelationFeedback).values({
+      feedbackId,
+      userId,
+      questionText: question.questionText,
+      questionType: question.questionType,
+      options: question.options || null,
+      triggerPattern: question.triggerPattern,
+      triggerMetrics: question.triggerMetrics,
+      urgency: question.urgency,
+      expiresAt,
+    }).onConflictDoUpdate({
+      target: pendingCorrelationFeedback.feedbackId,
+      set: {
+        questionText: question.questionText,
+        questionType: question.questionType,
+        options: question.options || null,
+        triggerPattern: question.triggerPattern,
+        triggerMetrics: question.triggerMetrics,
+        urgency: question.urgency,
+        expiresAt,
+      },
+    });
+
+    logger.debug(`[CorrelationInsight] Stored pending feedback ${feedbackId} for user ${userId}`);
+  }
+
+  async getPendingFeedback(feedbackId: string): Promise<{
+    feedbackId: string;
+    userId: string;
+    question: GeneratedQuestion;
+    createdAt: Date;
+    expiresAt: Date;
+  } | null> {
+    const rows = await db.select()
+      .from(pendingCorrelationFeedback)
+      .where(eq(pendingCorrelationFeedback.feedbackId, feedbackId))
+      .limit(1);
+
+    if (rows.length === 0) return null;
+
+    const row = rows[0];
+    
+    if (new Date() > row.expiresAt) {
+      await this.deletePendingFeedback(feedbackId);
+      return null;
+    }
+
+    return {
+      feedbackId: row.feedbackId,
+      userId: row.userId,
+      question: {
+        questionText: row.questionText,
+        questionType: row.questionType,
+        options: row.options || undefined,
+        triggerPattern: row.triggerPattern || '',
+        triggerMetrics: row.triggerMetrics || {},
+        urgency: row.urgency,
+        suggestedChannel: 'push',
+      },
+      createdAt: row.createdAt,
+      expiresAt: row.expiresAt,
+    };
+  }
+
+  async deletePendingFeedback(feedbackId: string): Promise<void> {
+    await db.delete(pendingCorrelationFeedback)
+      .where(eq(pendingCorrelationFeedback.feedbackId, feedbackId));
+  }
+
+  async cleanupExpiredFeedback(): Promise<number> {
+    const result = await db.delete(pendingCorrelationFeedback)
+      .where(lt(pendingCorrelationFeedback.expiresAt, new Date()))
+      .returning({ feedbackId: pendingCorrelationFeedback.feedbackId });
+    
+    if (result.length > 0) {
+      logger.info(`[CorrelationInsight] Cleaned up ${result.length} expired pending feedback items`);
+    }
+    return result.length;
+  }
+
+  async sendProactiveFeedbackNotification(
+    userId: string,
+    feedbackQuestion: GeneratedQuestion,
+    feedbackId: string
+  ): Promise<boolean> {
+    try {
+      await this.storePendingFeedback(userId, feedbackId, feedbackQuestion);
+
+      const payload = {
+        title: 'Flō has a question for you',
+        body: feedbackQuestion.questionText,
+        sound: 'default',
+        data: {
+          type: 'feedback_request',
+          feedbackId,
+          questionText: feedbackQuestion.questionText,
+          questionType: feedbackQuestion.questionType,
+          triggerPattern: feedbackQuestion.triggerPattern,
+          options: feedbackQuestion.options,
+          urgency: feedbackQuestion.urgency,
+        },
+      };
+
+      const result = await apnsService.sendToUser(userId, payload);
+
+      if (result.success) {
+        logger.info(`[CorrelationInsight] Sent feedback notification to user ${userId}`, {
+          devicesReached: result.devicesReached,
+          feedbackId,
+        });
+      } else {
+        logger.warn(`[CorrelationInsight] Failed to send feedback notification to user ${userId}`, {
+          error: result.error,
+        });
+      }
+
+      return result.success;
+    } catch (error) {
+      logger.error(`[CorrelationInsight] Error sending feedback notification`, { error, userId });
+      return false;
+    }
+  }
+
+  async runFullAnalysisWithNotification(userId: string): Promise<AnalysisResult & { notificationSent: boolean; brainInsightsStored: number }> {
+    const result = await this.runFullAnalysis(userId);
+
+    let brainInsightsStored = 0;
+    if (result.insights.length > 0) {
+      brainInsightsStored = await this.storeInsightsToBrain(userId, result.insights);
+    }
+
+    let notificationSent = false;
+    if (result.feedbackQuestion && result.anomalies.some(a => a.severity === 'high')) {
+      const feedbackId = randomUUID();
+      notificationSent = await this.sendProactiveFeedbackNotification(userId, result.feedbackQuestion, feedbackId);
+    }
+
+    return {
+      ...result,
+      notificationSent,
+      brainInsightsStored,
+    };
+  }
+
   async getRecentInsights(userId: string, limit: number = 10): Promise<CorrelationInsight[]> {
     const healthId = await getHealthId(userId);
     const insights = await bigQueryService.getCorrelationInsights(healthId, limit);
@@ -224,8 +418,12 @@ class CorrelationInsightService {
     userId: string,
     feedbackId: string,
     question: GeneratedQuestion,
-    responseValue: number,
-    responseText?: string,
+    response: {
+      value?: number;
+      boolean?: boolean;
+      option?: string;
+      text?: string;
+    },
     channel: 'push' | 'in_app' | 'voice' = 'in_app'
   ): Promise<void> {
     const healthId = await getHealthId(userId);
@@ -233,8 +431,10 @@ class CorrelationInsightService {
     await bigQueryService.recordFeedback(healthId, feedbackId, {
       questionType: question.questionType,
       questionText: question.questionText,
-      responseValue,
-      responseText,
+      responseValue: response.value,
+      responseBoolean: response.boolean,
+      responseOption: response.option,
+      responseText: response.text,
       triggerPattern: question.triggerPattern,
       triggerMetrics: question.triggerMetrics,
       collectionChannel: channel,
@@ -243,7 +443,7 @@ class CorrelationInsightService {
     logger.info(`[CorrelationInsight] Recorded feedback response`, {
       healthId,
       feedbackId,
-      responseValue,
+      questionType: question.questionType,
       pattern: question.triggerPattern,
     });
   }

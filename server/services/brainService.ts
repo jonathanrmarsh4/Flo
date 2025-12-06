@@ -5,7 +5,7 @@ import { getSupabaseClient } from "./supabaseClient";
 import { generateEmbedding } from "./embeddingService";
 import { logger } from "../logger";
 
-type InsightSource = "gpt_insights_job" | "chat_brain_update" | "chat_summary_job" | "manual" | "medical_document";
+type InsightSource = "gpt_insights_job" | "chat_brain_update" | "chat_summary_job" | "manual" | "medical_document" | "correlation_insight";
 
 export interface BrainInsight {
   id: string;

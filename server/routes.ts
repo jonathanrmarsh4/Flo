@@ -4138,6 +4138,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get pending feedback question by ID
+  app.get("/api/correlation/feedback/:feedbackId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { feedbackId } = req.params;
+
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      const pending = await correlationInsightService.getPendingFeedback(feedbackId);
+
+      if (!pending) {
+        return res.status(404).json({ error: "Feedback not found or expired" });
+      }
+
+      if (pending.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to access this feedback" });
+      }
+
+      res.json({
+        feedbackId: pending.feedbackId,
+        question: pending.question,
+        createdAt: pending.createdAt.toISOString(),
+        expiresAt: pending.expiresAt.toISOString(),
+      });
+    } catch (error) {
+      logger.error('Error fetching pending feedback:', error);
+      res.status(500).json({ error: "Failed to fetch feedback" });
+    }
+  });
+
+  // Submit correlation engine feedback (user response to dynamic questions)
+  const correlationFeedbackSchema = z.object({
+    feedbackId: z.string().uuid(),
+    responseValue: z.number().int().min(1).max(10).optional(),
+    responseBoolean: z.boolean().optional(),
+    responseOptionIndex: z.number().int().min(0).optional(),
+    responseText: z.string().max(1000).optional(),
+    channel: z.enum(['push', 'in_app', 'voice']).optional(),
+  });
+
+  app.post("/api/correlation/feedback", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const parseResult = correlationFeedbackSchema.safeParse(req.body);
+      
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid feedback data", details: parseResult.error.errors });
+      }
+
+      const { feedbackId, responseValue, responseBoolean, responseOptionIndex, responseText, channel } = parseResult.data;
+
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      
+      const pending = await correlationInsightService.getPendingFeedback(feedbackId);
+      if (!pending) {
+        return res.status(404).json({ error: "Feedback not found or expired" });
+      }
+
+      if (pending.userId !== userId) {
+        return res.status(403).json({ error: "Not authorized to submit this feedback" });
+      }
+
+      const questionType = pending.question.questionType;
+      
+      if (questionType === 'scale_1_10') {
+        if (responseValue === undefined) {
+          return res.status(400).json({ error: "Scale response required for this question type" });
+        }
+        if (responseBoolean !== undefined || responseOptionIndex !== undefined) {
+          return res.status(400).json({ error: "Conflicting response fields not allowed" });
+        }
+      }
+      if (questionType === 'yes_no') {
+        if (responseBoolean === undefined) {
+          return res.status(400).json({ error: "Yes/No response required for this question type" });
+        }
+        if (responseValue !== undefined || responseOptionIndex !== undefined) {
+          return res.status(400).json({ error: "Conflicting response fields not allowed" });
+        }
+      }
+      if (questionType === 'multiple_choice') {
+        if (responseOptionIndex === undefined) {
+          return res.status(400).json({ error: "Option selection required for this question type" });
+        }
+        if (responseValue !== undefined || responseBoolean !== undefined) {
+          return res.status(400).json({ error: "Conflicting response fields not allowed" });
+        }
+        const options = pending.question.options;
+        if (!options || responseOptionIndex < 0 || responseOptionIndex >= options.length) {
+          return res.status(400).json({ error: "Invalid option index" });
+        }
+      }
+      if (questionType === 'open_ended') {
+        if (!responseText || responseText.trim().length === 0) {
+          return res.status(400).json({ error: "Text response required for this question type" });
+        }
+        if (responseValue !== undefined || responseBoolean !== undefined || responseOptionIndex !== undefined) {
+          return res.status(400).json({ error: "Conflicting response fields not allowed" });
+        }
+      }
+
+      const selectedOption = questionType === 'multiple_choice' && pending.question.options
+        ? pending.question.options[responseOptionIndex!]
+        : undefined;
+
+      await correlationInsightService.recordFeedbackResponse(
+        userId,
+        feedbackId,
+        pending.question,
+        {
+          value: responseValue,
+          boolean: responseBoolean,
+          option: selectedOption,
+          text: responseText,
+        },
+        channel || 'in_app'
+      );
+
+      await correlationInsightService.deletePendingFeedback(feedbackId);
+
+      logger.info('[CorrelationFeedback] Feedback submitted successfully', { 
+        userId, 
+        feedbackId,
+        questionType,
+        pattern: pending.question.triggerPattern 
+      });
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error submitting correlation feedback:', error);
+      res.status(500).json({ error: "Failed to submit feedback" });
+    }
+  });
+
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {

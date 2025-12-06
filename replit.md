@@ -65,7 +65,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - **Anomaly Detection:** Z-score and percentage deviation detection with metric-specific thresholds (15% for HRV, 8% for RHR, 50% for wrist temp deviation)
   - **Multi-Metric Pattern Recognition:** Detects combined patterns like "illness_precursor" (elevated wrist temp + respiratory rate + RHR + low HRV) and "recovery_deficit" (low HRV + poor sleep)
   - **Dynamic Feedback Generator:** LLM-powered (Gemini 2.0 Flash) contextual question generation based on detected anomalies ("Your overnight temperature is elevated - how are you feeling?")
-  - **User Feedback Loop:** Collects 1-10 scale responses via push notifications, in-app surveys, or voice to train personalized prediction models
+  - **Typed Feedback Collection System:** Database-backed pending feedback storage with 48-hour TTL. Supports 4 question types (scale_1_10, yes_no, multiple_choice, open_ended) with type-specific validation and BigQuery columns (response_value, response_boolean, response_option, response_text). Push notifications trigger in-app survey modal with ML-generated questions.
   - **Correlation Insights Integration:** Injects BigQuery insights into Flō Oracle context for AI awareness of detected patterns
   - **Admin Testing Tools:** Endpoints to manually trigger analysis, simulate anomaly scenarios (illness/recovery), backfill user data, and view insights
   - Backend services: `bigQueryService.ts`, `bigQuerySyncService.ts`, `bigQueryBaselineEngine.ts`, `dynamicFeedbackGenerator.ts`, `correlationInsightService.ts`

@@ -70,6 +70,8 @@ export const TABLE_SCHEMAS = {
     { name: 'question_type', type: 'STRING', mode: 'REQUIRED' },
     { name: 'question_text', type: 'STRING', mode: 'REQUIRED' },
     { name: 'response_value', type: 'INT64', mode: 'NULLABLE' },
+    { name: 'response_boolean', type: 'BOOL', mode: 'NULLABLE' },
+    { name: 'response_option', type: 'STRING', mode: 'NULLABLE' },
     { name: 'response_text', type: 'STRING', mode: 'NULLABLE' },
     { name: 'trigger_pattern', type: 'STRING', mode: 'NULLABLE' },
     { name: 'trigger_metrics', type: 'JSON', mode: 'NULLABLE' },
@@ -440,6 +442,8 @@ class BigQueryService {
       questionType: string;
       questionText: string;
       responseValue?: number;
+      responseBoolean?: boolean;
+      responseOption?: string;
       responseText?: string;
       triggerPattern?: string;
       triggerMetrics?: Record<string, any>;
@@ -452,6 +456,8 @@ class BigQueryService {
       question_type: data.questionType,
       question_text: data.questionText,
       response_value: data.responseValue ?? null,
+      response_boolean: data.responseBoolean ?? null,
+      response_option: data.responseOption ?? null,
       response_text: data.responseText ?? null,
       trigger_pattern: data.triggerPattern ?? null,
       trigger_metrics: data.triggerMetrics ? JSON.stringify(data.triggerMetrics) : null,

@@ -2535,7 +2535,8 @@ export const userInsightSourceEnum = pgEnum("user_insight_source", [
   "chat_brain_update",   // From Grok chat BRAIN_UPDATE_JSON
   "chat_summary_job",    // From nightly chat transcript summarization
   "manual",              // Manual entry (future use)
-  "medical_document"     // From uploaded medical documents (specialist reports, imaging, etc.)
+  "medical_document",    // From uploaded medical documents (specialist reports, imaging, etc.)
+  "correlation_insight"  // From BigQuery correlation engine pattern detection
 ]);
 
 // Status of insight: whether it's still relevant
@@ -2577,7 +2578,7 @@ export const userInsights = pgTable("user_insights", {
 }));
 
 // Zod enums for validation
-export const UserInsightSourceEnum = z.enum(["gpt_insights_job", "chat_brain_update", "chat_summary_job", "manual", "medical_document"]);
+export const UserInsightSourceEnum = z.enum(["gpt_insights_job", "chat_brain_update", "chat_summary_job", "manual", "medical_document", "correlation_insight"]);
 export const UserInsightStatusEnum = z.enum(["active", "resolved", "dismissed"]);
 
 // Insert schema
@@ -2776,3 +2777,41 @@ export const insertSIEBrainstormSessionSchema = createInsertSchema(sieBrainstorm
 // Types
 export type InsertSIEBrainstormSession = z.infer<typeof insertSIEBrainstormSessionSchema>;
 export type SIEBrainstormSession = typeof sieBrainstormSessions.$inferSelect;
+
+// ============================================================================
+// Pending Correlation Feedback - Stores ML-generated feedback questions
+// ============================================================================
+
+export const feedbackQuestionTypeEnum = pgEnum("feedback_question_type", [
+  "scale_1_10",
+  "yes_no",
+  "multiple_choice",
+  "open_ended"
+]);
+
+export const feedbackUrgencyEnum = pgEnum("feedback_urgency", ["low", "medium", "high"]);
+
+export const pendingCorrelationFeedback = pgTable("pending_correlation_feedback", {
+  feedbackId: varchar("feedback_id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  questionText: text("question_text").notNull(),
+  questionType: feedbackQuestionTypeEnum("question_type").notNull(),
+  options: jsonb("options").$type<string[]>(),
+  triggerPattern: varchar("trigger_pattern", { length: 100 }),
+  triggerMetrics: jsonb("trigger_metrics").$type<Record<string, { value: number; deviation: number }>>(),
+  urgency: feedbackUrgencyEnum("urgency").default("medium").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+}, (table) => ({
+  userIdIdx: index("idx_pending_feedback_user").on(table.userId),
+  expiresAtIdx: index("idx_pending_feedback_expires").on(table.expiresAt),
+}));
+
+export const insertPendingCorrelationFeedbackSchema = createInsertSchema(pendingCorrelationFeedback).omit({
+  createdAt: true,
+} as const);
+
+export type InsertPendingCorrelationFeedback = z.infer<typeof insertPendingCorrelationFeedbackSchema>;
+export type PendingCorrelationFeedback = typeof pendingCorrelationFeedback.$inferSelect;

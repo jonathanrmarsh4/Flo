@@ -680,6 +680,30 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  app.post('/api/admin/correlation/analyze-with-notification', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const { correlationInsightService } = await import('../services/correlationInsightService');
+      const result = await correlationInsightService.runFullAnalysisWithNotification(userId);
+
+      logger.info(`[Admin] Correlation analysis with notification triggered for ${userId}`, {
+        anomalies: result.anomalies.length,
+        insights: result.insights.length,
+        brainInsightsStored: result.brainInsightsStored,
+        notificationSent: result.notificationSent,
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[Admin] Correlation analysis with notification failed:', error);
+      res.status(500).json({ error: error.message || "Failed to run correlation analysis" });
+    }
+  });
+
   app.post('/api/admin/correlation/simulate', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId, scenario } = req.body;
