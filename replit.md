@@ -36,7 +36,7 @@ The platform adopts a mobile-first, content-focused minimalist design, drawing i
 - **Daily Reminder Notifications:** AI-driven personalized reminders using Gemini 2.5 Flash.
 - **On-Demand Data Retrieval (Function Calling):** Flō Oracle uses Gemini function calling to fetch specific health data (e.g., `get_nutrition_trend`, `get_biomarker_history`) for complex queries.
 - **Environmental Data Integration:** Correlates OpenWeather data (temperature, AQI) with health metrics, influencing Flō Oracle context and Readiness Engine scores.
-- **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection and predictive insights using a comprehensive data warehouse (6 tables covering all health data). Features include auto-sync, baseline calculation, Z-score anomaly detection, multi-metric pattern recognition, and dynamic LLM-powered feedback generation.
+- **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection and predictive insights using a comprehensive data warehouse (10 tables: health_metrics, nutrition_metrics, biomarkers, life_events, environmental_data, body_composition, user_demographics, readiness_scores, training_load, cgm_glucose). Features include real-time auto-sync triggers on all data ingestion endpoints, 90-day baseline calculation, Z-score anomaly detection, multi-metric pattern recognition, ACWR training load analysis, and dynamic LLM-powered feedback generation. Data pipeline: iOS → Supabase (PHI storage) → ClickHouse auto-sync → Real-time anomaly detection.
 - **Self-Improvement Engine (SIE):** An admin-only sandbox AI (Gemini 2.5 Pro) for product improvement suggestions, featuring dynamic data introspection, verbal output, and a brainstorming chat mode.
 
 ## External Dependencies

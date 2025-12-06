@@ -456,6 +456,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`[LifeEvents] Quick-logged ${eventType} for user ${userId} via API key`);
       
+      // Trigger ClickHouse life events sync (non-blocking background task)
+      (async () => {
+        try {
+          const { isClickHouseEnabled } = await import('./services/clickhouseService');
+          if (isClickHouseEnabled()) {
+            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+            const { getHealthId } = await import('./services/supabaseHealthStorage');
+            const healthId = await getHealthId(userId);
+            
+            const syncedCount = await clickhouseBaselineEngine.syncLifeEvents(healthId, 7);
+            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} life events for ${userId}`);
+          }
+        } catch (clickhouseError: any) {
+          logger.warn(`[ClickHouseML] Life events sync failed for ${userId}:`, clickhouseError.message);
+        }
+      })();
+      
       res.status(201).json({
         success: true,
         event: {
@@ -611,6 +628,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Update record status
         await storage.updateBloodWorkRecordStatus(record.id, "completed");
+
+        // Trigger ClickHouse biomarker sync (non-blocking background task)
+        (async () => {
+          try {
+            const { isClickHouseEnabled } = await import('./services/clickhouseService');
+            if (isClickHouseEnabled()) {
+              const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+              const { getHealthId } = await import('./services/supabaseHealthStorage');
+              const healthId = await getHealthId(userId);
+              
+              const syncedCount = await clickhouseBaselineEngine.syncBiomarkerData(healthId, 365);
+              logger.info(`[ClickHouseML] Auto-synced ${syncedCount} biomarkers for ${userId} after blood work upload`);
+            }
+          } catch (clickhouseError: any) {
+            logger.warn(`[ClickHouseML] Biomarker sync failed for ${userId}:`, clickhouseError.message);
+          }
+        })();
 
         res.json({ 
           success: true, 
@@ -5523,6 +5557,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           await saveWeatherCache(userId, today, { latitude, longitude }, weatherData, airQualityData);
           logger.info(`[Location] Weather data cached for user ${userId}, date ${today}`);
+          
+          // Trigger ClickHouse environmental data sync (non-blocking background task)
+          (async () => {
+            try {
+              const { isClickHouseEnabled } = await import('./services/clickhouseService');
+              if (isClickHouseEnabled()) {
+                const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+                const { getHealthId } = await import('./services/supabaseHealthStorage');
+                const healthId = await getHealthId(userId);
+                
+                const syncedCount = await clickhouseBaselineEngine.syncEnvironmentalData(healthId, 7);
+                logger.info(`[ClickHouseML] Auto-synced ${syncedCount} environmental records for ${userId}`);
+              }
+            } catch (clickhouseError: any) {
+              logger.warn(`[ClickHouseML] Environmental sync failed for ${userId}:`, clickhouseError.message);
+            }
+          })();
         } catch (weatherError) {
           logger.error(`[Location] Failed to fetch weather data:`, weatherError);
         }
@@ -6318,6 +6369,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         logger.info(`[Readiness] Computed and stored new readiness for user ${userId}, ${today}: ${readiness.readinessScore}`);
       }
+
+      // Trigger ClickHouse readiness + training load sync (non-blocking background task)
+      (async () => {
+        try {
+          const { isClickHouseEnabled } = await import('./services/clickhouseService');
+          if (isClickHouseEnabled()) {
+            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+            const { getHealthId } = await import('./services/supabaseHealthStorage');
+            const healthId = await getHealthId(userId);
+            
+            // Sync readiness and training load together
+            const [readinessCount, loadCount] = await Promise.all([
+              clickhouseBaselineEngine.syncReadinessScores(healthId, 7),
+              clickhouseBaselineEngine.syncTrainingLoad(healthId, 7),
+            ]);
+            logger.info(`[ClickHouseML] Auto-synced ${readinessCount} readiness, ${loadCount} training load for ${userId}`);
+          }
+        } catch (clickhouseError: any) {
+          logger.warn(`[ClickHouseML] Readiness sync failed for ${userId}:`, clickhouseError.message);
+        }
+      })();
 
       res.json(readiness);
     } catch (error: any) {
@@ -7944,6 +8016,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (metrics.length > 0) {
         await storage.createDiagnosticMetrics(metrics);
       }
+
+      // Trigger ClickHouse body composition sync (non-blocking background task)
+      (async () => {
+        try {
+          const { isClickHouseEnabled } = await import('./services/clickhouseService');
+          if (isClickHouseEnabled()) {
+            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+            const { getHealthId } = await import('./services/supabaseHealthStorage');
+            const healthId = await getHealthId(userId);
+            
+            const syncedCount = await clickhouseBaselineEngine.syncBodyCompositionData(healthId, 365);
+            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} body composition records for ${userId} after DEXA upload`);
+          }
+        } catch (clickhouseError: any) {
+          logger.warn(`[ClickHouseML] Body composition sync failed for ${userId}:`, clickhouseError.message);
+        }
+      })();
 
       res.json({
         success: true,

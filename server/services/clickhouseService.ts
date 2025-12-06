@@ -355,7 +355,95 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including nutrition, biomarkers, life_events, environmental, body_composition)');
+    // User demographics / profile data
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.user_demographics (
+          health_id String,
+          birth_year Nullable(Int32),
+          sex LowCardinality(String),
+          height_cm Nullable(Float64),
+          weight_kg Nullable(Float64),
+          activity_level LowCardinality(String),
+          timezone Nullable(String),
+          updated_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(updated_at)
+        ORDER BY (health_id)
+      `,
+    });
+
+    // Daily readiness / recovery scores
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.readiness_scores (
+          health_id String,
+          local_date Date,
+          readiness_score Int32,
+          readiness_zone LowCardinality(String),
+          recovery_component Nullable(Int32),
+          sleep_component Nullable(Int32),
+          strain_component Nullable(Int32),
+          hrv_component Nullable(Int32),
+          environmental_impact Nullable(Float64),
+          recovery_boost Nullable(Float64),
+          factors Nullable(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, local_date)
+      `,
+    });
+
+    // CGM glucose data (future integration - schema ready)
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.cgm_glucose (
+          health_id String,
+          reading_id String,
+          glucose_mg_dl Float64,
+          reading_type LowCardinality(String),
+          recorded_at DateTime64(3),
+          local_date Date,
+          device_name Nullable(String),
+          device_manufacturer Nullable(String),
+          trend_direction Nullable(String),
+          is_calibration Nullable(UInt8),
+          meal_context Nullable(String),
+          exercise_context Nullable(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, local_date, recorded_at, reading_id)
+      `,
+    });
+
+    // Training load / strain tracking
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.training_load (
+          health_id String,
+          local_date Date,
+          acute_load Float64,
+          chronic_load Float64,
+          training_load_ratio Float64,
+          strain_score Nullable(Float64),
+          workout_count Int32,
+          total_workout_minutes Int32,
+          total_active_kcal Float64,
+          zone_distribution Nullable(String),
+          recovery_status LowCardinality(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, local_date)
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including nutrition, biomarkers, life_events, environmental, body_composition, demographics, readiness, cgm, training_load)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

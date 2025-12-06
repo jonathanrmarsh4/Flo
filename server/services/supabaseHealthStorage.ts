@@ -60,6 +60,34 @@ export function clearHealthIdCache(userId?: string) {
   }
 }
 
+/**
+ * Reverse lookup: Get user_id from health_id
+ * Used by ClickHouse sync to query Neon tables (like readiness) that use user_id
+ */
+const userIdCache = new Map<string, string>();
+
+export async function getUserIdFromHealthId(healthId: string): Promise<string | null> {
+  // Check cache first
+  const cached = userIdCache.get(healthId);
+  if (cached) return cached;
+
+  // Query Neon for user_id
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.healthId, healthId))
+    .limit(1);
+
+  if (!user) {
+    logger.debug(`[SupabaseHealth] No user found for health_id ${healthId}`);
+    return null;
+  }
+
+  // Cache for future lookups
+  userIdCache.set(healthId, user.id);
+  return user.id;
+}
+
 // ==================== PROFILES ====================
 
 export interface HealthProfile {

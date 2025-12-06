@@ -1130,6 +1130,201 @@ export class ClickHouseBaselineEngine {
     }
   }
 
+  async syncUserDemographics(healthId: string): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('health_id', healthId)
+        .single();
+
+      if (error || !profile) {
+        logger.debug(`[ClickHouseML] No user profile to sync for ${healthId}`);
+        return 0;
+      }
+
+      await clickhouse.insert('user_demographics', [{
+        health_id: healthId,
+        birth_year: profile.birth_year,
+        sex: profile.sex || 'unknown',
+        height_cm: profile.height_cm,
+        weight_kg: profile.weight_kg,
+        activity_level: profile.activity_level || 'moderate',
+        timezone: profile.timezone,
+      }]);
+
+      logger.info(`[ClickHouseML] Synced user demographics for ${healthId}`);
+      return 1;
+    } catch (error) {
+      logger.error('[ClickHouseML] Demographics sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncReadinessScores(healthId: string, daysBack: number = 90): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      // Readiness data is stored in Neon (primary DB), not Supabase
+      // Need to get userId from healthId first, then query Neon
+      const { getUserIdFromHealthId } = await import('./supabaseHealthStorage');
+      const userId = await getUserIdFromHealthId(healthId);
+      
+      if (!userId) {
+        logger.debug(`[ClickHouseML] No userId found for health_id ${healthId}`);
+        return 0;
+      }
+
+      const { db } = await import('../db');
+      const { userDailyReadiness } = await import('@shared/schema');
+      const { gte, eq, and, desc } = await import('drizzle-orm');
+      
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      const readiness = await db
+        .select()
+        .from(userDailyReadiness)
+        .where(
+          and(
+            eq(userDailyReadiness.userId, userId),
+            gte(userDailyReadiness.date, startDateStr)
+          )
+        )
+        .orderBy(desc(userDailyReadiness.date));
+
+      if (!readiness || readiness.length === 0) {
+        logger.debug(`[ClickHouseML] No readiness data to sync for ${healthId}`);
+        return 0;
+      }
+
+      const rows = readiness.map(r => ({
+        health_id: healthId,
+        local_date: r.date,
+        readiness_score: r.readinessScore || 0,
+        readiness_zone: r.readinessBucket || 'unknown',
+        recovery_component: r.recoveryScore,
+        sleep_component: r.sleepScore,
+        strain_component: r.loadScore,
+        hrv_component: r.trendScore,
+        environmental_impact: null,
+        recovery_boost: null,
+        factors: r.notesJson ? JSON.stringify(r.notesJson) : null,
+      }));
+
+      await clickhouse.insert('readiness_scores', rows);
+      logger.info(`[ClickHouseML] Synced ${rows.length} readiness records for ${healthId}`);
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Readiness sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncTrainingLoad(healthId: string, daysBack: number = 90): Promise<number> {
+    if (!await this.ensureInitialized()) return 0;
+
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Get daily metrics with workout data
+      const { data: dailyMetrics, error } = await supabase
+        .from('user_daily_metrics')
+        .select('*')
+        .eq('health_id', healthId)
+        .gte('local_date', startDateStr)
+        .order('local_date', { ascending: true });
+
+      if (error) {
+        logger.error('[ClickHouseML] Error fetching training load from Supabase:', error);
+        return 0;
+      }
+
+      if (!dailyMetrics || dailyMetrics.length === 0) {
+        return 0;
+      }
+
+      // Calculate acute/chronic training load (simplified ACWR)
+      const rows: any[] = [];
+      const acuteWindow = 7;
+      const chronicWindow = 28;
+
+      for (let i = 0; i < dailyMetrics.length; i++) {
+        const dm = dailyMetrics[i];
+        const dailyLoad = (dm.active_energy_kcal || 0) + (dm.exercise_minutes || 0) * 5;
+
+        // Calculate rolling averages
+        const acuteStart = Math.max(0, i - acuteWindow + 1);
+        const chronicStart = Math.max(0, i - chronicWindow + 1);
+
+        let acuteSum = 0, acuteCount = 0;
+        let chronicSum = 0, chronicCount = 0;
+
+        for (let j = acuteStart; j <= i; j++) {
+          const load = (dailyMetrics[j].active_energy_kcal || 0) + (dailyMetrics[j].exercise_minutes || 0) * 5;
+          acuteSum += load;
+          acuteCount++;
+        }
+
+        for (let j = chronicStart; j <= i; j++) {
+          const load = (dailyMetrics[j].active_energy_kcal || 0) + (dailyMetrics[j].exercise_minutes || 0) * 5;
+          chronicSum += load;
+          chronicCount++;
+        }
+
+        const acuteLoad = acuteCount > 0 ? acuteSum / acuteCount : 0;
+        const chronicLoad = chronicCount > 0 ? chronicSum / chronicCount : 0;
+        const ratio = chronicLoad > 0 ? acuteLoad / chronicLoad : 1;
+
+        let recoveryStatus = 'optimal';
+        if (ratio < 0.8) recoveryStatus = 'undertrained';
+        else if (ratio > 1.5) recoveryStatus = 'overreaching';
+        else if (ratio > 1.3) recoveryStatus = 'high_strain';
+
+        rows.push({
+          health_id: healthId,
+          local_date: dm.local_date,
+          acute_load: acuteLoad,
+          chronic_load: chronicLoad,
+          training_load_ratio: ratio,
+          strain_score: dailyLoad,
+          workout_count: dm.workout_count || 0,
+          total_workout_minutes: dm.exercise_minutes || 0,
+          total_active_kcal: dm.active_energy_kcal || 0,
+          zone_distribution: null,
+          recovery_status: recoveryStatus,
+        });
+      }
+
+      if (rows.length > 0) {
+        await clickhouse.insert('training_load', rows);
+        logger.info(`[ClickHouseML] Synced ${rows.length} training load records for ${healthId}`);
+      }
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Training load sync error:', error);
+      return 0;
+    }
+  }
+
+  async syncCGMGlucoseData(healthId: string, daysBack: number = 90): Promise<number> {
+    // Placeholder for future CGM integration
+    // Schema is ready - will sync from HealthKit glucose samples or direct CGM API
+    logger.debug(`[ClickHouseML] CGM sync not yet implemented for ${healthId}`);
+    return 0;
+  }
+
   async syncAllHealthData(healthId: string, daysBack: number = 90): Promise<{
     healthMetrics: number;
     nutrition: number;
@@ -1137,6 +1332,9 @@ export class ClickHouseBaselineEngine {
     lifeEvents: number;
     environmental: number;
     bodyComposition: number;
+    demographics: number;
+    readiness: number;
+    trainingLoad: number;
     total: number;
   }> {
     logger.info(`[ClickHouseML] Starting comprehensive data sync for ${healthId} (${daysBack} days back)`);
@@ -1148,6 +1346,9 @@ export class ClickHouseBaselineEngine {
       this.syncLifeEvents(healthId, Math.min(daysBack, 180)),
       this.syncEnvironmentalData(healthId, daysBack),
       this.syncBodyCompositionData(healthId),
+      this.syncUserDemographics(healthId),
+      this.syncReadinessScores(healthId, daysBack),
+      this.syncTrainingLoad(healthId, daysBack),
     ]);
 
     const summary = {
@@ -1157,6 +1358,9 @@ export class ClickHouseBaselineEngine {
       lifeEvents: results[3],
       environmental: results[4],
       bodyComposition: results[5],
+      demographics: results[6],
+      readiness: results[7],
+      trainingLoad: results[8],
       total: results.reduce((a, b) => a + b, 0),
     };
 
@@ -1171,6 +1375,10 @@ export class ClickHouseBaselineEngine {
     lifeEvents: { count: number; earliestDate: string | null; latestDate: string | null };
     environmental: { count: number; earliestDate: string | null; latestDate: string | null };
     bodyComposition: { count: number; earliestDate: string | null; latestDate: string | null };
+    demographics: { count: number; earliestDate: string | null; latestDate: string | null };
+    readiness: { count: number; earliestDate: string | null; latestDate: string | null };
+    trainingLoad: { count: number; earliestDate: string | null; latestDate: string | null };
+    cgmGlucose: { count: number; earliestDate: string | null; latestDate: string | null };
   }> {
     if (!await this.ensureInitialized()) {
       const empty = { count: 0, earliestDate: null, latestDate: null };
@@ -1181,6 +1389,10 @@ export class ClickHouseBaselineEngine {
         lifeEvents: empty,
         environmental: empty,
         bodyComposition: empty,
+        demographics: empty,
+        readiness: empty,
+        trainingLoad: empty,
+        cgmGlucose: empty,
       };
     }
 
@@ -1212,16 +1424,20 @@ export class ClickHouseBaselineEngine {
       return { count: 0, earliestDate: null, latestDate: null };
     };
 
-    const [healthMetrics, nutrition, biomarkers, lifeEvents, environmental, bodyComposition] = await Promise.all([
+    const [healthMetrics, nutrition, biomarkers, lifeEvents, environmental, bodyComposition, demographics, readiness, trainingLoad, cgmGlucose] = await Promise.all([
       queryTable('health_metrics', 'local_date'),
       queryTable('nutrition_metrics', 'local_date'),
       queryTable('biomarkers', 'test_date'),
       queryTable('life_events', 'local_date'),
       queryTable('environmental_data', 'local_date'),
       queryTable('body_composition', 'scan_date'),
+      queryTable('user_demographics', 'updated_at'),
+      queryTable('readiness_scores', 'local_date'),
+      queryTable('training_load', 'local_date'),
+      queryTable('cgm_glucose', 'local_date'),
     ]);
 
-    return { healthMetrics, nutrition, biomarkers, lifeEvents, environmental, bodyComposition };
+    return { healthMetrics, nutrition, biomarkers, lifeEvents, environmental, bodyComposition, demographics, readiness, trainingLoad, cgmGlucose };
   }
 }
 
