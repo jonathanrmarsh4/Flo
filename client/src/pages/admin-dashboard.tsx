@@ -5,8 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { 
   Users, DollarSign, Activity, TrendingUp, Search,
   Settings, BarChart3, Zap, Database, AlertCircle, CheckCircle, XCircle,
-  CreditCard, Ban, Shield, FileText, Bell, Server, Link, Wifi, Edit2, Trash2,
-  ChevronDown, Heart, Sparkles, Wallet, RefreshCw
+  CreditCard, Ban, Shield, FileText, Bell, Server, Link, Wifi, WifiOff, Edit2, Trash2,
+  ChevronDown, Heart, Sparkles, Wallet, RefreshCw, AlertTriangle, Clock
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -88,6 +88,27 @@ export default function AdminDashboard() {
   const { data: mlCostsData } = useQuery({
     queryKey: ['/api/admin/ml-usage/costs'],
     refetchInterval: 60000,
+  });
+
+  const { data: systemHealthData, isLoading: systemHealthLoading } = useQuery<{
+    services: Array<{
+      id: string;
+      name: string;
+      status: 'operational' | 'degraded' | 'down' | 'not_configured';
+      latencyMs?: number;
+      details?: string;
+      lastSync?: string;
+      rowCount?: number;
+    }>;
+    summary: {
+      operational: number;
+      total: number;
+      allHealthy: boolean;
+    };
+    timestamp: string;
+  }>({
+    queryKey: ['/api/admin/system-health'],
+    refetchInterval: 30000,
   });
 
   const updateUserMutation = useMutation({
@@ -439,56 +460,82 @@ export default function AdminDashboard() {
                 <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
                   <Link className="w-5 h-5" />
                   System Integrations
+                  {systemHealthData && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${
+                      systemHealthData.summary.allHealthy 
+                        ? 'bg-green-500/20 text-green-400' 
+                        : 'bg-yellow-500/20 text-yellow-400'
+                    }`}>
+                      {systemHealthData.summary.operational}/{systemHealthData.summary.total} Operational
+                    </span>
+                  )}
                 </h3>
-                <div className="space-y-3">
-                  <div className="p-3 rounded-xl border bg-white/5 border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Database className="w-4 h-4 text-green-400" />
-                        <span className="text-sm text-white">PostgreSQL Database</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Wifi className="w-3 h-3 text-green-500" />
-                        <span className="text-xs text-green-500">Connected</span>
-                      </div>
+                <div className="space-y-2">
+                  {systemHealthLoading ? (
+                    <div className="text-center py-4 text-white/50 text-sm animate-pulse">
+                      Checking services...
                     </div>
-                  </div>
-                  <div className="p-3 rounded-xl border bg-white/5 border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-4 h-4 text-purple-400" />
-                        <span className="text-sm text-white">OpenAI API (GPT-4)</span>
+                  ) : systemHealthData?.services?.filter(s => s.status !== 'not_configured').map((service) => {
+                    const getIcon = (id: string) => {
+                      switch (id) {
+                        case 'postgresql': return <Database className="w-4 h-4 text-green-400" />;
+                        case 'supabase': return <Database className="w-4 h-4 text-purple-400" />;
+                        case 'clickhouse': return <Activity className="w-4 h-4 text-orange-400" />;
+                        case 'stripe': return <CreditCard className="w-4 h-4 text-blue-400" />;
+                        case 'openai': return <Zap className="w-4 h-4 text-cyan-400" />;
+                        case 'gemini': return <Zap className="w-4 h-4 text-yellow-400" />;
+                        case 'auth': return <Shield className="w-4 h-4 text-teal-400" />;
+                        default: return <Server className="w-4 h-4 text-white/50" />;
+                      }
+                    };
+                    
+                    const getStatusColor = (status: string) => {
+                      switch (status) {
+                        case 'operational': return 'text-green-500';
+                        case 'degraded': return 'text-yellow-500';
+                        case 'down': return 'text-red-500';
+                        default: return 'text-white/50';
+                      }
+                    };
+                    
+                    const getStatusLabel = (status: string) => {
+                      switch (status) {
+                        case 'operational': return 'Operational';
+                        case 'degraded': return 'Degraded';
+                        case 'down': return 'Down';
+                        default: return 'Unknown';
+                      }
+                    };
+
+                    return (
+                      <div key={service.id} className="p-3 rounded-xl border bg-white/5 border-white/10">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {getIcon(service.id)}
+                            <span className="text-sm text-white">{service.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {service.status === 'operational' ? (
+                              <Wifi className={`w-3 h-3 ${getStatusColor(service.status)}`} />
+                            ) : service.status === 'down' ? (
+                              <WifiOff className={`w-3 h-3 ${getStatusColor(service.status)}`} />
+                            ) : (
+                              <AlertTriangle className={`w-3 h-3 ${getStatusColor(service.status)}`} />
+                            )}
+                            <span className={`text-xs ${getStatusColor(service.status)}`}>
+                              {getStatusLabel(service.status)}
+                            </span>
+                          </div>
+                        </div>
+                        {service.details && (
+                          <div className="mt-1 text-xs text-white/50 pl-6">
+                            {service.details}
+                            {service.latencyMs && <span className="ml-2 text-white/30">({service.latencyMs}ms)</span>}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Wifi className="w-3 h-3 text-green-500" />
-                        <span className="text-xs text-green-500">Active</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl border bg-white/5 border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4 text-blue-400" />
-                        <span className="text-sm text-white">Stripe Payments</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Wifi className="w-3 h-3 text-green-500" />
-                        <span className="text-xs text-green-500">Operational</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl border bg-white/5 border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-cyan-400" />
-                        <span className="text-sm text-white">Auth Service</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Wifi className="w-3 h-3 text-green-500" />
-                        <span className="text-xs text-green-500">Healthy</span>
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -497,29 +544,71 @@ export default function AdminDashboard() {
                   <Server className="w-5 h-5" />
                   System Health
                 </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-white/70">API Uptime</span>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-white">99.98%</span>
-                    </div>
+                {systemHealthLoading ? (
+                  <div className="text-center py-4 text-white/50 text-sm animate-pulse">
+                    Checking health...
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-white/70">Database Status</span>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-white">Healthy</span>
+                ) : (
+                  <div className="space-y-3">
+                    {systemHealthData?.services?.filter(s => 
+                      s.status !== 'not_configured' && ['postgresql', 'supabase', 'clickhouse'].includes(s.id)
+                    ).map((db) => (
+                      <div key={db.id} className="flex flex-col gap-1 p-2 rounded-lg bg-white/5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-white/70">{db.name}</span>
+                          <div className="flex items-center gap-2">
+                            {db.status === 'operational' ? (
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                            ) : db.status === 'down' ? (
+                              <XCircle className="w-4 h-4 text-red-500" />
+                            ) : (
+                              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                            )}
+                            <span className={`text-sm ${
+                              db.status === 'operational' ? 'text-green-400' : 
+                              db.status === 'down' ? 'text-red-400' : 'text-yellow-400'
+                            }`}>
+                              {db.status === 'operational' ? 'Healthy' : db.status === 'down' ? 'Down' : 'Degraded'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-white/40">
+                            {db.rowCount !== undefined ? `${db.rowCount.toLocaleString()} rows` : db.details}
+                          </span>
+                          {db.latencyMs && (
+                            <span className="text-white/30 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {db.latencyMs}ms
+                            </span>
+                          )}
+                        </div>
+                        {db.lastSync && (
+                          <div className="text-xs text-white/30 flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3" />
+                            Last sync: {new Date(db.lastSync).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    
+                    <div className="pt-2 border-t border-white/10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-white/70">Active Users</span>
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-cyan-500" />
+                          <span className="text-sm text-white">{activeUsers}</span>
+                        </div>
+                      </div>
                     </div>
+                    
+                    {systemHealthData?.timestamp && (
+                      <div className="text-xs text-white/30 text-center pt-2">
+                        Last check: {new Date(systemHealthData.timestamp).toLocaleTimeString()}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-white/70">Active Connections</span>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-white">{activeUsers} / 100</span>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

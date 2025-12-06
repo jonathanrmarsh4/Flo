@@ -5148,6 +5148,262 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get real-time system health status for all integrations
+  app.get("/api/admin/system-health", isAuthenticated, requireAdmin, async (req, res) => {
+    const services: Array<{
+      id: string;
+      name: string;
+      status: 'operational' | 'degraded' | 'down' | 'not_configured';
+      latencyMs?: number;
+      details?: string;
+      lastSync?: string;
+      rowCount?: number;
+    }> = [];
+
+    // Check PostgreSQL (Neon)
+    try {
+      const startPg = Date.now();
+      const pgResult = await db.execute(sql`SELECT 1 as health_check`);
+      const pgLatency = Date.now() - startPg;
+      
+      const userCount = await db.select({ count: sql<number>`count(*)` }).from(users);
+      
+      services.push({
+        id: 'postgresql',
+        name: 'PostgreSQL (Neon)',
+        status: 'operational',
+        latencyMs: pgLatency,
+        details: `${userCount[0]?.count || 0} users`,
+        rowCount: Number(userCount[0]?.count || 0),
+      });
+    } catch (e: any) {
+      services.push({
+        id: 'postgresql',
+        name: 'PostgreSQL (Neon)',
+        status: 'down',
+        details: e.message?.substring(0, 50),
+      });
+    }
+
+    // Check Supabase
+    try {
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const startSb = Date.now();
+      const supabase = getSupabaseClient();
+      const { count, error } = await supabase
+        .from('health_profiles')
+        .select('*', { count: 'exact', head: true });
+      const sbLatency = Date.now() - startSb;
+      
+      if (error) throw error;
+      
+      services.push({
+        id: 'supabase',
+        name: 'Supabase (Health DB)',
+        status: 'operational',
+        latencyMs: sbLatency,
+        details: `${count || 0} health profiles`,
+        rowCount: count || 0,
+      });
+    } catch (e: any) {
+      const isNotConfigured = e.message?.includes('SUPABASE_URL') || e.message?.includes('must be set');
+      services.push({
+        id: 'supabase',
+        name: 'Supabase (Health DB)',
+        status: isNotConfigured ? 'not_configured' : 'down',
+        details: isNotConfigured ? 'Not configured' : e.message?.substring(0, 50),
+      });
+    }
+
+    // Check ClickHouse
+    try {
+      const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
+      
+      if (!isClickHouseEnabled()) {
+        services.push({
+          id: 'clickhouse',
+          name: 'ClickHouse (ML Engine)',
+          status: 'not_configured',
+          details: 'Not configured',
+        });
+      } else {
+        const startCh = Date.now();
+        const result = await clickhouse.query<{ cnt: number }>(`
+          SELECT count() as cnt FROM flo_health.health_metrics
+        `, {});
+        const chLatency = Date.now() - startCh;
+        
+        const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
+        const metrics = clickhouseOrchestrator.getUsageMetrics();
+        const lastWindow = metrics.lastWindowStats;
+        
+        services.push({
+          id: 'clickhouse',
+          name: 'ClickHouse (ML Engine)',
+          status: 'operational',
+          latencyMs: chLatency,
+          details: `${(result[0]?.cnt || 0).toLocaleString()} metrics`,
+          rowCount: Number(result[0]?.cnt || 0),
+          lastSync: lastWindow?.completedAt?.toISOString() || lastWindow?.startedAt?.toISOString(),
+        });
+      }
+    } catch (e: any) {
+      services.push({
+        id: 'clickhouse',
+        name: 'ClickHouse (ML Engine)',
+        status: 'down',
+        details: e.message?.substring(0, 50),
+      });
+    }
+
+    // Check Stripe
+    try {
+      const stripeKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeKey) {
+        services.push({
+          id: 'stripe',
+          name: 'Stripe Payments',
+          status: 'not_configured',
+          details: 'Not configured',
+        });
+      } else {
+        const Stripe = (await import('stripe')).default;
+        const stripe = new Stripe(stripeKey);
+        const startStripe = Date.now();
+        const balance = await stripe.balance.retrieve();
+        const stripeLatency = Date.now() - startStripe;
+        
+        const availableBalance = balance.available.reduce((sum, b) => sum + b.amount, 0) / 100;
+        
+        services.push({
+          id: 'stripe',
+          name: 'Stripe Payments',
+          status: 'operational',
+          latencyMs: stripeLatency,
+          details: `$${availableBalance.toFixed(2)} available`,
+        });
+      }
+    } catch (e: any) {
+      services.push({
+        id: 'stripe',
+        name: 'Stripe Payments',
+        status: 'degraded',
+        details: e.message?.substring(0, 50),
+      });
+    }
+
+    // Check OpenAI
+    try {
+      const openaiKey = process.env.OPENAI_API_KEY;
+      if (!openaiKey) {
+        services.push({
+          id: 'openai',
+          name: 'OpenAI API',
+          status: 'not_configured',
+          details: 'Not configured',
+        });
+      } else {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const todayUsage = await db
+          .select({
+            count: sql<number>`count(*)`,
+            totalCost: sql<number>`COALESCE(SUM(${openaiUsageEvents.cost}), 0)`,
+          })
+          .from(openaiUsageEvents)
+          .where(sql`${openaiUsageEvents.createdAt} >= ${todayStart} AND ${openaiUsageEvents.model} LIKE 'gpt%'`);
+        
+        services.push({
+          id: 'openai',
+          name: 'OpenAI API (GPT-4)',
+          status: 'operational',
+          details: `${todayUsage[0]?.count || 0} calls today ($${(Number(todayUsage[0]?.totalCost) || 0).toFixed(2)})`,
+        });
+      }
+    } catch (e: any) {
+      services.push({
+        id: 'openai',
+        name: 'OpenAI API (GPT-4)',
+        status: 'degraded',
+        details: e.message?.substring(0, 50),
+      });
+    }
+
+    // Check Gemini
+    try {
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (!geminiKey) {
+        services.push({
+          id: 'gemini',
+          name: 'Gemini API',
+          status: 'not_configured',
+          details: 'Not configured',
+        });
+      } else {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        
+        const todayUsage = await db
+          .select({
+            count: sql<number>`count(*)`,
+            totalCost: sql<number>`COALESCE(SUM(${openaiUsageEvents.cost}), 0)`,
+          })
+          .from(openaiUsageEvents)
+          .where(sql`${openaiUsageEvents.createdAt} >= ${todayStart} AND ${openaiUsageEvents.model} LIKE 'gemini%'`);
+        
+        services.push({
+          id: 'gemini',
+          name: 'Gemini API',
+          status: 'operational',
+          details: `${todayUsage[0]?.count || 0} calls today ($${(Number(todayUsage[0]?.totalCost) || 0).toFixed(2)})`,
+        });
+      }
+    } catch (e: any) {
+      services.push({
+        id: 'gemini',
+        name: 'Gemini API',
+        status: 'degraded',
+        details: e.message?.substring(0, 50),
+      });
+    }
+
+    // Check Auth Service (Replit Auth)
+    try {
+      const sessionCount = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(sessions)
+        .where(sql`${sessions.expiresAt} > NOW()`);
+      
+      services.push({
+        id: 'auth',
+        name: 'Auth Service',
+        status: 'operational',
+        details: `${sessionCount[0]?.count || 0} active sessions`,
+      });
+    } catch (e: any) {
+      services.push({
+        id: 'auth',
+        name: 'Auth Service',
+        status: 'degraded',
+        details: e.message?.substring(0, 50),
+      });
+    }
+
+    const operationalCount = services.filter(s => s.status === 'operational').length;
+    const totalConfigured = services.filter(s => s.status !== 'not_configured').length;
+    
+    res.json({
+      services,
+      summary: {
+        operational: operationalCount,
+        total: totalConfigured,
+        allHealthy: operationalCount === totalConfigured,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  });
+
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
