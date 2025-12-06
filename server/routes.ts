@@ -4858,10 +4858,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No environmental data available" });
       }
       
+      // Flatten air quality data for frontend consumption
+      const aqData = cache.air_quality_data as any;
+      const flattenedAirQuality = aqData ? {
+        aqi: aqData.aqi,
+        aqiLabel: aqData.aqiLabel,
+        pm25: aqData.components?.pm2_5 ?? aqData.pm25 ?? 0,
+        pm10: aqData.components?.pm10 ?? aqData.pm10 ?? 0,
+        o3: aqData.components?.o3 ?? aqData.o3 ?? 0,
+        no2: aqData.components?.no2 ?? aqData.no2 ?? 0,
+        co: aqData.components?.co ?? aqData.co ?? 0,
+        so2: aqData.components?.so2 ?? aqData.so2 ?? 0,
+      } : null;
+      
       res.json({
         date: cache.date,
         weather: cache.weather_data,
-        airQuality: cache.air_quality_data,
+        airQuality: flattenedAirQuality,
         location: { lat: cache.latitude, lon: cache.longitude },
         fetchedAt: cache.fetched_at,
       });
