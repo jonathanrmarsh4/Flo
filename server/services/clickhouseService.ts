@@ -22,7 +22,6 @@ export function getClickHouseClient(): ClickHouseClient | null {
       url: host.startsWith('https://') ? host : `https://${host}`,
       username,
       password,
-      database: 'flo_health',
       request_timeout: 30000,
       compression: {
         request: true,
