@@ -28,6 +28,7 @@ interface ActivitySummary {
   hrv: number | null;
   hrvBaseline: number | null;
   hrvStatus: 'recovered' | 'ok' | 'strained';
+  strainScore: number | null;
   walkingSpeed: number | null;
   stepLength: number | null;
   doubleSupport: number | null;
@@ -242,6 +243,14 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
   const hrv = summary?.hrv;
   const hrvBaseline = summary?.hrvBaseline;
   const hrvStatus = summary?.hrvStatus ?? 'ok';
+  const strainScore = summary?.strainScore;
+  
+  // Movement quality metrics
+  const walkingSpeed = summary?.walkingSpeed;
+  const stepLength = summary?.stepLength;
+  const doubleSupport = summary?.doubleSupport;
+  const asymmetry = summary?.asymmetry;
+  const hasMovementData = walkingSpeed != null || stepLength != null || doubleSupport != null || asymmetry != null;
   
   return (
     <div className="space-y-4">
@@ -432,13 +441,40 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>
         
-        {hrv != null ? (
+        {hrv != null || strainScore != null ? (
           <>
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>HRV:</span>
-              <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{hrv}</span>
-              <span className={`text-lg ${isDark ? 'text-white/40' : 'text-gray-500'}`}>ms</span>
-              <span className={`ml-2 px-3 py-1 rounded-full text-xs ${
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              {hrv != null && (
+                <div>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>HRV</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{hrv}</span>
+                    <span className={`text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`}>ms</span>
+                  </div>
+                  {hrvBaseline && (
+                    <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      Baseline: {hrvBaseline} ms
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {strainScore != null && (
+                <div>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Strain</div>
+                  <div className="flex items-baseline gap-1">
+                    <span className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{strainScore.toFixed(1)}</span>
+                    <span className={`text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`}>/ 21</span>
+                  </div>
+                  <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    {strainScore < 7 ? 'Low' : strainScore < 14 ? 'Moderate' : 'High'}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`px-3 py-1 rounded-full text-xs ${
                 hrvStatus === 'recovered' 
                   ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
                   : hrvStatus === 'strained'
@@ -448,12 +484,6 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
                 {hrvStatus === 'recovered' ? 'Recovered' : hrvStatus === 'strained' ? 'Strained' : 'OK'}
               </span>
             </div>
-            
-            {hrvBaseline && (
-              <div className={`mb-4 text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                Baseline: {hrvBaseline} ms
-              </div>
-            )}
             
             <div className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${
@@ -471,7 +501,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           </>
         ) : (
           <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-            No HRV data available
+            No recovery data available
           </div>
         )}
       </button>
@@ -490,9 +520,49 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>
         
-        <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-          Movement quality metrics require additional HealthKit data
-        </div>
+        {hasMovementData ? (
+          <div className="grid grid-cols-2 gap-4">
+            {walkingSpeed != null && (
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Walking Speed</div>
+                <div className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {(walkingSpeed * 3.6).toFixed(1)} <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>km/h</span>
+                </div>
+              </div>
+            )}
+            
+            {stepLength != null && (
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Step Length</div>
+                <div className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {(stepLength * 100).toFixed(0)} <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>cm</span>
+                </div>
+              </div>
+            )}
+            
+            {doubleSupport != null && (
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Double Support</div>
+                <div className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {doubleSupport.toFixed(1)} <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>%</span>
+                </div>
+              </div>
+            )}
+            
+            {asymmetry != null && (
+              <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+                <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Gait Asymmetry</div>
+                <div className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  {asymmetry.toFixed(1)} <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>%</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            No movement quality data available. Walk with your iPhone to collect gait metrics.
+          </div>
+        )}
       </button>
     </div>
   );

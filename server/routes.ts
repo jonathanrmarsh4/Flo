@@ -7618,6 +7618,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? currentVo2 >= 50 ? 'Excellent' : currentVo2 >= 42 ? 'Good' : currentVo2 >= 35 ? 'Fair' : 'Below Average'
         : null;
       
+      // Calculate strain score (0-21 scale similar to WHOOP)
+      // Based on active energy, exercise minutes, and HRV deviation from baseline
+      let strainScore: number | null = null;
+      const activeEnergy = todayMetrics?.activeEnergyKcal ?? 0;
+      const exerciseMinutes = todayMetrics?.exerciseMinutes ?? 0;
+      
+      if (activeEnergy > 0 || exerciseMinutes > 0) {
+        // Strain components:
+        // 1. Energy expenditure (0-10): Scale based on typical range 0-1000 kcal
+        const energyComponent = Math.min(10, (activeEnergy / 1000) * 10);
+        // 2. Exercise time (0-7): Scale based on 0-60+ min of exercise
+        const exerciseComponent = Math.min(7, (exerciseMinutes / 60) * 7);
+        // 3. HRV impact (0-4): Lower HRV relative to baseline = higher strain
+        let hrvComponent = 0;
+        if (hrv != null && hrvBaseline != null && hrvBaseline > 0) {
+          const hrvRatio = hrv / hrvBaseline;
+          if (hrvRatio < 0.8) hrvComponent = 4;
+          else if (hrvRatio < 0.9) hrvComponent = 2;
+          else if (hrvRatio < 1.0) hrvComponent = 1;
+        }
+        strainScore = Math.round((energyComponent + exerciseComponent + hrvComponent) * 10) / 10;
+        strainScore = Math.min(21, strainScore); // Cap at 21
+      }
+      
       return res.json({
         date: targetDate,
         steps: todayMetrics?.stepsNormalized ?? todayMetrics?.stepsRawSum ?? null,
@@ -7637,11 +7661,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hrv,
         hrvBaseline,
         hrvStatus,
-        // Movement quality (computed from available data)
-        walkingSpeed: null, // Could be derived from distance/time if available
-        stepLength: null,
-        doubleSupport: null,
-        asymmetry: null,
+        strainScore,
+        // Movement quality (from HealthKit gait analysis)
+        walkingSpeed: todayMetrics?.walkingSpeedMs != null ? Math.round(todayMetrics.walkingSpeedMs * 100) / 100 : null,
+        stepLength: todayMetrics?.walkingStepLengthM != null ? Math.round(todayMetrics.walkingStepLengthM * 100) / 100 : null,
+        doubleSupport: todayMetrics?.walkingDoubleSupportPct != null ? Math.round(todayMetrics.walkingDoubleSupportPct * 10) / 10 : null,
+        asymmetry: todayMetrics?.walkingAsymmetryPct != null ? Math.round(todayMetrics.walkingAsymmetryPct * 10) / 10 : null,
         // User profile for personalization
         weight: profile?.weight ?? null,
         sex: profile?.sex ?? null,
@@ -7674,9 +7699,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const workouts = await healthRouter.getHealthkitWorkoutsByDate(userId, targetDate);
       
-      // Aggregate workout stats
-      const totalDuration = workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
+      // Aggregate workout stats - use duration field, or calculate from start/end if missing
+      const totalDuration = workouts.reduce((sum, w) => {
+        if (w.duration && w.duration > 0) {
+          return sum + w.duration;
+        }
+        // Fallback: calculate from start_date and end_date
+        if (w.start_date && w.end_date) {
+          const start = new Date(w.start_date).getTime();
+          const end = new Date(w.end_date).getTime();
+          const durationSeconds = (end - start) / 1000;
+          return sum + Math.max(0, durationSeconds);
+        }
+        return sum;
+      }, 0);
       const totalEnergy = workouts.reduce((sum, w) => sum + (w.total_energy_burned || 0), 0);
+      
+      // Helper to calculate workout duration with fallback
+      const getWorkoutDurationSeconds = (w: any): number => {
+        if (w.duration && w.duration > 0) {
+          return w.duration;
+        }
+        if (w.start_date && w.end_date) {
+          const start = new Date(w.start_date).getTime();
+          const end = new Date(w.end_date).getTime();
+          return Math.max(0, (end - start) / 1000);
+        }
+        return 0;
+      };
       
       // Get last workout details
       const lastWorkout = workouts.length > 0 ? workouts[0] : null;
@@ -7690,7 +7740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: lastWorkout.workout_type,
           distanceKm: lastWorkout.total_distance ? Math.round(lastWorkout.total_distance / 1000 * 10) / 10 : null,
           avgHeartRate: lastWorkout.average_heart_rate,
-          durationMinutes: Math.round((lastWorkout.duration || 0) / 60),
+          durationMinutes: Math.round(getWorkoutDurationSeconds(lastWorkout) / 60),
           energyKcal: lastWorkout.total_energy_burned ? Math.round(lastWorkout.total_energy_burned) : null,
         } : null,
         workouts: workouts.map(w => ({
@@ -7698,7 +7748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: w.workout_type,
           startDate: w.start_date,
           endDate: w.end_date,
-          durationMinutes: Math.round((w.duration || 0) / 60),
+          durationMinutes: Math.round(getWorkoutDurationSeconds(w) / 60),
           distanceKm: w.total_distance ? Math.round(w.total_distance / 1000 * 10) / 10 : null,
           energyKcal: w.total_energy_burned ? Math.round(w.total_energy_burned) : null,
           avgHeartRate: w.average_heart_rate,
