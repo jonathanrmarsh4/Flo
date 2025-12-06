@@ -88,6 +88,13 @@ interface UserHealthContext {
     steps: number | null;
     activeKcal: number | null;
   };
+  recentTrends: {
+    hrv: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
+    rhr: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
+    sleepMinutes: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
+    steps: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
+    activeKcal: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
+  } | null;
   healthkitMetrics: {
     weight: number | null;
     height: number | null;
@@ -248,6 +255,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         steps: null,
         activeKcal: null,
       },
+      recentTrends: null,
       healthkitMetrics: {
         weight: null,
         height: null,
@@ -485,8 +493,9 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     }
 
     // Fetch sleep data from sleepNights via router (routes to Supabase)
+    let sleepNightsData: Array<{ localDate?: string; totalSleepMin?: number | null }> = [];
     try {
-      const sleepNightsData = await getHealthRouterSleepNights(userId, 7);
+      sleepNightsData = await getHealthRouterSleepNights(userId, 10);
       if (sleepNightsData.length > 0) {
         const totalSleepMins = sleepNightsData
           .filter(s => s.totalSleepMin != null)
@@ -500,6 +509,91 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       }
     } catch (error) {
       logger.error('[FloOracle] Error fetching sleep nights from Supabase:', error);
+    }
+    
+    // Calculate recent trends (last 48h vs 7-day average) for real-time feedback
+    try {
+      if (supabaseEnabled) {
+        const extendedMetrics = await getSupabaseDailyMetrics(userId, 10);
+        
+        if (extendedMetrics.length >= 3) {
+          // Sort by date descending (most recent first)
+          const sortedMetrics = [...extendedMetrics].sort((a, b) => {
+            const dateA = a.local_date || '';
+            const dateB = b.local_date || '';
+            return dateB.localeCompare(dateA);
+          });
+          
+          // Recent = last 2 days, baseline = days 3-9 (remaining 7-day window)
+          const recentDays = sortedMetrics.slice(0, 2);
+          const baselineDays = sortedMetrics.slice(2, 9);
+          
+          const calcTrend = (
+            key: string,
+            threshold: number = 5
+          ): { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null } => {
+            const recentVals = recentDays.map(d => (d as any)[key]).filter((v): v is number => v != null && !isNaN(v));
+            const baselineVals = baselineDays.map(d => (d as any)[key]).filter((v): v is number => v != null && !isNaN(v));
+            
+            if (recentVals.length === 0 || baselineVals.length === 0) {
+              return { recent: null, avg7d: null, change: null, direction: null };
+            }
+            
+            const recentAvg = recentVals.reduce((a, b) => a + b, 0) / recentVals.length;
+            const baselineAvg = baselineVals.reduce((a, b) => a + b, 0) / baselineVals.length;
+            const changePercent = baselineAvg !== 0 ? ((recentAvg - baselineAvg) / baselineAvg) * 100 : 0;
+            
+            let direction: 'up' | 'down' | 'stable' = 'stable';
+            if (Math.abs(changePercent) >= threshold) {
+              direction = changePercent > 0 ? 'up' : 'down';
+            }
+            
+            return {
+              recent: Math.round(recentAvg),
+              avg7d: Math.round(baselineAvg),
+              change: Math.round(changePercent),
+              direction,
+            };
+          };
+          
+          // Calculate sleep trend from sleepNights data
+          let sleepTrend: typeof context.recentTrends extends null ? never : typeof context.recentTrends['sleepMinutes'] = { recent: null, avg7d: null, change: null, direction: null };
+          if (sleepNightsData.length >= 3) {
+            const sortedSleep = [...sleepNightsData].sort((a, b) => {
+              const dateA = a.localDate || '';
+              const dateB = b.localDate || '';
+              return dateB.localeCompare(dateA);
+            });
+            const recentSleep = sortedSleep.slice(0, 2).map(s => s.totalSleepMin).filter((v): v is number => v != null);
+            const baselineSleep = sortedSleep.slice(2, 9).map(s => s.totalSleepMin).filter((v): v is number => v != null);
+            
+            if (recentSleep.length > 0 && baselineSleep.length > 0) {
+              const recentAvg = recentSleep.reduce((a, b) => a + b, 0) / recentSleep.length;
+              const baselineAvg = baselineSleep.reduce((a, b) => a + b, 0) / baselineSleep.length;
+              const changePercent = baselineAvg !== 0 ? ((recentAvg - baselineAvg) / baselineAvg) * 100 : 0;
+              
+              sleepTrend = {
+                recent: Math.round(recentAvg),
+                avg7d: Math.round(baselineAvg),
+                change: Math.round(changePercent),
+                direction: Math.abs(changePercent) >= 5 ? (changePercent > 0 ? 'up' : 'down') : 'stable',
+              };
+            }
+          }
+          
+          context.recentTrends = {
+            hrv: calcTrend('hrv_ms', 10), // 10% threshold for HRV (more volatile)
+            rhr: calcTrend('resting_hr_bpm', 5),
+            sleepMinutes: sleepTrend,
+            steps: calcTrend('steps_raw_sum', 15), // 15% for steps (high daily variance)
+            activeKcal: calcTrend('active_energy_kcal', 15),
+          };
+          
+          logger.info(`[FloOracle] Calculated recent trends: HRV ${context.recentTrends.hrv.direction}, RHR ${context.recentTrends.rhr.direction}, Sleep ${context.recentTrends.sleepMinutes.direction}`);
+        }
+      }
+    } catch (error) {
+      logger.error('[FloOracle] Error calculating recent trends:', error);
     }
     
     if (supabaseEnabled) {
