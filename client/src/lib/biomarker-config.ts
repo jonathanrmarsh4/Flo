@@ -7,6 +7,7 @@ export interface BiomarkerConfig {
   category: string;
 }
 
+// Original detailed categories (used in BIOMARKER_CONFIGS)
 export const CATEGORIES = [
   'All',
   'Basic Panels',
@@ -20,6 +21,44 @@ export const CATEGORIES = [
   'Infectious Disease & General Health',
   'Longevity & Specialized Panels'
 ];
+
+// Simplified display categories for mobile-friendly pills
+export const DISPLAY_CATEGORIES = [
+  'All',
+  'Core Panel',
+  'Cardio & Lipids',
+  'Metabolic',
+  'Hormones',
+  'Nutrients',
+  'Inflammation',
+  'Liver & Kidney'
+];
+
+// Map original categories to simplified display categories
+export const CATEGORY_TO_DISPLAY: Record<string, string> = {
+  'Basic Panels': 'Core Panel',
+  'Lipid & Cardiovascular Health': 'Cardio & Lipids',
+  'Cardiometabolic & Advanced Panels': 'Cardio & Lipids',
+  'Hormonal & Endocrine': 'Hormones',
+  'Metabolic & Diabetes': 'Metabolic',
+  'Liver & Kidney Function': 'Liver & Kidney',
+  'Nutritional & Vitamin Status': 'Nutrients',
+  'Inflammation & Immune Markers': 'Inflammation',
+  'Infectious Disease & General Health': 'Core Panel',
+  'Longevity & Specialized Panels': 'Core Panel',
+};
+
+// Map simplified display categories back to original categories for filtering
+export const DISPLAY_TO_CATEGORIES: Record<string, string[]> = {
+  'All': [], // Special case - show all
+  'Core Panel': ['Basic Panels', 'Infectious Disease & General Health', 'Longevity & Specialized Panels'],
+  'Cardio & Lipids': ['Lipid & Cardiovascular Health', 'Cardiometabolic & Advanced Panels'],
+  'Metabolic': ['Metabolic & Diabetes'],
+  'Hormones': ['Hormonal & Endocrine'],
+  'Nutrients': ['Nutritional & Vitamin Status'],
+  'Inflammation': ['Inflammation & Immune Markers'],
+  'Liver & Kidney': ['Liver & Kidney Function'],
+};
 
 export const BIOMARKER_CONFIGS: Record<string, BiomarkerConfig> = {
   // Basic Panels

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw, AlertCircle } from 'lucide-react';
+import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw, AlertCircle, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
@@ -14,20 +14,9 @@ import {
   mapAnalysisToBiomarkerReadings, 
   type BiomarkerReading 
 } from '@/lib/flo-data-adapters';
-import { BIOMARKER_CONFIGS, CATEGORIES } from '@/lib/biomarker-config';
+import { BIOMARKER_CONFIGS, DISPLAY_CATEGORIES, DISPLAY_TO_CATEGORIES } from '@/lib/biomarker-config';
 import { queryClient } from '@/lib/queryClient';
 import { logger } from '@/lib/logger';
-
-const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
-  'All': 'All',
-  'Basic Panels': 'Basic',
-  'Lipid & Cardiovascular Health': 'Lipids & Cardio',
-  'Hormonal & Endocrine': 'Hormones',
-  'Metabolic & Diabetes': 'Metabolic',
-  'Liver & Kidney Function': 'Liver & Kidney',
-  'Nutritional & Vitamin Status': 'Nutrition',
-  'Inflammation & Immune Markers': 'Inflammation',
-};
 
 // Longevity-focused retest intervals (in months) based on clinical guidelines
 const RETEST_INTERVALS: Record<string, number | null> = {
@@ -194,7 +183,7 @@ export default function Dashboard() {
     return measurements.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
   };
 
-  // Filter by category
+  // Filter by display category (maps to one or more original categories)
   const filteredBiomarkerIds = trackedBiomarkerIds.filter(biomarkerId => {
     if (selectedCategory === 'All') return true;
     const measurements = measurementsByBiomarker.get(biomarkerId);
@@ -202,7 +191,11 @@ export default function Dashboard() {
     
     const biomarkerName = measurements[0].biomarkerName;
     const config = BIOMARKER_CONFIGS[biomarkerName];
-    return config && config.category === selectedCategory;
+    if (!config) return false;
+    
+    // Get the original categories that map to this display category
+    const originalCategories = DISPLAY_TO_CATEGORIES[selectedCategory] || [];
+    return originalCategories.includes(config.category);
   });
 
   // Count how many tests need retesting in the filtered view
@@ -267,6 +260,19 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <Link 
+                href="/diagnostics"
+                className={`flex flex-col items-center gap-0.5 p-2 rounded-lg transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                data-testid="link-diagnostics"
+                aria-label="Diagnostics"
+              >
+                <Activity className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                <span className={`text-[10px] ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                  Activity
+                </span>
+              </Link>
+              <Link 
                 href="/history"
                 className={`p-2 rounded-lg transition-colors inline-flex items-center justify-center ${
                   isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
@@ -287,7 +293,7 @@ export default function Dashboard() {
       }`}>
         <div className="px-3 py-2.5">
           <div className="flex gap-1.5 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory">
-            {CATEGORIES.map(category => (
+            {DISPLAY_CATEGORIES.map(category => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
@@ -302,7 +308,7 @@ export default function Dashboard() {
                 `}
                 data-testid={`filter-category-${category.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                {CATEGORY_DISPLAY_NAMES[category] || category}
+                {category}
               </button>
             ))}
           </div>
