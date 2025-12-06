@@ -109,7 +109,7 @@ export async function initializeClickHouse(): Promise<boolean> {
           related_metrics Nullable(String),
           model_confidence Float64 DEFAULT 0.0,
           resolved_at Nullable(DateTime64(3)),
-          outcome Nullable(LowCardinality(String)),
+          outcome LowCardinality(Nullable(String)),
           user_feeling Nullable(UInt8),
           feedback_text Nullable(String)
         )
