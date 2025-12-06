@@ -432,15 +432,41 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     const supabaseEnabled = isSupabaseHealthEnabled();
     logger.info(`[FloOracle] Supabase health enabled: ${supabaseEnabled}`);
 
+    // Fetch sleep data from sleepNights via router (routes to Supabase) - fetch 10 days for trend analysis
+    let sleepNightsData: Array<{ sleepDate?: string; totalSleepMin?: number | null }> = [];
+    try {
+      sleepNightsData = await getHealthRouterSleepNights(userId, 10);
+      if (sleepNightsData.length > 0) {
+        // Calculate 7-day average for sleep (take first 7 days since data is already DESC ordered)
+        const sleepFor7Days = sleepNightsData.slice(0, 7);
+        const totalSleepMins = sleepFor7Days
+          .filter(s => s.totalSleepMin != null)
+          .map(s => s.totalSleepMin as number);
+        if (totalSleepMins.length > 0) {
+          const avgSleep = totalSleepMins.reduce((a, b) => a + b, 0) / totalSleepMins.length;
+          const hours = Math.floor(avgSleep / 60);
+          const mins = Math.round(avgSleep % 60);
+          context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
+        }
+      }
+    } catch (error) {
+      logger.error('[FloOracle] Error fetching sleep nights from Supabase:', error);
+    }
+
+    // Fetch 10 days of daily metrics once - reuse for both 7-day averages and trend calculation
+    let extendedMetrics: Awaited<ReturnType<typeof getSupabaseDailyMetrics>> = [];
+    
     if (supabaseEnabled) {
-      // Fetch wearable averages from Supabase user_daily_metrics
       try {
-        const supabaseWearableMetrics = await getSupabaseDailyMetrics(userId, 7);
+        // Data comes pre-sorted DESC (most recent first) from Supabase
+        extendedMetrics = await getSupabaseDailyMetrics(userId, 10);
         
-        if (supabaseWearableMetrics.length > 0) {
-          // Calculate averages for wearable metrics
-          const avgMetricWearable = (key: keyof typeof supabaseWearableMetrics[0]) => {
-            const values = supabaseWearableMetrics
+        if (extendedMetrics.length > 0) {
+          // Use first 7 days for 7-day averages
+          const metricsFor7Days = extendedMetrics.slice(0, 7);
+          
+          const avgMetricWearable = (key: keyof typeof metricsFor7Days[0]) => {
+            const values = metricsFor7Days
               .map(m => m[key] as number | null | undefined)
               .filter((v): v is number => v != null && !isNaN(v));
             return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
@@ -451,23 +477,24 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
           context.wearableAvg7Days.steps = avgMetricWearable('steps_raw_sum') ? Math.round(avgMetricWearable('steps_raw_sum')!) : null;
           context.wearableAvg7Days.activeKcal = avgMetricWearable('active_energy_kcal') ? Math.round(avgMetricWearable('active_energy_kcal')!) : null;
           
-          // Also calculate sleep from Supabase
-          const avgSleepHours = avgMetricWearable('sleep_hours');
-          if (avgSleepHours) {
-            const hours = Math.floor(avgSleepHours);
-            const mins = Math.round((avgSleepHours - hours) * 60);
-            context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
+          // Also calculate sleep from daily metrics if not already set
+          if (!context.wearableAvg7Days.sleep) {
+            const avgSleepHours = avgMetricWearable('sleep_hours');
+            if (avgSleepHours) {
+              const hours = Math.floor(avgSleepHours);
+              const mins = Math.round((avgSleepHours - hours) * 60);
+              context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
+            }
           }
           
-          logger.info(`[FloOracle] Fetched wearable averages from Supabase (${supabaseWearableMetrics.length} days) - steps: ${context.wearableAvg7Days.steps}, hrv: ${context.wearableAvg7Days.hrv}`);
+          logger.info(`[FloOracle] Fetched wearable averages from Supabase (${metricsFor7Days.length} days) - steps: ${context.wearableAvg7Days.steps}, hrv: ${context.wearableAvg7Days.hrv}`);
         }
       } catch (error) {
         logger.error('[FloOracle] Error fetching Supabase wearable metrics, falling back to Neon:', error);
-        // Fall through to Neon query below
       }
     }
     
-    // If Supabase not enabled OR Supabase query didn't populate data, fall back to Neon
+    // Fallback to Neon if Supabase not enabled or didn't populate data
     if (!supabaseEnabled || context.wearableAvg7Days.steps === null) {
       const wearableData = await db
         .select({
@@ -491,86 +518,65 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         context.wearableAvg7Days.activeKcal = wearableData[0].avgActiveKcal ? Math.round(wearableData[0].avgActiveKcal) : null;
       }
     }
-
-    // Fetch sleep data from sleepNights via router (routes to Supabase)
-    let sleepNightsData: Array<{ localDate?: string; totalSleepMin?: number | null }> = [];
-    try {
-      sleepNightsData = await getHealthRouterSleepNights(userId, 10);
-      if (sleepNightsData.length > 0) {
-        const totalSleepMins = sleepNightsData
-          .filter(s => s.totalSleepMin != null)
-          .map(s => s.totalSleepMin as number);
-        if (totalSleepMins.length > 0) {
-          const avgSleep = totalSleepMins.reduce((a, b) => a + b, 0) / totalSleepMins.length;
-          const hours = Math.floor(avgSleep / 60);
-          const mins = Math.round(avgSleep % 60);
-          context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
-        }
-      }
-    } catch (error) {
-      logger.error('[FloOracle] Error fetching sleep nights from Supabase:', error);
-    }
     
-    // Calculate recent trends (last 48h vs 7-day average) for real-time feedback
+    // Calculate recent trends (last 48h vs 7-day baseline) for real-time feedback
+    // Reuse extendedMetrics from above - data is already DESC ordered (most recent first)
     try {
-      if (supabaseEnabled) {
-        const extendedMetrics = await getSupabaseDailyMetrics(userId, 10);
+      if (supabaseEnabled && extendedMetrics.length >= 3) {
+        // Recent = first 2 days (most recent), baseline = days 3-9 (older 7-day window)
+        const recentDays = extendedMetrics.slice(0, 2);
+        const baselineDays = extendedMetrics.slice(2, 9);
         
-        if (extendedMetrics.length >= 3) {
-          // Sort by date descending (most recent first)
-          const sortedMetrics = [...extendedMetrics].sort((a, b) => {
-            const dateA = a.local_date || '';
-            const dateB = b.local_date || '';
-            return dateB.localeCompare(dateA);
-          });
+        const calcTrend = (
+          key: string,
+          threshold: number = 5
+        ): { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null } => {
+          const recentVals = recentDays.map(d => (d as any)[key]).filter((v): v is number => v != null && !isNaN(v));
+          const baselineVals = baselineDays.map(d => (d as any)[key]).filter((v): v is number => v != null && !isNaN(v));
           
-          // Recent = last 2 days, baseline = days 3-9 (remaining 7-day window)
-          const recentDays = sortedMetrics.slice(0, 2);
-          const baselineDays = sortedMetrics.slice(2, 9);
+          // Require at least 1 recent and 2 baseline values for meaningful trend
+          if (recentVals.length === 0 || baselineVals.length < 2) {
+            return { recent: null, avg7d: null, change: null, direction: null };
+          }
           
-          const calcTrend = (
-            key: string,
-            threshold: number = 5
-          ): { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null } => {
-            const recentVals = recentDays.map(d => (d as any)[key]).filter((v): v is number => v != null && !isNaN(v));
-            const baselineVals = baselineDays.map(d => (d as any)[key]).filter((v): v is number => v != null && !isNaN(v));
-            
-            if (recentVals.length === 0 || baselineVals.length === 0) {
-              return { recent: null, avg7d: null, change: null, direction: null };
-            }
-            
-            const recentAvg = recentVals.reduce((a, b) => a + b, 0) / recentVals.length;
-            const baselineAvg = baselineVals.reduce((a, b) => a + b, 0) / baselineVals.length;
-            const changePercent = baselineAvg !== 0 ? ((recentAvg - baselineAvg) / baselineAvg) * 100 : 0;
-            
-            let direction: 'up' | 'down' | 'stable' = 'stable';
-            if (Math.abs(changePercent) >= threshold) {
-              direction = changePercent > 0 ? 'up' : 'down';
-            }
-            
-            return {
-              recent: Math.round(recentAvg),
-              avg7d: Math.round(baselineAvg),
-              change: Math.round(changePercent),
-              direction,
-            };
+          const recentAvg = recentVals.reduce((a, b) => a + b, 0) / recentVals.length;
+          const baselineAvg = baselineVals.reduce((a, b) => a + b, 0) / baselineVals.length;
+          
+          // Can't compute meaningful percentage when baseline is 0 or negligible
+          if (baselineAvg === 0 || baselineAvg < 0.01) {
+            return { recent: Math.round(recentAvg), avg7d: null, change: null, direction: null };
+          }
+          
+          const changePercent = ((recentAvg - baselineAvg) / baselineAvg) * 100;
+          
+          let direction: 'up' | 'down' | 'stable' = 'stable';
+          if (Math.abs(changePercent) >= threshold) {
+            direction = changePercent > 0 ? 'up' : 'down';
+          }
+          
+          return {
+            recent: Math.round(recentAvg),
+            avg7d: Math.round(baselineAvg),
+            change: Math.round(changePercent),
+            direction,
           };
+        };
+        
+        // Calculate sleep trend from sleepNights data (already DESC ordered from Supabase)
+        let sleepTrend: typeof context.recentTrends extends null ? never : typeof context.recentTrends['sleepMinutes'] = { recent: null, avg7d: null, change: null, direction: null };
+        if (sleepNightsData.length >= 4) {
+          // Data is already DESC ordered - slice directly
+          const recentSleep = sleepNightsData.slice(0, 2).map(s => s.totalSleepMin).filter((v): v is number => v != null);
+          const baselineSleep = sleepNightsData.slice(2, 9).map(s => s.totalSleepMin).filter((v): v is number => v != null);
           
-          // Calculate sleep trend from sleepNights data
-          let sleepTrend: typeof context.recentTrends extends null ? never : typeof context.recentTrends['sleepMinutes'] = { recent: null, avg7d: null, change: null, direction: null };
-          if (sleepNightsData.length >= 3) {
-            const sortedSleep = [...sleepNightsData].sort((a, b) => {
-              const dateA = a.localDate || '';
-              const dateB = b.localDate || '';
-              return dateB.localeCompare(dateA);
-            });
-            const recentSleep = sortedSleep.slice(0, 2).map(s => s.totalSleepMin).filter((v): v is number => v != null);
-            const baselineSleep = sortedSleep.slice(2, 9).map(s => s.totalSleepMin).filter((v): v is number => v != null);
+          // Require at least 1 recent and 2 baseline values for meaningful trend
+          if (recentSleep.length > 0 && baselineSleep.length >= 2) {
+            const recentAvg = recentSleep.reduce((a, b) => a + b, 0) / recentSleep.length;
+            const baselineAvg = baselineSleep.reduce((a, b) => a + b, 0) / baselineSleep.length;
             
-            if (recentSleep.length > 0 && baselineSleep.length > 0) {
-              const recentAvg = recentSleep.reduce((a, b) => a + b, 0) / recentSleep.length;
-              const baselineAvg = baselineSleep.reduce((a, b) => a + b, 0) / baselineSleep.length;
-              const changePercent = baselineAvg !== 0 ? ((recentAvg - baselineAvg) / baselineAvg) * 100 : 0;
+            // Can't compute meaningful percentage when baseline is 0 or negligible
+            if (baselineAvg > 0) {
+              const changePercent = ((recentAvg - baselineAvg) / baselineAvg) * 100;
               
               sleepTrend = {
                 recent: Math.round(recentAvg),
@@ -580,17 +586,17 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
               };
             }
           }
-          
-          context.recentTrends = {
-            hrv: calcTrend('hrv_ms', 10), // 10% threshold for HRV (more volatile)
-            rhr: calcTrend('resting_hr_bpm', 5),
-            sleepMinutes: sleepTrend,
-            steps: calcTrend('steps_raw_sum', 15), // 15% for steps (high daily variance)
-            activeKcal: calcTrend('active_energy_kcal', 15),
-          };
-          
-          logger.info(`[FloOracle] Calculated recent trends: HRV ${context.recentTrends.hrv.direction}, RHR ${context.recentTrends.rhr.direction}, Sleep ${context.recentTrends.sleepMinutes.direction}`);
         }
+        
+        context.recentTrends = {
+          hrv: calcTrend('hrv_ms', 10), // 10% threshold for HRV (more volatile)
+          rhr: calcTrend('resting_hr_bpm', 5),
+          sleepMinutes: sleepTrend,
+          steps: calcTrend('steps_raw_sum', 15), // 15% for steps (high daily variance)
+          activeKcal: calcTrend('active_energy_kcal', 15),
+        };
+        
+        logger.info(`[FloOracle] Calculated recent trends: HRV ${context.recentTrends.hrv.direction}, RHR ${context.recentTrends.rhr.direction}, Sleep ${context.recentTrends.sleepMinutes.direction}`);
       }
     } catch (error) {
       logger.error('[FloOracle] Error calculating recent trends:', error);
@@ -1152,6 +1158,45 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     if (wearable.steps) parts.push(`Steps ${wearable.steps}`);
     if (wearable.activeKcal) parts.push(`Active kcal ${wearable.activeKcal}`);
     lines.push(`7-day wearable avg: ${parts.join(', ')}`);
+  }
+
+  // Add recent trends section (last 48h vs 7-day baseline)
+  const trends = context.recentTrends;
+  if (trends) {
+    const significantTrends: string[] = [];
+    
+    const formatTrend = (
+      name: string,
+      trend: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null },
+      unit: string,
+      goodDirection: 'up' | 'down' | 'either' = 'either'
+    ): string | null => {
+      if (trend.direction === null || trend.direction === 'stable') return null;
+      const arrow = trend.direction === 'up' ? '+' : '';
+      const emoji = goodDirection === 'either' ? '' : 
+        (trend.direction === goodDirection ? ' (good)' : ' (watch)');
+      return `${name}: ${trend.recent}${unit} (${arrow}${trend.change}% vs baseline)${emoji}`;
+    };
+    
+    const hrvTrend = formatTrend('HRV', trends.hrv, ' ms', 'up');
+    const rhrTrend = formatTrend('RHR', trends.rhr, ' bpm', 'down');
+    const sleepTrend = trends.sleepMinutes.direction && trends.sleepMinutes.direction !== 'stable' ? 
+      `Sleep: ${Math.round((trends.sleepMinutes.recent || 0) / 60 * 10) / 10}h (${trends.sleepMinutes.change! > 0 ? '+' : ''}${trends.sleepMinutes.change}% vs baseline)${trends.sleepMinutes.direction === 'up' ? ' (good)' : ' (watch)'}` : null;
+    const stepsTrend = formatTrend('Steps', trends.steps, '', 'up');
+    const kcalTrend = formatTrend('Active kcal', trends.activeKcal, '', 'up');
+    
+    if (hrvTrend) significantTrends.push(hrvTrend);
+    if (rhrTrend) significantTrends.push(rhrTrend);
+    if (sleepTrend) significantTrends.push(sleepTrend);
+    if (stepsTrend) significantTrends.push(stepsTrend);
+    if (kcalTrend) significantTrends.push(kcalTrend);
+    
+    if (significantTrends.length > 0) {
+      lines.push('');
+      lines.push('RECENT TRENDS (last 48h vs 7-day baseline):');
+      significantTrends.forEach(t => lines.push(`  ${t}`));
+      logger.info(`[FloOracle] Added ${significantTrends.length} significant trends to context`);
+    }
   }
 
   // Add all additional HealthKit metrics
