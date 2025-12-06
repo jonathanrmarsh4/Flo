@@ -1,0 +1,134 @@
+   </div>
+            );
+          })}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+interface TrendChartProps {
+  history: Reading[];
+  min: number;
+  max: number;
+  biomarker: string;
+  isDark: boolean;
+}
+
+function TrendChart({ history, min, max, biomarker, isDark }: TrendChartProps) {
+  const chartWidth = 300;
+  const chartHeight = 80;
+  const padding = { top: 10, bottom: 10, left: 0, right: 0 };
+  const innerHeight = chartHeight - padding.top - padding.bottom;
+  
+  const allValues = history.map(r => r.value);
+  const minValue = Math.min(...allValues, min);
+  const maxValue = Math.max(...allValues, max);
+  const valueRange = maxValue - minValue || 1;
+  
+  const points = history.map((reading, index) => {
+    const x = (index / Math.max(history.length - 1, 1)) * chartWidth;
+    const y = padding.top + (1 - (reading.value - minValue) / valueRange) * innerHeight;
+    const inRange = reading.value >= min && reading.value <= max;
+    return { x, y, value: reading.value, inRange };
+  });
+  
+  const optimalMinY = padding.top + (1 - (min - minValue) / valueRange) * innerHeight;
+  const optimalMaxY = padding.top + (1 - (max - minValue) / valueRange) * innerHeight;
+  const bandHeight = Math.max(1, optimalMinY - optimalMaxY);
+  
+  return (
+    <div className={`mt-4 pt-4 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+      <div className={`text-xs mb-2 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Trend Over Time</div>
+      <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="overflow-visible">
+        <defs>
+          <linearGradient id={`gradient-${biomarker}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0.05" />
+          </linearGradient>
+        </defs>
+        
+        <rect
+          x={0}
+          y={optimalMaxY}
+          width={chartWidth}
+          height={bandHeight}
+          fill={`url(#gradient-${biomarker})`}
+          rx={3}
+        />
+        
+        <line
+          x1={0}
+          y1={optimalMaxY}
+          x2={chartWidth}
+          y2={optimalMaxY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          opacity={0.3}
+        />
+        <line
+          x1={0}
+          y1={optimalMinY}
+          x2={chartWidth}
+          y2={optimalMinY}
+          stroke="#10b981"
+          strokeWidth={1}
+          strokeDasharray="3 3"
+          opacity={0.3}
+        />
+        
+        {points.map((point, index) => {
+          if (index === 0) return null;
+          const prevPoint = points[index - 1];
+          const isSegmentInRange = point.inRange && prevPoint.inRange;
+          
+          return (
+            <line
+              key={`line-${index}`}
+              x1={prevPoint.x}
+              y1={prevPoint.y}
+              x2={point.x}
+              y2={point.y}
+              stroke={isSegmentInRange ? '#10b981' : '#ef4444'}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              opacity={0.9}
+            />
+          );
+        })}
+        
+        {points.map((point, index) => (
+          <g key={`point-${index}`}>
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={5}
+              fill={point.inRange ? '#10b981' : '#ef4444'}
+              opacity={0.2}
+            />
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={3}
+              fill={point.inRange ? '#10b981' : '#ef4444'}
+              stroke={point.inRange ? '#10b981' : '#ef4444'}
+              strokeWidth={1.5}
+            />
+          </g>
+        ))}
+      </svg>
+      
+      <div className="flex items-center gap-4 mt-3 text-xs">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          <span className={isDark ? 'text-white/50' : 'text-gray-500'}>In Range</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-red-500"></div>
+          <span className={isDark ? 'text-white/50' : 'text-gray-500'}>Out of Range</span>
+        </div>
+      </div>
+    </div>
+  );
+}
