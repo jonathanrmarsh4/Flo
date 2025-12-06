@@ -3,7 +3,6 @@ import { useMutation } from '@tanstack/react-query';
 import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, MessageSquare, Send, Sparkles } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -221,18 +220,18 @@ export function AdminSIE() {
   };
 
   return (
-    <Card className="border-purple-500/30 bg-gradient-to-br from-purple-900/20 to-pink-900/20">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
+    <div className="rounded-2xl border bg-white/5 border-white/10 overflow-hidden">
+      <div className="p-6 border-b border-white/10">
+        <div className="flex items-center gap-2 mb-2">
           <Brain className="w-5 h-5 text-purple-400" />
-          Self-Improvement Engine (SIE)
-        </CardTitle>
-        <CardDescription className="text-white/60">
+          <h3 className="text-lg text-white">Self-Improvement Engine (SIE)</h3>
+        </div>
+        <p className="text-sm text-white/60">
           Unrestricted AI analysis of Flō's data landscape. Run an analysis, then brainstorm and prioritize together.
-        </CardDescription>
-      </CardHeader>
+        </p>
+      </div>
       
-      <CardContent className="space-y-4">
+      <div className="p-6 space-y-4">
         <div className="flex items-center justify-between p-4 rounded-xl border bg-white/5 border-white/10">
           <div className="flex items-center gap-3">
             <Volume2 className="w-5 h-5 text-purple-400" />
@@ -453,7 +452,7 @@ export function AdminSIE() {
             <strong>SIE v1.1:</strong> Uses Gemini 2.5 Pro with unrestricted prompting. Run an analysis first, then use the brainstorming chat to discuss priorities, evaluate feasibility, and plan what to build next.
           </p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

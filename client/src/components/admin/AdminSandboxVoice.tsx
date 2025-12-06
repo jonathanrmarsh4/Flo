@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, MessageSquare, Sparkles, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGeminiLiveVoice } from '@/hooks/useGeminiLiveVoice';
 import { useToast } from '@/hooks/use-toast';
@@ -111,17 +110,17 @@ export function AdminSandboxVoice() {
   };
 
   return (
-    <Card className="border-amber-500/30 bg-gradient-to-br from-amber-950/20 to-orange-950/20">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-amber-400">
-          <Sparkles className="w-5 h-5" />
-          AI Sandbox Voice
-        </CardTitle>
-        <CardDescription className="text-amber-200/60">
+    <div className="rounded-2xl border bg-white/5 border-white/10 overflow-hidden">
+      <div className="p-6 border-b border-white/10">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-5 h-5 text-amber-400" />
+          <h3 className="text-lg text-amber-400">AI Sandbox Voice</h3>
+        </div>
+        <p className="text-sm text-white/60">
           Unrestricted AI with full health data access. Uses female voice (Kore) and saves to brain memory.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </p>
+      </div>
+      <div className="p-6 space-y-4">
         <div className="flex flex-wrap gap-3">
           <Button
             onClick={handleToggleConnection}
@@ -256,7 +255,7 @@ export function AdminSandboxVoice() {
             Voice: Kore (female, confident)
           </p>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
