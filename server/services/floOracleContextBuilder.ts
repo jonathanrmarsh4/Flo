@@ -14,6 +14,7 @@ import {
   healthkitSamples,
   healthkitWorkouts,
   actionPlanItems,
+  floChatMessages,
 } from '@shared/schema';
 import { eq, desc, and, gte, sql } from 'drizzle-orm';
 import { logger } from '../logger';
@@ -1555,5 +1556,94 @@ export async function getActiveActionPlanItems(userId: string): Promise<string> 
   } catch (error) {
     logger.error('[FloOracle] Error retrieving action plan items:', error);
     return '';
+  }
+}
+
+/**
+ * Get recent conversation history from past Flō Oracle sessions
+ * Returns formatted context for conversation continuity
+ */
+export async function getRecentChatHistory(userId: string, limit: number = 20): Promise<string> {
+  try {
+    const recentMessages = await db
+      .select({
+        id: floChatMessages.id,
+        sender: floChatMessages.sender,
+        message: floChatMessages.message,
+        sessionId: floChatMessages.sessionId,
+        createdAt: floChatMessages.createdAt,
+      })
+      .from(floChatMessages)
+      .where(eq(floChatMessages.userId, userId))
+      .orderBy(desc(floChatMessages.createdAt))
+      .limit(limit);
+    
+    if (recentMessages.length === 0) {
+      return '';
+    }
+    
+    // Reverse to get chronological order (oldest first)
+    const chronologicalMessages = recentMessages.reverse();
+    
+    // Group messages by session for context
+    const sessionMessages = new Map<string, typeof chronologicalMessages>();
+    for (const msg of chronologicalMessages) {
+      const sessionKey = msg.sessionId || 'default';
+      if (!sessionMessages.has(sessionKey)) {
+        sessionMessages.set(sessionKey, []);
+      }
+      sessionMessages.get(sessionKey)!.push(msg);
+    }
+    
+    const lines = [
+      '',
+      'RECENT CONVERSATION HISTORY (what you and the user have discussed recently):',
+    ];
+    
+    // Format messages, showing context of recent conversations
+    for (const [sessionId, messages] of sessionMessages) {
+      if (messages.length > 0) {
+        const sessionDate = messages[0].createdAt;
+        const timeAgo = formatTimeAgo(sessionDate);
+        
+        lines.push(`\n--- Session from ${timeAgo} ---`);
+        
+        for (const msg of messages) {
+          const speaker = msg.sender === 'user' ? 'User' : 'Flō';
+          // Truncate long messages to save context space
+          const truncatedMsg = msg.message.length > 300 
+            ? msg.message.substring(0, 300) + '...' 
+            : msg.message;
+          lines.push(`${speaker}: ${truncatedMsg}`);
+        }
+      }
+    }
+    
+    logger.info(`[FloOracle] Retrieved ${chronologicalMessages.length} recent chat messages for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving chat history:', error);
+    return '';
+  }
+}
+
+/**
+ * Helper function to format time ago
+ */
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffMins < 60) {
+    return diffMins <= 1 ? 'just now' : `${diffMins} minutes ago`;
+  } else if (diffHours < 24) {
+    return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+  } else if (diffDays < 7) {
+    return diffDays === 1 ? 'yesterday' : `${diffDays} days ago`;
+  } else {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 }
