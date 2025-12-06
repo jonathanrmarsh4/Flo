@@ -107,3 +107,4 @@ integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_object_storag
 [userenv.shared]
 SUPABASE_HEALTH_ENABLED = "true"
 ENABLE_DAILY_REMINDERS = "true"
+GOOGLE_CLOUD_PROJECT = "get-flo"
