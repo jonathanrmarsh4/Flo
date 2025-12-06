@@ -58,19 +58,21 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - Backend service: `server/services/openWeatherService.ts`
   - Frontend service: `client/src/lib/locationService.ts`
   - API: POST `/api/location/update` for iOS location sync
-- **BigQuery Correlation Engine:** Scalable ML-powered health correlation system for personalized anomaly detection and predictive insights. Features:
-  - **BigQuery Data Warehouse:** Stores health_metrics, biomarkers, life_events, user_feedback, environmental_data, cgm_readings, baselines, detected_anomalies, and correlation_insights tables with time partitioning and clustering
-  - **Streaming Sync Service:** Syncs Supabase health data to BigQuery on each HealthKit ingestion (`bigQuerySyncService.ts`)
-  - **Baseline Engine:** Calculates rolling 7/14/30-day baselines with mean, std dev, percentiles per metric per user
+- **ClickHouse ML Correlation Engine:** Scalable ML-powered health correlation system for personalized anomaly detection and predictive insights. Uses ClickHouse Cloud (AWS Sydney region) for high-performance analytics. Features:
+  - **ClickHouse Data Warehouse:** Stores health_metrics, baselines, detected_anomalies, and feedback_outcomes tables with MergeTree engines optimized for time-series analytics
+  - **Data Sync Service:** Syncs Supabase health data to ClickHouse on-demand from admin dashboard (`clickhouseBaselineEngine.syncHealthDataFromSupabase`)
+  - **Baseline Engine:** Calculates rolling 7/14/30-day baselines using ClickHouse aggregate functions (mean, std dev, percentiles) per metric per user
   - **Anomaly Detection:** Z-score and percentage deviation detection with metric-specific thresholds (15% for HRV, 8% for RHR, 50% for wrist temp deviation)
   - **Multi-Metric Pattern Recognition:** Detects combined patterns like "illness_precursor" (elevated wrist temp + respiratory rate + RHR + low HRV) and "recovery_deficit" (low HRV + poor sleep)
   - **Dynamic Feedback Generator:** LLM-powered (Gemini 2.0 Flash) contextual question generation based on detected anomalies ("Your overnight temperature is elevated - how are you feeling?")
-  - **Typed Feedback Collection System:** Database-backed pending feedback storage with 48-hour TTL. Supports 4 question types (scale_1_10, yes_no, multiple_choice, open_ended) with type-specific validation and BigQuery columns (response_value, response_boolean, response_option, response_text). Push notifications trigger in-app survey modal with ML-generated questions.
-  - **Correlation Insights Integration:** Injects BigQuery insights into Flō Oracle context for AI awareness of detected patterns
-  - **Admin Testing Tools:** Endpoints to manually trigger analysis, simulate anomaly scenarios (illness/recovery), backfill user data, and view insights
-  - Backend services: `bigQueryService.ts`, `bigQuerySyncService.ts`, `bigQueryBaselineEngine.ts`, `dynamicFeedbackGenerator.ts`, `correlationInsightService.ts`
-  - Admin API: POST `/api/admin/correlation/analyze`, POST `/api/admin/correlation/simulate`, POST `/api/admin/correlation/backfill`, GET `/api/admin/correlation/insights/:userId`
-  - Future: CGM data integration, predictive alerting, closed-loop model learning from feedback outcomes
+  - **Typed Feedback Collection System:** Supports 4 question types (scale_1_10, yes_no, multiple_choice, open_ended) with feedback outcomes stored in ClickHouse for ML model improvement
+  - **ML Learning Loop:** Records feedback outcomes to improve anomaly detection thresholds over time
+  - **Correlation Insights Integration:** Injects ClickHouse insights into Flō Oracle context for AI awareness of detected patterns
+  - **Admin Testing Tools:** Endpoints to initialize tables, health check, sync data, run ML analysis, simulate anomaly scenarios (illness/recovery), and record feedback
+  - Backend services: `clickhouseService.ts`, `clickhouseBaselineEngine.ts`, `dynamicFeedbackGenerator.ts`, `correlationInsightService.ts`
+  - Admin API: POST `/api/admin/clickhouse/init`, GET `/api/admin/clickhouse/health`, POST `/api/admin/clickhouse/sync`, POST `/api/admin/clickhouse/analyze`, POST `/api/admin/clickhouse/simulate`, POST `/api/admin/clickhouse/feedback`, GET `/api/admin/clickhouse/insights/:userId`
+  - Environment secrets: CLICKHOUSE_HOST, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD (stored in Replit Secrets)
+  - Future: Automatic sync on HealthKit ingestion, CGM data integration, predictive alerting, closed-loop model learning from feedback outcomes
 
 ## External Dependencies
 
@@ -85,3 +87,4 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights, Gemini 2.5 Flash for daily reminders and Flō Oracle text chat, Gemini Live API (gemini-2.5-flash-native-audio) for Flō Oracle voice conversations.
 - **ElevenLabs:** For voice synthesis.
 - **OpenWeather:** Current Weather, Air Pollution, and Historical Weather APIs for environmental context and health correlations.
+- **ClickHouse Cloud:** High-performance columnar database for ML-powered health analytics and anomaly detection (AWS Sydney region).

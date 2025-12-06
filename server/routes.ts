@@ -4347,6 +4347,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================================================
+  // Admin: ClickHouse Correlation Engine
+  // ============================================================================
+
+  // Admin: Initialize ClickHouse tables
+  app.post("/api/admin/clickhouse/init", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { clickhouse } = await import('./services/clickhouseService');
+      
+      if (!clickhouse.isEnabled()) {
+        return res.status(400).json({ 
+          error: "ClickHouse not configured",
+          hint: "Set CLICKHOUSE_HOST, CLICKHOUSE_USER, and CLICKHOUSE_PASSWORD secrets"
+        });
+      }
+
+      const success = await clickhouse.initialize();
+      
+      if (success) {
+        logger.info('[Admin] ClickHouse initialized successfully');
+        res.json({ success: true, message: "ClickHouse tables initialized" });
+      } else {
+        res.status(500).json({ error: "Failed to initialize ClickHouse" });
+      }
+    } catch (error) {
+      logger.error('[Admin] ClickHouse init error:', error);
+      res.status(500).json({ error: "Failed to initialize ClickHouse" });
+    }
+  });
+
+  // Admin: ClickHouse health check
+  app.get("/api/admin/clickhouse/health", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { clickhouse } = await import('./services/clickhouseService');
+      const health = await clickhouse.healthCheck();
+      res.json(health);
+    } catch (error) {
+      logger.error('[Admin] ClickHouse health check error:', error);
+      res.status(500).json({ connected: false, error: String(error) });
+    }
+  });
+
+  // Admin: Sync user data to ClickHouse
+  app.post("/api/admin/clickhouse/sync", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, daysBack = 30 } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const rowsSynced = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, daysBack);
+      
+      logger.info('[Admin] ClickHouse sync complete', { userId, healthId, rowsSynced });
+      res.json({ success: true, rowsSynced, healthId });
+    } catch (error) {
+      logger.error('[Admin] ClickHouse sync error:', error);
+      res.status(500).json({ error: "Failed to sync data to ClickHouse" });
+    }
+  });
+
+  // Admin: Run ClickHouse ML analysis
+  app.post("/api/admin/clickhouse/analyze", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, windowDays = 7 } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const { dynamicFeedbackGenerator } = await import('./services/dynamicFeedbackGenerator');
+      
+      const healthId = await getHealthId(userId);
+      
+      // First sync latest data
+      await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 30);
+      
+      // Calculate baselines and detect anomalies
+      const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
+      const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays });
+      
+      // Generate feedback question if anomalies found
+      let feedbackQuestion = null;
+      if (anomalies.length > 0) {
+        feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+      }
+      
+      // Get ML insights
+      const mlInsights = await clickhouseBaselineEngine.getMLInsights(healthId);
+      const learningContext = await clickhouseBaselineEngine.getLearningContext(healthId);
+      
+      logger.info('[Admin] ClickHouse analysis complete', { 
+        userId, 
+        baselines: baselines.length, 
+        anomalies: anomalies.length 
+      });
+      
+      res.json({
+        success: true,
+        healthId,
+        baselines,
+        anomalies,
+        feedbackQuestion,
+        mlInsights,
+        learningContext,
+      });
+    } catch (error) {
+      logger.error('[Admin] ClickHouse analysis error:', error);
+      res.status(500).json({ error: "Failed to run ClickHouse analysis" });
+    }
+  });
+
+  // Admin: Simulate anomaly in ClickHouse
+  app.post("/api/admin/clickhouse/simulate", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, scenario } = req.body;
+      
+      if (!userId || !scenario) {
+        return res.status(400).json({ error: "userId and scenario are required" });
+      }
+
+      const validScenarios = ['illness', 'recovery', 'single_metric'];
+      if (!validScenarios.includes(scenario)) {
+        return res.status(400).json({ error: `Invalid scenario. Valid options: ${validScenarios.join(', ')}` });
+      }
+
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const { dynamicFeedbackGenerator } = await import('./services/dynamicFeedbackGenerator');
+      
+      const healthId = await getHealthId(userId);
+      const anomalies = await clickhouseBaselineEngine.simulateAnomaly(healthId, scenario as 'illness' | 'recovery' | 'single_metric');
+      
+      let feedbackQuestion = null;
+      if (anomalies.length > 0) {
+        feedbackQuestion = await dynamicFeedbackGenerator.generateQuestion(anomalies);
+      }
+      
+      logger.info('[Admin] ClickHouse simulation complete', { userId, scenario, anomalies: anomalies.length });
+      
+      res.json({
+        success: true,
+        scenario,
+        healthId,
+        anomalies,
+        feedbackQuestion,
+      });
+    } catch (error) {
+      logger.error('[Admin] ClickHouse simulation error:', error);
+      res.status(500).json({ error: "Failed to simulate anomaly" });
+    }
+  });
+
+  // Admin: Get ML insights for a user
+  app.get("/api/admin/clickhouse/insights/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const insights = await clickhouseBaselineEngine.getMLInsights(healthId);
+      const learningContext = await clickhouseBaselineEngine.getLearningContext(healthId);
+      
+      res.json({ healthId, ...insights, learningContext });
+    } catch (error) {
+      logger.error('[Admin] ClickHouse insights error:', error);
+      res.status(500).json({ error: "Failed to get ML insights" });
+    }
+  });
+
+  // Admin: Record feedback outcome for ML learning
+  app.post("/api/admin/clickhouse/feedback", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, anomalyId, userFeeling, wasConfirmed, feedbackText } = req.body;
+      
+      if (!userId || !anomalyId || userFeeling === undefined || wasConfirmed === undefined) {
+        return res.status(400).json({ error: "userId, anomalyId, userFeeling, and wasConfirmed are required" });
+      }
+
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      await clickhouseBaselineEngine.recordFeedbackOutcome(healthId, anomalyId, userFeeling, wasConfirmed, feedbackText);
+      
+      logger.info('[Admin] ClickHouse feedback recorded', { userId, anomalyId, wasConfirmed });
+      
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('[Admin] ClickHouse feedback error:', error);
+      res.status(500).json({ error: "Failed to record feedback" });
+    }
+  });
+
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {

@@ -6,7 +6,7 @@ import {
   Users, DollarSign, Activity, TrendingUp, Search,
   Settings, BarChart3, Zap, Database, AlertCircle, CheckCircle, XCircle,
   CreditCard, Ban, Shield, FileText, Bell, Server, Link, Wifi, Edit2, Trash2,
-  ChevronDown, Heart, Sparkles, Wallet
+  ChevronDown, Heart, Sparkles, Wallet, RefreshCw
 } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -170,22 +170,85 @@ export default function AdminDashboard() {
     },
   });
 
-  const correlationAnalysisMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiRequest('POST', '/api/admin/correlation/analyze', { userId });
+  const clickhouseInitMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/clickhouse/init', {});
       return await res.json();
     },
     onSuccess: (data: any) => {
       toast({
-        title: 'Correlation Analysis Complete',
-        description: data.message || `Anomalies: ${data.anomaliesDetected}, Questions: ${data.questionsGenerated}`,
+        title: 'ClickHouse Initialized',
+        description: data.message || 'Tables created successfully',
       });
     },
     onError: (error: any) => {
-      console.error('Correlation analysis error:', error);
+      console.error('ClickHouse init error:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to run correlation analysis',
+        description: error.message || 'Failed to initialize ClickHouse',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const clickhouseHealthMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('GET', '/api/admin/clickhouse/health');
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: data.connected ? 'ClickHouse Connected' : 'ClickHouse Disconnected',
+        description: data.connected ? `Version: ${data.version}` : data.error,
+        variant: data.connected ? 'default' : 'destructive',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to check ClickHouse health',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const clickhouseSyncMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest('POST', '/api/admin/clickhouse/sync', { userId, daysBack: 30 });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Data Synced to ClickHouse',
+        description: `Synced ${data.rowsSynced} metric rows`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to sync data',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const correlationAnalysisMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest('POST', '/api/admin/clickhouse/analyze', { userId });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'ClickHouse ML Analysis Complete',
+        description: `Baselines: ${data.baselines?.length || 0}, Anomalies: ${data.anomalies?.length || 0}${data.feedbackQuestion ? ', Question generated' : ''}`,
+      });
+      console.log('[ClickHouse] Full analysis result:', data);
+    },
+    onError: (error: any) => {
+      console.error('ClickHouse analysis error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to run ClickHouse analysis',
         variant: 'destructive',
       });
     },
@@ -193,17 +256,20 @@ export default function AdminDashboard() {
 
   const simulateAnomalyMutation = useMutation({
     mutationFn: async ({ userId, scenario }: { userId: string; scenario: string }) => {
-      const res = await apiRequest('POST', '/api/admin/correlation/simulate', { userId, scenario });
+      const res = await apiRequest('POST', '/api/admin/clickhouse/simulate', { userId, scenario });
       return await res.json();
     },
     onSuccess: (data: any) => {
       toast({
-        title: 'Anomaly Simulation Complete',
-        description: data.questionText ? `Generated question: "${data.questionText.substring(0, 50)}..."` : `Simulated ${data.scenario} scenario with ${data.anomaliesGenerated} anomalies`,
+        title: 'ClickHouse Simulation Complete',
+        description: data.feedbackQuestion?.questionText 
+          ? `Generated: "${data.feedbackQuestion.questionText.substring(0, 50)}..."` 
+          : `Simulated ${data.scenario} with ${data.anomalies?.length || 0} anomalies`,
       });
+      console.log('[ClickHouse] Simulation result:', data);
     },
     onError: (error: any) => {
-      console.error('Simulation error:', error);
+      console.error('ClickHouse simulation error:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to simulate anomaly',
@@ -960,23 +1026,74 @@ export default function AdminDashboard() {
 
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h4 className="text-base text-white mb-2 flex items-center gap-2">
-                <Database className="w-5 h-5 text-teal-400" />
-                BigQuery Correlation Engine
+                <Database className="w-5 h-5 text-orange-400" />
+                ClickHouse ML Correlation Engine
               </h4>
               <div className="text-xs text-white/50 mb-4">
-                ML-powered anomaly detection using BigQuery. Analyzes health baselines, detects patterns (illness precursor, recovery deficit), and generates dynamic feedback questions via Gemini.
+                True ML-powered anomaly detection using ClickHouse. Analyzes health baselines, detects patterns (illness precursor, recovery deficit), generates dynamic feedback questions via Gemini, and learns from feedback to improve accuracy over time.
               </div>
               
               <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => clickhouseHealthMutation.mutate()}
+                    disabled={clickhouseHealthMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white transition-all disabled:opacity-50"
+                    data-testid="button-clickhouse-health"
+                  >
+                    {clickhouseHealthMutation.isPending ? (
+                      <Activity className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Activity className="w-3 h-3" />
+                    )}
+                    <span className="text-xs">Health Check</span>
+                  </button>
+                  <button
+                    onClick={() => clickhouseInitMutation.mutate()}
+                    disabled={clickhouseInitMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-orange-500/20 border border-orange-500/30 hover:bg-orange-500/30 text-orange-400 transition-all disabled:opacity-50"
+                    data-testid="button-clickhouse-init"
+                  >
+                    {clickhouseInitMutation.isPending ? (
+                      <Activity className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Database className="w-3 h-3" />
+                    )}
+                    <span className="text-xs">Initialize Tables</span>
+                  </button>
+                </div>
+
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={correlationUserId}
                     onChange={(e) => setCorrelationUserId(e.target.value)}
                     placeholder="Enter User ID (e.g., 34226453)"
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-teal-500"
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-orange-500"
                     data-testid="input-correlation-user-id"
                   />
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (correlationUserId.trim()) {
+                        clickhouseSyncMutation.mutate(correlationUserId.trim());
+                      } else {
+                        toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
+                      }
+                    }}
+                    disabled={clickhouseSyncMutation.isPending || !correlationUserId.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30 text-blue-400 transition-all disabled:opacity-50"
+                    data-testid="button-clickhouse-sync"
+                  >
+                    {clickhouseSyncMutation.isPending ? (
+                      <Activity className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    <span className="text-xs">Sync Data (30 days)</span>
+                  </button>
                 </div>
                 
                 <button
@@ -988,18 +1105,18 @@ export default function AdminDashboard() {
                     }
                   }}
                   disabled={correlationAnalysisMutation.isPending || !correlationUserId.trim()}
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid="button-correlation-analyze"
                 >
                   {correlationAnalysisMutation.isPending ? (
                     <>
                       <Activity className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Analyzing...</span>
+                      <span className="text-sm">Analyzing with ML...</span>
                     </>
                   ) : (
                     <>
                       <Database className="w-4 h-4" />
-                      <span className="text-sm">Run Correlation Analysis</span>
+                      <span className="text-sm">Run ML Correlation Analysis</span>
                     </>
                   )}
                 </button>
@@ -1038,9 +1155,9 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="mt-4 p-3 rounded-lg bg-teal-500/10 border border-teal-500/20">
-                <div className="text-xs text-teal-400">
-                  <strong>How it works:</strong> Runs anomaly detection against user baselines, generates ML-powered questions via Gemini, stores responses in BigQuery for predictive model training.
+              <div className="mt-4 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <div className="text-xs text-orange-400">
+                  <strong>How it works:</strong> Syncs health data to ClickHouse, calculates baselines with statistical functions, detects anomalies using z-scores and pattern matching, generates ML-powered questions via Gemini, and stores feedback to improve model accuracy over time.
                 </div>
               </div>
             </div>
