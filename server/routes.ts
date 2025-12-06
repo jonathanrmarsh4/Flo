@@ -4947,6 +4947,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get ML Usage metrics from ClickHouse Orchestrator
+  app.get("/api/admin/ml-usage/metrics", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
+      
+      const metrics = clickhouseOrchestrator.getUsageMetrics();
+      const windows = clickhouseOrchestrator.getProcessingWindows();
+      const nextWindow = clickhouseOrchestrator.getNextWindowInfo();
+      
+      res.json({
+        metrics,
+        windows,
+        nextWindow: nextWindow ? {
+          name: nextWindow.window.name,
+          description: nextWindow.window.description,
+          scheduledFor: nextWindow.scheduledFor.toISOString(),
+          includesBaselineUpdate: nextWindow.window.includesBaselineUpdate,
+        } : null,
+      });
+    } catch (error) {
+      logger.error('[Admin] ML usage metrics error:', error);
+      res.status(500).json({ error: "Failed to fetch ML usage metrics" });
+    }
+  });
+
+  // Admin: Trigger manual ClickHouse processing window
+  app.post("/api/admin/ml-usage/trigger-window", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { windowName } = req.body;
+      
+      const { clickhouseOrchestrator } = await import('./services/clickhouseOrchestrator');
+      
+      logger.info('[Admin] Manual ML processing window triggered', { windowName, adminId: req.user.claims.sub });
+      
+      const stats = await clickhouseOrchestrator.triggerManualWindow(windowName);
+      
+      res.json({
+        success: true,
+        stats,
+        message: `Window ${stats.windowName} completed in ${stats.durationMs}ms`,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] ML processing window error:', error);
+      res.status(500).json({ error: error.message || "Failed to trigger processing window" });
+    }
+  });
+
+  // Admin: Get ClickHouse query usage statistics
+  app.get("/api/admin/ml-usage/query-stats", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
+      
+      if (!isClickHouseEnabled()) {
+        return res.status(503).json({ error: "ClickHouse not configured" });
+      }
+      
+      const queryStats = await clickhouse.query<{
+        table_name: string;
+        row_count: number;
+        data_size_bytes: number;
+      }>(`
+        SELECT 
+          table AS table_name,
+          sum(rows) AS row_count,
+          sum(data_uncompressed_bytes) AS data_size_bytes
+        FROM system.parts
+        WHERE database = 'flo_health' AND active = 1
+        GROUP BY table
+        ORDER BY data_size_bytes DESC
+      `, {});
+      
+      const totalRows = queryStats.reduce((acc, t) => acc + Number(t.row_count), 0);
+      const totalSizeBytes = queryStats.reduce((acc, t) => acc + Number(t.data_size_bytes), 0);
+      
+      res.json({
+        tables: queryStats.map(t => ({
+          name: t.table_name,
+          rowCount: Number(t.row_count),
+          dataSizeMB: Math.round(Number(t.data_size_bytes) / 1024 / 1024 * 100) / 100,
+        })),
+        totals: {
+          totalRows,
+          totalSizeMB: Math.round(totalSizeBytes / 1024 / 1024 * 100) / 100,
+        },
+      });
+    } catch (error) {
+      logger.error('[Admin] ClickHouse query stats error:', error);
+      res.status(500).json({ error: "Failed to fetch query stats" });
+    }
+  });
+
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {

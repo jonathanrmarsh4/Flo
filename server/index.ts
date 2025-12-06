@@ -3,12 +3,11 @@ import cors from "cors";
 import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { startBaselineScheduler } from "./services/baselineScheduler";
 import { startFlomentumWeeklyScheduler } from "./services/flomentumWeeklyScheduler";
 import { startInsightsSchedulerV2 } from "./services/insightsSchedulerV2";
 import { initializeDailyReminderScheduler } from "./services/dailyReminderScheduler";
 import { startFollowUpScheduler } from "./services/followUpScheduler";
-import { startAnomalyDetectionScheduler } from "./services/anomalyDetectionScheduler";
+import { clickhouseOrchestrator } from "./services/clickhouseOrchestrator";
 
 const app = express();
 
@@ -149,8 +148,9 @@ app.use((req, res, next) => {
     // Defer scheduler initialization to ensure fast server startup for deployments
     // This allows the health check to pass before background tasks are initialized
     setTimeout(() => {
-      // Start the daily baseline update scheduler
-      startBaselineScheduler();
+      // Start the ClickHouse orchestrator (4 windows: 00:00, 06:00, 12:00, 18:00 UTC)
+      // Replaces old baseline (3 AM) and anomaly detection (5 AM) schedulers
+      clickhouseOrchestrator.start();
       
       // Start the weekly Flōmentum aggregation scheduler
       startFlomentumWeeklyScheduler();
@@ -163,9 +163,6 @@ app.use((req, res, next) => {
       
       // Start the follow-up request scheduler (evaluates pending follow-ups every 30 min)
       startFollowUpScheduler();
-      
-      // Start the daily anomaly detection scheduler (5 AM UTC, after baseline update at 3 AM)
-      startAnomalyDetectionScheduler();
     }, 5000);
   });
 })();

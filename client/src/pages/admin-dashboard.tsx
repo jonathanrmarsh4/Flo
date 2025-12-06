@@ -35,7 +35,7 @@ export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'billing' | 'api' | 'analytics' | 'settings' | 'logs' | 'healthkit' | 'systems' | 'notifications'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'billing' | 'api' | 'analytics' | 'settings' | 'logs' | 'ml-usage' | 'systems' | 'notifications'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'active' | 'suspended'>('all');
   const [editingUser, setEditingUser] = useState<string | null>(null);
@@ -75,14 +75,14 @@ export default function AdminDashboard() {
     refetchInterval: 30000,
   });
 
-  const { data: healthKitStatsData } = useQuery({
-    queryKey: ['/api/admin/healthkit/stats'],
+  const { data: mlUsageData } = useQuery({
+    queryKey: ['/api/admin/ml-usage/metrics'],
     refetchInterval: 30000,
   });
 
-  const { data: healthKitStatusData } = useQuery({
-    queryKey: ['/api/admin/healthkit/status'],
-    refetchInterval: 10000,
+  const { data: mlQueryStatsData } = useQuery({
+    queryKey: ['/api/admin/ml-usage/query-stats'],
+    refetchInterval: 60000,
   });
 
   const updateUserMutation = useMutation({
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
     { id: 'billing', label: 'Billing', icon: DollarSign },
     { id: 'api', label: 'API Usage', icon: Zap },
     { id: 'analytics', label: 'Analytics', icon: TrendingUp },
-    { id: 'healthkit', label: 'HealthKit', icon: Heart },
+    { id: 'ml-usage', label: 'ML Usage', icon: Database },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'systems', label: 'Systems', icon: Server },
     { id: 'logs', label: 'Audit Logs', icon: FileText },
@@ -767,76 +767,157 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {activeTab === 'healthkit' && (
+        {activeTab === 'ml-usage' && (
           <div className="space-y-6">
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
-                <Heart className="w-5 h-5" />
-                HealthKit Overview
+                <Database className="w-5 h-5" />
+                ClickHouse ML Usage
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <div className="rounded-xl border bg-white/5 border-white/10 p-4">
-                  <div className="text-xs text-white/50">Total Samples</div>
+                  <div className="text-xs text-white/50">Windows Today</div>
                   <div className="text-2xl text-white mt-1">
-                    {healthKitStatsData ? (healthKitStatsData as any).totalSamples?.toLocaleString() || '0' : '0'}
+                    {mlUsageData ? (mlUsageData as any).metrics?.totalWindowsToday || '0' : '0'}
                   </div>
                 </div>
                 <div className="rounded-xl border bg-white/5 border-white/10 p-4">
-                  <div className="text-xs text-white/50">Active Users</div>
+                  <div className="text-xs text-white/50">Users Processed</div>
                   <div className="text-2xl text-white mt-1">
-                    {healthKitStatsData ? (healthKitStatsData as any).totalUsers?.toLocaleString() || '0' : '0'}
+                    {mlUsageData ? (mlUsageData as any).metrics?.dailyStats?.usersProcessed?.toLocaleString() || '0' : '0'}
                   </div>
                 </div>
                 <div className="rounded-xl border bg-white/5 border-white/10 p-4">
-                  <div className="text-xs text-white/50">Last 24h Syncs</div>
-                  <div className="text-2xl text-white mt-1">
-                    {healthKitStatusData ? (healthKitStatusData as any).sampleCount24h?.toLocaleString() || '0' : '0'}
+                  <div className="text-xs text-white/50">Anomalies Detected</div>
+                  <div className="text-2xl text-purple-400 mt-1">
+                    {mlUsageData ? (mlUsageData as any).metrics?.dailyStats?.anomaliesDetected?.toLocaleString() || '0' : '0'}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Questions Generated</div>
+                  <div className="text-2xl text-green-400 mt-1">
+                    {mlUsageData ? (mlUsageData as any).metrics?.dailyStats?.questionsGenerated?.toLocaleString() || '0' : '0'}
                   </div>
                 </div>
               </div>
 
-              <h4 className="text-sm text-white/70 mb-3">Samples by Data Type</h4>
-              {healthKitStatsData && (healthKitStatsData as any).samplesByDataType?.length > 0 ? (
+              {mlUsageData && (mlUsageData as any).nextWindow && (
+                <div className="p-4 rounded-xl border bg-blue-500/10 border-blue-500/20 mb-6">
+                  <div className="text-xs text-blue-400 mb-1">Next Processing Window</div>
+                  <div className="text-sm text-white">
+                    {(mlUsageData as any).nextWindow.name} - {new Date((mlUsageData as any).nextWindow.scheduledFor).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-white/50 mt-1">
+                    {(mlUsageData as any).nextWindow.description}
+                    {(mlUsageData as any).nextWindow.includesBaselineUpdate && ' (includes baseline update)'}
+                  </div>
+                </div>
+              )}
+
+              <h4 className="text-sm text-white/70 mb-3">Processing Windows (4x daily)</h4>
+              {mlUsageData && (mlUsageData as any).windows?.length > 0 ? (
                 <div className="space-y-2 mb-6">
-                  {(healthKitStatsData as any).samplesByDataType.map((item: any, idx: number) => (
+                  {(mlUsageData as any).windows.map((window: any, idx: number) => (
                     <div key={idx} className="flex items-center justify-between p-3 rounded-xl border bg-white/5 border-white/10">
-                      <span className="text-sm text-white">{item.dataType}</span>
-                      <span className="text-sm text-purple-400">{item.count.toLocaleString()} samples</span>
+                      <div>
+                        <span className="text-sm text-white">{window.name}</span>
+                        <span className="text-xs text-white/50 ml-2">({window.utcHour}:00 UTC)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {window.includesBaselineUpdate && (
+                          <span className="text-xs px-2 py-1 rounded bg-purple-500/20 text-purple-300">Baseline</span>
+                        )}
+                        <span className="text-xs text-white/50">{window.description}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4 text-white/50 text-sm">No data types recorded yet</div>
+                <div className="text-center py-4 text-white/50 text-sm">No windows configured</div>
               )}
+            </div>
 
-              <h4 className="text-sm text-white/70 mb-3">Recent User Activity</h4>
-              {healthKitStatsData && (healthKitStatsData as any).recentSamples?.length > 0 ? (
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <BarChart3 className="w-5 h-5" />
+                ClickHouse Data Storage
+              </h3>
+              {mlQueryStatsData && (mlQueryStatsData as any).tables?.length > 0 ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="p-4 rounded-xl border bg-white/5 border-white/10">
+                      <div className="text-xs text-white/50">Total Rows</div>
+                      <div className="text-2xl text-white mt-1">
+                        {(mlQueryStatsData as any).totals?.totalRows?.toLocaleString() || '0'}
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-white/5 border-white/10">
+                      <div className="text-xs text-white/50">Total Size</div>
+                      <div className="text-2xl text-white mt-1">
+                        {(mlQueryStatsData as any).totals?.totalSizeMB?.toFixed(2) || '0'} MB
+                      </div>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="border-b border-white/10">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs text-white/70">Table</th>
+                          <th className="px-4 py-3 text-right text-xs text-white/70">Rows</th>
+                          <th className="px-4 py-3 text-right text-xs text-white/70">Size (MB)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(mlQueryStatsData as any).tables.map((table: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-white/5">
+                            <td className="px-4 py-3 text-sm text-white">{table.name}</td>
+                            <td className="px-4 py-3 text-sm text-purple-400 text-right">{table.rowCount?.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm text-white/70 text-right">{table.dataSizeMB?.toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-white/50">No ClickHouse data available</div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Activity className="w-5 h-5" />
+                Recent Window History
+              </h3>
+              {mlUsageData && (mlUsageData as any).metrics?.windowHistory?.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="border-b border-white/10">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs text-white/70">User ID</th>
-                        <th className="px-4 py-3 text-left text-xs text-white/70">Data Type</th>
-                        <th className="px-4 py-3 text-right text-xs text-white/70">Count</th>
-                        <th className="px-4 py-3 text-right text-xs text-white/70">Latest Date</th>
+                        <th className="px-4 py-3 text-left text-xs text-white/70">Window</th>
+                        <th className="px-4 py-3 text-left text-xs text-white/70">Started</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/70">Duration</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/70">Users</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/70">Anomalies</th>
+                        <th className="px-4 py-3 text-right text-xs text-white/70">Questions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(healthKitStatsData as any).recentSamples.map((item: any, idx: number) => (
+                      {(mlUsageData as any).metrics.windowHistory.map((h: any, idx: number) => (
                         <tr key={idx} className="hover:bg-white/5">
-                          <td className="px-4 py-3 text-sm text-white font-mono text-xs">{item.userId.substring(0, 8)}...</td>
-                          <td className="px-4 py-3 text-sm text-purple-400">{item.dataType}</td>
-                          <td className="px-4 py-3 text-sm text-white text-right">{item.count}</td>
-                          <td className="px-4 py-3 text-sm text-white/70 text-right text-xs">
-                            {new Date(item.latestDate).toLocaleString()}
-                          </td>
+                          <td className="px-4 py-3 text-sm text-white">{h.windowName}</td>
+                          <td className="px-4 py-3 text-sm text-white/70 text-xs">{new Date(h.startedAt).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-sm text-white text-right">{h.durationMs ? `${(h.durationMs / 1000).toFixed(1)}s` : '-'}</td>
+                          <td className="px-4 py-3 text-sm text-white text-right">{h.usersProcessed}</td>
+                          <td className="px-4 py-3 text-sm text-purple-400 text-right">{h.anomaliesDetected}</td>
+                          <td className="px-4 py-3 text-sm text-green-400 text-right">{h.questionsGenerated}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <div className="text-center py-4 text-white/50 text-sm">No user activity yet</div>
+                <div className="text-center py-8 text-white/50">No window history yet</div>
               )}
             </div>
           </div>
@@ -853,32 +934,18 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-xl border bg-white/5 border-white/10">
                   <div className="flex items-center gap-3">
-                    <Heart className="w-5 h-5 text-pink-400" />
+                    <Database className="w-5 h-5 text-blue-400" />
                     <div>
-                      <div className="text-sm text-white">HealthKit API</div>
-                      <div className="text-xs text-white/50">iOS Health Data Integration</div>
+                      <div className="text-sm text-white">ClickHouse ML Engine</div>
+                      <div className="text-xs text-white/50">Pattern Detection & Anomaly Analysis</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {healthKitStatusData ? (
-                      <>
-                        {(healthKitStatusData as any).status === 'operational' ? (
-                          <div className="flex items-center gap-2">
-                            <CheckCircle className="w-5 h-5 text-green-400" data-testid="status-healthkit-operational" />
-                            <span className="text-sm text-green-400">Operational</span>
-                          </div>
-                        ) : (healthKitStatusData as any).status === 'degraded' ? (
-                          <div className="flex items-center gap-2">
-                            <AlertCircle className="w-5 h-5 text-yellow-400" data-testid="status-healthkit-degraded" />
-                            <span className="text-sm text-yellow-400">Degraded</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <XCircle className="w-5 h-5 text-red-400" data-testid="status-healthkit-down" />
-                            <span className="text-sm text-red-400">Down</span>
-                          </div>
-                        )}
-                      </>
+                    {mlQueryStatsData && (mlQueryStatsData as any).totals ? (
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-400" data-testid="status-clickhouse-operational" />
+                        <span className="text-sm text-green-400">Operational</span>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-2">
                         <Activity className="w-5 h-5 text-white/50 animate-pulse" />
@@ -888,11 +955,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {healthKitStatusData && (healthKitStatusData as any).lastSync && (
+                {mlUsageData && (mlUsageData as any).metrics?.windowHistory?.length > 0 && (
                   <div className="p-4 rounded-xl border bg-white/5 border-white/10">
-                    <div className="text-xs text-white/50 mb-1">Last Sync</div>
+                    <div className="text-xs text-white/50 mb-1">Last Processing Window</div>
                     <div className="text-sm text-white">
-                      {new Date((healthKitStatusData as any).lastSync).toLocaleString()}
+                      {new Date((mlUsageData as any).metrics.windowHistory[0].startedAt).toLocaleString()}
                     </div>
                   </div>
                 )}
