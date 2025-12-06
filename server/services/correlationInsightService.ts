@@ -556,6 +556,12 @@ class CorrelationInsightService {
     const patterns = this.extractPatterns(anomalies);
     const insights = await this.generateInsights(healthId, anomalies, patterns);
 
+    if (feedbackQuestion) {
+      const feedbackId = randomUUID();
+      await this.storePendingFeedback(userId, feedbackId, feedbackQuestion);
+      logger.info(`[CorrelationInsight] Stored simulated feedback ${feedbackId} for user ${userId}`);
+    }
+
     return {
       healthId,
       timestamp,
