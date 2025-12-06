@@ -1,7 +1,7 @@
 # Flō - AI-Powered Health Insights Platform
 
 ## Overview
-Flō is a mobile-first, AI-powered health analytics platform that analyzes blood work, calculates biological age, and provides personalized health recommendations. It features an intelligent dashboard, integrates with various AI models (OpenAI, Grok, Gemini), Apple HealthKit, and includes a voice chat coach, Flō Oracle. The platform utilizes a Stripe-powered subscription system with FREE and PREMIUM tiers. Flō's core purpose is to deliver trusted, clear, and actionable health information, offering deep health insights and significant market potential in personalized wellness.
+Flō is an AI-powered, mobile-first health analytics platform that processes blood work, calculates biological age, and delivers personalized health recommendations. It features an intelligent dashboard, integrates with major AI models (OpenAI, Grok, Gemini), Apple HealthKit, and includes a voice-activated AI coach, Flō Oracle. The platform operates on a Stripe-powered freemium subscription model. Flō's primary goal is to provide trustworthy, clear, and actionable health information, offering profound health insights and capitalizing on the significant market potential in personalized wellness.
 
 ## User Preferences
 - Preferred communication style: Simple, everyday language.
@@ -12,67 +12,32 @@ Flō is a mobile-first, AI-powered health analytics platform that analyzes blood
 ## System Architecture
 
 ### UI/UX Decisions
-The platform features a mobile-first, content-focused minimalist design inspired by Apple Human Interface Guidelines, using Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS. It includes locked tiles, paywall modals, an admin panel, dark theme, restructured navigation, drag-and-drop reorderable dashboard tiles, and iOS Safe Area support.
+The platform adopts a mobile-first, content-focused minimalist design, drawing inspiration from Apple Human Interface Guidelines. It uses Shadcn/ui (Radix UI primitives) with custom theming and Tailwind CSS, featuring locked tiles, paywall modals, an admin panel, dark theme, reorderable dashboard tiles, and iOS Safe Area support.
 
 ### Technical Implementations
-**Frontend:** Built with React, TypeScript, and Vite, using TanStack Query and Wouter. Key features include biomarker insights, AI-powered health reports, PDF upload, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, Flō Oracle voice chat using Gemini Live API, and a Flōmentum tile for daily health momentum scores.
+**Frontend:** Developed with React, TypeScript, and Vite, utilizing TanStack Query and Wouter. Key functionalities include biomarker insights, AI health reports, PDF upload, an admin dashboard, mobile authentication (Apple Sign-In, Email/Password), DEXA scan display, native iOS HealthKit integration with background syncing for 26 data types, Flō Oracle voice chat (Gemini Live API), and a Flōmentum tile for daily health momentum scores.
 
-**Backend:** Developed with Express.js and TypeScript, offering a RESTful API. It features a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, Flō Oracle integration (Gemini 2.5 Flash for text chat, Grok for life event parsing/brain updates), ElevenLabs for voice, a HealthKit Readiness System, Comprehensive Sleep Tracking, Workout Session Tracking, Flōmentum Momentum Scoring System, Apple Push Notifications (APNs), and Stripe Billing Integration for subscriptions and feature gating.
+**Backend:** Built with Express.js and TypeScript, providing a RESTful API. It incorporates a unified authentication system (Replit Auth OIDC, JWT, WebAuthn Passkeys), GCS for file storage, PhenoAge calculation, GPT-4o for blood work extraction, Flō Oracle integration (Gemini 2.5 Flash for text, Grok for life event parsing), ElevenLabs for voice, a HealthKit Readiness System, comprehensive sleep and workout tracking, Flōmentum scoring, Apple Push Notifications (APNs), and Stripe Billing for subscriptions.
 
-**Data Storage:** A dual-database architecture enhances security:
-- **Neon (Primary):** Stores identity data (users, sessions, email, credentials, billing, audit logs) using Drizzle ORM.
-- **Supabase (Health):** Stores sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events) linked via a pseudonymous `health_id` UUID, with Row-Level Security (RLS) and separation of 12 health-related tables.
+**Data Storage:** A dual-database architecture:
+- **Neon (Primary):** Stores identity data (users, sessions, billing, audit logs) using Drizzle ORM.
+- **Supabase (Health):** Stores sensitive health data (profiles, biomarkers, HealthKit, DEXA, life events) with Row-Level Security (RLS) and linked via a pseudonymous `health_id`.
 
 **Key Features & Systems:**
-- **HealthKit Sync Expansion:** Extended iOS HealthKitNormalisationService to sync comprehensive vital signs (walkingHeartRateAvg, oxygenSaturation, respiratoryRate, bodyTemperatureCelsius, basalEnergyKcal, dietaryWaterMl), wrist temperature, mindfulness sessions, and 26 dietary HKQuantityTypes.
-- **Health Data Routing:** Centralized `healthStorageRouter.ts` for all health data reads, ensuring data is retrieved from Supabase when `SUPABASE_HEALTH_ENABLED=true`.
-- **Recovery Boost System:** `readinessEngine.ts` incorporates `calculateRecoveryBoost()` based on logged recovery activities (e.g., ice bath, sauna, meditation), positively impacting the readiness score.
-- **Flō Oracle Context Routing:** `floOracleContextBuilder.ts` uses `healthStorageRouter` functions for all health data sources to provide comprehensive context for the AI.
-- **Real-Time Trend Detection:** Compares last 48h metrics vs 7-day baseline to detect significant changes in HRV, RHR, sleep, steps, and active calories. Uses metric-specific thresholds (10% for HRV, 5% for RHR, 15% for steps/kcal). Requires minimum 2 baseline data points to avoid false trends. Outputs "RECENT TRENDS" section in Flō Oracle context with (good)/(watch) annotations for immediate coaching feedback.
-- **Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights using a 2-layer architecture (RAG Layer with Gemini 2.5 Pro and a safety net Layer D), including confidence scoring, insight ranking, and natural language generation.
-- **Conversational Life Event Logging System:** Automatically tracks and parses health narratives from Flō Oracle conversations (text and voice) into structured JSONB using Gemini 2.5 Flash, stored in the `life_events` table.
-- **Unified Brain Memory System:** A shared memory layer connecting Flō Oracle (Grok-based) and Daily Insights (Gemini-based) for bidirectional AI learning, using `user_insights` and `flo_chat_messages` tables.
-- **Medical Document Ingestion System:** Ingests unstructured medical specialist reports, supporting 25+ document types, with PDF text extraction, GPT-4o summarization, chunking, vector embedding via text-embedding-3-small, and storage in Supabase `user_insights`. Integrated with Flō Oracle via semantic search.
-- **AI Usage Analytics System:** Tracks OpenAI and Grok API calls (token counts, costs, latency) displayed in the admin dashboard.
-- **Billing & Subscription System:** Supports FREE and PREMIUM tiers with StoreKit 2 (iOS) for in-app purchases and Stripe for web-based transactions.
-- **Daily Reminder Notifications:** Uses Gemini 2.5 Flash for AI-driven personalized reminders based on user data, routing all health data reads through `healthStorageRouter`.
-- **iOS Shortcuts Integration:** Provides secure API key authentication for iOS Shortcuts to log events, with pre-built templates.
-- **Proactive AI Conversational Intelligence:** Detects user intentions in conversations using Gemini Flash, proactively follows up on requests, and integrates life context for AI personalization.
-- **On-Demand Data Retrieval (Function Calling):** Flō Oracle uses Gemini function calling to fetch detailed health data when users ask specific questions. Available tools: `get_nutrition_trend`, `get_body_composition_history`, `get_workout_summary`, `get_sleep_analysis`, `get_biomarker_history`, `get_vitals_trend`, `get_life_events`, `correlate_metrics`. Enables complex queries like "how has my protein intake affected my body composition" by fetching and analyzing raw data on-demand.
-- **Dev HealthKit Importer System:** Standalone iOS app (`ios-healthkit-importer/`) for populating dev environment with real HealthKit data. Exports daily metrics, sleep nights, workouts, nutrition, and raw vital sign samples. Backend endpoint `/api/dev/import-healthkit` secured with `DEV_IMPORT_API_KEY` header, routes all data through `healthStorageRouter` to Supabase. Used for testing AI insights with authentic health data without affecting production.
-- **Self-Improvement Engine (SIE):** Admin-only sandbox AI that analyzes Flō's complete data landscape and suggests product improvements. Uses Gemini 2.5 Pro with UNRESTRICTED prompting (no guardrails, no safety disclaimers) to maximize creative strategic analysis. Features:
-  - Dynamic data source introspection (queries live Supabase/Neon schemas)
-  - Verbal output via OpenAI TTS (tts-1-hd, "onyx" voice) with audio chunking for full-length responses
-  - Self-evolving awareness - automatically discovers new tables/columns as features are added
-  - Session storage for self-referential evolution
-  - **Brainstorming Chat Mode:** Interactive follow-up conversation to discuss priorities, evaluate feasibility/scalability, and plan features together
-  - API: POST `/api/sandbox/sie` (initial analysis), POST `/api/sandbox/sie/chat` (brainstorming)
-  - Frontend: AdminSIE component in admin dashboard Settings tab
-- **Environmental Data Integration (OpenWeather API):** Correlates weather and air quality with health metrics for retrospective analysis and predictive insights. Features:
-  - iOS location tracking via Capacitor Geolocation plugin (stored in Supabase `user_location_history`)
-  - OpenWeather Current Weather and Air Pollution APIs with daily caching (`weather_daily_cache` table)
-  - Environmental context integration in Flō Oracle conversations (temperature, humidity, AQI, pollution levels)
-  - Environmental stress factors in Readiness Engine (heat/cold stress, poor air quality penalties)
-  - Weather-aware daily focus messages in Flōmentum scoring (heat advisories, air quality alerts)
-  - Centralized `getEnvironmentalContext()` function in `healthStorageRouter.ts` for unified access
-  - Backend service: `server/services/openWeatherService.ts`
-  - Frontend service: `client/src/lib/locationService.ts`
-  - API: POST `/api/location/update` for iOS location sync
-- **ClickHouse ML Correlation Engine:** Scalable ML-powered health correlation system for personalized anomaly detection and predictive insights. Uses ClickHouse Cloud (AWS Sydney region) for high-performance analytics. Features:
-  - **ClickHouse Data Warehouse:** Stores health_metrics, baselines, detected_anomalies, and feedback_outcomes tables with MergeTree engines optimized for time-series analytics
-  - **Data Sync Service:** Syncs Supabase health data to ClickHouse on-demand from admin dashboard (`clickhouseBaselineEngine.syncHealthDataFromSupabase`)
-  - **Baseline Engine:** Calculates rolling 7/14/30-day baselines using ClickHouse aggregate functions (mean, std dev, percentiles) per metric per user
-  - **Anomaly Detection:** Z-score and percentage deviation detection with metric-specific thresholds (15% for HRV, 8% for RHR, 50% for wrist temp deviation)
-  - **Multi-Metric Pattern Recognition:** Detects combined patterns like "illness_precursor" (elevated wrist temp + respiratory rate + RHR + low HRV) and "recovery_deficit" (low HRV + poor sleep)
-  - **Dynamic Feedback Generator:** LLM-powered (Gemini 2.0 Flash) contextual question generation based on detected anomalies ("Your overnight temperature is elevated - how are you feeling?")
-  - **Typed Feedback Collection System:** Supports 4 question types (scale_1_10, yes_no, multiple_choice, open_ended) with feedback outcomes stored in ClickHouse for ML model improvement
-  - **ML Learning Loop:** Records feedback outcomes to improve anomaly detection thresholds over time
-  - **Correlation Insights Integration:** Injects ClickHouse insights into Flō Oracle context for AI awareness of detected patterns
-  - **Admin Testing Tools:** Endpoints to initialize tables, health check, sync data, run ML analysis, simulate anomaly scenarios (illness/recovery), and record feedback
-  - Backend services: `clickhouseService.ts`, `clickhouseBaselineEngine.ts`, `dynamicFeedbackGenerator.ts`, `correlationInsightService.ts`
-  - Admin API: POST `/api/admin/clickhouse/init`, GET `/api/admin/clickhouse/health`, POST `/api/admin/clickhouse/sync`, POST `/api/admin/clickhouse/analyze`, POST `/api/admin/clickhouse/simulate`, POST `/api/admin/clickhouse/feedback`, GET `/api/admin/clickhouse/insights/:userId`
-  - Environment secrets: CLICKHOUSE_HOST, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD (stored in Replit Secrets)
-  - Future: Automatic sync on HealthKit ingestion, CGM data integration, predictive alerting, closed-loop model learning from feedback outcomes
+- **HealthKit Sync Expansion:** Comprehensive syncing of vital signs, wrist temperature, mindfulness, and 26 dietary HKQuantityTypes.
+- **Recovery Boost System:** Calculates readiness scores based on logged recovery activities.
+- **Flō Oracle Context Routing:** Centralized `floOracleContextBuilder.ts` for comprehensive AI context.
+- **Real-Time Trend Detection:** Identifies significant changes in HRV, RHR, sleep, steps, and active calories by comparing recent metrics against baseline data.
+- **Daily Insights Engine v2.0 (RAG-Based):** Generates personalized health insights using a 2-layer architecture with Gemini 2.5 Pro.
+- **Conversational Life Event Logging System:** Parses health narratives from Flō Oracle conversations into structured JSONB using Gemini 2.5 Flash.
+- **Unified Brain Memory System:** Shared memory layer connecting Flō Oracle and Daily Insights for bidirectional AI learning.
+- **Medical Document Ingestion System:** Processes unstructured medical reports (25+ types) using GPT-4o for summarization, embedding, and semantic search integration with Flō Oracle.
+- **Billing & Subscription System:** Supports FREE and PREMIUM tiers via StoreKit 2 (iOS) and Stripe (web).
+- **Daily Reminder Notifications:** AI-driven personalized reminders using Gemini 2.5 Flash.
+- **On-Demand Data Retrieval (Function Calling):** Flō Oracle uses Gemini function calling to fetch specific health data (e.g., `get_nutrition_trend`, `get_biomarker_history`) for complex queries.
+- **Environmental Data Integration:** Correlates OpenWeather data (temperature, AQI) with health metrics, influencing Flō Oracle context and Readiness Engine scores.
+- **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection and predictive insights using a comprehensive data warehouse (6 tables covering all health data). Features include auto-sync, baseline calculation, Z-score anomaly detection, multi-metric pattern recognition, and dynamic LLM-powered feedback generation.
+- **Self-Improvement Engine (SIE):** An admin-only sandbox AI (Gemini 2.5 Pro) for product improvement suggestions, featuring dynamic data introspection, verbal output, and a brainstorming chat mode.
 
 ## External Dependencies
 
@@ -82,9 +47,9 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Supabase:** PostgreSQL with pgvector extension.
 - **Google Cloud Storage:** For object storage.
 - **Stripe:** Payment processing.
-- **OpenAI:** GPT-4o for blood work PDF extraction, text-embedding-3-small for RAG embeddings.
-- **xAI (Grok):** grok-3-mini model for life event parsing, async brain memory extraction, and ElevenLabs voice bridge.
-- **Google AI (Gemini):** Gemini 2.5 Pro for Daily Insights, Gemini 2.5 Flash for daily reminders and Flō Oracle text chat, Gemini Live API (gemini-2.5-flash-native-audio) for Flō Oracle voice conversations.
-- **ElevenLabs:** For voice synthesis.
-- **OpenWeather:** Current Weather, Air Pollution, and Historical Weather APIs for environmental context and health correlations.
-- **ClickHouse Cloud:** High-performance columnar database for ML-powered health analytics and anomaly detection (AWS Sydney region).
+- **OpenAI:** GPT-4o, text-embedding-3-small.
+- **xAI (Grok):** grok-3-mini.
+- **Google AI (Gemini):** Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini Live API (gemini-2.5-flash-native-audio).
+- **ElevenLabs:** Voice synthesis.
+- **OpenWeather:** Current Weather, Air Pollution, and Historical Weather APIs.
+- **ClickHouse Cloud:** High-performance columnar database.

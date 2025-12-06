@@ -5752,6 +5752,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`[HealthKit] Processed ${mindfulnessSamples.length} mindfulness sessions into dedicated tables`);
       }
 
+      // Trigger ClickHouse ML Correlation Engine sync (non-blocking background task)
+      if (inserted > 0) {
+        (async () => {
+          try {
+            const { isClickHouseEnabled } = await import('./services/clickhouseService');
+            if (isClickHouseEnabled()) {
+              const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+              const { getHealthId } = await import('./services/supabaseHealthStorage');
+              const healthId = await getHealthId(userId);
+              
+              // Sync recent health data to ClickHouse for ML analysis
+              const syncedCount = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 7);
+              logger.info(`[ClickHouseML] Auto-synced ${syncedCount} metrics for ${userId} after samples ingestion`);
+            }
+          } catch (clickhouseError: any) {
+            logger.warn(`[ClickHouseML] Background sync failed for ${userId}:`, clickhouseError.message);
+          }
+        })();
+      }
+
       res.json({ 
         inserted,
         duplicates,
@@ -6024,6 +6044,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('📤 [SUPABASE] Writing daily metrics to Supabase:', JSON.stringify(supabaseMetrics, null, 2));
       await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
       logger.info(`[HealthKit] Stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
+
+      // Trigger ClickHouse ML Correlation Engine sync (non-blocking background task)
+      (async () => {
+        try {
+          const { isClickHouseEnabled } = await import('./services/clickhouseService');
+          if (isClickHouseEnabled()) {
+            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+            const { getHealthId } = await import('./services/supabaseHealthStorage');
+            const healthId = await getHealthId(userId);
+            
+            // Sync recent health data to ClickHouse for ML analysis (last 7 days for real-time patterns)
+            const syncedCount = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 7);
+            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} metrics for ${userId} after HealthKit ingestion`);
+            
+            // Optionally detect anomalies in background (async, no await to not block)
+            clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays: 7 }).then(anomalies => {
+              if (anomalies.length > 0) {
+                logger.info(`[ClickHouseML] Detected ${anomalies.length} anomalies for ${userId}:`, 
+                  anomalies.map(a => `${a.metricType}: ${a.severity}`).join(', '));
+              }
+            }).catch(err => {
+              logger.warn(`[ClickHouseML] Anomaly detection failed for ${userId}:`, err.message);
+            });
+          }
+        } catch (clickhouseError: any) {
+          logger.warn(`[ClickHouseML] Background sync failed for ${userId}:`, clickhouseError.message);
+        }
+      })();
 
       // Calculate Flōmentum score after storing metrics
       try {
@@ -6605,6 +6653,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await upsertNutritionDaily(userId, localDate, timezone);
       
       logger.info(`[Nutrition] Aggregated for ${userId} on ${localDate}`);
+
+      // Trigger ClickHouse nutrition sync (non-blocking background task)
+      (async () => {
+        try {
+          const { isClickHouseEnabled } = await import('./services/clickhouseService');
+          if (isClickHouseEnabled()) {
+            const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+            const { getHealthId } = await import('./services/supabaseHealthStorage');
+            const healthId = await getHealthId(userId);
+            
+            // Sync nutrition data to ClickHouse for ML analysis
+            const syncedCount = await clickhouseBaselineEngine.syncNutritionData(healthId, 7);
+            logger.info(`[ClickHouseML] Auto-synced ${syncedCount} nutrition records for ${userId}`);
+          }
+        } catch (clickhouseError: any) {
+          logger.warn(`[ClickHouseML] Nutrition sync failed for ${userId}:`, clickhouseError.message);
+        }
+      })();
+
       return res.json({ status: "ok", localDate });
     } catch (error: any) {
       logger.error("[Nutrition] Error aggregating:", error);
