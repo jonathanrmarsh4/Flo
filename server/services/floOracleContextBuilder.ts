@@ -1560,21 +1560,62 @@ export async function getUserMemoriesContext(userId: string, limit: number = 20)
 }
 
 /**
- * Get BigQuery correlation insights for enhanced AI context
- * Returns detected anomalies and patterns from the correlation engine
+ * Get ML correlation insights for enhanced AI context
+ * Tries ClickHouse first (primary), falls back to BigQuery if unavailable
+ * Returns detected anomalies and patterns from the ML engine
  */
 export async function getCorrelationInsightsContext(userId: string): Promise<string> {
+  const { getHealthId } = await import('./supabaseHealthStorage');
+  
+  const healthId = await getHealthId(userId);
+  if (!healthId) {
+    logger.debug('[FloOracle] No healthId found for correlation insights');
+    return '';
+  }
+  
+  // Try ClickHouse first (primary ML engine)
+  try {
+    const { clickhouseBaselineEngine } = await import('./clickhouseBaselineEngine');
+    const mlInsights = await clickhouseBaselineEngine.getMLInsights(healthId);
+    
+    if (mlInsights.recentAnomalies.length > 0) {
+      const lines = ['', 'ML CORRELATION ENGINE INSIGHTS (detected patterns - reference when relevant):'];
+      
+      const recentAnomalies = mlInsights.recentAnomalies.slice(0, 5);
+      lines.push('Detected anomalies:');
+      recentAnomalies.forEach(a => {
+        const direction = a.direction === 'above' ? 'elevated' : 'low';
+        const metricName = a.metricType.replace(/_/g, ' ');
+        const deviationStr = Math.abs(Math.round(a.deviationPct));
+        const confidenceStr = Math.round(a.modelConfidence * 100);
+        
+        let patternNote = '';
+        if (a.patternFingerprint === 'illness_precursor') {
+          patternNote = ' [possible illness pattern]';
+        } else if (a.patternFingerprint === 'recovery_deficit') {
+          patternNote = ' [recovery concern]';
+        }
+        
+        lines.push(`  • ${metricName}: ${direction} (${deviationStr}% from baseline) - ${a.severity} severity, ${confidenceStr}% confidence${patternNote}`);
+      });
+      
+      if (mlInsights.accuracyRate > 0 && mlInsights.totalPredictions > 3) {
+        const accuracyPct = Math.round(mlInsights.accuracyRate * 100);
+        lines.push(`\nML model accuracy for this user: ${accuracyPct}% (${mlInsights.confirmedCount}/${mlInsights.totalPredictions} confirmed)`);
+      }
+      
+      logger.info(`[FloOracle] Added ${recentAnomalies.length} ClickHouse anomalies to context`);
+      return lines.join('\n');
+    }
+  } catch (clickhouseError) {
+    logger.warn('[FloOracle] ClickHouse correlation insights unavailable, trying BigQuery fallback');
+  }
+  
+  // Fallback to BigQuery if ClickHouse has no data or failed
   try {
     const { bigQueryService } = await import('./bigQueryService');
-    const { getHealthId } = await import('./supabaseHealthStorage');
     
     if (!bigQueryService.isEnabled()) {
-      return '';
-    }
-    
-    const healthId = await getHealthId(userId);
-    if (!healthId) {
-      logger.debug('[FloOracle] No healthId found for correlation insights');
       return '';
     }
     
@@ -1603,10 +1644,10 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
       });
     }
     
-    logger.info(`[FloOracle] Added ${anomalies.length} anomalies and ${insights.length} correlation insights to context`);
+    logger.info(`[FloOracle] Added ${anomalies.length} anomalies and ${insights.length} correlation insights to context (BigQuery fallback)`);
     return lines.join('\n');
-  } catch (error) {
-    logger.debug('[FloOracle] Correlation insights not available (BigQuery may not be initialized)');
+  } catch (bigQueryError) {
+    logger.debug('[FloOracle] Correlation insights not available from either ClickHouse or BigQuery');
     return '';
   }
 }
