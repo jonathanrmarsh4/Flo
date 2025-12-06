@@ -260,16 +260,16 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-2">
               <Link 
-                href="/activity"
+                href="/diagnostics"
                 className={`flex flex-col items-center gap-0.5 p-2 rounded-lg transition-colors ${
                   isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
                 }`}
-                data-testid="link-activity"
-                aria-label="Activity"
+                data-testid="link-diagnostics"
+                aria-label="Diagnostics"
               >
                 <Activity className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 <span className={`text-[10px] ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                  Activity
+                  Diagnostics
                 </span>
               </Link>
               <Link 
