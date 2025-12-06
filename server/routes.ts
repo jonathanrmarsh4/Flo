@@ -75,6 +75,7 @@ import {
   developerMessages,
   developerMessageReads,
   userFeedback,
+  sieBrainstormSessions,
 } from "@shared/schema";
 import { z } from "zod";
 import { fromError } from "zod-validation-error";
@@ -4687,6 +4688,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error.message || "Brainstorming chat failed",
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       });
+    }
+  });
+
+  // SIE Brainstorm Voice Session Storage Routes
+  app.post("/api/sandbox/sie/brainstorm-sessions", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims.sub;
+      const { title, transcript, audioBase64, durationSeconds } = req.body;
+      
+      if (!title || !transcript || !Array.isArray(transcript)) {
+        return res.status(400).json({ error: "Title and transcript array required" });
+      }
+      
+      let audioFilePath: string | null = null;
+      
+      if (audioBase64) {
+        try {
+          const { uploadToObjectStorage } = await import('./objectStorage');
+          const audioBuffer = Buffer.from(audioBase64, 'base64');
+          const fileName = `sie-brainstorm-${Date.now()}.webm`;
+          audioFilePath = await uploadToObjectStorage(audioBuffer, fileName, '.private/sie-sessions');
+          logger.info('[SIE Sessions] Audio saved to object storage', { audioFilePath });
+        } catch (audioError: any) {
+          logger.warn('[SIE Sessions] Failed to save audio, continuing without it', { error: audioError.message });
+        }
+      }
+      
+      const [session] = await db.insert(sieBrainstormSessions).values({
+        adminId,
+        title,
+        transcript,
+        audioFilePath,
+        durationSeconds: durationSeconds || null,
+      }).returning();
+      
+      logger.info('[SIE Sessions] Session saved', { sessionId: session.id, adminId, title });
+      
+      res.json({ 
+        success: true, 
+        session: {
+          id: session.id,
+          title: session.title,
+          transcript: session.transcript,
+          hasAudio: !!session.audioFilePath,
+          durationSeconds: session.durationSeconds,
+          createdAt: session.createdAt,
+        }
+      });
+    } catch (error: any) {
+      logger.error('[SIE Sessions] Save failed:', error);
+      res.status(500).json({ error: error.message || "Failed to save session" });
+    }
+  });
+
+  app.get("/api/sandbox/sie/brainstorm-sessions", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const sessions = await db
+        .select({
+          id: sieBrainstormSessions.id,
+          title: sieBrainstormSessions.title,
+          transcript: sieBrainstormSessions.transcript,
+          hasAudio: sql<boolean>`${sieBrainstormSessions.audioFilePath} IS NOT NULL`,
+          durationSeconds: sieBrainstormSessions.durationSeconds,
+          createdAt: sieBrainstormSessions.createdAt,
+        })
+        .from(sieBrainstormSessions)
+        .orderBy(desc(sieBrainstormSessions.createdAt))
+        .limit(50);
+      
+      res.json({ sessions });
+    } catch (error: any) {
+      logger.error('[SIE Sessions] List failed:', error);
+      res.status(500).json({ error: error.message || "Failed to list sessions" });
+    }
+  });
+
+  app.get("/api/sandbox/sie/brainstorm-sessions/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const [session] = await db
+        .select()
+        .from(sieBrainstormSessions)
+        .where(eq(sieBrainstormSessions.id, id))
+        .limit(1);
+      
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      res.json({ session });
+    } catch (error: any) {
+      logger.error('[SIE Sessions] Get failed:', error);
+      res.status(500).json({ error: error.message || "Failed to get session" });
+    }
+  });
+
+  app.get("/api/sandbox/sie/brainstorm-sessions/:id/audio", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      const [session] = await db
+        .select({ audioFilePath: sieBrainstormSessions.audioFilePath })
+        .from(sieBrainstormSessions)
+        .where(eq(sieBrainstormSessions.id, id))
+        .limit(1);
+      
+      if (!session || !session.audioFilePath) {
+        return res.status(404).json({ error: "Audio not found" });
+      }
+      
+      const { downloadFromObjectStorage } = await import('./objectStorage');
+      const audioBuffer = await downloadFromObjectStorage(session.audioFilePath);
+      
+      res.setHeader('Content-Type', 'audio/webm');
+      res.setHeader('Content-Disposition', `attachment; filename="sie-session-${id}.webm"`);
+      res.send(audioBuffer);
+    } catch (error: any) {
+      logger.error('[SIE Sessions] Audio download failed:', error);
+      res.status(500).json({ error: error.message || "Failed to download audio" });
+    }
+  });
+
+  app.delete("/api/sandbox/sie/brainstorm-sessions/:id", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const adminId = req.user.claims.sub;
+      
+      const [session] = await db
+        .select()
+        .from(sieBrainstormSessions)
+        .where(eq(sieBrainstormSessions.id, id))
+        .limit(1);
+      
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      if (session.audioFilePath) {
+        try {
+          const { deleteFromObjectStorage } = await import('./objectStorage');
+          await deleteFromObjectStorage(session.audioFilePath);
+        } catch (deleteError: any) {
+          logger.warn('[SIE Sessions] Failed to delete audio file', { error: deleteError.message });
+        }
+      }
+      
+      await db.delete(sieBrainstormSessions).where(eq(sieBrainstormSessions.id, id));
+      
+      logger.info('[SIE Sessions] Session deleted', { sessionId: id, adminId });
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[SIE Sessions] Delete failed:', error);
+      res.status(500).json({ error: error.message || "Failed to delete session" });
     }
   });
 

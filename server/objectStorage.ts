@@ -333,3 +333,65 @@ async function signObjectURL({
   const { signed_url: signedURL } = await response.json();
   return signedURL;
 }
+
+// Helper function to upload a buffer directly to object storage
+export async function uploadToObjectStorage(
+  buffer: Buffer,
+  fileName: string,
+  subDir: string = ''
+): Promise<string> {
+  const privateObjectDir = process.env.PRIVATE_OBJECT_DIR || '';
+  if (!privateObjectDir) {
+    throw new Error('PRIVATE_OBJECT_DIR not configured');
+  }
+  
+  const basePath = subDir 
+    ? `${privateObjectDir}/${subDir}/${fileName}`
+    : `${privateObjectDir}/${fileName}`;
+  
+  const { bucketName, objectName } = parseObjectPath(basePath);
+  const bucket = objectStorageClient.bucket(bucketName);
+  const file = bucket.file(objectName);
+  
+  await file.save(buffer);
+  logger.info(`[ObjectStorage] Uploaded file to ${basePath}`);
+  
+  return basePath;
+}
+
+// Helper function to download a file from object storage as a buffer
+export async function downloadFromObjectStorage(filePath: string): Promise<Buffer> {
+  const { bucketName, objectName } = parseObjectPath(filePath);
+  const bucket = objectStorageClient.bucket(bucketName);
+  const file = bucket.file(objectName);
+  
+  const [exists] = await file.exists();
+  if (!exists) {
+    throw new Error(`Object not found: ${filePath}`);
+  }
+  
+  const [contents] = await file.download();
+  return contents;
+}
+
+// Helper function to delete a file from object storage
+export async function deleteFromObjectStorage(filePath: string): Promise<boolean> {
+  try {
+    const { bucketName, objectName } = parseObjectPath(filePath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    const [exists] = await file.exists();
+    if (!exists) {
+      logger.warn(`[ObjectStorage] File not found for deletion: ${filePath}`);
+      return false;
+    }
+    
+    await file.delete();
+    logger.info(`[ObjectStorage] Deleted file: ${filePath}`);
+    return true;
+  } catch (error: any) {
+    logger.error(`[ObjectStorage] Failed to delete file: ${filePath}`, error);
+    return false;
+  }
+}
