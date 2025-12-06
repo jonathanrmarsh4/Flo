@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, Mic, MicOff, MessageSquare, XCircle } from 'lucide-react';
-import { apiRequest } from '@/lib/queryClient';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, Mic, MicOff, MessageSquare, XCircle, Save, History, Trash2, Clock, Calendar } from 'lucide-react';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useGeminiLiveVoice } from '@/hooks/useGeminiLiveVoice';
+import { format, formatDistanceToNow } from 'date-fns';
 
 interface SIEResponse {
   text: string;
@@ -22,6 +23,15 @@ interface TranscriptEntry {
   role: 'user' | 'sie';
   text: string;
   timestamp: Date;
+}
+
+interface SavedSession {
+  id: string;
+  title: string;
+  transcript: TranscriptEntry[];
+  hasAudio: boolean;
+  durationSeconds: number | null;
+  createdAt: string;
 }
 
 export function AdminSIE() {
@@ -39,6 +49,64 @@ export function AdminSIE() {
   const [currentUserText, setCurrentUserText] = useState('');
   const [sieResponseText, setSieResponseText] = useState('');
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
+  
+  const [showHistory, setShowHistory] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  
+  const { data: sessionsResponse, refetch: refetchSessions } = useQuery<{ sessions: SavedSession[] }>({
+    queryKey: ['/api/sandbox/sie/brainstorm-sessions'],
+  });
+  const savedSessions = sessionsResponse?.sessions || [];
+  
+  const saveSessionMutation = useMutation({
+    mutationFn: async (data: { transcript: TranscriptEntry[], durationSeconds: number }) => {
+      const title = `SIE Brainstorm - ${format(new Date(), 'MMM d, yyyy h:mm a')}`;
+      const res = await apiRequest('POST', '/api/sandbox/sie/brainstorm-sessions', {
+        title,
+        transcript: data.transcript.map(t => ({
+          role: t.role,
+          text: t.text,
+          timestamp: t.timestamp.toISOString(),
+        })),
+        durationSeconds: data.durationSeconds,
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Session Saved',
+        description: 'Voice brainstorm session saved successfully',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sandbox/sie/brainstorm-sessions'] });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Failed to Save Session',
+        description: err.message || 'Could not save the session',
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  const deleteSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      await apiRequest('DELETE', `/api/sandbox/sie/brainstorm-sessions/${sessionId}`);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Session Deleted',
+        description: 'Voice brainstorm session deleted',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/sandbox/sie/brainstorm-sessions'] });
+    },
+    onError: (err: any) => {
+      toast({
+        title: 'Failed to Delete Session',
+        description: err.message || 'Could not delete the session',
+        variant: 'destructive',
+      });
+    },
+  });
 
   const handleTranscript = useCallback((text: string, isFinal: boolean) => {
     setCurrentUserText(text);
@@ -61,6 +129,7 @@ export function AdminSIE() {
   }, [toast]);
 
   const handleConnected = useCallback(() => {
+    setSessionStartTime(new Date());
     toast({
       title: 'Voice Brainstorm Connected',
       description: 'SIE is ready to brainstorm with you',
@@ -122,9 +191,49 @@ export function AdminSIE() {
     if (isConnected) {
       disconnect();
     } else {
+      setTranscript([]);
       await connect();
       await startListening();
     }
+  };
+  
+  const handleSaveSession = () => {
+    if (transcript.length === 0) {
+      toast({
+        title: 'Nothing to Save',
+        description: 'Start a voice brainstorm session first',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    const durationSeconds = sessionStartTime 
+      ? Math.round((Date.now() - sessionStartTime.getTime()) / 1000)
+      : 0;
+    
+    saveSessionMutation.mutate({
+      transcript,
+      durationSeconds,
+    });
+  };
+  
+  const handleLoadSession = (session: SavedSession) => {
+    setTranscript(session.transcript.map(t => ({
+      ...t,
+      timestamp: new Date(t.timestamp),
+    })));
+    setShowHistory(false);
+    toast({
+      title: 'Session Loaded',
+      description: `Loaded session from ${format(new Date(session.createdAt), 'MMM d, yyyy')}`,
+    });
+  };
+  
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return 'Unknown duration';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   };
 
   const handleToggleMic = async () => {
@@ -448,6 +557,36 @@ export function AdminSIE() {
                           )}
                         </Button>
                       )}
+                      
+                      {!isConnected && transcript.length > 0 && (
+                        <Button
+                          onClick={handleSaveSession}
+                          variant="outline"
+                          disabled={saveSessionMutation.isPending}
+                          data-testid="button-sie-save-session"
+                        >
+                          {saveSessionMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Save className="w-4 h-4 mr-2" />
+                              Save Session
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      
+                      <Button
+                        onClick={() => setShowHistory(!showHistory)}
+                        variant="outline"
+                        data-testid="button-sie-history"
+                      >
+                        <History className="w-4 h-4 mr-2" />
+                        History ({savedSessions.length})
+                      </Button>
                     </div>
                     
                     {isConnected && (
@@ -520,6 +659,72 @@ export function AdminSIE() {
                       )}
                     </div>
                   </ScrollArea>
+                  
+                  {showHistory && (
+                    <div className="border-t border-white/10 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <History className="w-4 h-4 text-purple-400" />
+                        <span className="text-sm text-white/70">Saved Sessions</span>
+                      </div>
+                      
+                      {savedSessions.length === 0 ? (
+                        <div className="text-center py-6 text-white/40 text-sm">
+                          <Calendar className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                          <p>No saved sessions yet</p>
+                        </div>
+                      ) : (
+                        <ScrollArea className="h-48">
+                          <div className="space-y-2">
+                            {savedSessions.map((session) => (
+                              <div
+                                key={session.id}
+                                className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                                data-testid={`session-${session.id}`}
+                              >
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-white/80">{session.title}</span>
+                                    <span className="text-xs bg-purple-500/20 px-2 py-0.5 rounded-full text-purple-300">
+                                      {session.transcript.length} exchanges
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => handleLoadSession(session)}
+                                      data-testid={`button-load-session-${session.id}`}
+                                    >
+                                      <MessageSquare className="w-4 h-4 text-white/50" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      onClick={() => deleteSessionMutation.mutate(session.id)}
+                                      disabled={deleteSessionMutation.isPending}
+                                      data-testid={`button-delete-session-${session.id}`}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-red-400/70" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-white/40">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {format(new Date(session.createdAt), 'MMM d, yyyy')}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {formatDuration(session.durationSeconds)}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
