@@ -1,5 +1,5 @@
 import { bigQueryService } from './bigQueryService';
-import { bigQueryBaselineEngine, AnomalyResult } from './bigQueryBaselineEngine';
+import { clickhouseBaselineEngine, AnomalyResult } from './clickhouseBaselineEngine';
 import { dynamicFeedbackGenerator, GeneratedQuestion } from './dynamicFeedbackGenerator';
 import { getHealthId } from './supabaseHealthStorage';
 import { writeInsightToBrain, checkDuplicateInsight } from './brainService';
@@ -56,7 +56,7 @@ class CorrelationInsightService {
 
     logger.info(`[CorrelationInsight] Starting full analysis for user ${userId}`);
 
-    const anomalies = await bigQueryBaselineEngine.detectAnomalies(healthId);
+    const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId);
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
     let feedbackQuestion: GeneratedQuestion | null = null;
@@ -503,6 +503,7 @@ class CorrelationInsightService {
               wrist_temperature_deviation: { value: 0.6, deviation: 500 },
               respiratory_rate: { value: 18, deviation: 20 },
             },
+            modelConfidence: 0.85,
           },
           {
             anomalyId: randomUUID(),
@@ -515,6 +516,7 @@ class CorrelationInsightService {
             severity: 'moderate',
             patternFingerprint: 'illness_precursor',
             relatedMetrics: null,
+            modelConfidence: 0.75,
           },
           {
             anomalyId: randomUUID(),
@@ -527,6 +529,7 @@ class CorrelationInsightService {
             severity: 'moderate',
             patternFingerprint: 'illness_precursor',
             relatedMetrics: null,
+            modelConfidence: 0.70,
           },
         ];
         break;
@@ -547,6 +550,7 @@ class CorrelationInsightService {
               hrv: { value: 35, deviation: -36 },
               deep_sleep: { value: 30, deviation: -40 },
             },
+            modelConfidence: 0.80,
           },
           {
             anomalyId: randomUUID(),
@@ -559,6 +563,7 @@ class CorrelationInsightService {
             severity: 'moderate',
             patternFingerprint: 'recovery_deficit',
             relatedMetrics: null,
+            modelConfidence: 0.75,
           },
         ];
         break;
@@ -577,6 +582,7 @@ class CorrelationInsightService {
             severity: 'moderate',
             patternFingerprint: null,
             relatedMetrics: null,
+            modelConfidence: 0.70,
           },
         ];
     }

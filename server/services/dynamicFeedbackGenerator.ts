@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { AnomalyResult } from './bigQueryBaselineEngine';
+import { AnomalyResult } from './clickhouseBaselineEngine';
 import { logger } from '../utils/logger';
 
 const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
