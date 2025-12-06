@@ -132,23 +132,31 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncHealthDataFromSupabase(healthId: string, daysBack: number = 30): Promise<number> {
+  // Full history constant: 10 years (3650 days) covers all possible user data
+  static readonly FULL_HISTORY_DAYS = 3650;
+
+  async syncHealthDataFromSupabase(healthId: string, daysBack: number | null = 30): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
       const { getSupabaseClient } = await import('./supabaseClient');
       const supabase = getSupabaseClient();
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-      const startDateStr = startDate.toISOString().split('T')[0];
-
-      const { data: metrics, error } = await supabase
+      // If daysBack is null, sync all available data (full history)
+      let query = supabase
         .from('user_daily_metrics')
         .select('*')
         .eq('health_id', healthId)
-        .gte('local_date', startDateStr)
         .order('local_date', { ascending: true });
+
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        query = query.gte('local_date', startDateStr);
+      }
+
+      const { data: metrics, error } = await query;
 
       if (error) {
         logger.error('[ClickHouseML] Error fetching from Supabase:', error);
@@ -841,23 +849,27 @@ export class ClickHouseBaselineEngine {
 
   // ==================== COMPREHENSIVE DATA SYNC METHODS ====================
 
-  async syncNutritionData(healthId: string, daysBack: number = 90): Promise<number> {
+  async syncNutritionData(healthId: string, daysBack: number | null = 90): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
       const { getSupabaseClient } = await import('./supabaseClient');
       const supabase = getSupabaseClient();
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-      const startDateStr = startDate.toISOString().split('T')[0];
-
-      const { data: nutrition, error } = await supabase
+      let query = supabase
         .from('nutrition_daily_metrics')
         .select('*')
         .eq('health_id', healthId)
-        .gte('local_date', startDateStr)
         .order('local_date', { ascending: true });
+
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        query = query.gte('local_date', startDateStr);
+      }
+
+      const { data: nutrition, error } = await query;
 
       if (error) {
         logger.error('[ClickHouseML] Error fetching nutrition from Supabase:', error);
@@ -909,19 +921,15 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncBiomarkerData(healthId: string, daysBack: number = 365): Promise<number> {
+  async syncBiomarkerData(healthId: string, daysBack: number | null = 365): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
       const { getSupabaseClient } = await import('./supabaseClient');
       const supabase = getSupabaseClient();
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-      const startDateStr = startDate.toISOString().split('T')[0];
-
-      // Get all biomarker measurements with their sessions
-      const { data: measurements, error } = await supabase
+      // Build query - if daysBack is null, get all history
+      let query = supabase
         .from('biomarker_measurements')
         .select(`
           *,
@@ -932,8 +940,16 @@ export class ClickHouseBaselineEngine {
           )
         `)
         .eq('biomarker_test_sessions.health_id', healthId)
-        .gte('biomarker_test_sessions.test_date', startDateStr)
         .order('biomarker_test_sessions(test_date)', { ascending: true });
+
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        query = query.gte('biomarker_test_sessions.test_date', startDateStr);
+      }
+
+      const { data: measurements, error } = await query;
 
       if (error) {
         logger.error('[ClickHouseML] Error fetching biomarkers from Supabase:', error);
@@ -967,22 +983,26 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncLifeEvents(healthId: string, daysBack: number = 180): Promise<number> {
+  async syncLifeEvents(healthId: string, daysBack: number | null = 180): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
       const { getSupabaseClient } = await import('./supabaseClient');
       const supabase = getSupabaseClient();
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-
-      const { data: events, error } = await supabase
+      let query = supabase
         .from('life_events')
         .select('*')
         .eq('health_id', healthId)
-        .gte('occurred_at', startDate.toISOString())
         .order('occurred_at', { ascending: true });
+
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        query = query.gte('occurred_at', startDate.toISOString());
+      }
+
+      const { data: events, error } = await query;
 
       if (error) {
         logger.error('[ClickHouseML] Error fetching life events from Supabase:', error);
@@ -1015,24 +1035,27 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncEnvironmentalData(healthId: string, daysBack: number = 90): Promise<number> {
+  async syncEnvironmentalData(healthId: string, daysBack: number | null = 90): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
       const { getSupabaseClient } = await import('./supabaseClient');
       const supabase = getSupabaseClient();
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-      const startDateStr = startDate.toISOString().split('T')[0];
-
-      // Get weather/environmental data
-      const { data: weather, error } = await supabase
+      let query = supabase
         .from('weather_daily_cache')
         .select('*')
         .eq('health_id', healthId)
-        .gte('date', startDateStr)
         .order('date', { ascending: true });
+
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        query = query.gte('date', startDateStr);
+      }
+
+      const { data: weather, error } = await query;
 
       if (error) {
         logger.error('[ClickHouseML] Error fetching weather from Supabase:', error);
@@ -1166,7 +1189,7 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncReadinessScores(healthId: string, daysBack: number = 90): Promise<number> {
+  async syncReadinessScores(healthId: string, daysBack: number | null = 90): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
@@ -1183,20 +1206,25 @@ export class ClickHouseBaselineEngine {
       const { db } = await import('../db');
       const { userDailyReadiness } = await import('@shared/schema');
       const { gte, eq, and, desc } = await import('drizzle-orm');
-      
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Build query - if daysBack is null, get all history
+      let whereClause;
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        whereClause = and(
+          eq(userDailyReadiness.userId, userId),
+          gte(userDailyReadiness.date, startDateStr)
+        );
+      } else {
+        whereClause = eq(userDailyReadiness.userId, userId);
+      }
 
       const readiness = await db
         .select()
         .from(userDailyReadiness)
-        .where(
-          and(
-            eq(userDailyReadiness.userId, userId),
-            gte(userDailyReadiness.date, startDateStr)
-          )
-        )
+        .where(whereClause)
         .orderBy(desc(userDailyReadiness.date));
 
       if (!readiness || readiness.length === 0) {
@@ -1227,23 +1255,27 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncTrainingLoad(healthId: string, daysBack: number = 90): Promise<number> {
+  async syncTrainingLoad(healthId: string, daysBack: number | null = 90): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
       const { getSupabaseClient } = await import('./supabaseClient');
       const supabase = getSupabaseClient();
 
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-      const startDateStr = startDate.toISOString().split('T')[0];
-
-      // Get daily metrics with workout data
-      const { data: dailyMetrics, error } = await supabase
+      let query = supabase
         .from('user_daily_metrics')
         .select('*')
-        .eq('health_id', healthId)
-        .gte('local_date', startDateStr)
+        .eq('health_id', healthId);
+
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        query = query.gte('local_date', startDateStr);
+      }
+
+      // Get daily metrics with workout data
+      const { data: dailyMetrics, error } = await query
         .order('local_date', { ascending: true });
 
       if (error) {
@@ -1318,14 +1350,14 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncCGMGlucoseData(healthId: string, daysBack: number = 90): Promise<number> {
+  async syncCGMGlucoseData(healthId: string, daysBack: number | null = 90): Promise<number> {
     // Placeholder for future CGM integration
     // Schema is ready - will sync from HealthKit glucose samples or direct CGM API
     logger.debug(`[ClickHouseML] CGM sync not yet implemented for ${healthId}`);
     return 0;
   }
 
-  async syncAllHealthData(healthId: string, daysBack: number = 90): Promise<{
+  async syncAllHealthData(healthId: string, daysBack: number | null = 90): Promise<{
     healthMetrics: number;
     nutrition: number;
     biomarkers: number;
@@ -1337,15 +1369,16 @@ export class ClickHouseBaselineEngine {
     trainingLoad: number;
     total: number;
   }> {
-    logger.info(`[ClickHouseML] Starting comprehensive data sync for ${healthId} (${daysBack} days back)`);
+    const daysLabel = daysBack === null ? 'full history' : `${daysBack} days back`;
+    logger.info(`[ClickHouseML] Starting comprehensive data sync for ${healthId} (${daysLabel})`);
 
     const results = await Promise.all([
       this.syncHealthDataFromSupabase(healthId, daysBack),
       this.syncNutritionData(healthId, daysBack),
-      this.syncBiomarkerData(healthId, 365), // Biomarkers go back further
-      this.syncLifeEvents(healthId, Math.min(daysBack, 180)),
+      this.syncBiomarkerData(healthId, daysBack), // Full history when null
+      this.syncLifeEvents(healthId, daysBack),
       this.syncEnvironmentalData(healthId, daysBack),
-      this.syncBodyCompositionData(healthId),
+      this.syncBodyCompositionData(healthId), // Always syncs all DEXA scans
       this.syncUserDemographics(healthId),
       this.syncReadinessScores(healthId, daysBack),
       this.syncTrainingLoad(healthId, daysBack),
@@ -1366,6 +1399,63 @@ export class ClickHouseBaselineEngine {
 
     logger.info(`[ClickHouseML] Comprehensive sync complete: ${summary.total} total records`, summary);
     return summary;
+  }
+
+  /**
+   * Clear existing data for a user from all ClickHouse tables.
+   * Used before full history sync to prevent duplicates.
+   */
+  async clearUserData(healthId: string): Promise<void> {
+    if (!await this.ensureInitialized()) return;
+
+    const tables = [
+      'health_metrics',
+      'nutrition_metrics',
+      'biomarkers',
+      'life_events',
+      'environmental_data',
+      'body_composition',
+      'user_demographics',
+      'readiness_scores',
+      'training_load',
+    ];
+
+    for (const table of tables) {
+      try {
+        await clickhouse.command(`
+          ALTER TABLE flo_health.${table}
+          DELETE WHERE health_id = '${healthId}'
+        `);
+      } catch (error) {
+        logger.warn(`[ClickHouseML] Failed to clear ${table} for ${healthId}:`, error);
+      }
+    }
+
+    logger.info(`[ClickHouseML] Cleared existing data for ${healthId} from ${tables.length} tables`);
+  }
+
+  /**
+   * Sync complete user history to ClickHouse for long-term pattern analysis.
+   * This enables pattern memory - recognizing recurring patterns over months/years.
+   * Clears existing data first to prevent duplicates, then syncs full history.
+   */
+  async syncFullHistory(healthId: string): Promise<{
+    healthMetrics: number;
+    nutrition: number;
+    biomarkers: number;
+    lifeEvents: number;
+    environmental: number;
+    bodyComposition: number;
+    demographics: number;
+    readiness: number;
+    trainingLoad: number;
+    total: number;
+  }> {
+    logger.info(`[ClickHouseML] Starting FULL HISTORY sync for ${healthId} (pattern memory enabled)`);
+    
+    await this.clearUserData(healthId);
+    
+    return this.syncAllHealthData(healthId, null);
   }
 
   async getDataCoverageSummary(healthId: string): Promise<{
@@ -1438,6 +1528,492 @@ export class ClickHouseBaselineEngine {
     ]);
 
     return { healthMetrics, nutrition, biomarkers, lifeEvents, environmental, bodyComposition, demographics, readiness, trainingLoad, cgmGlucose };
+  }
+
+  /**
+   * Find matching historical patterns for a given anomaly signature.
+   * Compares current anomaly's metric signature against stored patterns.
+   */
+  async findMatchingPatterns(
+    healthId: string,
+    metricSignature: string,
+    zScores: Record<string, number>,
+    similarityThreshold: number = 0.7
+  ): Promise<{
+    pattern_id: string;
+    pattern_name: string;
+    confidence_score: number;
+    occurrence_count: number;
+    typical_outcome: string | null;
+    last_observed: string;
+    days_since_last_seen: number;
+    similarity_score: number;
+  }[]> {
+    if (!await this.ensureInitialized()) return [];
+
+    try {
+      const patterns = await clickhouse.query<{
+        pattern_id: string;
+        pattern_name: string;
+        pattern_fingerprint: string;
+        confidence_score: number;
+        occurrence_count: number;
+        typical_outcome: string | null;
+        last_observed: string;
+        metric_signature: string;
+        average_z_scores: string;
+      }>(`
+        SELECT
+          pattern_id,
+          pattern_name,
+          pattern_fingerprint,
+          confidence_score,
+          occurrence_count,
+          typical_outcome,
+          last_observed,
+          metric_signature,
+          average_z_scores
+        FROM flo_health.pattern_library
+        WHERE health_id = {healthId:String}
+          AND confidence_score >= 0.3
+        ORDER BY occurrence_count DESC
+        LIMIT 100
+      `, { healthId });
+
+      const currentMetrics = new Set(metricSignature.split(','));
+      const matches: {
+        pattern_id: string;
+        pattern_name: string;
+        confidence_score: number;
+        occurrence_count: number;
+        typical_outcome: string | null;
+        last_observed: string;
+        days_since_last_seen: number;
+        similarity_score: number;
+      }[] = [];
+
+      for (const pattern of patterns) {
+        const patternMetrics = new Set(pattern.metric_signature.split(',').filter(m => m.trim()));
+        
+        const intersection = new Set([...currentMetrics].filter(x => patternMetrics.has(x)));
+        const union = new Set([...currentMetrics, ...patternMetrics]);
+        const jaccardSimilarity = union.size > 0 ? intersection.size / union.size : 0;
+
+        if (intersection.size === 0) continue;
+
+        let cosineSimilarity = 0;
+        let hasDirectionMismatch = false;
+        try {
+          const patternZScores = JSON.parse(pattern.average_z_scores || '{}');
+          let dotProduct = 0;
+          let currentMag = 0;
+          let patternMag = 0;
+          let sumSquaredDiff = 0;
+          let count = 0;
+
+          for (const metric of intersection) {
+            if (zScores[metric] !== undefined && patternZScores[metric] !== undefined) {
+              const currentZ = zScores[metric];
+              const patternZ = patternZScores[metric];
+              
+              const sameDirection = (currentZ >= 0) === (patternZ >= 0);
+              if (!sameDirection) {
+                hasDirectionMismatch = true;
+                break;
+              }
+
+              dotProduct += currentZ * patternZ;
+              currentMag += currentZ * currentZ;
+              patternMag += patternZ * patternZ;
+              sumSquaredDiff += Math.pow(currentZ - patternZ, 2);
+              count++;
+            }
+          }
+
+          if (hasDirectionMismatch) continue;
+
+          if (count > 0 && currentMag > 0 && patternMag > 0) {
+            cosineSimilarity = dotProduct / (Math.sqrt(currentMag) * Math.sqrt(patternMag));
+            cosineSimilarity = (cosineSimilarity + 1) / 2;
+          }
+
+          const euclideanDistance = Math.sqrt(sumSquaredDiff);
+          const normalizedEuclidean = Math.exp(-euclideanDistance / (count * 1.5));
+
+          cosineSimilarity = cosineSimilarity * normalizedEuclidean;
+        } catch {
+          cosineSimilarity = 0;
+        }
+
+        const similarityScore = 
+          jaccardSimilarity * 0.20 + 
+          cosineSimilarity * 0.80;
+
+        if (similarityScore >= similarityThreshold) {
+          const lastObserved = new Date(pattern.last_observed);
+          const daysSince = Math.floor((Date.now() - lastObserved.getTime()) / (1000 * 60 * 60 * 24));
+          
+          matches.push({
+            pattern_id: pattern.pattern_id,
+            pattern_name: pattern.pattern_name,
+            confidence_score: Number(pattern.confidence_score),
+            occurrence_count: Number(pattern.occurrence_count),
+            typical_outcome: pattern.typical_outcome,
+            last_observed: pattern.last_observed,
+            days_since_last_seen: daysSince,
+            similarity_score: similarityScore,
+          });
+        }
+      }
+
+      matches.sort((a, b) => b.similarity_score - a.similarity_score);
+      logger.info(`[ClickHouseML] Found ${matches.length} matching patterns for ${healthId}`);
+      return matches.slice(0, 10);
+    } catch (error) {
+      logger.error('[ClickHouseML] Pattern matching error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Record a pattern occurrence when an anomaly matches a known pattern.
+   */
+  async recordPatternOccurrence(
+    healthId: string,
+    patternId: string,
+    anomalyId: string,
+    zScores: Record<string, number>,
+    metricValues: Record<string, number>,
+    severity: string
+  ): Promise<void> {
+    if (!await this.ensureInitialized()) return;
+
+    try {
+      const occurrenceId = randomUUID();
+      const now = new Date();
+
+      await clickhouse.insert('pattern_occurrences', [{
+        occurrence_id: occurrenceId,
+        health_id: healthId,
+        pattern_id: patternId,
+        anomaly_id: anomalyId,
+        detected_at: now.toISOString(),
+        detection_date: now.toISOString().split('T')[0],
+        z_scores: JSON.stringify(zScores),
+        metric_values: JSON.stringify(metricValues),
+        severity,
+        outcome: null,
+        outcome_recorded_at: null,
+        user_notes: null,
+      }]);
+
+      await clickhouse.command(`
+        ALTER TABLE flo_health.pattern_library
+        UPDATE
+          last_observed = '${now.toISOString().split('T')[0]}',
+          occurrence_count = occurrence_count + 1,
+          updated_at = now64(3)
+        WHERE pattern_id = '${patternId}' AND health_id = '${healthId}'
+      `);
+
+      logger.info(`[ClickHouseML] Recorded pattern occurrence for pattern ${patternId}`);
+    } catch (error) {
+      logger.error('[ClickHouseML] Record pattern occurrence error:', error);
+    }
+  }
+
+  /**
+   * Generate a pattern fingerprint that uniquely identifies a pattern based on:
+   * - Which metrics are involved (sorted)
+   * - Signed quantized Z-score value (0.5 step granularity, preserves full range)
+   * Format: metric1:+2.0|metric2:-1.5|metric3:+6.5
+   */
+  private generatePatternFingerprint(metricSignature: string, zScores: Record<string, number>): string {
+    const sortedMetrics = metricSignature.split(',').filter(m => m.trim()).sort();
+    const components: string[] = [];
+
+    for (const metric of sortedMetrics) {
+      const z = zScores[metric];
+      if (z === undefined) continue;
+
+      const signedQuantized = Math.round(z * 2) / 2;
+
+      components.push(`${metric}:${signedQuantized >= 0 ? '+' : ''}${signedQuantized.toFixed(1)}`);
+    }
+
+    return components.join('|');
+  }
+
+  /**
+   * Create or update a pattern in the pattern library.
+   * Generates a fingerprint based on the metrics involved and their Z-scores.
+   */
+  async upsertPattern(
+    healthId: string,
+    patternName: string,
+    metricSignature: string,
+    zScores: Record<string, number>,
+    description?: string,
+    seasonalPattern?: string
+  ): Promise<string | null> {
+    if (!await this.ensureInitialized()) return null;
+
+    try {
+      const sortedMetrics = metricSignature.split(',').filter(m => m.trim()).sort().join(',');
+      const sortedZScores: Record<string, number> = {};
+      const metricList = sortedMetrics.split(',');
+      for (const m of metricList) {
+        if (zScores[m] !== undefined) {
+          sortedZScores[m] = Math.round(zScores[m] * 10) / 10;
+        }
+      }
+      
+      const fingerprint = this.generatePatternFingerprint(metricSignature, zScores);
+
+      const existing = await clickhouse.query<{ pattern_id: string }>(`
+        SELECT pattern_id
+        FROM flo_health.pattern_library
+        WHERE health_id = {healthId:String}
+          AND pattern_fingerprint = {fingerprint:String}
+        LIMIT 1
+      `, { healthId, fingerprint });
+
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+
+      if (existing.length > 0) {
+        await clickhouse.command(`
+          ALTER TABLE flo_health.pattern_library
+          UPDATE
+            last_observed = '${today}',
+            occurrence_count = occurrence_count + 1,
+            average_z_scores = '${JSON.stringify(sortedZScores)}',
+            updated_at = now64(3)
+          WHERE pattern_id = '${existing[0].pattern_id}' AND health_id = '${healthId}'
+        `);
+        logger.info(`[ClickHouseML] Updated existing pattern ${existing[0].pattern_id}`);
+        return existing[0].pattern_id;
+      }
+
+      const patternId = randomUUID();
+      await clickhouse.insert('pattern_library', [{
+        pattern_id: patternId,
+        health_id: healthId,
+        pattern_fingerprint: fingerprint,
+        pattern_name: patternName,
+        pattern_description: description || null,
+        first_observed: today,
+        last_observed: today,
+        occurrence_count: 1,
+        confirmation_count: 0,
+        false_positive_count: 0,
+        confidence_score: 0.5,
+        typical_duration_days: null,
+        typical_outcome: null,
+        outcome_details: null,
+        seasonal_pattern: seasonalPattern || null,
+        metric_signature: sortedMetrics,
+        average_z_scores: JSON.stringify(sortedZScores),
+        preceding_events: null,
+      }]);
+
+      logger.info(`[ClickHouseML] Created new pattern ${patternId}: ${patternName}`);
+      return patternId;
+    } catch (error) {
+      logger.error('[ClickHouseML] Upsert pattern error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Detect seasonal patterns in the user's health data.
+   * Analyzes historical data to find recurring patterns by month/season.
+   */
+  async detectSeasonalPatterns(healthId: string): Promise<{
+    season: string;
+    metrics_affected: string[];
+    direction: 'increase' | 'decrease';
+    magnitude_pct: number;
+    confidence: number;
+    years_observed: number;
+  }[]> {
+    if (!await this.ensureInitialized()) return [];
+
+    try {
+      const seasonalData = await clickhouse.query<{
+        month: number;
+        metric_type: string;
+        avg_value: number;
+        sample_count: number;
+        min_date: string;
+        max_date: string;
+      }>(`
+        SELECT
+          toMonth(local_date) as month,
+          metric_type,
+          avg(value) as avg_value,
+          count() as sample_count,
+          min(local_date) as min_date,
+          max(local_date) as max_date
+        FROM flo_health.health_metrics
+        WHERE health_id = {healthId:String}
+          AND local_date >= today() - INTERVAL 5 YEAR
+        GROUP BY month, metric_type
+        HAVING sample_count >= 14
+        ORDER BY metric_type, month
+      `, { healthId });
+
+      const metricsByType: Record<string, { month: number; avg: number; count: number; minDate: string; maxDate: string }[]> = {};
+      for (const row of seasonalData) {
+        if (!metricsByType[row.metric_type]) {
+          metricsByType[row.metric_type] = [];
+        }
+        metricsByType[row.metric_type].push({
+          month: Number(row.month),
+          avg: Number(row.avg_value),
+          count: Number(row.sample_count),
+          minDate: row.min_date,
+          maxDate: row.max_date,
+        });
+      }
+
+      const metricsWithFullYear = Object.entries(metricsByType).filter(
+        ([_, monthData]) => monthData.length >= 12
+      );
+
+      if (metricsWithFullYear.length === 0) {
+        logger.debug('[ClickHouseML] No metrics have 12+ months of data for seasonal analysis');
+        return [];
+      }
+
+      const seasonalPatterns: {
+        season: string;
+        metrics_affected: string[];
+        direction: 'increase' | 'decrease';
+        magnitude_pct: number;
+        confidence: number;
+        years_observed: number;
+      }[] = [];
+
+      const seasons = [
+        { name: 'winter', months: [12, 1, 2] },
+        { name: 'spring', months: [3, 4, 5] },
+        { name: 'summer', months: [6, 7, 8] },
+        { name: 'fall', months: [9, 10, 11] },
+      ];
+
+      for (const season of seasons) {
+        const metricsAffected: { metric: string; direction: 'increase' | 'decrease'; magnitude: number; dateSpanYears: number }[] = [];
+
+        for (const [metric, monthlyData] of metricsWithFullYear) {
+          const yearlyAvg = monthlyData.reduce((sum, d) => sum + d.avg, 0) / monthlyData.length;
+          if (yearlyAvg === 0) continue;
+          
+          const seasonalMonths = monthlyData.filter(d => season.months.includes(d.month));
+          
+          if (seasonalMonths.length >= 2) {
+            const seasonAvg = seasonalMonths.reduce((sum, d) => sum + d.avg, 0) / seasonalMonths.length;
+            const deviation = ((seasonAvg - yearlyAvg) / yearlyAvg) * 100;
+
+            if (Math.abs(deviation) >= 10) {
+              const allDates = monthlyData.map(d => d.minDate).concat(monthlyData.map(d => d.maxDate));
+              const minDate = new Date(allDates.reduce((a, b) => a < b ? a : b));
+              const maxDate = new Date(allDates.reduce((a, b) => a > b ? a : b));
+              const dateSpanMs = maxDate.getTime() - minDate.getTime();
+              const dateSpanYears = Math.max(1, Math.round(dateSpanMs / (365.25 * 24 * 60 * 60 * 1000)));
+              
+              metricsAffected.push({
+                metric,
+                direction: deviation > 0 ? 'increase' : 'decrease',
+                magnitude: Math.abs(deviation),
+                dateSpanYears,
+              });
+            }
+          }
+        }
+
+        if (metricsAffected.length > 0) {
+          const avgMagnitude = metricsAffected.reduce((sum, m) => sum + m.magnitude, 0) / metricsAffected.length;
+          const primaryDirection = metricsAffected.filter(m => m.direction === 'increase').length >= 
+                                   metricsAffected.filter(m => m.direction === 'decrease').length ? 'increase' : 'decrease';
+          
+          const maxYearsObserved = Math.max(...metricsAffected.map(m => m.dateSpanYears));
+
+          seasonalPatterns.push({
+            season: season.name,
+            metrics_affected: metricsAffected.map(m => m.metric),
+            direction: primaryDirection,
+            magnitude_pct: Math.round(avgMagnitude * 10) / 10,
+            confidence: Math.min(0.9, 0.4 + (metricsAffected.length * 0.1) + (maxYearsObserved * 0.1)),
+            years_observed: maxYearsObserved,
+          });
+        }
+      }
+
+      logger.info(`[ClickHouseML] Detected ${seasonalPatterns.length} seasonal patterns for ${healthId}`);
+      return seasonalPatterns;
+    } catch (error) {
+      logger.error('[ClickHouseML] Seasonal pattern detection error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get pattern context for Flō Oracle - enriches AI context with pattern memory.
+   */
+  async getPatternContextForOracle(healthId: string): Promise<string> {
+    if (!await this.ensureInitialized()) return '';
+
+    try {
+      const recentPatterns = await clickhouse.query<{
+        pattern_name: string;
+        occurrence_count: number;
+        last_observed: string;
+        typical_outcome: string | null;
+        confidence_score: number;
+      }>(`
+        SELECT
+          pattern_name,
+          occurrence_count,
+          last_observed,
+          typical_outcome,
+          confidence_score
+        FROM flo_health.pattern_library
+        WHERE health_id = {healthId:String}
+          AND occurrence_count >= 2
+          AND confidence_score >= 0.5
+        ORDER BY last_observed DESC
+        LIMIT 5
+      `, { healthId });
+
+      if (recentPatterns.length === 0) return '';
+
+      const seasonalPatterns = await this.detectSeasonalPatterns(healthId);
+
+      let context = '\n## Pattern Memory\n';
+      context += 'The following recurring patterns have been observed:\n';
+
+      for (const p of recentPatterns) {
+        const daysAgo = Math.floor((Date.now() - new Date(p.last_observed).getTime()) / (1000 * 60 * 60 * 24));
+        context += `- **${p.pattern_name}** (seen ${p.occurrence_count}x, last ${daysAgo} days ago)`;
+        if (p.typical_outcome) {
+          context += `: typically leads to ${p.typical_outcome}`;
+        }
+        context += '\n';
+      }
+
+      if (seasonalPatterns.length > 0) {
+        context += '\n### Seasonal Trends\n';
+        for (const sp of seasonalPatterns) {
+          context += `- During **${sp.season}**: ${sp.metrics_affected.join(', ')} typically ${sp.direction} by ~${sp.magnitude_pct}%\n`;
+        }
+      }
+
+      return context;
+    } catch (error) {
+      logger.error('[ClickHouseML] Pattern context error:', error);
+      return '';
+    }
   }
 }
 

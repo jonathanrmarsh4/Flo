@@ -443,7 +443,63 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including nutrition, biomarkers, life_events, environmental, body_composition, demographics, readiness, cgm, training_load)');
+    // Pattern Library - stores confirmed patterns for long-term memory
+    // Enables "we've seen this pattern before" recognition
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.pattern_library (
+          pattern_id String,
+          health_id String,
+          pattern_fingerprint String,
+          pattern_name String,
+          pattern_description Nullable(String),
+          first_observed Date,
+          last_observed Date,
+          occurrence_count UInt32 DEFAULT 1,
+          confirmation_count UInt32 DEFAULT 0,
+          false_positive_count UInt32 DEFAULT 0,
+          confidence_score Float64 DEFAULT 0.5,
+          typical_duration_days Nullable(Float64),
+          typical_outcome Nullable(String),
+          outcome_details Nullable(String),
+          seasonal_pattern Nullable(String),
+          metric_signature String,
+          average_z_scores String,
+          preceding_events Nullable(String),
+          created_at DateTime64(3) DEFAULT now64(3),
+          updated_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(updated_at)
+        ORDER BY (health_id, pattern_fingerprint, pattern_id)
+      `,
+    });
+
+    // Pattern Occurrences - individual instances of detected patterns
+    // Links anomaly detections to pattern library entries
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.pattern_occurrences (
+          occurrence_id String,
+          health_id String,
+          pattern_id String,
+          anomaly_id String,
+          detected_at DateTime64(3),
+          detection_date Date,
+          z_scores String,
+          metric_values String,
+          severity LowCardinality(String),
+          outcome Nullable(String),
+          outcome_recorded_at Nullable(DateTime64(3)),
+          user_notes Nullable(String),
+          created_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = MergeTree()
+        PARTITION BY toYYYYMM(detection_date)
+        ORDER BY (health_id, pattern_id, detected_at, occurrence_id)
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including pattern_library, pattern_occurrences)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

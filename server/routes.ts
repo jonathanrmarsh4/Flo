@@ -4744,6 +4744,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Full history backfill for pattern memory (syncs ALL user data to ClickHouse)
+  // Includes batching, rate limiting, and async processing for large user sets
+  app.post("/api/admin/clickhouse/backfill-full-history", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId, allUsers, batchSize = 5, delayBetweenBatchesMs = 2000 } = req.body;
+      
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      if (allUsers) {
+        const activeUsers = await db.select({ id: users.id }).from(users).where(eq(users.isActive, true));
+        
+        if (activeUsers.length > 50) {
+          return res.status(400).json({ 
+            error: `Too many users (${activeUsers.length}). Use batchSize parameter or process specific users.`,
+            suggestion: "Set batchSize to a smaller number or process users individually with userId parameter"
+          });
+        }
+        
+        logger.info(`[Admin] Starting FULL HISTORY backfill for ${activeUsers.length} users (batch size: ${batchSize})`);
+        
+        const results: { userId: string; success: boolean; total: number; error?: string }[] = [];
+        
+        const batches: typeof activeUsers[] = [];
+        for (let i = 0; i < activeUsers.length; i += batchSize) {
+          batches.push(activeUsers.slice(i, i + batchSize));
+        }
+        
+        for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+          const batch = batches[batchIndex];
+          logger.info(`[Admin] Processing batch ${batchIndex + 1}/${batches.length}`);
+          
+          const batchResults = await Promise.all(
+            batch.map(async (user) => {
+              try {
+                const healthId = await getHealthId(user.id);
+                const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
+                logger.info(`[Admin] Backfill complete for ${user.id}: ${summary.total} records`);
+                return { userId: user.id, success: true, total: summary.total };
+              } catch (err: any) {
+                logger.error(`[Admin] Backfill failed for ${user.id}:`, err.message);
+                return { userId: user.id, success: false, total: 0, error: err.message };
+              }
+            })
+          );
+          
+          results.push(...batchResults);
+          
+          if (batchIndex < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, Math.min(delayBetweenBatchesMs, 10000)));
+          }
+        }
+        
+        const totalRecords = results.reduce((sum, r) => sum + r.total, 0);
+        const successCount = results.filter(r => r.success).length;
+        
+        res.json({ 
+          message: `Full history backfill complete for ${successCount}/${activeUsers.length} users`,
+          totalRecords,
+          batchesProcessed: batches.length,
+          results
+        });
+      } else if (userId) {
+        const healthId = await getHealthId(userId);
+        const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
+        
+        logger.info(`[Admin] FULL HISTORY backfill complete for ${userId}`, summary);
+        
+        res.json({ 
+          message: `Full history synced for user ${userId}`,
+          healthId,
+          ...summary
+        });
+      } else {
+        return res.status(400).json({ error: "Either userId or allUsers: true is required" });
+      }
+    } catch (error) {
+      logger.error('[Admin] Full history backfill error:', error);
+      res.status(500).json({ error: "Failed to backfill full history" });
+    }
+  });
+
+  // Admin: Get pattern library for a user (recognized recurring patterns)
+  app.get("/api/admin/clickhouse/patterns/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const { isClickHouseEnabled } = await import('./services/clickhouseService');
+      const { clickhouse } = await import('./services/clickhouseService');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      if (!isClickHouseEnabled()) {
+        return res.status(503).json({ error: "ClickHouse not configured" });
+      }
+      
+      const healthId = await getHealthId(userId);
+      
+      // Get patterns from pattern library
+      const patterns = await clickhouse.query<{
+        pattern_id: string;
+        pattern_fingerprint: string;
+        pattern_name: string;
+        pattern_description: string | null;
+        first_observed: string;
+        last_observed: string;
+        occurrence_count: number;
+        confirmation_count: number;
+        false_positive_count: number;
+        confidence_score: number;
+        typical_outcome: string | null;
+        seasonal_pattern: string | null;
+      }>(`
+        SELECT
+          pattern_id,
+          pattern_fingerprint,
+          pattern_name,
+          pattern_description,
+          first_observed,
+          last_observed,
+          occurrence_count,
+          confirmation_count,
+          false_positive_count,
+          confidence_score,
+          typical_outcome,
+          seasonal_pattern
+        FROM flo_health.pattern_library
+        WHERE health_id = {healthId:String}
+        ORDER BY last_observed DESC
+        LIMIT 50
+      `, { healthId });
+      
+      res.json({ healthId, patterns });
+    } catch (error) {
+      logger.error('[Admin] Pattern library fetch error:', error);
+      res.status(500).json({ error: "Failed to fetch pattern library" });
+    }
+  });
+
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {

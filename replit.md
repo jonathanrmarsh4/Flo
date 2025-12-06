@@ -36,7 +36,14 @@ The platform adopts a mobile-first, content-focused minimalist design, drawing i
 - **Daily Reminder Notifications:** AI-driven personalized reminders using Gemini 2.5 Flash.
 - **On-Demand Data Retrieval (Function Calling):** Flō Oracle uses Gemini function calling to fetch specific health data (e.g., `get_nutrition_trend`, `get_biomarker_history`) for complex queries.
 - **Environmental Data Integration:** Correlates OpenWeather data (temperature, AQI) with health metrics, influencing Flō Oracle context and Readiness Engine scores.
-- **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection and predictive insights using a comprehensive data warehouse (10 tables: health_metrics, nutrition_metrics, biomarkers, life_events, environmental_data, body_composition, user_demographics, readiness_scores, training_load, cgm_glucose). Features include real-time auto-sync triggers on all data ingestion endpoints, 90-day baseline calculation, Z-score anomaly detection, multi-metric pattern recognition, ACWR training load analysis, and dynamic LLM-powered feedback generation. Data pipeline: iOS → Supabase (PHI storage) → ClickHouse auto-sync → Real-time anomaly detection.
+- **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection, predictive insights, and long-term pattern recognition using a comprehensive data warehouse (12 tables: health_metrics, nutrition_metrics, biomarkers, life_events, environmental_data, body_composition, user_demographics, readiness_scores, training_load, cgm_glucose, pattern_library, pattern_occurrences). Features include:
+  - **Full History Sync:** Syncs complete user history (up to 5+ years) for long-term pattern analysis. Admin endpoint: `POST /api/admin/clickhouse/backfill-full-history`
+  - **Pattern Memory System:** Stores and matches recurring health patterns using fingerprinting and similarity scoring. Enables "we've seen this pattern before" detection (e.g., "this HRV pattern preceded illness last November")
+  - **Seasonal Pattern Detection:** Identifies cyclical trends by season (winter, spring, summer, fall) across health metrics
+  - **Pattern Context for Flō Oracle:** Enriches AI responses with pattern memory context via `getPatternContextForOracle()`
+  - **Real-time Auto-sync:** Triggers on all data ingestion endpoints (non-blocking)
+  - **90-day Baseline + Z-score Anomaly Detection:** Multi-metric pattern recognition with ACWR training load analysis
+  - Data pipeline: iOS → Supabase (PHI storage) → ClickHouse auto-sync → Pattern matching → Anomaly detection → LLM feedback generation
 - **Self-Improvement Engine (SIE):** An admin-only sandbox AI (Gemini 2.5 Pro) for product improvement suggestions, featuring dynamic data introspection, verbal output, and a brainstorming chat mode.
 
 ## External Dependencies
