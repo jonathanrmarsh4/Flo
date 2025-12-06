@@ -1560,8 +1560,10 @@ export async function getActiveActionPlanItems(userId: string): Promise<string> 
 }
 
 /**
- * Get recent conversation history from past Flō Oracle sessions
+ * Get recent conversation history from past Flō Oracle voice sessions
  * Returns formatted context for conversation continuity
+ * Only includes voice sessions (voice_*), excludes admin sandbox (voice_admin_*)
+ * Drops legacy/null sessionId records to prevent mixing unrelated content
  */
 export async function getRecentChatHistory(userId: string, limit: number = 20): Promise<string> {
   try {
@@ -1576,50 +1578,84 @@ export async function getRecentChatHistory(userId: string, limit: number = 20): 
       .from(floChatMessages)
       .where(eq(floChatMessages.userId, userId))
       .orderBy(desc(floChatMessages.createdAt))
-      .limit(limit);
+      .limit(limit * 3); // Fetch extra to filter non-voice sessions
     
     if (recentMessages.length === 0) {
       return '';
     }
     
+    // Strict filtering for voice channel conversations only
+    const filteredMessages = recentMessages.filter(msg => {
+      // REQUIRE sessionId - drop legacy/null records to prevent mixing
+      if (!msg.sessionId) {
+        return false;
+      }
+      
+      // Only include voice sessions (sessionId starts with "voice_")
+      if (!msg.sessionId.startsWith('voice_')) {
+        return false;
+      }
+      
+      // Exclude admin sandbox sessions
+      if (msg.sessionId.startsWith('voice_admin_')) {
+        return false;
+      }
+      
+      // Only include user and assistant messages
+      if (msg.sender !== 'user' && msg.sender !== 'assistant') {
+        return false;
+      }
+      
+      return true;
+    }).slice(0, limit);
+    
+    if (filteredMessages.length === 0) {
+      return '';
+    }
+    
     // Reverse to get chronological order (oldest first)
-    const chronologicalMessages = recentMessages.reverse();
+    const chronologicalMessages = filteredMessages.reverse();
     
     // Group messages by session for context
     const sessionMessages = new Map<string, typeof chronologicalMessages>();
     for (const msg of chronologicalMessages) {
-      const sessionKey = msg.sessionId || 'default';
+      const sessionKey = msg.sessionId!; // Guaranteed non-null by filter
       if (!sessionMessages.has(sessionKey)) {
         sessionMessages.set(sessionKey, []);
       }
       sessionMessages.get(sessionKey)!.push(msg);
     }
     
+    // Create clearly delimited section
     const lines = [
       '',
-      'RECENT CONVERSATION HISTORY (what you and the user have discussed recently):',
+      '═══════════════════════════════════════════════════════════',
+      'PREVIOUS VOICE CONVERSATIONS (use this to recall what you discussed):',
+      '═══════════════════════════════════════════════════════════',
     ];
     
-    // Format messages, showing context of recent conversations
+    // Format messages, showing context of recent voice conversations
     for (const [sessionId, messages] of sessionMessages) {
       if (messages.length > 0) {
         const sessionDate = messages[0].createdAt;
         const timeAgo = formatTimeAgo(sessionDate);
         
-        lines.push(`\n--- Session from ${timeAgo} ---`);
+        lines.push(`\n[Voice session from ${timeAgo}]`);
         
         for (const msg of messages) {
           const speaker = msg.sender === 'user' ? 'User' : 'Flō';
           // Truncate long messages to save context space
-          const truncatedMsg = msg.message.length > 300 
-            ? msg.message.substring(0, 300) + '...' 
+          const truncatedMsg = msg.message.length > 200 
+            ? msg.message.substring(0, 200) + '...' 
             : msg.message;
-          lines.push(`${speaker}: ${truncatedMsg}`);
+          lines.push(`  ${speaker}: ${truncatedMsg}`);
         }
       }
     }
     
-    logger.info(`[FloOracle] Retrieved ${chronologicalMessages.length} recent chat messages for user ${userId}`);
+    lines.push('═══════════════════════════════════════════════════════════');
+    
+    logger.info(`[FloOracle] Retrieved ${chronologicalMessages.length} voice chat messages for user ${userId} (filtered from ${recentMessages.length})`);
     return lines.join('\n');
   } catch (error) {
     logger.error('[FloOracle] Error retrieving chat history:', error);

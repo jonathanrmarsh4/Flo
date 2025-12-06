@@ -5,7 +5,7 @@
  */
 
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
-import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
+import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getRecentChatHistory } from './floOracleContextBuilder';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
 import { couldContainLifeEvent, extractLifeEvents } from './lifeEventParser';
 import { parseConversationalIntent } from './conversationalIntentParser';
@@ -40,6 +40,12 @@ ACTION PLAN AWARENESS:
 - Provide accountability by asking about progress on their action items.
 - Connect their current health data to their stated goals.
 - Celebrate progress and offer encouragement on their journey.
+
+CONVERSATION CONTINUITY:
+- You have access to recent conversation history showing what you and the user discussed previously.
+- Reference past conversations naturally: "Last time you mentioned..." or "Following up on what we talked about..."
+- Use this context to build on previous discussions and track ongoing health topics.
+- Don't repeat yourself if you've already covered a topic recently.
 
 SAFETY GUARDRAILS:
 - Never prescribe medications or specific dosages.
@@ -150,7 +156,7 @@ class GeminiVoiceService {
     
     let healthContext = '';
     try {
-      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights] = await Promise.all([
+      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights, chatHistory] = await Promise.all([
         buildUserHealthContext(userId),
         getActiveActionPlanItems(userId),
         getRelevantInsights(userId),
@@ -159,6 +165,11 @@ class GeminiVoiceService {
           .catch(err => {
             logger.error('[GeminiVoice] Failed to retrieve brain insights:', err);
             return { merged: [] };
+          }),
+        getRecentChatHistory(userId, 15)
+          .catch(err => {
+            logger.error('[GeminiVoice] Failed to retrieve chat history:', err);
+            return '';
           }),
       ]);
       
@@ -171,6 +182,7 @@ class GeminiVoiceService {
         insightsContext,
         lifeEventsContext,
         brainContext ? `\n[BRAIN MEMORY - Medical Documents & Learned Insights]\n${brainContext}` : '',
+        chatHistory ? `\n${chatHistory}` : '',
       ].filter(Boolean).join('\n');
       
       // Truncate if too large (Gemini Live may have limits on system instruction)
@@ -182,11 +194,12 @@ class GeminiVoiceService {
         healthContext = healthContext.substring(0, 8000) + '\n\n[Context truncated for voice session]';
       }
       
-      logger.info('[GeminiVoice] Built full health context with brain memory', { 
+      logger.info('[GeminiVoice] Built full health context with brain memory and chat history', { 
         userId, 
         contextLength: healthContext.length,
         hasActionPlan: actionPlanContext.length > 0,
-        brainInsightsCount: brainInsights.merged.length
+        brainInsightsCount: brainInsights.merged.length,
+        hasChatHistory: chatHistory.length > 0
       });
     } catch (contextError: any) {
       logger.error('[GeminiVoice] Failed to build health context', { error: contextError.message });
@@ -1008,7 +1021,7 @@ Start the conversation warmly, using their name if you have it.`;
     // Use female voice "Kore" (firm, confident) for admin sandbox
     const sandboxVoice = 'Kore';
 
-    // Build full health context (same as regular sessions)
+    // Build full health context (admin sandbox excludes conversation history for privacy)
     let healthContext = '';
     try {
       const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext] = await Promise.all([
@@ -1037,7 +1050,7 @@ Start the conversation warmly, using their name if you have it.`;
       logger.info('[GeminiVoice] Admin sandbox built full health context', { 
         userId, 
         contextLength: healthContext.length,
-        hasActionPlan: actionPlanContext.length > 0 
+        hasActionPlan: actionPlanContext.length > 0
       });
     } catch (contextError: any) {
       logger.error('[GeminiVoice] Admin sandbox failed to build health context', { error: contextError.message });
