@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [editRole, setEditRole] = useState<'free' | 'premium' | 'admin'>('free');
   const [editStatus, setEditStatus] = useState<'active' | 'suspended'>('active');
+  const [correlationUserId, setCorrelationUserId] = useState<string>('');
 
   const { data: overviewData } = useQuery({
     queryKey: ['/api/admin/overview'],
@@ -884,69 +885,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl border bg-white/5 border-white/10">
-                  <div className="text-sm text-white mb-2">BigQuery Correlation Engine</div>
-                  <div className="text-xs text-white/50 mb-4">
-                    ML-powered anomaly detection using BigQuery. Analyzes health baselines, detects patterns (illness precursor, recovery deficit), and generates dynamic feedback questions via Gemini.
-                  </div>
-                  
-                  <div className="flex flex-col gap-3">
-                    <button
-                      onClick={() => {
-                        const userId = prompt('Enter User ID to analyze:');
-                        if (userId) correlationAnalysisMutation.mutate(userId);
-                      }}
-                      disabled={correlationAnalysisMutation.isPending}
-                      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      data-testid="button-correlation-analyze"
-                    >
-                      {correlationAnalysisMutation.isPending ? (
-                        <>
-                          <Activity className="w-4 h-4 animate-spin" />
-                          <span className="text-sm">Analyzing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Database className="w-4 h-4" />
-                          <span className="text-sm">Run Correlation Analysis</span>
-                        </>
-                      )}
-                    </button>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const userId = prompt('Enter User ID:');
-                          if (userId) simulateAnomalyMutation.mutate({ userId, scenario: 'illness' });
-                        }}
-                        disabled={simulateAnomalyMutation.isPending}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-400 transition-all disabled:opacity-50"
-                        data-testid="button-simulate-illness"
-                      >
-                        <AlertCircle className="w-3 h-3" />
-                        <span className="text-xs">Simulate Illness</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const userId = prompt('Enter User ID:');
-                          if (userId) simulateAnomalyMutation.mutate({ userId, scenario: 'recovery' });
-                        }}
-                        disabled={simulateAnomalyMutation.isPending}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 hover:bg-yellow-500/30 text-yellow-400 transition-all disabled:opacity-50"
-                        data-testid="button-simulate-recovery"
-                      >
-                        <Activity className="w-3 h-3" />
-                        <span className="text-xs">Simulate Recovery</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 p-3 rounded-lg bg-teal-500/10 border border-teal-500/20">
-                    <div className="text-xs text-teal-400">
-                      <strong>BigQuery Correlation Engine:</strong> Runs anomaly detection against user baselines, generates ML-powered questions via Gemini, stores responses in BigQuery for predictive model training.
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -1022,12 +960,26 @@ export default function AdminDashboard() {
               </div>
               
               <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={correlationUserId}
+                    onChange={(e) => setCorrelationUserId(e.target.value)}
+                    placeholder="Enter User ID (e.g., 34226453)"
+                    className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-teal-500"
+                    data-testid="input-correlation-user-id"
+                  />
+                </div>
+                
                 <button
                   onClick={() => {
-                    const userId = prompt('Enter User ID to analyze:');
-                    if (userId) correlationAnalysisMutation.mutate(userId);
+                    if (correlationUserId.trim()) {
+                      correlationAnalysisMutation.mutate(correlationUserId.trim());
+                    } else {
+                      toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
+                    }
                   }}
-                  disabled={correlationAnalysisMutation.isPending}
+                  disabled={correlationAnalysisMutation.isPending || !correlationUserId.trim()}
                   className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid="button-correlation-analyze"
                 >
@@ -1047,10 +999,13 @@ export default function AdminDashboard() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
-                      const userId = prompt('Enter User ID:');
-                      if (userId) simulateAnomalyMutation.mutate({ userId, scenario: 'illness' });
+                      if (correlationUserId.trim()) {
+                        simulateAnomalyMutation.mutate({ userId: correlationUserId.trim(), scenario: 'illness' });
+                      } else {
+                        toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
+                      }
                     }}
-                    disabled={simulateAnomalyMutation.isPending}
+                    disabled={simulateAnomalyMutation.isPending || !correlationUserId.trim()}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 hover:bg-red-500/30 text-red-400 transition-all disabled:opacity-50"
                     data-testid="button-simulate-illness"
                   >
@@ -1059,10 +1014,13 @@ export default function AdminDashboard() {
                   </button>
                   <button
                     onClick={() => {
-                      const userId = prompt('Enter User ID:');
-                      if (userId) simulateAnomalyMutation.mutate({ userId, scenario: 'recovery' });
+                      if (correlationUserId.trim()) {
+                        simulateAnomalyMutation.mutate({ userId: correlationUserId.trim(), scenario: 'recovery' });
+                      } else {
+                        toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
+                      }
                     }}
-                    disabled={simulateAnomalyMutation.isPending}
+                    disabled={simulateAnomalyMutation.isPending || !correlationUserId.trim()}
                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/30 hover:bg-yellow-500/30 text-yellow-400 transition-all disabled:opacity-50"
                     data-testid="button-simulate-recovery"
                   >
