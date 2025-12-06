@@ -12,27 +12,12 @@ export default function ActivityPage() {
     setLocation('/dashboard');
   };
 
-  const handleNavigateToDashboard = () => {
-    setLocation('/dashboard');
-  };
-
-  const handleNavigateToLabs = () => {
-    setLocation('/labs');
-  };
-
-  const handleNavigateToActions = () => {
-    setLocation('/actions');
-  };
-
   return (
     <>
       <ActivityScreen 
         isDark={isDark}
         onClose={handleClose}
-        onNavigateToDashboard={handleNavigateToDashboard}
-        onNavigateToLabs={handleNavigateToLabs}
-        onNavigateToActions={handleNavigateToActions}
-        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onAddClick={() => setIsAddModalOpen(true)}
       />
 
       {isAddModalOpen && (

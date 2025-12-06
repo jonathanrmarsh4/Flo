@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Droplet, Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Home, Lightbulb, Loader2 } from 'lucide-react';
-import { FloIcon } from './FloLogo';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet } from 'lucide-react';
+import { BottomNav } from './BottomNav';
 
 interface ActivityScreenProps {
   isDark: boolean;
   onClose: () => void;
-  onNavigateToDashboard?: () => void;
-  onNavigateToLabs?: () => void;
-  onNavigateToActions?: () => void;
-  onOpenAddModal?: () => void;
+  onAddClick?: () => void;
 }
 
 type TabType = 'activity' | 'nutrition' | 'glucose';
@@ -101,7 +98,7 @@ interface GlucoseDaily {
   targetMax: number;
 }
 
-export function ActivityScreen({ isDark, onClose, onNavigateToDashboard, onNavigateToLabs, onNavigateToActions, onOpenAddModal }: ActivityScreenProps) {
+export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenProps) {
   const [activeTab, setActiveTab] = useState<TabType>('activity');
 
   return (
@@ -159,58 +156,7 @@ export function ActivityScreen({ isDark, onClose, onNavigateToDashboard, onNavig
         </div>
       </main>
 
-      <nav
-        className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t transition-colors ${
-          isDark
-            ? 'bg-white/5 border-white/10'
-            : 'bg-white/70 border-black/10'
-        }`}
-      >
-        <div className="grid grid-cols-5 items-center px-2 py-3">
-          <button
-            onClick={onNavigateToDashboard}
-            className="flex flex-col items-center gap-1 px-2 py-2"
-            data-testid="nav-dashboard"
-          >
-            <Home className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-            <span className={`text-[10px] ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Dashboard</span>
-          </button>
-
-          <button
-            onClick={onNavigateToLabs}
-            className="flex flex-col items-center gap-1 px-2 py-2"
-            data-testid="nav-labs"
-          >
-            <Droplet className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-            <span className={`text-[10px] ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Labs</span>
-          </button>
-
-          <button
-            onClick={onOpenAddModal}
-            className="flex flex-col items-center gap-1 px-2 py-2 -mt-2"
-            data-testid="nav-add"
-          >
-            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 flex items-center justify-center shadow-xl shadow-cyan-500/30">
-              <FloIcon size={28} className="text-white" />
-            </div>
-            <span className={`text-[10px] mt-1 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Add</span>
-          </button>
-
-          <button className="flex flex-col items-center gap-1 px-2 py-2" data-testid="nav-activity">
-            <Activity className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-            <span className={`text-[10px] ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>Activity</span>
-          </button>
-
-          <button
-            onClick={onNavigateToActions}
-            className="flex flex-col items-center gap-1 px-2 py-2"
-            data-testid="nav-actions"
-          >
-            <Lightbulb className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-            <span className={`text-[10px] ${isDark ? 'text-white/70' : 'text-gray-600'}`}>Actions</span>
-          </button>
-        </div>
-      </nav>
+      <BottomNav isDark={isDark} onAddClick={onAddClick} />
     </div>
   );
 }
