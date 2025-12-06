@@ -8,6 +8,7 @@ import { startFlomentumWeeklyScheduler } from "./services/flomentumWeeklySchedul
 import { startInsightsSchedulerV2 } from "./services/insightsSchedulerV2";
 import { initializeDailyReminderScheduler } from "./services/dailyReminderScheduler";
 import { startFollowUpScheduler } from "./services/followUpScheduler";
+import { startAnomalyDetectionScheduler } from "./services/anomalyDetectionScheduler";
 
 const app = express();
 
@@ -162,6 +163,9 @@ app.use((req, res, next) => {
       
       // Start the follow-up request scheduler (evaluates pending follow-ups every 30 min)
       startFollowUpScheduler();
+      
+      // Start the daily anomaly detection scheduler (5 AM UTC, after baseline update at 3 AM)
+      startAnomalyDetectionScheduler();
     }, 5000);
   });
 })();
