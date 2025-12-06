@@ -29,10 +29,10 @@ export function FloBottomNav() {
       isCenter: true,
     },
     {
-      id: 'diagnostics',
-      label: 'Diagnostics',
+      id: 'activity',
+      label: 'Activity',
       icon: Activity,
-      path: '/diagnostics',
+      path: '/activity',
     },
     {
       id: 'actions',
