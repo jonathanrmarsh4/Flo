@@ -4,6 +4,21 @@
 
 On first sync, iOS should upload ALL available HealthKit data (going back 2-3 years). Subsequent syncs should only upload data since the last sync. This enables long-term pattern analysis and correlation discovery.
 
+**STATUS: IMPLEMENTED** - The iOS code has been updated in:
+- `ios/App/App/HealthSyncPlugin.swift` - Now checks server sync status and performs historical backfill automatically
+- `ios/App/App/HealthKitNormalisationService.swift` - Added `syncDateRange()` method for batch processing historical data
+
+## How It Works (Already Implemented)
+
+1. **On app launch**, `syncReadinessData()` is called
+2. iOS calls `GET /api/healthkit/sync-status` to check if historical backfill is needed
+3. If `needsHistoricalSync: true`:
+   - iOS calls `syncDateRange()` to sync ALL data from `recommendedStartDate` (3 years ago)
+   - Data is processed in 30-day batches to avoid memory issues
+   - Progress is logged: "Processing batch 1/37 (days 1-30 of 1095)"
+4. After syncing, iOS calls `POST /api/healthkit/mark-backfill-complete`
+5. Future syncs only request the last 7 days (incremental)
+
 ## API Endpoints
 
 ### 1. Check Sync Status (Call on App Launch)

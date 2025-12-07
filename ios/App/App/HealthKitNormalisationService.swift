@@ -89,6 +89,100 @@ public class HealthKitNormalisationService {
         }
     }
     
+    /// Sync a full date range for historical backfill
+    /// This is used for initial sync when user first installs the app
+    /// @param from Start date for historical data
+    /// @param to End date (typically now)
+    /// @param completion Callback with success status, sample count, and optional error
+    func syncDateRange(from startDate: Date, to endDate: Date, completion: @escaping (Bool, Int, Error?) -> Void) {
+        print("[Normalisation] 📜 HISTORICAL BACKFILL: Syncing from \(startDate) to \(endDate)")
+        
+        // Get all day boundaries in local timezone
+        let dayBoundaries = getDayBoundaries(from: startDate, to: endDate)
+        let totalDays = dayBoundaries.count
+        
+        print("[Normalisation] 📊 Processing \(totalDays) days of historical data...")
+        
+        // Process in batches to avoid memory issues with very large date ranges
+        let batchSize = 30 // Process 30 days at a time
+        var processedDays = 0
+        var totalSampleCount = 0
+        
+        func processBatch(batchIndex: Int) {
+            let startIdx = batchIndex * batchSize
+            let endIdx = min(startIdx + batchSize, totalDays)
+            
+            if startIdx >= totalDays {
+                // All batches complete
+                print("[Normalisation] ✅ Historical backfill complete! Processed \(processedDays) days, ~\(totalSampleCount) sample-days")
+                completion(true, totalSampleCount, nil)
+                return
+            }
+            
+            let batchBoundaries = Array(dayBoundaries[startIdx..<endIdx])
+            let batchNumber = batchIndex + 1
+            let totalBatches = (totalDays + batchSize - 1) / batchSize
+            
+            print("[Normalisation] 📦 Processing batch \(batchNumber)/\(totalBatches) (days \(startIdx + 1)-\(endIdx) of \(totalDays))")
+            
+            // Process each day in this batch and collect metrics
+            var batchMetrics: [NormalizedDailyMetrics] = []
+            let dispatchGroup = DispatchGroup()
+            
+            for (dayStart, dayEnd, localDateStr) in batchBoundaries {
+                dispatchGroup.enter()
+                self.normalizeDayMetrics(dayStart: dayStart, dayEnd: dayEnd, localDate: localDateStr) { metrics in
+                    if let metrics = metrics {
+                        batchMetrics.append(metrics)
+                    }
+                    dispatchGroup.leave()
+                }
+            }
+            
+            dispatchGroup.notify(queue: .global(qos: .background)) {
+                // Upload this batch to backend
+                self.uploadMetricsToBackend(metrics: batchMetrics) { success, error in
+                    if !success {
+                        print("[Normalisation] ❌ Batch \(batchNumber) upload failed: \(error?.localizedDescription ?? "unknown")")
+                        // Continue with next batch even on failure
+                    } else {
+                        print("[Normalisation] ✅ Batch \(batchNumber) uploaded (\(batchMetrics.count) days)")
+                    }
+                    
+                    processedDays += batchBoundaries.count
+                    totalSampleCount += batchMetrics.count
+                    
+                    // Upload sleep nights for this batch
+                    self.uploadSleepNights(for: batchBoundaries) { sleepSuccess, sleepError in
+                        if !sleepSuccess {
+                            print("[Normalisation] ⚠️ Batch \(batchNumber) sleep upload failed: \(sleepError?.localizedDescription ?? "unknown")")
+                        }
+                        
+                        // Small delay between batches to avoid overwhelming the server
+                        DispatchQueue.global(qos: .background).asyncAfter(deadline: .now() + 0.5) {
+                            processBatch(batchIndex: batchIndex + 1)
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Start processing batches
+        processBatch(batchIndex: 0)
+        
+        // Also sync all workouts in the date range
+        let daysSinceStart = calendar.dateComponents([.day], from: startDate, to: endDate).day ?? 1095
+        DispatchQueue.global(qos: .background).async {
+            self.syncWorkouts(days: daysSinceStart) { success, error in
+                if success {
+                    print("[Normalisation] ✅ Historical workouts synced")
+                } else {
+                    print("[Normalisation] ⚠️ Historical workout sync failed: \(error?.localizedDescription ?? "unknown")")
+                }
+            }
+        }
+    }
+    
     // MARK: - Day Boundary Logic
     
     /// Get day boundaries in user's local timezone
