@@ -126,6 +126,22 @@ import {
   type MedicalDocumentType
 } from "./services/medicalDocumentService";
 
+// Rate limiter for ClickHouse anomaly detection to prevent spam
+// Only run anomaly detection once per user per 6 hours
+const anomalyDetectionCooldowns = new Map<string, number>();
+const ANOMALY_DETECTION_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function shouldRunAnomalyDetection(userId: string): boolean {
+  const lastRun = anomalyDetectionCooldowns.get(userId);
+  const now = Date.now();
+  
+  if (!lastRun || (now - lastRun) > ANOMALY_DETECTION_COOLDOWN_MS) {
+    anomalyDetectionCooldowns.set(userId, now);
+    return true;
+  }
+  return false;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
@@ -4656,7 +4672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Calculate baselines and detect anomalies
       const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
-      const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays });
+      const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays, bypassRateLimit: true });
       
       // Generate multiple feedback questions (top 3 by severity/confidence) with staggered delivery
       const feedbackQuestions: any[] = [];
@@ -7171,12 +7187,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         endDate: typeof endDate === 'string' ? endDate : undefined,
       } : undefined;
       
-      const { markHealthKitBackfillComplete } = await import('./services/supabaseHealthStorage');
+      const { markHealthKitBackfillComplete, getHealthId } = await import('./services/supabaseHealthStorage');
       await markHealthKitBackfillComplete(userId, metadata);
       
+      // Respond immediately so iOS doesn't wait
       res.json({
         success: true,
         backfillDate: new Date().toISOString(),
+      });
+      
+      // Trigger full history sync to ClickHouse asynchronously (non-blocking)
+      // This syncs ALL the historical data that was just uploaded
+      setImmediate(async () => {
+        try {
+          const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+          const healthId = await getHealthId(userId);
+          
+          logger.info(`[ClickHouseML] Starting full history sync after backfill complete for user ${userId}`);
+          const result = await clickhouseBaselineEngine.syncFullHistory(healthId);
+          logger.info(`[ClickHouseML] Full history sync complete for ${userId}: ${result.total} records synced to ClickHouse`);
+        } catch (syncError) {
+          logger.error(`[ClickHouseML] Async full history sync failed for ${userId}:`, syncError);
+        }
       });
     } catch (error: any) {
       logger.error(`[HealthKit] Error marking backfill complete:`, error);
@@ -7602,15 +7634,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const syncedCount = await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 7);
             logger.info(`[ClickHouseML] Auto-synced ${syncedCount} metrics for ${userId} after HealthKit ingestion`);
             
-            // Optionally detect anomalies in background (async, no await to not block)
-            clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays: 7 }).then(anomalies => {
-              if (anomalies.length > 0) {
-                logger.info(`[ClickHouseML] Detected ${anomalies.length} anomalies for ${userId}:`, 
-                  anomalies.map(a => `${a.metricType}: ${a.severity}`).join(', '));
-              }
-            }).catch(err => {
-              logger.warn(`[ClickHouseML] Anomaly detection failed for ${userId}:`, err.message);
-            });
+            // Only run anomaly detection once per 6 hours per user to prevent spam
+            if (shouldRunAnomalyDetection(userId)) {
+              clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays: 7 }).then(anomalies => {
+                if (anomalies.length > 0) {
+                  logger.info(`[ClickHouseML] Detected ${anomalies.length} anomalies for ${userId}:`, 
+                    anomalies.map(a => `${a.metricType}: ${a.severity}`).join(', '));
+                }
+              }).catch(err => {
+                logger.warn(`[ClickHouseML] Anomaly detection failed for ${userId}:`, err.message);
+              });
+            }
           }
         } catch (clickhouseError: any) {
           logger.warn(`[ClickHouseML] Background sync failed for ${userId}:`, clickhouseError.message);

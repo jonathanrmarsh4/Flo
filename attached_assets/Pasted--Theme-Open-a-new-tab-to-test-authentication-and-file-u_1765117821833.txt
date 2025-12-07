@@ -1,0 +1,186 @@
+
+
+
+Theme
+Open a new tab to test authentication and file uploads.
+New tab
+Learn more
+
+
+
+
+npm run dev
+
+Ask Agent…
+2m
+ • 
+2 minutes ago
+
+
+
+Overview
+
+Logs
+
+Analytics
+
+Resources
+
+Domains
+
+Manage
+
+
+
+Errors only
+
+Date
+Time
+Deployment
+Source
+Log
+2025-12-07 22:15:37.64
+fb329328
+User
+[2025-12-07T14:15:37.644Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:16.14
+fb329328
+User
+[2025-12-07T14:16:16.140Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:16.21
+fb329328
+User
+[2025-12-07T14:16:16.216Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:16.21
+fb329328
+User
+[2025-12-07T14:16:16.216Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:16.61
+fb329328
+User
+[2025-12-07T14:16:16.609Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:16.61
+fb329328
+User
+[2025-12-07T14:16:16.609Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:16.80
+fb329328
+User
+[2025-12-07T14:16:16.805Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:16.80
+fb329328
+User
+[2025-12-07T14:16:16.805Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:16.82
+fb329328
+User
+[2025-12-07T14:16:16.822Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:16.82
+fb329328
+User
+[2025-12-07T14:16:16.821Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:16.84
+fb329328
+User
+[2025-12-07T14:16:16.843Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:16.84
+fb329328
+User
+[2025-12-07T14:16:16.843Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:17.19
+fb329328
+User
+[2025-12-07T14:16:17.195Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:17.19
+fb329328
+User
+[2025-12-07T14:16:17.195Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.653Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.653Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.655Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.655Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.658Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.658Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.659Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+
+2025-12-07 22:16:46.65
+fb329328
+User
+[2025-12-07T14:16:46.659Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.66
+fb329328
+User
+[2025-12-07T14:16:46.660Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.66
+fb329328
+User
+[2025-12-07T14:16:46.660Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.66
+fb329328
+User
+[2025-12-07T14:16:46.662Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.66
+fb329328
+User
+[2025-12-07T14:16:46.662Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.74
+fb329328
+User
+[2025-12-07T14:16:46.743Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.74
+fb329328
+User
+[2025-12-07T14:16:46.748Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.74
+fb329328
+User
+[2025-12-07T14:16:46.748Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.77
+fb329328
+User
+[2025-12-07T14:16:46.772Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.84
+fb329328
+User
+[2025-12-07T14:16:46.849Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.84
+fb329328
+User
+[2025-12-07T14:16:46.849Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.85
+fb329328
+User
+[2025-12-07T14:16:46.850Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.86
+fb329328
+User
+[2025-12-07T14:16:46.861Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:16:46.86
+fb329328
+User
+[2025-12-07T14:16:46.861Z] [INFO] [ClickHouseML] Detected 1 anomalies for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: "hrv: moderate"
+2025-12-07 22:16:46.86
+fb329328
+User
+[2025-12-07T14:16:46.862Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 1 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb

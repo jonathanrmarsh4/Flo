@@ -25,7 +25,7 @@ The platform adopts a mobile-first, content-focused minimalist design, drawing i
 
 **Key Features & Systems:**
 - **HealthKit Sync Expansion:** Comprehensive syncing of vital signs, wrist temperature, mindfulness, and 26 dietary HKQuantityTypes.
-- **HealthKit Historical Backfill System:** On first sync, iOS uploads ALL available HealthKit data (2-3 years) for long-term pattern analysis. Subsequent syncs are incremental only. Server tracks backfill status via `healthkit_backfill_complete` flag in Supabase profiles. API endpoints: `GET /api/healthkit/sync-status` (iOS checks if historical sync needed), `POST /api/healthkit/mark-backfill-complete` (iOS marks backfill done with sample count metadata). See `docs/ios-healthkit-backfill.md` for iOS implementation guide.
+- **HealthKit Historical Backfill System:** On first sync, iOS uploads ALL available HealthKit data (2-3 years) for long-term pattern analysis. Subsequent syncs are incremental only. Server tracks backfill status via `healthkit_backfill_complete` flag in Supabase profiles. After backfill completes, server automatically triggers `syncFullHistory()` to sync all historical data to ClickHouse for ML analysis. API endpoints: `GET /api/healthkit/sync-status` (iOS checks if historical sync needed), `POST /api/healthkit/mark-backfill-complete` (iOS marks backfill done, triggers async ClickHouse full sync). Daily metrics stored in Supabase `user_daily_metrics` table. See `docs/ios-healthkit-backfill.md` for iOS implementation guide.
 - **Recovery Boost System:** Calculates readiness scores based on logged recovery activities.
 - **Flō Oracle Context Routing:** Centralized `floOracleContextBuilder.ts` for comprehensive AI context.
 - **Real-Time Trend Detection:** Identifies significant changes in HRV, RHR, sleep, steps, and active calories by comparing recent metrics against baseline data.
@@ -51,7 +51,7 @@ The platform adopts a mobile-first, content-focused minimalist design, drawing i
   - **Seasonal Pattern Detection:** Identifies cyclical trends by season (winter, spring, summer, fall) across health metrics
   - **Pattern Context for Flō Oracle:** Enriches AI responses with pattern memory context via `getPatternContextForOracle()`
   - **Real-time Auto-sync:** Triggers on all data ingestion endpoints (non-blocking)
-  - **90-day Baseline + Z-score Anomaly Detection:** Multi-metric pattern recognition with ACWR training load analysis
+  - **90-day Baseline + Z-score Anomaly Detection:** Multi-metric pattern recognition with ACWR training load analysis. Rate-limited to prevent log spam: max once per 30 minutes per user from any caller. Scheduled jobs and admin calls bypass rate limiting. Routes-level additional 6-hour cooldown prevents spam from frequent HealthKit syncs.
   - **Proactive Anomaly Alerts:** Flō Oracle proactively addresses NEW anomalies at conversation start. Anomalies detected after user's last conversation are marked [NEW] and announced at session open; older anomalies are marked [PREVIOUSLY DISCUSSED] and only referenced when relevant. Logic compares anomaly `detected_at` timestamp vs last chat message timestamp.
   - Data pipeline: iOS → Supabase (PHI storage) → ClickHouse auto-sync → Pattern matching → Anomaly detection → LLM feedback generation
 - **Self-Improvement Engine (SIE):** An admin-only sandbox AI (Gemini 2.5 Pro) for product improvement suggestions, featuring dynamic data introspection, verbal output, and a brainstorming chat mode.

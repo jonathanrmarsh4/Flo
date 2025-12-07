@@ -6,6 +6,11 @@ import { randomUUID } from 'crypto';
 
 const logger = createLogger('ClickHouseML');
 
+// Rate limiting for anomaly detection to prevent log spam
+// Only run detection once per healthId per 30 minutes (from any caller)
+const anomalyDetectionCooldowns = new Map<string, number>();
+const ANOMALY_DETECTION_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+
 const METRIC_THRESHOLDS: Record<string, {
   zScoreThreshold: number;
   percentageThreshold: number;
@@ -373,9 +378,22 @@ export class ClickHouseBaselineEngine {
 
   async detectAnomalies(
     healthId: string,
-    options: { windowDays?: number; lookbackHours?: number } = {}
+    options: { windowDays?: number; lookbackHours?: number; bypassRateLimit?: boolean } = {}
   ): Promise<AnomalyResult[]> {
-    const { windowDays = 7, lookbackHours = 48 } = options;
+    const { windowDays = 7, lookbackHours = 48, bypassRateLimit = false } = options;
+
+    // Rate limit anomaly detection to prevent log spam
+    // Only bypass for admin-initiated calls or scheduled jobs
+    if (!bypassRateLimit) {
+      const lastRun = anomalyDetectionCooldowns.get(healthId);
+      const now = Date.now();
+      
+      if (lastRun && (now - lastRun) < ANOMALY_DETECTION_COOLDOWN_MS) {
+        // Return empty silently - don't spam logs
+        return [];
+      }
+      anomalyDetectionCooldowns.set(healthId, now);
+    }
 
     if (!await this.ensureInitialized()) return [];
 

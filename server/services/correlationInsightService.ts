@@ -58,7 +58,8 @@ class CorrelationInsightService {
 
     logger.info(`[CorrelationInsight] Starting full analysis for user ${userId}`);
 
-    const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId);
+    // Bypass rate limit for scheduled analysis jobs
+    const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { bypassRateLimit: true });
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
     const recentlyAnswered = await this.getRecentlyAnsweredPatterns(userId);
