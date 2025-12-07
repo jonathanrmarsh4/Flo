@@ -7707,34 +7707,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const workouts = await healthRouter.getHealthkitWorkoutsByDate(userId, targetDate);
       
-      // Aggregate workout stats - use duration field, or calculate from start/end if missing
-      const totalDuration = workouts.reduce((sum, w) => {
+      // Helper to calculate workout duration in MINUTES with fallback
+      // Note: w.duration is stored in MINUTES from iOS HealthKit
+      const getWorkoutDurationMinutes = (w: any): number => {
         if (w.duration && w.duration > 0) {
-          return sum + w.duration;
+          return w.duration; // Already in minutes
         }
-        // Fallback: calculate from start_date and end_date
+        // Fallback: calculate from start_date and end_date (convert to minutes)
         if (w.start_date && w.end_date) {
           const start = new Date(w.start_date).getTime();
           const end = new Date(w.end_date).getTime();
-          const durationSeconds = (end - start) / 1000;
-          return sum + Math.max(0, durationSeconds);
-        }
-        return sum;
-      }, 0);
-      const totalEnergy = workouts.reduce((sum, w) => sum + (w.total_energy_burned || 0), 0);
-      
-      // Helper to calculate workout duration with fallback
-      const getWorkoutDurationSeconds = (w: any): number => {
-        if (w.duration && w.duration > 0) {
-          return w.duration;
-        }
-        if (w.start_date && w.end_date) {
-          const start = new Date(w.start_date).getTime();
-          const end = new Date(w.end_date).getTime();
-          return Math.max(0, (end - start) / 1000);
+          const durationMinutes = (end - start) / 1000 / 60;
+          return Math.max(0, durationMinutes);
         }
         return 0;
       };
+      
+      // Aggregate workout stats - durations are in minutes
+      const totalDurationMinutes = workouts.reduce((sum, w) => sum + getWorkoutDurationMinutes(w), 0);
+      const totalEnergy = workouts.reduce((sum, w) => sum + (w.total_energy_burned || 0), 0);
       
       // Get last workout details
       const lastWorkout = workouts.length > 0 ? workouts[0] : null;
@@ -7742,13 +7733,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({
         date: targetDate,
         count: workouts.length,
-        totalDurationMinutes: Math.round(totalDuration / 60),
+        totalDurationMinutes: Math.round(totalDurationMinutes),
         totalEnergyKcal: Math.round(totalEnergy),
         lastWorkout: lastWorkout ? {
           type: lastWorkout.workout_type,
           distanceKm: lastWorkout.total_distance ? Math.round(lastWorkout.total_distance / 1000 * 10) / 10 : null,
           avgHeartRate: lastWorkout.average_heart_rate,
-          durationMinutes: Math.round(getWorkoutDurationSeconds(lastWorkout) / 60),
+          durationMinutes: Math.round(getWorkoutDurationMinutes(lastWorkout)),
           energyKcal: lastWorkout.total_energy_burned ? Math.round(lastWorkout.total_energy_burned) : null,
         } : null,
         workouts: workouts.map(w => ({
@@ -7756,7 +7747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           type: w.workout_type,
           startDate: w.start_date,
           endDate: w.end_date,
-          durationMinutes: Math.round(getWorkoutDurationSeconds(w) / 60),
+          durationMinutes: Math.round(getWorkoutDurationMinutes(w)),
           distanceKm: w.total_distance ? Math.round(w.total_distance / 1000 * 10) / 10 : null,
           energyKcal: w.total_energy_burned ? Math.round(w.total_energy_burned) : null,
           avgHeartRate: w.average_heart_rate,
