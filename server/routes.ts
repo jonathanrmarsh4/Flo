@@ -98,6 +98,7 @@ import { computeDailyReadiness } from "./services/readinessEngine";
 import { updateAllBaselines } from "./services/baselineCalculator";
 import { calculateSleepScore } from "./services/sleepScoringEngine";
 import { calculateSleepBaselinesForUser } from "./services/sleepBaselineCalculator";
+import * as supabaseHealthStorage from "./services/supabaseHealthStorage";
 import { processBiomarkerNotifications } from "./services/notificationTriggerService";
 import { 
   calculatePhenoAge, 
@@ -9465,6 +9466,330 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       logger.error("[Sleep] Error getting today's sleep score:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ==================== MANUAL SLEEP TRACKING ====================
+  
+  // Get manual sleep entries (history)
+  app.get("/api/sleep/manual", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const days = parseInt(req.query.days as string) || 14;
+      
+      const entries = await supabaseHealthStorage.getManualSleepEntries(userId, days);
+      res.json(entries);
+    } catch (error: any) {
+      logger.error("[ManualSleep] Error getting entries:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get active sleep timer status
+  app.get("/api/sleep/manual/timer", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const activeTimer = await supabaseHealthStorage.getActiveManualSleepTimer(userId);
+      
+      if (activeTimer) {
+        const bedtime = new Date(activeTimer.bedtime);
+        const now = new Date();
+        const elapsedMinutes = Math.round((now.getTime() - bedtime.getTime()) / (1000 * 60));
+        
+        res.json({
+          isActive: true,
+          startedAt: activeTimer.bedtime,
+          bedtimeLocal: activeTimer.bedtime_local,
+          elapsedMinutes,
+          timezone: activeTimer.timezone,
+        });
+      } else {
+        res.json({ isActive: false });
+      }
+    } catch (error: any) {
+      logger.error("[ManualSleep] Error getting timer status:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Start sleep timer
+  app.post("/api/sleep/manual/timer/start", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { timezone } = req.body;
+      
+      if (!timezone) {
+        return res.status(400).json({ error: "Timezone is required" });
+      }
+      
+      // Check if timer already active
+      const existing = await supabaseHealthStorage.getActiveManualSleepTimer(userId);
+      if (existing) {
+        return res.status(400).json({ 
+          error: "Sleep timer already active",
+          startedAt: existing.bedtime,
+        });
+      }
+      
+      const entry = await supabaseHealthStorage.startManualSleepTimer(userId, timezone);
+      
+      logger.info(`[ManualSleep] Started timer for user ${userId}`);
+      
+      res.json({
+        success: true,
+        entry,
+        message: "Sleep timer started. Sweet dreams!",
+      });
+    } catch (error: any) {
+      logger.error("[ManualSleep] Error starting timer:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Stop sleep timer and log sleep
+  app.post("/api/sleep/manual/timer/stop", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { qualityRating, notes } = req.body;
+      
+      if (!qualityRating || qualityRating < 1 || qualityRating > 5) {
+        return res.status(400).json({ error: "Quality rating must be between 1 and 5" });
+      }
+      
+      const entry = await supabaseHealthStorage.stopManualSleepTimer(userId, qualityRating, notes);
+      
+      if (!entry) {
+        return res.status(400).json({ error: "No active sleep timer found" });
+      }
+      
+      logger.info(`[ManualSleep] Stopped timer for user ${userId}`, {
+        duration: entry.duration_minutes,
+        quality: entry.quality_rating,
+        score: entry.nightflo_score,
+      });
+      
+      res.json({
+        success: true,
+        entry,
+        message: `Logged ${Math.floor(entry.duration_minutes / 60)}h ${entry.duration_minutes % 60}m of sleep with score ${entry.nightflo_score}`,
+      });
+    } catch (error: any) {
+      logger.error("[ManualSleep] Error stopping timer:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create manual sleep entry (without timer)
+  app.post("/api/sleep/manual", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { bedtime, wakeTime, qualityRating, notes, timezone } = req.body;
+      
+      if (!bedtime || !wakeTime || !qualityRating || !timezone) {
+        return res.status(400).json({ 
+          error: "Missing required fields: bedtime, wakeTime, qualityRating, timezone" 
+        });
+      }
+      
+      if (qualityRating < 1 || qualityRating > 5) {
+        return res.status(400).json({ error: "Quality rating must be between 1 and 5" });
+      }
+      
+      const bedtimeDate = new Date(bedtime);
+      const wakeTimeDate = new Date(wakeTime);
+      
+      if (wakeTimeDate <= bedtimeDate) {
+        return res.status(400).json({ error: "Wake time must be after bedtime" });
+      }
+      
+      const durationMinutes = Math.round((wakeTimeDate.getTime() - bedtimeDate.getTime()) / (1000 * 60));
+      const sleepDate = wakeTimeDate.toISOString().split('T')[0];
+      
+      // Format local times
+      const bedtimeLocal = bedtimeDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: timezone,
+      }).toLowerCase();
+      
+      const waketimeLocal = wakeTimeDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: timezone,
+      }).toLowerCase();
+      
+      // Calculate score
+      const { score, label } = supabaseHealthStorage.calculateManualNightfloScore(durationMinutes, qualityRating);
+      
+      const entry = await supabaseHealthStorage.upsertManualSleepEntry(userId, {
+        sleep_date: sleepDate,
+        timezone,
+        bedtime: bedtimeDate.toISOString(),
+        wake_time: wakeTimeDate.toISOString(),
+        bedtime_local: bedtimeLocal,
+        waketime_local: waketimeLocal,
+        duration_minutes: durationMinutes,
+        quality_rating: qualityRating,
+        notes: notes || null,
+        nightflo_score: score,
+        score_label: label,
+        is_timer_active: false,
+      });
+      
+      logger.info(`[ManualSleep] Created entry for user ${userId}`, {
+        date: sleepDate,
+        duration: durationMinutes,
+        score,
+      });
+      
+      res.json({ success: true, entry });
+    } catch (error: any) {
+      logger.error("[ManualSleep] Error creating entry:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update manual sleep entry
+  app.patch("/api/sleep/manual/:entryId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { entryId } = req.params;
+      const { bedtime, wakeTime, qualityRating, notes } = req.body;
+      
+      const updates: any = {};
+      if (bedtime) updates.bedtime = bedtime;
+      if (wakeTime) updates.wake_time = wakeTime;
+      if (qualityRating !== undefined) {
+        if (qualityRating < 1 || qualityRating > 5) {
+          return res.status(400).json({ error: "Quality rating must be between 1 and 5" });
+        }
+        updates.quality_rating = qualityRating;
+      }
+      if (notes !== undefined) updates.notes = notes;
+      
+      const entry = await supabaseHealthStorage.updateManualSleepEntry(userId, entryId, updates);
+      
+      if (!entry) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      
+      logger.info(`[ManualSleep] Updated entry ${entryId} for user ${userId}`);
+      
+      res.json({ success: true, entry });
+    } catch (error: any) {
+      logger.error("[ManualSleep] Error updating entry:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete manual sleep entry
+  app.delete("/api/sleep/manual/:entryId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { entryId } = req.params;
+      
+      const success = await supabaseHealthStorage.deleteManualSleepEntry(userId, entryId);
+      
+      if (!success) {
+        return res.status(404).json({ error: "Entry not found or could not be deleted" });
+      }
+      
+      logger.info(`[ManualSleep] Deleted entry ${entryId} for user ${userId}`);
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("[ManualSleep] Error deleting entry:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get combined sleep data (HealthKit + Manual) for dashboard
+  app.get("/api/sleep/combined", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const days = parseInt(req.query.days as string) || 14;
+      
+      const combinedData = await supabaseHealthStorage.getCombinedSleepData(userId, days);
+      
+      // Format response for dashboard tile
+      if (combinedData.length === 0) {
+        return res.json({ 
+          hasData: false,
+          message: "No sleep data available. Start tracking your sleep!" 
+        });
+      }
+      
+      const latest = combinedData[0];
+      const source = (latest as any).source;
+      
+      // Build response based on data source
+      if (source === 'manual') {
+        const manual = latest as supabaseHealthStorage.ManualSleepEntry;
+        const totalHours = Math.floor(manual.duration_minutes / 60);
+        const totalMinutes = Math.round(manual.duration_minutes % 60);
+        
+        res.json({
+          hasData: true,
+          source: 'manual',
+          nightflo_score: manual.nightflo_score,
+          score_label: manual.score_label,
+          score_delta_vs_baseline: 0,
+          trend_direction: 'flat',
+          total_sleep_duration: `${totalHours}h ${totalMinutes}m`,
+          time_in_bed: `${totalHours}h ${totalMinutes}m`,
+          sleep_efficiency_pct: 100,
+          deep_sleep_pct: null,
+          rem_sleep_pct: null,
+          bedtime_local: manual.bedtime_local,
+          waketime_local: manual.waketime_local,
+          headline_insight: `You rated your sleep ${manual.quality_rating}/5. ${manual.score_label} rest!`,
+          quality_rating: manual.quality_rating,
+        });
+      } else {
+        // HealthKit data - use existing format
+        const hk = latest as supabaseHealthStorage.SleepNight;
+        const totalHours = Math.floor((hk.total_sleep_min || 0) / 60);
+        const totalMinutes = Math.round((hk.total_sleep_min || 0) % 60);
+        const bedHours = Math.floor((hk.time_in_bed_min || 0) / 60);
+        const bedMinutes = Math.round((hk.time_in_bed_min || 0) % 60);
+        
+        // Try to get subscores from DB
+        const subscores = await db
+          .select()
+          .from(sleepSubscores)
+          .where(
+            and(
+              eq(sleepSubscores.userId, userId),
+              eq(sleepSubscores.sleepDate, hk.sleep_date)
+            )
+          )
+          .limit(1);
+        
+        const subscore = subscores.length > 0 ? subscores[0] : null;
+        
+        res.json({
+          hasData: true,
+          source: 'healthkit',
+          nightflo_score: subscore?.nightfloScore || 0,
+          score_label: subscore?.scoreLabel || 'N/A',
+          score_delta_vs_baseline: subscore?.scoreDeltaVsBaseline || 0,
+          trend_direction: subscore?.trendDirection || 'flat',
+          total_sleep_duration: `${totalHours}h ${totalMinutes}m`,
+          time_in_bed: `${bedHours}h ${bedMinutes}m`,
+          sleep_efficiency_pct: Math.round(hk.sleep_efficiency_pct || 0),
+          deep_sleep_pct: Math.round(hk.deep_pct || 0),
+          rem_sleep_pct: Math.round(hk.rem_pct || 0),
+          bedtime_local: hk.bedtime_local || 'N/A',
+          waketime_local: hk.waketime_local || 'N/A',
+          headline_insight: subscore?.headlineInsight || 'Sleep data from HealthKit',
+        });
+      }
+    } catch (error: any) {
+      logger.error("[Sleep] Error getting combined sleep data:", error);
       return res.status(500).json({ error: error.message });
     }
   });

@@ -1517,6 +1517,403 @@ export async function getSleepNightByDate(userId: string, sleepDate: string): Pr
   return data;
 }
 
+// ==================== MANUAL SLEEP ENTRIES ====================
+
+export interface ManualSleepEntry {
+  id?: string;
+  health_id: string;
+  sleep_date: string;
+  timezone: string;
+  bedtime: Date | string;
+  wake_time: Date | string;
+  bedtime_local: string;
+  waketime_local: string;
+  duration_minutes: number;
+  quality_rating: number;
+  notes?: string | null;
+  nightflo_score: number;
+  score_label: string;
+  is_timer_active?: boolean;
+  timer_started_at?: Date | string | null;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+/**
+ * Calculate NightFlo score for manual sleep entries (simplified algorithm)
+ * Based on duration (60%) and quality rating (40%)
+ */
+export function calculateManualNightfloScore(durationMinutes: number, qualityRating: number): { score: number; label: string } {
+  // Duration scoring (same breakpoints as sleepScoringEngine)
+  let durationScore: number;
+  if (durationMinutes < 270) { // < 4.5h
+    durationScore = 0;
+  } else if (durationMinutes < 360) { // 4.5-6h
+    durationScore = ((durationMinutes - 270) / 90) * 50;
+  } else if (durationMinutes < 420) { // 6-7h
+    durationScore = 50 + ((durationMinutes - 360) / 60) * 50;
+  } else if (durationMinutes <= 540) { // 7-9h (ideal)
+    durationScore = 100;
+  } else if (durationMinutes <= 600) { // 9-10h
+    durationScore = 100 - ((durationMinutes - 540) / 60) * 100;
+  } else { // > 10h
+    durationScore = 0;
+  }
+
+  // Quality rating to score (1-5 maps to 0-100)
+  const qualityScore = ((qualityRating - 1) / 4) * 100;
+
+  // Weighted combination: 60% duration, 40% quality
+  const nightfloScore = Math.round(0.6 * durationScore + 0.4 * qualityScore);
+  const clampedScore = Math.max(0, Math.min(100, nightfloScore));
+
+  // Score label
+  let scoreLabel: string;
+  if (clampedScore >= 80) {
+    scoreLabel = 'Excellent';
+  } else if (clampedScore >= 60) {
+    scoreLabel = 'Good';
+  } else if (clampedScore >= 40) {
+    scoreLabel = 'Fair';
+  } else {
+    scoreLabel = 'Low';
+  }
+
+  return { score: clampedScore, label: scoreLabel };
+}
+
+export async function upsertManualSleepEntry(userId: string, entry: Omit<ManualSleepEntry, 'health_id'>): Promise<ManualSleepEntry> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('manual_sleep_entries')
+    .upsert({
+      ...entry,
+      health_id: healthId,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'health_id,sleep_date',
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error upserting manual sleep entry:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Upserted manual sleep for ${entry.sleep_date}`, {
+    durationMin: entry.duration_minutes,
+    quality: entry.quality_rating,
+    score: entry.nightflo_score,
+  });
+
+  return data;
+}
+
+export async function getManualSleepEntries(userId: string, days = 14): Promise<ManualSleepEntry[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('manual_sleep_entries')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('sleep_date', { ascending: false })
+    .limit(days);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching manual sleep entries:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getManualSleepByDate(userId: string, sleepDate: string): Promise<ManualSleepEntry | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('manual_sleep_entries')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('sleep_date', sleepDate)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching manual sleep by date:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function getActiveManualSleepTimer(userId: string): Promise<ManualSleepEntry | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('manual_sleep_entries')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('is_timer_active', true)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching active sleep timer:', error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function startManualSleepTimer(userId: string, timezone: string): Promise<ManualSleepEntry> {
+  const healthId = await getHealthId(userId);
+  const now = new Date();
+  const tempSleepDate = now.toISOString().split('T')[0]; // Temporary, will update on stop
+  
+  // Format local bedtime
+  const bedtimeLocal = now.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: timezone,
+  }).toLowerCase();
+
+  const entry: Omit<ManualSleepEntry, 'health_id'> = {
+    sleep_date: tempSleepDate,
+    timezone,
+    bedtime: now.toISOString(),
+    wake_time: now.toISOString(), // Placeholder
+    bedtime_local: bedtimeLocal,
+    waketime_local: '', // Will be filled on stop
+    duration_minutes: 0,
+    quality_rating: 3, // Default middle rating
+    nightflo_score: 0,
+    score_label: 'Low',
+    is_timer_active: true,
+    timer_started_at: now.toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from('manual_sleep_entries')
+    .insert({
+      ...entry,
+      health_id: healthId,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error starting sleep timer:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Started sleep timer at ${bedtimeLocal}`);
+  return data;
+}
+
+export async function stopManualSleepTimer(
+  userId: string, 
+  qualityRating: number, 
+  notes?: string
+): Promise<ManualSleepEntry | null> {
+  const healthId = await getHealthId(userId);
+  
+  // Find active timer
+  const activeTimer = await getActiveManualSleepTimer(userId);
+  if (!activeTimer) {
+    logger.warn('[SupabaseHealth] No active sleep timer found');
+    return null;
+  }
+
+  const now = new Date();
+  const bedtime = new Date(activeTimer.bedtime);
+  const durationMinutes = Math.round((now.getTime() - bedtime.getTime()) / (1000 * 60));
+  
+  // Calculate the actual sleep date (date of wake)
+  const sleepDate = now.toISOString().split('T')[0];
+  
+  // Format local wake time
+  const waketimeLocal = now.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: activeTimer.timezone,
+  }).toLowerCase();
+
+  // Calculate NightFlo score
+  const { score, label } = calculateManualNightfloScore(durationMinutes, qualityRating);
+
+  const { data, error } = await supabase
+    .from('manual_sleep_entries')
+    .update({
+      sleep_date: sleepDate,
+      wake_time: now.toISOString(),
+      waketime_local: waketimeLocal,
+      duration_minutes: durationMinutes,
+      quality_rating: qualityRating,
+      notes: notes || null,
+      nightflo_score: score,
+      score_label: label,
+      is_timer_active: false,
+      timer_started_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', activeTimer.id)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error stopping sleep timer:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Stopped sleep timer`, {
+    durationMin: durationMinutes,
+    quality: qualityRating,
+    score,
+    label,
+  });
+
+  return data;
+}
+
+export async function updateManualSleepEntry(
+  userId: string,
+  entryId: string,
+  updates: Partial<Pick<ManualSleepEntry, 'bedtime' | 'wake_time' | 'quality_rating' | 'notes'>>
+): Promise<ManualSleepEntry | null> {
+  const healthId = await getHealthId(userId);
+  
+  // Get existing entry to recalculate if times changed
+  const { data: existing, error: fetchError } = await supabase
+    .from('manual_sleep_entries')
+    .select('*')
+    .eq('id', entryId)
+    .eq('health_id', healthId)
+    .single();
+
+  if (fetchError || !existing) {
+    logger.error('[SupabaseHealth] Manual sleep entry not found:', fetchError);
+    return null;
+  }
+
+  // Prepare update data
+  const updateData: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (updates.notes !== undefined) {
+    updateData.notes = updates.notes;
+  }
+
+  if (updates.quality_rating !== undefined) {
+    updateData.quality_rating = updates.quality_rating;
+  }
+
+  // If times changed, recalculate duration and local times
+  const bedtime = updates.bedtime ? new Date(updates.bedtime) : new Date(existing.bedtime);
+  const wakeTime = updates.wake_time ? new Date(updates.wake_time) : new Date(existing.wake_time);
+
+  if (updates.bedtime || updates.wake_time) {
+    const durationMinutes = Math.round((wakeTime.getTime() - bedtime.getTime()) / (1000 * 60));
+    updateData.bedtime = bedtime.toISOString();
+    updateData.wake_time = wakeTime.toISOString();
+    updateData.duration_minutes = durationMinutes;
+    updateData.sleep_date = wakeTime.toISOString().split('T')[0];
+    
+    updateData.bedtime_local = bedtime.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: existing.timezone,
+    }).toLowerCase();
+    
+    updateData.waketime_local = wakeTime.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: existing.timezone,
+    }).toLowerCase();
+  }
+
+  // Recalculate NightFlo score
+  const qualityRating = updates.quality_rating ?? existing.quality_rating;
+  const durationMinutes = updateData.duration_minutes ?? existing.duration_minutes;
+  const { score, label } = calculateManualNightfloScore(durationMinutes, qualityRating);
+  updateData.nightflo_score = score;
+  updateData.score_label = label;
+
+  const { data, error } = await supabase
+    .from('manual_sleep_entries')
+    .update(updateData)
+    .eq('id', entryId)
+    .eq('health_id', healthId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating manual sleep entry:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Updated manual sleep entry ${entryId}`);
+  return data;
+}
+
+export async function deleteManualSleepEntry(userId: string, entryId: string): Promise<boolean> {
+  const healthId = await getHealthId(userId);
+  
+  const { error } = await supabase
+    .from('manual_sleep_entries')
+    .delete()
+    .eq('id', entryId)
+    .eq('health_id', healthId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error deleting manual sleep entry:', error);
+    return false;
+  }
+
+  logger.info(`[SupabaseHealth] Deleted manual sleep entry ${entryId}`);
+  return true;
+}
+
+/**
+ * Get combined sleep data (HealthKit + Manual) for a date range
+ * Prefers HealthKit data when both exist for the same date
+ */
+export async function getCombinedSleepData(
+  userId: string,
+  days = 14
+): Promise<Array<SleepNight | ManualSleepEntry & { source: 'healthkit' | 'manual' }>> {
+  const healthId = await getHealthId(userId);
+  
+  // Fetch both data sources
+  const [healthKitData, manualData] = await Promise.all([
+    getSleepNights(userId, days),
+    getManualSleepEntries(userId, days),
+  ]);
+
+  // Create a map of dates to data, preferring HealthKit
+  const dateMap = new Map<string, (SleepNight | ManualSleepEntry) & { source: 'healthkit' | 'manual' }>();
+
+  // Add manual entries first
+  for (const entry of manualData) {
+    dateMap.set(entry.sleep_date, { ...entry, source: 'manual' });
+  }
+
+  // Override with HealthKit data (preferred)
+  for (const entry of healthKitData) {
+    dateMap.set(entry.sleep_date, { ...entry, source: 'healthkit' });
+  }
+
+  // Convert to array and sort by date
+  const combined = Array.from(dateMap.values());
+  combined.sort((a, b) => b.sleep_date.localeCompare(a.sleep_date));
+
+  return combined;
+}
+
 // ==================== NUTRITION DAILY METRICS ====================
 
 export interface NutritionDailyMetrics {

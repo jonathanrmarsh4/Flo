@@ -1071,6 +1071,33 @@ export const sleepBaselines = pgTable("sleep_baselines", {
   index("idx_sleep_baselines_user").on(table.userId),
 ]);
 
+// Manual Sleep Entries - User-logged sleep for those who don't wear wearables to bed
+export const manualSleepEntries = pgTable("manual_sleep_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sleepDate: text("sleep_date").notNull(), // YYYY-MM-DD (local calendar day of wake)
+  timezone: text("timezone").notNull(), // IANA timezone (e.g., 'Australia/Perth')
+  bedtime: timestamp("bedtime").notNull(), // When user went to bed (UTC)
+  wakeTime: timestamp("wake_time").notNull(), // When user woke up (UTC)
+  bedtimeLocal: text("bedtime_local").notNull(), // Formatted bedtime (e.g., "10:47 pm")
+  waketimeLocal: text("waketime_local").notNull(), // Formatted wake time (e.g., "6:19 am")
+  durationMinutes: real("duration_minutes").notNull(), // Total time asleep (calculated)
+  qualityRating: integer("quality_rating").notNull(), // 1-5 subjective rating
+  notes: text("notes"), // Optional notes about sleep
+  nightfloScore: real("nightflo_score").notNull(), // 0-100 (calculated from duration + quality)
+  scoreLabel: text("score_label").notNull(), // 'Low' | 'Fair' | 'Good' | 'Excellent'
+  isTimerActive: boolean("is_timer_active").default(false), // True if sleep timer is in progress
+  timerStartedAt: timestamp("timer_started_at"), // When sleep timer was started (UTC)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_manual_sleep_unique").on(table.userId, table.sleepDate),
+  index("idx_manual_sleep_user_date").on(table.userId, table.sleepDate),
+]);
+
+export type ManualSleepEntry = typeof manualSleepEntries.$inferSelect;
+export type InsertManualSleepEntry = typeof manualSleepEntries.$inferInsert;
+
 // Mindfulness Sessions - Individual meditation/mindfulness sessions from HealthKit
 export const mindfulnessSessions = pgTable("mindfulness_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
