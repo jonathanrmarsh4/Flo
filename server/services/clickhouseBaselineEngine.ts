@@ -71,6 +71,59 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'both',
     severity: { moderate: 15, high: 30 },
   },
+  cgm_glucose: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'both',
+    severity: { moderate: 20, high: 40 },
+  },
+  cgm_hypo: {
+    zScoreThreshold: 1.0,
+    percentageThreshold: 10,
+    direction: 'low',
+    severity: { moderate: 70, high: 54 },
+  },
+  cgm_hyper: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'high',
+    severity: { moderate: 180, high: 250 },
+  },
+  cgm_variability: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 25,
+    direction: 'high',
+    severity: { moderate: 25, high: 36 },
+  },
+  time_in_range: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'low',
+    severity: { moderate: 15, high: 25 },
+  },
+};
+
+const CGM_ABSOLUTE_THRESHOLDS = {
+  hypoglycemia: {
+    moderate: 70,
+    severe: 54,
+    urgent: 40,
+  },
+  hyperglycemia: {
+    moderate: 180,
+    severe: 250,
+    urgent: 400,
+  },
+  rateOfChange: {
+    rising: 2,
+    risingFast: 3,
+    falling: -2,
+    fallingFast: -3,
+  },
+  targetRange: {
+    low: 70,
+    high: 180,
+  },
 };
 
 export interface BaselineResult {
@@ -477,7 +530,199 @@ export class ClickHouseBaselineEngine {
       }
     }
 
+    const glucoseIndicators = ['glucose', 'cgm_glucose', 'cgm_hypo', 'cgm_hyper'];
+    const glucoseAnomalies = anomalies.filter(a => glucoseIndicators.includes(a.metricType));
+    
+    if (glucoseAnomalies.length > 0) {
+      const glucoseAnomaly = glucoseAnomalies[0];
+      const hrvAnomaly = anomalies.find(a => a.metricType === 'hrv');
+      
+      if (hrvAnomaly) {
+        const patternFingerprint = glucoseAnomaly.direction === 'below' 
+          ? 'hypoglycemia_hrv_correlation'
+          : 'hyperglycemia_hrv_correlation';
+        
+        const relatedMetrics = {
+          glucose: { value: glucoseAnomaly.currentValue, deviation: glucoseAnomaly.deviationPct },
+          hrv: { value: hrvAnomaly.currentValue, deviation: hrvAnomaly.deviationPct },
+        };
+
+        return anomalies.map(a => {
+          if (a.metricType === glucoseAnomaly.metricType || a.metricType === 'hrv') {
+            return {
+              ...a,
+              patternFingerprint,
+              relatedMetrics,
+              severity: glucoseAnomaly.currentValue < CGM_ABSOLUTE_THRESHOLDS.hypoglycemia.severe ? 'high' as const : a.severity,
+              modelConfidence: Math.min(0.95, a.modelConfidence + 0.1),
+            };
+          }
+          return a;
+        });
+      }
+
+      const sleepAnomaly = anomalies.find(a => ['sleep_duration', 'deep_sleep', 'sleep_efficiency'].includes(a.metricType));
+      
+      if (sleepAnomaly) {
+        const patternFingerprint = 'glucose_sleep_correlation';
+        const relatedMetrics = {
+          glucose: { value: glucoseAnomaly.currentValue, deviation: glucoseAnomaly.deviationPct },
+          [sleepAnomaly.metricType]: { value: sleepAnomaly.currentValue, deviation: sleepAnomaly.deviationPct },
+        };
+
+        return anomalies.map(a => {
+          if (a.metricType === glucoseAnomaly.metricType || a.metricType === sleepAnomaly.metricType) {
+            return { ...a, patternFingerprint, relatedMetrics };
+          }
+          return a;
+        });
+      }
+
+      const activityAnomaly = anomalies.find(a => ['steps', 'active_energy', 'exercise_minutes'].includes(a.metricType));
+      
+      if (activityAnomaly) {
+        const patternFingerprint = 'glucose_activity_correlation';
+        const relatedMetrics = {
+          glucose: { value: glucoseAnomaly.currentValue, deviation: glucoseAnomaly.deviationPct },
+          [activityAnomaly.metricType]: { value: activityAnomaly.currentValue, deviation: activityAnomaly.deviationPct },
+        };
+
+        return anomalies.map(a => {
+          if (a.metricType === glucoseAnomaly.metricType || a.metricType === activityAnomaly.metricType) {
+            return { ...a, patternFingerprint, relatedMetrics };
+          }
+          return a;
+        });
+      }
+    }
+
     return anomalies;
+  }
+
+  async detectCgmAnomalies(healthId: string, options: { lookbackHours?: number } = {}): Promise<AnomalyResult[]> {
+    const { lookbackHours = 24 } = options;
+
+    if (!await this.ensureInitialized()) return [];
+
+    try {
+      const sql = `
+        SELECT
+          avg(glucose_mg_dl) as avg_glucose,
+          min(glucose_mg_dl) as min_glucose,
+          max(glucose_mg_dl) as max_glucose,
+          stddevPop(glucose_mg_dl) as glucose_std,
+          countIf(glucose_mg_dl < ${CGM_ABSOLUTE_THRESHOLDS.hypoglycemia.moderate}) as hypo_count,
+          countIf(glucose_mg_dl < ${CGM_ABSOLUTE_THRESHOLDS.hypoglycemia.severe}) as severe_hypo_count,
+          countIf(glucose_mg_dl > ${CGM_ABSOLUTE_THRESHOLDS.hyperglycemia.moderate}) as hyper_count,
+          countIf(glucose_mg_dl > ${CGM_ABSOLUTE_THRESHOLDS.hyperglycemia.severe}) as severe_hyper_count,
+          countIf(glucose_mg_dl BETWEEN ${CGM_ABSOLUTE_THRESHOLDS.targetRange.low} AND ${CGM_ABSOLUTE_THRESHOLDS.targetRange.high}) as in_range_count,
+          count() as total_readings
+        FROM flo_health.cgm_glucose
+        WHERE health_id = {healthId:String}
+          AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
+      `;
+
+      const results = await clickhouse.query<{
+        avg_glucose: number;
+        min_glucose: number;
+        max_glucose: number;
+        glucose_std: number;
+        hypo_count: number;
+        severe_hypo_count: number;
+        hyper_count: number;
+        severe_hyper_count: number;
+        in_range_count: number;
+        total_readings: number;
+      }>(sql, { healthId, lookbackHours });
+
+      if (results.length === 0 || results[0].total_readings < 12) {
+        return [];
+      }
+
+      const r = results[0];
+      const anomalies: AnomalyResult[] = [];
+      const timeInRange = (r.in_range_count / r.total_readings) * 100;
+
+      if (r.min_glucose < CGM_ABSOLUTE_THRESHOLDS.hypoglycemia.moderate) {
+        const severity = r.min_glucose < CGM_ABSOLUTE_THRESHOLDS.hypoglycemia.severe ? 'high' : 'moderate';
+        anomalies.push({
+          anomalyId: randomUUID(),
+          metricType: 'cgm_hypo',
+          currentValue: r.min_glucose,
+          baselineValue: r.avg_glucose,
+          deviationPct: ((r.min_glucose - r.avg_glucose) / r.avg_glucose) * 100,
+          zScore: r.glucose_std > 0 ? (r.min_glucose - r.avg_glucose) / r.glucose_std : null,
+          direction: 'below',
+          severity,
+          patternFingerprint: severity === 'high' ? 'severe_hypoglycemia' : 'hypoglycemia_event',
+          relatedMetrics: { hypo_count: r.hypo_count, severe_count: r.severe_hypo_count },
+          modelConfidence: 0.9,
+          detectedAt: new Date().toISOString(),
+        });
+      }
+
+      if (r.max_glucose > CGM_ABSOLUTE_THRESHOLDS.hyperglycemia.moderate) {
+        const severity = r.max_glucose > CGM_ABSOLUTE_THRESHOLDS.hyperglycemia.severe ? 'high' : 'moderate';
+        anomalies.push({
+          anomalyId: randomUUID(),
+          metricType: 'cgm_hyper',
+          currentValue: r.max_glucose,
+          baselineValue: r.avg_glucose,
+          deviationPct: ((r.max_glucose - r.avg_glucose) / r.avg_glucose) * 100,
+          zScore: r.glucose_std > 0 ? (r.max_glucose - r.avg_glucose) / r.glucose_std : null,
+          direction: 'above',
+          severity,
+          patternFingerprint: severity === 'high' ? 'severe_hyperglycemia' : 'hyperglycemia_event',
+          relatedMetrics: { hyper_count: r.hyper_count, severe_count: r.severe_hyper_count },
+          modelConfidence: 0.9,
+          detectedAt: new Date().toISOString(),
+        });
+      }
+
+      if (r.glucose_std > CGM_ABSOLUTE_THRESHOLDS.rateOfChange.risingFast * 10) {
+        anomalies.push({
+          anomalyId: randomUUID(),
+          metricType: 'cgm_variability',
+          currentValue: r.glucose_std,
+          baselineValue: 30,
+          deviationPct: ((r.glucose_std - 30) / 30) * 100,
+          zScore: null,
+          direction: 'above',
+          severity: r.glucose_std > 50 ? 'high' : 'moderate',
+          patternFingerprint: 'high_glucose_variability',
+          relatedMetrics: { coefficient_of_variation: (r.glucose_std / r.avg_glucose) * 100 },
+          modelConfidence: 0.85,
+          detectedAt: new Date().toISOString(),
+        });
+      }
+
+      if (timeInRange < 70) {
+        anomalies.push({
+          anomalyId: randomUUID(),
+          metricType: 'time_in_range',
+          currentValue: timeInRange,
+          baselineValue: 70,
+          deviationPct: ((timeInRange - 70) / 70) * 100,
+          zScore: null,
+          direction: 'below',
+          severity: timeInRange < 50 ? 'high' : 'moderate',
+          patternFingerprint: 'low_time_in_range',
+          relatedMetrics: { in_range_count: r.in_range_count, total_readings: r.total_readings },
+          modelConfidence: 0.88,
+          detectedAt: new Date().toISOString(),
+        });
+      }
+
+      if (anomalies.length > 0) {
+        await this.storeAnomalies(healthId, anomalies);
+      }
+
+      logger.info(`[ClickHouseML] Detected ${anomalies.length} CGM-specific anomalies for ${healthId}`);
+      return anomalies;
+    } catch (error) {
+      logger.error('[ClickHouseML] CGM anomaly detection error:', error);
+      return [];
+    }
   }
 
   private async storeAnomalies(healthId: string, anomalies: AnomalyResult[]): Promise<void> {

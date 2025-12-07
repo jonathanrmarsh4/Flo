@@ -4958,6 +4958,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/clickhouse/synthetic-cgm/generate", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { numPatients = 5, daysPerPatient = 7, targetHealthId } = req.body;
+      
+      const { syntheticCgmService } = await import('./services/syntheticCgmService');
+      
+      logger.info('[Admin] Generating synthetic CGM training data', { 
+        numPatients, 
+        daysPerPatient, 
+        targetHealthId,
+        adminId: req.user.claims.sub 
+      });
+      
+      const result = await syntheticCgmService.generateAndInjectData({
+        numPatients,
+        daysPerPatient,
+        targetHealthId,
+      });
+      
+      res.json({
+        success: result.success,
+        readingsInjected: result.readingsInjected,
+        patientsSimulated: result.patientsSimulated,
+        anomalyPatterns: result.anomalyPatterns,
+        message: result.success 
+          ? `Generated ${result.readingsInjected} synthetic CGM readings from ${result.patientsSimulated} virtual patients`
+          : result.error,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Synthetic CGM generation error:', error);
+      res.status(500).json({ error: error.message || "Failed to generate synthetic CGM data" });
+    }
+  });
+
+  app.get("/api/admin/clickhouse/synthetic-cgm/stats", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { syntheticCgmService } = await import('./services/syntheticCgmService');
+      
+      const stats = await syntheticCgmService.getSyntheticDataStats();
+      
+      res.json(stats);
+    } catch (error) {
+      logger.error('[Admin] Synthetic CGM stats error:', error);
+      res.status(500).json({ error: "Failed to fetch synthetic CGM stats" });
+    }
+  });
+
+  app.delete("/api/admin/clickhouse/synthetic-cgm/clear", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { syntheticCgmService } = await import('./services/syntheticCgmService');
+      
+      logger.info('[Admin] Clearing synthetic CGM training data', { adminId: req.user.claims.sub });
+      
+      await syntheticCgmService.clearSyntheticData();
+      
+      res.json({ success: true, message: "Synthetic CGM training data cleared" });
+    } catch (error) {
+      logger.error('[Admin] Synthetic CGM clear error:', error);
+      res.status(500).json({ error: "Failed to clear synthetic CGM data" });
+    }
+  });
+
+  app.post("/api/admin/clickhouse/cgm-anomalies/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { lookbackHours = 24 } = req.body;
+      
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const anomalies = await clickhouseBaselineEngine.detectCgmAnomalies(healthId, { lookbackHours });
+      
+      res.json({
+        healthId,
+        lookbackHours,
+        anomalyCount: anomalies.length,
+        anomalies,
+      });
+    } catch (error) {
+      logger.error('[Admin] CGM anomaly detection error:', error);
+      res.status(500).json({ error: "Failed to detect CGM anomalies" });
+    }
+  });
+
   // Admin: Get ML Usage metrics from ClickHouse Orchestrator
   app.get("/api/admin/ml-usage/metrics", isAuthenticated, requireAdmin, async (req, res) => {
     try {
