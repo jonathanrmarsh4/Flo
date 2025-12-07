@@ -317,7 +317,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           </div>
           <div className={`text-center p-2 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Energy</div>
-            <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{activeEnergy} cal</div>
+            <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{activeEnergy?.toFixed(1) ?? '0'} cal</div>
           </div>
           <div className={`text-center p-2 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Stand</div>
@@ -348,10 +348,10 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
         
         <div className="mb-4">
           <div className={`text-3xl mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="workouts-summary">
-            {workoutsToday} workout{workoutsToday !== 1 ? 's' : ''} · {workoutsDuration} min
+            {workoutsToday} workout{workoutsToday !== 1 ? 's' : ''} · {workoutsDuration.toFixed(1)} min
           </div>
           <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-            {workoutsEnergy} cal burned
+            {workoutsEnergy.toFixed(1)} cal burned
           </div>
         </div>
         
@@ -359,7 +359,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Last workout</div>
             <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {lastWorkout.distanceKm ? `${lastWorkout.distanceKm} km ` : ''}{lastWorkout.type}
+              {lastWorkout.distanceKm ? `${lastWorkout.distanceKm.toFixed(1)} km ` : ''}{lastWorkout.type}
               {lastWorkout.avgHeartRate ? ` · ${lastWorkout.avgHeartRate} bpm avg` : ''}
             </div>
           </div>
@@ -389,7 +389,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
         {vo2Max != null ? (
           <>
             <div className="flex items-baseline gap-2 mb-3">
-              <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{vo2Max}</span>
+              <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`}>{vo2Max?.toFixed(1)}</span>
               <span className={`text-lg ${isDark ? 'text-white/40' : 'text-gray-500'}`}>ml/kg/min</span>
               <span className={`ml-2 px-3 py-1 rounded-full text-xs ${
                 vo2Level === 'Excellent' || vo2Level === 'Good' 
@@ -691,7 +691,7 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
           <div className="flex items-center justify-between mb-2">
             <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Protein</span>
             <div className="flex items-baseline gap-1">
-              <span className={proteinScore === 'green' ? isDark ? 'text-green-400' : 'text-green-600' : proteinScore === 'amber' ? isDark ? 'text-yellow-400' : 'text-yellow-600' : isDark ? 'text-red-400' : 'text-red-600'}>{protein}g</span>
+              <span className={proteinScore === 'green' ? isDark ? 'text-green-400' : 'text-green-600' : proteinScore === 'amber' ? isDark ? 'text-yellow-400' : 'text-yellow-600' : isDark ? 'text-red-400' : 'text-red-600'}>{protein.toFixed(1)}g</span>
               <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>/ {proteinTarget}g</span>
             </div>
           </div>
@@ -704,7 +704,7 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
           <div className="flex items-center justify-between mb-2">
             <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Calories</span>
             <div className="flex items-baseline gap-1">
-              <span className={calorieScore === 'green' ? isDark ? 'text-green-400' : 'text-green-600' : calorieScore === 'amber' ? isDark ? 'text-yellow-400' : 'text-yellow-600' : isDark ? 'text-red-400' : 'text-red-600'}>{calories}</span>
+              <span className={calorieScore === 'green' ? isDark ? 'text-green-400' : 'text-green-600' : calorieScore === 'amber' ? isDark ? 'text-yellow-400' : 'text-yellow-600' : isDark ? 'text-red-400' : 'text-red-600'}>{calories.toFixed(1)}</span>
               <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>/ {calorieTarget}</span>
             </div>
           </div>
@@ -717,14 +717,14 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Carbs</div>
             <div className="flex items-baseline gap-1">
-              <span className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{carbs}g</span>
+              <span className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{carbs.toFixed(1)}g</span>
               <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>/ {carbsTarget}g</span>
             </div>
           </div>
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Fats</div>
             <div className="flex items-baseline gap-1">
-              <span className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{fats}g</span>
+              <span className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>{fats.toFixed(1)}g</span>
               <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>/ {fatsTarget}g</span>
             </div>
           </div>
@@ -761,7 +761,7 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
         <div className="grid grid-cols-3 gap-3">
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Caffeine</div>
-            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{caffeine}mg</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{caffeine.toFixed(1)}mg</div>
             <div className={`text-xs ${caffeine <= 400 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
               {caffeine <= 400 ? 'Within limit' : 'Above limit'}
             </div>
@@ -769,7 +769,7 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
           
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Sodium</div>
-            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sodium}mg</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sodium.toFixed(1)}mg</div>
             <div className={`text-xs ${sodium <= 2300 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
               {sodium <= 2300 ? 'Within limit' : 'Above limit'}
             </div>
@@ -777,7 +777,7 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
           
           <div className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
             <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Sugar</div>
-            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sugar}g</div>
+            <div className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{sugar.toFixed(1)}g</div>
             <div className={`text-xs ${sugar <= 50 ? isDark ? 'text-green-400' : 'text-green-600' : isDark ? 'text-orange-400' : 'text-orange-600'}`}>
               {sugar <= 50 ? 'Moderate' : 'High'}
             </div>
