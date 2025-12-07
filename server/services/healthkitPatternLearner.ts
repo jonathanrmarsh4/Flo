@@ -411,7 +411,7 @@ export class HealthKitPatternLearner {
         SELECT 
           stratification_type,
           count() as cnt,
-          uniq(metric_name) as metric_count,
+          uniq(metric_type) as metric_count,
           max(trained_at) as last_trained,
           any(data_source) as source
         FROM flo_health.healthkit_learned_baselines

@@ -504,29 +504,24 @@ export async function initializeClickHouse(): Promise<boolean> {
       query: `
         CREATE TABLE IF NOT EXISTS flo_health.cgm_learned_baselines (
           baseline_id String,
-          hour_of_day UInt8,
-          scenario LowCardinality(String),
+          pattern_type LowCardinality(String) DEFAULT '',
+          hour_of_day UInt8 DEFAULT 0,
+          scenario LowCardinality(String) DEFAULT '',
           mean_glucose Float64,
           std_glucose Float64,
-          p5_glucose Float64,
-          p10_glucose Float64,
-          p25_glucose Float64,
-          p50_glucose Float64,
-          p75_glucose Float64,
-          p90_glucose Float64,
-          p95_glucose Float64,
-          min_glucose Float64,
-          max_glucose Float64,
+          p10_glucose Float64 DEFAULT 0,
+          p25_glucose Float64 DEFAULT 0,
+          p50_glucose Float64 DEFAULT 0,
+          p75_glucose Float64 DEFAULT 0,
+          p90_glucose Float64 DEFAULT 0,
+          threshold_hypo Float64 DEFAULT 70,
+          threshold_hyper Float64 DEFAULT 180,
           sample_count UInt32,
-          time_in_range_pct Float64 DEFAULT 0,
-          hypo_pct Float64 DEFAULT 0,
-          hyper_pct Float64 DEFAULT 0,
-          data_source String DEFAULT 'simglucose',
           trained_at DateTime64(3) DEFAULT now64(3),
           model_version String DEFAULT 'v1'
         )
         ENGINE = ReplacingMergeTree(trained_at)
-        ORDER BY (scenario, hour_of_day, baseline_id)
+        ORDER BY (pattern_type, hour_of_day, scenario, baseline_id)
       `,
     });
 
