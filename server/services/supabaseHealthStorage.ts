@@ -1234,6 +1234,41 @@ export async function getDailyMetricsByDate(userId: string, localDate: string): 
     throw error;
   }
 
+  // If we have HealthKit data with sleep, return it directly
+  if (data && data.sleep_hours !== null && data.sleep_hours !== undefined) {
+    return data;
+  }
+
+  // Try to supplement with manual sleep entry if HealthKit sleep data is missing
+  try {
+    const manualSleep = await getManualSleepByDate(userId, localDate);
+    if (manualSleep && manualSleep.duration_minutes) {
+      const manualSleepHours = manualSleep.duration_minutes / 60;
+      logger.info(`[SupabaseHealth] Supplementing daily metrics with manual sleep: ${manualSleepHours.toFixed(2)}h for ${localDate}`);
+      
+      if (data) {
+        // Supplement existing metrics with manual sleep data
+        return {
+          ...data,
+          sleep_hours: manualSleepHours,
+        };
+      } else {
+        // Create minimal metrics from manual sleep entry only
+        const now = new Date();
+        return {
+          health_id: healthId,
+          local_date: localDate,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          utc_day_start: now,
+          utc_day_end: now,
+          sleep_hours: manualSleepHours,
+        };
+      }
+    }
+  } catch (manualSleepError) {
+    logger.debug('[SupabaseHealth] No manual sleep entry found for supplementing daily metrics');
+  }
+
   return data || null;
 }
 

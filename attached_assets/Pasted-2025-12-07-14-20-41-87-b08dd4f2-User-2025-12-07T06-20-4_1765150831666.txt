@@ -1,0 +1,45 @@
+2025-12-07 14:20:41.87
+b08dd4f2
+User
+[2025-12-07T06:20:41.879Z] [ERROR] [BiomarkerPatternLearner] Failed to get baseline stats: {"error":{"message":"Unknown table expression identifier 'flo_health.biomarker_learned_baselines' in scope SELECT stratification_type, count() AS cnt, uniq(biomarker_name) AS biomarker_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.biomarker_learned_baselines FINAL GROUP BY stratification_type. ","stack":"Error: Unknown table expression identifier 'flo_health.biomarker_learned_baselines' in scope SELECT stratification_type, count() AS cnt, uniq(biomarker_name) AS biomarker_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.biomarker_learned_baselines FINAL GROUP BY stratification_type. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:21:05.58
+b08dd4f2
+User
+[2025-12-07T06:21:05.582Z] [ERROR] [Admin] CGM baselines fetch error: {"error":{"message":"Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. ","stack":"Error: Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:21:06.20
+b08dd4f2
+User
+[2025-12-07T06:21:06.209Z] [ERROR] [HealthKitPatternLearner] Failed to get baseline stats: {"error":{"message":"Unknown expression or function identifier `metric_name` in scope SELECT stratification_type, count() AS cnt, uniq(metric_name) AS metric_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.healthkit_learned_baselines FINAL GROUP BY stratification_type. Maybe you meant: ['metric_type']. ","stack":"Error: Unknown expression or function identifier `metric_name` in scope SELECT stratification_type, count() AS cnt, uniq(metric_name) AS metric_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.healthkit_learned_baselines FINAL GROUP BY stratification_type. Maybe you meant: ['metric_type']. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:21:11.55
+b08dd4f2
+User
+[2025-12-07T06:21:11.552Z] [ERROR] [Admin] CGM baselines fetch error: {"error":{"message":"Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. ","stack":"Error: Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:22:14.29
+b08dd4f2
+User
+[2025-12-07T06:22:14.296Z] [ERROR] [Admin] CGM baselines fetch error: {"error":{"message":"Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. ","stack":"Error: Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:22:35.59
+b08dd4f2
+User
+[2025-12-07T06:22:35.599Z] [ERROR] [HealthKitPatternLearner] Failed to get baseline stats: {"error":{"message":"Unknown expression or function identifier `metric_name` in scope SELECT stratification_type, count() AS cnt, uniq(metric_name) AS metric_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.healthkit_learned_baselines FINAL GROUP BY stratification_type. Maybe you meant: ['metric_type']. ","stack":"Error: Unknown expression or function identifier `metric_name` in scope SELECT stratification_type, count() AS cnt, uniq(metric_name) AS metric_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.healthkit_learned_baselines FINAL GROUP BY stratification_type. Maybe you meant: ['metric_type']. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:23:05.00
+b08dd4f2
+User
+[2025-12-07T06:23:05.003Z] [ERROR] [HealthKitPatternLearner] Failed to get baseline stats: {"error":{"message":"Unknown expression or function identifier `metric_name` in scope SELECT stratification_type, count() AS cnt, uniq(metric_name) AS metric_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.healthkit_learned_baselines FINAL GROUP BY stratification_type. Maybe you meant: ['metric_type']. ","stack":"Error: Unknown expression or function identifier `metric_name` in scope SELECT stratification_type, count() AS cnt, uniq(metric_name) AS metric_count, max(trained_at) AS last_trained, any(data_source) AS source FROM flo_health.healthkit_learned_baselines FINAL GROUP BY stratification_type. Maybe you meant: ['metric_type']. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:23:05.66
+b08dd4f2
+User
+[2025-12-07T06:23:05.664Z] [ERROR] [Admin] CGM baselines fetch error: {"error":{"message":"Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. ","stack":"Error: Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:23:54.44
+b08dd4f2
+User
+[2025-12-07T06:23:54.449Z] [ERROR] [Admin] CGM baselines fetch error: {"error":{"message":"Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. ","stack":"Error: Unknown expression identifier `pattern_type` in scope SELECT * FROM flo_health.cgm_learned_baselines ORDER BY pattern_type ASC, hour_of_day ASC. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-07 14:33:34.59
+96b1549e
+User
+[2025-12-07T06:33:34.591Z] [WARN] [BigQuery] BIGQUERY_SERVICE_ACCOUNT_JSON not set - BigQuery features will be disabled
+2025-12-07 14:49:30.88
+6c3deca6
+User
+[2025-12-07T06:49:30.888Z] [WARN] [BigQuery] BIGQUERY_SERVICE_ACCOUNT_JSON not set - BigQuery features will be disabled
+
