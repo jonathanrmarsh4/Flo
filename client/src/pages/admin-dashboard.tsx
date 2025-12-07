@@ -222,6 +222,58 @@ export default function AdminDashboard() {
     },
   });
 
+  const { data: biomarkerBaselinesData, refetch: refetchBiomarkerBaselines } = useQuery({
+    queryKey: ['/api/admin/clickhouse/biomarker-model/baselines'],
+    refetchInterval: false,
+  });
+
+  const trainBiomarkerModelMutation = useMutation({
+    mutationFn: async ({ regenerateData }: { regenerateData: boolean }) => {
+      return await apiRequest('POST', '/api/admin/clickhouse/biomarker-model/train', { regenerateData });
+    },
+    onSuccess: (data: any) => {
+      refetchBiomarkerBaselines();
+      toast({
+        title: 'Biomarker Model Trained',
+        description: data.message || `Trained ${data.biomarkersLearned} biomarkers`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('Biomarker model training error:', error);
+      toast({
+        title: 'Training Failed',
+        description: error.message || 'Failed to train biomarker model',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const { data: healthkitBaselinesData, refetch: refetchHealthkitBaselines } = useQuery({
+    queryKey: ['/api/admin/clickhouse/healthkit-model/baselines'],
+    refetchInterval: false,
+  });
+
+  const trainHealthkitModelMutation = useMutation({
+    mutationFn: async ({ numPeople, daysPerPerson, regenerateData }: { numPeople: number; daysPerPerson: number; regenerateData: boolean }) => {
+      return await apiRequest('POST', '/api/admin/clickhouse/healthkit-model/train', { numPeople, daysPerPerson, regenerateData });
+    },
+    onSuccess: (data: any) => {
+      refetchHealthkitBaselines();
+      toast({
+        title: 'HealthKit Model Trained',
+        description: data.message || `Trained ${data.metricsLearned} metrics`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('HealthKit model training error:', error);
+      toast({
+        title: 'Training Failed',
+        description: error.message || 'Failed to train HealthKit model',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const clickhouseInitMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/admin/clickhouse/init', {});
@@ -1224,6 +1276,242 @@ export default function AdminDashboard() {
                   onClick={() => refetchCgmBaselines()}
                   className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 text-white transition-all"
                   data-testid="button-refresh-baselines"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="text-sm">Refresh Status</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Activity className="w-5 h-5 text-blue-400" />
+                Blood Work Pattern Learner (NHANES)
+              </h3>
+              <div className="text-xs text-white/50 mb-4">
+                Train the blood work model on CDC NHANES population data (2021-2023). 
+                Includes cholesterol, HbA1c, glucose, CRP, creatinine, and CBC biomarkers 
+                with baselines stratified by age group and sex.
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Model Status</div>
+                  <div className="text-lg text-white mt-1">
+                    {(biomarkerBaselinesData as any)?.hasLearnedBaselines ? (
+                      <span className="text-green-400">Trained</span>
+                    ) : (
+                      <span className="text-yellow-400">Not Trained</span>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Biomarkers</div>
+                  <div className="text-2xl text-white mt-1">
+                    {(biomarkerBaselinesData as any)?.biomarkerCount || 0}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Total Baselines</div>
+                  <div className="text-2xl text-white mt-1">
+                    {(biomarkerBaselinesData as any)?.totalBaselines || 0}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Data Source</div>
+                  <div className="text-sm text-white mt-1">
+                    {(biomarkerBaselinesData as any)?.dataSource || '—'}
+                  </div>
+                </div>
+              </div>
+
+              {(biomarkerBaselinesData as any)?.stratifications && (
+                <div className="p-4 rounded-xl border bg-blue-500/10 border-blue-500/20 mb-6">
+                  <div className="text-xs text-blue-400 mb-2">Stratification Breakdown</div>
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-white/50">Global:</span>
+                      <span className="text-white ml-2">{(biomarkerBaselinesData as any).stratifications.global}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">By Sex:</span>
+                      <span className="text-white ml-2">{(biomarkerBaselinesData as any).stratifications.bySex}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">By Age:</span>
+                      <span className="text-white ml-2">{(biomarkerBaselinesData as any).stratifications.byAgeGroup}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">Age+Sex:</span>
+                      <span className="text-white ml-2">{(biomarkerBaselinesData as any).stratifications.byAgeAndSex}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => trainBiomarkerModelMutation.mutate({ regenerateData: false })}
+                  disabled={trainBiomarkerModelMutation.isPending}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-train-biomarker-model"
+                >
+                  {trainBiomarkerModelMutation.isPending ? (
+                    <>
+                      <Activity className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Training...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span className="text-sm">Train Model</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => trainBiomarkerModelMutation.mutate({ regenerateData: true })}
+                  disabled={trainBiomarkerModelMutation.isPending}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-train-biomarker-full"
+                >
+                  {trainBiomarkerModelMutation.isPending ? (
+                    <>
+                      <Activity className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Fetching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      <span className="text-sm">Refresh from NHANES</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => refetchBiomarkerBaselines()}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 text-white transition-all"
+                  data-testid="button-refresh-biomarker-baselines"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="text-sm">Refresh Status</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Heart className="w-5 h-5 text-green-400" />
+                HealthKit Pattern Learner
+              </h3>
+              <div className="text-xs text-white/50 mb-4">
+                Train the HealthKit model on synthetic data using medical literature distributions. 
+                Includes HRV, resting heart rate, sleep, steps, and activity metrics 
+                with circadian rhythm patterns and demographic stratification.
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Model Status</div>
+                  <div className="text-lg text-white mt-1">
+                    {(healthkitBaselinesData as any)?.hasLearnedBaselines ? (
+                      <span className="text-green-400">Trained</span>
+                    ) : (
+                      <span className="text-yellow-400">Not Trained</span>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Metrics</div>
+                  <div className="text-2xl text-white mt-1">
+                    {(healthkitBaselinesData as any)?.metricCount || 0}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Total Baselines</div>
+                  <div className="text-2xl text-white mt-1">
+                    {(healthkitBaselinesData as any)?.totalBaselines || 0}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Hourly Patterns</div>
+                  <div className="text-2xl text-white mt-1">
+                    {(healthkitBaselinesData as any)?.stratifications?.byHour || 0}
+                  </div>
+                </div>
+              </div>
+
+              {(healthkitBaselinesData as any)?.stratifications && (
+                <div className="p-4 rounded-xl border bg-green-500/10 border-green-500/20 mb-6">
+                  <div className="text-xs text-green-400 mb-2">Stratification Breakdown</div>
+                  <div className="grid grid-cols-5 gap-4 text-sm">
+                    <div>
+                      <span className="text-white/50">Global:</span>
+                      <span className="text-white ml-2">{(healthkitBaselinesData as any).stratifications.global}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">By Sex:</span>
+                      <span className="text-white ml-2">{(healthkitBaselinesData as any).stratifications.bySex}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">By Age:</span>
+                      <span className="text-white ml-2">{(healthkitBaselinesData as any).stratifications.byAgeGroup}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">Activity:</span>
+                      <span className="text-white ml-2">{(healthkitBaselinesData as any).stratifications.byActivityLevel}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">Hourly:</span>
+                      <span className="text-white ml-2">{(healthkitBaselinesData as any).stratifications.byHour}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => trainHealthkitModelMutation.mutate({ numPeople: 100, daysPerPerson: 30, regenerateData: false })}
+                  disabled={trainHealthkitModelMutation.isPending}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-train-healthkit-model"
+                >
+                  {trainHealthkitModelMutation.isPending ? (
+                    <>
+                      <Activity className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Training...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span className="text-sm">Train Model</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => trainHealthkitModelMutation.mutate({ numPeople: 100, daysPerPerson: 30, regenerateData: true })}
+                  disabled={trainHealthkitModelMutation.isPending}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-train-healthkit-full"
+                >
+                  {trainHealthkitModelMutation.isPending ? (
+                    <>
+                      <Activity className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      <span className="text-sm">Full Retrain (New Data)</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => refetchHealthkitBaselines()}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 text-white transition-all"
+                  data-testid="button-refresh-healthkit-baselines"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span className="text-sm">Refresh Status</span>

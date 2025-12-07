@@ -5074,6 +5074,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Biomarker Pattern Learner Endpoints =====
+  app.post("/api/admin/clickhouse/biomarker-model/train", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { regenerateData = false } = req.body;
+      
+      const { biomarkerPatternLearner } = await import('./services/biomarkerPatternLearner');
+      
+      logger.info('[Admin] Training biomarker pattern model', { 
+        regenerateData,
+        adminId: req.user.claims.sub 
+      });
+      
+      const result = await biomarkerPatternLearner.trainOnNhanesData({
+        regenerateData,
+      });
+      
+      res.json({
+        success: result.success,
+        biomarkersLearned: result.biomarkersLearned,
+        totalBaselines: result.totalBaselines,
+        dataSource: result.dataSource,
+        message: result.success 
+          ? `Trained on NHANES data: ${result.biomarkersLearned} biomarkers, ${result.totalBaselines} baselines`
+          : result.error,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Biomarker model training error:', error);
+      res.status(500).json({ error: error.message || "Failed to train biomarker model" });
+    }
+  });
+
+  app.get("/api/admin/clickhouse/biomarker-model/baselines", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { biomarkerPatternLearner } = await import('./services/biomarkerPatternLearner');
+      
+      const stats = await biomarkerPatternLearner.getBaselineStats();
+      
+      res.json(stats);
+    } catch (error) {
+      logger.error('[Admin] Biomarker baselines fetch error:', error);
+      res.status(500).json({ error: "Failed to fetch biomarker baselines" });
+    }
+  });
+
+  // ===== HealthKit Pattern Learner Endpoints =====
+  app.post("/api/admin/clickhouse/healthkit-model/train", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { numPeople = 100, daysPerPerson = 30, regenerateData = false } = req.body;
+      
+      const { healthkitPatternLearner } = await import('./services/healthkitPatternLearner');
+      
+      logger.info('[Admin] Training HealthKit pattern model', { 
+        numPeople,
+        daysPerPerson,
+        regenerateData,
+        adminId: req.user.claims.sub 
+      });
+      
+      const result = await healthkitPatternLearner.trainOnSyntheticData({
+        numPeople,
+        daysPerPerson,
+        regenerateData,
+      });
+      
+      res.json({
+        success: result.success,
+        metricsLearned: result.metricsLearned,
+        totalBaselines: result.totalBaselines,
+        syntheticRecordsUsed: result.syntheticRecordsUsed,
+        message: result.success 
+          ? `Trained on ${result.syntheticRecordsUsed} synthetic records: ${result.metricsLearned} metrics, ${result.totalBaselines} baselines`
+          : result.error,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] HealthKit model training error:', error);
+      res.status(500).json({ error: error.message || "Failed to train HealthKit model" });
+    }
+  });
+
+  app.get("/api/admin/clickhouse/healthkit-model/baselines", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { healthkitPatternLearner } = await import('./services/healthkitPatternLearner');
+      
+      const stats = await healthkitPatternLearner.getBaselineStats();
+      
+      res.json(stats);
+    } catch (error) {
+      logger.error('[Admin] HealthKit baselines fetch error:', error);
+      res.status(500).json({ error: "Failed to fetch HealthKit baselines" });
+    }
+  });
+
   app.post("/api/admin/clickhouse/cgm-anomalies/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;
