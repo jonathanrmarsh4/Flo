@@ -241,10 +241,8 @@ export default function Dashboard() {
     return retestInfo.isRecommended;
   }).length;
 
-  const isInRange = (biomarkerName: string, value: number) => {
-    const config = BIOMARKER_CONFIGS[biomarkerName];
-    if (!config) return true;
-    return value >= config.min && value <= config.max;
+  const isInRangeWithRefs = (value: number, refLow: number, refHigh: number) => {
+    return value >= refLow && value <= refHigh;
   };
 
   const getBiomarkerHistory = (biomarkerId: string) => {
@@ -416,14 +414,13 @@ export default function Dashboard() {
               if (!config) return null;
               
               const displayVals = getDisplayValues(latest);
-              const inRange = isInRange(biomarkerName, displayVals.value);
+              const displayRefLow = displayVals.refLow ?? config.min;
+              const displayRefHigh = displayVals.refHigh ?? config.max;
+              const inRange = isInRangeWithRefs(displayVals.value, displayRefLow, displayRefHigh);
               const history = getBiomarkerHistory(biomarkerId);
               
               const retestInfo = isRetestRecommended(latest.date, biomarkerName);
               const testAge = formatTestAge(retestInfo.daysOld);
-              
-              const displayRefLow = displayVals.refLow ?? config.min;
-              const displayRefHigh = displayVals.refHigh ?? config.max;
 
               const handleTileClick = () => {
                 setSelectedInsightsBiomarker({
@@ -431,7 +428,7 @@ export default function Dashboard() {
                   name: biomarkerName,
                   value: displayVals.value,
                   unit: displayVals.unit,
-                  status: inRange ? 'optimal' : (displayVals.value < config.min ? 'low' : 'high'),
+                  status: inRange ? 'optimal' : (displayVals.value < displayRefLow ? 'low' : 'high'),
                 });
               };
 
@@ -483,10 +480,10 @@ export default function Dashboard() {
                   {history.length >= 2 && (
                     <TrendChart 
                       history={history}
-                      min={config.min}
-                      max={config.max}
+                      min={displayRefLow}
+                      max={displayRefHigh}
                       biomarker={biomarkerName}
-                      unit={config.unit}
+                      unit={displayVals.unit}
                       isDark={isDark}
                     />
                   )}

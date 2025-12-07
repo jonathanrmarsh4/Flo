@@ -32,6 +32,7 @@ The platform adopts a mobile-first, content-focused minimalist design, drawing i
 - **Conversational Life Event Logging System:** Parses health narratives from Flō Oracle conversations into structured JSONB using Gemini 2.5 Flash.
 - **Unified Brain Memory System:** Shared memory layer connecting Flō Oracle and Daily Insights for bidirectional AI learning.
 - **Medical Document Ingestion System:** Processes unstructured medical reports (25+ types) using GPT-4o for summarization, embedding, and semantic search integration with Flō Oracle.
+- **Lab Unit Display Toggle:** Users can switch between viewing biomarker values in original lab units (as reported on their lab test) or standardized canonical units for easier comparison across different labs. Toggle persists via localStorage. When raw reference ranges are unavailable, the system gracefully falls back to canonical reference ranges.
 - **Billing & Subscription System:** Supports FREE and PREMIUM tiers via StoreKit 2 (iOS) and Stripe (web).
 - **Daily Reminder Notifications:** AI-driven personalized reminders using Gemini 2.5 Flash.
 - **On-Demand Data Retrieval (Function Calling):** Flō Oracle uses Gemini function calling to fetch specific health data (e.g., `get_nutrition_trend`, `get_biomarker_history`) for complex queries.
