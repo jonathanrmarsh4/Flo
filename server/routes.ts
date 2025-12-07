@@ -7950,6 +7950,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const apiKey = req.headers['x-admin-key'];
       const expectedKey = process.env.ADMIN_CLI_KEY;
       
+      // Debug logging (will be removed after debugging)
+      logger.info(`[Nutrition Admin] Auth check - hasApiKey: ${!!apiKey}, hasExpectedKey: ${!!expectedKey}, keysMatch: ${apiKey === expectedKey}`);
+      
       let adminId = 'cli-admin';
       
       if (apiKey && expectedKey && apiKey === expectedKey) {
