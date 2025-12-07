@@ -594,21 +594,33 @@ export async function createHealthkitSamples(userId: string, samples: Omit<Healt
   const minDate = startDates.reduce((a, b) => a < b ? a : b);
   const maxDate = startDates.reduce((a, b) => a > b ? a : b);
   
-  // Fetch existing samples in the date range
-  const { data: existingSamples, error: fetchError } = await supabase
-    .from('healthkit_samples')
-    .select('data_type, value, start_date, source_bundle_id')
-    .eq('health_id', healthId)
-    .gte('start_date', minDate)
-    .lte('start_date', maxDate);
-  
-  if (fetchError) {
-    logger.error('[SupabaseHealth] Error fetching existing samples for dedup:', fetchError);
-  }
-  
-  // Create a Set of existing sample fingerprints for O(1) lookup
+  // Fetch ALL existing samples in the date range (with pagination to handle >1000 samples)
   const existingFingerprints = new Set<string>();
-  if (existingSamples) {
+  let page = 0;
+  const pageSize = 1000;
+  let totalFetched = 0;
+  
+  while (true) {
+    const { data: existingSamples, error: fetchError } = await supabase
+      .from('healthkit_samples')
+      .select('data_type, value, start_date, source_bundle_id')
+      .eq('health_id', healthId)
+      .gte('start_date', minDate)
+      .lte('start_date', maxDate)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    
+    if (fetchError) {
+      logger.error('[SupabaseHealth] Error fetching existing samples for dedup:', fetchError);
+      break;
+    }
+    
+    if (!existingSamples || existingSamples.length === 0) {
+      break;
+    }
+    
+    totalFetched += existingSamples.length;
+    
+    // Create fingerprints for each existing sample
     for (const s of existingSamples) {
       // Create fingerprint: data_type|value|start_date|source_bundle_id
       // Round value to 2 decimal places to handle floating point precision
@@ -618,6 +630,16 @@ export async function createHealthkitSamples(userId: string, samples: Omit<Healt
       const fingerprint = `${s.data_type}|${valueRounded}|${startDateNorm}|${s.source_bundle_id || ''}`;
       existingFingerprints.add(fingerprint);
     }
+    
+    // If we got less than pageSize, we've fetched all samples
+    if (existingSamples.length < pageSize) {
+      break;
+    }
+    page++;
+  }
+  
+  if (totalFetched > 0) {
+    logger.info(`[SupabaseHealth] Pre-dedup: fetched ${totalFetched} existing samples for fingerprint comparison`);
   }
   
   // Filter out samples that already exist
