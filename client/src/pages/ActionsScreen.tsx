@@ -111,48 +111,44 @@ export default function ActionsScreen() {
   ];
 
   return (
-    <div className="relative h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 overflow-hidden">
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex-shrink-0 pt-[env(safe-area-inset-top)] backdrop-blur-xl border-b bg-white/5 border-white/10">
-          <div className="px-4 py-3">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <FloLogo size={32} />
-                <div>
-                  <h1 className="text-lg text-white" data-testid="heading-actions">
-                    Action Plan
-                  </h1>
-                  <p className="text-xs text-white/50">
-                    {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
-              <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
-              {categoryFilterOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => setSelectedCategory(option.value)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                    selectedCategory === option.value
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
-                      : 'bg-white/10 text-white/70 hover:bg-white/20'
-                  }`}
-                  data-testid={`filter-${option.value}`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
+      {/* Header - matches Activity screen layout */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/5 border-white/10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="px-4 py-3">
+          <div>
+            <h1 className="text-xl text-white" data-testid="heading-actions">
+              Actions
+            </h1>
+            <p className="text-xs text-white/50">
+              {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
+            </p>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto overscroll-none px-6 py-4 pb-32">
+        {/* Category Filter Pills */}
+        <div className="px-4 pb-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
+            {categoryFilterOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setSelectedCategory(option.value)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  selectedCategory === option.value
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
+                    : 'bg-white/10 text-white/70 hover:bg-white/20'
+                }`}
+                data-testid={`filter-${option.value}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      {/* Content Area */}
+      <main className="overflow-y-auto px-4 py-6 pb-32" style={{ height: 'calc(100vh - 140px)' }}>
           {/* Lab Work Overdue Tile - Collapsible, starts collapsed */}
           <div className="mb-4">
             <OverdueLabWorkTile />
@@ -223,15 +219,14 @@ export default function ActionsScreen() {
             </div>
           )}
 
-          {/* Report Tile - Health Summary (moved to bottom) */}
-          <div className="mt-4">
-            <ReportTile />
-          </div>
+        {/* Report Tile - Health Summary (moved to bottom) */}
+        <div className="mt-4">
+          <ReportTile />
         </div>
+      </main>
 
-        {/* Bottom Navigation */}
-        <FloBottomNav />
-      </div>
+      {/* Bottom Navigation */}
+      <FloBottomNav />
     </div>
   );
 }
