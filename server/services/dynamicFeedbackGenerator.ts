@@ -215,6 +215,16 @@ Respond with JSON only:
         const text = response.text || '';
         const parsed = JSON.parse(text);
 
+        // Validate that questionText exists and is a non-empty string
+        if (!parsed.questionText || typeof parsed.questionText !== 'string' || parsed.questionText.trim().length === 0) {
+          logger.warn('[FeedbackGenerator] Invalid questionText from Gemini, using fallback', {
+            focusMetric: focusAnomaly.metricType,
+            parsed,
+          });
+          questions.push(this.generateFocusedFallbackQuestion(focusAnomaly, anomalies, deliveryWindows[i]));
+          continue;
+        }
+
         const triggerMetrics: Record<string, { value: number; deviation: number }> = {};
         for (const a of anomalies) {
           triggerMetrics[a.metricType] = {
@@ -236,7 +246,7 @@ Respond with JSON only:
         }
 
         questions.push({
-          questionText: parsed.questionText,
+          questionText: parsed.questionText.trim(),
           questionType: 'scale_1_10',
           triggerPattern: focusAnomaly.patternFingerprint || 'single_metric',
           triggerMetrics,

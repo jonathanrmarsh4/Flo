@@ -1,0 +1,36 @@
+025-12-07 22:43:27.27
+fb329328
+User
+[2025-12-07T14:43:27.276Z] [INFO] [ClickHouseML] [ClickHouseML] Calculated 14 baselines for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:43:27.97
+fb329328
+User
+[2025-12-07T14:43:27.974Z] [INFO] [ClickHouseML] [ClickHouseML] Calculated 14 baselines for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:43:29.46
+fb329328
+User
+[2025-12-07T14:43:29.468Z] [INFO] [ClickHouseML] [ClickHouseML] Detected 2 anomalies for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 22:43:30.23
+fb329328
+User
+[2025-12-07T14:43:30.236Z] [INFO] [FeedbackGenerator] Generated focused question {"focusMetric":"hrv","deliveryWindow":"morning","index":1,"totalQuestions":2}
+2025-12-07 22:43:30.96
+fb329328
+User
+[2025-12-07T14:43:30.964Z] [INFO] [FeedbackGenerator] Generated focused question {"focusMetric":"steps","deliveryWindow":"midday","index":2,"totalQuestions":2}
+2025-12-07 22:43:31.00
+fb329328
+User
+[2025-12-07T14:43:31.004Z] [ERROR] [Admin] ClickHouse analysis error: {"error":{"message":"null value in column \"question_text\" of relation \"pending_correlation_feedback\" violates not-null constraint","stack":"error: null value in column \"question_text\" of relation \"pending_correlation_feedback\" violates not-null constraint\n at file:///home/runner/workspace/node_modules/@neondatabase/serverless/index.mjs:1345:74\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async CorrelationInsightService.storePendingFeedback (file:///home/runner/workspace/dist/index.js:16355:9)\n at async file:///home/runner/workspace/dist/index.js:41957:11"}}
+2025-12-07 22:43:31.00
+fb329328
+User
+2:43:31 PM [express] POST /api/admin/clickhouse/analyze 500 in 5783ms :: {"error":"Failed to run Cli…
+2025-12-07 22:43:31.00
+fb329328
+User
+2:43:31 PM [express] POST /api/admin/clickhouse/analyze 500 in 5783ms :: {"error":"Failed to run Cli…
+2025-12-07 22:43:55.59
+fb329328
+User
+2:43:55 PM [express] GET /api/admin/overview 304 in 36ms :: {"totalUsers":9,"activeUsers":9,"totalRe…

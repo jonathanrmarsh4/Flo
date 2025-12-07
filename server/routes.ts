@@ -4680,13 +4680,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (anomalies.length > 0) {
         const questions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
         
+        // Filter out any questions with invalid questionText as a safety check
+        const validQuestions = questions.filter(q => 
+          q.questionText && typeof q.questionText === 'string' && q.questionText.trim().length > 0
+        );
+        
+        if (validQuestions.length < questions.length) {
+          logger.warn(`[Admin] Filtered out ${questions.length - validQuestions.length} questions with invalid questionText`);
+        }
+        
         const deliveryOffsets = {
           morning: 0,
           midday: 4 * 60 * 60 * 1000,
           evening: 8 * 60 * 60 * 1000,
         };
 
-        for (const question of questions) {
+        for (const question of validQuestions) {
           const feedbackId = randomUUID();
           const offset = deliveryOffsets[question.deliveryWindow || 'morning'];
           const visibleAt = new Date(Date.now() + offset);
