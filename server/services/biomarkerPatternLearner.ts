@@ -125,15 +125,16 @@ export class BiomarkerPatternLearner {
       const rawData = fs.readFileSync(BiomarkerPatternLearner.NHANES_BASELINES_PATH, 'utf-8');
       nhanesData = JSON.parse(rawData);
 
-      logger.info(`[BiomarkerPatternLearner] Processing NHANES data from ${nhanesData.total_participants} participants`);
+      const dataSource = nhanesData.data_source || 'NHANES';
+      logger.info(`[BiomarkerPatternLearner] Processing baselines from ${dataSource}`);
 
       const rows: any[] = [];
-      const biomarkerMetadata = nhanesData.biomarker_metadata || {};
+      const metadata = nhanesData.metadata || {};
 
       for (const [biomarker, stats] of Object.entries<any>(nhanesData.baselines.global || {})) {
         if (!stats || typeof stats.mean !== 'number') continue;
         
-        const metadata = biomarkerMetadata[biomarker] || {};
+        const biomarkerMeta = metadata[biomarker] || {};
         rows.push({
           baseline_id: randomUUID(),
           biomarker_name: biomarker,
@@ -152,8 +153,8 @@ export class BiomarkerPatternLearner {
           min_value: stats.min || 0,
           max_value: stats.max || 0,
           sample_count: stats.n || 0,
-          unit: metadata.unit || '',
-          data_source: 'NHANES 2021-2023',
+          unit: stats.unit || biomarkerMeta.unit || '',
+          data_source: dataSource,
           model_version: 'v1',
         });
       }
@@ -162,7 +163,7 @@ export class BiomarkerPatternLearner {
         for (const [biomarker, stats] of Object.entries<any>(biomarkers || {})) {
           if (!stats || typeof stats.mean !== 'number') continue;
           
-          const metadata = biomarkerMetadata[biomarker] || {};
+          const biomarkerMeta = metadata[biomarker] || {};
           rows.push({
             baseline_id: randomUUID(),
             biomarker_name: biomarker,
@@ -181,8 +182,8 @@ export class BiomarkerPatternLearner {
             min_value: stats.min || 0,
             max_value: stats.max || 0,
             sample_count: stats.n || 0,
-            unit: metadata.unit || '',
-            data_source: 'NHANES 2021-2023',
+            unit: stats.unit || biomarkerMeta.unit || '',
+            data_source: dataSource,
             model_version: 'v1',
           });
         }
@@ -192,7 +193,7 @@ export class BiomarkerPatternLearner {
         for (const [biomarker, stats] of Object.entries<any>(biomarkers || {})) {
           if (!stats || typeof stats.mean !== 'number') continue;
           
-          const metadata = biomarkerMetadata[biomarker] || {};
+          const biomarkerMeta = metadata[biomarker] || {};
           rows.push({
             baseline_id: randomUUID(),
             biomarker_name: biomarker,
@@ -211,41 +212,42 @@ export class BiomarkerPatternLearner {
             min_value: stats.min || 0,
             max_value: stats.max || 0,
             sample_count: stats.n || 0,
-            unit: metadata.unit || '',
-            data_source: 'NHANES 2021-2023',
+            unit: stats.unit || biomarkerMeta.unit || '',
+            data_source: dataSource,
             model_version: 'v1',
           });
         }
       }
 
-      for (const [key, biomarkers] of Object.entries<any>(nhanesData.baselines.by_age_and_sex || {})) {
-        const [ageGroup, sex] = key.split('_');
-        for (const [biomarker, stats] of Object.entries<any>(biomarkers || {})) {
-          if (!stats || typeof stats.mean !== 'number') continue;
-          
-          const metadata = biomarkerMetadata[biomarker] || {};
-          rows.push({
-            baseline_id: randomUUID(),
-            biomarker_name: biomarker,
-            age_group: ageGroup,
-            sex: sex,
-            stratification_type: 'by_age_and_sex',
-            mean_value: stats.mean,
-            std_value: stats.std || 0,
-            p5_value: stats.p5 || stats.min || 0,
-            p10_value: stats.p10 || stats.min || 0,
-            p25_value: stats.p25 || 0,
-            p50_value: stats.median || stats.p50 || stats.mean,
-            p75_value: stats.p75 || 0,
-            p90_value: stats.p90 || stats.max || 0,
-            p95_value: stats.p95 || stats.max || 0,
-            min_value: stats.min || 0,
-            max_value: stats.max || 0,
-            sample_count: stats.n || 0,
-            unit: metadata.unit || '',
-            data_source: 'NHANES 2021-2023',
-            model_version: 'v1',
-          });
+      for (const [ageGroup, sexData] of Object.entries<any>(nhanesData.baselines.by_age_and_sex || {})) {
+        for (const [sex, biomarkers] of Object.entries<any>(sexData || {})) {
+          for (const [biomarker, stats] of Object.entries<any>(biomarkers || {})) {
+            if (!stats || typeof stats.mean !== 'number') continue;
+            
+            const biomarkerMeta = metadata[biomarker] || {};
+            rows.push({
+              baseline_id: randomUUID(),
+              biomarker_name: biomarker,
+              age_group: ageGroup,
+              sex: sex,
+              stratification_type: 'by_age_and_sex',
+              mean_value: stats.mean,
+              std_value: stats.std || 0,
+              p5_value: stats.p5 || stats.min || 0,
+              p10_value: stats.p10 || stats.min || 0,
+              p25_value: stats.p25 || 0,
+              p50_value: stats.median || stats.p50 || stats.mean,
+              p75_value: stats.p75 || 0,
+              p90_value: stats.p90 || stats.max || 0,
+              p95_value: stats.p95 || stats.max || 0,
+              min_value: stats.min || 0,
+              max_value: stats.max || 0,
+              sample_count: stats.n || 0,
+              unit: stats.unit || biomarkerMeta.unit || '',
+              data_source: dataSource,
+              model_version: 'v1',
+            });
+          }
         }
       }
 
