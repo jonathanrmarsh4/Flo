@@ -8,6 +8,7 @@ import {
   pgEnum,
   pgTable,
   real,
+  serial,
   text,
   timestamp,
   uniqueIndex,
@@ -2819,3 +2820,16 @@ export const insertPendingCorrelationFeedbackSchema = createInsertSchema(pending
 
 export type InsertPendingCorrelationFeedback = z.infer<typeof insertPendingCorrelationFeedbackSchema>;
 export type PendingCorrelationFeedback = typeof pendingCorrelationFeedback.$inferSelect;
+
+export const answeredFeedbackPatterns = pgTable("answered_feedback_patterns", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  triggerPattern: varchar("trigger_pattern", { length: 100 }).notNull(),
+  focusMetric: varchar("focus_metric", { length: 100 }),
+  answeredAt: timestamp("answered_at").defaultNow().notNull(),
+}, (table) => ({
+  userPatternIdx: index("idx_answered_patterns_user_pattern").on(table.userId, table.triggerPattern),
+  answeredAtIdx: index("idx_answered_patterns_answered_at").on(table.answeredAt),
+}));
+
+export type AnsweredFeedbackPattern = typeof answeredFeedbackPatterns.$inferSelect;

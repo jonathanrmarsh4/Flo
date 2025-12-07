@@ -5,14 +5,15 @@ import { getHealthId } from './supabaseHealthStorage';
 import { writeInsightToBrain, checkDuplicateInsight } from './brainService';
 import { apnsService } from './apnsService';
 import { db } from '../db';
-import { users, pendingCorrelationFeedback } from '@shared/schema';
-import { eq, and, lt } from 'drizzle-orm';
+import { users, pendingCorrelationFeedback, answeredFeedbackPatterns } from '@shared/schema';
+import { eq, and, lt, gt, or } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { randomUUID } from 'crypto';
 
 const DATASET_ID = 'flo_analytics';
 
 const FEEDBACK_EXPIRY_HOURS = 48;
+const PATTERN_COOLDOWN_HOURS = 24;
 
 export interface CorrelationInsight {
   insightId: string;
@@ -60,9 +61,25 @@ class CorrelationInsightService {
     const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId);
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
+    const recentlyAnswered = await this.getRecentlyAnsweredPatterns(userId);
+    logger.info(`[CorrelationInsight] User has ${recentlyAnswered.size} recently answered patterns`);
+
     let feedbackQuestions: GeneratedQuestion[] = [];
     if (anomalies.length > 0) {
-      feedbackQuestions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
+      const allQuestions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
+      
+      feedbackQuestions = allQuestions.filter(q => {
+        const pattern = q.triggerPattern || '';
+        const metric = q.focusMetric || '';
+        const isRecentlyAnswered = recentlyAnswered.has(pattern) || (metric && recentlyAnswered.has(metric));
+        
+        if (isRecentlyAnswered) {
+          logger.info(`[CorrelationInsight] Filtering out question with pattern "${pattern}" - already answered within ${PATTERN_COOLDOWN_HOURS}h`);
+        }
+        return !isRecentlyAnswered;
+      });
+
+      logger.info(`[CorrelationInsight] Filtered ${allQuestions.length - feedbackQuestions.length} recently-answered questions, keeping ${feedbackQuestions.length}`);
       
       const deliveryOffsets = {
         morning: 0,
@@ -364,6 +381,9 @@ class CorrelationInsightService {
     deliveryWindow: string | null;
   }>> {
     await this.cleanupExpiredFeedback();
+    await this.cleanupOldAnsweredPatterns();
+    
+    const recentlyAnswered = await this.getRecentlyAnsweredPatterns(userId);
     
     const now = new Date();
     const rows = await db.select()
@@ -374,7 +394,20 @@ class CorrelationInsightService {
       ))
       .orderBy(pendingCorrelationFeedback.createdAt);
 
-    return rows.map(row => ({
+    const filteredRows = rows.filter(row => {
+      const pattern = row.triggerPattern || '';
+      const metric = row.focusMetric || '';
+      const isRecentlyAnswered = recentlyAnswered.has(pattern) || (metric && recentlyAnswered.has(metric));
+      
+      if (isRecentlyAnswered) {
+        logger.debug(`[CorrelationInsight] Filtering pending feedback with pattern "${pattern}" - already answered`);
+      }
+      return !isRecentlyAnswered;
+    });
+
+    logger.debug(`[CorrelationInsight] Returning ${filteredRows.length}/${rows.length} pending feedback (${rows.length - filteredRows.length} filtered as recently answered)`);
+
+    return filteredRows.map(row => ({
       feedbackId: row.feedbackId,
       question: {
         questionText: row.questionText,
@@ -402,6 +435,60 @@ class CorrelationInsightService {
     
     if (result.length > 0) {
       logger.info(`[CorrelationInsight] Cleaned up ${result.length} expired pending feedback items`);
+    }
+    return result.length;
+  }
+
+  async trackAnsweredPattern(
+    userId: string,
+    triggerPattern: string,
+    focusMetric?: string
+  ): Promise<void> {
+    try {
+      await db.insert(answeredFeedbackPatterns).values({
+        userId,
+        triggerPattern,
+        focusMetric: focusMetric || null,
+      });
+      logger.info(`[CorrelationInsight] Tracked answered pattern "${triggerPattern}" for user ${userId}`);
+    } catch (error) {
+      logger.error(`[CorrelationInsight] Failed to track answered pattern:`, error);
+    }
+  }
+
+  async getRecentlyAnsweredPatterns(userId: string): Promise<Set<string>> {
+    const cooldownThreshold = new Date(Date.now() - PATTERN_COOLDOWN_HOURS * 60 * 60 * 1000);
+    
+    const rows = await db.select({
+      triggerPattern: answeredFeedbackPatterns.triggerPattern,
+      focusMetric: answeredFeedbackPatterns.focusMetric,
+    })
+      .from(answeredFeedbackPatterns)
+      .where(and(
+        eq(answeredFeedbackPatterns.userId, userId),
+        gt(answeredFeedbackPatterns.answeredAt, cooldownThreshold)
+      ));
+
+    const patterns = new Set<string>();
+    for (const row of rows) {
+      patterns.add(row.triggerPattern);
+      if (row.focusMetric) {
+        patterns.add(row.focusMetric);
+      }
+    }
+    
+    logger.debug(`[CorrelationInsight] Found ${patterns.size} recently answered patterns for user ${userId}`);
+    return patterns;
+  }
+
+  async cleanupOldAnsweredPatterns(): Promise<number> {
+    const threshold = new Date(Date.now() - PATTERN_COOLDOWN_HOURS * 60 * 60 * 1000);
+    const result = await db.delete(answeredFeedbackPatterns)
+      .where(lt(answeredFeedbackPatterns.answeredAt, threshold))
+      .returning({ id: answeredFeedbackPatterns.id });
+    
+    if (result.length > 0) {
+      logger.info(`[CorrelationInsight] Cleaned up ${result.length} old answered pattern records`);
     }
     return result.length;
   }

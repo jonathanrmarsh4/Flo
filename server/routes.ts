@@ -4421,13 +4421,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'active',
       });
 
+      if (pending.question.triggerPattern) {
+        await correlationInsightService.trackAnsweredPattern(
+          userId,
+          pending.question.triggerPattern,
+          pending.question.focusMetric
+        );
+      }
+
       await correlationInsightService.deletePendingFeedback(feedbackId);
 
       logger.info('[CorrelationFeedback] Feedback submitted successfully', { 
         userId, 
         feedbackId,
         questionType,
-        pattern: pending.question.triggerPattern 
+        pattern: pending.question.triggerPattern,
+        patternTracked: !!pending.question.triggerPattern
       });
       res.json({ success: true });
     } catch (error) {
