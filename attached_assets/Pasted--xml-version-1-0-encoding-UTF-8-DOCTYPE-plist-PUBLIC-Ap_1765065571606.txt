@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Flō</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Flō needs access to your camera to capture blood work results and health documents.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Flō needs access to your health data to provide personalized insights and track your wellness metrics alongside your blood work results.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Flō would like to save health metrics and wellness data to your Apple Health app.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Flō uses your location to correlate local weather and air quality with your health metrics, helping identify environmental factors that may affect your wellbeing.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Flō uses your location to correlate local weather and air quality with your health metrics, helping identify environmental factors that may affect your wellbeing.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Flō uses your microphone for voice conversations with Flō Oracle, your AI health coach.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Flō would like to save health documents to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Flō needs access to your photo library to select blood work results and health documents for analysis.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Flō uses speech recognition to understand your voice commands when talking with Flō Oracle.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Flō sends you personalized daily health insights and reminders based on your biomarker data and health metrics.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>remote-notification</string>
+        <string>processing</string>
+    </array>
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>com.flo.healthapp.refresh</string>
+        <string>com.flo.healthapp.healthkit-sync</string>
+    </array>
+    <key>UIDeviceFamily</key>
+    <array>
+        <integer>1</integer>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UIRequiredDeviceCapabilities</key>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+</dict>
+</plist>
