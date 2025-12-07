@@ -1,0 +1,101 @@
+2025-12-07 14:59:20.61
+bc4f9a5b
+User
+[2025-12-07T06:59:20.609Z] [INFO] [NutritionAggregator] Upserted nutrition for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-03
+2025-12-07 14:59:20.61
+bc4f9a5b
+User
+[2025-12-07T06:59:20.609Z] [INFO] [Nutrition] Aggregated for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-03
+2025-12-07 14:59:20.63
+bc4f9a5b
+User
+[2025-12-07T06:59:20.637Z] [INFO] [Nutrition] Aggregated for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-04
+2025-12-07 14:59:20.63
+bc4f9a5b
+User
+[2025-12-07T06:59:20.637Z] [INFO] [NutritionAggregator] Upserted nutrition for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-04
+2025-12-07 14:59:20.63
+bc4f9a5b
+User
+6:59:20 AM [express] POST /api/nutrition/aggregate 200 in 782ms :: {"status":"ok","localDate":"2025-…
+2025-12-07 14:59:20.64
+bc4f9a5b
+User
+[2025-12-07T06:59:20.644Z] [INFO] [NutritionAggregator] Upserted nutrition for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-05
+2025-12-07 14:59:20.64
+bc4f9a5b
+User
+[2025-12-07T06:59:20.644Z] [INFO] [Nutrition] Aggregated for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-05
+2025-12-07 14:59:20.64
+bc4f9a5b
+User
+6:59:20 AM [express] POST /api/nutrition/aggregate 200 in 788ms :: {"status":"ok","localDate":"2025-…
+2025-12-07 14:59:21.55
+bc4f9a5b
+User
+[2025-12-07T06:59:21.555Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 14:59:21.55
+bc4f9a5b
+User
+[2025-12-07T06:59:21.555Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.55
+bc4f9a5b
+User
+[2025-12-07T06:59:21.555Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 14:59:21.55
+bc4f9a5b
+User
+[2025-12-07T06:59:21.556Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+
+2025-12-07 14:59:21.60
+bc4f9a5b
+User
+[2025-12-07T06:59:21.603Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.60
+bc4f9a5b
+User
+[2025-12-07T06:59:21.603Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 14:59:21.75
+bc4f9a5b
+User
+[2025-12-07T06:59:21.759Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 14:59:21.75
+bc4f9a5b
+User
+[2025-12-07T06:59:21.759Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.77
+bc4f9a5b
+User
+[2025-12-07T06:59:21.772Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.77
+bc4f9a5b
+User
+[2025-12-07T06:59:21.772Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 14:59:21.85
+bc4f9a5b
+User
+[2025-12-07T06:59:21.855Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-07 14:59:21.86
+bc4f9a5b
+User
+[2025-12-07T06:59:21.860Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.86
+bc4f9a5b
+User
+[2025-12-07T06:59:21.860Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.86
+bc4f9a5b
+User
+[2025-12-07T06:59:21.860Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.86
+bc4f9a5b
+User
+[2025-12-07T06:59:21.860Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.86
+bc4f9a5b
+User
+[2025-12-07T06:59:21.860Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-07 14:59:21.86
+bc4f9a5b
+User
+[2025-12-07T06:59:21.860Z] [INFO] [ClickHouseML] Auto-synced 8 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78

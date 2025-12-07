@@ -117,6 +117,35 @@ const NUTRITION_FIELDS = [
   'folateMcg', 'biotinMcg', 'pantothenicAcidMg', 'caffeineMg', 'waterMl',
 ] as const;
 
+// Source priority for deduplication (lower index = higher priority)
+// Apple Health creates derived entries from apps like Foodnoms, causing double-counting
+// We prioritize the original app sources over Apple Health derived data
+const SOURCE_PRIORITY = [
+  'foodnoms',       // Foodnoms app - highest priority
+  'myfitnesspal',   // MyFitnessPal
+  'cronometer',     // Cronometer  
+  'loseit',         // Lose It!
+  'lifesum',        // Lifesum
+  'yazio',          // YAZIO
+  'fatsecret',      // FatSecret
+  'macros',         // Macros app
+  'carb manager',   // Carb Manager
+  'nutritionix',    // Nutritionix
+  // Apple Health derived entries should be lowest priority
+  'health',         // Apple Health (derived data)
+];
+
+function getSourcePriority(sourceName: string): number {
+  const normalized = (sourceName || '').toLowerCase().trim();
+  const index = SOURCE_PRIORITY.findIndex(s => normalized.includes(s));
+  return index >= 0 ? index : SOURCE_PRIORITY.length; // Unknown sources get lowest priority
+}
+
+function isAppleHealthDerived(sourceName: string): boolean {
+  const normalized = (sourceName || '').toLowerCase().trim();
+  return normalized === 'health' || normalized === 'apple health';
+}
+
 interface NutritionAggregated {
   [key: string]: number | null;
 }
@@ -156,28 +185,22 @@ export async function aggregateNutritionForDate(
     
     logger.info(`[NutritionAggregator] Found ${samples.length} nutrition samples for ${userId} on ${localDate} (UTC: ${dayStartUTC.toISOString()} to ${dayEndUTC.toISOString()})`);
 
-    // Group by nutrition field and track sources for debugging
-    const groupedValues: Record<string, number[]> = {};
+    // Group samples by nutrient field AND source for deduplication
+    // Apple Health creates derived entries from apps like Foodnoms, causing double-counting
+    const samplesByNutrientAndSource: Record<string, Record<string, { values: number[]; priority: number }>> = {};
     const samplesBySource: Record<string, number> = {};
-    const detailedSamples: Record<string, Array<{ value: number; source: string; startDate: string }>> = {};
     
     for (const sample of samples) {
-      // healthStorageRouter returns camelCase field names
       const dataType = sample.dataType;
       const sampleValue = sample.value;
       const sampleUnit = sample.unit;
       const sourceName = sample.sourceName || 'unknown';
       
-      // Track samples by source
+      // Track samples by source for debugging
       samplesBySource[sourceName] = (samplesBySource[sourceName] || 0) + 1;
       
       const targetField = NUTRITION_TYPE_MAPPING[dataType];
       if (targetField && sampleValue != null) {
-        if (!groupedValues[targetField]) {
-          groupedValues[targetField] = [];
-          detailedSamples[targetField] = [];
-        }
-        
         let value = sampleValue;
         
         // Convert water from liters to ml if needed
@@ -185,35 +208,57 @@ export async function aggregateNutritionForDate(
           value = value * 1000;
         }
         
-        groupedValues[targetField].push(value);
-        detailedSamples[targetField].push({
-          value,
-          source: sourceName,
-          startDate: sample.startDate ? new Date(sample.startDate).toISOString() : 'unknown',
-        });
+        // Group by nutrient, then by source
+        if (!samplesByNutrientAndSource[targetField]) {
+          samplesByNutrientAndSource[targetField] = {};
+        }
+        if (!samplesByNutrientAndSource[targetField][sourceName]) {
+          samplesByNutrientAndSource[targetField][sourceName] = {
+            values: [],
+            priority: getSourcePriority(sourceName),
+          };
+        }
+        samplesByNutrientAndSource[targetField][sourceName].values.push(value);
       }
     }
     
-    // Log sources for debugging duplicate issues
+    // Log sources for debugging
     if (Object.keys(samplesBySource).length > 0) {
       logger.info(`[NutritionAggregator] Sample sources for ${userId} on ${localDate}: ${JSON.stringify(samplesBySource)}`);
     }
     
-    // Log detailed breakdown of key nutrients
-    const keyNutrients = ['energyKcal', 'proteinG', 'carbohydratesG', 'fatTotalG'];
-    for (const nutrient of keyNutrients) {
-      if (detailedSamples[nutrient]?.length > 0) {
-        const total = groupedValues[nutrient]?.reduce((a, b) => a + b, 0) || 0;
-        logger.info(`[NutritionAggregator] ${nutrient} breakdown for ${userId} on ${localDate}: ${detailedSamples[nutrient].length} samples, total=${total.toFixed(2)}, samples=${JSON.stringify(detailedSamples[nutrient])}`);
+    // Deduplicate: for each nutrient, use only the highest-priority source
+    // This prevents double-counting when Apple Health creates derived entries
+    for (const [nutrient, sourceData] of Object.entries(samplesByNutrientAndSource)) {
+      const sources = Object.entries(sourceData);
+      
+      if (sources.length === 0) continue;
+      
+      // Sort by priority (lower = better)
+      sources.sort((a, b) => a[1].priority - b[1].priority);
+      
+      const [preferredSource, preferredData] = sources[0];
+      const sum = preferredData.values.reduce((a, b) => a + b, 0);
+      result[nutrient] = Math.round(sum * 100) / 100; // 2 decimal precision
+      
+      // Log if we skipped Apple Health derived data
+      if (sources.length > 1) {
+        const skippedSources = sources.slice(1).map(([name, data]) => `${name}(${data.values.length} samples)`);
+        const hasAppleHealth = sources.some(([name]) => isAppleHealthDerived(name));
+        if (hasAppleHealth) {
+          logger.info(`[NutritionAggregator] ${nutrient}: using ${preferredSource} (${preferredData.values.length} samples, sum=${sum.toFixed(2)}), skipped Apple Health derived: ${skippedSources.join(', ')}`);
+        }
       }
     }
-
-    // Sum all nutrition values (all nutrition is cumulative daily totals)
-    for (const [field, values] of Object.entries(groupedValues)) {
-      if (values.length > 0) {
-        const sum = values.reduce((a, b) => a + b, 0);
-        result[field] = Math.round(sum * 100) / 100; // 2 decimal precision
-      }
+    
+    // Log key nutrient totals
+    const keyNutrients = ['energyKcal', 'proteinG', 'carbohydratesG', 'fatTotalG'];
+    const nutrientSummary = keyNutrients
+      .filter(n => result[n] !== null)
+      .map(n => `${n}=${result[n]}`)
+      .join(', ');
+    if (nutrientSummary) {
+      logger.info(`[NutritionAggregator] Final totals for ${userId} on ${localDate}: ${nutrientSummary}`);
     }
 
     const nonNullFields = Object.entries(result).filter(([_, v]) => v !== null);
