@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw, AlertCircle, Activity } from 'lucide-react';
+import { Plus, Upload, LogOut, Moon, Sun, Sparkles, TrendingUp, TrendingDown, Shield, RotateCcw, AlertCircle, Activity, FlaskConical } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import { Capacitor } from '@capacitor/core';
@@ -9,7 +9,9 @@ import { TrendChart } from '@/components/TrendChart';
 import { UnifiedUploadModal } from '@/components/UnifiedUploadModal';
 import { BiomarkerInsightsModal } from '@/components/BiomarkerInsightsModal';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
+import { useUnitDisplayMode } from '@/hooks/useUnitDisplayMode';
 import { 
   mapAnalysisToBiomarkerReadings, 
   type BiomarkerReading 
@@ -121,6 +123,8 @@ export default function Dashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDark, setIsDark] = useState(true);
   
+  const { isOriginal, toggleMode } = useUnitDisplayMode();
+  
   // Insights modal state
   const [selectedInsightsBiomarker, setSelectedInsightsBiomarker] = useState<{
     id: string;
@@ -147,9 +151,16 @@ export default function Dashboard() {
   const isInitialLoading = isSessionsLoading || isBiomarkersLoading;
 
   // Build measurements map: biomarkerId -> array of measurements with dates
+  // Includes both raw (original) and canonical (standardized) values
   const measurementsByBiomarker = new Map<string, Array<{
-    value: number;
-    unit: string;
+    valueCanonical: number;
+    unitCanonical: string;
+    valueRaw: number;
+    unitRaw: string;
+    referenceLowRaw: number | null;
+    referenceHighRaw: number | null;
+    referenceLow: number | null;
+    referenceHigh: number | null;
     date: string;
     biomarkerId: string;
     biomarkerName: string;
@@ -165,14 +176,38 @@ export default function Dashboard() {
       }
 
       measurementsByBiomarker.get(m.biomarkerId)!.push({
-        value: m.valueCanonical,
-        unit: m.unitCanonical,
+        valueCanonical: m.valueCanonical,
+        unitCanonical: m.unitCanonical,
+        valueRaw: m.valueRaw,
+        unitRaw: m.unitRaw,
+        referenceLowRaw: m.referenceLowRaw ?? null,
+        referenceHighRaw: m.referenceHighRaw ?? null,
+        referenceLow: m.referenceLow ?? null,
+        referenceHigh: m.referenceHigh ?? null,
         date: session.testDate,
         biomarkerId: m.biomarkerId,
         biomarkerName: biomarker.name,
       });
     });
   });
+  
+  // Helper to get display value/unit based on mode
+  const getDisplayValues = (measurement: typeof measurementsByBiomarker extends Map<string, Array<infer T>> ? T : never) => {
+    if (isOriginal) {
+      return {
+        value: measurement.valueRaw,
+        unit: measurement.unitRaw,
+        refLow: measurement.referenceLowRaw,
+        refHigh: measurement.referenceHighRaw,
+      };
+    }
+    return {
+      value: measurement.valueCanonical,
+      unit: measurement.unitCanonical,
+      refLow: measurement.referenceLow,
+      refHigh: measurement.referenceHigh,
+    };
+  };
 
   // Get tracked biomarker IDs (only those with measurements)
   const trackedBiomarkerIds = Array.from(measurementsByBiomarker.keys());
@@ -216,11 +251,14 @@ export default function Dashboard() {
     const measurements = measurementsByBiomarker.get(biomarkerId) || [];
     return measurements
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .map(m => ({
-        biomarker: m.biomarkerName,
-        value: m.value,
-        date: m.date,
-      }));
+      .map(m => {
+        const display = getDisplayValues(m);
+        return {
+          biomarker: m.biomarkerName,
+          value: display.value,
+          date: m.date,
+        };
+      });
   };
 
   return (
@@ -287,30 +325,51 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Category Pills */}
+      {/* Category Pills + Unit Toggle */}
       <div className={`sticky top-[57px] z-40 backdrop-blur-xl border-b transition-colors ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
         <div className="px-3 py-2.5">
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory">
-            {DISPLAY_CATEGORIES.map(category => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`
-                  px-3 py-1.5 rounded-full whitespace-nowrap transition-all flex-shrink-0 text-xs snap-start
-                  ${selectedCategory === category
-                    ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25'
-                    : isDark 
-                      ? 'bg-white/10 text-white/70 hover:bg-white/20'
-                      : 'bg-white/60 text-gray-700 hover:bg-white/80'
-                  }
-                `}
-                data-testid={`filter-category-${category.toLowerCase().replace(/\s+/g, '-')}`}
-              >
-                {category}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory flex-1">
+              {DISPLAY_CATEGORIES.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`
+                    px-3 py-1.5 rounded-full whitespace-nowrap transition-all flex-shrink-0 text-xs snap-start
+                    ${selectedCategory === category
+                      ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25'
+                      : isDark 
+                        ? 'bg-white/10 text-white/70 hover:bg-white/20'
+                        : 'bg-white/60 text-gray-700 hover:bg-white/80'
+                    }
+                  `}
+                  data-testid={`filter-category-${category.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            
+            {/* Unit Display Toggle */}
+            <div 
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg flex-shrink-0 ${
+                isDark ? 'bg-white/5' : 'bg-black/5'
+              }`}
+              data-testid="toggle-unit-mode"
+            >
+              <FlaskConical className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-500'}`} />
+              <span className={`text-[10px] whitespace-nowrap ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                {isOriginal ? 'Lab' : 'Std'}
+              </span>
+              <Switch
+                checked={!isOriginal}
+                onCheckedChange={() => toggleMode()}
+                className="scale-75"
+                data-testid="switch-unit-mode"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -356,19 +415,23 @@ export default function Dashboard() {
               const config = BIOMARKER_CONFIGS[biomarkerName];
               if (!config) return null;
               
-              const inRange = isInRange(biomarkerName, latest.value);
+              const displayVals = getDisplayValues(latest);
+              const inRange = isInRange(biomarkerName, displayVals.value);
               const history = getBiomarkerHistory(biomarkerId);
               
               const retestInfo = isRetestRecommended(latest.date, biomarkerName);
               const testAge = formatTestAge(retestInfo.daysOld);
+              
+              const displayRefLow = displayVals.refLow ?? config.min;
+              const displayRefHigh = displayVals.refHigh ?? config.max;
 
               const handleTileClick = () => {
                 setSelectedInsightsBiomarker({
                   id: biomarkerId,
                   name: biomarkerName,
-                  value: latest.value,
-                  unit: latest.unit,
-                  status: inRange ? 'optimal' : (latest.value < config.min ? 'low' : 'high'),
+                  value: displayVals.value,
+                  unit: displayVals.unit,
+                  status: inRange ? 'optimal' : (displayVals.value < config.min ? 'low' : 'high'),
                 });
               };
 
@@ -407,13 +470,13 @@ export default function Dashboard() {
                   
                   <div className="flex items-end gap-2 mb-3">
                     <span className={`text-4xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid={`value-${biomarkerName.toLowerCase().replace(/\s+/g, '-')}`}>
-                      {latest.value}
+                      {displayVals.value}
                     </span>
-                    <span className={`mb-1.5 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{latest.unit}</span>
+                    <span className={`mb-1.5 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>{displayVals.unit}</span>
                   </div>
                   
                   <div className={`text-xs ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-                    Optimal: {config.min} - {config.max} {config.unit}
+                    {isOriginal ? 'Lab Range' : 'Optimal'}: {displayRefLow} - {displayRefHigh} {displayVals.unit}
                   </div>
                   
                   {/* Trend Chart */}
