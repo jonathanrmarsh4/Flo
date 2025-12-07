@@ -219,8 +219,11 @@ export async function aggregateNutritionForDate(
   }
 
   try {
-    const localDayStart = new TZDate(`${localDate}T00:00:00`, timezone);
-    const localDayEnd = new TZDate(`${localDate}T23:59:59.999`, timezone);
+    // Parse localDate (YYYY-MM-DD) and create proper timezone-aware dates
+    const [year, month, day] = localDate.split('-').map(Number);
+    // TZDate.tz correctly interprets the time as local time in the specified timezone
+    const localDayStart = TZDate.tz(timezone, year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
+    const localDayEnd = TZDate.tz(timezone, year, month - 1, day, 23, 59, 59, 999);
     
     const dayStartUTC = new Date(localDayStart.toISOString());
     const dayEndUTC = new Date(localDayEnd.toISOString());
