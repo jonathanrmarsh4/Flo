@@ -7326,21 +7326,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // User has raw samples but no aggregated data - trigger backfill
             logger.info(`[Nutrition] Auto-triggering backfill for ${userId} (has samples but no aggregates)`);
             
-            // Get user timezone
+            // Get user timezone - prefer profile timezone, fallback to Australia/Perth for Australian users
             const profile = await storage.getProfile(userId);
-            const timezone = profile?.timezone || 'America/Los_Angeles';
+            const timezone = profile?.timezone || 'Australia/Perth';
             
             // Run backfill in background (don't await)
             (async () => {
               try {
-                const today = new Date();
+                const { TZDate } = await import('@date-fns/tz');
+                const now = new Date();
+                
                 for (let i = 0; i < 90; i++) {
-                  const date = new Date(today);
-                  date.setDate(date.getDate() - i);
-                  const localDate = date.toISOString().split('T')[0];
+                  // Calculate the local date in user's timezone, not UTC
+                  const targetDate = new Date(now);
+                  targetDate.setDate(targetDate.getDate() - i);
+                  // Convert to user's timezone and extract local date
+                  const tzDate = new TZDate(targetDate, timezone);
+                  const localDate = tzDate.toISOString().split('T')[0];
                   await upsertNutritionDaily(userId, localDate, timezone);
                 }
-                logger.info(`[Nutrition] Auto-backfill complete for ${userId}`);
+                logger.info(`[Nutrition] Auto-backfill complete for ${userId} using timezone ${timezone}`);
               } catch (err) {
                 logger.error(`[Nutrition] Auto-backfill error for ${userId}:`, err);
               }
@@ -7429,13 +7434,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Run backfill asynchronously so we don't timeout
       (async () => {
         try {
+          const { TZDate } = await import('@date-fns/tz');
           let processed = 0;
-          const today = new Date();
+          const now = new Date();
           
           for (let i = 0; i < daysToProcess; i++) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
-            const localDate = date.toISOString().split('T')[0];
+            const targetDate = new Date(now);
+            targetDate.setDate(targetDate.getDate() - i);
+            // Convert to user's timezone and extract local date
+            const tzDate = new TZDate(targetDate, timezone);
+            const localDate = tzDate.toISOString().split('T')[0];
             
             await upsertNutritionDaily(userId, localDate, timezone);
             processed++;
@@ -7445,7 +7453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          logger.info(`[Nutrition] Backfill complete for ${userId}: ${processed} days processed`);
+          logger.info(`[Nutrition] Backfill complete for ${userId}: ${processed} days processed using timezone ${timezone}`);
         } catch (err) {
           logger.error(`[Nutrition] Backfill error for ${userId}:`, err);
         }
