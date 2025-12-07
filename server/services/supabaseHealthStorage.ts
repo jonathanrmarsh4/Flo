@@ -580,10 +580,65 @@ export interface HealthkitSample {
 export async function createHealthkitSamples(userId: string, samples: Omit<HealthkitSample, 'health_id'>[]): Promise<number> {
   logger.info(`[SupabaseHealth] createHealthkitSamples called for user ${userId} with ${samples.length} samples`);
   
+  if (samples.length === 0) {
+    return 0;
+  }
+  
   const healthId = await getHealthId(userId);
   logger.info(`[SupabaseHealth] Got healthId ${healthId} for user ${userId}`);
   
-  const samplesWithHealthId = samples.map(s => ({
+  // SERVER-SIDE PRE-DEDUPLICATION
+  // iOS may send the same sample multiple times with different UUIDs
+  // Deduplicate by checking (health_id, data_type, value, start_date, source_bundle_id)
+  const startDates = samples.map(s => new Date(s.start_date).toISOString());
+  const minDate = startDates.reduce((a, b) => a < b ? a : b);
+  const maxDate = startDates.reduce((a, b) => a > b ? a : b);
+  
+  // Fetch existing samples in the date range
+  const { data: existingSamples, error: fetchError } = await supabase
+    .from('healthkit_samples')
+    .select('data_type, value, start_date, source_bundle_id')
+    .eq('health_id', healthId)
+    .gte('start_date', minDate)
+    .lte('start_date', maxDate);
+  
+  if (fetchError) {
+    logger.error('[SupabaseHealth] Error fetching existing samples for dedup:', fetchError);
+  }
+  
+  // Create a Set of existing sample fingerprints for O(1) lookup
+  const existingFingerprints = new Set<string>();
+  if (existingSamples) {
+    for (const s of existingSamples) {
+      // Create fingerprint: data_type|value|start_date|source_bundle_id
+      // Round value to 2 decimal places to handle floating point precision
+      // Truncate start_date to second level to handle microsecond differences
+      const valueRounded = Math.round(s.value * 100) / 100;
+      const startDateNorm = new Date(s.start_date).toISOString().slice(0, 19);
+      const fingerprint = `${s.data_type}|${valueRounded}|${startDateNorm}|${s.source_bundle_id || ''}`;
+      existingFingerprints.add(fingerprint);
+    }
+  }
+  
+  // Filter out samples that already exist
+  const newSamples = samples.filter(s => {
+    const valueRounded = Math.round(s.value * 100) / 100;
+    const startDateNorm = new Date(s.start_date).toISOString().slice(0, 19);
+    const fingerprint = `${s.data_type}|${valueRounded}|${startDateNorm}|${s.source_bundle_id || ''}`;
+    return !existingFingerprints.has(fingerprint);
+  });
+  
+  const duplicatesSkipped = samples.length - newSamples.length;
+  if (duplicatesSkipped > 0) {
+    logger.info(`[SupabaseHealth] Pre-dedup: skipped ${duplicatesSkipped} duplicate samples (same data_type, value, start_date, source)`);
+  }
+  
+  if (newSamples.length === 0) {
+    logger.info(`[SupabaseHealth] All ${samples.length} samples were duplicates, nothing to insert`);
+    return 0;
+  }
+  
+  const samplesWithHealthId = newSamples.map(s => ({
     ...s,
     health_id: healthId,
   }));
@@ -605,7 +660,7 @@ export async function createHealthkitSamples(userId: string, samples: Omit<Healt
     throw error;
   }
 
-  logger.info(`[SupabaseHealth] Successfully inserted ${data?.length || 0} healthkit samples for user ${userId}`);
+  logger.info(`[SupabaseHealth] Successfully inserted ${data?.length || 0} healthkit samples for user ${userId} (${duplicatesSkipped} duplicates skipped)`);
   return data?.length || 0;
 }
 

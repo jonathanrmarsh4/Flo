@@ -8009,6 +8009,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to clean up duplicate HealthKit samples
+  // Removes duplicates based on (health_id, data_type, value, start_date, source_bundle_id)
+  app.post("/api/admin/healthkit/cleanup-duplicates", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { healthId, daysBack = 7, dryRun = true } = req.body;
+      
+      if (!healthId) {
+        return res.status(400).json({ error: "healthId required" });
+      }
+
+      const { getSupabaseClient } = await import('./services/supabaseHealthStorage');
+      const supabase = getSupabaseClient();
+      
+      // Calculate date range
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - daysBack);
+      
+      logger.info(`[Admin] Cleaning up duplicates for health_id ${healthId}, last ${daysBack} days, dryRun: ${dryRun}`);
+      
+      // Fetch all samples in the date range
+      const { data: samples, error: fetchError } = await supabase
+        .from('healthkit_samples')
+        .select('id, data_type, value, start_date, source_bundle_id, created_at')
+        .eq('health_id', healthId)
+        .gte('start_date', startDate.toISOString())
+        .lte('start_date', endDate.toISOString())
+        .order('created_at', { ascending: true });
+      
+      if (fetchError) {
+        logger.error('[Admin] Error fetching samples:', fetchError);
+        return res.status(500).json({ error: fetchError.message });
+      }
+      
+      // Find duplicates - keep the first one (oldest created_at), mark others for deletion
+      const seen = new Map<string, string>(); // fingerprint -> id to keep
+      const toDelete: string[] = [];
+      
+      for (const sample of samples || []) {
+        const valueRounded = Math.round(sample.value * 100) / 100;
+        const fingerprint = `${sample.data_type}|${valueRounded}|${sample.start_date}|${sample.source_bundle_id || ''}`;
+        
+        if (seen.has(fingerprint)) {
+          // This is a duplicate, mark for deletion
+          toDelete.push(sample.id);
+        } else {
+          // First occurrence, keep it
+          seen.set(fingerprint, sample.id);
+        }
+      }
+      
+      logger.info(`[Admin] Found ${samples?.length || 0} samples, ${toDelete.length} duplicates to remove`);
+      
+      if (dryRun) {
+        return res.json({
+          status: "dry_run",
+          healthId,
+          totalSamples: samples?.length || 0,
+          duplicatesToRemove: toDelete.length,
+          uniqueSamples: seen.size,
+          message: "Set dryRun: false to actually delete duplicates"
+        });
+      }
+      
+      // Actually delete duplicates
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('healthkit_samples')
+          .delete()
+          .in('id', toDelete);
+        
+        if (deleteError) {
+          logger.error('[Admin] Error deleting duplicates:', deleteError);
+          return res.status(500).json({ error: deleteError.message });
+        }
+        
+        logger.info(`[Admin] Successfully deleted ${toDelete.length} duplicate samples`);
+      }
+      
+      return res.json({
+        status: "complete",
+        healthId,
+        totalSamples: samples?.length || 0,
+        duplicatesRemoved: toDelete.length,
+        remainingSamples: seen.size
+      });
+    } catch (error: any) {
+      logger.error("[Admin] Cleanup duplicates error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // Mindfulness Routes
   // ============================================
