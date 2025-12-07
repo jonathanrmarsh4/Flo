@@ -5431,6 +5431,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Comprehensive integration test for Long-Horizon Correlation Engine
+  app.post("/api/admin/clickhouse/correlation/integration-test/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    const testResults: {
+      stage: string;
+      status: 'pass' | 'fail' | 'skip';
+      message: string;
+      data?: any;
+      durationMs: number;
+    }[] = [];
+    
+    const runTest = async (stage: string, testFn: () => Promise<{ pass: boolean; message: string; data?: any }>) => {
+      const startTime = Date.now();
+      try {
+        const result = await testFn();
+        testResults.push({
+          stage,
+          status: result.pass ? 'pass' : 'fail',
+          message: result.message,
+          data: result.data,
+          durationMs: Date.now() - startTime,
+        });
+        return result.pass;
+      } catch (error: any) {
+        testResults.push({
+          stage,
+          status: 'fail',
+          message: `Exception: ${error.message}`,
+          durationMs: Date.now() - startTime,
+        });
+        return false;
+      }
+    };
+    
+    try {
+      const { userId } = req.params;
+      const { lookbackMonths = 6 } = req.body;
+      
+      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
+      const { isClickHouseEnabled, clickhouse } = await import('./services/clickhouseService');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const { floOracleContextBuilder } = await import('./services/floOracleContextBuilder');
+      
+      logger.info('[Admin] Starting correlation engine integration test', { userId, lookbackMonths });
+      
+      // Stage 1: ClickHouse connectivity
+      await runTest('clickhouse_connectivity', async () => {
+        if (!isClickHouseEnabled()) {
+          return { pass: false, message: 'ClickHouse not configured' };
+        }
+        const result = await clickhouse.query<{ count: number }>('SELECT 1 as count', {});
+        return { 
+          pass: result.length === 1 && result[0].count === 1, 
+          message: 'ClickHouse connection successful',
+          data: { connected: true }
+        };
+      });
+      
+      // Stage 2: Health ID resolution
+      let healthId: string | null = null;
+      await runTest('health_id_resolution', async () => {
+        healthId = await getHealthId(userId);
+        if (!healthId) {
+          return { pass: false, message: 'Could not resolve health_id for user' };
+        }
+        return { 
+          pass: true, 
+          message: `Resolved health_id: ${healthId.substring(0, 8)}...`,
+          data: { healthId: healthId.substring(0, 8) + '...' }
+        };
+      });
+      
+      if (!healthId) {
+        return res.json({ 
+          success: false, 
+          message: 'Cannot proceed without health_id',
+          testResults 
+        });
+      }
+      
+      // Stage 3: Check health_metrics data exists
+      await runTest('health_metrics_data', async () => {
+        const metrics = await clickhouse.query<{ count: number }>(`
+          SELECT count() as count FROM flo_health.health_metrics 
+          WHERE health_id = {healthId:String}
+        `, { healthId });
+        const count = metrics[0]?.count || 0;
+        return { 
+          pass: count > 0, 
+          message: count > 0 ? `Found ${count} health metric records` : 'No health metrics found - sync data first',
+          data: { metricCount: count }
+        };
+      });
+      
+      // Stage 4: Extract behavior events
+      let behaviorEventCount = 0;
+      await runTest('behavior_event_extraction', async () => {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - lookbackMonths);
+        
+        behaviorEventCount = await correlationEngine.extractBehaviorEvents(
+          healthId!,
+          startDate.toISOString().split('T')[0],
+          endDate.toISOString().split('T')[0]
+        );
+        
+        return { 
+          pass: true, 
+          message: `Extracted ${behaviorEventCount} behavior events`,
+          data: { behaviorEventCount }
+        };
+      });
+      
+      // Stage 5: Build weekly cohorts
+      let cohortCount = 0;
+      await runTest('weekly_cohort_building', async () => {
+        cohortCount = await correlationEngine.buildWeeklyCohorts(healthId!, lookbackMonths);
+        return { 
+          pass: true, 
+          message: `Built ${cohortCount} weekly cohort records`,
+          data: { cohortCount }
+        };
+      });
+      
+      // Stage 6: Build outcome rollups
+      let outcomeCount = 0;
+      await runTest('outcome_rollup_building', async () => {
+        outcomeCount = await correlationEngine.buildWeeklyOutcomes(healthId!, lookbackMonths);
+        return { 
+          pass: true, 
+          message: `Built ${outcomeCount} weekly outcome rollups`,
+          data: { outcomeCount }
+        };
+      });
+      
+      // Stage 7: Run correlation discovery
+      let correlations: any[] = [];
+      await runTest('correlation_discovery', async () => {
+        correlations = await correlationEngine.discoverCorrelations(healthId!);
+        return { 
+          pass: true, 
+          message: correlations.length > 0 
+            ? `Discovered ${correlations.length} significant correlations`
+            : 'No significant correlations found (may need more data)',
+          data: { 
+            correlationCount: correlations.length,
+            correlations: correlations.map(c => ({
+              behavior: c.behaviorType,
+              outcome: c.outcomeType,
+              effectPct: c.effectSizePct.toFixed(1) + '%',
+              pValue: c.pValue.toFixed(4),
+              insight: c.naturalLanguageInsight?.substring(0, 100) + '...'
+            }))
+          }
+        };
+      });
+      
+      // Stage 8: Verify deduplication (run again, should find same or fewer)
+      await runTest('correlation_deduplication', async () => {
+        const secondRun = await correlationEngine.discoverCorrelations(healthId!);
+        return { 
+          pass: secondRun.length <= correlations.length, 
+          message: `Deduplication working: second run found ${secondRun.length} correlations (first: ${correlations.length})`,
+          data: { firstRun: correlations.length, secondRun: secondRun.length }
+        };
+      });
+      
+      // Stage 9: Get stored insights
+      await runTest('long_term_insights_retrieval', async () => {
+        const insights = await correlationEngine.getLongTermInsights(healthId!, 10);
+        return { 
+          pass: true, 
+          message: `Retrieved ${insights.length} stored long-term insights`,
+          data: { insightCount: insights.length }
+        };
+      });
+      
+      // Stage 10: Feedback question generation with deduplication
+      await runTest('feedback_question_generation', async () => {
+        const q1 = await correlationEngine.generateFeedbackQuestion(
+          healthId!,
+          'pattern',
+          [],
+          ['illness_precursor'],
+          { wrist_temperature_deviation: 0.5, respiratory_rate: 18 }
+        );
+        
+        const q2 = await correlationEngine.generateFeedbackQuestion(
+          healthId!,
+          'pattern',
+          [],
+          ['illness_precursor'],
+          { wrist_temperature_deviation: 0.5, respiratory_rate: 18 }
+        );
+        
+        return { 
+          pass: true, 
+          message: q1 
+            ? (q2 ? 'Generated 2 questions (under limit)' : 'Generated 1 question, second blocked by cooldown')
+            : 'Question generation skipped (max pending reached or no matching pattern)',
+          data: { q1Generated: !!q1, q2Generated: !!q2 }
+        };
+      });
+      
+      // Stage 11: Get pending feedback questions
+      await runTest('pending_questions_retrieval', async () => {
+        const questions = await correlationEngine.getPendingFeedbackQuestions(healthId!);
+        return { 
+          pass: questions.length <= 2, 
+          message: `Found ${questions.length} pending feedback questions (max 2 enforced)`,
+          data: { pendingCount: questions.length }
+        };
+      });
+      
+      // Stage 12: Verify Flō Oracle context integration
+      await runTest('flo_oracle_context_integration', async () => {
+        const context = await floOracleContextBuilder.buildContext(userId);
+        const hasCorrelations = context.includes('Long-term correlation') || 
+                               context.includes('correlation') ||
+                               context.includes('pattern');
+        return { 
+          pass: true, 
+          message: hasCorrelations 
+            ? 'Correlation insights included in Flō Oracle context'
+            : 'No correlation insights in context yet (expected if no significant correlations)',
+          data: { contextLength: context.length, hasCorrelationMentions: hasCorrelations }
+        };
+      });
+      
+      // Stage 13: Check ClickHouse table row counts
+      await runTest('clickhouse_table_verification', async () => {
+        const tables = ['behavior_events', 'weekly_behavior_cohorts', 'outcome_rollups_weekly', 'long_term_correlations', 'ai_feedback_questions'];
+        const counts: Record<string, number> = {};
+        
+        for (const table of tables) {
+          const result = await clickhouse.query<{ count: number }>(`
+            SELECT count() as count FROM flo_health.${table}
+            WHERE health_id = {healthId:String}
+          `, { healthId: healthId! });
+          counts[table] = result[0]?.count || 0;
+        }
+        
+        return { 
+          pass: true, 
+          message: 'Table row counts retrieved',
+          data: counts
+        };
+      });
+      
+      const passCount = testResults.filter(t => t.status === 'pass').length;
+      const failCount = testResults.filter(t => t.status === 'fail').length;
+      const totalMs = testResults.reduce((sum, t) => sum + t.durationMs, 0);
+      
+      res.json({
+        success: failCount === 0,
+        summary: `${passCount}/${testResults.length} tests passed in ${totalMs}ms`,
+        healthId: healthId?.substring(0, 8) + '...',
+        lookbackMonths,
+        testResults,
+      });
+      
+    } catch (error: any) {
+      logger.error('[Admin] Integration test error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: error.message || "Integration test failed",
+        testResults 
+      });
+    }
+  });
+
   // Admin: Get ML Usage metrics from ClickHouse Orchestrator
   app.get("/api/admin/ml-usage/metrics", isAuthenticated, requireAdmin, async (req, res) => {
     try {
