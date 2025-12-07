@@ -25,6 +25,7 @@ The platform adopts a mobile-first, content-focused minimalist design, drawing i
 
 **Key Features & Systems:**
 - **HealthKit Sync Expansion:** Comprehensive syncing of vital signs, wrist temperature, mindfulness, and 26 dietary HKQuantityTypes.
+- **HealthKit Historical Backfill System:** On first sync, iOS uploads ALL available HealthKit data (2-3 years) for long-term pattern analysis. Subsequent syncs are incremental only. Server tracks backfill status via `healthkit_backfill_complete` flag in Supabase profiles. API endpoints: `GET /api/healthkit/sync-status` (iOS checks if historical sync needed), `POST /api/healthkit/mark-backfill-complete` (iOS marks backfill done with sample count metadata). See `docs/ios-healthkit-backfill.md` for iOS implementation guide.
 - **Recovery Boost System:** Calculates readiness scores based on logged recovery activities.
 - **Flō Oracle Context Routing:** Centralized `floOracleContextBuilder.ts` for comprehensive AI context.
 - **Real-Time Trend Detection:** Identifies significant changes in HRV, RHR, sleep, steps, and active calories by comparing recent metrics against baseline data.
