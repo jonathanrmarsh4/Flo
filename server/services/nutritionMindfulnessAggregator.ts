@@ -120,7 +120,8 @@ const NUTRITION_FIELDS = [
 // Source priority for deduplication (lower index = higher priority)
 // Apple Health creates derived entries from apps like Foodnoms, causing double-counting
 // We prioritize the original app sources over Apple Health derived data
-const SOURCE_PRIORITY = [
+// Note: Some apps (like FoodNoms) store source_name as null but set bundle_id
+const SOURCE_PRIORITY_NAMES = [
   'foodnoms',       // Foodnoms app - highest priority
   'myfitnesspal',   // MyFitnessPal
   'cronometer',     // Cronometer  
@@ -131,19 +132,70 @@ const SOURCE_PRIORITY = [
   'macros',         // Macros app
   'carb manager',   // Carb Manager
   'nutritionix',    // Nutritionix
-  // Apple Health derived entries should be lowest priority
-  'health',         // Apple Health (derived data)
 ];
 
-function getSourcePriority(sourceName: string): number {
-  const normalized = (sourceName || '').toLowerCase().trim();
-  const index = SOURCE_PRIORITY.findIndex(s => normalized.includes(s));
-  return index >= 0 ? index : SOURCE_PRIORITY.length; // Unknown sources get lowest priority
+// Bundle ID patterns for apps that may not set source_name
+const SOURCE_PRIORITY_BUNDLE_IDS = [
+  'com.alice.foodnoms',      // FoodNoms
+  'com.foodnoms',            // FoodNoms alternative
+  'com.myfitnesspal',        // MyFitnessPal
+  'com.underarmour.mvp',     // MyFitnessPal (Under Armour)
+  'com.cronometer',          // Cronometer
+  'com.loseit',              // Lose It!
+  'com.lifesum',             // Lifesum
+  'com.yazio',               // YAZIO
+  'com.fatsecret',           // FatSecret
+  'com.getmacros',           // Macros
+  'com.wombatapps.carbs',    // Carb Manager
+];
+
+// Apple Health source identifiers
+const APPLE_HEALTH_IDENTIFIERS = [
+  'health',
+  'apple health',
+  'com.apple.health',
+  'com.apple.healthkit',
+];
+
+function getSourcePriority(sourceName: string | null | undefined, bundleId: string | null | undefined): number {
+  const normalizedName = (sourceName || '').toLowerCase().trim();
+  const normalizedBundle = (bundleId || '').toLowerCase().trim();
+  
+  // Check source name first
+  if (normalizedName) {
+    const nameIndex = SOURCE_PRIORITY_NAMES.findIndex(s => normalizedName.includes(s));
+    if (nameIndex >= 0) return nameIndex;
+  }
+  
+  // Check bundle ID if source name didn't match
+  if (normalizedBundle) {
+    const bundleIndex = SOURCE_PRIORITY_BUNDLE_IDS.findIndex(b => normalizedBundle.includes(b));
+    if (bundleIndex >= 0) return bundleIndex;
+  }
+  
+  // Check if this is Apple Health (lowest priority among known sources)
+  if (isAppleHealthDerived(normalizedName, normalizedBundle)) {
+    return SOURCE_PRIORITY_NAMES.length + 1; // After all preferred sources
+  }
+  
+  return SOURCE_PRIORITY_NAMES.length; // Unknown sources get medium priority
 }
 
-function isAppleHealthDerived(sourceName: string): boolean {
-  const normalized = (sourceName || '').toLowerCase().trim();
-  return normalized === 'health' || normalized === 'apple health';
+function isAppleHealthDerived(sourceName: string | null | undefined, bundleId: string | null | undefined): boolean {
+  const normalizedName = (sourceName || '').toLowerCase().trim();
+  const normalizedBundle = (bundleId || '').toLowerCase().trim();
+  
+  return APPLE_HEALTH_IDENTIFIERS.some(id => 
+    normalizedName.includes(id) || normalizedBundle.includes(id)
+  );
+}
+
+function getSourceKey(sourceName: string | null | undefined, bundleId: string | null | undefined): string {
+  // Create a unique key for grouping samples by source
+  // Prefer bundle ID as it's more reliable, fall back to source name
+  if (bundleId) return bundleId.toLowerCase();
+  if (sourceName) return sourceName.toLowerCase();
+  return 'unknown';
 }
 
 interface NutritionAggregated {
@@ -187,17 +239,23 @@ export async function aggregateNutritionForDate(
 
     // Group samples by nutrient field AND source for deduplication
     // Apple Health creates derived entries from apps like Foodnoms, causing double-counting
-    const samplesByNutrientAndSource: Record<string, Record<string, { values: number[]; priority: number }>> = {};
+    // Note: Some apps (like FoodNoms) store source_name as null but set bundle_id
+    const samplesByNutrientAndSource: Record<string, Record<string, { values: number[]; priority: number; displayName: string }>> = {};
     const samplesBySource: Record<string, number> = {};
     
     for (const sample of samples) {
       const dataType = sample.dataType;
       const sampleValue = sample.value;
       const sampleUnit = sample.unit;
-      const sourceName = sample.sourceName || 'unknown';
+      const sourceName = sample.sourceName;
+      const bundleId = sample.sourceBundleId;
+      
+      // Create a unique source key (prefer bundle ID, fall back to source name)
+      const sourceKey = getSourceKey(sourceName, bundleId);
+      const displayName = sourceName || bundleId || 'unknown';
       
       // Track samples by source for debugging
-      samplesBySource[sourceName] = (samplesBySource[sourceName] || 0) + 1;
+      samplesBySource[displayName] = (samplesBySource[displayName] || 0) + 1;
       
       const targetField = NUTRITION_TYPE_MAPPING[dataType];
       if (targetField && sampleValue != null) {
@@ -212,13 +270,14 @@ export async function aggregateNutritionForDate(
         if (!samplesByNutrientAndSource[targetField]) {
           samplesByNutrientAndSource[targetField] = {};
         }
-        if (!samplesByNutrientAndSource[targetField][sourceName]) {
-          samplesByNutrientAndSource[targetField][sourceName] = {
+        if (!samplesByNutrientAndSource[targetField][sourceKey]) {
+          samplesByNutrientAndSource[targetField][sourceKey] = {
             values: [],
-            priority: getSourcePriority(sourceName),
+            priority: getSourcePriority(sourceName, bundleId),
+            displayName,
           };
         }
-        samplesByNutrientAndSource[targetField][sourceName].values.push(value);
+        samplesByNutrientAndSource[targetField][sourceKey].values.push(value);
       }
     }
     
@@ -237,16 +296,16 @@ export async function aggregateNutritionForDate(
       // Sort by priority (lower = better)
       sources.sort((a, b) => a[1].priority - b[1].priority);
       
-      const [preferredSource, preferredData] = sources[0];
+      const [preferredSourceKey, preferredData] = sources[0];
       const sum = preferredData.values.reduce((a, b) => a + b, 0);
       result[nutrient] = Math.round(sum * 100) / 100; // 2 decimal precision
       
       // Log if we skipped Apple Health derived data
       if (sources.length > 1) {
-        const skippedSources = sources.slice(1).map(([name, data]) => `${name}(${data.values.length} samples)`);
-        const hasAppleHealth = sources.some(([name]) => isAppleHealthDerived(name));
+        const skippedSources = sources.slice(1).map(([key, data]) => `${data.displayName}(${data.values.length} samples)`);
+        const hasAppleHealth = sources.some(([key]) => isAppleHealthDerived(key, key));
         if (hasAppleHealth) {
-          logger.info(`[NutritionAggregator] ${nutrient}: using ${preferredSource} (${preferredData.values.length} samples, sum=${sum.toFixed(2)}), skipped Apple Health derived: ${skippedSources.join(', ')}`);
+          logger.info(`[NutritionAggregator] ${nutrient}: using ${preferredData.displayName} (${preferredData.values.length} samples, sum=${sum.toFixed(2)}), skipped Apple Health derived: ${skippedSources.join(', ')}`);
         }
       }
     }
