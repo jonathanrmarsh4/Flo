@@ -499,7 +499,103 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including pattern_library, pattern_occurrences)');
+    // CGM Learned Baselines - population baselines from synthetic CGM data
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.cgm_learned_baselines (
+          baseline_id String,
+          hour_of_day UInt8,
+          scenario LowCardinality(String),
+          mean_glucose Float64,
+          std_glucose Float64,
+          p5_glucose Float64,
+          p10_glucose Float64,
+          p25_glucose Float64,
+          p50_glucose Float64,
+          p75_glucose Float64,
+          p90_glucose Float64,
+          p95_glucose Float64,
+          min_glucose Float64,
+          max_glucose Float64,
+          sample_count UInt32,
+          time_in_range_pct Float64 DEFAULT 0,
+          hypo_pct Float64 DEFAULT 0,
+          hyper_pct Float64 DEFAULT 0,
+          data_source String DEFAULT 'simglucose',
+          trained_at DateTime64(3) DEFAULT now64(3),
+          model_version String DEFAULT 'v1'
+        )
+        ENGINE = ReplacingMergeTree(trained_at)
+        ORDER BY (scenario, hour_of_day, baseline_id)
+      `,
+    });
+
+    // Biomarker Learned Baselines - population baselines from NHANES/medical literature
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.biomarker_learned_baselines (
+          baseline_id String,
+          biomarker_name LowCardinality(String),
+          age_group Nullable(String),
+          sex Nullable(String),
+          stratification_type LowCardinality(String),
+          mean_value Float64,
+          std_value Float64,
+          p5_value Float64,
+          p10_value Float64,
+          p25_value Float64,
+          p50_value Float64,
+          p75_value Float64,
+          p90_value Float64,
+          p95_value Float64,
+          min_value Float64,
+          max_value Float64,
+          sample_count UInt32,
+          unit String,
+          data_source String DEFAULT 'NHANES',
+          trained_at DateTime64(3) DEFAULT now64(3),
+          model_version String DEFAULT 'v1'
+        )
+        ENGINE = ReplacingMergeTree(trained_at)
+        ORDER BY (biomarker_name, stratification_type, age_group, sex, baseline_id)
+      `,
+    });
+
+    // HealthKit Learned Baselines - population baselines from synthetic wearable data
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.healthkit_learned_baselines (
+          baseline_id String,
+          metric_type LowCardinality(String),
+          hour_of_day Nullable(UInt8),
+          day_of_week Nullable(UInt8),
+          age_group Nullable(String),
+          activity_level Nullable(String),
+          chronotype Nullable(String),
+          stratification_type LowCardinality(String),
+          mean_value Float64,
+          std_value Float64,
+          p5_value Float64,
+          p10_value Float64,
+          p25_value Float64,
+          p50_value Float64,
+          p75_value Float64,
+          p90_value Float64,
+          p95_value Float64,
+          min_value Float64,
+          max_value Float64,
+          sample_count UInt32,
+          unit String,
+          data_source String DEFAULT 'synthetic',
+          trained_at DateTime64(3) DEFAULT now64(3),
+          model_version String DEFAULT 'v1'
+        )
+        ENGINE = ReplacingMergeTree(trained_at)
+        ORDER BY (metric_type, stratification_type, hour_of_day, day_of_week, baseline_id)
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);
