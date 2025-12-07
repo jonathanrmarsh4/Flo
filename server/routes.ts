@@ -7942,6 +7942,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Force re-aggregate nutrition for a user (bypasses cache, uses updated deduplication logic)
+  // Accepts either session auth (admin) OR x-admin-key header for CLI usage
+  app.post("/api/admin/nutrition/force-reaggregate", async (req: any, res) => {
+    try {
+      // Check for API key in header (for CLI usage)
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      let adminId = 'cli-admin';
+      
+      if (apiKey && expectedKey && apiKey === expectedKey) {
+        // API key auth - proceed
+        logger.info('[Nutrition Admin] CLI access via API key');
+      } else if (req.user?.claims?.sub) {
+        // Session auth - check admin role
+        const [adminUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, req.user.claims.sub));
+        if (adminUser?.role !== 'admin') {
+          return res.status(403).json({ error: "Admin access required" });
+        }
+        adminId = req.user.claims.sub;
+      } else {
+        return res.status(401).json({ error: "Authentication required. Use session auth or x-admin-key header." });
+      }
+      
+      const { userId, days = 7, timezone = 'Australia/Perth' } = req.body;
+      
+      // If no userId provided, use the admin's own ID
+      const targetUserId = userId || adminId;
+      const daysToProcess = Math.min(Number(days), 365);
+      
+      logger.info(`[Nutrition Admin] Force re-aggregate started by ${adminId} for user ${targetUserId}, last ${daysToProcess} days`);
+
+      const { TZDate } = await import('@date-fns/tz');
+      const results: { date: string; status: string }[] = [];
+      const now = new Date();
+      
+      for (let i = 0; i < daysToProcess; i++) {
+        const targetDate = new Date(now);
+        targetDate.setDate(targetDate.getDate() - i);
+        const tzDate = new TZDate(targetDate, timezone);
+        const localDate = tzDate.toISOString().split('T')[0];
+        
+        try {
+          await upsertNutritionDaily(targetUserId, localDate, timezone);
+          results.push({ date: localDate, status: 'ok' });
+        } catch (err: any) {
+          results.push({ date: localDate, status: `error: ${err.message}` });
+        }
+      }
+      
+      logger.info(`[Nutrition Admin] Force re-aggregate complete for ${targetUserId}: ${results.filter(r => r.status === 'ok').length}/${daysToProcess} days succeeded`);
+
+      return res.json({ 
+        status: "complete",
+        userId: targetUserId,
+        daysProcessed: daysToProcess,
+        results
+      });
+    } catch (error: any) {
+      logger.error("[Nutrition Admin] Force re-aggregate error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // Mindfulness Routes
   // ============================================
