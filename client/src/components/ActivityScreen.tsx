@@ -64,22 +64,22 @@ interface WorkoutsSummary {
 }
 
 interface NutritionDaily {
-  local_date: string;
-  energy_kcal: number | null;
-  protein_g: number | null;
-  carbohydrates_g: number | null;
-  fat_total_g: number | null;
-  fiber_g: number | null;
-  sugar_g: number | null;
-  sodium_mg: number | null;
-  caffeine_mg: number | null;
-  water_ml: number | null;
-  vitamin_d_mcg: number | null;
-  magnesium_mg: number | null;
-  calcium_mg: number | null;
-  iron_mg: number | null;
-  potassium_mg: number | null;
-  zinc_mg: number | null;
+  localDate: string;
+  energyKcal: number | null;
+  proteinG: number | null;
+  carbohydratesG: number | null;
+  fatTotalG: number | null;
+  fiberG: number | null;
+  sugarG: number | null;
+  sodiumMg: number | null;
+  caffeineMg: number | null;
+  waterMl: number | null;
+  vitaminDMcg: number | null;
+  magnesiumMg: number | null;
+  calciumMg: number | null;
+  ironMg: number | null;
+  potassiumMg: number | null;
+  zincMg: number | null;
 }
 
 interface GlucoseDaily {
@@ -583,15 +583,15 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
     return <EmptyState isDark={isDark} message="No nutrition data available. Start logging your meals to see insights." />;
   }
 
-  const calories = today.energy_kcal ?? 0;
-  const protein = today.protein_g ?? 0;
-  const carbs = today.carbohydrates_g ?? 0;
-  const fats = today.fat_total_g ?? 0;
-  const fiber = today.fiber_g ?? 0;
-  const sugar = today.sugar_g ?? 0;
-  const sodium = today.sodium_mg ?? 0;
-  const caffeine = today.caffeine_mg ?? 0;
-  const water = today.water_ml ?? 0;
+  const calories = today.energyKcal ?? 0;
+  const protein = today.proteinG ?? 0;
+  const carbs = today.carbohydratesG ?? 0;
+  const fats = today.fatTotalG ?? 0;
+  const fiber = today.fiberG ?? 0;
+  const sugar = today.sugarG ?? 0;
+  const sodium = today.sodiumMg ?? 0;
+  const caffeine = today.caffeineMg ?? 0;
+  const water = today.waterMl ?? 0;
 
   const calorieTarget = 2500;
   const proteinTarget = 120;
@@ -607,12 +607,12 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
   const calorieScore = calorieDeviation <= 10 ? 'green' : calorieDeviation <= 20 ? 'amber' : 'red';
 
   const microsChecked = [
-    today.vitamin_d_mcg,
-    today.magnesium_mg,
-    today.calcium_mg,
-    today.iron_mg,
-    today.potassium_mg,
-    today.zinc_mg,
+    today.vitaminDMcg,
+    today.magnesiumMg,
+    today.calciumMg,
+    today.ironMg,
+    today.potassiumMg,
+    today.zincMg,
   ];
   const microsCovered = microsChecked.filter(v => v != null && v > 0).length;
   const microsTotal = microsChecked.length;
