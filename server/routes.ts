@@ -7740,6 +7740,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to see raw nutrition samples for a date (for diagnosing duplicate issues)
+  app.get("/api/nutrition/debug", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { date, timezone = 'Australia/Perth' } = req.query;
+      
+      if (!date) {
+        return res.status(400).json({ error: "date is required (YYYY-MM-DD format)" });
+      }
+
+      const { TZDate } = await import('@date-fns/tz');
+      const { getSupabaseClient } = await import('./services/supabaseHealthStorage');
+      
+      // Calculate UTC boundaries for the local date
+      const localDayStart = new TZDate(`${date}T00:00:00`, timezone as string);
+      const localDayEnd = new TZDate(`${date}T23:59:59.999`, timezone as string);
+      const dayStartUTC = new Date(localDayStart.toISOString());
+      const dayEndUTC = new Date(localDayEnd.toISOString());
+      
+      // Get health_id for this user
+      const [user] = await db.select({ healthId: users.healthId }).from(users).where(eq(users.id, userId));
+      if (!user?.healthId) {
+        return res.status(404).json({ error: "No health_id found for user" });
+      }
+
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        return res.status(500).json({ error: "Supabase not available" });
+      }
+
+      // Get all dietary samples for this date
+      const { data: samples, error } = await supabase
+        .from('healthkit_samples')
+        .select('*')
+        .eq('health_id', user.healthId)
+        .ilike('data_type', '%Dietary%')
+        .gte('start_date', dayStartUTC.toISOString())
+        .lte('start_date', dayEndUTC.toISOString())
+        .order('start_date', { ascending: true });
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      // Group by data_type for analysis
+      const byType: Record<string, { count: number; total: number; samples: any[] }> = {};
+      for (const sample of samples || []) {
+        const type = sample.data_type;
+        if (!byType[type]) {
+          byType[type] = { count: 0, total: 0, samples: [] };
+        }
+        byType[type].count++;
+        byType[type].total += sample.value || 0;
+        byType[type].samples.push({
+          uuid: sample.uuid,
+          value: sample.value,
+          unit: sample.unit,
+          start_date: sample.start_date,
+          source_name: sample.source_name,
+        });
+      }
+
+      // Calculate totals matching Flo's aggregation
+      const calories = byType['HKQuantityTypeIdentifierDietaryEnergyConsumed']?.total || 0;
+      const protein = byType['HKQuantityTypeIdentifierDietaryProtein']?.total || 0;
+      const carbs = byType['HKQuantityTypeIdentifierDietaryCarbohydrates']?.total || 0;
+      const fat = byType['HKQuantityTypeIdentifierDietaryFatTotal']?.total || 0;
+
+      return res.json({
+        date,
+        timezone,
+        utcRange: {
+          start: dayStartUTC.toISOString(),
+          end: dayEndUTC.toISOString(),
+        },
+        healthId: user.healthId,
+        totalSamples: samples?.length || 0,
+        aggregatedTotals: {
+          calories: Math.round(calories * 100) / 100,
+          proteinG: Math.round(protein * 100) / 100,
+          carbsG: Math.round(carbs * 100) / 100,
+          fatG: Math.round(fat * 100) / 100,
+        },
+        byType,
+      });
+    } catch (error: any) {
+      logger.error("[Nutrition] Debug error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // Mindfulness Routes
   // ============================================
