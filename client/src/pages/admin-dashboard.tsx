@@ -196,6 +196,32 @@ export default function AdminDashboard() {
     },
   });
 
+  const { data: cgmBaselinesData, refetch: refetchCgmBaselines } = useQuery({
+    queryKey: ['/api/admin/clickhouse/cgm-model/baselines'],
+    refetchInterval: false,
+  });
+
+  const trainCgmModelMutation = useMutation({
+    mutationFn: async ({ numPatients, daysPerPatient, regenerateData }: { numPatients: number; daysPerPatient: number; regenerateData: boolean }) => {
+      return await apiRequest('POST', '/api/admin/clickhouse/cgm-model/train', { numPatients, daysPerPatient, regenerateData });
+    },
+    onSuccess: (data: any) => {
+      refetchCgmBaselines();
+      toast({
+        title: 'CGM Model Trained',
+        description: data.message || `Trained on ${data.syntheticReadingsUsed} readings`,
+      });
+    },
+    onError: (error: any) => {
+      console.error('CGM model training error:', error);
+      toast({
+        title: 'Training Failed',
+        description: error.message || 'Failed to train CGM model',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const clickhouseInitMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('POST', '/api/admin/clickhouse/init', {});
@@ -1087,6 +1113,122 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-8 text-white/50">No window history yet</div>
               )}
+            </div>
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Heart className="w-5 h-5 text-pink-400" />
+                CGM Pattern Learner
+              </h3>
+              <div className="text-xs text-white/50 mb-4">
+                Train the glucose pattern model on synthetic data generated from virtual diabetic patients. 
+                This helps the system establish baselines before real users send their glucose readings, 
+                improving anomaly detection accuracy.
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Model Status</div>
+                  <div className="text-lg text-white mt-1">
+                    {(cgmBaselinesData as any)?.hasLearnedBaselines ? (
+                      <span className="text-green-400">Trained</span>
+                    ) : (
+                      <span className="text-yellow-400">Not Trained</span>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Hourly Baselines</div>
+                  <div className="text-2xl text-white mt-1">
+                    {(cgmBaselinesData as any)?.hourlyBaselinesCount || 0}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Scenario Patterns</div>
+                  <div className="text-2xl text-white mt-1">
+                    {(cgmBaselinesData as any)?.scenariosCount || 0}
+                  </div>
+                </div>
+                <div className="rounded-xl border bg-white/5 border-white/10 p-4">
+                  <div className="text-xs text-white/50">Variability Norms</div>
+                  <div className="text-lg text-white mt-1">
+                    {(cgmBaselinesData as any)?.hasVariabilityPatterns ? (
+                      <span className="text-green-400">Learned</span>
+                    ) : (
+                      <span className="text-white/50">—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {(cgmBaselinesData as any)?.baselines?.global && (
+                <div className="p-4 rounded-xl border bg-green-500/10 border-green-500/20 mb-6">
+                  <div className="text-xs text-green-400 mb-2">Global Population Baseline</div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-white/50">Mean:</span>
+                      <span className="text-white ml-2">{(cgmBaselinesData as any).baselines.global.mean_glucose?.toFixed(1)} mg/dL</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">Std Dev:</span>
+                      <span className="text-white ml-2">{(cgmBaselinesData as any).baselines.global.std_glucose?.toFixed(1)}</span>
+                    </div>
+                    <div>
+                      <span className="text-white/50">Readings:</span>
+                      <span className="text-white ml-2">{(cgmBaselinesData as any).baselines.global.reading_count?.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => trainCgmModelMutation.mutate({ numPatients: 10, daysPerPatient: 14, regenerateData: false })}
+                  disabled={trainCgmModelMutation.isPending}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-train-cgm-model"
+                >
+                  {trainCgmModelMutation.isPending ? (
+                    <>
+                      <Activity className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Training...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      <span className="text-sm">Train Model</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => trainCgmModelMutation.mutate({ numPatients: 13, daysPerPatient: 30, regenerateData: true })}
+                  disabled={trainCgmModelMutation.isPending}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  data-testid="button-train-cgm-full"
+                >
+                  {trainCgmModelMutation.isPending ? (
+                    <>
+                      <Activity className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Training...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      <span className="text-sm">Full Retrain (New Data)</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => refetchCgmBaselines()}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 text-white transition-all"
+                  data-testid="button-refresh-baselines"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="text-sm">Refresh Status</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
