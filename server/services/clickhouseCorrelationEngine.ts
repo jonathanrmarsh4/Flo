@@ -505,7 +505,7 @@ export class ClickHouseCorrelationEngine {
         anomaly_count: number;
       }>(anomalySql, { 
         healthId, 
-        startDate: startDate.toISOString(),
+        startDate: startDate.toISOString().replace('Z', ''),
       });
 
       const anomalyMap = new Map(anomalyData.map(a => [a.week_start, Number(a.anomaly_count)]));
@@ -624,7 +624,7 @@ export class ClickHouseCorrelationEngine {
       const cutoffDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
       const existingCorrelations = await clickhouse.query<{ behavior_type: string; outcome_type: string }>(
         existingCorrelationsSql, 
-        { healthId, cutoffDate: cutoffDate.toISOString() }
+        { healthId, cutoffDate: cutoffDate.toISOString().replace('Z', '') }
       );
       const existingKeys = new Set(existingCorrelations.map(c => `${c.behavior_type}|${c.outcome_type}`));
 
@@ -822,7 +822,7 @@ export class ClickHouseCorrelationEngine {
       const cutoffTime = new Date(Date.now() - 4 * 60 * 60 * 1000); // 4 hours ago
       const recentQuestions = await clickhouse.query<{ question_id: string }>(
         recentQuestionSql,
-        { healthId, cutoffTime: cutoffTime.toISOString(), triggerType }
+        { healthId, cutoffTime: cutoffTime.toISOString().replace('Z', ''), triggerType }
       );
       
       if (recentQuestions.length > 0) {

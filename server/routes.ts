@@ -5662,7 +5662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Stage 13: Check ClickHouse table row counts
       await runTest('clickhouse_table_verification', async () => {
-        const tables = ['behavior_events', 'weekly_behavior_cohorts', 'outcome_rollups_weekly', 'long_term_correlations', 'ai_feedback_questions'];
+        const tables = ['behavior_events', 'weekly_behavior_cohorts', 'weekly_outcome_rollups', 'long_term_correlations', 'ai_feedback_questions'];
         const counts: Record<string, number> = {};
         
         for (const table of tables) {
