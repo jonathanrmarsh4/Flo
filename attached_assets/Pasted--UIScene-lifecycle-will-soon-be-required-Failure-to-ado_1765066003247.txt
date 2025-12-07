@@ -1,0 +1,558 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/24850AD9-FF3A-417E-904D-AE79310FDAFA/App.app'
+⚡️  Loading app at https://get-flo.com...
+✅ Find interaction disabled
+✅ UITextInteraction removed from WKWebView subview
+✅ Keyboard notification handlers configured
+✅ SharedWorker disabled to prevent WKWebView freeze
+✅ WKUIDelegate configured for media capture permissions
+✅ WebView keyboard handling configured
+✅ HealthSyncPlugin registered manually
+✅ WebViewCachePlugin registered manually
+✅ NativeMicrophonePlugin registered manually
+Networking process (0x118054100) took 16.772082 seconds to launch
+GPU process (0x11810c1e0) took 9.981587 seconds to launch
+WebContent process (0x1180e00c0) took 9.991739 seconds to launch
+✅ WKWebView input accessory bar removed to prevent constraint conflicts
+XPC connection interrupted
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+Reporter disconnected. { function=sendMessage, reporterID=145092585193473 }
+✅ Keyboard pre-warmed for first-run optimization
+0x1180e00c0 - [PID=33787] WebProcessProxy::didBecomeUnresponsive:
+0x10d74ce18 - [pageProxyID=7, webPageID=8, PID=33787] WebPageProxy::processDidBecomeUnresponsive:
+Reporter disconnected or already stopped. { func=stop, reporterID=145092585193473 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+WebContent[33790] Unable to hide query parameters from script (missing data)
+Error acquiring assertion: <Error Domain=RBSServiceErrorDomain Code=1 "((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))" UserInfo={NSLocalizedFailureReason=((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))}>
+0x118144300 - ProcessAssertion::acquireSync Failed to acquire RBS assertion 'XPCConnectionTerminationWatchdog' for process with PID=33787, error: (null)
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x127cfb480 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x127cfb210 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+⚡️  [log] - [StoreKit] Module loaded, Subscriptions: object
+⚡️  [log] - [QueryClient] SecureStoragePlugin pre-loaded
+⚡️  To Native ->  App addListener 70318675
+⚡️  To Native ->  App addListener 70318676
+⚡️  To Native ->  App getLaunchUrl 70318677
+⚡️  To Native ->  SecureStoragePlugin get 70318678
+⚡️  TO JS undefined
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0ODk1MjQwLCJleHAiOjE3NjU1MDAwNDB9.gtjG
+⚡️  To Native ->  Preferences get 70318679
+⚡️  TO JS {"value":"1765065724138"}
+⚡️  To Native ->  Preferences get 70318680
+⚡️  TO JS {"value":"1765065705924"}
+⚡️  [warn] - [Stripe Native] Missing VITE_STRIPE_PUBLISHABLE_KEY
+⚡️  To Native ->  App addListener 70318681
+⚡️  To Native ->  Preferences get 70318682
+⚡️  TO JS {"value":"1.0.1"}
+⚡️  [log] - 🚀 [AutoSync] App launched - triggering initial HealthKit sync...
+⚡️  To Native ->  SecureStoragePlugin get 70318683
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0ODk1MjQwLCJleHAiOjE3NjU1MDAwNDB9.gtjG
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 70318684
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+✅ [HealthSyncPlugin] Requesting authorization for 75 HealthKit data types
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"message":"Background sync started","days":7,"success":true}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+⚡️  To Native ->  HealthSyncPlugin syncWorkouts 70318685
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"message":"Background sync started","days":7,"success":true}
+⚡️  [log] - 🏋️ [AutoSync] Syncing workouts...
+💪 [HealthSyncPlugin] Queuing workout sync for last 7 days...
+⚡️  TO JS {"success":true,"days":7,"message":"Workout sync started"}
+⚡️  [log] - 🏋️ [AutoSync] Workout sync result: {"success":true,"days":7,"message":"Workout sync started"}
+⚡️  [log] - 📍 [AutoSync] Syncing location for environmental data...
+⚡️  To Native ->  Geolocation checkPermissions 70318686
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+FAILED prompting authorization request to share (null), read (
+    HKQuantityTypeIdentifierDietaryVitaminK,
+    HKQuantityTypeIdentifierDietaryFatTotal,
+    HKCategoryTypeIdentifierSleepAnalysis,
+    HKQuantityTypeIdentifierBodyMass,
+    HKQuantityTypeIdentifierHeight,
+    HKQuantityTypeIdentifierDietaryFatMonounsaturated,
+    HKQuantityTypeIdentifierDietaryWater,
+    HKQuantityTypeIdentifierDietaryEnergyConsumed,
+    HKQuantityTypeIdentifierDietaryFatSaturated,
+    HKQuantityTypeIdentifierOxygenSaturation,
+    HKQuantityTypeIdentifierDietaryPantothenicAcid,
+    HKQuantityTypeIdentifierDietaryMagnesium,
+    HKQuantityTypeIdentifierWalkingDoubleSupportPercentage,
+    HKQuantityTypeIdentifierDietaryIodine,
+    HKQuantityTypeIdentifierDietaryVitaminA,
+    HKQuantityTypeIdentifierWaistCircumference,
+    HKQuantityTypeIdentifierRespiratoryRate,
+    HKQuantityTypeIdentifierHeartRateVariabilitySDNN,
+    HKQuantityTypeIdentifierDietaryFiber,
+    HKQuantityTypeIdentifierDietaryCopper,
+    HKQuantityTypeIdentifierStepCount,
+    HKQuantityTypeIdentifierWalkingAsymmetryPercentage,
+    HKQuantityTypeIdentifierDietaryCarbohydrates,
+    HKQuantityTypeIdentifierFlightsClimbed,
+    HKQuantityTypeIdentifierAppleStandTime,
+    HKQuantityTypeIdentifierDietaryVitaminE,
+    HKQuantityTypeIdentifierDietaryIron,
+    HKQuantityTypeIdentifierVO2Max,
+    HKQuantityTypeIdentifierDietarySugar,
+    HKQuantityTypeIdentifierBloodPressureSystolic,
+    HKQuantityTypeIdentifierBloodGlucose,
+    HKQuantityTypeIdentifierDietaryChromium,
+    HKQuantityTypeIdentifierDietaryFolate,
+    HKQuantityTypeIdentifierDietaryThiamin,
+    HKQuantityTypeIdentifierBodyMassIndex,
+    HKQuantityTypeIdentifierDietaryVitaminB6,
+    HKQuantityTypeIdentifierStairDescentSpeed,
+    HKQuantityTypeIdentifierDietaryMolybdenum,
+    HKQuantityTypeIdentifierDietarySodium,
+    HKCategoryTypeIdentifierMindfulSession,
+    HKQuantityTypeIdentifierWalkingStepLength,
+    HKQuantityTypeIdentifierDietaryVitaminB12,
+    HKQuantityTypeIdentifierBodyFatPercentage,
+    HKQuantityTypeIdentifierStairAscentSpeed,
+    HKQuantityTypeIdentifierDietaryPhosphorus,
+    HKQuantityTypeIdentifierDietaryManganese,
+    HKWorkoutTypeIdentifier,
+    HKQuantityTypeIdentifierDietaryVitaminD,
+    HKQuantityTypeIdentifierDietaryVitaminC,
+    HKQuantityTypeIdentifierDietaryProtein,
+    HKQuantityTypeIdentifierDietaryPotassium,
+    HKQuantityTypeIdentifierAppleSleepingWristTemperature,
+    HKQuantityTypeIdentifierAppleExerciseTime,
+    HKQuantityTypeIdentifierDietarySelenium,
+    HKQuantityTypeIdentifierLeanBodyMass,
+    HKQuantityTypeIdentifierBasalEnergyBurned,
+    HKQuantityTypeIdentifierDietaryCalcium,
+    HKQuantityTypeIdentifierBodyTemperature,
+    HKQuantityTypeIdentifierDistanceWalkingRunning,
+    HKQuantityTypeIdentifierDietaryChloride,
+    HKQuantityTypeIdentifierDietaryCholesterol,
+    HKQuantityTypeIdentifierDietaryCaffeine,
+    HKQuantityTypeIdentifierDietaryNiacin,
+    HKQuantityTypeIdentifierDietaryZinc,
+    HKQuantityTypeIdentifierWalkingSpeed,
+    HKQuantityTypeIdentifierWalkingHeartRateAverage,
+    HKQuantityTypeIdentifierHeartRate,
+    HKQuantityTypeIdentifierAppleWalkingSteadiness,
+    HKQuantityTypeIdentifierRestingHeartRate,
+    HKQuantityTypeIdentifierSixMinuteWalkTestDistance,
+    HKQuantityTypeIdentifierDietaryFatPolyunsaturated,
+    HKQuantityTypeIdentifierDietaryBiotin,
+    HKQuantityTypeIdentifierDietaryRiboflavin,
+    HKQuantityTypeIdentifierActiveEnergyBurned,
+    HKQuantityTypeIdentifierBloodPressureDiastolic
+), error Missing com.apple.developer.healthkit entitlement.
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 0
+❌ [HealthSyncPlugin] Authorization request error: Missing com.apple.developer.healthkit entitlement.
+FAILED prompting authorization request to share (null), read (
+    HKWorkoutTypeIdentifier
+), error Missing com.apple.developer.healthkit entitlement.
+❌ [HealthSyncPlugin] Workout authorization request error: Missing com.apple.developer.healthkit entitlement.
+[Workouts] Query error: Missing com.apple.developer.healthkit entitlement.
+❌ [HealthSyncPlugin] Workout sync failed: Missing com.apple.developer.healthkit entitlement.
+🧹 [HealthSyncPlugin] Workout sync complete, auth token cleared
+⚡️  TO JS {"location":"granted","coarseLocation":"granted"}
+⚡️  To Native ->  Geolocation checkPermissions 70318687
+⚡️  [log] - 📍 [AutoSync] Location permission status: granted
+⚡️  TO JS {"location":"granted","coarseLocation":"granted"}
+⚡️  To Native ->  Geolocation checkPermissions 70318688
+⚡️  TO JS {"location":"granted","coarseLocation":"granted"}
+⚡️  To Native ->  Geolocation getCurrentPosition 70318689
+⚡️  TO JS {"timestamp":1765065914698.4619,"coords":{"speed":-1,"heading":-1,"altitudeAccuracy":30.017207085829359,"accuracy":6.031594598922621,"longitude":115.81631939451918,"latitude":-31.896336941099658,"altitude":19.371172669654552}}
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/location
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 2/20: status = 0
+⚡️  [log] - [API] Response received: 200 OK
+⚡️  [log] - [LocationService] Location synced successfully
+⚡️  [log] - 📍 [AutoSync] Location synced successfully
+⚡️  [log] - ✅ [AutoSync] Sync success block entered
+⚡️  To Native ->  Preferences set 70318690
+⚡️  TO JS undefined
+⚡️  [log] - ⏳ [AutoSync] Waiting 4s for backend upload to complete...
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 3/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 4/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 5/20: status = 0
+⚡️  [log] - 🌍 [Timezone] Hook initialized - checking timezone on launch
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 6/20: status = 0
+⚡️  To Native ->  Preferences get 70318691
+⚡️  To Native ->  Preferences get 70318692
+⚡️  TO JS {"value":"1765063499037"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  To Native ->  LocalNotifications checkPermissions 70318693
+⚡️  [log] - [API] Making request: GET https://get-flo.com/api/user/timezone
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  TO JS {"display":"granted"}
+⚡️  To Native ->  LocalNotifications addListener 70318694
+⚡️  To Native ->  LocalNotifications addListener 70318695
+⚡️  To Native ->  LocalNotifications cancel 70318696
+⚡️  TO JS undefined
+⚡️  [log] - [Flōmentum Notifications] All scheduled notifications cancelled
+⚡️  To Native ->  LocalNotifications schedule 70318697
+⚡️  TO JS {"notifications":[{"id":100}]}
+⚡️  [log] - [Flōmentum Notifications] Daily score scheduled for 20:00
+⚡️  To Native ->  LocalNotifications schedule 70318698
+⚡️  TO JS {"notifications":[{"id":101}]}
+⚡️  [log] - [Flōmentum Notifications] Sync reminder scheduled for 09:00
+⚡️  To Native ->  LocalNotifications schedule 70318699
+⚡️  TO JS {"notifications":[{"id":102}]}
+⚡️  [log] - [Flōmentum Notifications] Weekly summary scheduled for Mondays at 8 AM
+⚡️  To Native ->  LocalNotifications schedule 70318700
+⚡️  TO JS {"notifications":[{"id":103}]}
+⚡️  To Native ->  LocalNotifications schedule 70318701
+⚡️  TO JS {"notifications":[{"id":104}]}
+⚡️  To Native ->  LocalNotifications schedule 70318702
+⚡️  TO JS {"notifications":[{"id":105}]}
+⚡️  [log] - [Flōmentum Notifications] Daily action reminders scheduled
+⚡️  [log] - [Flōmentum Notifications] Initialization complete
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 7/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 8/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 9/20: status = 0
+⚡️  [log] - 🔄 [AutoSync] Refetching dashboard queries...
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 10/20: status = 0
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/correlation/feedback
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 11/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 12/20: status = 0
+⚡️  [log] - [API] Response received: 200 OK
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 13/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 14/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 15/20: status = 0
+⚡️  [log] - ✅ [AutoSync] Dashboard refresh completed!
+⚡️  To Native ->  LocalNotifications schedule 70318703
+⚡️  TO JS {"notifications":[{"id":1}]}
+⚡️  [log] - [Notifications] Sent: Health data synced ✓
+⚡️  TO JS {"extra":{},"attachments":[],"title":"Health data synced ✓","body":"Your latest HealthKit metrics are ready","id":1,"actionTypeId":"","schedule":{"at":"2025-12-07T00:06:00Z"},"sound":""}
+⚡️  [log] - [Notifications] Received in foreground: {"extra":{},"attachments":[],"title":"Health data synced ✓","body":"Your latest HealthKit metrics are ready","id":1,"actionTypeId":"","schedule":{"at":"2025-12-07T00:06:00Z"},"sound":""}
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 16/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 17/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 18/20: status = 0
+⚡️  To Native ->  SecureStoragePlugin get 70318704
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY0ODk1MjQwLCJleHAiOjE3NjU1MDAwNDB9.gtjG
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 70318705
+🔄 [HealthSyncPlugin] Queuing background sync for last 7 days... (waitForAuth: true)
+✅ [HealthSyncPlugin] Requesting authorization for 75 HealthKit data types
+FAILED prompting authorization request to share (null), read (
+    HKQuantityTypeIdentifierDietaryVitaminK,
+    HKQuantityTypeIdentifierDietaryFatTotal,
+    HKCategoryTypeIdentifierSleepAnalysis,
+    HKQuantityTypeIdentifierBodyMass,
+    HKQuantityTypeIdentifierHeight,
+    HKQuantityTypeIdentifierDietaryFatMonounsaturated,
+    HKQuantityTypeIdentifierDietaryWater,
+    HKQuantityTypeIdentifierDietaryEnergyConsumed,
+    HKQuantityTypeIdentifierDietaryFatSaturated,
+    HKQuantityTypeIdentifierOxygenSaturation,
+    HKQuantityTypeIdentifierDietaryPantothenicAcid,
+    HKQuantityTypeIdentifierDietaryMagnesium,
+    HKQuantityTypeIdentifierWalkingDoubleSupportPercentage,
+    HKQuantityTypeIdentifierDietaryIodine,
+    HKQuantityTypeIdentifierDietaryVitaminA,
+    HKQuantityTypeIdentifierWaistCircumference,
+    HKQuantityTypeIdentifierRespiratoryRate,
+    HKQuantityTypeIdentifierDietaryFiber,
+    HKQuantityTypeIdentifierHeartRateVariabilitySDNN,
+    HKQuantityTypeIdentifierDietaryCopper,
+    HKQuantityTypeIdentifierStepCount,
+    HKQuantityTypeIdentifierWalkingAsymmetryPercentage,
+    HKQuantityTypeIdentifierAppleStandTime,
+    HKQuantityTypeIdentifierDietaryCarbohydrates,
+    HKQuantityTypeIdentifierFlightsClimbed,
+    HKQuantityTypeIdentifierDietaryVitaminE,
+    HKQuantityTypeIdentifierDietaryIron,
+    HKQuantityTypeIdentifierVO2Max,
+    HKQuantityTypeIdentifierDietarySugar,
+    HKQuantityTypeIdentifierBloodGlucose,
+    HKQuantityTypeIdentifierBloodPressureSystolic,
+    HKQuantityTypeIdentifierDietaryChromium,
+    HKQuantityTypeIdentifierDietaryFolate,
+    HKQuantityTypeIdentifierDietaryThiamin,
+    HKQuantityTypeIdentifierBodyMassIndex,
+    HKQuantityTypeIdentifierDietaryVitaminB6,
+    HKQuantityTypeIdentifierStairDescentSpeed,
+    HKQuantityTypeIdentifierDietaryMolybdenum,
+    HKQuantityTypeIdentifierDietarySodium,
+    HKCategoryTypeIdentifierMindfulSession,
+    HKQuantityTypeIdentifierWalkingStepLength,
+    HKQuantityTypeIdentifierDietaryVitaminB12,
+    HKQuantityTypeIdentifierBodyFatPercentage,
+    HKQuantityTypeIdentifierStairAscentSpeed,
+    HKQuantityTypeIdentifierDietaryPhosphorus,
+    HKQuantityTypeIdentifierDietaryManganese,
+    HKWorkoutTypeIdentifier,
+    HKQuantityTypeIdentifierDietaryVitaminD,
+    HKQuantityTypeIdentifierDietaryVitaminC,
+    HKQuantityTypeIdentifierDietaryProtein,
+    HKQuantityTypeIdentifierDietaryPotassium,
+    HKQuantityTypeIdentifierAppleSleepingWristTemperature,
+    HKQuantityTypeIdentifierAppleExerciseTime,
+    HKQuantityTypeIdentifierDietarySelenium,
+    HKQuantityTypeIdentifierLeanBodyMass,
+    HKQuantityTypeIdentifierBasalEnergyBurned,
+    HKQuantityTypeIdentifierDietaryCalcium,
+    HKQuantityTypeIdentifierBodyTemperature,
+    HKQuantityTypeIdentifierDistanceWalkingRunning,
+    HKQuantityTypeIdentifierDietaryChloride,
+    HKQuantityTypeIdentifierDietaryCholesterol,
+    HKQuantityTypeIdentifierDietaryCaffeine,
+    HKQuantityTypeIdentifierDietaryNiacin,
+    HKQuantityTypeIdentifierDietaryZinc,
+    HKQuantityTypeIdentifierWalkingSpeed,
+    HKQuantityTypeIdentifierWalkingHeartRateAverage,
+    HKQuantityTypeIdentifierHeartRate,
+    HKQuantityTypeIdentifierAppleWalkingSteadiness,
+    HKQuantityTypeIdentifierRestingHeartRate,
+    HKQuantityTypeIdentifierSixMinuteWalkTestDistance,
+    HKQuantityTypeIdentifierDietaryFatPolyunsaturated,
+    HKQuantityTypeIdentifierDietaryBiotin,
+    HKQuantityTypeIdentifierDietaryRiboflavin,
+    HKQuantityTypeIdentifierActiveEnergyBurned,
+    HKQuantityTypeIdentifierBloodPressureDiastolic
+), error Missing com.apple.developer.healthkit entitlement.
+❌ [HealthSyncPlugin] Authorization request error: Missing com.apple.developer.healthkit entitlement.
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 2
+⚡️  TO JS {"message":"Background sync started","success":true,"days":7}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 19/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 2/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 20/20: status = 0
+⏱️ [HealthSyncPlugin] Auth wait timeout after 20 attempts
+⚠️ [HealthSyncPlugin] HealthKit authorization timeout, syncing anyway...
+[Normalisation] Syncing last 7 days: 2025-11-30 00:06:03 +0000 to 2025-12-07 00:06:03 +0000
+[ExerciseMinutes] Querying workouts for day: 2025-11-30 00:00:00 to 2025-12-01 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-01 00:00:00 to 2025-12-02 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-02 00:00:00 to 2025-12-03 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-03 00:00:00 to 2025-12-04 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-04 00:00:00 to 2025-12-05 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-05 00:00:00 to 2025-12-06 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-06 00:00:00 to 2025-12-07 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-07 00:00:00 to 2025-12-08 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-30: {"localDate":"2025-11-30","utcDayStart":"2025-11-29T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-11-30T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-01: {"localDate":"2025-12-01","utcDayStart":"2025-11-30T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-01T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-02: {"localDate":"2025-12-02","utcDayStart":"2025-12-01T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-02T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-03: {"localDate":"2025-12-03","utcDayStart":"2025-12-02T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-03T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-04: {"localDate":"2025-12-04","utcDayStart":"2025-12-03T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-04T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-05: {"localDate":"2025-12-05","utcDayStart":"2025-12-04T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-05T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-06: {"localDate":"2025-12-06","utcDayStart":"2025-12-05T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-06T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-07: {"localDate":"2025-12-07","utcDayStart":"2025-12-06T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-07T16:00:00.000Z"}...
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 3/20: status = 0
+quic_conn_process_inbound [C1.1.1.1:2] [-eb444e433d2da246] unable to parse packet
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 4/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 5/20: status = 0
+[Normalisation] Successfully uploaded metrics for 2025-12-01
+[Normalisation] Successfully uploaded metrics for 2025-12-07
+[Normalisation] Successfully uploaded metrics for 2025-11-30
+[Normalisation] Successfully uploaded metrics for 2025-12-03
+[Normalisation] Successfully uploaded metrics for 2025-12-04
+[Normalisation] Successfully uploaded metrics for 2025-12-05
+[Normalisation] Successfully uploaded metrics for 2025-12-06
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 6/20: status = 0
+[Normalisation] Successfully uploaded metrics for 2025-12-02
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-30, window: 2025-11-29 07:00:00 +0000 to 2025-11-30 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-01, window: 2025-11-30 07:00:00 +0000 to 2025-12-01 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-11-30
+[Sleep] Querying samples for 2025-12-02, window: 2025-12-01 07:00:00 +0000 to 2025-12-02 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-01
+[Sleep] Querying samples for 2025-12-03, window: 2025-12-02 07:00:00 +0000 to 2025-12-03 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-02
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-03
+[Sleep] Querying samples for 2025-12-04, window: 2025-12-03 07:00:00 +0000 to 2025-12-04 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-04
+[Sleep] Querying samples for 2025-12-05, window: 2025-12-04 07:00:00 +0000 to 2025-12-05 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-05
+[Sleep] Querying samples for 2025-12-06, window: 2025-12-05 07:00:00 +0000 to 2025-12-06 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-07, window: 2025-12-06 07:00:00 +0000 to 2025-12-07 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-06
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-07
+[Sleep] Successfully uploaded 0 sleep nights
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Query error: Missing com.apple.developer.healthkit entitlement.
+❌ [HealthSyncPlugin] Background sync failed: Missing com.apple.developer.healthkit entitlement.
+📊 [HealthSyncPlugin] Sync #1 completed, 1 active syncs remaining
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 7/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 8/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 9/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 10/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 11/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 12/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 13/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 14/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 15/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 16/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 17/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 18/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 19/20: status = 0
+Failed to determine authorization status: Error Domain=com.apple.healthkit Code=4 "Missing com.apple.developer.healthkit entitlement." UserInfo={NSLocalizedDescription=Missing com.apple.developer.healthkit entitlement.}
+🔍 [HealthSyncPlugin] Auth check attempt 20/20: status = 0
+⏱️ [HealthSyncPlugin] Auth wait timeout after 20 attempts
+⚠️ [HealthSyncPlugin] HealthKit authorization timeout, syncing anyway...
+[Normalisation] Syncing last 7 days: 2025-11-30 00:06:13 +0000 to 2025-12-07 00:06:13 +0000
+[ExerciseMinutes] Querying workouts for day: 2025-11-30 00:00:00 to 2025-12-01 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-01 00:00:00 to 2025-12-02 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-02 00:00:00 to 2025-12-03 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-03 00:00:00 to 2025-12-04 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-04 00:00:00 to 2025-12-05 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-05 00:00:00 to 2025-12-06 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-06 00:00:00 to 2025-12-07 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[ExerciseMinutes] Querying workouts for day: 2025-12-07 00:00:00 to 2025-12-08 00:00:00
+[ExerciseMinutes] Query error: Missing com.apple.developer.healthkit entitlement.
+[Steps] No statistics available
+[Temperature] No wrist temperature samples found
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-11-30: {"localDate":"2025-11-30","utcDayStart":"2025-11-29T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-11-30T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-01: {"localDate":"2025-12-01","utcDayStart":"2025-11-30T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-01T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-02: {"localDate":"2025-12-02","utcDayStart":"2025-12-01T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-02T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-03: {"localDate":"2025-12-03","utcDayStart":"2025-12-02T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-03T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-04: {"localDate":"2025-12-04","utcDayStart":"2025-12-03T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-04T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-05: {"localDate":"2025-12-05","utcDayStart":"2025-12-04T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-05T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-06: {"localDate":"2025-12-06","utcDayStart":"2025-12-05T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-06T16:00:00.000Z"}...
+[Normalisation] Sending payload for 2025-12-07: {"localDate":"2025-12-07","utcDayStart":"2025-12-06T16:00:00.000Z","timezone":"Australia\/Perth","utcDayEnd":"2025-12-07T16:00:00.000Z"}...
+[Normalisation] Successfully uploaded metrics for 2025-12-06
+[Normalisation] Successfully uploaded metrics for 2025-12-05
+[Normalisation] Successfully uploaded metrics for 2025-12-03
+[Normalisation] Successfully uploaded metrics for 2025-12-07
+[Normalisation] Successfully uploaded metrics for 2025-12-04
+[Normalisation] Successfully uploaded metrics for 2025-12-01
+[Normalisation] Successfully uploaded metrics for 2025-12-02
+[Normalisation] Successfully uploaded metrics for 2025-11-30
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-11-30, window: 2025-11-29 07:00:00 +0000 to 2025-11-30 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-01, window: 2025-11-30 07:00:00 +0000 to 2025-12-01 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-11-30
+[Sleep] Querying samples for 2025-12-02, window: 2025-12-01 07:00:00 +0000 to 2025-12-02 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-01
+[Sleep] Querying samples for 2025-12-03, window: 2025-12-02 07:00:00 +0000 to 2025-12-03 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-02
+[Sleep] Querying samples for 2025-12-04, window: 2025-12-03 07:00:00 +0000 to 2025-12-04 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-03
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-04
+[Sleep] Querying samples for 2025-12-05, window: 2025-12-04 07:00:00 +0000 to 2025-12-05 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-06, window: 2025-12-05 07:00:00 +0000 to 2025-12-06 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-05
+[Sleep] Querying samples for 2025-12-07, window: 2025-12-06 07:00:00 +0000 to 2025-12-07 07:00:00 +0000
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-06
+[Sleep] Query error: Missing com.apple.developer.healthkit entitlement.
+[Sleep] No sleep samples for 2025-12-07
+[Sleep] Successfully uploaded 0 sleep nights
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Query error: Missing com.apple.developer.healthkit entitlement.
+❌ [HealthSyncPlugin] Background sync failed: Missing com.apple.developer.healthkit entitlement.
+📊 [HealthSyncPlugin] Sync #2 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x127cc04b0 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
