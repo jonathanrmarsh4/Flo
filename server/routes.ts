@@ -7106,6 +7106,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // HealthKit Integration Routes
+  
+  // ============================================================================
+  // HealthKit Sync Status - First sync should backfill ALL historical data
+  // ============================================================================
+  
+  /**
+   * GET /api/healthkit/sync-status
+   * Returns whether the user needs to perform a full historical backfill.
+   * 
+   * iOS should call this on app launch to determine sync strategy:
+   * - If needsHistoricalSync=true: Request ALL HealthKit data (2-3 years)
+   * - If needsHistoricalSync=false: Only request data since lastSyncDate
+   * 
+   * Response: {
+   *   backfillComplete: boolean,
+   *   backfillDate: string | null,
+   *   needsHistoricalSync: boolean,
+   *   recommendedStartDate: string (ISO date - how far back to sync)
+   * }
+   */
+  app.get("/api/healthkit/sync-status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { getHealthKitSyncStatus } = await import('./services/supabaseHealthStorage');
+      const status = await getHealthKitSyncStatus(userId);
+      
+      // Recommend syncing 3 years of history for new users
+      const threeYearsAgo = new Date();
+      threeYearsAgo.setFullYear(threeYearsAgo.getFullYear() - 3);
+      
+      res.json({
+        backfillComplete: status.backfillComplete,
+        backfillDate: status.backfillDate?.toISOString() || null,
+        needsHistoricalSync: status.needsHistoricalSync,
+        recommendedStartDate: status.needsHistoricalSync ? threeYearsAgo.toISOString() : null,
+      });
+      
+      logger.info(`[HealthKit] Sync status for user ${userId}: backfillComplete=${status.backfillComplete}`);
+    } catch (error: any) {
+      logger.error(`[HealthKit] Error getting sync status:`, error);
+      res.status(500).json({ error: error.message || "Failed to get sync status" });
+    }
+  });
+  
+  /**
+   * POST /api/healthkit/mark-backfill-complete
+   * Called by iOS after it has synced all historical HealthKit data.
+   * After this, future syncs will be incremental only.
+   * 
+   * Request body: { sampleCount?: number, startDate?: string, endDate?: string }
+   * Response: { success: true, backfillDate: string }
+   */
+  app.post("/api/healthkit/mark-backfill-complete", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sampleCount, startDate, endDate } = req.body;
+      
+      const { markHealthKitBackfillComplete } = await import('./services/supabaseHealthStorage');
+      await markHealthKitBackfillComplete(userId);
+      
+      logger.info(`[HealthKit] Backfill complete for user ${userId}: ${sampleCount || 'unknown'} samples from ${startDate || 'unknown'} to ${endDate || 'unknown'}`);
+      
+      res.json({
+        success: true,
+        backfillDate: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error(`[HealthKit] Error marking backfill complete:`, error);
+      res.status(500).json({ error: error.message || "Failed to mark backfill complete" });
+    }
+  });
+  
   // Batch upload HealthKit samples from iOS app
   app.post("/api/healthkit/samples", isAuthenticated, async (req: any, res) => {
     try {

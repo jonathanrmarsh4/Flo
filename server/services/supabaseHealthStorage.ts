@@ -102,6 +102,8 @@ export interface HealthProfile {
   goals?: string[] | null;
   health_baseline?: Record<string, any> | null;
   ai_personalization?: Record<string, any> | null;
+  healthkit_backfill_complete?: boolean;
+  healthkit_backfill_date?: Date | null;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -144,6 +146,92 @@ export async function upsertProfile(userId: string, profile: Partial<HealthProfi
   }
 
   return data;
+}
+
+// ==================== HEALTHKIT SYNC STATUS ====================
+
+export interface HealthKitSyncStatus {
+  backfillComplete: boolean;
+  backfillDate: Date | null;
+  needsHistoricalSync: boolean;
+}
+
+/**
+ * Get the HealthKit sync status for a user.
+ * Returns whether the user has completed their initial historical backfill.
+ */
+export async function getHealthKitSyncStatus(userId: string): Promise<HealthKitSyncStatus> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('healthkit_backfill_complete, healthkit_backfill_date')
+    .eq('health_id', healthId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching sync status:', error);
+    throw error;
+  }
+
+  const backfillComplete = data?.healthkit_backfill_complete === true;
+  const backfillDate = data?.healthkit_backfill_date ? new Date(data.healthkit_backfill_date) : null;
+
+  return {
+    backfillComplete,
+    backfillDate,
+    needsHistoricalSync: !backfillComplete,
+  };
+}
+
+/**
+ * Mark the HealthKit historical backfill as complete for a user.
+ * Should be called by iOS after it has synced all historical HealthKit data.
+ */
+export async function markHealthKitBackfillComplete(userId: string): Promise<void> {
+  const healthId = await getHealthId(userId);
+  
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      health_id: healthId,
+      healthkit_backfill_complete: true,
+      healthkit_backfill_date: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'health_id',
+    });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error marking backfill complete:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Marked HealthKit backfill complete for user ${userId}`);
+}
+
+/**
+ * Reset the HealthKit backfill status for a user (admin use only).
+ * This will cause iOS to re-sync all historical data on next app open.
+ */
+export async function resetHealthKitBackfillStatus(userId: string): Promise<void> {
+  const healthId = await getHealthId(userId);
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      healthkit_backfill_complete: false,
+      healthkit_backfill_date: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('health_id', healthId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error resetting backfill status:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Reset HealthKit backfill status for user ${userId}`);
 }
 
 // ==================== BIOMARKER TEST SESSIONS ====================
@@ -1194,7 +1282,7 @@ export async function upsertFlomentumDaily(userId: string, flomentum: Omit<Flome
     health_id: healthId,
     updated_at: new Date().toISOString(),
   };
-  logger.info(`[SupabaseHealth] Flomentum upsert payload:`, JSON.stringify(payload));
+  logger.info(`[SupabaseHealth] Flomentum upsert payload: ${JSON.stringify(payload)}`);
   
   const { data, error, status, statusText } = await supabase
     .from('flomentum_daily')
