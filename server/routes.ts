@@ -7164,10 +7164,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { sampleCount, startDate, endDate } = req.body;
       
-      const { markHealthKitBackfillComplete } = await import('./services/supabaseHealthStorage');
-      await markHealthKitBackfillComplete(userId);
+      // Validate optional metadata if provided
+      const metadata = (sampleCount || startDate || endDate) ? {
+        sampleCount: typeof sampleCount === 'number' ? sampleCount : undefined,
+        startDate: typeof startDate === 'string' ? startDate : undefined,
+        endDate: typeof endDate === 'string' ? endDate : undefined,
+      } : undefined;
       
-      logger.info(`[HealthKit] Backfill complete for user ${userId}: ${sampleCount || 'unknown'} samples from ${startDate || 'unknown'} to ${endDate || 'unknown'}`);
+      const { markHealthKitBackfillComplete } = await import('./services/supabaseHealthStorage');
+      await markHealthKitBackfillComplete(userId, metadata);
       
       res.json({
         success: true,

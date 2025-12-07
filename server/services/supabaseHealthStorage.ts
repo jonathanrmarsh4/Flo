@@ -104,6 +104,11 @@ export interface HealthProfile {
   ai_personalization?: Record<string, any> | null;
   healthkit_backfill_complete?: boolean;
   healthkit_backfill_date?: Date | null;
+  healthkit_backfill_metadata?: {
+    sampleCount?: number;
+    startDate?: string;
+    endDate?: string;
+  } | null;
   created_at?: Date;
   updated_at?: Date;
 }
@@ -184,11 +189,22 @@ export async function getHealthKitSyncStatus(userId: string): Promise<HealthKitS
   };
 }
 
+export interface BackfillMetadata {
+  sampleCount?: number;
+  startDate?: string;
+  endDate?: string;
+}
+
 /**
  * Mark the HealthKit historical backfill as complete for a user.
  * Should be called by iOS after it has synced all historical HealthKit data.
+ * @param userId - The user ID
+ * @param metadata - Optional metadata about the backfill (sample count, date range)
  */
-export async function markHealthKitBackfillComplete(userId: string): Promise<void> {
+export async function markHealthKitBackfillComplete(
+  userId: string, 
+  metadata?: BackfillMetadata
+): Promise<void> {
   const healthId = await getHealthId(userId);
   
   const { error } = await supabase
@@ -197,6 +213,11 @@ export async function markHealthKitBackfillComplete(userId: string): Promise<voi
       health_id: healthId,
       healthkit_backfill_complete: true,
       healthkit_backfill_date: new Date().toISOString(),
+      healthkit_backfill_metadata: metadata ? {
+        sampleCount: metadata.sampleCount,
+        startDate: metadata.startDate,
+        endDate: metadata.endDate,
+      } : null,
       updated_at: new Date().toISOString(),
     }, {
       onConflict: 'health_id',
@@ -207,7 +228,8 @@ export async function markHealthKitBackfillComplete(userId: string): Promise<voi
     throw error;
   }
 
-  logger.info(`[SupabaseHealth] Marked HealthKit backfill complete for user ${userId}`);
+  const metaLog = metadata ? ` (${metadata.sampleCount || 0} samples, ${metadata.startDate || 'unknown'} to ${metadata.endDate || 'unknown'})` : '';
+  logger.info(`[SupabaseHealth] Marked HealthKit backfill complete for user ${userId}${metaLog}`);
 }
 
 /**
