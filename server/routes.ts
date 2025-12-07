@@ -5196,6 +5196,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to see raw nutrition samples for a user on a date (for diagnosing duplicate issues)
+  app.get("/api/admin/nutrition/debug/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { date, timezone = 'Australia/Perth' } = req.query;
+      
+      if (!date) {
+        return res.status(400).json({ error: "date query param is required (YYYY-MM-DD format)" });
+      }
+
+      const { TZDate } = await import('@date-fns/tz');
+      const { getSupabaseClient, getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      // Calculate UTC boundaries for the local date
+      const localDayStart = new TZDate(`${date}T00:00:00`, timezone as string);
+      const localDayEnd = new TZDate(`${date}T23:59:59.999`, timezone as string);
+      const dayStartUTC = new Date(localDayStart.toISOString());
+      const dayEndUTC = new Date(localDayEnd.toISOString());
+      
+      // Get health_id for this user
+      const healthId = await getHealthId(userId);
+
+      const supabase = getSupabaseClient();
+      if (!supabase) {
+        return res.status(500).json({ error: "Supabase not available" });
+      }
+
+      // Get all dietary samples for this date
+      const { data: samples, error } = await supabase
+        .from('healthkit_samples')
+        .select('*')
+        .eq('health_id', healthId)
+        .ilike('data_type', '%Dietary%')
+        .gte('start_date', dayStartUTC.toISOString())
+        .lte('start_date', dayEndUTC.toISOString())
+        .order('start_date', { ascending: true });
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      // Group by data_type for analysis
+      const byType: Record<string, { count: number; total: number; samples: any[] }> = {};
+      for (const sample of samples || []) {
+        const type = sample.data_type;
+        if (!byType[type]) {
+          byType[type] = { count: 0, total: 0, samples: [] };
+        }
+        byType[type].count++;
+        byType[type].total += sample.value || 0;
+        byType[type].samples.push({
+          uuid: sample.uuid,
+          value: sample.value,
+          unit: sample.unit,
+          start_date: sample.start_date,
+          source_name: sample.source_name,
+        });
+      }
+
+      // Calculate totals matching Flo's aggregation
+      const calories = byType['HKQuantityTypeIdentifierDietaryEnergyConsumed']?.total || 0;
+      const protein = byType['HKQuantityTypeIdentifierDietaryProtein']?.total || 0;
+      const carbs = byType['HKQuantityTypeIdentifierDietaryCarbohydrates']?.total || 0;
+      const fat = byType['HKQuantityTypeIdentifierDietaryFatTotal']?.total || 0;
+
+      // Check for potential duplicates (same source, same value, within 1 second)
+      const potentialDuplicates: any[] = [];
+      for (const [typeName, typeData] of Object.entries(byType)) {
+        const sorted = typeData.samples.sort((a: any, b: any) => 
+          new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+        );
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const curr = sorted[i];
+          const next = sorted[i + 1];
+          const timeDiff = Math.abs(new Date(curr.start_date).getTime() - new Date(next.start_date).getTime());
+          if (timeDiff < 60000 && curr.value === next.value && curr.source_name === next.source_name) {
+            potentialDuplicates.push({
+              type: typeName,
+              sample1: curr,
+              sample2: next,
+              timeDiffMs: timeDiff,
+            });
+          }
+        }
+      }
+
+      return res.json({
+        userId,
+        date,
+        timezone,
+        utcRange: {
+          start: dayStartUTC.toISOString(),
+          end: dayEndUTC.toISOString(),
+        },
+        healthId,
+        totalSamples: samples?.length || 0,
+        aggregatedTotals: {
+          calories: Math.round(calories * 100) / 100,
+          proteinG: Math.round(protein * 100) / 100,
+          carbsG: Math.round(carbs * 100) / 100,
+          fatG: Math.round(fat * 100) / 100,
+        },
+        potentialDuplicates,
+        byType,
+      });
+    } catch (error: any) {
+      logger.error("[Admin] Nutrition debug error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/admin/clickhouse/cgm-anomalies/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;

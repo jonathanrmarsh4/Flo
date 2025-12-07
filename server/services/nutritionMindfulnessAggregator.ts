@@ -154,21 +154,28 @@ export async function aggregateNutritionForDate(
       endDate: dayEndUTC,
     });
     
-    logger.debug(`[NutritionAggregator] Found ${samples.length} nutrition samples for ${userId} on ${localDate}`);
+    logger.info(`[NutritionAggregator] Found ${samples.length} nutrition samples for ${userId} on ${localDate} (UTC: ${dayStartUTC.toISOString()} to ${dayEndUTC.toISOString()})`);
 
-    // Group by nutrition field
+    // Group by nutrition field and track sources for debugging
     const groupedValues: Record<string, number[]> = {};
+    const samplesBySource: Record<string, number> = {};
+    const detailedSamples: Record<string, Array<{ value: number; source: string; startDate: string }>> = {};
     
     for (const sample of samples) {
       // healthStorageRouter returns camelCase field names
       const dataType = sample.dataType;
       const sampleValue = sample.value;
       const sampleUnit = sample.unit;
+      const sourceName = sample.sourceName || 'unknown';
+      
+      // Track samples by source
+      samplesBySource[sourceName] = (samplesBySource[sourceName] || 0) + 1;
       
       const targetField = NUTRITION_TYPE_MAPPING[dataType];
       if (targetField && sampleValue != null) {
         if (!groupedValues[targetField]) {
           groupedValues[targetField] = [];
+          detailedSamples[targetField] = [];
         }
         
         let value = sampleValue;
@@ -179,6 +186,25 @@ export async function aggregateNutritionForDate(
         }
         
         groupedValues[targetField].push(value);
+        detailedSamples[targetField].push({
+          value,
+          source: sourceName,
+          startDate: sample.startDate ? new Date(sample.startDate).toISOString() : 'unknown',
+        });
+      }
+    }
+    
+    // Log sources for debugging duplicate issues
+    if (Object.keys(samplesBySource).length > 0) {
+      logger.info(`[NutritionAggregator] Sample sources for ${userId} on ${localDate}: ${JSON.stringify(samplesBySource)}`);
+    }
+    
+    // Log detailed breakdown of key nutrients
+    const keyNutrients = ['energyKcal', 'proteinG', 'carbohydratesG', 'fatTotalG'];
+    for (const nutrient of keyNutrients) {
+      if (detailedSamples[nutrient]?.length > 0) {
+        const total = groupedValues[nutrient]?.reduce((a, b) => a + b, 0) || 0;
+        logger.info(`[NutritionAggregator] ${nutrient} breakdown for ${userId} on ${localDate}: ${detailedSamples[nutrient].length} samples, total=${total.toFixed(2)}, samples=${JSON.stringify(detailedSamples[nutrient])}`);
       }
     }
 
