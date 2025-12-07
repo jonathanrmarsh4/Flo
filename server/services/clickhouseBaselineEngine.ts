@@ -605,6 +605,10 @@ export class ClickHouseBaselineEngine {
     if (!await this.ensureInitialized()) return [];
 
     try {
+      const { cgmPatternLearner } = await import('./cgmPatternLearner');
+      const learnedBaselines = await cgmPatternLearner.getLearnedBaselines();
+      const hasLearnedModel = learnedBaselines.global !== null || learnedBaselines.hourly.length > 0;
+
       const sql = `
         SELECT
           avg(glucose_mg_dl) as avg_glucose,
@@ -643,55 +647,78 @@ export class ClickHouseBaselineEngine {
       const anomalies: AnomalyResult[] = [];
       const timeInRange = (r.in_range_count / r.total_readings) * 100;
 
+      const globalBaseline = learnedBaselines.global;
+      const baselineMean = globalBaseline?.mean_glucose || r.avg_glucose;
+      const baselineStd = globalBaseline?.std_glucose || r.glucose_std || 30;
+      const modelConfidenceBoost = hasLearnedModel ? 0.1 : 0;
+
       if (r.min_glucose < CGM_ABSOLUTE_THRESHOLDS.hypoglycemia.moderate) {
         const severity = r.min_glucose < CGM_ABSOLUTE_THRESHOLDS.hypoglycemia.severe ? 'high' : 'moderate';
+        const zScore = baselineStd > 0 ? (r.min_glucose - baselineMean) / baselineStd : null;
         anomalies.push({
           anomalyId: randomUUID(),
           metricType: 'cgm_hypo',
           currentValue: r.min_glucose,
-          baselineValue: r.avg_glucose,
-          deviationPct: ((r.min_glucose - r.avg_glucose) / r.avg_glucose) * 100,
-          zScore: r.glucose_std > 0 ? (r.min_glucose - r.avg_glucose) / r.glucose_std : null,
+          baselineValue: baselineMean,
+          deviationPct: ((r.min_glucose - baselineMean) / baselineMean) * 100,
+          zScore,
           direction: 'below',
           severity,
           patternFingerprint: severity === 'high' ? 'severe_hypoglycemia' : 'hypoglycemia_event',
-          relatedMetrics: { hypo_count: r.hypo_count, severe_count: r.severe_hypo_count },
-          modelConfidence: 0.9,
+          relatedMetrics: { 
+            hypo_count: r.hypo_count, 
+            severe_count: r.severe_hypo_count,
+            model_trained: hasLearnedModel,
+          },
+          modelConfidence: Math.min(0.95, 0.85 + modelConfidenceBoost),
           detectedAt: new Date().toISOString(),
         });
       }
 
       if (r.max_glucose > CGM_ABSOLUTE_THRESHOLDS.hyperglycemia.moderate) {
         const severity = r.max_glucose > CGM_ABSOLUTE_THRESHOLDS.hyperglycemia.severe ? 'high' : 'moderate';
+        const zScore = baselineStd > 0 ? (r.max_glucose - baselineMean) / baselineStd : null;
         anomalies.push({
           anomalyId: randomUUID(),
           metricType: 'cgm_hyper',
           currentValue: r.max_glucose,
-          baselineValue: r.avg_glucose,
-          deviationPct: ((r.max_glucose - r.avg_glucose) / r.avg_glucose) * 100,
-          zScore: r.glucose_std > 0 ? (r.max_glucose - r.avg_glucose) / r.glucose_std : null,
+          baselineValue: baselineMean,
+          deviationPct: ((r.max_glucose - baselineMean) / baselineMean) * 100,
+          zScore,
           direction: 'above',
           severity,
           patternFingerprint: severity === 'high' ? 'severe_hyperglycemia' : 'hyperglycemia_event',
-          relatedMetrics: { hyper_count: r.hyper_count, severe_count: r.severe_hyper_count },
-          modelConfidence: 0.9,
+          relatedMetrics: { 
+            hyper_count: r.hyper_count, 
+            severe_count: r.severe_hyper_count,
+            model_trained: hasLearnedModel,
+          },
+          modelConfidence: Math.min(0.95, 0.85 + modelConfidenceBoost),
           detectedAt: new Date().toISOString(),
         });
       }
 
-      if (r.glucose_std > CGM_ABSOLUTE_THRESHOLDS.rateOfChange.risingFast * 10) {
+      const expectedVariability = learnedBaselines.variability?.range || 100;
+      const userRange = r.max_glucose - r.min_glucose;
+      const isHighVariability = userRange > expectedVariability * 1.5 || r.glucose_std > CGM_ABSOLUTE_THRESHOLDS.rateOfChange.risingFast * 10;
+
+      if (isHighVariability) {
         anomalies.push({
           anomalyId: randomUUID(),
           metricType: 'cgm_variability',
           currentValue: r.glucose_std,
-          baselineValue: 30,
-          deviationPct: ((r.glucose_std - 30) / 30) * 100,
+          baselineValue: baselineStd,
+          deviationPct: ((r.glucose_std - baselineStd) / baselineStd) * 100,
           zScore: null,
           direction: 'above',
-          severity: r.glucose_std > 50 ? 'high' : 'moderate',
+          severity: r.glucose_std > baselineStd * 2 ? 'high' : 'moderate',
           patternFingerprint: 'high_glucose_variability',
-          relatedMetrics: { coefficient_of_variation: (r.glucose_std / r.avg_glucose) * 100 },
-          modelConfidence: 0.85,
+          relatedMetrics: { 
+            coefficient_of_variation: (r.glucose_std / r.avg_glucose) * 100,
+            learned_expected_range: expectedVariability,
+            model_trained: hasLearnedModel,
+          },
+          modelConfidence: Math.min(0.92, 0.80 + modelConfidenceBoost),
           detectedAt: new Date().toISOString(),
         });
       }
@@ -707,8 +734,12 @@ export class ClickHouseBaselineEngine {
           direction: 'below',
           severity: timeInRange < 50 ? 'high' : 'moderate',
           patternFingerprint: 'low_time_in_range',
-          relatedMetrics: { in_range_count: r.in_range_count, total_readings: r.total_readings },
-          modelConfidence: 0.88,
+          relatedMetrics: { 
+            in_range_count: r.in_range_count, 
+            total_readings: r.total_readings,
+            model_trained: hasLearnedModel,
+          },
+          modelConfidence: Math.min(0.93, 0.83 + modelConfidenceBoost),
           detectedAt: new Date().toISOString(),
         });
       }
@@ -717,7 +748,7 @@ export class ClickHouseBaselineEngine {
         await this.storeAnomalies(healthId, anomalies);
       }
 
-      logger.info(`[ClickHouseML] Detected ${anomalies.length} CGM-specific anomalies for ${healthId}`);
+      logger.info(`[ClickHouseML] Detected ${anomalies.length} CGM anomalies for ${healthId} (learned model: ${hasLearnedModel})`);
       return anomalies;
     } catch (error) {
       logger.error('[ClickHouseML] CGM anomaly detection error:', error);

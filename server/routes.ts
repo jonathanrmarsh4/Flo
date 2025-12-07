@@ -5020,6 +5020,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/clickhouse/cgm-model/train", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { numPatients = 10, daysPerPatient = 14, regenerateData = false } = req.body;
+      
+      const { cgmPatternLearner } = await import('./services/cgmPatternLearner');
+      
+      logger.info('[Admin] Training CGM pattern model', { 
+        numPatients, 
+        daysPerPatient, 
+        regenerateData,
+        adminId: req.user.claims.sub 
+      });
+      
+      const result = await cgmPatternLearner.trainOnSyntheticData({
+        numPatients,
+        daysPerPatient,
+        regenerateData,
+      });
+      
+      res.json({
+        success: result.success,
+        patternsLearned: result.patternsLearned,
+        hourlyBaselines: result.hourlyBaselines,
+        syntheticReadingsUsed: result.syntheticReadingsUsed,
+        message: result.success 
+          ? `Trained model on ${result.syntheticReadingsUsed} readings: ${result.hourlyBaselines} hourly baselines, ${result.patternsLearned} patterns`
+          : result.error,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] CGM model training error:', error);
+      res.status(500).json({ error: error.message || "Failed to train CGM model" });
+    }
+  });
+
+  app.get("/api/admin/clickhouse/cgm-model/baselines", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { cgmPatternLearner } = await import('./services/cgmPatternLearner');
+      
+      const baselines = await cgmPatternLearner.getLearnedBaselines();
+      
+      res.json({
+        hasLearnedBaselines: baselines.hourly.length > 0 || baselines.global !== null,
+        hourlyBaselinesCount: baselines.hourly.length,
+        scenariosCount: Object.keys(baselines.scenarios).length,
+        hasGlobalBaseline: baselines.global !== null,
+        hasVariabilityPatterns: baselines.variability !== null,
+        baselines,
+      });
+    } catch (error) {
+      logger.error('[Admin] CGM baselines fetch error:', error);
+      res.status(500).json({ error: "Failed to fetch CGM baselines" });
+    }
+  });
+
   app.post("/api/admin/clickhouse/cgm-anomalies/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;
