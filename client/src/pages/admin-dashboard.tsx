@@ -295,6 +295,29 @@ export default function AdminDashboard() {
     },
   });
 
+  const recreateMlTablesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/admin/clickhouse/ml-tables/recreate', {});
+    },
+    onSuccess: (data: any) => {
+      refetchCgmBaselines();
+      refetchBiomarkerBaselines();
+      refetchHealthkitBaselines();
+      toast({
+        title: 'ML Tables Recreated',
+        description: data.message || 'Tables dropped and recreated successfully',
+      });
+    },
+    onError: (error: any) => {
+      console.error('ML tables recreate error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to recreate ML tables',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const clickhouseHealthMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest('GET', '/api/admin/clickhouse/health');
@@ -1165,6 +1188,35 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-8 text-white/50">No window history yet</div>
               )}
+            </div>
+
+            <div className="rounded-2xl border bg-red-900/20 border-red-500/30 p-6">
+              <h3 className="text-lg mb-4 flex items-center gap-2 text-white">
+                <Database className="w-5 h-5 text-red-400" />
+                ML Tables Management
+              </h3>
+              <div className="text-xs text-white/50 mb-4">
+                Recreate ML learned baselines tables if schema changes are needed. This will DROP all existing 
+                trained baselines and recreate empty tables with the correct schema.
+              </div>
+              <button
+                onClick={() => recreateMlTablesMutation.mutate()}
+                disabled={recreateMlTablesMutation.isPending}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid="button-recreate-ml-tables"
+              >
+                {recreateMlTablesMutation.isPending ? (
+                  <>
+                    <Activity className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Recreating Tables...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    <span className="text-sm">Drop & Recreate ML Tables</span>
+                  </>
+                )}
+              </button>
             </div>
 
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">

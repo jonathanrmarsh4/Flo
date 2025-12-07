@@ -47,9 +47,13 @@ export class HealthKitPatternLearner {
         query: `
           CREATE TABLE IF NOT EXISTS flo_health.healthkit_learned_baselines (
             baseline_id String,
-            metric_name LowCardinality(String),
+            metric_type LowCardinality(String),
+            hour_of_day Int8 DEFAULT -1,
+            day_of_week Int8 DEFAULT -1,
+            age_group String DEFAULT '',
+            activity_level String DEFAULT '',
+            chronotype String DEFAULT '',
             stratification_type LowCardinality(String),
-            stratification_key Nullable(String),
             mean_value Float64,
             std_value Float64,
             p5_value Float64,
@@ -62,12 +66,13 @@ export class HealthKitPatternLearner {
             min_value Float64,
             max_value Float64,
             sample_count UInt32,
+            unit String DEFAULT '',
             data_source String DEFAULT 'synthetic',
             trained_at DateTime64(3) DEFAULT now64(3),
             model_version String DEFAULT 'v1'
           )
           ENGINE = ReplacingMergeTree(trained_at)
-          ORDER BY (metric_name, stratification_type, stratification_key, baseline_id)
+          ORDER BY (metric_type, stratification_type, hour_of_day, day_of_week, baseline_id)
         `,
       });
 
@@ -127,136 +132,62 @@ export class HealthKitPatternLearner {
 
       const rows: any[] = [];
 
+      const createRow = (metricType: string, stratType: string, stats: any, opts: any = {}) => ({
+        baseline_id: randomUUID(),
+        metric_type: metricType,
+        hour_of_day: opts.hour_of_day ?? -1,
+        day_of_week: opts.day_of_week ?? -1,
+        age_group: opts.age_group ?? '',
+        activity_level: opts.activity_level ?? '',
+        chronotype: opts.chronotype ?? '',
+        stratification_type: stratType,
+        mean_value: stats.mean,
+        std_value: stats.std || 0,
+        p5_value: stats.p5 || stats.min || 0,
+        p10_value: stats.p10 || stats.min || 0,
+        p25_value: stats.p25 || 0,
+        p50_value: stats.median || stats.p50 || stats.mean,
+        p75_value: stats.p75 || 0,
+        p90_value: stats.p90 || stats.max || 0,
+        p95_value: stats.p95 || stats.max || 0,
+        min_value: stats.min || 0,
+        max_value: stats.max || 0,
+        sample_count: stats.n || 0,
+        unit: stats.unit || '',
+        data_source: 'synthetic',
+        model_version: 'v1',
+      });
+
       for (const [metric, stats] of Object.entries<any>(healthkitData.baselines?.global || {})) {
         if (!stats || typeof stats.mean !== 'number') continue;
-        
-        rows.push({
-          baseline_id: randomUUID(),
-          metric_name: metric,
-          stratification_type: 'global',
-          stratification_key: null,
-          mean_value: stats.mean,
-          std_value: stats.std || 0,
-          p5_value: stats.p5 || stats.min || 0,
-          p10_value: stats.p10 || stats.min || 0,
-          p25_value: stats.p25 || 0,
-          p50_value: stats.median || stats.p50 || stats.mean,
-          p75_value: stats.p75 || 0,
-          p90_value: stats.p90 || stats.max || 0,
-          p95_value: stats.p95 || stats.max || 0,
-          min_value: stats.min || 0,
-          max_value: stats.max || 0,
-          sample_count: stats.n || 0,
-          data_source: 'synthetic',
-          model_version: 'v1',
-        });
+        rows.push(createRow(metric, 'global', stats));
       }
 
       for (const [sex, metrics] of Object.entries<any>(healthkitData.baselines?.by_sex || {})) {
         for (const [metric, stats] of Object.entries<any>(metrics || {})) {
           if (!stats || typeof stats.mean !== 'number') continue;
-          
-          rows.push({
-            baseline_id: randomUUID(),
-            metric_name: metric,
-            stratification_type: 'by_sex',
-            stratification_key: sex,
-            mean_value: stats.mean,
-            std_value: stats.std || 0,
-            p5_value: stats.p5 || stats.min || 0,
-            p10_value: stats.p10 || stats.min || 0,
-            p25_value: stats.p25 || 0,
-            p50_value: stats.median || stats.p50 || stats.mean,
-            p75_value: stats.p75 || 0,
-            p90_value: stats.p90 || stats.max || 0,
-            p95_value: stats.p95 || stats.max || 0,
-            min_value: stats.min || 0,
-            max_value: stats.max || 0,
-            sample_count: stats.n || 0,
-            data_source: 'synthetic',
-            model_version: 'v1',
-          });
+          rows.push(createRow(metric, 'by_sex', stats, { age_group: sex }));
         }
       }
 
       for (const [ageGroup, metrics] of Object.entries<any>(healthkitData.baselines?.by_age_group || {})) {
         for (const [metric, stats] of Object.entries<any>(metrics || {})) {
           if (!stats || typeof stats.mean !== 'number') continue;
-          
-          rows.push({
-            baseline_id: randomUUID(),
-            metric_name: metric,
-            stratification_type: 'by_age_group',
-            stratification_key: ageGroup,
-            mean_value: stats.mean,
-            std_value: stats.std || 0,
-            p5_value: stats.p5 || stats.min || 0,
-            p10_value: stats.p10 || stats.min || 0,
-            p25_value: stats.p25 || 0,
-            p50_value: stats.median || stats.p50 || stats.mean,
-            p75_value: stats.p75 || 0,
-            p90_value: stats.p90 || stats.max || 0,
-            p95_value: stats.p95 || stats.max || 0,
-            min_value: stats.min || 0,
-            max_value: stats.max || 0,
-            sample_count: stats.n || 0,
-            data_source: 'synthetic',
-            model_version: 'v1',
-          });
+          rows.push(createRow(metric, 'by_age_group', stats, { age_group: ageGroup }));
         }
       }
 
       for (const [activityLevel, metrics] of Object.entries<any>(healthkitData.baselines?.by_activity_level || {})) {
         for (const [metric, stats] of Object.entries<any>(metrics || {})) {
           if (!stats || typeof stats.mean !== 'number') continue;
-          
-          rows.push({
-            baseline_id: randomUUID(),
-            metric_name: metric,
-            stratification_type: 'by_activity_level',
-            stratification_key: activityLevel,
-            mean_value: stats.mean,
-            std_value: stats.std || 0,
-            p5_value: stats.p5 || stats.min || 0,
-            p10_value: stats.p10 || stats.min || 0,
-            p25_value: stats.p25 || 0,
-            p50_value: stats.median || stats.p50 || stats.mean,
-            p75_value: stats.p75 || 0,
-            p90_value: stats.p90 || stats.max || 0,
-            p95_value: stats.p95 || stats.max || 0,
-            min_value: stats.min || 0,
-            max_value: stats.max || 0,
-            sample_count: stats.n || 0,
-            data_source: 'synthetic',
-            model_version: 'v1',
-          });
+          rows.push(createRow(metric, 'by_activity_level', stats, { activity_level: activityLevel }));
         }
       }
 
       for (const [metricName, hours] of Object.entries<any>(healthkitData.baselines?.by_hour || {})) {
         for (const [hour, stats] of Object.entries<any>(hours || {})) {
           if (!stats || typeof stats.mean !== 'number') continue;
-          
-          rows.push({
-            baseline_id: randomUUID(),
-            metric_name: metricName,
-            stratification_type: 'by_hour',
-            stratification_key: hour,
-            mean_value: stats.mean,
-            std_value: stats.std || 0,
-            p5_value: stats.p5 || stats.min || 0,
-            p10_value: stats.p10 || stats.min || 0,
-            p25_value: stats.p25 || 0,
-            p50_value: stats.median || stats.p50 || stats.mean,
-            p75_value: stats.p75 || 0,
-            p90_value: stats.p90 || stats.max || 0,
-            p95_value: stats.p95 || stats.max || 0,
-            min_value: stats.min || 0,
-            max_value: stats.max || 0,
-            sample_count: stats.n || 0,
-            data_source: 'synthetic',
-            model_version: 'v1',
-          });
+          rows.push(createRow(metricName, 'by_hour', stats, { hour_of_day: parseInt(hour, 10) }));
         }
       }
 
@@ -264,7 +195,7 @@ export class HealthKitPatternLearner {
         await clickhouse.insert('healthkit_learned_baselines', rows);
       }
 
-      const uniqueMetrics = new Set(rows.map(r => r.metric_name));
+      const uniqueMetrics = new Set(rows.map(r => r.metric_type));
 
       logger.info(`[HealthKitPatternLearner] Training complete: ${uniqueMetrics.size} metrics, ${rows.length} baselines`);
 
@@ -299,7 +230,7 @@ export class HealthKitPatternLearner {
       SELECT *
       FROM flo_health.healthkit_learned_baselines
       FINAL
-      ORDER BY metric_name, stratification_type
+      ORDER BY metric_type, stratification_type
     `;
 
     const rows = await clickhouse.query<any>(sql, {});
@@ -318,8 +249,8 @@ export class HealthKitPatternLearner {
 
     for (const row of rows) {
       const baseline: LearnedHealthKitBaseline = {
-        metric_name: row.metric_name,
-        stratification_key: row.stratification_key,
+        metric_name: row.metric_type,
+        stratification_key: row.age_group || row.activity_level || (row.hour_of_day >= 0 ? String(row.hour_of_day) : null),
         mean_value: row.mean_value,
         std_value: row.std_value,
         p5_value: row.p5_value,
@@ -332,23 +263,23 @@ export class HealthKitPatternLearner {
         sample_count: row.sample_count,
       };
 
-      metrics.add(row.metric_name);
-      const key = row.stratification_key;
+      metrics.add(row.metric_type);
+      const key = row.age_group || row.activity_level || (row.hour_of_day >= 0 ? String(row.hour_of_day) : '');
 
       if (row.stratification_type === 'global') {
-        result.global[row.metric_name] = baseline;
+        result.global[row.metric_type] = baseline;
       } else if (row.stratification_type === 'by_sex' && key) {
         if (!result.bySex[key]) result.bySex[key] = {};
-        result.bySex[key][row.metric_name] = baseline;
+        result.bySex[key][row.metric_type] = baseline;
       } else if (row.stratification_type === 'by_age_group' && key) {
         if (!result.byAgeGroup[key]) result.byAgeGroup[key] = {};
-        result.byAgeGroup[key][row.metric_name] = baseline;
+        result.byAgeGroup[key][row.metric_type] = baseline;
       } else if (row.stratification_type === 'by_activity_level' && key) {
         if (!result.byActivityLevel[key]) result.byActivityLevel[key] = {};
-        result.byActivityLevel[key][row.metric_name] = baseline;
+        result.byActivityLevel[key][row.metric_type] = baseline;
       } else if (row.stratification_type === 'by_hour' && key) {
         if (!result.byHour[key]) result.byHour[key] = {};
-        result.byHour[key][row.metric_name] = baseline;
+        result.byHour[key][row.metric_type] = baseline;
       }
     }
 

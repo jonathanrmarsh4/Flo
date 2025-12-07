@@ -5166,6 +5166,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/clickhouse/ml-tables/recreate", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const clickhouse = await import('./services/clickhouseService');
+      const ch = clickhouse.getClickHouseClient();
+      
+      if (!ch) {
+        return res.status(503).json({ error: "ClickHouse not available" });
+      }
+      
+      logger.info('[Admin] Recreating ML learned baselines tables', { 
+        adminId: req.user.claims.sub 
+      });
+      
+      await ch.command({ query: `DROP TABLE IF EXISTS flo_health.cgm_learned_baselines` });
+      await ch.command({ query: `DROP TABLE IF EXISTS flo_health.biomarker_learned_baselines` });
+      await ch.command({ query: `DROP TABLE IF EXISTS flo_health.healthkit_learned_baselines` });
+      
+      await clickhouse.initializeClickHouse();
+      
+      res.json({
+        success: true,
+        message: 'ML learned baselines tables dropped and recreated successfully',
+        tablesRecreated: ['cgm_learned_baselines', 'biomarker_learned_baselines', 'healthkit_learned_baselines'],
+      });
+    } catch (error: any) {
+      logger.error('[Admin] ML tables recreation error:', error);
+      res.status(500).json({ error: error.message || "Failed to recreate ML tables" });
+    }
+  });
+
   app.post("/api/admin/clickhouse/cgm-anomalies/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;

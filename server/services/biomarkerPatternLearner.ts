@@ -138,8 +138,8 @@ export class BiomarkerPatternLearner {
         rows.push({
           baseline_id: randomUUID(),
           biomarker_name: biomarker,
-          age_group: null,
-          sex: null,
+          age_group: '',
+          sex: '',
           stratification_type: 'global',
           mean_value: stats.mean,
           std_value: stats.std || 0,
@@ -167,7 +167,7 @@ export class BiomarkerPatternLearner {
           rows.push({
             baseline_id: randomUUID(),
             biomarker_name: biomarker,
-            age_group: null,
+            age_group: '',
             sex: sex,
             stratification_type: 'by_sex',
             mean_value: stats.mean,
@@ -198,7 +198,7 @@ export class BiomarkerPatternLearner {
             baseline_id: randomUUID(),
             biomarker_name: biomarker,
             age_group: ageGroup,
-            sex: null,
+            sex: '',
             stratification_type: 'by_age_group',
             mean_value: stats.mean,
             std_value: stats.std || 0,
