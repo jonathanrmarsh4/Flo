@@ -1670,6 +1670,34 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
         lines.push(`\nML model accuracy for this user: ${accuracyPct}% (${mlInsights.confirmedCount}/${mlInsights.totalPredictions} confirmed)`);
       }
       
+      // Add long-term correlation insights from the new correlation engine
+      try {
+        const { correlationEngine } = await import('./clickhouseCorrelationEngine');
+        const longTermInsights = await correlationEngine.getLongTermInsights(healthId, 5);
+        
+        if (longTermInsights.length > 0) {
+          lines.push('');
+          lines.push('LONG-TERM BEHAVIOR CORRELATIONS (patterns discovered over months of data):');
+          for (const insight of longTermInsights) {
+            lines.push(`  • ${insight.naturalLanguageInsight}`);
+            lines.push(`    (${Math.round(insight.confidenceLevel * 100)}% confidence, p=${insight.pValue.toFixed(3)})`);
+          }
+          logger.info(`[FloOracle] Added ${longTermInsights.length} long-term correlation insights to context`);
+        }
+        
+        // Also add pending feedback questions for the AI to ask
+        const pendingQuestions = await correlationEngine.getPendingFeedbackQuestions(healthId);
+        if (pendingQuestions.length > 0) {
+          lines.push('');
+          lines.push('PENDING USER CHECK-IN (ask these questions naturally during conversation):');
+          for (const q of pendingQuestions.slice(0, 2)) {
+            lines.push(`  • Priority ${q.priority}: "${q.questionText}"`);
+          }
+        }
+      } catch (correlationError) {
+        logger.debug('[FloOracle] Long-term correlation insights not available');
+      }
+      
       logger.info(`[FloOracle] Added ${newAnomalies.length} NEW and ${previouslyDiscussed.length} PREVIOUSLY DISCUSSED anomalies to context`);
       return lines.join('\n');
     }

@@ -5,6 +5,7 @@ import { createLogger } from "../utils/logger";
 import { correlationInsightService } from "./correlationInsightService";
 import { getHealthId } from "./supabaseHealthStorage";
 import { clickhouseBaselineEngine } from "./clickhouseBaselineEngine";
+import { correlationEngine } from "./clickhouseCorrelationEngine";
 import { updateAllBaselines } from "./baselineCalculator";
 
 const logger = createLogger('ClickHouseOrchestrator');
@@ -156,6 +157,10 @@ class ClickHouseOrchestrator {
         logger.info(`[ClickHouseOrchestrator] Running baseline update in ${window.name}`);
         await this.runBaselineUpdateForAll(activeUsers);
         stats.baselineUpdated = true;
+        
+        // Run long-horizon correlation analysis during baseline update window (once per day)
+        logger.info(`[ClickHouseOrchestrator] Running long-horizon correlation analysis in ${window.name}`);
+        await this.runLongHorizonCorrelationAnalysis(activeUsers);
       }
 
       for (const user of activeUsers) {
@@ -232,6 +237,33 @@ class ClickHouseOrchestrator {
     }
 
     logger.info(`[ClickHouseOrchestrator] Baseline update complete. Success: ${successCount}, Errors: ${errorCount}`);
+  }
+
+  private async runLongHorizonCorrelationAnalysis(activeUsers: { id: string }[]): Promise<void> {
+    let successCount = 0;
+    let errorCount = 0;
+    let correlationsDiscovered = 0;
+
+    for (const user of activeUsers) {
+      try {
+        const healthId = await getHealthId(user.id);
+        if (!healthId) continue;
+
+        // Run full correlation analysis with 6 months lookback
+        const results = await correlationEngine.runFullAnalysis(healthId, 6);
+        correlationsDiscovered += results.correlationsFound;
+        successCount++;
+        
+        if (results.correlationsFound > 0) {
+          logger.debug(`[ClickHouseOrchestrator] Discovered ${results.correlationsFound} correlations for user ${user.id}`);
+        }
+      } catch (error) {
+        logger.error(`[ClickHouseOrchestrator] Long-horizon correlation error for user ${user.id}:`, error);
+        errorCount++;
+      }
+    }
+
+    logger.info(`[ClickHouseOrchestrator] Long-horizon correlation analysis complete. Success: ${successCount}, Errors: ${errorCount}, Correlations found: ${correlationsDiscovered}`);
   }
 
   private resetDailyStatsIfNeeded() {

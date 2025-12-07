@@ -5330,6 +5330,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Run full long-horizon correlation analysis for a user
+  app.post("/api/admin/clickhouse/correlation/analyze/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { lookbackMonths = 6 } = req.body;
+      
+      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      
+      logger.info('[Admin] Running correlation analysis', { userId, healthId, lookbackMonths });
+      
+      const results = await correlationEngine.runFullAnalysis(healthId, lookbackMonths);
+      
+      res.json({
+        healthId,
+        lookbackMonths,
+        ...results,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Correlation analysis error:', error);
+      res.status(500).json({ error: error.message || "Failed to run correlation analysis" });
+    }
+  });
+
+  // Admin: Get long-term insights for a user
+  app.get("/api/admin/clickhouse/correlation/insights/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const limit = parseInt(req.query.limit || '10');
+      
+      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const insights = await correlationEngine.getLongTermInsights(healthId, limit);
+      
+      res.json({
+        healthId,
+        insightCount: insights.length,
+        insights,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Get correlation insights error:', error);
+      res.status(500).json({ error: error.message || "Failed to get correlation insights" });
+    }
+  });
+
+  // Admin: Get pending AI feedback questions for a user
+  app.get("/api/admin/clickhouse/correlation/questions/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const questions = await correlationEngine.getPendingFeedbackQuestions(healthId);
+      
+      res.json({
+        healthId,
+        questionCount: questions.length,
+        questions,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Get feedback questions error:', error);
+      res.status(500).json({ error: error.message || "Failed to get feedback questions" });
+    }
+  });
+
+  // Admin: Manually generate a feedback question based on current anomalies
+  app.post("/api/admin/clickhouse/correlation/generate-question/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { patterns = [], metrics = {} } = req.body;
+      
+      const { correlationEngine } = await import('./services/clickhouseCorrelationEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      
+      const question = await correlationEngine.generateFeedbackQuestion(
+        healthId,
+        'pattern',
+        [],
+        patterns,
+        metrics
+      );
+      
+      res.json({
+        healthId,
+        generated: !!question,
+        question,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Generate feedback question error:', error);
+      res.status(500).json({ error: error.message || "Failed to generate feedback question" });
+    }
+  });
+
   // Admin: Get ML Usage metrics from ClickHouse Orchestrator
   app.get("/api/admin/ml-usage/metrics", isAuthenticated, requireAdmin, async (req, res) => {
     try {

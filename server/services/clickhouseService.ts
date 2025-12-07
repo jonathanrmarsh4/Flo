@@ -590,7 +590,169 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines)');
+    // Behavior Events - Timestamped behavioral tags extracted from HealthKit
+    // Enables segmentation into behavioral phases for correlation analysis
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.behavior_events (
+          health_id String,
+          event_id String,
+          local_date Date,
+          event_time DateTime64(3),
+          behavior_type LowCardinality(String),
+          behavior_subtype Nullable(String),
+          value Nullable(Float64),
+          duration_minutes Nullable(Float64),
+          time_of_day LowCardinality(String),
+          day_of_week UInt8,
+          metadata Nullable(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = MergeTree()
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, behavior_type, local_date, event_id)
+        TTL local_date + INTERVAL 5 YEAR
+      `,
+    });
+
+    // Weekly Behavior Cohorts - Aggregated weekly behavioral patterns
+    // Used for cohort comparison (e.g., "high workout weeks" vs "low workout weeks")
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.weekly_behavior_cohorts (
+          health_id String,
+          week_start Date,
+          workout_count UInt32,
+          workout_total_minutes Float64,
+          avg_workout_time_of_day Float64,
+          morning_workout_count UInt32,
+          afternoon_workout_count UInt32,
+          evening_workout_count UInt32,
+          workout_consistency_score Float64,
+          avg_caffeine_mg Nullable(Float64),
+          late_caffeine_days UInt32,
+          avg_calories_kcal Nullable(Float64),
+          protein_target_hit_days UInt32,
+          avg_sleep_duration_hours Nullable(Float64),
+          avg_bedtime_hour Nullable(Float64),
+          bedtime_consistency_score Nullable(Float64),
+          stress_events_count UInt32,
+          alcohol_days UInt32,
+          travel_days UInt32,
+          sick_days UInt32,
+          cohort_tags Array(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(week_start)
+        ORDER BY (health_id, week_start)
+      `,
+    });
+
+    // Weekly Outcome Rollups - Aggregated weekly health outcomes
+    // Paired with behavior cohorts for correlation analysis
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.weekly_outcome_rollups (
+          health_id String,
+          week_start Date,
+          avg_hrv Nullable(Float64),
+          hrv_trend Float64,
+          avg_resting_hr Nullable(Float64),
+          rhr_trend Float64,
+          avg_sleep_duration_hours Nullable(Float64),
+          avg_deep_sleep_hours Nullable(Float64),
+          avg_rem_sleep_hours Nullable(Float64),
+          avg_sleep_efficiency Nullable(Float64),
+          sleep_quality_trend Float64,
+          avg_readiness_score Nullable(Float64),
+          avg_strain_score Nullable(Float64),
+          avg_steps Nullable(Float64),
+          avg_active_energy Nullable(Float64),
+          avg_wrist_temp_deviation Nullable(Float64),
+          avg_respiratory_rate Nullable(Float64),
+          avg_o2_saturation Nullable(Float64),
+          illness_days UInt32,
+          anomaly_count UInt32,
+          recovery_quality_score Nullable(Float64),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(week_start)
+        ORDER BY (health_id, week_start)
+      `,
+    });
+
+    // Long-Term Correlations - Discovered behavior-outcome correlations
+    // Statistical analysis results from 6+ month data
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.long_term_correlations (
+          correlation_id String,
+          health_id String,
+          discovered_at DateTime64(3) DEFAULT now64(3),
+          behavior_type LowCardinality(String),
+          behavior_description String,
+          outcome_type LowCardinality(String),
+          outcome_description String,
+          effect_direction LowCardinality(String),
+          effect_size_pct Float64,
+          effect_size_absolute Nullable(Float64),
+          confidence_level Float64,
+          p_value Float64,
+          sample_size_behavior UInt32,
+          sample_size_control UInt32,
+          time_range_months UInt32,
+          statistical_test LowCardinality(String),
+          cohort_definition String,
+          control_definition String,
+          confounders_controlled Array(String),
+          is_actionable UInt8 DEFAULT 1,
+          natural_language_insight String,
+          user_acknowledged UInt8 DEFAULT 0,
+          acknowledged_at Nullable(DateTime64(3)),
+          user_feedback Nullable(String),
+          was_helpful Nullable(UInt8)
+        )
+        ENGINE = ReplacingMergeTree(discovered_at)
+        PARTITION BY toYYYYMM(discovered_at)
+        ORDER BY (health_id, behavior_type, outcome_type, correlation_id)
+      `,
+    });
+
+    // AI Feedback Questions - Dynamic questions generated from anomaly patterns
+    // Enables contextual follow-up questions like "How are you feeling 1-10?"
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.ai_feedback_questions (
+          question_id String,
+          health_id String,
+          created_at DateTime64(3) DEFAULT now64(3),
+          expires_at DateTime64(3),
+          trigger_type LowCardinality(String),
+          trigger_anomaly_ids Array(String),
+          trigger_patterns Array(String),
+          trigger_metrics String,
+          question_text String,
+          question_type LowCardinality(String),
+          response_options Nullable(String),
+          priority UInt8 DEFAULT 5,
+          was_shown UInt8 DEFAULT 0,
+          shown_at Nullable(DateTime64(3)),
+          was_answered UInt8 DEFAULT 0,
+          answered_at Nullable(DateTime64(3)),
+          response_value Nullable(Int32),
+          response_text Nullable(String),
+          channel LowCardinality(String) DEFAULT 'in_app'
+        )
+        ENGINE = MergeTree()
+        PARTITION BY toYYYYMM(created_at)
+        ORDER BY (health_id, created_at, question_id)
+        TTL expires_at + INTERVAL 7 DAY
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines and long-term correlation engine)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

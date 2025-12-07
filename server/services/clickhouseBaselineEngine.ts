@@ -1,5 +1,6 @@
 import { clickhouse, isClickHouseEnabled, initializeClickHouse } from './clickhouseService';
 import { getHealthId } from './supabaseHealthStorage';
+import { correlationEngine } from './clickhouseCorrelationEngine';
 import { createLogger } from '../utils/logger';
 import { randomUUID } from 'crypto';
 
@@ -459,6 +460,9 @@ export class ClickHouseBaselineEngine {
 
       if (patternedAnomalies.length > 0) {
         await this.storeAnomalies(healthId, patternedAnomalies);
+        
+        // Generate AI feedback questions based on detected anomalies
+        await this.triggerFeedbackQuestions(healthId, patternedAnomalies);
       }
 
       logger.info(`[ClickHouseML] Detected ${patternedAnomalies.length} anomalies for ${healthId}`);
@@ -773,6 +777,42 @@ export class ClickHouseBaselineEngine {
     }));
 
     await clickhouse.insert('detected_anomalies', rows);
+  }
+
+  private async triggerFeedbackQuestions(healthId: string, anomalies: AnomalyResult[]): Promise<void> {
+    try {
+      // Only generate questions for moderate or high severity anomalies
+      const significantAnomalies = anomalies.filter(a => a.severity === 'moderate' || a.severity === 'high');
+      if (significantAnomalies.length === 0) return;
+
+      // Extract patterns and metrics for the correlation engine
+      const patterns = [...new Set(significantAnomalies.map(a => a.patternFingerprint).filter(Boolean))] as string[];
+      const anomalyIds = significantAnomalies.map(a => a.anomalyId);
+      const metrics: Record<string, number> = {};
+      
+      for (const a of significantAnomalies) {
+        metrics[a.metricType] = a.deviationPct;
+        // Also store absolute values for specific metrics
+        if (a.metricType === 'wrist_temperature_deviation') {
+          metrics['wrist_temperature_deviation'] = a.currentValue;
+        }
+      }
+
+      // Use correlation engine to generate contextual feedback question
+      const question = await correlationEngine.generateFeedbackQuestion(
+        healthId,
+        'anomaly',
+        anomalyIds,
+        patterns,
+        metrics
+      );
+
+      if (question) {
+        logger.info(`[ClickHouseML] Generated feedback question for ${healthId}: "${question.questionText}"`);
+      }
+    } catch (error) {
+      logger.error('[ClickHouseML] Error triggering feedback questions:', error);
+    }
   }
 
   async recordFeedbackOutcome(
