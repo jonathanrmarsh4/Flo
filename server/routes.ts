@@ -5728,6 +5728,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== ENVIRONMENTAL DATA BACKFILL ADMIN ENDPOINTS ====================
+
+  // Admin: Get backfill statistics across all users
+  app.get("/api/admin/environmental/backfill/stats", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { getBackfillStats } = await import('./services/environmentalBackfillService');
+      const stats = await getBackfillStats();
+      res.json({ success: true, stats });
+    } catch (error: any) {
+      logger.error('[Admin] Environmental backfill stats error:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch backfill stats" });
+    }
+  });
+
+  // Admin: Get backfill status for specific user
+  app.get("/api/admin/environmental/backfill/status/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const { getBackfillStatus } = await import('./services/environmentalBackfillService');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "User not found or no health_id" });
+      }
+      
+      const status = await getBackfillStatus(healthId);
+      res.json({ success: true, userId, healthId: healthId.substring(0, 8) + '...', status });
+    } catch (error: any) {
+      logger.error('[Admin] Environmental backfill status error:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch backfill status" });
+    }
+  });
+
+  // Admin: Trigger 12-month environmental backfill for a specific user
+  app.post("/api/admin/environmental/backfill/user/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { monthsBack = 12, forceRefresh = false } = req.body;
+      
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const { runBackfillForUser } = await import('./services/environmentalBackfillService');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "User not found or no health_id" });
+      }
+      
+      logger.info('[Admin] Starting environmental backfill for user', { 
+        userId, 
+        healthId: healthId.substring(0, 8) + '...', 
+        monthsBack, 
+        forceRefresh,
+        adminId: req.user?.claims?.sub 
+      });
+      
+      // Run backfill (this may take a while for 12 months of data)
+      const result = await runBackfillForUser(healthId, { monthsBack, forceRefresh });
+      
+      res.json({
+        success: result.success,
+        userId,
+        healthId: healthId.substring(0, 8) + '...',
+        daysProcessed: result.daysProcessed,
+        error: result.error,
+        message: result.success 
+          ? `Backfilled ${result.daysProcessed} days of environmental data`
+          : result.error || 'Backfill failed',
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Environmental backfill error:', error);
+      res.status(500).json({ error: error.message || "Failed to run backfill" });
+    }
+  });
+
+  // Admin: Trigger bulk environmental backfill for all users with location data
+  app.post("/api/admin/environmental/backfill/all", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { runBackfillForAllUsers } = await import('./services/environmentalBackfillService');
+      
+      logger.info('[Admin] Starting bulk environmental backfill for all users', { 
+        adminId: req.user?.claims?.sub 
+      });
+      
+      // This is a long-running operation - consider making it async with status polling
+      const result = await runBackfillForAllUsers();
+      
+      res.json({
+        success: true,
+        ...result,
+        message: `Bulk backfill complete: ${result.successful} successful, ${result.failed} failed, ${result.noLocationData} no location data`,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Bulk environmental backfill error:', error);
+      res.status(500).json({ error: error.message || "Failed to run bulk backfill" });
+    }
+  });
+
+  // Admin: Get user's location history summary (for debugging backfill)
+  app.get("/api/admin/environmental/location-history/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "User not found or no health_id" });
+      }
+      
+      const supabase = getSupabaseClient();
+      
+      // Get location history stats
+      const { data: stats, error } = await supabase
+        .from('user_location_history')
+        .select('recorded_at')
+        .eq('health_id', healthId)
+        .order('recorded_at', { ascending: true });
+      
+      if (error) {
+        throw error;
+      }
+      
+      const records = stats || [];
+      const uniqueDates = new Set(records.map(r => new Date(r.recorded_at).toISOString().split('T')[0]));
+      
+      res.json({
+        success: true,
+        userId,
+        healthId: healthId.substring(0, 8) + '...',
+        totalRecords: records.length,
+        uniqueDays: uniqueDates.size,
+        earliestRecord: records.length > 0 ? records[0].recorded_at : null,
+        latestRecord: records.length > 0 ? records[records.length - 1].recorded_at : null,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Location history error:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch location history" });
+    }
+  });
+
+  // Admin: Get environmental data coverage for user
+  app.get("/api/admin/environmental/coverage/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "User not found or no health_id" });
+      }
+      
+      const supabase = getSupabaseClient();
+      
+      // Get weather cache stats
+      const { data: weatherStats, error } = await supabase
+        .from('weather_daily_cache')
+        .select('date, air_quality_data')
+        .eq('health_id', healthId)
+        .order('date', { ascending: true });
+      
+      if (error) {
+        throw error;
+      }
+      
+      const records = weatherStats || [];
+      const withAqi = records.filter(r => r.air_quality_data !== null);
+      
+      res.json({
+        success: true,
+        userId,
+        healthId: healthId.substring(0, 8) + '...',
+        totalDays: records.length,
+        daysWithAqi: withAqi.length,
+        coverage: records.length > 0 ? ((withAqi.length / records.length) * 100).toFixed(1) + '%' : '0%',
+        earliestDate: records.length > 0 ? records[0].date : null,
+        latestDate: records.length > 0 ? records[records.length - 1].date : null,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Environmental coverage error:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch environmental coverage" });
+    }
+  });
+
   // Admin: Get ML Usage metrics from ClickHouse Orchestrator
   app.get("/api/admin/ml-usage/metrics", isAuthenticated, requireAdmin, async (req, res) => {
     try {

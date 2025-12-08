@@ -1417,7 +1417,7 @@ export class ClickHouseBaselineEngine {
     }
   }
 
-  async syncEnvironmentalData(healthId: string, daysBack: number | null = 90): Promise<number> {
+  async syncEnvironmentalData(healthId: string, daysBack?: number): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 
     try {
@@ -1430,7 +1430,7 @@ export class ClickHouseBaselineEngine {
         .eq('health_id', healthId)
         .order('date', { ascending: true });
 
-      if (daysBack !== null) {
+      if (daysBack !== undefined) {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - daysBack);
         const startDateStr = startDate.toISOString().split('T')[0];
@@ -1449,27 +1449,48 @@ export class ClickHouseBaselineEngine {
         return 0;
       }
 
-      const rows = weather.map(w => ({
-        health_id: healthId,
-        local_date: w.date,
-        latitude: w.latitude,
-        longitude: w.longitude,
-        temperature_c: w.temperature_celsius,
-        humidity_pct: w.humidity_percent,
-        pressure_hpa: w.pressure_hpa,
-        uv_index: w.uv_index,
-        aqi: w.aqi,
-        pm25: w.pm25,
-        pm10: w.pm10,
-        ozone: w.ozone,
-        no2: w.no2,
-        weather_condition: w.condition,
-        heat_stress_score: null, // Can be calculated
-        air_quality_impact: w.aqi ? (w.aqi > 100 ? (w.aqi - 100) / 100 : 0) : null,
-      }));
+      const rows = weather.map(w => {
+        const weatherData = w.weather_data as Record<string, any> | null;
+        const aqData = w.air_quality_data as Record<string, any> | null;
+        const components = aqData?.components || {};
+        
+        const temperature = weatherData?.temperature ?? null;
+        const aqi = aqData?.aqi ?? null;
+        
+        let heatStressScore = null;
+        if (temperature !== null) {
+          if (temperature > 35) heatStressScore = 1.0;
+          else if (temperature > 30) heatStressScore = 0.7;
+          else if (temperature > 27) heatStressScore = 0.4;
+          else if (temperature < 0) heatStressScore = 0.8;
+          else if (temperature < 5) heatStressScore = 0.5;
+        }
+
+        return {
+          health_id: healthId,
+          local_date: w.date,
+          latitude: w.latitude,
+          longitude: w.longitude,
+          temperature_c: temperature,
+          humidity_pct: weatherData?.humidity ?? null,
+          pressure_hpa: weatherData?.pressure ?? null,
+          uv_index: null,
+          aqi: aqi,
+          pm25: components.pm2_5 ?? components.pm25 ?? null,
+          pm10: components.pm10 ?? null,
+          ozone: components.o3 ?? null,
+          no2: components.no2 ?? null,
+          so2: components.so2 ?? null,
+          co: components.co ?? null,
+          nh3: components.nh3 ?? null,
+          weather_condition: weatherData?.weatherMain ?? null,
+          heat_stress_score: heatStressScore,
+          air_quality_impact: aqi ? (aqi > 3 ? (aqi - 3) / 2 : 0) : null,
+        };
+      });
 
       await clickhouse.insert('environmental_data', rows);
-      logger.info(`[ClickHouseML] Synced ${rows.length} environmental records for ${healthId}`);
+      logger.info(`[ClickHouseML] Synced ${rows.length} environmental records for ${healthId} (with full AQI components)`);
       return rows.length;
     } catch (error) {
       logger.error('[ClickHouseML] Environmental sync error:', error);
