@@ -2003,28 +2003,8 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
     queryKey: ['/api/nutrition/macros/weekly'],
   });
 
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
-
-  if (isLoading || !macrosData) {
-    return (
-      <div className="fixed inset-0 z-[100] flex items-end justify-center">
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm touch-none" onClick={onClose} />
-        <div className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const weekData = macrosData.weekData;
-  const todayData = weekData[weekData.length - 1];
+  const weekData = macrosData?.weekData || [];
+  const todayData = weekData.length > 0 ? weekData[weekData.length - 1] : { protein: 0, carbs: 0, fat: 0, calories: 0, satFat: 0, sodium: 0, cholesterol: 0, fiber: 0, day: 'Today', date: '' };
   
   const proteinCals = todayData.protein * 4;
   const carbsCals = todayData.carbs * 4;
@@ -2036,21 +2016,18 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
   const fatPercent = totalMacroCals > 0 ? Math.round((fatCals / totalMacroCals) * 100) : 0;
 
   const maxCalories = Math.max(...weekData.map(d => d.calories), 1);
-  const displayData = timeView === 'day' ? [todayData] : weekData;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center">
       <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm touch-none"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
+        data-testid="modal-backdrop-macros"
       />
       
-      <div 
-        className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto overscroll-contain ${ 
-          isDark ? 'bg-slate-900' : 'bg-white'
-        }`}
-        onTouchMove={(e) => e.stopPropagation()}
-      >
+      <div className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto ${ 
+        isDark ? 'bg-slate-900' : 'bg-white'
+      }`} data-testid="modal-macros-details">
         <div className={`sticky top-0 z-10 backdrop-blur-xl border-b ${
           isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-black/10'
         }`}>
@@ -2113,6 +2090,12 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
         </div>
 
         <div className="px-6 py-6 space-y-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+            </div>
+          ) : (
+            <>
           {timeView === 'day' && (
             <div className={`rounded-2xl border p-5 ${
               isDark 
@@ -2205,7 +2188,7 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
                       Avg Calories
                     </div>
                     <div className={`text-2xl ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                      {macrosData.averages.calories}
+                      {macrosData?.averages?.calories ?? 0}
                     </div>
                     <div className={`text-xs ${isDark ? 'text-cyan-400/70' : 'text-cyan-600/70'}`}>
                       per day
@@ -2218,7 +2201,7 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
                       Avg Protein
                     </div>
                     <div className={`text-2xl ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
-                      {macrosData.averages.protein}g
+                      {macrosData?.averages?.protein ?? 0}g
                     </div>
                     <div className={`text-xs ${isDark ? 'text-purple-400/70' : 'text-purple-600/70'}`}>
                       per day
@@ -2230,14 +2213,12 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
             
             {timeView === 'day' && (
               <div className="space-y-3">
-                {displayData.map((day, index) => {
+                {[todayData].map((day, index) => {
                   const isToday = day.day === 'Today';
                   const totalCals = day.calories;
                   
                   const maxValue = Math.max(
-                    ...displayData.map(d => Math.max(
-                      d.carbs, d.protein, d.fat, d.satFat, d.fiber, d.sodium / 10, d.cholesterol / 10
-                    )),
+                    day.carbs, day.protein, day.fat, day.satFat ?? 0, day.fiber ?? 0, (day.sodium ?? 0) / 10, (day.cholesterol ?? 0) / 10,
                     1
                   );
 
@@ -2440,6 +2421,8 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
                 </span>
               </div>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>
