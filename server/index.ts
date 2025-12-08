@@ -6,6 +6,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startFlomentumWeeklyScheduler } from "./services/flomentumWeeklyScheduler";
 import { startInsightsSchedulerV2 } from "./services/insightsSchedulerV2";
 import { initializeDailyReminderScheduler } from "./services/dailyReminderScheduler";
+import { initializeReminderDeliveryService } from "./services/reminderDeliveryService";
 import { startFollowUpScheduler } from "./services/followUpScheduler";
 import { clickhouseOrchestrator } from "./services/clickhouseOrchestrator";
 
@@ -160,6 +161,9 @@ app.use((req, res, next) => {
       
       // Start the daily reminder scheduler (10am UTC)
       initializeDailyReminderScheduler();
+      
+      // Start the reminder delivery service (sends queued APNs + 3PM survey notifications)
+      initializeReminderDeliveryService();
       
       // Start the follow-up request scheduler (evaluates pending follow-ups every 30 min)
       startFollowUpScheduler();

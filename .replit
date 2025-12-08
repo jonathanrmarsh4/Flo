@@ -18,6 +18,10 @@ externalPort = 80
 localPort = 39587
 externalPort = 3000
 
+[[ports]]
+localPort = 43357
+externalPort = 3001
+
 [env]
 PORT = "5000"
 
@@ -52,3 +56,6 @@ SUPABASE_HEALTH_ENABLED = "true"
 
 [userenv.development]
 SUPABASE_HEALTH_ENABLED = "true"
+
+[userenv.shared]
+ENABLE_DAILY_REMINDERS = "true"

@@ -6907,6 +6907,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test 3PM survey notification (admin only)
+  app.post("/api/admin/test-survey-notification", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.body;
+
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      const { triggerManualSurveyNotification } = await import("./services/reminderDeliveryService");
+      const result = await triggerManualSurveyNotification(userId);
+
+      logger.info(`[Admin] 3PM survey notification test: ${result.success ? 'sent' : 'failed'}`);
+      res.json(result);
+    } catch (error: any) {
+      logger.error('Error sending 3PM survey notification:', error);
+      res.status(500).json({ error: "Failed to send 3PM survey notification", message: error.message });
+    }
+  });
+
+  // Manually trigger reminder delivery (admin only)
+  app.post("/api/admin/trigger-reminder-delivery", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { triggerManualDelivery } = await import("./services/reminderDeliveryService");
+      await triggerManualDelivery();
+      
+      logger.info('[Admin] Manual reminder delivery triggered');
+      res.json({ success: true, message: "Reminder delivery triggered - check logs for results" });
+    } catch (error: any) {
+      logger.error('Error triggering reminder delivery:', error);
+      res.status(500).json({ error: "Failed to trigger reminder delivery", message: error.message });
+    }
+  });
+
   // Clear Flō Oracle context cache (admin only, for debugging)
   app.post("/api/admin/clear-oracle-cache", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {

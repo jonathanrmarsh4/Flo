@@ -1,5 +1,5 @@
 import * as cron from 'node-cron';
-import { getSupabaseClient } from '../db/supabaseHealthClient';
+import { getSupabaseClient } from './supabaseClient';
 import { apnsService } from './apnsService';
 import { logger } from '../logger';
 import { db } from '../db';
@@ -69,7 +69,7 @@ async function deliverQueuedReminders() {
             logger.info(`[ReminderDelivery] Delivered reminder ${reminder.id} to user ${reminder.user_id} (${result.devicesReached} devices)`);
           }
         } else {
-          logger.warn(`[ReminderDelivery] No devices reached for user ${reminder.user_id}:`, result.error);
+          logger.warn(`[ReminderDelivery] No devices reached for user ${reminder.user_id}`, { error: result.error });
           
           const scheduledAt = new Date(reminder.schedule_at_ms);
           const hoursOld = (now - reminder.schedule_at_ms) / (1000 * 60 * 60);
@@ -149,7 +149,7 @@ async function processThreePMSurveyNotifications() {
           }
         }
       } catch (error) {
-        logger.warn(`[3PMSurvey] Error checking user ${user.id}:`, error);
+        logger.warn(`[3PMSurvey] Error checking user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
       }
     }
 
@@ -177,11 +177,11 @@ async function processThreePMSurveyNotifications() {
           logger.info(`[3PMSurvey] Sent notification to ${user.firstName || user.id}`);
         }
       } catch (error) {
-        logger.warn(`[3PMSurvey] Failed to send notification to user ${user.id}:`, error);
+        logger.warn(`[3PMSurvey] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
       }
     }
   } catch (error) {
-    logger.error('[3PMSurvey] Fatal error in survey notification job:', error);
+    logger.error('[3PMSurvey] Fatal error in survey notification job', { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -262,7 +262,7 @@ export async function triggerManualSurveyNotification(userId: string) {
     logger.info(`[3PMSurvey] Manual notification sent to user ${userId}:`, result);
     return result;
   } catch (error) {
-    logger.error(`[3PMSurvey] Manual notification failed for user ${userId}:`, error);
+    logger.error(`[3PMSurvey] Manual notification failed for user ${userId}`, { error: error instanceof Error ? error.message : String(error) });
     return { success: false, error: String(error) };
   }
 }

@@ -4,12 +4,15 @@ import { apnsConfiguration, deviceTokens, notificationLogs, type DeviceToken } f
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../logger';
 
+type InterruptionLevel = 'passive' | 'active' | 'time-sensitive' | 'critical';
+
 interface PushNotificationPayload {
   title: string;
   body: string;
   badge?: number;
   sound?: string;
   data?: Record<string, any>;
+  interruptionLevel?: InterruptionLevel;
 }
 
 class ApnsService {
@@ -103,6 +106,7 @@ class ApnsService {
           },
           badge: payload.badge,
           sound: payload.sound || 'default',
+          'interruption-level': payload.interruptionLevel || 'time-sensitive',
         }
       };
 
