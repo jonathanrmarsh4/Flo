@@ -68,7 +68,7 @@ export default function SleepLogger() {
   });
 
   const { data: timerStatus } = useQuery<ActiveTimer>({
-    queryKey: ['/api/sleep/manual/timer/status'],
+    queryKey: ['/api/sleep/manual/timer'],
     refetchInterval: 5000,
   });
 
@@ -95,7 +95,7 @@ export default function SleepLogger() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/sleep/manual/timer/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sleep/manual/timer'] });
       toast({ title: 'Sleep timer started', description: 'Tracking your sleep now. Stop when you wake up.' });
     },
     onError: (error: any) => {
@@ -110,7 +110,7 @@ export default function SleepLogger() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/sleep/manual'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/sleep/manual/timer/status'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/sleep/manual/timer'] });
       toast({ 
         title: 'Sleep logged!', 
         description: data.message || 'Your sleep has been recorded.' 
