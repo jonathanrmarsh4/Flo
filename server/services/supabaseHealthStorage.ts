@@ -1705,7 +1705,10 @@ export async function getActiveManualSleepTimer(userId: string): Promise<ManualS
 export async function startManualSleepTimer(userId: string, timezone: string): Promise<ManualSleepEntry> {
   const healthId = await getHealthId(userId);
   const now = new Date();
-  const tempSleepDate = now.toISOString().split('T')[0]; // Temporary, will update on stop
+  
+  // Calculate the local date in user's timezone for the sleep_date
+  // This is the date when sleep STARTS (bedtime date)
+  const localDateStr = now.toLocaleDateString('en-CA', { timeZone: timezone }); // YYYY-MM-DD format
   
   // Format local bedtime
   const bedtimeLocal = now.toLocaleTimeString('en-US', {
@@ -1715,8 +1718,56 @@ export async function startManualSleepTimer(userId: string, timezone: string): P
     timeZone: timezone,
   }).toLowerCase();
 
+  // Check if there's already an entry for today
+  const { data: existingEntry } = await supabase
+    .from('sleep_nights')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('sleep_date', localDateStr)
+    .maybeSingle();
+
+  if (existingEntry) {
+    // If it's a manual entry without active timer, convert it to timer mode
+    if (existingEntry.source === 'manual' && !existingEntry.is_timer_active) {
+      const { data: updated, error: updateError } = await supabase
+        .from('sleep_nights')
+        .update({
+          bedtime: now.toISOString(),
+          bedtime_local: bedtimeLocal,
+          wake_time: now.toISOString(),
+          waketime_local: '',
+          duration_minutes: 0,
+          is_timer_active: true,
+          timer_started_at: now.toISOString(),
+          timezone,
+          updated_at: now.toISOString(),
+        })
+        .eq('id', existingEntry.id)
+        .eq('health_id', healthId)
+        .select()
+        .single();
+
+      if (updateError) {
+        logger.error('[SupabaseHealth] Error converting entry to timer:', updateError);
+        throw updateError;
+      }
+
+      logger.info(`[SupabaseHealth] Converted existing entry to timer at ${bedtimeLocal}`);
+      return updated;
+    }
+    
+    // If it's HealthKit data or already has an active timer, throw an error
+    if (existingEntry.source === 'healthkit') {
+      throw new Error('You already have HealthKit sleep data for today. Delete it first to use the timer.');
+    }
+    if (existingEntry.is_timer_active) {
+      throw new Error('A sleep timer is already active.');
+    }
+  }
+
+  // No existing entry, create a new one
   const entry: Omit<ManualSleepEntry, 'health_id'> = {
-    sleep_date: tempSleepDate,
+    sleep_date: localDateStr,
     timezone,
     bedtime: now.toISOString(),
     wake_time: now.toISOString(), // Placeholder
