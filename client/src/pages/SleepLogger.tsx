@@ -105,7 +105,7 @@ export default function SleepLogger() {
 
   const stopTimerMutation = useMutation({
     mutationFn: async (qualityRating: number) => {
-      const res = await apiRequest('POST', '/api/sleep/manual/timer/stop', { quality_rating: qualityRating });
+      const res = await apiRequest('POST', '/api/sleep/manual/timer/stop', { qualityRating });
       return res.json();
     },
     onSuccess: (data) => {
@@ -125,10 +125,10 @@ export default function SleepLogger() {
   const createEntryMutation = useMutation({
     mutationFn: async (data: { 
       sleep_date: string; 
-      bedtime?: string; 
-      wake_time?: string; 
-      duration_minutes: number; 
-      quality_rating: number; 
+      bedtime: string; 
+      wakeTime: string; 
+      qualityRating: number; 
+      timezone: string;
       notes?: string 
     }) => {
       const res = await apiRequest('POST', '/api/sleep/manual', data);
@@ -511,13 +511,16 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
       return;
     }
 
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
     const data: any = {
       sleep_date: sleepDate,
       duration_minutes: sleepMinutes,
-      quality_rating: quality,
+      qualityRating: quality,
       notes: notes || undefined,
       bedtime: bedtimeDate.toISOString(),
-      wake_time: waketimeDate.toISOString(),
+      wakeTime: waketimeDate.toISOString(),
+      timezone,
     };
 
     onSave(data);
