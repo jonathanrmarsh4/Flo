@@ -80,7 +80,7 @@ const getCategoryLabel = (category: string) => {
   }
 };
 
-type CategoryFilter = 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
+type CategoryFilter = 'deep_insights' | 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
 
 export default function InsightsScreen() {
   const { toast } = useToast();
@@ -165,11 +165,15 @@ export default function InsightsScreen() {
   });
   
   // Filter insights based on selected category
-  const filteredInsights = selectedCategory === 'all' 
-    ? insights 
-    : insights.filter(insight => insight.category === selectedCategory);
+  // Deep Insights shows only ML patterns, not daily insights
+  const filteredInsights = selectedCategory === 'deep_insights'
+    ? [] // No daily insights for deep insights view
+    : selectedCategory === 'all' 
+      ? insights 
+      : insights.filter(insight => insight.category === selectedCategory);
 
   const categoryFilterOptions = [
+    { value: 'deep_insights' as CategoryFilter, label: 'Deep Insights' },
     { value: 'all' as CategoryFilter, label: 'All' },
     { value: 'sleep_quality' as CategoryFilter, label: 'Sleep' },
     { value: 'activity_sleep' as CategoryFilter, label: 'Activity' },
@@ -185,10 +189,13 @@ export default function InsightsScreen() {
         <div className="flex-shrink-0 px-6 py-6 pt-[env(safe-area-inset-top)] border-b border-white/10">
           <div className="mb-4 mt-4">
             <h1 className="text-2xl font-bold text-white mb-1" data-testid="heading-insights">
-              AI Insights
+              {selectedCategory === 'deep_insights' ? 'Deep Insights' : 'AI Insights'}
             </h1>
             <p className="text-sm text-white/60">
-              {filteredInsights.length} personalized recommendation{filteredInsights.length !== 1 ? 's' : ''}
+              {selectedCategory === 'deep_insights' 
+                ? `${correlationInsights.length} ML-detected pattern${correlationInsights.length !== 1 ? 's' : ''}`
+                : `${filteredInsights.length} personalized recommendation${filteredInsights.length !== 1 ? 's' : ''}`
+              }
             </p>
           </div>
 
@@ -221,8 +228,20 @@ export default function InsightsScreen() {
             </div>
           )}
 
-          {/* Empty state */}
-          {!isLoading && filteredInsights.length === 0 && (
+          {/* Empty state - different for Deep Insights vs regular */}
+          {!isLoading && selectedCategory === 'deep_insights' && correlationInsights.length === 0 && (
+            <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
+              <AlertTriangle className="w-16 h-16 text-white/20" />
+              <div>
+                <h3 className="text-lg font-semibold mb-2 text-white">No Deep Insights Yet</h3>
+                <p className="text-sm text-white/60">
+                  Our ML engine is analyzing your health data. Deep insights will appear here when patterns are detected.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {!isLoading && selectedCategory !== 'deep_insights' && filteredInsights.length === 0 && (
             <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
               <Sparkles className="w-16 h-16 text-white/20" />
               <div>
@@ -239,8 +258,101 @@ export default function InsightsScreen() {
             </div>
           )}
 
-          {/* Insights list */}
-          {!isLoading && filteredInsights.length > 0 && (
+          {/* Deep Insights View - ML Patterns prominently displayed */}
+          {!isLoading && selectedCategory === 'deep_insights' && correlationInsights.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <span className="text-sm text-white/70">Machine learning detected patterns</span>
+              </div>
+              {correlationInsights.map((insight) => {
+                const patternType = insight.tags.find(t => t !== 'ml_anomaly') || 'pattern';
+                const isIllness = patternType === 'illness_precursor';
+                const isRecovery = patternType === 'recovery_deficit';
+                
+                return (
+                  <div
+                    key={insight.id}
+                    className={`rounded-2xl border p-5 ${
+                      isIllness 
+                        ? 'bg-amber-500/10 border-amber-500/30' 
+                        : isRecovery 
+                          ? 'bg-rose-500/10 border-rose-500/30'
+                          : 'bg-cyan-500/10 border-cyan-500/30'
+                    }`}
+                    data-testid={`card-deep-insight-${insight.id}`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-xl ${
+                        isIllness 
+                          ? 'bg-amber-500/20' 
+                          : isRecovery 
+                            ? 'bg-rose-500/20'
+                            : 'bg-cyan-500/20'
+                      }`}>
+                        {isIllness ? (
+                          <AlertTriangle className={`w-5 h-5 text-amber-500`} />
+                        ) : isRecovery ? (
+                          <Heart className={`w-5 h-5 text-rose-500`} />
+                        ) : (
+                          <TrendingUp className={`w-5 h-5 text-cyan-500`} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${
+                            isIllness 
+                              ? 'bg-amber-500/20 text-amber-400' 
+                              : isRecovery 
+                                ? 'bg-rose-500/20 text-rose-400'
+                                : 'bg-cyan-500/20 text-cyan-400'
+                          }`}>
+                            {isIllness 
+                              ? 'ILLNESS PATTERN' 
+                              : isRecovery 
+                                ? 'RECOVERY CONCERN'
+                                : 'HEALTH PATTERN'}
+                          </span>
+                          <span className={`px-2 py-0.5 text-xs rounded-full ${
+                            insight.importance >= 4 
+                              ? 'bg-red-500/20 text-red-400' 
+                              : insight.importance >= 3
+                                ? 'bg-amber-500/20 text-amber-400'
+                                : 'bg-white/10 text-white/50'
+                          }`}>
+                            {insight.importance >= 4 ? 'High Priority' : insight.importance >= 3 ? 'Medium' : 'Low'}
+                          </span>
+                        </div>
+                        <p className="text-base text-white/90 leading-relaxed mb-3">
+                          {insight.text}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-white/40">
+                            Detected {new Date(insight.createdAt).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
+                          <button
+                            onClick={() => deleteCorrelationMutation.mutate(insight.id)}
+                            disabled={deleteCorrelationMutation.isPending}
+                            className="p-2 rounded-lg hover:bg-white/10 transition-colors text-white/50 hover:text-white/80"
+                            data-testid={`button-delete-deep-${insight.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Insights list - only show when not in Deep Insights view */}
+          {!isLoading && selectedCategory !== 'deep_insights' && filteredInsights.length > 0 && (
             <div className="flex flex-col gap-4">
               {filteredInsights.map((insight) => {
                 const isAdded = addedInsights.has(insight.id);
@@ -367,8 +479,8 @@ export default function InsightsScreen() {
             </div>
           )}
 
-          {/* ML Detected Patterns Section */}
-          {correlationInsights.length > 0 && (
+          {/* ML Detected Patterns Section - only show at bottom when NOT in Deep Insights view */}
+          {selectedCategory !== 'deep_insights' && correlationInsights.length > 0 && (
             <div className="mt-8 pt-6 border-t border-white/10">
               <div className="flex items-center gap-2 mb-4">
                 <AlertTriangle className="w-5 h-5 text-amber-400" />
