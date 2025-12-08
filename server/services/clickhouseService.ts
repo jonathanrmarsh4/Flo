@@ -315,6 +315,9 @@ export async function initializeClickHouse(): Promise<boolean> {
           pm10 Nullable(Float64),
           ozone Nullable(Float64),
           no2 Nullable(Float64),
+          so2 Nullable(Float64),
+          co Nullable(Float64),
+          nh3 Nullable(Float64),
           weather_condition Nullable(String),
           heat_stress_score Nullable(Float64),
           air_quality_impact Nullable(Float64),
@@ -325,6 +328,18 @@ export async function initializeClickHouse(): Promise<boolean> {
         ORDER BY (health_id, local_date)
       `,
     });
+    
+    // Add new AQI columns to existing tables (safe no-op if columns already exist)
+    const newAqiColumns = ['so2', 'co', 'nh3'];
+    for (const col of newAqiColumns) {
+      try {
+        await ch.command({
+          query: `ALTER TABLE flo_health.environmental_data ADD COLUMN IF NOT EXISTS ${col} Nullable(Float64)`,
+        });
+      } catch (e) {
+        // Column may already exist, ignore
+      }
+    }
 
     // DEXA / Body composition scans
     await ch.command({
