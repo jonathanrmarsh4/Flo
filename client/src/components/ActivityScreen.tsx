@@ -1997,25 +1997,21 @@ interface MacrosDetailsModalProps {
 }
 
 function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
-  const [timeView, setTimeView] = useState<'day' | 'week'>('day');
-  
   const { data: macrosData, isLoading } = useQuery<MacrosWeeklyData>({
     queryKey: ['/api/nutrition/macros/weekly'],
   });
 
   const weekData = macrosData?.weekData || [];
-  const todayData = weekData.length > 0 ? weekData[weekData.length - 1] : { protein: 0, carbs: 0, fat: 0, calories: 0, satFat: 0, sodium: 0, cholesterol: 0, fiber: 0, day: 'Today', date: '' };
+  const avgCalories = macrosData?.averages?.calories ?? 0;
+  const avgProtein = macrosData?.averages?.protein ?? 0;
+  const avgCarbs = macrosData?.averages?.carbs ?? 0;
+  const avgFat = macrosData?.averages?.fat ?? 0;
   
-  const proteinCals = todayData.protein * 4;
-  const carbsCals = todayData.carbs * 4;
-  const fatCals = todayData.fat * 9;
-  const totalMacroCals = proteinCals + carbsCals + fatCals;
-  
-  const proteinPercent = totalMacroCals > 0 ? Math.round((proteinCals / totalMacroCals) * 100) : 0;
-  const carbsPercent = totalMacroCals > 0 ? Math.round((carbsCals / totalMacroCals) * 100) : 0;
-  const fatPercent = totalMacroCals > 0 ? Math.round((fatCals / totalMacroCals) * 100) : 0;
-
   const maxCalories = Math.max(...weekData.map(d => d.calories), 1);
+  
+  const bestDay = weekData.reduce((best, day) => 
+    day.calories > (best?.calories || 0) ? day : best, weekData[0]);
+  const highProteinDays = weekData.filter(d => d.protein >= 100).length;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center">
@@ -2032,13 +2028,13 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
           isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-black/10'
         }`}>
           <div className="px-6 py-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between">
               <div>
                 <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Macros Details
                 </h2>
                 <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                  Nutrition breakdown
+                  Last 7 days
                 </p>
               </div>
               <button
@@ -2051,377 +2047,198 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
                 <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
               </button>
             </div>
-
-            <div className={`flex gap-2 p-1 rounded-xl ${
-              isDark ? 'bg-white/5' : 'bg-gray-100'
-            }`}>
-              <button
-                onClick={() => setTimeView('day')}
-                className={`flex-1 px-3 py-1.5 rounded-lg text-xs transition-all ${
-                  timeView === 'day'
-                    ? isDark 
-                      ? 'bg-purple-500 text-white' 
-                      : 'bg-purple-600 text-white'
-                    : isDark 
-                      ? 'text-white/60 hover:text-white/80' 
-                      : 'text-gray-600 hover:text-gray-900'
-                }`}
-                data-testid="button-macros-today"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setTimeView('week')}
-                className={`flex-1 px-3 py-1.5 rounded-lg text-xs transition-all ${
-                  timeView === 'week'
-                    ? isDark 
-                      ? 'bg-purple-500 text-white' 
-                      : 'bg-purple-600 text-white'
-                    : isDark 
-                      ? 'text-white/60 hover:text-white/80' 
-                      : 'text-gray-600 hover:text-gray-900'
-                }`}
-                data-testid="button-macros-week"
-              >
-                7 Days
-              </button>
-            </div>
           </div>
         </div>
 
         <div className="px-6 py-6 space-y-6">
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-            </div>
+            <LoadingSpinner isDark={isDark} />
           ) : (
             <>
-          {timeView === 'day' && (
-            <div className={`rounded-2xl border p-5 ${
-              isDark 
-                ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30' 
-                : 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200'
-            }`}>
-              <h3 className={`text-sm mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Macro Split
-              </h3>
-              
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <div className={`p-4 rounded-xl text-center ${
-                  isDark ? 'bg-white/5' : 'bg-white'
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
                 }`}>
-                  <div className={`text-2xl mb-1 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
-                    {proteinPercent}%
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Calories
                   </div>
-                  <div className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                    Protein
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {avgCalories.toLocaleString()}
                   </div>
-                  <div className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                    {todayData.protein}g
+                  <div className={`text-xs mt-1 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                    per day
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-xl text-center ${
-                  isDark ? 'bg-white/5' : 'bg-white'
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
                 }`}>
-                  <div className={`text-2xl mb-1 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                    {carbsPercent}%
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Protein
                   </div>
-                  <div className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                    Carbs
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {avgProtein}g
                   </div>
-                  <div className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                    {todayData.carbs}g
+                  <div className={`text-xs mt-1 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    per day
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-xl text-center ${
-                  isDark ? 'bg-white/5' : 'bg-white'
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
                 }`}>
-                  <div className={`text-2xl mb-1 ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
-                    {fatPercent}%
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Carbs
                   </div>
-                  <div className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                    Fat
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {avgCarbs}g
                   </div>
-                  <div className={`text-xs mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                    {todayData.fat}g
+                  <div className={`text-xs mt-1 ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                    per day
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Fat
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {avgFat}g
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                    per day
                   </div>
                 </div>
               </div>
 
-              <div className="h-3 rounded-full overflow-hidden flex">
-                <div 
-                  className="bg-purple-500"
-                  style={{ width: `${proteinPercent}%` }}
-                />
-                <div 
-                  className="bg-cyan-500"
-                  style={{ width: `${carbsPercent}%` }}
-                />
-                <div 
-                  className="bg-orange-500"
-                  style={{ width: `${fatPercent}%` }}
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {timeView === 'day' ? "Today's Breakdown" : 'Weekly Trend'}
-            </h3>
-            
-            {timeView === 'week' && (
-              <>
-                <MacrosWeekView 
-                  weekData={weekData}
-                  maxCalories={maxCalories}
-                  isDark={isDark}
-                />
-                
-                <div className="grid grid-cols-2 gap-3 mt-6">
-                  <div className={`p-4 rounded-xl border ${
-                    isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                      Avg Calories
-                    </div>
-                    <div className={`text-2xl ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                      {macrosData?.averages?.calories ?? 0}
-                    </div>
-                    <div className={`text-xs ${isDark ? 'text-cyan-400/70' : 'text-cyan-600/70'}`}>
-                      per day
-                    </div>
-                  </div>
-                  <div className={`p-4 rounded-xl border ${
-                    isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
-                  }`}>
-                    <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                      Avg Protein
-                    </div>
-                    <div className={`text-2xl ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
-                      {macrosData?.averages?.protein ?? 0}g
-                    </div>
-                    <div className={`text-xs ${isDark ? 'text-purple-400/70' : 'text-purple-600/70'}`}>
-                      per day
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            
-            {timeView === 'day' && (
-              <div className="space-y-3">
-                {[todayData].map((day, index) => {
-                  const isToday = day.day === 'Today';
-                  const totalCals = day.calories;
-                  
-                  const maxValue = Math.max(
-                    day.carbs, day.protein, day.fat, day.satFat ?? 0, day.fiber ?? 0, (day.sodium ?? 0) / 10, (day.cholesterol ?? 0) / 10,
-                    1
-                  );
-
-                  return (
-                    <div key={index}>
-                      <div className="mb-4">
-                        <div className={`flex items-center justify-between mb-2 text-xs ${
+              <div>
+                <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Daily Calories
+                </h3>
+                <div className="space-y-2">
+                  {weekData.map((day, index) => {
+                    const isToday = day.day === 'Today';
+                    const barPercent = maxCalories > 0 ? (day.calories / maxCalories) * 100 : 0;
+                    
+                    return (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className={`w-12 text-xs ${
                           isToday 
                             ? isDark ? 'text-purple-400' : 'text-purple-600'
                             : isDark ? 'text-white/50' : 'text-gray-500'
                         }`}>
-                          <span>{day.day}</span>
-                          <span className={isDark ? 'text-white/70' : 'text-gray-700'}>{totalCals} cal</span>
+                          {day.day}
                         </div>
-                        
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              Carbs
-                            </div>
-                            <div className="flex-1">
-                              <div className={`h-4 rounded-full overflow-hidden ${
-                                isDark ? 'bg-white/5' : 'bg-gray-100'
+                        <div className="flex-1">
+                          <div className={`h-8 rounded-lg overflow-hidden ${
+                            isDark ? 'bg-white/5' : 'bg-gray-100'
+                          }`}>
+                            <div 
+                              className={`h-full flex items-center px-2 transition-all ${
+                                isToday
+                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                                  : isDark 
+                                  ? 'bg-gradient-to-r from-purple-500/50 to-pink-500/50'
+                                  : 'bg-gradient-to-r from-purple-400/70 to-pink-400/70'
+                              }`}
+                              style={{ width: `${barPercent}%` }}
+                            >
+                              <span className={`text-xs ${
+                                barPercent > 30 ? 'text-white' : ''
                               }`}>
-                                <div 
-                                  className={`h-full bg-cyan-500 ${isToday ? '' : 'opacity-70'}`}
-                                  style={{ width: `${(day.carbs / maxValue) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div className={`w-12 text-xs text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                              {day.carbs}g
+                                {barPercent > 30 ? day.calories.toLocaleString() : ''}
+                              </span>
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              Protein
-                            </div>
-                            <div className="flex-1">
-                              <div className={`h-4 rounded-full overflow-hidden ${
-                                isDark ? 'bg-white/5' : 'bg-gray-100'
-                              }`}>
-                                <div 
-                                  className={`h-full bg-purple-500 ${isToday ? '' : 'opacity-70'}`}
-                                  style={{ width: `${(day.protein / maxValue) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div className={`w-12 text-xs text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                              {day.protein}g
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              Fat
-                            </div>
-                            <div className="flex-1">
-                              <div className={`h-4 rounded-full overflow-hidden ${
-                                isDark ? 'bg-white/5' : 'bg-gray-100'
-                              }`}>
-                                <div 
-                                  className={`h-full bg-orange-500 ${isToday ? '' : 'opacity-70'}`}
-                                  style={{ width: `${(day.fat / maxValue) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div className={`w-12 text-xs text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                              {day.fat}g
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              Sat Fat
-                            </div>
-                            <div className="flex-1">
-                              <div className={`h-4 rounded-full overflow-hidden ${
-                                isDark ? 'bg-white/5' : 'bg-gray-100'
-                              }`}>
-                                <div 
-                                  className={`h-full bg-red-500 ${isToday ? '' : 'opacity-70'}`}
-                                  style={{ width: `${(day.satFat / maxValue) * 100}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div className={`w-12 text-xs text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                              {day.satFat}g
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              Sodium
-                            </div>
-                            <div className="flex-1">
-                              <div className={`h-4 rounded-full overflow-hidden ${
-                                isDark ? 'bg-white/5' : 'bg-gray-100'
-                              }`}>
-                                <div 
-                                  className={`h-full bg-pink-500 ${isToday ? '' : 'opacity-70'}`}
-                                  style={{ width: `${Math.min((day.sodium / 2300) * 100, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div className={`w-12 text-xs text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                              {day.sodium}mg
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              Cholesterol
-                            </div>
-                            <div className="flex-1">
-                              <div className={`h-4 rounded-full overflow-hidden ${
-                                isDark ? 'bg-white/5' : 'bg-gray-100'
-                              }`}>
-                                <div 
-                                  className={`h-full bg-yellow-500 ${isToday ? '' : 'opacity-70'}`}
-                                  style={{ width: `${Math.min((day.cholesterol / 300) * 100, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div className={`w-12 text-xs text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                              {day.cholesterol}mg
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <div className={`w-16 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              Fiber
-                            </div>
-                            <div className="flex-1">
-                              <div className={`h-4 rounded-full overflow-hidden ${
-                                isDark ? 'bg-white/5' : 'bg-gray-100'
-                              }`}>
-                                <div 
-                                  className={`h-full bg-green-500 ${isToday ? '' : 'opacity-70'}`}
-                                  style={{ width: `${Math.min((day.fiber / 30) * 100, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                            <div className={`w-12 text-xs text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                              {day.fiber}g
-                            </div>
-                          </div>
+                        </div>
+                        <div className={`w-16 text-xs text-right ${
+                          isDark ? 'text-white/70' : 'text-gray-700'
+                        }`}>
+                          {barPercent <= 30 ? day.calories.toLocaleString() : ''}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            )}
-          </div>
 
-          {timeView === 'day' && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-cyan-500" />
-                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Carbohydrates
-                </span>
+              <div>
+                <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Week Breakdown
+                </h3>
+                <div className={`rounded-2xl border overflow-hidden ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`grid grid-cols-5 gap-2 p-3 border-b text-xs ${
+                    isDark ? 'bg-white/5 border-white/10 text-white/50' : 'bg-gray-100 border-gray-200 text-gray-500'
+                  }`}>
+                    <div>Day</div>
+                    <div className="text-right">Cal</div>
+                    <div className="text-right">Prot.</div>
+                    <div className="text-right">Carbs</div>
+                    <div className="text-right">Fat</div>
+                  </div>
+                  
+                  {weekData.map((day, index) => {
+                    const isToday = day.day === 'Today';
+                    return (
+                      <div 
+                        key={index}
+                        className={`grid grid-cols-5 gap-2 p-3 text-xs ${
+                          index < weekData.length - 1 ? isDark ? 'border-b border-white/10' : 'border-b border-gray-200' : ''
+                        } ${
+                          isToday ? isDark ? 'bg-purple-500/10' : 'bg-purple-50' : ''
+                        }`}
+                      >
+                        <div className={`${
+                          isToday 
+                            ? isDark ? 'text-purple-400' : 'text-purple-600'
+                            : isDark ? 'text-white/70' : 'text-gray-700'
+                        }`}>
+                          {day.day}
+                          <div className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                            {day.date}
+                          </div>
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {day.calories}
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          {day.protein}g
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          {day.carbs}g
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          {day.fat}g
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-purple-500" />
-                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Protein
-                </span>
+
+              <div className={`p-4 rounded-2xl border ${
+                isDark ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/20' : 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <TrendingUp className={`w-5 h-5 mt-0.5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                  <div>
+                    <h4 className={`text-sm mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Weekly Insights
+                    </h4>
+                    <p className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                      {highProteinDays > 0 
+                        ? `You hit 100g+ protein on ${highProteinDays} out of 7 days. `
+                        : 'Try to hit 100g protein daily for optimal health. '}
+                      {bestDay && bestDay.calories > 0 && `Your highest intake was ${bestDay.day} with ${bestDay.calories.toLocaleString()} calories. `}
+                      Keep tracking your nutrition!
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-orange-500" />
-                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Fat
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-red-500" />
-                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Saturated Fat
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-pink-500" />
-                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Sodium
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-yellow-500" />
-                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Cholesterol
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded bg-green-500" />
-                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                  Fiber
-                </span>
-              </div>
-            </div>
-          )}
             </>
           )}
         </div>
