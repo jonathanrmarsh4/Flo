@@ -690,6 +690,11 @@ export async function initializeClickHouse(): Promise<boolean> {
           illness_days UInt32,
           anomaly_count UInt32,
           recovery_quality_score Nullable(Float64),
+          avg_energy Nullable(Float64),
+          avg_clarity Nullable(Float64),
+          avg_mood Nullable(Float64),
+          avg_composite_score Nullable(Float64),
+          survey_response_count UInt32 DEFAULT 0,
           ingested_at DateTime64(3) DEFAULT now64(3)
         )
         ENGINE = ReplacingMergeTree(ingested_at)

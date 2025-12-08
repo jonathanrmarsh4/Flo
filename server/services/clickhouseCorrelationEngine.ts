@@ -64,6 +64,11 @@ interface WeeklyOutcomeRollup {
   illnessDays: number;
   anomalyCount: number;
   recoveryQualityScore?: number;
+  avgEnergy?: number;
+  avgClarity?: number;
+  avgMood?: number;
+  avgCompositeScore?: number;
+  surveyResponseCount?: number;
 }
 
 interface LongTermCorrelation {
@@ -161,6 +166,10 @@ const OUTCOME_METRICS = [
   { key: 'avgReadinessScore', name: 'readiness score', unit: 'points' },
   { key: 'recoveryQualityScore', name: 'recovery quality', unit: 'score' },
   { key: 'avgWristTempDeviation', name: 'wrist temperature deviation', unit: '°C' },
+  { key: 'avgEnergy', name: 'energy level', unit: 'score (1-10)' },
+  { key: 'avgClarity', name: 'mental clarity', unit: 'score (1-10)' },
+  { key: 'avgMood', name: 'mood', unit: 'score (1-10)' },
+  { key: 'avgCompositeScore', name: 'subjective wellbeing', unit: 'score (1-10)' },
 ] as const;
 
 export class ClickHouseCorrelationEngine {
@@ -510,6 +519,37 @@ export class ClickHouseCorrelationEngine {
 
       const anomalyMap = new Map(anomalyData.map(a => [a.week_start, Number(a.anomaly_count)]));
 
+      // Fetch subjective survey data (Energy, Clarity, Mood) for ML correlation
+      const surveySql = `
+        SELECT 
+          toStartOfWeek(toDate(local_date)) as week_start,
+          avg(energy) as avg_energy,
+          avg(clarity) as avg_clarity,
+          avg(mood) as avg_mood,
+          avg(composite_score) as avg_composite,
+          count() as response_count
+        FROM flo_health.subjective_surveys
+        WHERE health_id = {healthId:String}
+          AND local_date >= {startDate:String}
+          AND local_date <= {endDate:String}
+        GROUP BY week_start
+      `;
+
+      const surveyData = await clickhouse.query<{
+        week_start: string;
+        avg_energy: number | null;
+        avg_clarity: number | null;
+        avg_mood: number | null;
+        avg_composite: number | null;
+        response_count: number;
+      }>(surveySql, { 
+        healthId, 
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+      });
+
+      const surveyMap = new Map(surveyData.map(s => [s.week_start, s]));
+
       const rollups: WeeklyOutcomeRollup[] = outcomes.map((o, idx, arr) => {
         const readiness = readinessMap.get(o.week_start);
         const prevWeek = idx > 0 ? arr[idx - 1] : null;
@@ -523,6 +563,8 @@ export class ClickHouseCorrelationEngine {
         const sleepTrend = prevWeek && o.avg_sleep && prevWeek.avg_sleep
           ? ((o.avg_sleep - prevWeek.avg_sleep) / prevWeek.avg_sleep) * 100
           : 0;
+
+        const survey = surveyMap.get(o.week_start);
 
         return {
           healthId,
@@ -546,6 +588,11 @@ export class ClickHouseCorrelationEngine {
           illnessDays: 0,
           anomalyCount: anomalyMap.get(o.week_start) || 0,
           recoveryQualityScore: undefined,
+          avgEnergy: survey?.avg_energy ?? undefined,
+          avgClarity: survey?.avg_clarity ?? undefined,
+          avgMood: survey?.avg_mood ?? undefined,
+          avgCompositeScore: survey?.avg_composite ?? undefined,
+          surveyResponseCount: survey?.response_count ?? 0,
         };
       });
 
@@ -572,6 +619,11 @@ export class ClickHouseCorrelationEngine {
           illness_days: r.illnessDays,
           anomaly_count: r.anomalyCount,
           recovery_quality_score: r.recoveryQualityScore ?? null,
+          avg_energy: r.avgEnergy ?? null,
+          avg_clarity: r.avgClarity ?? null,
+          avg_mood: r.avgMood ?? null,
+          avg_composite_score: r.avgCompositeScore ?? null,
+          survey_response_count: r.surveyResponseCount ?? 0,
         }));
 
         await clickhouse.insert('weekly_outcome_rollups', rows);
