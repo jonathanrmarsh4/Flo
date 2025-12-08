@@ -58,6 +58,7 @@ export default function SleepLogger() {
   const { toast } = useToast();
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ManualSleepEntry | null>(null);
+  const [deletingEntry, setDeletingEntry] = useState<ManualSleepEntry | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Timer screen is always shown first - no auto-open of manual entry dialog
@@ -348,13 +349,22 @@ export default function SleepLogger() {
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => setEditingEntry(entry)}
-                      className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                      data-testid={`button-edit-${entry.id}`}
-                    >
-                      <Pencil className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingEntry(entry)}
+                        className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                        data-testid={`button-edit-${entry.id}`}
+                      >
+                        <Pencil className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                      </button>
+                      <button
+                        onClick={() => setDeletingEntry(entry)}
+                        className={`p-2 rounded-full ${isDark ? 'hover:bg-red-500/20' : 'hover:bg-red-100'}`}
+                        data-testid={`button-delete-${entry.id}`}
+                      >
+                        <Trash2 className={`w-4 h-4 ${isDark ? 'text-red-400/60' : 'text-red-400'}`} />
+                      </button>
+                    </div>
                   </div>
                 </Card>
               );
@@ -414,6 +424,42 @@ export default function SleepLogger() {
               className="bg-purple-600 hover:bg-purple-700"
             >
               Save Sleep
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletingEntry} onOpenChange={(open) => !open && setDeletingEntry(null)}>
+        <DialogContent className={isDark ? 'bg-gray-900 border-white/10 text-white' : ''}>
+          <DialogHeader>
+            <DialogTitle>Delete Sleep Entry</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+              Are you sure you want to delete this sleep entry? This action cannot be undone.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingEntry(null)}
+              className={isDark ? 'border-white/20' : ''}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deletingEntry) {
+                  deleteEntryMutation.mutate(deletingEntry.id);
+                  setDeletingEntry(null);
+                }
+              }}
+              disabled={deleteEntryMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
