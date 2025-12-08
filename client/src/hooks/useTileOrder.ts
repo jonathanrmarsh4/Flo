@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 // Define tile IDs
 export type TileId = 
+  | 'morning-briefing'
   | 'heart-metabolic'
   | 'body-composition'
   | 'flomentum'
@@ -11,6 +12,7 @@ export type TileId =
 
 // Default tile order (Flo Overview is locked at top, these are the sortable tiles below it)
 const DEFAULT_TILE_ORDER: TileId[] = [
+  'morning-briefing',
   'flomentum',
   'insights',
   'sleep',

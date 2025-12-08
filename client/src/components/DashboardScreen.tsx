@@ -7,6 +7,7 @@ import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
 import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AirQualityTile } from './dashboard/AirQualityTile';
 import { AnomalyAlertTile } from './dashboard/AnomalyAlertTile';
+import { MorningBriefingTile } from './dashboard/MorningBriefingTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { ThreePMSurveyModal } from './ThreePMSurveyModal';
@@ -250,6 +251,13 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   const renderTile = (tileId: TileId) => {
     const tileContent = (() => {
       switch (tileId) {
+        case 'morning-briefing':
+          return (
+            <SortableItem key={tileId} id={tileId} isDark={isDark}>
+              <MorningBriefingTile isDark={isDark} />
+            </SortableItem>
+          );
+
         case 'heart-metabolic':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
