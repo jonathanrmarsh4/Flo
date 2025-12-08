@@ -9287,6 +9287,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get 7-day macros data for Macros Details modal
+  app.get("/api/nutrition/macros/weekly", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get 14 days of nutrition data to ensure coverage for timezone edge cases
+      const nutritionData = await healthRouter.getNutritionDailyMetrics(userId, { limit: 14 });
+      
+      // Create a map of localDate -> nutrition record for fast lookup
+      const nutritionMap = new Map<string, typeof nutritionData[0]>();
+      for (const record of nutritionData) {
+        if (record.localDate) {
+          nutritionMap.set(record.localDate, record);
+        }
+      }
+      
+      // Get user's timezone from nutrition data or daily metrics
+      let userTimezone = 'UTC';
+      if (nutritionData.length > 0 && nutritionData[0].timezone) {
+        userTimezone = nutritionData[0].timezone;
+      } else {
+        const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+        userTimezone = recentMetrics.length > 0 ? recentMetrics[0].timezone : 'UTC';
+      }
+      
+      // Determine today's local date from user's perspective
+      // CRITICAL: Use the most recent localDate from Supabase as our anchor point
+      // This ensures we're aligned with the user's actual device-reported dates
+      let todayLocalDate: string;
+      if (nutritionData.length > 0 && nutritionData[0].localDate) {
+        // Use the most recent localDate from Supabase as our reference
+        todayLocalDate = nutritionData[0].localDate;
+      } else {
+        // Fallback: use formatToParts to get today in user's timezone
+        const parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: userTimezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).formatToParts(new Date());
+        const year = parts.find(p => p.type === 'year')?.value || '2025';
+        const month = parts.find(p => p.type === 'month')?.value || '01';
+        const day = parts.find(p => p.type === 'day')?.value || '01';
+        todayLocalDate = `${year}-${month}-${day}`;
+      }
+      
+      // Helper to subtract days from a YYYY-MM-DD string
+      const subtractDays = (dateStr: string, days: number): string => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        // Create date at noon UTC to avoid DST issues
+        const date = new Date(Date.UTC(y, m - 1, d - days, 12, 0, 0, 0));
+        return date.toISOString().split('T')[0];
+      };
+      
+      // Helper to get day of week from YYYY-MM-DD
+      const getDayOfWeek = (dateStr: string): string => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
+        return date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+      };
+      
+      // Helper to get display date from YYYY-MM-DD
+      const getDisplayDate = (dateStr: string): string => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0, 0));
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      };
+      
+      const weekData: Array<{
+        day: string;
+        date: string;
+        calories: number;
+        carbs: number;
+        protein: number;
+        fat: number;
+        satFat: number;
+        sodium: number;
+        cholesterol: number;
+        fiber: number;
+      }> = [];
+      
+      // Build week data starting from today (i=0) back to 6 days ago (i=6)
+      for (let i = 6; i >= 0; i--) {
+        const localDateStr = subtractDays(todayLocalDate, i);
+        const record = nutritionMap.get(localDateStr);
+        
+        weekData.push({
+          day: i === 0 ? 'Today' : getDayOfWeek(localDateStr),
+          date: getDisplayDate(localDateStr),
+          calories: Math.round(record?.energyKcal ?? 0),
+          carbs: Math.round(record?.carbohydratesG ?? 0),
+          protein: Math.round(record?.proteinG ?? 0),
+          fat: Math.round(record?.fatTotalG ?? 0),
+          satFat: Math.round(record?.fatSaturatedG ?? 0),
+          sodium: Math.round(record?.sodiumMg ?? 0),
+          cholesterol: Math.round(record?.cholesterolMg ?? 0),
+          fiber: Math.round(record?.fiberG ?? 0)
+        });
+      }
+      
+      // Calculate averages (only for days with data)
+      const daysWithData = weekData.filter(d => d.calories > 0);
+      const divisor = daysWithData.length || 1;
+      
+      const avgCalories = Math.round(weekData.reduce((sum, d) => sum + d.calories, 0) / divisor);
+      const avgProtein = Math.round(weekData.reduce((sum, d) => sum + d.protein, 0) / divisor);
+      const avgCarbs = Math.round(weekData.reduce((sum, d) => sum + d.carbs, 0) / divisor);
+      const avgFat = Math.round(weekData.reduce((sum, d) => sum + d.fat, 0) / divisor);
+      
+      return res.json({
+        weekData,
+        averages: {
+          calories: avgCalories,
+          protein: avgProtein,
+          carbs: avgCarbs,
+          fat: avgFat
+        },
+        daysTracked: daysWithData.length
+      });
+    } catch (error: any) {
+      logger.error("[Nutrition] Error fetching weekly macros:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get today's workouts
   app.get("/api/activity/workouts", isAuthenticated, async (req: any, res) => {
     try {
