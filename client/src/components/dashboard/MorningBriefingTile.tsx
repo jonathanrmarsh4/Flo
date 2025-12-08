@@ -144,13 +144,28 @@ export function MorningBriefingTile({ isDark, onTalkToFlo, useMetric = true }: M
 
   const handleTalkToFlo = () => {
     if (!data?.briefing) return;
+    const b = data.briefing;
     
-    const context = `Morning Briefing Context:
-Readiness Score: ${data.briefing.readiness_score}
-Sleep: ${data.briefing.sleep_data.total_hours.toFixed(1)} hours (${data.briefing.sleep_data.deep_sleep_quality} quality)
-Deep Sleep: ${data.briefing.sleep_data.deep_sleep_minutes.toFixed(0)} minutes
-Insight: ${data.briefing.readiness_insight}
-Recommendation: ${data.briefing.recommendation}`;
+    const weatherInfo = b.weather 
+      ? `Weather: ${Math.round(useMetric ? b.weather.temp_c : b.weather.temp_f)}°${useMetric ? 'C' : 'F'}, ${b.weather.condition} (feels like ${Math.round(useMetric ? b.weather.feels_like_c : b.weather.feels_like_f)}°, ${b.weather.humidity}% humidity)`
+      : '';
+    
+    const context = JSON.stringify({
+      type: 'morning_briefing_readout',
+      greeting: b.greeting,
+      readiness_score: b.readiness_score,
+      readiness_insight: b.readiness_insight,
+      sleep: {
+        total_hours: b.sleep_data.total_hours,
+        deep_sleep_minutes: b.sleep_data.deep_sleep_minutes,
+        quality: b.sleep_data.deep_sleep_quality,
+        hrv: b.sleep_data.hrv_avg,
+      },
+      sleep_insight: b.sleep_insight,
+      weather: weatherInfo,
+      recent_activity: b.recent_activity,
+      recommendation: b.recommendation,
+    });
     
     onTalkToFlo?.(context);
     setShowModal(false);

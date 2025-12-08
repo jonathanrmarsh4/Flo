@@ -112,7 +112,40 @@ export function VoiceChatScreen({ isDark, onClose, initialContext }: VoiceChatSc
       // Send initial greeting with context if provided from morning briefing
       const context = initialContextRef.current;
       if (context) {
-        sendText(`The user is coming from their morning briefing and wants to discuss it. Here is the context:\n\n${context}\n\nPlease greet them and provide actionable insights based on this data. Be specific about their metrics and what they mean.`);
+        // Check if this is a morning briefing readout request
+        try {
+          const parsed = JSON.parse(context);
+          if (parsed.type === 'morning_briefing_readout') {
+            // Construct a detailed prompt for Flō to read out the briefing
+            const prompt = `You are Flō, the user's personal health AI assistant. The user just tapped "Get your briefing from Flō" and wants you to READ OUT their personalized morning briefing, EXPLAIN the reasoning behind each insight and recommendation, and then ASK if they have any questions.
+
+Here is their morning briefing data:
+- Greeting: ${parsed.greeting}
+- Readiness Score: ${parsed.readiness_score}/100
+- Readiness Insight: ${parsed.readiness_insight}
+- Sleep: ${parsed.sleep?.total_hours?.toFixed(1) || 'N/A'} hours total, ${parsed.sleep?.deep_sleep_minutes || 'N/A'} minutes deep sleep, quality rated "${parsed.sleep?.quality || 'unknown'}"${parsed.sleep?.hrv ? `, HRV ${parsed.sleep.hrv}ms` : ''}
+- Sleep Insight: ${parsed.sleep_insight}
+${parsed.weather ? `- Weather: ${parsed.weather}` : ''}
+${parsed.recent_activity ? `- Recent Activity: ${parsed.recent_activity.type} (${parsed.recent_activity.when}) - ${parsed.recent_activity.impact}` : ''}
+- Today's Recommendation: ${parsed.recommendation}
+
+INSTRUCTIONS:
+1. Start with a warm, personalized greeting using their briefing greeting
+2. Read out their readiness score and explain what it means for their day
+3. Summarize their sleep data and explain why the quality rating was given
+4. If there's weather data, mention it briefly
+5. Present the recommendation and EXPLAIN WHY you're recommending this based on their data
+6. End by asking "Do you have any questions about your briefing, or would you like me to dive deeper into any of these insights?"
+
+Be conversational, warm, and speak as if you're their knowledgeable health companion. Keep it concise but insightful.`;
+            sendText(prompt);
+          } else {
+            sendText(`The user is coming from their morning briefing and wants to discuss it. Here is the context:\n\n${context}\n\nPlease greet them and provide actionable insights based on this data. Be specific about their metrics and what they mean.`);
+          }
+        } catch {
+          // Fallback for non-JSON context
+          sendText(`The user is coming from their morning briefing and wants to discuss it. Here is the context:\n\n${context}\n\nPlease greet them and provide actionable insights based on this data. Be specific about their metrics and what they mean.`);
+        }
       } else {
         sendText("Hello! Please greet me and let me know you're ready to help with my health data.");
       }
