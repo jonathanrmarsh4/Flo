@@ -47,9 +47,9 @@ interface ManualSleepEntry {
 }
 
 interface ActiveTimer {
-  active: boolean;
-  started_at: string | null;
-  elapsed_minutes: number;
+  isActive: boolean;
+  startedAt: string | null;
+  elapsedMinutes: number;
 }
 
 export default function SleepLogger() {
@@ -74,8 +74,8 @@ export default function SleepLogger() {
   });
 
   useEffect(() => {
-    if (timerStatus?.active && timerStatus.started_at) {
-      const startTime = new Date(timerStatus.started_at).getTime();
+    if (timerStatus?.isActive && timerStatus.startedAt) {
+      const startTime = new Date(timerStatus.startedAt).getTime();
       const updateTimer = () => {
         const now = Date.now();
         const diffMs = now - startTime;
@@ -87,7 +87,7 @@ export default function SleepLogger() {
     } else {
       setElapsedTime(0);
     }
-  }, [timerStatus?.active, timerStatus?.started_at]);
+  }, [timerStatus?.isActive, timerStatus?.startedAt]);
 
   const startTimerMutation = useMutation({
     mutationFn: async () => {
@@ -105,8 +105,8 @@ export default function SleepLogger() {
   });
 
   const stopTimerMutation = useMutation({
-    mutationFn: async (qualityRating: number) => {
-      const res = await apiRequest('POST', '/api/sleep/manual/timer/stop', { qualityRating });
+    mutationFn: async ({ qualityRating, awakeMinutes }: { qualityRating: number; awakeMinutes: number }) => {
+      const res = await apiRequest('POST', '/api/sleep/manual/timer/stop', { qualityRating, awakeMinutes });
       return res.json();
     },
     onSuccess: (data) => {
@@ -177,6 +177,7 @@ export default function SleepLogger() {
 
   const [showStopDialog, setShowStopDialog] = useState(false);
   const [stopQuality, setStopQuality] = useState(3);
+  const [awakeMinutes, setAwakeMinutes] = useState(0);
 
   const formatElapsed = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -242,15 +243,15 @@ export default function SleepLogger() {
         </div>
 
         <Button
-          onClick={() => timerStatus?.active ? setShowStopDialog(true) : startTimerMutation.mutate()}
+          onClick={() => timerStatus?.isActive ? setShowStopDialog(true) : startTimerMutation.mutate()}
           disabled={startTimerMutation.isPending}
           className="w-full mb-6 h-14 bg-purple-600 hover:bg-purple-700 text-white text-lg font-medium rounded-2xl shadow-lg"
           data-testid="button-start-timer"
         >
-          {timerStatus?.active ? (
+          {timerStatus?.isActive ? (
             <>
               <Square className="w-5 h-5 mr-2" />
-              Stop Sleep Tracking ({formatElapsed(elapsedTime)})
+              Finish Sleep ({formatElapsed(elapsedTime)})
             </>
           ) : (
             <>
@@ -378,36 +379,54 @@ export default function SleepLogger() {
           <DialogHeader>
             <DialogTitle>Rate Your Sleep</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-              How did you sleep? ({formatDuration(Math.floor(elapsedTime / 60))})
-            </p>
-            <div className="flex justify-center gap-2">
-              {[
-                { value: 1, label: 'Poor' },
-                { value: 2, label: 'Restless' },
-                { value: 3, label: 'Fair' },
-                { value: 4, label: 'Good' },
-                { value: 5, label: 'Refresh' },
-              ].map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setStopQuality(value)}
-                  className={`flex flex-col items-center justify-center w-14 h-16 rounded-lg border transition-all ${
-                    value === stopQuality
-                      ? isDark 
-                        ? 'bg-green-500/20 border-green-500 text-green-400' 
-                        : 'bg-green-100 border-green-500 text-green-700'
-                      : isDark 
-                        ? 'border-white/20 text-white/60 hover:border-white/40' 
-                        : 'border-gray-300 text-gray-500 hover:border-gray-400'
-                  }`}
-                  data-testid={`button-quality-${value}`}
-                >
-                  <span className="text-lg font-semibold">{value}</span>
-                  <span className="text-[10px] mt-0.5">{label}</span>
-                </button>
-              ))}
+          <div className="py-4 space-y-6">
+            <div>
+              <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+                How did you sleep? ({formatDuration(Math.floor(elapsedTime / 60))})
+              </p>
+              <div className="flex justify-center gap-2">
+                {[
+                  { value: 1, label: 'Poor' },
+                  { value: 2, label: 'Restless' },
+                  { value: 3, label: 'Fair' },
+                  { value: 4, label: 'Good' },
+                  { value: 5, label: 'Refresh' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => setStopQuality(value)}
+                    className={`flex flex-col items-center justify-center w-14 h-16 rounded-lg border transition-all ${
+                      value === stopQuality
+                        ? isDark 
+                          ? 'bg-green-500/20 border-green-500 text-green-400' 
+                          : 'bg-green-100 border-green-500 text-green-700'
+                        : isDark 
+                          ? 'border-white/20 text-white/60 hover:border-white/40' 
+                          : 'border-gray-300 text-gray-500 hover:border-gray-400'
+                    }`}
+                    data-testid={`button-quality-${value}`}
+                  >
+                    <span className="text-lg font-semibold">{value}</span>
+                    <span className="text-[10px] mt-0.5">{label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <Label className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
+                Minutes awake during the night
+              </Label>
+              <Input
+                type="number"
+                min="0"
+                max="480"
+                value={awakeMinutes}
+                onChange={(e) => setAwakeMinutes(Math.max(0, parseInt(e.target.value) || 0))}
+                placeholder="0"
+                className={`mt-2 ${isDark ? 'bg-white/10 border-white/20 text-white' : ''}`}
+                data-testid="input-awake-minutes"
+              />
             </div>
           </div>
           <DialogFooter>
@@ -415,13 +434,15 @@ export default function SleepLogger() {
               variant="outline"
               onClick={() => setShowStopDialog(false)}
               className={isDark ? 'border-white/20' : ''}
+              data-testid="button-cancel-stop"
             >
               Cancel
             </Button>
             <Button
-              onClick={() => stopTimerMutation.mutate(stopQuality)}
+              onClick={() => stopTimerMutation.mutate({ qualityRating: stopQuality, awakeMinutes })}
               disabled={stopTimerMutation.isPending}
               className="bg-purple-600 hover:bg-purple-700"
+              data-testid="button-save-sleep"
             >
               Save Sleep
             </Button>
