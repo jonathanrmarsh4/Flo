@@ -1,0 +1,117 @@
+2025-12-08 07:51:54.61
+6ee83a0f
+User
+[2025-12-07T23:51:54.618Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:52:06.29
+6ee83a0f
+User
+[2025-12-07T23:52:06.291Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:52:06.46
+6ee83a0f
+User
+[2025-12-07T23:52:06.465Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:52:06.54
+6ee83a0f
+User
+[2025-12-07T23:52:06.549Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:52:06.54
+6ee83a0f
+User
+[2025-12-07T23:52:06.548Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:52:13.31
+6ee83a0f
+User
+[2025-12-07T23:52:13.315Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:52:13.53
+6ee83a0f
+User
+[2025-12-07T23:52:13.531Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:52:13.53
+6ee83a0f
+User
+[2025-12-07T23:52:13.531Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:52:24.42
+6ee83a0f
+User
+[2025-12-07T23:52:24.424Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:52:24.56
+6ee83a0f
+User
+[2025-12-07T23:52:24.565Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:52:24.56
+6ee83a0f
+User
+[2025-12-07T23:52:24.565Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:55:48.30
+8097e3c9
+User
+[2025-12-07T23:55:48.302Z] [WARN] [BigQuery] BIGQUERY_SERVICE_ACCOUNT_JSON not set - BigQuery features will be disabled
+2025-12-08 07:56:06.62
+8097e3c9
+User
+[2025-12-07T23:56:06.620Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:56:06.76
+8097e3c9
+User
+[2025-12-07T23:56:06.762Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] getAllBiomarkerMeasurements requires Supabase - returning empty
+2025-12-08 07:56:42.49
+8097e3c9
+User
+[2025-12-07T23:56:42.493Z] [ERROR] [InsightsEngineV2] Failed to store RAG insights: {"error":{"message":"Supabase health storage not enabled - cannot store health data","stack":"Error: Supabase health storage not enabled - cannot store health data\n at createDailyInsight2 (file:///home/runner/workspace/dist/index.js:6127:11)\n at generateDailyInsights (file:///home/runner/workspace/dist/index.js:38063:17)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async processInsightsGeneration (file:///home/runner/workspace/dist/index.js:38287:26)"}}
+2025-12-08 07:57:27.51
+8097e3c9
+User
+[2025-12-07T23:57:27.510Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:57:27.64
+8097e3c9
+User
+[2025-12-07T23:57:27.641Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:57:27.80
+8097e3c9
+User
+[2025-12-07T23:57:27.799Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:57:27.80
+8097e3c9
+User
+[2025-12-07T23:57:27.800Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:57:34.38
+8097e3c9
+User
+[2025-12-07T23:57:34.384Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:57:34.53
+8097e3c9
+User
+[2025-12-07T23:57:34.538Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:57:34.53
+8097e3c9
+User
+[2025-12-07T23:57:34.538Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:57:42.04
+8097e3c9
+User
+[2025-12-07T23:57:42.047Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:57:42.15
+8097e3c9
+User
+[2025-12-07T23:57:42.153Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:57:42.15
+8097e3c9
+User
+[2025-12-07T23:57:42.153Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 08:00:57.88
+8097e3c9
+User
+[2025-12-08T00:00:57.884Z] [WARN] [Baseline] Skipping update for sleep_hours, user 0746ff90-802d-42ad-9bb8-2b4a4fe3ea7b - no data
+2025-12-08 08:00:57.92
+8097e3c9
+User
+[2025-12-08T00:00:57.922Z] [WARN] [Baseline] Skipping update for resting_hr, user 0746ff90-802d-42ad-9bb8-2b4a4fe3ea7b - no data
+2025-12-08 08:00:57.96
+8097e3c9
+User
+[2025-12-08T00:00:57.959Z] [WARN] [Baseline] Skipping update for hrv_ms, user 0746ff90-802d-42ad-9bb8-2b4a4fe3ea7b - no data
+2025-12-08 08:00:57.99
+8097e3c9
+User
+[2025-12-08T00:00:57.997Z] [WARN] [Baseline] Skipping update for active_energy_kcal, user 0746ff90-802d-42ad-9bb8-2b4a4fe3ea7b - no data
+

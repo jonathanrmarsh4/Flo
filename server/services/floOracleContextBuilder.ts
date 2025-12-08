@@ -1702,84 +1702,10 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
       return lines.join('\n');
     }
   } catch (clickhouseError) {
-    logger.warn('[FloOracle] ClickHouse correlation insights unavailable, trying BigQuery fallback');
+    logger.debug('[FloOracle] ClickHouse correlation insights unavailable');
   }
   
-  // Fallback to BigQuery if ClickHouse has no data or failed
-  try {
-    const { bigQueryService } = await import('./bigQueryService');
-    
-    if (!bigQueryService.isEnabled()) {
-      return '';
-    }
-    
-    const insights = await bigQueryService.getCorrelationInsights(healthId, 5);
-    const anomalies = await bigQueryService.getDetectedAnomalies(healthId, new Date(Date.now() - 48 * 60 * 60 * 1000));
-    
-    if (insights.length === 0 && anomalies.length === 0) {
-      return '';
-    }
-    
-    const lines = ['', 'CORRELATION ENGINE INSIGHTS (ML-detected patterns - reference when relevant):'];
-    
-    if (anomalies.length > 0) {
-      // Apply same NEW vs PREVIOUSLY DISCUSSED logic as ClickHouse path
-      const newAnomalies: typeof anomalies = [];
-      const previouslyDiscussed: typeof anomalies = [];
-      
-      anomalies.slice(0, 5).forEach(a => {
-        // Check if anomaly was detected after last conversation
-        // If detectedAt is missing, treat as PREVIOUSLY DISCUSSED (safer default)
-        if (!a.detectedAt) {
-          previouslyDiscussed.push(a);
-          return;
-        }
-        
-        const anomalyTime = new Date(a.detectedAt);
-        const isNew = !lastConversation || anomalyTime > lastConversation;
-        
-        if (isNew) {
-          newAnomalies.push(a);
-        } else {
-          previouslyDiscussed.push(a);
-        }
-      });
-      
-      if (newAnomalies.length > 0) {
-        lines.push('');
-        lines.push('[NEW] ANOMALIES TO PROACTIVELY DISCUSS (mention these at the START of the conversation):');
-        newAnomalies.forEach(a => {
-          const direction = a.deviationPct > 0 ? 'elevated' : 'low';
-          lines.push(`  • [NEW] ${a.metricType.replace(/_/g, ' ')}: ${direction} (${Math.abs(Math.round(a.deviationPct))}% from baseline) - ${a.severity} severity`);
-        });
-      }
-      
-      if (previouslyDiscussed.length > 0) {
-        lines.push('');
-        lines.push('[PREVIOUSLY DISCUSSED] Known patterns (only reference if user asks or directly relevant):');
-        previouslyDiscussed.forEach(a => {
-          const direction = a.deviationPct > 0 ? 'elevated' : 'low';
-          lines.push(`  • ${a.metricType.replace(/_/g, ' ')}: ${direction} (${Math.abs(Math.round(a.deviationPct))}% from baseline) - ${a.severity} severity`);
-        });
-      }
-      
-      logger.info(`[FloOracle] Added ${newAnomalies.length} NEW and ${previouslyDiscussed.length} PREVIOUSLY DISCUSSED anomalies to context (BigQuery fallback)`);
-    }
-    
-    if (insights.length > 0) {
-      lines.push('');
-      lines.push('Recent correlation findings:');
-      insights.forEach(i => {
-        const confidencePct = Math.round(i.confidence * 100);
-        lines.push(`  • ${i.title}: ${i.description} (${confidencePct}% confidence)`);
-      });
-    }
-    
-    return lines.join('\n');
-  } catch (bigQueryError) {
-    logger.debug('[FloOracle] Correlation insights not available from either ClickHouse or BigQuery');
-    return '';
-  }
+  return '';
 }
 
 /**

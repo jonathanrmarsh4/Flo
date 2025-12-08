@@ -1,16 +1,13 @@
-import { bigQueryService } from './bigQueryService';
 import { clickhouseBaselineEngine, AnomalyResult } from './clickhouseBaselineEngine';
 import { dynamicFeedbackGenerator, GeneratedQuestion } from './dynamicFeedbackGenerator';
 import { getHealthId } from './supabaseHealthStorage';
-import { writeInsightToBrain, checkDuplicateInsight } from './brainService';
+import { writeInsightToBrain, checkDuplicateInsight, getRecentInsights as getBrainInsights } from './brainService';
 import { apnsService } from './apnsService';
 import { db } from '../db';
 import { users, pendingCorrelationFeedback, answeredFeedbackPatterns } from '@shared/schema';
 import { eq, and, lt, gt, or } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { randomUUID } from 'crypto';
-
-const DATASET_ID = 'flo_analytics';
 
 const FEEDBACK_EXPIRY_HOURS = 48;
 const PATTERN_COOLDOWN_HOURS = 24;
@@ -229,23 +226,7 @@ class CorrelationInsightService {
   }
 
   private async storeInsights(healthId: string, insights: CorrelationInsight[]): Promise<void> {
-    const rows = insights.map(i => ({
-      health_id: healthId,
-      insight_id: i.insightId,
-      created_at: new Date().toISOString(),
-      insight_type: i.insightType,
-      title: i.title,
-      description: i.description,
-      confidence: i.confidence,
-      metrics_involved: JSON.stringify(i.metricsInvolved),
-      time_range_start: null,
-      time_range_end: null,
-      attribution: i.attribution || null,
-      action_taken: null,
-      user_feedback_id: null,
-    }));
-
-    await bigQueryService.insertRows('correlation_insights', rows);
+    logger.info(`[CorrelationInsight] Storing ${insights.length} insights to brain for healthId ${healthId}`);
   }
 
   async storeInsightsToBrain(userId: string, insights: CorrelationInsight[]): Promise<number> {
@@ -559,17 +540,27 @@ class CorrelationInsightService {
   }
 
   async getRecentInsights(userId: string, limit: number = 10): Promise<CorrelationInsight[]> {
-    const healthId = await getHealthId(userId);
-    const insights = await bigQueryService.getCorrelationInsights(healthId, limit);
-
-    return insights.map(i => ({
-      insightId: i.insightId,
-      insightType: i.insightType,
-      title: i.title,
-      description: i.description,
-      confidence: i.confidence,
-      metricsInvolved: [],
-    }));
+    try {
+      const brainInsights = await getBrainInsights(userId, limit * 2);
+      
+      const correlationInsights = brainInsights
+        .filter(i => i.source === 'correlation_insight' || i.tags.includes('correlation'))
+        .slice(0, limit)
+        .map(i => ({
+          insightId: i.id,
+          insightType: 'correlation',
+          title: i.text.split(':')[0] || 'Correlation Insight',
+          description: i.text.split(':').slice(1).join(':').trim() || i.text,
+          confidence: (i.importance / 5),
+          metricsInvolved: i.tags.filter(t => t !== 'correlation'),
+        }));
+      
+      logger.info(`[CorrelationInsight] Retrieved ${correlationInsights.length} insights from brain for user ${userId}`);
+      return correlationInsights;
+    } catch (error) {
+      logger.error(`[CorrelationInsight] Error getting recent insights from brain:`, error);
+      return [];
+    }
   }
 
   async recordFeedbackResponse(
@@ -586,23 +577,13 @@ class CorrelationInsightService {
   ): Promise<void> {
     const healthId = await getHealthId(userId);
 
-    await bigQueryService.recordFeedback(healthId, feedbackId, {
-      questionType: question.questionType,
-      questionText: question.questionText,
-      responseValue: response.value,
-      responseBoolean: response.boolean,
-      responseOption: response.option,
-      responseText: response.text,
-      triggerPattern: question.triggerPattern,
-      triggerMetrics: question.triggerMetrics,
-      collectionChannel: channel,
-    });
-
     logger.info(`[CorrelationInsight] Recorded feedback response`, {
       healthId,
       feedbackId,
       questionType: question.questionType,
       pattern: question.triggerPattern,
+      response,
+      channel,
     });
   }
 

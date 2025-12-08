@@ -655,7 +655,7 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // ==========================================
-  // BigQuery Correlation Engine Admin Routes
+  // Correlation Engine Admin Routes
   // ==========================================
 
   app.post('/api/admin/correlation/analyze', isAuthenticated, requireAdmin, async (req: any, res) => {
@@ -729,30 +729,6 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.post('/api/admin/correlation/backfill', isAuthenticated, requireAdmin, async (req: any, res) => {
-    try {
-      const { userId } = req.body;
-      if (!userId) {
-        return res.status(400).json({ error: "userId is required" });
-      }
-
-      const { getHealthId } = await import('../services/supabaseHealthStorage');
-      const { bigQuerySyncService } = await import('../services/bigQuerySyncService');
-      
-      const healthId = await getHealthId(userId);
-      const result = await bigQuerySyncService.backfillUserFromSupabase(healthId);
-
-      logger.info(`[Admin] BigQuery backfill complete for ${userId}`, {
-        totalRows: result.totalRows,
-      });
-
-      res.json(result);
-    } catch (error: any) {
-      logger.error('[Admin] Backfill failed:', error);
-      res.status(500).json({ error: error.message || "Failed to backfill user data" });
-    }
-  });
-
   app.get('/api/admin/correlation/insights/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
       const { userId } = req.params;
@@ -781,8 +757,7 @@ export function registerAdminRoutes(app: Express) {
         userId,
         feedbackId,
         question,
-        responseValue,
-        responseText,
+        { value: responseValue, text: responseText },
         channel || 'in_app'
       );
 
