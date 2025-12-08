@@ -1,11 +1,15 @@
 import { useState } from 'react';
-import { X, Zap, Brain, Heart, ChevronRight, Clock, Sparkles } from 'lucide-react';
+import { X, Zap, Brain, Heart, ChevronRight, Clock, Sparkles, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface ThreePMSurveyModalProps {
   isOpen: boolean;
   onClose: () => void;
   isDark: boolean;
+  onComplete?: () => void;
 }
 
 interface SurveyData {
@@ -14,7 +18,7 @@ interface SurveyData {
   mood: number | null;
 }
 
-export function ThreePMSurveyModal({ isOpen, onClose, isDark }: ThreePMSurveyModalProps) {
+export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: ThreePMSurveyModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [surveyData, setSurveyData] = useState<SurveyData>({
     energy: null,
@@ -22,6 +26,45 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark }: ThreePMSurveyMod
     mood: null
   });
   const [hoveredValue, setHoveredValue] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
+  const submitMutation = useMutation({
+    mutationFn: async (data: { energy: number; clarity: number; mood: number }) => {
+      return apiRequest('/api/surveys/daily', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...data,
+          timezone: userTimezone,
+          triggerSource: 'manual'
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/surveys/today?timezone=${encodeURIComponent(userTimezone)}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/surveys/history'] });
+      toast({
+        title: 'Check-in complete',
+        description: 'Your responses have been recorded.',
+      });
+      onComplete?.();
+      onClose();
+      setTimeout(() => {
+        setCurrentStep(0);
+        setSurveyData({ energy: null, clarity: null, mood: null });
+      }, 500);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit survey',
+        variant: 'destructive',
+      });
+    }
+  });
 
   const questions = [
     {
@@ -81,12 +124,13 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark }: ThreePMSurveyMod
   };
 
   const handleSubmit = (data: SurveyData) => {
-    console.log('3PM Survey submitted:', data);
-    onClose();
-    setTimeout(() => {
-      setCurrentStep(0);
-      setSurveyData({ energy: null, clarity: null, mood: null });
-    }, 500);
+    if (data.energy && data.clarity && data.mood) {
+      submitMutation.mutate({
+        energy: data.energy,
+        clarity: data.clarity,
+        mood: data.mood
+      });
+    }
   };
 
   const getScaleColor = (value: number) => {

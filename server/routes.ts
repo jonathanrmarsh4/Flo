@@ -1238,6 +1238,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =============================================
+  // 3PM Subjective Survey Routes
+  // =============================================
+  
+  // Submit daily survey
+  app.post("/api/surveys/daily", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { energy, clarity, mood, timezone, triggerSource, responseLatencySeconds } = req.body;
+      
+      // Validate required fields
+      if (energy === undefined || clarity === undefined || mood === undefined || !timezone) {
+        return res.status(400).json({ error: "energy, clarity, mood, and timezone are required" });
+      }
+      
+      // Validate ranges (1-10, must be integers)
+      const energyNum = Number(energy);
+      const clarityNum = Number(clarity);
+      const moodNum = Number(mood);
+      
+      if (!Number.isInteger(energyNum) || energyNum < 1 || energyNum > 10) {
+        return res.status(400).json({ error: "energy must be an integer between 1 and 10" });
+      }
+      if (!Number.isInteger(clarityNum) || clarityNum < 1 || clarityNum > 10) {
+        return res.status(400).json({ error: "clarity must be an integer between 1 and 10" });
+      }
+      if (!Number.isInteger(moodNum) || moodNum < 1 || moodNum > 10) {
+        return res.status(400).json({ error: "mood must be an integer between 1 and 10" });
+      }
+      
+      // Validate timezone is a valid IANA timezone identifier
+      if (typeof timezone !== 'string' || timezone.length === 0) {
+        return res.status(400).json({ error: "timezone must be a non-empty string" });
+      }
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone });
+      } catch {
+        return res.status(400).json({ error: "Invalid timezone identifier" });
+      }
+      
+      const { submitSurvey } = await import('./services/subjectiveSurveyService');
+      const survey = await submitSurvey(userId, {
+        energy: energyNum,
+        clarity: clarityNum,
+        mood: moodNum,
+        timezone,
+        triggerSource: triggerSource || 'manual',
+        responseLatencySeconds: responseLatencySeconds ? Number(responseLatencySeconds) : undefined
+      });
+      
+      res.json(survey);
+    } catch (error: any) {
+      logger.error('[Survey] Error submitting survey:', error);
+      res.status(500).json({ error: error.message || "Failed to submit survey" });
+    }
+  });
+  
+  // Get today's survey (if completed)
+  app.get("/api/surveys/today", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const timezone = req.query.timezone as string;
+      
+      if (!timezone || typeof timezone !== 'string' || timezone.length === 0) {
+        return res.status(400).json({ error: "timezone query parameter is required" });
+      }
+      
+      // Validate timezone is a valid IANA timezone identifier
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone });
+      } catch {
+        return res.status(400).json({ error: "Invalid timezone identifier" });
+      }
+      
+      const { getTodaySurvey } = await import('./services/subjectiveSurveyService');
+      const survey = await getTodaySurvey(userId, timezone);
+      
+      if (!survey) {
+        return res.json({ completed: false, survey: null });
+      }
+      
+      res.json({ completed: true, survey });
+    } catch (error: any) {
+      logger.error('[Survey] Error fetching today survey:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch survey" });
+    }
+  });
+  
+  // Get survey history
+  app.get("/api/surveys/history", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const daysBack = parseInt(req.query.days as string) || 30;
+      
+      const { getSurveyHistory } = await import('./services/subjectiveSurveyService');
+      const history = await getSurveyHistory(userId, daysBack);
+      
+      res.json(history);
+    } catch (error: any) {
+      logger.error('[Survey] Error fetching survey history:', error);
+      res.status(500).json({ error: error.message || "Failed to fetch survey history" });
+    }
+  });
+
   // Biomarker normalization routes
   // Single measurement normalization
   app.post("/api/normalize", isAuthenticated, async (req: any, res) => {

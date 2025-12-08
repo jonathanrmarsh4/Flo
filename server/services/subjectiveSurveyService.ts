@@ -82,7 +82,18 @@ export async function submitSurvey(
   userId: string,
   submission: SurveySubmission
 ): Promise<SurveyRecord> {
-  const healthId = await getHealthId(userId);
+  let healthId: string;
+  try {
+    healthId = await getHealthId(userId);
+  } catch (err: any) {
+    logger.error('[Survey] Failed to get health ID:', err);
+    throw new Error(`Failed to get health ID: ${err.message}`);
+  }
+  
+  if (!healthId) {
+    throw new Error('Health ID not found for user');
+  }
+  
   const supabase = getSupabaseClient();
   
   const { localDate, localTime } = getLocalDateTime(submission.timezone);
@@ -113,6 +124,11 @@ export async function submitSurvey(
   if (error) {
     logger.error('[Survey] Error submitting survey:', error);
     throw new Error(`Failed to submit survey: ${error.message}`);
+  }
+  
+  if (!data) {
+    logger.error('[Survey] No data returned from upsert');
+    throw new Error('Failed to submit survey: No data returned');
   }
   
   const record: SurveyRecord = {

@@ -9,7 +9,8 @@ import { AirQualityTile } from './dashboard/AirQualityTile';
 import { AnomalyAlertTile } from './dashboard/AnomalyAlertTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
-import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell } from 'lucide-react';
+import { ThreePMSurveyModal } from './ThreePMSurveyModal';
+import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell, ClipboardCheck } from 'lucide-react';
 import { NotificationsScreen } from './NotificationsScreen';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
@@ -141,10 +142,16 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   const [, setLocation] = useLocation();
   const [showInsights, setShowInsights] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [paywallModalId, setPaywallModalId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { user } = useAuth();
   const { tileOrder, reorderTiles} = useTileOrder();
+  
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { data: surveyTodayData } = useQuery<{ completed: boolean; survey: any }>({
+    queryKey: [`/api/surveys/today?timezone=${encodeURIComponent(timezone)}`],
+  });
   
   const { data: dashboardData, isLoading } = useQuery<any>({
     queryKey: ['/api/dashboard/overview'],
@@ -369,6 +376,23 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
                 </button>
               )}
               <button 
+                onClick={() => setShowSurveyModal(true)}
+                className={`p-2 rounded-lg transition-colors relative ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                } ${surveyTodayData?.completed ? 'opacity-50' : ''}`}
+                data-testid="button-daily-checkin"
+                disabled={surveyTodayData?.completed}
+              >
+                <ClipboardCheck className={`w-5 h-5 ${
+                  surveyTodayData?.completed 
+                    ? (isDark ? 'text-green-400' : 'text-green-600')
+                    : (isDark ? 'text-cyan-400' : 'text-cyan-600')
+                }`} />
+                {!surveyTodayData?.completed && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
+                )}
+              </button>
+              <button 
                 onClick={() => setShowNotifications(true)}
                 className={`p-2 rounded-lg transition-colors relative ${
                   isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
@@ -487,6 +511,13 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           onClose={() => setShowNotifications(false)} 
         />
       )}
+
+      {/* 3PM Daily Survey Modal */}
+      <ThreePMSurveyModal
+        isOpen={showSurveyModal}
+        onClose={() => setShowSurveyModal(false)}
+        isDark={isDark}
+      />
     </div>
   );
 }
