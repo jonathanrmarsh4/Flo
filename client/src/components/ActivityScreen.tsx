@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Trophy, X } from 'lucide-react';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
 interface ActivityScreenProps {
@@ -1208,7 +1208,7 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
                       Push yourself to beat your record!
                     </p>
                   </div>
-                  <Trophy className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                  <Award className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -1234,7 +1234,7 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
 
                   <div>
                     <div className={`text-xs mb-2 flex items-center gap-1 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
-                      Best Week <Trophy className="w-3 h-3" />
+                      Best Week <Award className="w-3 h-3" />
                     </div>
                     {bestWeek ? (
                       <div className="space-y-2">
@@ -1276,7 +1276,7 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
                     isDark ? 'bg-green-500/20 border border-green-500/30' : 'bg-green-50 border border-green-200'
                   }`}>
                     <p className={`text-xs flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-700'}`}>
-                      <Trophy className="w-3 h-3" /> You're crushing it! New personal record!
+                      <Award className="w-3 h-3" /> You're crushing it! New personal record!
                     </p>
                   </div>
                 ) : bestWeek ? (
