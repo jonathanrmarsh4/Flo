@@ -7,6 +7,102 @@ const BACKFILL_MONTHS = 12;
 const DAYS_PER_API_CALL = 5;
 const API_CALL_DELAY_MS = 1100;
 const MAX_RETRIES = 3;
+const DAILY_API_QUOTA = 950;
+
+let cachedQuotaDate: string | null = null;
+let cachedQuotaCalls = 0;
+
+async function getPersistedQuota(): Promise<{ date: string; callsUsed: number }> {
+  const today = new Date().toISOString().split('T')[0];
+  
+  if (cachedQuotaDate === today) {
+    return { date: today, callsUsed: cachedQuotaCalls };
+  }
+  
+  try {
+    const supabase = await getSupabaseClient();
+    
+    const { data, error } = await supabase
+      .from('weather_backfill_status')
+      .select('api_calls_today, api_calls_date')
+      .eq('health_id', '__GLOBAL_QUOTA__')
+      .single();
+    
+    if (error && error.code !== 'PGRST116') {
+      logger.error('[Quota] Error fetching quota:', error);
+      return { date: today, callsUsed: cachedQuotaCalls };
+    }
+    
+    if (data && data.api_calls_date === today) {
+      cachedQuotaDate = today;
+      cachedQuotaCalls = data.api_calls_today || 0;
+      return { date: today, callsUsed: cachedQuotaCalls };
+    } else {
+      cachedQuotaDate = today;
+      cachedQuotaCalls = 0;
+      return { date: today, callsUsed: 0 };
+    }
+  } catch (e) {
+    logger.error('[Quota] Error reading persisted quota:', e);
+    return { date: today, callsUsed: cachedQuotaCalls };
+  }
+}
+
+async function incrementQuota(): Promise<number> {
+  const today = new Date().toISOString().split('T')[0];
+  cachedQuotaCalls++;
+  cachedQuotaDate = today;
+  
+  try {
+    const supabase = await getSupabaseClient();
+    
+    const { data: current, error: readError } = await supabase
+      .from('weather_backfill_status')
+      .select('api_calls_today, api_calls_date')
+      .eq('health_id', '__GLOBAL_QUOTA__')
+      .single();
+    
+    let newCount = 1;
+    if (!readError && current && current.api_calls_date === today) {
+      newCount = (current.api_calls_today || 0) + 1;
+    }
+    
+    await supabase
+      .from('weather_backfill_status')
+      .upsert({
+        health_id: '__GLOBAL_QUOTA__',
+        status: 'quota_tracker',
+        api_calls_today: newCount,
+        api_calls_date: today,
+      }, { onConflict: 'health_id' });
+    
+    cachedQuotaCalls = newCount;
+    
+    if (newCount % 100 === 0) {
+      logger.info(`[Quota] OpenWeather API calls today: ${newCount}/${DAILY_API_QUOTA}`);
+    }
+    
+    return newCount;
+  } catch (e) {
+    logger.error('[Quota] Error incrementing quota:', e);
+    return cachedQuotaCalls;
+  }
+}
+
+async function canMakeApiCall(): Promise<boolean> {
+  const quota = await getPersistedQuota();
+  return quota.callsUsed < DAILY_API_QUOTA;
+}
+
+async function getQuotaStatusInternal(): Promise<{ date: string; callsUsed: number; remaining: number; quotaExhausted: boolean }> {
+  const quota = await getPersistedQuota();
+  return {
+    date: quota.date,
+    callsUsed: quota.callsUsed,
+    remaining: DAILY_API_QUOTA - quota.callsUsed,
+    quotaExhausted: quota.callsUsed >= DAILY_API_QUOTA,
+  };
+}
 
 interface BackfillStatus {
   healthId: string;
@@ -246,10 +342,17 @@ async function fetchAQIForDateRange(
   endDate: Date,
   retryCount = 0
 ): Promise<AirQualityData[]> {
+  if (!await canMakeApiCall()) {
+    const status = await getQuotaStatusInternal();
+    logger.warn(`[Backfill] Daily API quota exhausted (${status.callsUsed}/${DAILY_API_QUOTA})`);
+    throw new Error('QUOTA_EXHAUSTED: Daily OpenWeather API limit reached');
+  }
+  
   try {
     const startTimestamp = Math.floor(startDate.getTime() / 1000);
     const endTimestamp = Math.floor(endDate.getTime() / 1000);
     
+    await incrementQuota();
     const data = await getHistoricalAirQuality(latitude, longitude, startTimestamp, endTimestamp);
     return data;
   } catch (error) {
@@ -261,6 +364,10 @@ async function fetchAQIForDateRange(
     }
     throw error;
   }
+}
+
+export async function getQuotaStatus(): Promise<{ date: string; callsUsed: number; remaining: number; quotaExhausted: boolean }> {
+  return getQuotaStatusInternal();
 }
 
 export async function runBackfillForUser(
@@ -418,6 +525,8 @@ export async function runBackfillForAllUsers(): Promise<{
   successful: number; 
   failed: number;
   noLocationData: number;
+  quotaExhaustedAt?: number;
+  stoppedDueToQuota: boolean;
 }> {
   const supabase = await getSupabaseClient();
   
@@ -428,7 +537,7 @@ export async function runBackfillForAllUsers(): Promise<{
 
   if (error) {
     logger.error('[Backfill] Error fetching users:', error);
-    return { total: 0, successful: 0, failed: 0, noLocationData: 0 };
+    return { total: 0, successful: 0, failed: 0, noLocationData: 0, stoppedDueToQuota: false };
   }
 
   const uniqueHealthIds = Array.from(new Set(users?.map(u => u.health_id) || []));
@@ -437,14 +546,31 @@ export async function runBackfillForAllUsers(): Promise<{
   let successful = 0;
   let failed = 0;
   let noLocationData = 0;
+  let stoppedDueToQuota = false;
+  let quotaExhaustedAt: number | undefined;
 
-  for (const healthId of uniqueHealthIds) {
+  for (let i = 0; i < uniqueHealthIds.length; i++) {
+    const healthId = uniqueHealthIds[i];
+    
+    if (!await canMakeApiCall()) {
+      const quotaStatus = await getQuotaStatusInternal();
+      logger.warn(`[Backfill] Stopping bulk backfill: API quota exhausted (${quotaStatus.callsUsed}/${DAILY_API_QUOTA})`);
+      stoppedDueToQuota = true;
+      quotaExhaustedAt = i;
+      break;
+    }
+    
     const result = await runBackfillForUser(healthId);
     
     if (result.success) {
       successful++;
     } else if (result.error === 'No location history available') {
       noLocationData++;
+    } else if (result.error?.includes('QUOTA_EXHAUSTED')) {
+      stoppedDueToQuota = true;
+      quotaExhaustedAt = i;
+      logger.warn(`[Backfill] Stopping bulk backfill at user ${i + 1}/${uniqueHealthIds.length}: quota exhausted`);
+      break;
     } else {
       failed++;
     }
@@ -452,9 +578,12 @@ export async function runBackfillForAllUsers(): Promise<{
     await sleep(500);
   }
 
-  logger.info(`[Backfill] Bulk backfill complete: ${successful} successful, ${failed} failed, ${noLocationData} no location data`);
+  const message = stoppedDueToQuota 
+    ? `Bulk backfill paused at user ${quotaExhaustedAt! + 1}/${uniqueHealthIds.length}: quota exhausted`
+    : `Bulk backfill complete: ${successful} successful, ${failed} failed, ${noLocationData} no location data`;
+  logger.info(`[Backfill] ${message}`);
 
-  return { total: uniqueHealthIds.length, successful, failed, noLocationData };
+  return { total: uniqueHealthIds.length, successful, failed, noLocationData, quotaExhaustedAt, stoppedDueToQuota };
 }
 
 export async function getBackfillStats(): Promise<{
@@ -464,6 +593,7 @@ export async function getBackfillStats(): Promise<{
   completed: number;
   failed: number;
   noLocationData: number;
+  apiQuota: { date: string; callsUsed: number; remaining: number; quotaExhausted: boolean };
 }> {
   const supabase = await getSupabaseClient();
   
@@ -473,10 +603,13 @@ export async function getBackfillStats(): Promise<{
 
   if (error) {
     logger.error('[Backfill] Error fetching stats:', error);
-    return { total: 0, pending: 0, inProgress: 0, completed: 0, failed: 0, noLocationData: 0 };
+    return { 
+      total: 0, pending: 0, inProgress: 0, completed: 0, failed: 0, noLocationData: 0,
+      apiQuota: await getQuotaStatusInternal()
+    };
   }
 
-  const statuses = data || [];
+  const statuses = (data || []).filter(s => s.status !== 'quota_tracker');
   return {
     total: statuses.length,
     pending: statuses.filter(s => s.status === 'pending').length,
@@ -484,6 +617,7 @@ export async function getBackfillStats(): Promise<{
     completed: statuses.filter(s => s.status === 'completed').length,
     failed: statuses.filter(s => s.status === 'failed').length,
     noLocationData: statuses.filter(s => s.status === 'no_location_data').length,
+    apiQuota: await getQuotaStatusInternal(),
   };
 }
 

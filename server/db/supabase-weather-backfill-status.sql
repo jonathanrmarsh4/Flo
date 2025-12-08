@@ -1,12 +1,14 @@
 -- Weather Backfill Status Table for Flō
 -- Tracks 12-month historical environmental data backfill progress per user
+-- Also tracks global API quota usage
 -- Run this in Supabase SQL Editor
 
 -- Weather Backfill Status
 -- Tracks which users have been backfilled and progress state
+-- health_id '__GLOBAL_QUOTA__' is reserved for tracking daily API quota across all workers
 CREATE TABLE IF NOT EXISTS weather_backfill_status (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  health_id UUID NOT NULL UNIQUE,
+  health_id TEXT NOT NULL UNIQUE,
   backfill_started_at TIMESTAMPTZ,
   backfill_completed_at TIMESTAMPTZ,
   last_processed_date DATE,
@@ -14,8 +16,11 @@ CREATE TABLE IF NOT EXISTS weather_backfill_status (
   latest_date DATE,
   total_days_processed INTEGER DEFAULT 0,
   total_days_with_location INTEGER DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed', 'no_location_data')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'completed', 'failed', 'no_location_data', 'quota_tracker')),
   error_log TEXT,
+  -- API quota tracking columns (used by __GLOBAL_QUOTA__ row)
+  api_calls_today INTEGER DEFAULT 0,
+  api_calls_date DATE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
