@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X } from 'lucide-react';
 import { BottomNav } from './BottomNav';
-import { MorningBriefing, MorningBriefingTile } from './MorningBriefing';
 
 interface ActivityScreenProps {
   isDark: boolean;
@@ -535,7 +534,6 @@ function ActivityDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: (
 function ActivityTabContent({ isDark }: { isDark: boolean }) {
   const [showWorkoutDetails, setShowWorkoutDetails] = useState(false);
   const [showActivityDetails, setShowActivityDetails] = useState(false);
-  const [showMorningBriefing, setShowMorningBriefing] = useState(false);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<ActivitySummary>({
     queryKey: ['/api/activity/summary'],
@@ -583,11 +581,6 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
   
   return (
     <div className="space-y-4">
-      <MorningBriefingTile 
-        isDark={isDark} 
-        onClick={() => setShowMorningBriefing(true)} 
-      />
-      
       <button 
         className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
           isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
@@ -716,13 +709,6 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
         <ActivityDetailsModal isDark={isDark} onClose={() => setShowActivityDetails(false)} />
       )}
 
-      {showMorningBriefing && (
-        <MorningBriefing 
-          isDark={isDark} 
-          onClose={() => setShowMorningBriefing(false)} 
-        />
-      )}
-      
       <button 
         className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
           isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'

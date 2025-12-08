@@ -9,6 +9,7 @@ import { initializeDailyReminderScheduler } from "./services/dailyReminderSchedu
 import { initializeReminderDeliveryService } from "./services/reminderDeliveryService";
 import { startFollowUpScheduler } from "./services/followUpScheduler";
 import { clickhouseOrchestrator } from "./services/clickhouseOrchestrator";
+import { startMorningBriefingScheduler } from "./services/morningBriefingScheduler";
 
 const app = express();
 
@@ -167,6 +168,9 @@ app.use((req, res, next) => {
       
       // Start the follow-up request scheduler (evaluates pending follow-ups every 30 min)
       startFollowUpScheduler();
+      
+      // Start the morning briefing scheduler (7 AM local time delivery)
+      startMorningBriefingScheduler();
     }, 5000);
   });
 })();

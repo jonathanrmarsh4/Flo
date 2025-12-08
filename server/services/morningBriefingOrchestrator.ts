@@ -2,10 +2,11 @@ import { createLogger } from '../utils/logger';
 import { clickhouse } from './clickhouseService';
 import { getSupabaseClient } from './supabaseClient';
 import { getHealthId } from './supabaseHealthStorage';
+import { apnsService } from './apnsService';
 
 const supabase = getSupabaseClient();
 import { db } from '../db';
-import { users } from '@shared/schema';
+import { users, notificationLogs } from '@shared/schema';
 import { eq, isNotNull, and } from 'drizzle-orm';
 import { 
   AIRequestPayload, 
@@ -1031,7 +1032,14 @@ export async function recordBriefingFeedback(
 export async function getTodaysBriefing(userId: string): Promise<MorningBriefingData | null> {
   try {
     const healthId = await getHealthId(userId);
-    const today = new Date().toISOString().split('T')[0];
+    
+    // Get user's timezone to determine "today" in their local time
+    const userResult = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+    const userTimezone = userResult[0]?.timezone || 'UTC';
+    
+    // Calculate today's date in user's timezone
+    const { formatInTimeZone } = await import('date-fns-tz');
+    const today = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
 
     // Fetch briefing from ClickHouse
     const sql = `
@@ -1304,13 +1312,60 @@ export async function generateBriefingForUser(
 
     logger.info(`[MorningBriefing] Generated briefing ${briefingId} for ${userId} on ${eventDate}`);
 
-    // TODO: Send push notification via APNs
-    // await sendBriefingPushNotification(userId, briefingId, briefingResponse.push_text);
+    // Send push notification via APNs
+    if (briefingResponse.push_text) {
+      await sendBriefingPushNotification(userId, briefingId, briefingResponse.push_text, eventDate);
+    }
 
     return briefingId;
   } catch (error) {
     logger.error(`[MorningBriefing] Error in generateBriefingForUser for ${userId}:`, error);
     return null;
+  }
+}
+
+// ==================== PUSH NOTIFICATIONS ====================
+
+async function sendBriefingPushNotification(
+  userId: string, 
+  briefingId: string, 
+  pushText: string,
+  eventDate: string
+): Promise<void> {
+  try {
+    // Create notification log entry
+    const [logEntry] = await db.insert(notificationLogs).values({
+      userId,
+      title: 'Your Morning Briefing is Ready',
+      body: pushText.length > 200 ? pushText.substring(0, 197) + '...' : pushText,
+      status: 'pending',
+      contextData: { type: 'morning_briefing', briefingId, eventDate },
+    }).returning();
+
+    // Send via APNs
+    const result = await apnsService.sendToUser(userId, {
+      title: 'Good Morning ☀️',
+      body: pushText.length > 200 ? pushText.substring(0, 197) + '...' : pushText,
+      sound: 'default',
+      interruptionLevel: 'time-sensitive',
+      data: {
+        type: 'morning_briefing',
+        briefingId,
+        eventDate,
+      },
+    }, logEntry?.id);
+
+    if (result.success) {
+      logger.info(`[MorningBriefing] Push notification sent for briefing ${briefingId} to ${result.devicesReached} device(s)`);
+      
+      // Update briefing push status
+      await updateBriefingPushStatus(briefingId, 'sent');
+    } else {
+      logger.warn(`[MorningBriefing] Push notification failed for briefing ${briefingId}: ${result.error}`);
+      await updateBriefingPushStatus(briefingId, 'failed');
+    }
+  } catch (error) {
+    logger.error(`[MorningBriefing] Error sending push notification for ${briefingId}:`, error);
   }
 }
 
