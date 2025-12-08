@@ -1900,8 +1900,8 @@ export async function getRecentChatHistory(userId: string, limit: number = 20): 
         return false;
       }
       
-      // Only include user and assistant messages
-      if (msg.sender !== 'user' && msg.sender !== 'assistant') {
+      // Only include user and flo messages
+      if (msg.sender !== 'user' && msg.sender !== 'flo') {
         return false;
       }
       

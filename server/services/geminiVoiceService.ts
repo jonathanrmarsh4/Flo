@@ -757,6 +757,24 @@ Start the conversation warmly, using their name if you have it.`;
           });
         });
       }
+      
+      // Mark all insights as discussed to prevent repetition in future conversations
+      this.markInsightsAsDiscussedAsync(state.userId, sessionId).catch(err => {
+        logger.error('[GeminiVoice] Failed to mark insights as discussed', { 
+          sessionId, 
+          error: err.message 
+        });
+      });
+      
+      // Store conversation summary as a user memory for long-term context
+      if (userContent && aiContent) {
+        this.storeConversationSummaryAsync(state.userId, sessionId, userContent, aiContent).catch(err => {
+          logger.error('[GeminiVoice] Failed to store conversation summary', { 
+            sessionId, 
+            error: err.message 
+          });
+        });
+      }
     } catch (error: any) {
       logger.error('[GeminiVoice] Failed to persist conversation with context', { 
         sessionId, 
@@ -982,6 +1000,109 @@ Start the conversation warmly, using their name if you have it.`;
         totalTimeMs: Date.now() - startTime,
       });
     }
+  }
+
+  /**
+   * Mark all insights as discussed after a conversation ends
+   * Prevents Flō Oracle from repeating the same insights in future conversations
+   */
+  private async markInsightsAsDiscussedAsync(userId: string, sessionId: string): Promise<void> {
+    try {
+      const { markAllInsightsAsDiscussed } = await import('./supabaseHealthStorage');
+      const result = await markAllInsightsAsDiscussed(userId);
+      
+      if (result.insightCards > 0 || result.dailyInsights > 0) {
+        logger.info('[GeminiVoice] Marked insights as discussed', {
+          sessionId,
+          userId,
+          insightCardsMarked: result.insightCards,
+          dailyInsightsMarked: result.dailyInsights,
+        });
+      }
+    } catch (error: any) {
+      logger.error('[GeminiVoice] Error marking insights as discussed', {
+        sessionId,
+        userId,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Store a summary of the conversation as a user memory
+   * This enables long-term context and prevents repetitive discussions
+   */
+  private async storeConversationSummaryAsync(
+    userId: string,
+    sessionId: string,
+    userContent: string,
+    aiContent: string
+  ): Promise<void> {
+    try {
+      const { storeMemory } = await import('./userMemoryService');
+      
+      // Create a brief summary of what was discussed
+      const topicKeywords = this.extractTopicsFromConversation(userContent, aiContent);
+      const summaryRaw = topicKeywords.length > 0
+        ? `Discussed: ${topicKeywords.join(', ')}`
+        : `Conversation session completed`;
+      
+      await storeMemory(userId, {
+        type: 'health_discussion',
+        raw: summaryRaw,
+        extracted: {
+          topics: topicKeywords,
+          userMessagePreview: userContent.substring(0, 200),
+          aiResponsePreview: aiContent.substring(0, 200),
+          sessionId,
+        },
+        importance: 'medium',
+      }, {
+        sessionId,
+        occurredAt: new Date(),
+        tags: ['conversation', 'flo_oracle', ...topicKeywords.slice(0, 5)],
+      });
+      
+      logger.info('[GeminiVoice] Stored conversation summary as memory', {
+        sessionId,
+        userId,
+        topics: topicKeywords,
+      });
+    } catch (error: any) {
+      logger.error('[GeminiVoice] Error storing conversation summary', {
+        sessionId,
+        userId,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Extract health-related topics from conversation for memory tagging
+   */
+  private extractTopicsFromConversation(userContent: string, aiContent: string): string[] {
+    const combined = `${userContent} ${aiContent}`.toLowerCase();
+    const topics: string[] = [];
+    
+    const healthKeywords = [
+      'hrv', 'heart rate', 'sleep', 'deep sleep', 'rem', 'steps', 'workout', 'exercise',
+      'calories', 'weight', 'body fat', 'visceral fat', 'blood pressure', 'glucose',
+      'cholesterol', 'hdl', 'ldl', 'triglycerides', 'vitamin d', 'vitamin b12', 'iron',
+      'ferritin', 'creatinine', 'egfr', 'liver', 'kidney', 'thyroid', 'testosterone',
+      'cortisol', 'inflammation', 'crp', 'hba1c', 'fasting glucose', 'recovery',
+      'stress', 'anxiety', 'mood', 'energy', 'fatigue', 'headache', 'pain',
+      'meditation', 'sauna', 'cold plunge', 'supplements', 'diet', 'fasting',
+      'alcohol', 'caffeine', 'hydration', 'vo2 max', 'dexa', 'body composition',
+      'biomarker', 'anomaly', 'pattern', 'trend', 'baseline', 'correlation',
+    ];
+    
+    for (const keyword of healthKeywords) {
+      if (combined.includes(keyword)) {
+        topics.push(keyword);
+      }
+    }
+    
+    return topics.slice(0, 10); // Limit to 10 topics
   }
 
   /**

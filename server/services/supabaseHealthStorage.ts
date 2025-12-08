@@ -2681,6 +2681,92 @@ export async function updateInsightCard(cardId: string, updates: Partial<Insight
   return data;
 }
 
+/**
+ * Mark all NEW insight cards as discussed after a Flō Oracle conversation
+ * This prevents the AI from repeatedly bringing up the same insights
+ */
+export async function markInsightCardsAsDiscussed(userId: string): Promise<number> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('insight_cards')
+    .update({ 
+      is_new: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('health_id', healthId)
+    .eq('is_new', true)
+    .eq('is_active', true)
+    .select('id');
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error marking insight cards as discussed:', error);
+    throw error;
+  }
+
+  return data?.length || 0;
+}
+
+/**
+ * Mark all insights (both insight_cards and daily_insights) as discussed after a conversation
+ * Called at end of Flō Oracle voice/text sessions to prevent repetition
+ */
+export async function markAllInsightsAsDiscussed(userId: string): Promise<{ insightCards: number; dailyInsights: number }> {
+  const healthId = await getHealthId(userId);
+  let cardsCount = 0;
+  let insightsCount = 0;
+  
+  try {
+    // Mark insight_cards as discussed
+    const cardsResult = await supabase
+      .from('insight_cards')
+      .update({ 
+        is_new: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('health_id', healthId)
+      .eq('is_new', true)
+      .eq('is_active', true)
+      .select('id');
+    
+    if (cardsResult.error) {
+      logger.error('[SupabaseHealth] Error marking insight cards as discussed:', cardsResult.error);
+    } else {
+      cardsCount = cardsResult.data?.length || 0;
+    }
+  } catch (err: any) {
+    logger.error('[SupabaseHealth] Exception marking insight cards as discussed:', err.message);
+  }
+  
+  try {
+    // Mark ALL new daily_insights as discussed (not just today's - user may discuss older insights)
+    const insightsResult = await supabase
+      .from('daily_insights')
+      .update({ is_new: false })
+      .eq('health_id', healthId)
+      .eq('is_new', true)
+      .select('id');
+    
+    if (insightsResult.error) {
+      logger.error('[SupabaseHealth] Error marking daily insights as discussed:', insightsResult.error);
+    } else {
+      insightsCount = insightsResult.data?.length || 0;
+    }
+  } catch (err: any) {
+    logger.error('[SupabaseHealth] Exception marking daily insights as discussed:', err.message);
+  }
+  
+  if (cardsCount > 0 || insightsCount > 0) {
+    logger.info('[SupabaseHealth] Marked insights as discussed after conversation', {
+      userId,
+      insightCardsMarked: cardsCount,
+      dailyInsightsMarked: insightsCount,
+    });
+  }
+  
+  return { insightCards: cardsCount, dailyInsights: insightsCount };
+}
+
 // ==================== DAILY INSIGHTS ====================
 // AI-generated personalized health insights (PHI - stored in Supabase for privacy)
 
