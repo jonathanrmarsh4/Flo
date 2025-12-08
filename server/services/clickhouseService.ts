@@ -735,6 +735,32 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
+    // Subjective Surveys - Daily 3PM check-in surveys for ML pattern analysis
+    // Captures user-reported energy, mental clarity, and mood
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.subjective_surveys (
+          survey_id String,
+          health_id String,
+          recorded_at DateTime64(3),
+          local_date Date,
+          local_time String,
+          timezone String,
+          energy UInt8,
+          clarity UInt8,
+          mood UInt8,
+          composite_score Float64,
+          trigger_source LowCardinality(String) DEFAULT 'notification',
+          response_latency_seconds Nullable(Int32),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, local_date, survey_id)
+        TTL local_date + INTERVAL 5 YEAR
+      `,
+    });
+
     // AI Feedback Questions - Dynamic questions generated from anomaly patterns
     // Enables contextual follow-up questions like "How are you feeling 1-10?"
     await ch.command({
