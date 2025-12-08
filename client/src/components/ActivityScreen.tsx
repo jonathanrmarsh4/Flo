@@ -1082,26 +1082,62 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
     queryKey: ['/api/activity/workouts/weekly'],
   });
 
-  const workoutColors: { [key: string]: { bg: string; text: string } } = {
-    'Run': { bg: 'bg-cyan-500', text: 'text-cyan-400' },
-    'Running': { bg: 'bg-cyan-500', text: 'text-cyan-400' },
-    'Strength': { bg: 'bg-purple-500', text: 'text-purple-400' },
-    'TraditionalStrengthTraining': { bg: 'bg-purple-500', text: 'text-purple-400' },
-    'FunctionalStrengthTraining': { bg: 'bg-purple-500', text: 'text-purple-400' },
-    'HIIT': { bg: 'bg-red-500', text: 'text-red-400' },
-    'HighIntensityIntervalTraining': { bg: 'bg-red-500', text: 'text-red-400' },
-    'Cycling': { bg: 'bg-blue-500', text: 'text-blue-400' },
-    'Swimming': { bg: 'bg-teal-500', text: 'text-teal-400' },
-    'Yoga': { bg: 'bg-green-500', text: 'text-green-400' },
-    'Pilates': { bg: 'bg-pink-500', text: 'text-pink-400' },
-    'Walking': { bg: 'bg-emerald-500', text: 'text-emerald-400' },
-    'Hiking': { bg: 'bg-amber-500', text: 'text-amber-400' },
-    'Elliptical': { bg: 'bg-indigo-500', text: 'text-indigo-400' },
-    'Rowing': { bg: 'bg-sky-500', text: 'text-sky-400' },
-    'StairStepper': { bg: 'bg-orange-500', text: 'text-orange-400' },
-    'CoreTraining': { bg: 'bg-violet-500', text: 'text-violet-400' },
-    'Flexibility': { bg: 'bg-lime-500', text: 'text-lime-400' },
-    'Dance': { bg: 'bg-fuchsia-500', text: 'text-fuchsia-400' },
+  const normalizeWorkoutType = (type: string): { normalized: string; display: string } => {
+    const lower = type.toLowerCase().trim();
+    
+    if (lower.includes('run')) return { normalized: 'running', display: 'Run' };
+    if (lower.includes('strength') || lower.includes('weight') || lower.includes('lifting')) 
+      return { normalized: 'strength', display: 'Strength' };
+    if (lower.includes('hiit') || lower.includes('high intensity') || lower.includes('interval')) 
+      return { normalized: 'hiit', display: 'HIIT' };
+    if (lower.includes('cycling') || lower.includes('bike') || lower.includes('biking')) 
+      return { normalized: 'cycling', display: 'Cycling' };
+    if (lower.includes('swim')) return { normalized: 'swimming', display: 'Swimming' };
+    if (lower.includes('yoga')) return { normalized: 'yoga', display: 'Yoga' };
+    if (lower.includes('pilates')) return { normalized: 'pilates', display: 'Pilates' };
+    if (lower.includes('walk')) return { normalized: 'walking', display: 'Walking' };
+    if (lower.includes('hik')) return { normalized: 'hiking', display: 'Hiking' };
+    if (lower.includes('elliptical')) return { normalized: 'elliptical', display: 'Elliptical' };
+    if (lower.includes('row')) return { normalized: 'rowing', display: 'Rowing' };
+    if (lower.includes('stair') || lower.includes('stepper')) return { normalized: 'stairs', display: 'Stairs' };
+    if (lower.includes('core')) return { normalized: 'core', display: 'Core' };
+    if (lower.includes('flex') || lower.includes('stretch')) return { normalized: 'flexibility', display: 'Flexibility' };
+    if (lower.includes('dance')) return { normalized: 'dance', display: 'Dance' };
+    if (lower.includes('cardio')) return { normalized: 'cardio', display: 'Cardio' };
+    if (lower.includes('cross') && lower.includes('train')) return { normalized: 'crosstraining', display: 'CrossTraining' };
+    
+    return { normalized: lower, display: type };
+  };
+
+  const workoutColors: { [key: string]: { bg: string; hex: string } } = {
+    'running': { bg: 'bg-cyan-500', hex: '#06b6d4' },
+    'strength': { bg: 'bg-purple-500', hex: '#a855f7' },
+    'hiit': { bg: 'bg-red-500', hex: '#ef4444' },
+    'cycling': { bg: 'bg-blue-500', hex: '#3b82f6' },
+    'swimming': { bg: 'bg-teal-500', hex: '#14b8a6' },
+    'yoga': { bg: 'bg-green-500', hex: '#22c55e' },
+    'pilates': { bg: 'bg-pink-500', hex: '#ec4899' },
+    'walking': { bg: 'bg-emerald-500', hex: '#10b981' },
+    'hiking': { bg: 'bg-amber-500', hex: '#f59e0b' },
+    'elliptical': { bg: 'bg-indigo-500', hex: '#6366f1' },
+    'rowing': { bg: 'bg-sky-500', hex: '#0ea5e9' },
+    'stairs': { bg: 'bg-orange-500', hex: '#f97316' },
+    'core': { bg: 'bg-violet-500', hex: '#8b5cf6' },
+    'flexibility': { bg: 'bg-lime-500', hex: '#84cc16' },
+    'dance': { bg: 'bg-fuchsia-500', hex: '#d946ef' },
+    'cardio': { bg: 'bg-rose-500', hex: '#f43f5e' },
+    'crosstraining': { bg: 'bg-cyan-600', hex: '#0891b2' },
+  };
+
+  const defaultColor = { bg: 'bg-slate-500', hex: '#64748b' };
+
+  const getWorkoutColor = (type: string) => {
+    const { normalized } = normalizeWorkoutType(type);
+    return workoutColors[normalized] || defaultColor;
+  };
+
+  const getWorkoutDisplay = (type: string) => {
+    return normalizeWorkoutType(type).display;
   };
 
   const weekData = data?.weekData || [];
@@ -1362,7 +1398,7 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
                           </div>
                           <div className="flex-1">
                             <div className={`h-8 rounded-lg overflow-hidden ${
-                              isDark ? 'bg-white/5' : 'bg-gray-100'
+                              isDark ? 'bg-white/10' : 'bg-gray-200'
                             }`}>
                               {dayDuration > 0 && (
                                 <div 
@@ -1371,19 +1407,24 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
                                 >
                                   {day.workouts.map((workout, wIndex) => {
                                     const segmentPercent = (workout.duration / dayDuration) * 100;
-                                    const color = workoutColors[workout.type] || { bg: 'bg-gray-500' };
+                                    const color = getWorkoutColor(workout.type);
+                                    const displayName = getWorkoutDisplay(workout.type);
                                     return (
                                       <div
                                         key={wIndex}
-                                        className={`h-full flex items-center justify-center ${color.bg} ${
-                                          isToday ? '' : 'opacity-70'
+                                        className={`h-full flex items-center justify-center ${
+                                          isToday ? '' : 'opacity-80'
                                         }`}
-                                        style={{ width: `${segmentPercent}%` }}
-                                        title={`${workout.type}: ${workout.duration}min`}
+                                        style={{ 
+                                          width: `${segmentPercent}%`,
+                                          backgroundColor: color.hex,
+                                          minWidth: workout.duration > 0 ? '4px' : '0'
+                                        }}
+                                        title={`${displayName}: ${workout.duration}min`}
                                       >
-                                        {segmentPercent > 20 && (
-                                          <span className="text-[10px] text-white px-1 truncate">
-                                            {workout.type}
+                                        {segmentPercent > 25 && (
+                                          <span className="text-[10px] text-white font-medium px-1 truncate drop-shadow-sm">
+                                            {displayName}
                                           </span>
                                         )}
                                       </div>
@@ -1403,20 +1444,32 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
                     })}
                   </div>
 
-                  {/* Legend */}
+                  {/* Legend - shows unique normalized workout types */}
                   {Object.keys(workoutTypes).length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {Object.entries(workoutTypes).map(([type]) => {
-                        const color = workoutColors[type] || { bg: 'bg-gray-500', text: 'text-gray-400' };
-                        return (
-                          <div key={type} className="flex items-center gap-1.5">
-                            <div className={`w-3 h-3 rounded ${color.bg}`} />
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {(() => {
+                        const uniqueTypes = new Map<string, { display: string; color: { bg: string; hex: string } }>();
+                        Object.keys(workoutTypes).forEach(type => {
+                          const { normalized, display } = normalizeWorkoutType(type);
+                          if (!uniqueTypes.has(normalized)) {
+                            uniqueTypes.set(normalized, { 
+                              display, 
+                              color: workoutColors[normalized] || defaultColor 
+                            });
+                          }
+                        });
+                        return Array.from(uniqueTypes.entries()).map(([key, { display, color }]) => (
+                          <div key={key} className="flex items-center gap-1.5">
+                            <div 
+                              className="w-3 h-3 rounded"
+                              style={{ backgroundColor: color.hex }}
+                            />
                             <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                              {type}
+                              {display}
                             </span>
                           </div>
-                        );
-                      })}
+                        ));
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1463,19 +1516,21 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
                           </div>
                           
                           <div className={`divide-y ${isDark ? 'divide-white/10' : 'divide-gray-200'}`}>
-                            {day.workouts.map((workout, workoutIndex) => (
+                            {day.workouts.map((workout, workoutIndex) => {
+                              const workoutColor = getWorkoutColor(workout.type);
+                              const workoutDisplayName = getWorkoutDisplay(workout.type);
+                              return (
                               <div key={workoutIndex} className="px-4 py-3">
                                 <div className="flex items-start justify-between mb-2">
                                   <div className="flex items-center gap-2">
-                                    <Dumbbell className={`w-4 h-4 ${
-                                      workout.intensity === 'High' 
-                                        ? isDark ? 'text-red-400' : 'text-red-600'
-                                        : workout.intensity === 'Moderate'
-                                        ? isDark ? 'text-orange-400' : 'text-orange-600'
-                                        : isDark ? 'text-green-400' : 'text-green-600'
-                                    }`} />
+                                    <div 
+                                      className="w-4 h-4 rounded-full flex items-center justify-center"
+                                      style={{ backgroundColor: workoutColor.hex }}
+                                    >
+                                      <Dumbbell className="w-2.5 h-2.5 text-white" />
+                                    </div>
                                     <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                      {workout.type}
+                                      {workoutDisplayName}
                                     </span>
                                   </div>
                                   <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -1507,7 +1562,8 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
                                   )}
                                 </div>
                               </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       );
