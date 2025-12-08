@@ -9174,6 +9174,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get 7-day activity data for Activity Details modal
+  app.get("/api/activity/weekly", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get user's timezone from their most recent daily metric
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const userTimezone = recentMetrics.length > 0 ? recentMetrics[0].timezone : 'UTC';
+      
+      // Get 14 days of metrics to ensure we have coverage for the last 7 days
+      const weekMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 14 });
+      
+      // Create a map of localDate -> metric for fast lookup
+      const metricsMap = new Map<string, typeof weekMetrics[0]>();
+      for (const metric of weekMetrics) {
+        if (metric.localDate) {
+          metricsMap.set(metric.localDate, metric);
+        }
+      }
+      
+      // Helper function to format date as YYYY-MM-DD in user's timezone
+      const formatDateAsLocal = (date: Date, tz: string): string => {
+        const options: Intl.DateTimeFormatOptions = {
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        };
+        const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(date);
+        const year = parts.find(p => p.type === 'year')?.value || '2025';
+        const month = parts.find(p => p.type === 'month')?.value || '01';
+        const day = parts.find(p => p.type === 'day')?.value || '01';
+        return `${year}-${month}-${day}`;
+      };
+      
+      // Build day-by-day data for the last 7 days
+      const today = new Date();
+      
+      const weekData: Array<{
+        day: string;
+        date: string;
+        steps: number;
+        distance: number;
+        calories: number;
+        exercise: number;
+        standHours: number;
+      }> = [];
+      
+      // Create entries for the last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        
+        // Format date in user's timezone as YYYY-MM-DD using stable formatter
+        const localDateStr = formatDateAsLocal(date, userTimezone);
+        
+        const displayDate = date.toLocaleString('en-US', { 
+          timeZone: userTimezone,
+          month: 'short',
+          day: 'numeric'
+        });
+        
+        const dayOfWeek = date.toLocaleString('en-US', { 
+          timeZone: userTimezone, 
+          weekday: 'short' 
+        });
+        
+        // Find matching metric for this date from the map
+        const metric = metricsMap.get(localDateStr);
+        
+        weekData.push({
+          day: i === 0 ? 'Today' : dayOfWeek,
+          date: displayDate,
+          steps: metric?.stepsNormalized ?? metric?.stepsRawSum ?? 0,
+          distance: metric?.distanceMeters ? Math.round(metric.distanceMeters / 100) / 10 : 0,
+          calories: Math.round(metric?.activeEnergyKcal ?? 0),
+          exercise: Math.round(metric?.exerciseMinutes ?? 0),
+          standHours: metric?.standHours ?? 0
+        });
+      }
+      
+      // Calculate averages (only for days with data)
+      const daysWithData = weekData.filter(d => d.steps > 0 || d.calories > 0 || d.exercise > 0);
+      const divisor = daysWithData.length || 1;
+      
+      const avgSteps = Math.round(weekData.reduce((sum, d) => sum + d.steps, 0) / divisor);
+      const avgDistance = Math.round(weekData.reduce((sum, d) => sum + d.distance, 0) / divisor * 10) / 10;
+      const avgCalories = Math.round(weekData.reduce((sum, d) => sum + d.calories, 0) / divisor);
+      const totalExercise = weekData.reduce((sum, d) => sum + d.exercise, 0);
+      
+      // Find best day
+      const maxStepsDay = weekData.reduce((best, day) => day.steps > best.steps ? day : best, weekData[0]);
+      
+      return res.json({
+        weekData,
+        averages: {
+          steps: avgSteps,
+          distance: avgDistance,
+          calories: avgCalories,
+          totalExercise
+        },
+        insights: {
+          bestDay: maxStepsDay.day,
+          bestDaySteps: maxStepsDay.steps,
+          daysOverGoal: weekData.filter(d => d.steps >= 10000).length
+        }
+      });
+    } catch (error: any) {
+      logger.error("[Activity] Error fetching weekly data:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get today's workouts
   app.get("/api/activity/workouts", isAuthenticated, async (req: any, res) => {
     try {

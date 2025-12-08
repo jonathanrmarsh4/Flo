@@ -129,6 +129,29 @@ interface WeeklyWorkoutData {
   workoutTypes: Record<string, number>;
 }
 
+interface WeeklyActivityData {
+  weekData: Array<{
+    day: string;
+    date: string;
+    steps: number;
+    distance: number;
+    calories: number;
+    exercise: number;
+    standHours: number;
+  }>;
+  averages: {
+    steps: number;
+    distance: number;
+    calories: number;
+    totalExercise: number;
+  };
+  insights: {
+    bestDay: string;
+    bestDaySteps: number;
+    daysOverGoal: number;
+  };
+}
+
 export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenProps) {
   const [activeTab, setActiveTab] = useState<TabType>('activity');
 
@@ -237,8 +260,258 @@ function EmptyState({ isDark, message }: { isDark: boolean; message: string }) {
   );
 }
 
+function ActivityDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: () => void }) {
+  const { data: weeklyData, isLoading } = useQuery<WeeklyActivityData>({
+    queryKey: ['/api/activity/weekly'],
+  });
+
+  const weekData = weeklyData?.weekData ?? [];
+  const avgSteps = weeklyData?.averages?.steps ?? 0;
+  const avgDistance = weeklyData?.averages?.distance ?? 0;
+  const avgCalories = weeklyData?.averages?.calories ?? 0;
+  const totalExercise = weeklyData?.averages?.totalExercise ?? 0;
+  const bestDay = weeklyData?.insights?.bestDay ?? '';
+  const bestDaySteps = weeklyData?.insights?.bestDaySteps ?? 0;
+  const daysOverGoal = weeklyData?.insights?.daysOverGoal ?? 0;
+
+  const maxSteps = Math.max(...weekData.map(d => d.steps), 1);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      
+      <div className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto ${ 
+        isDark ? 'bg-slate-900' : 'bg-white'
+      }`}>
+        <div className={`sticky top-0 z-10 backdrop-blur-xl border-b ${
+          isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-black/10'
+        }`}>
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Activity Details
+                </h2>
+                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Last 7 days
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className={`p-2 rounded-xl transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                data-testid="button-close-activity-details"
+              >
+                <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-6 space-y-6">
+          {isLoading ? (
+            <LoadingSpinner isDark={isDark} />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Steps
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {avgSteps.toLocaleString()}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    per day
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Distance
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {avgDistance}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                    km/day
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Calories
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {avgCalories}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                    kcal/day
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Total Exercise
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {totalExercise}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                    minutes
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Daily Steps
+                </h3>
+                <div className="space-y-2">
+                  {weekData.map((day, index) => {
+                    const isToday = day.day === 'Today';
+                    const barPercent = maxSteps > 0 ? (day.steps / maxSteps) * 100 : 0;
+                    
+                    return (
+                      <div key={index} className="flex items-center gap-3">
+                        <div className={`w-12 text-xs ${
+                          isToday 
+                            ? isDark ? 'text-cyan-400' : 'text-cyan-600'
+                            : isDark ? 'text-white/50' : 'text-gray-500'
+                        }`}>
+                          {day.day}
+                        </div>
+                        <div className="flex-1">
+                          <div className={`h-8 rounded-lg overflow-hidden ${
+                            isDark ? 'bg-white/5' : 'bg-gray-100'
+                          }`}>
+                            <div 
+                              className={`h-full flex items-center px-2 transition-all ${
+                                isToday
+                                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500'
+                                  : isDark 
+                                  ? 'bg-gradient-to-r from-cyan-500/50 to-blue-500/50'
+                                  : 'bg-gradient-to-r from-cyan-400/70 to-blue-400/70'
+                              }`}
+                              style={{ width: `${barPercent}%` }}
+                            >
+                              <span className={`text-xs ${
+                                barPercent > 30 ? 'text-white' : ''
+                              }`}>
+                                {barPercent > 30 ? day.steps.toLocaleString() : ''}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`w-16 text-xs text-right ${
+                          isDark ? 'text-white/70' : 'text-gray-700'
+                        }`}>
+                          {barPercent <= 30 ? day.steps.toLocaleString() : ''}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Week Breakdown
+                </h3>
+                <div className={`rounded-2xl border overflow-hidden ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`grid grid-cols-5 gap-2 p-3 border-b text-xs ${
+                    isDark ? 'bg-white/5 border-white/10 text-white/50' : 'bg-gray-100 border-gray-200 text-gray-500'
+                  }`}>
+                    <div>Day</div>
+                    <div className="text-right">Steps</div>
+                    <div className="text-right">Dist.</div>
+                    <div className="text-right">Cal.</div>
+                    <div className="text-right">Exer.</div>
+                  </div>
+                  
+                  {weekData.map((day, index) => {
+                    const isToday = day.day === 'Today';
+                    return (
+                      <div 
+                        key={index}
+                        className={`grid grid-cols-5 gap-2 p-3 text-xs ${
+                          index < weekData.length - 1 ? isDark ? 'border-b border-white/10' : 'border-b border-gray-200' : ''
+                        } ${
+                          isToday ? isDark ? 'bg-cyan-500/10' : 'bg-cyan-50' : ''
+                        }`}
+                      >
+                        <div className={`${
+                          isToday 
+                            ? isDark ? 'text-cyan-400' : 'text-cyan-600'
+                            : isDark ? 'text-white/70' : 'text-gray-700'
+                        }`}>
+                          {day.day}
+                          <div className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                            {day.date}
+                          </div>
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {day.steps.toLocaleString()}
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          {day.distance}
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          {day.calories}
+                        </div>
+                        <div className={`text-right ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          {day.exercise}m
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-2xl border ${
+                isDark ? 'bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/20' : 'bg-gradient-to-br from-cyan-50 to-blue-50 border-cyan-200'
+              }`}>
+                <div className="flex items-start gap-3">
+                  <TrendingUp className={`w-5 h-5 mt-0.5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                  <div>
+                    <h4 className={`text-sm mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Weekly Insights
+                    </h4>
+                    <p className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                      {daysOverGoal > 0 
+                        ? `You exceeded your step goal on ${daysOverGoal} out of 7 days this week. `
+                        : 'Keep pushing to reach your daily step goal! '}
+                      {bestDay && bestDaySteps > 0 && `Your most active day was ${bestDay} with ${bestDaySteps.toLocaleString()} steps. `}
+                      Keep up the momentum!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActivityTabContent({ isDark }: { isDark: boolean }) {
   const [showWorkoutDetails, setShowWorkoutDetails] = useState(false);
+  const [showActivityDetails, setShowActivityDetails] = useState(false);
 
   const { data: summary, isLoading: summaryLoading } = useQuery<ActivitySummary>({
     queryKey: ['/api/activity/summary'],
@@ -290,6 +563,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
         className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
           isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
         }`}
+        onClick={() => setShowActivityDetails(true)}
         data-testid="tile-todays-activity"
       >
         <div className="flex items-center justify-between mb-4">
@@ -407,6 +681,10 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
 
       {showWorkoutDetails && (
         <WorkoutDetailsModal isDark={isDark} onClose={() => setShowWorkoutDetails(false)} />
+      )}
+      
+      {showActivityDetails && (
+        <ActivityDetailsModal isDark={isDark} onClose={() => setShowActivityDetails(false)} />
       )}
       
       <button 
