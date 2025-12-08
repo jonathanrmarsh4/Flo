@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X } from 'lucide-react';
 import { BottomNav } from './BottomNav';
@@ -2003,10 +2003,17 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
     queryKey: ['/api/nutrition/macros/weekly'],
   });
 
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   if (isLoading || !macrosData) {
     return (
       <div className="fixed inset-0 z-[100] flex items-end justify-center">
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm touch-none" onClick={onClose} />
         <div className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl p-6 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
           <div className="flex items-center justify-center py-12">
             <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
@@ -2034,13 +2041,16 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center">
       <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm touch-none"
         onClick={onClose}
       />
       
-      <div className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto ${ 
-        isDark ? 'bg-slate-900' : 'bg-white'
-      }`}>
+      <div 
+        className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto overscroll-contain ${ 
+          isDark ? 'bg-slate-900' : 'bg-white'
+        }`}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
         <div className={`sticky top-0 z-10 backdrop-blur-xl border-b ${
           isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-black/10'
         }`}>
