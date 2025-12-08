@@ -33,15 +33,12 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
   
   const submitMutation = useMutation({
     mutationFn: async (data: { energy: number; clarity: number; mood: number }) => {
-      return apiRequest('/api/surveys/daily', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...data,
-          timezone: userTimezone,
-          triggerSource: 'manual'
-        }),
-        headers: { 'Content-Type': 'application/json' }
+      const res = await apiRequest('POST', '/api/surveys/daily', {
+        ...data,
+        timezone: userTimezone,
+        triggerSource: 'manual'
       });
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/surveys/today?timezone=${encodeURIComponent(userTimezone)}`] });
