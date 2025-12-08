@@ -576,7 +576,7 @@ async function fetchRichContext(healthId: string, eventDate: string): Promise<Ri
     // Fetch discovered correlations (last 30 days, high confidence)
     const correlationsSql = `
       SELECT behavior_type, outcome_type, direction, effect_size, description
-      FROM flo_health.long_horizon_correlations
+      FROM flo_health.long_term_correlations
       WHERE health_id = {healthId:String}
         AND is_significant = 1
         AND confidence_level > 0.7
@@ -858,17 +858,31 @@ Generate a deeply personalized morning briefing following the system prompt form
       config: {
         systemInstruction: MORNING_BRIEFING_SYSTEM_PROMPT,
         temperature: 0.7,
-        maxOutputTokens: 2500,
+        maxOutputTokens: 4096,
       },
     });
 
     const text = response.text?.trim();
     if (!text) {
-      logger.error('[MorningBriefing] Empty response from Gemini');
+      logger.error('[MorningBriefing] Empty response from Gemini', { 
+        responseKeys: Object.keys(response || {}),
+        candidates: (response as any)?.candidates?.length,
+        promptFeedback: (response as any)?.promptFeedback 
+      });
       return null;
     }
+    
+    logger.debug(`[MorningBriefing] Gemini response length: ${text.length} chars`);
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    // Strip markdown code blocks if present (Gemini sometimes wraps in ```json)
+    let cleanedText = text;
+    if (text.includes('```json')) {
+      cleanedText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+    } else if (text.includes('```')) {
+      cleanedText = text.replace(/```\s*/g, '');
+    }
+    
+    const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       logger.error('[MorningBriefing] No JSON found in response:', text);
       return null;
@@ -1168,13 +1182,21 @@ export async function generateBriefingForUser(
     const insights = await aggregateDailyInsights(healthId, eventDate);
 
     // Fetch user profile for personalization (use maybeSingle to tolerate missing profile)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('goals, briefing_preferences, first_name')
-      .eq('health_id', healthId)
-      .maybeSingle();
+    const [{ data: profile }, neonUser] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('goals, briefing_preferences, first_name')
+        .eq('health_id', healthId)
+        .maybeSingle(),
+      db.select({ firstName: users.firstName })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+        .then(rows => rows[0] || null),
+    ]);
 
-    const userName = profile?.first_name || 'there';
+    // Prefer Neon user's firstName, fall back to Supabase profile, then 'there'
+    const userName = neonUser?.firstName || profile?.first_name || 'there';
     const userGoals = profile?.goals || [];
     const prefs = BriefingPreferencesSchema.safeParse(profile?.briefing_preferences);
     const preferences = prefs.success ? prefs.data : {
