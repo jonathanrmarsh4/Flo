@@ -3,6 +3,7 @@ import { clickhouse } from './clickhouseService';
 import { getSupabaseClient } from './supabaseClient';
 import { getHealthId } from './supabaseHealthStorage';
 import { apnsService } from './apnsService';
+import { computeDailyReadiness } from './readinessEngine';
 
 const supabase = getSupabaseClient();
 import { db } from '../db';
@@ -104,7 +105,7 @@ export async function getEligibleUsers(): Promise<EligibleUser[]> {
 
 // ==================== DAILY INSIGHTS AGGREGATION ====================
 
-export async function aggregateDailyInsights(healthId: string, eventDate: string): Promise<DailyUserInsight> {
+export async function aggregateDailyInsights(healthId: string, eventDate: string, userId?: string): Promise<DailyUserInsight> {
   // Fetch baselines (always returns defaults if no data)
   const baselines = await fetchBaselines(healthId);
   
@@ -124,6 +125,28 @@ export async function aggregateDailyInsights(healthId: string, eventDate: string
     logger.debug(`[MorningBriefing] Using default sleep values for ${healthId}`);
   }
   
+  // Use readinessEngine as single source of truth for readiness score
+  // This ensures consistency with dashboard and includes recovery adjustments + calibrated baselines
+  // Clear any ClickHouse-derived readiness first to ensure readinessEngine takes priority
+  if (userId) {
+    const originalReadiness = today.readiness_score;
+    today.readiness_score = null; // Reset to ensure we use readinessEngine or fallback
+    
+    try {
+      const readinessResult = await computeDailyReadiness(userId, eventDate);
+      // Explicit null check to handle valid 0 scores (severely depleted users)
+      if (readinessResult && typeof readinessResult.readinessScore === 'number') {
+        today.readiness_score = readinessResult.readinessScore;
+        logger.debug(`[MorningBriefing] Using readinessEngine score ${today.readiness_score} for ${healthId} (was: ${originalReadiness})`);
+      } else {
+        logger.debug(`[MorningBriefing] readinessEngine returned null for ${healthId}, will use fallback`);
+      }
+    } catch (err) {
+      logger.warn(`[MorningBriefing] Failed to get readiness from engine for ${userId}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Fallback only if readinessEngine didn't provide a score
   if (today.readiness_score === null) {
     // Calculate from available data or use sensible default
     const sleepHours = today.sleep_hours ?? 7;
@@ -135,7 +158,7 @@ export async function aggregateDailyInsights(healthId: string, eventDate: string
     estimated += Math.min(30, (efficiency / 100) * 30);
     estimated += Math.min(30, (deepSleep / 90) * 30);
     today.readiness_score = Math.round(estimated);
-    logger.debug(`[MorningBriefing] Calculated readiness ${today.readiness_score} for ${healthId}`);
+    logger.debug(`[MorningBriefing] Fallback readiness ${today.readiness_score} for ${healthId}`);
   }
 
   const deviations = calculateDeviations(baselines, today);
@@ -257,39 +280,8 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
       .eq('local_date', eventDate)
       .maybeSingle();
 
-    // Fetch readiness score (may not exist)
-    let readinessScore: number | null = null;
-    try {
-      const readinessSql = `
-        SELECT readiness_score
-        FROM flo_health.readiness_scores
-        WHERE health_id = {healthId:String}
-          AND local_date = {eventDate:Date}
-        ORDER BY calculated_at DESC
-        LIMIT 1
-      `;
-      const readinessRows = await clickhouse.query<{ readiness_score: number }>(
-        readinessSql, 
-        { healthId, eventDate }
-      );
-      readinessScore = readinessRows[0]?.readiness_score ?? null;
-    } catch (e) {
-      logger.debug('[MorningBriefing] No readiness score available');
-    }
-
-    // Calculate estimated readiness if not available (based on sleep quality)
-    if (readinessScore === null && sleepData) {
-      const sleepHours = sleepData.total_sleep_min ? sleepData.total_sleep_min / 60 : 0;
-      const efficiency = sleepData.sleep_efficiency_pct ?? 85;
-      const deepSleep = sleepData.deep_sleep_min ?? 0;
-      
-      // Simple readiness estimation: sleep hours (max 40pts) + efficiency (max 30pts) + deep sleep (max 30pts)
-      let estimated = 0;
-      estimated += Math.min(40, (sleepHours / 8) * 40);
-      estimated += Math.min(30, (efficiency / 100) * 30);
-      estimated += Math.min(30, (deepSleep / 90) * 30);
-      readinessScore = Math.round(estimated);
-    }
+    // Note: readiness_score is now handled exclusively by aggregateDailyInsights via readinessEngine
+    // This ensures consistency with the dashboard and prevents duplicate/conflicting calculations
 
     return {
       hrv: sleepData?.hrv_ms ?? dailyMetrics?.hrv_ms ?? null,
@@ -301,7 +293,7 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
       steps: dailyMetrics?.steps_normalized ?? null,
       active_energy: dailyMetrics?.active_energy_kcal ?? null,
       workout_minutes: dailyMetrics?.exercise_minutes ?? null,
-      readiness_score: readinessScore,
+      readiness_score: null, // Calculated by aggregateDailyInsights using readinessEngine
     };
   } catch (error) {
     logger.error('[MorningBriefing] Error fetching today metrics:', error);
@@ -1184,7 +1176,8 @@ export async function generateBriefingForUser(
     }
 
     // Aggregate insights (always returns data with defaults)
-    const insights = await aggregateDailyInsights(healthId, eventDate);
+    // Pass userId to enable readinessEngine lookup (single source of truth for readiness score)
+    const insights = await aggregateDailyInsights(healthId, eventDate, userId);
 
     // Fetch user profile for personalization (use maybeSingle to tolerate missing profile)
     const [{ data: profile }, neonUser] = await Promise.all([

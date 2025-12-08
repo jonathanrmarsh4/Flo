@@ -14296,7 +14296,8 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       
       // Aggregate daily insights (always returns data with defaults)
-      const insights = await morningBriefingOrchestrator.aggregateDailyInsights(healthId, today);
+      // Pass userId to enable readinessEngine lookup (single source of truth for readiness score)
+      const insights = await morningBriefingOrchestrator.aggregateDailyInsights(healthId, today, userId);
       
       const userName = user[0]?.firstName || 'there';
 

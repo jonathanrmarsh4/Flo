@@ -246,14 +246,14 @@ export function MorningBriefingTile({ isDark, onTalkToFlo, useMetric = true }: M
           >
             <button
               onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 z-20 p-2 rounded-full hover:bg-white/10 transition-colors"
+              className="absolute top-14 right-4 z-20 p-2 rounded-full hover:bg-white/10 transition-colors"
               data-testid="button-close-briefing"
             >
               <X className="h-6 w-6 text-white/60" />
             </button>
 
             <div className="flex-1 overflow-y-auto min-h-0">
-              <div className="px-6 pt-12 pb-4">
+              <div className="px-6 pt-20 pb-4">
                 <div className="flex justify-center mb-6">
                   <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center">
                     <Sun className="w-10 h-10 text-yellow-400" />
