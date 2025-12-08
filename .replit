@@ -71,3 +71,4 @@ SUPABASE_HEALTH_ENABLED = "true"
 
 [userenv.shared]
 ENABLE_DAILY_REMINDERS = "true"
+ENABLE_FOLLOW_UP_SCHEDULER = "true"

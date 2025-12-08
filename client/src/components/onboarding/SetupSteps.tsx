@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react';
-import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint } from 'lucide-react';
+import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint, MapPin } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { Geolocation } from '@capacitor/geolocation';
+import { locationService } from '@/lib/locationService';
 import type { HealthDataType } from '@/types/healthkit';
 import { apiRequest, queryClient, getAuthHeaders, getApiBaseUrl } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +16,7 @@ interface SetupStepsProps {
   onComplete: () => void;
 }
 
-type SetupStep = 'notifications' | 'profile' | 'bloodwork' | 'optional' | 'security' | 'complete';
+type SetupStep = 'notifications' | 'location' | 'profile' | 'bloodwork' | 'optional' | 'security' | 'complete';
 
 // Generate year options (100 years back from current year)
 const currentYear = new Date().getFullYear();
@@ -56,8 +58,10 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
   // Permission states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [healthKitEnabled, setHealthKitEnabled] = useState(false);
+  const [locationEnabled, setLocationEnabled] = useState(false);
   const [isRequestingNotifications, setIsRequestingNotifications] = useState(false);
   const [isRequestingHealthKit, setIsRequestingHealthKit] = useState(false);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(false);
   
   // Profile form state (birth year only for privacy)
   const [profileData, setProfileData] = useState({
@@ -85,6 +89,7 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
   const steps = [
     { id: 'notifications' as const, title: 'Enable Notifications', icon: Bell, required: true },
+    { id: 'location' as const, title: 'Enable Location', icon: MapPin, required: false },
     { id: 'profile' as const, title: 'Configure Profile', icon: User, required: true },
     { id: 'bloodwork' as const, title: 'Upload Blood Work', icon: Upload, required: true },
     { id: 'optional' as const, title: 'Optional Scans', icon: Bone, required: false },
@@ -296,8 +301,61 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
     
     if (notificationsEnabled || healthKitEnabled || !isNative) {
       setCompletedSteps([...completedSteps, 'notifications']);
-      setCurrentStep('profile');
+      setCurrentStep('location');
     }
+  };
+
+  // Request location permission
+  const handleLocationToggle = async () => {
+    if (locationEnabled) {
+      setLocationEnabled(false);
+      return;
+    }
+
+    const isNative = Capacitor.isNativePlatform();
+    
+    if (isNative) {
+      setIsRequestingLocation(true);
+      try {
+        const permStatus = await Geolocation.checkPermissions();
+        
+        if (permStatus.location === 'granted') {
+          setLocationEnabled(true);
+          toast({ title: 'Location enabled', description: 'Your timezone will sync automatically' });
+          // Sync location to server immediately
+          await locationService.syncLocationToServer();
+        } else {
+          const result = await Geolocation.requestPermissions();
+          if (result.location === 'granted') {
+            setLocationEnabled(true);
+            toast({ title: 'Location enabled', description: 'Your timezone will sync automatically' });
+            // Sync location to server immediately
+            await locationService.syncLocationToServer();
+          } else {
+            toast({ 
+              title: 'Permission denied', 
+              description: 'You can enable location later in Settings',
+              variant: 'destructive'
+            });
+          }
+        }
+      } catch (error) {
+        console.error('[Onboarding] Location permission error:', error);
+        toast({ title: 'Error', description: 'Could not request location permission', variant: 'destructive' });
+      } finally {
+        setIsRequestingLocation(false);
+      }
+    } else {
+      toast({ 
+        title: 'iOS Required', 
+        description: 'Open Flō on your iPhone to enable location',
+      });
+    }
+  };
+
+  const handleLocationNext = () => {
+    setCompletedSteps([...completedSteps, 'location']);
+    setCurrentStep('profile');
   };
 
   const handleProfileNext = async () => {
@@ -658,6 +716,106 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                   </button>
                 );
               })()}
+            </div>
+          )}
+
+          {/* Location Step */}
+          {currentStep === 'location' && (
+            <div 
+              className="space-y-6"
+              style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex p-4 rounded-3xl bg-gradient-to-br from-violet-500 to-purple-500 mb-4 shadow-2xl">
+                  <MapPin className="w-10 h-10 text-white" />
+                </div>
+                <h3 className={`text-xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Enable Location
+                </h3>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Location enables personalized insights based on your timezone, weather, and air quality
+                </p>
+              </div>
+
+              {/* Location Toggle */}
+              <div 
+                onClick={!isRequestingLocation ? handleLocationToggle : undefined}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  locationEnabled
+                    ? 'border-violet-500/50 bg-gradient-to-br from-violet-500/10 to-purple-500/10'
+                    : isDark 
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10' 
+                      : 'bg-white/60 border-black/10 hover:bg-white/80'
+                } ${isRequestingLocation ? 'opacity-70 cursor-wait' : ''}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3 flex-1">
+                    <div className={`p-2 rounded-xl ${
+                      locationEnabled
+                        ? 'bg-gradient-to-br from-violet-500 to-purple-500'
+                        : isDark ? 'bg-white/10' : 'bg-gray-200'
+                    }`}>
+                      {isRequestingLocation ? (
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      ) : (
+                        <MapPin className={`w-5 h-5 ${locationEnabled ? 'text-white' : isDark ? 'text-white/60' : 'text-gray-600'}`} />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className={`font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Enable Location Access
+                      </h4>
+                      <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                        Automatically sync your timezone for accurate briefing times and correlate weather with your health
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 ml-3 ${
+                    locationEnabled
+                      ? 'bg-gradient-to-br from-violet-500 to-purple-500 border-violet-500'
+                      : isDark ? 'border-white/30' : 'border-gray-300'
+                  }`}>
+                    {locationEnabled && <Check className="w-4 h-4 text-white" />}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tip for best results */}
+              <div className={`p-4 rounded-2xl ${isDark ? 'bg-violet-500/10 border border-violet-500/20' : 'bg-violet-50 border border-violet-200'}`}>
+                <p className={`text-sm ${isDark ? 'text-violet-300' : 'text-violet-700'}`}>
+                  <span className="font-medium">Tip:</span> When prompted, select "Always Allow" for the best experience. This ensures your morning briefings arrive at exactly the right time based on your location, and Flō can correlate local weather and air quality with your health patterns.
+                </p>
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="space-y-3">
+                {(() => {
+                  const isNative = Capacitor.isNativePlatform();
+                  // On native, allow skip but encourage enabling
+                  // On web, always allow skip since permissions can't be granted
+                  return (
+                    <button
+                      onClick={handleLocationNext}
+                      className={`w-full py-4 rounded-xl font-medium transition-all ${
+                        locationEnabled
+                          ? 'bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 text-white shadow-lg hover:shadow-xl'
+                          : 'bg-white/10 border border-white/20 text-white/80 hover:bg-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        <span>{locationEnabled ? 'Continue' : (isNative ? 'Skip for Now' : 'Continue')}</span>
+                        <ChevronRight className="w-5 h-5" />
+                      </div>
+                    </button>
+                  );
+                })()}
+                
+                {!locationEnabled && Capacitor.isNativePlatform() && (
+                  <p className={`text-xs text-center ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                    You can enable location later in iOS Settings
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

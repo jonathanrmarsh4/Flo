@@ -3830,6 +3830,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed user profile metrics for admin
+  app.get("/api/admin/users/:userId/profile-metrics", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { getLatestLocation, getProfileByHealthId } = await import('./services/healthStorageRouter');
+      const { getSupabaseHealth } = await import('./services/supabaseHealth');
+      
+      // Get user's health_id for Supabase queries
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      let datapoints = 0;
+      let location: { city?: string; country?: string; latitude?: number; longitude?: number } | null = null;
+      let device: { name?: string; manufacturer?: string; model?: string } | null = null;
+      const integrations: string[] = [];
+      
+      // Try to get health data from Supabase
+      try {
+        const supabase = getSupabaseHealth();
+        if (supabase && user.healthId) {
+          // Get datapoint count from healthkit_samples
+          const { count: hkCount } = await supabase
+            .from('healthkit_samples')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.healthId);
+          
+          if (hkCount) {
+            datapoints += hkCount;
+            integrations.push('HealthKit');
+          }
+          
+          // Get latest location
+          const locationRecord = await getLatestLocation(userId);
+          if (locationRecord) {
+            location = {
+              latitude: locationRecord.latitude,
+              longitude: locationRecord.longitude,
+            };
+            
+            // Try to get city name from cached weather
+            const { data: cachedWeather } = await supabase
+              .from('weather_cache')
+              .select('weather_data')
+              .eq('user_id', user.healthId)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            
+            if (cachedWeather?.weather_data?.cityName) {
+              location.city = cachedWeather.weather_data.cityName;
+            }
+          }
+          
+          // Get most recent device info from healthkit_samples
+          const { data: deviceInfo } = await supabase
+            .from('healthkit_samples')
+            .select('device_name, device_manufacturer, device_model')
+            .eq('user_id', user.healthId)
+            .not('device_name', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          if (deviceInfo) {
+            device = {
+              name: deviceInfo.device_name,
+              manufacturer: deviceInfo.device_manufacturer,
+              model: deviceInfo.device_model,
+            };
+          }
+          
+          // Get biomarker measurement count
+          const { count: biomarkerCount } = await supabase
+            .from('biomarker_measurements')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.healthId);
+          
+          if (biomarkerCount) {
+            datapoints += biomarkerCount;
+          }
+          
+          // Get life events count
+          const { count: lifeEventCount } = await supabase
+            .from('life_events')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.healthId);
+          
+          if (lifeEventCount) {
+            datapoints += lifeEventCount;
+          }
+        }
+      } catch (supabaseError: any) {
+        logger.warn(`[Admin] Error fetching Supabase health data for user ${userId}:`, supabaseError.message);
+      }
+      
+      // Also count Neon-based data
+      try {
+        // Count healthkit samples in Neon (legacy)
+        const [neonHkCount] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(healthkitSamples)
+          .where(eq(healthkitSamples.userId, userId));
+        
+        if (neonHkCount?.count) {
+          datapoints += Number(neonHkCount.count);
+        }
+        
+        // Count biomarker measurements in Neon
+        const [neonBiomarkerCount] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(biomarkerMeasurements)
+          .where(eq(biomarkerMeasurements.userId, userId));
+        
+        if (neonBiomarkerCount?.count) {
+          datapoints += Number(neonBiomarkerCount.count);
+        }
+        
+        // Count life events in Neon
+        const [neonLifeEventCount] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(lifeEvents)
+          .where(eq(lifeEvents.userId, userId));
+        
+        if (neonLifeEventCount?.count) {
+          datapoints += Number(neonLifeEventCount.count);
+        }
+      } catch (neonError: any) {
+        logger.warn(`[Admin] Error fetching Neon data for user ${userId}:`, neonError.message);
+      }
+      
+      res.json({
+        datapoints,
+        location,
+        device,
+        integrations,
+      });
+    } catch (error: any) {
+      logger.error('Error fetching user profile metrics:', error);
+      res.status(500).json({ error: "Failed to fetch user profile metrics" });
+    }
+  });
+
   // Admin notification trigger management
   app.get("/api/admin/notification-triggers", isAuthenticated, requireAdmin, async (req, res) => {
     try {
@@ -7336,6 +7480,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await saveWeatherCache(userId, today, { latitude, longitude }, weatherData, airQualityData);
             logger.info(`[Location] Weather data cached for user ${userId}, date ${today}`);
             
+            // Auto-update user timezone using coordinate-based lookup (most accurate)
+            try {
+              const { deriveTimezoneFromCoords, deriveTimezoneFromOffset, isValidTimezone } = await import('./utils/timezoneFromCoords');
+              
+              // Get current timezone for comparison
+              const userRow = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+              const currentTz = userRow[0]?.timezone;
+              
+              // Try coordinate-based lookup first (most accurate)
+              let derivedTimezone = deriveTimezoneFromCoords(latitude, longitude);
+              
+              // Fall back to offset-based if coords lookup fails
+              if (!derivedTimezone && weatherData && weatherData.timezone !== undefined) {
+                derivedTimezone = deriveTimezoneFromOffset(weatherData.timezone);
+              }
+              
+              // Only update if we got a valid timezone AND it's different from current
+              if (derivedTimezone && isValidTimezone(derivedTimezone) && derivedTimezone !== currentTz) {
+                await db.update(users).set({ timezone: derivedTimezone }).where(eq(users.id, userId));
+                logger.info(`[Location] Timezone changed for user ${userId}: ${currentTz || 'null'} -> ${derivedTimezone} (coords: ${latitude.toFixed(2)}, ${longitude.toFixed(2)})`);
+              } else if (!derivedTimezone) {
+                logger.warn(`[Location] Could not derive valid timezone for user ${userId} (coords: ${latitude.toFixed(2)}, ${longitude.toFixed(2)})`);
+              }
+            } catch (tzError: any) {
+              logger.warn(`[Location] Failed to update timezone for user ${userId}:`, tzError.message);
+            }
+            
             // Trigger ClickHouse environmental data sync (non-blocking background task)
             (async () => {
               try {
@@ -7365,10 +7536,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Always check and update timezone on cache hit (handles traveling users)
+      if (existingCache) {
+        try {
+          const userRow = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+          const currentTz = userRow[0]?.timezone;
+          
+          // Always derive timezone from new coordinates
+          const { deriveTimezoneFromCoords, isValidTimezone } = await import('./utils/timezoneFromCoords');
+          const derivedTimezone = deriveTimezoneFromCoords(latitude, longitude);
+          
+          // Update if timezone is different or missing
+          if (derivedTimezone && isValidTimezone(derivedTimezone) && derivedTimezone !== currentTz) {
+            await db.update(users).set({ timezone: derivedTimezone }).where(eq(users.id, userId));
+            logger.info(`[Location] Timezone changed for user ${userId}: ${currentTz || 'null'} -> ${derivedTimezone} (coords: ${latitude.toFixed(2)}, ${longitude.toFixed(2)})`);
+          }
+        } catch (tzCacheError: any) {
+          logger.debug(`[Location] Timezone update from cache hit failed for ${userId}:`, tzCacheError.message);
+        }
+      }
+      
       res.json({ 
         success: true, 
         locationId: locationRecord.id,
-        weatherCached: !!weatherData,
+        weatherCached: !!weatherData || !!existingCache,
       });
     } catch (error: any) {
       logger.error(`[Location] Error saving location:`, error);
