@@ -9,15 +9,14 @@ import {
   Wind,
   Moon,
   Sunrise,
-  Battery,
-  Bed,
+  Zap,
   ThumbsUp, 
   ThumbsDown,
   MessageCircle,
   Loader2,
   X,
-  TrendingUp,
-  Sparkles,
+  Droplets,
+  Thermometer,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -75,35 +74,27 @@ function getWeatherIcon(condition: string) {
   return Sun;
 }
 
-function getReadinessColor(score: number, isDark: boolean): string {
-  if (score >= 85) return isDark ? 'text-green-400' : 'text-green-600';
-  if (score >= 70) return isDark ? 'text-yellow-400' : 'text-yellow-600';
-  if (score >= 50) return isDark ? 'text-orange-400' : 'text-orange-600';
-  return isDark ? 'text-red-400' : 'text-red-600';
+function getReadinessColor(score: number): string {
+  if (score >= 85) return 'text-green-400';
+  if (score >= 70) return 'text-yellow-400';
+  if (score >= 50) return 'text-orange-400';
+  return 'text-red-400';
 }
 
-function getReadinessBgGradient(score: number, isDark: boolean): string {
-  if (score >= 85) return isDark 
-    ? 'from-green-900/30 via-emerald-900/30 to-teal-900/30' 
-    : 'from-green-50 via-emerald-50 to-teal-50';
-  if (score >= 70) return isDark 
-    ? 'from-yellow-900/30 via-amber-900/30 to-orange-900/30' 
-    : 'from-yellow-50 via-amber-50 to-orange-50';
-  if (score >= 50) return isDark 
-    ? 'from-orange-900/30 via-amber-900/30 to-red-900/30' 
-    : 'from-orange-50 via-amber-50 to-red-50';
-  return isDark 
-    ? 'from-red-900/30 via-rose-900/30 to-pink-900/30' 
-    : 'from-red-50 via-rose-50 to-pink-50';
+function getReadinessBarColor(score: number): string {
+  if (score >= 85) return 'bg-green-500';
+  if (score >= 70) return 'bg-yellow-500';
+  if (score >= 50) return 'bg-orange-500';
+  return 'bg-red-500';
 }
 
-function getSleepQualityColor(quality: string, isDark: boolean): string {
+function getSleepQualityColor(quality: string): string {
   switch (quality) {
-    case 'excellent': return isDark ? 'text-green-400' : 'text-green-600';
-    case 'good': return isDark ? 'text-blue-400' : 'text-blue-600';
-    case 'fair': return isDark ? 'text-yellow-400' : 'text-yellow-600';
-    case 'poor': return isDark ? 'text-red-400' : 'text-red-600';
-    default: return isDark ? 'text-white/60' : 'text-gray-500';
+    case 'excellent': return 'text-green-400';
+    case 'good': return 'text-blue-400';
+    case 'fair': return 'text-yellow-400';
+    case 'poor': return 'text-red-400';
+    default: return 'text-white/60';
   }
 }
 
@@ -168,8 +159,8 @@ Recommendation: ${data.briefing.recommendation}`;
       <div 
         className={`backdrop-blur-xl rounded-3xl border p-5 transition-all cursor-pointer hover-elevate active-elevate-2 ${
           isDark 
-            ? `bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-yellow-900/40 border-white/20` 
-            : `bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 border-black/10`
+            ? 'bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-yellow-900/40 border-white/20' 
+            : 'bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 border-black/10'
         }`}
         onClick={() => setShowModal(true)}
         data-testid="tile-morning-briefing"
@@ -192,12 +183,12 @@ Recommendation: ${data.briefing.recommendation}`;
         </div>
 
         <div className="flex items-center gap-4 mb-4">
-          <div className={`flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br ${getReadinessBgGradient(briefing.readiness_score, isDark)}`}>
-            <div className="text-center">
-              <span className={`text-2xl font-bold ${getReadinessColor(briefing.readiness_score, isDark)}`}>
-                {briefing.readiness_score}
-              </span>
-            </div>
+          <div className={`flex items-center justify-center w-16 h-16 rounded-2xl ${
+            isDark ? 'bg-white/10' : 'bg-black/5'
+          }`}>
+            <span className={`text-2xl font-bold ${getReadinessColor(briefing.readiness_score)}`}>
+              {briefing.readiness_score}
+            </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className={`text-xs uppercase tracking-wide mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
@@ -212,228 +203,170 @@ Recommendation: ${data.briefing.recommendation}`;
         <p className={`text-sm line-clamp-2 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
           {briefing.recommendation}
         </p>
-
-        <div className={`mt-3 pt-3 border-t flex items-center justify-between ${
-          isDark ? 'border-white/10' : 'border-black/5'
-        }`}>
-          <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-            Tap for details
-          </span>
-          <Sparkles className={`w-4 h-4 ${isDark ? 'text-amber-400/60' : 'text-amber-500/60'}`} />
-        </div>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+        <div className="fixed inset-0 z-50 flex flex-col">
           <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setShowModal(false)}
             data-testid="briefing-modal-overlay"
           />
           
           <div 
-            className={`relative w-full max-w-lg rounded-t-3xl ${
-              isDark 
-                ? 'bg-gradient-to-b from-slate-900 to-slate-950' 
-                : 'bg-gradient-to-b from-white to-gray-50'
-            }`}
-            style={{ maxHeight: '85vh' }}
+            className="relative flex-1 flex flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 overflow-hidden"
             data-testid="morning-briefing-modal"
           >
-            <div className={`sticky top-0 z-10 flex items-center justify-between p-4 border-b rounded-t-3xl ${
-              isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-black/5'
-            } backdrop-blur-xl`}>
-              <div className="flex items-center gap-2">
-                <Sunrise className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
-                <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Good Morning
-                </h2>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowModal(false)}
-                className="rounded-full"
-                data-testid="button-close-briefing"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 z-20 p-2 rounded-full hover:bg-white/10 transition-colors"
+              data-testid="button-close-briefing"
+            >
+              <X className="h-6 w-6 text-white/60" />
+            </button>
 
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(85vh - 64px)' }}>
-              <div className="p-4 space-y-4 pb-8">
-                <div className={`text-center py-2 ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
-                  <p className="text-base">{briefing.greeting}</p>
+            <div className="flex-1 overflow-y-auto">
+              <div className="px-6 pt-12 pb-8">
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                    <Sun className="w-10 h-10 text-yellow-400" />
+                  </div>
                 </div>
 
-                {briefing.weather && (
-                  <div className={`backdrop-blur-xl rounded-2xl border p-4 ${
-                    isDark 
-                      ? 'bg-gradient-to-br from-blue-900/30 via-sky-900/30 to-cyan-900/30 border-white/10' 
-                      : 'bg-gradient-to-br from-blue-50 via-sky-50 to-cyan-50 border-black/5'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-xl ${isDark ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
-                          <WeatherIcon className={`h-6 w-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-                        </div>
-                        <div>
-                          <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {briefing.weather.condition}
-                          </p>
-                          <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                            Feels like {Math.round(briefing.weather.feels_like_f)}°F
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {Math.round(briefing.weather.temp_f)}°
-                        </p>
-                        <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                          {briefing.weather.humidity}% humidity
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div className="text-center mb-8">
+                  <h1 className="text-2xl font-semibold text-white mb-1">
+                    {briefing.greeting.split('.')[0]}
+                  </h1>
+                  <p className="text-white/60">
+                    Here's your morning briefing
+                  </p>
+                </div>
 
-                <div className={`backdrop-blur-xl rounded-2xl border p-4 ${
-                  isDark 
-                    ? `bg-gradient-to-br ${getReadinessBgGradient(briefing.readiness_score, isDark)} border-white/10` 
-                    : `bg-gradient-to-br ${getReadinessBgGradient(briefing.readiness_score, isDark)} border-black/5`
-                }`}>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`p-2 rounded-xl ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
-                      <Battery className={`h-5 w-5 ${getReadinessColor(briefing.readiness_score, isDark)}`} />
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-3xl font-bold ${getReadinessColor(briefing.readiness_score, isDark)}`}>
+                <div className="space-y-4">
+                  <div className="bg-slate-800/60 rounded-2xl p-5 border border-white/10">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-yellow-400" />
+                        <span className="text-white font-medium">Readiness Score</span>
+                      </div>
+                      <span className={`text-3xl font-bold ${getReadinessColor(briefing.readiness_score)}`}>
                         {briefing.readiness_score}
                       </span>
-                      <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-                        Readiness
-                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all ${getReadinessBarColor(briefing.readiness_score)}`}
+                        style={{ width: `${briefing.readiness_score}%` }}
+                      />
                     </div>
                   </div>
-                  <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
-                    {briefing.readiness_insight}
-                  </p>
-                </div>
 
-                <div className={`backdrop-blur-xl rounded-2xl border p-4 ${
-                  isDark 
-                    ? 'bg-gradient-to-br from-indigo-900/30 via-purple-900/30 to-violet-900/30 border-white/10' 
-                    : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-violet-50 border-black/5'
-                }`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Bed className={`h-5 w-5 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
-                    <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Sleep Summary
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 mb-3">
-                    <div className="text-center">
-                      <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {briefing.sleep_data.total_hours.toFixed(1)}h
-                      </p>
-                      <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                        Total Sleep
-                      </p>
+                  <div className="bg-slate-800/60 rounded-2xl p-5 border border-white/10">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Moon className="w-5 h-5 text-indigo-400" />
+                      <span className="text-white font-medium">Sleep Quality</span>
                     </div>
-                    <div className="text-center">
-                      <p className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {briefing.sleep_data.deep_sleep_minutes.toFixed(0)}m
-                      </p>
-                      <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                        Deep Sleep
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className={`text-xl font-bold capitalize ${getSleepQualityColor(briefing.sleep_data.deep_sleep_quality, isDark)}`}>
+                    <p className="text-white/80 mb-3">
+                      Your deep sleep was <span className={getSleepQualityColor(briefing.sleep_data.deep_sleep_quality)}>
                         {briefing.sleep_data.deep_sleep_quality}
-                      </p>
-                      <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                        Quality
-                      </p>
+                      </span> ({briefing.sleep_data.deep_sleep_minutes.toFixed(0)} min)
+                      {briefing.recent_activity && `, likely driven by that ${briefing.recent_activity.type} ${briefing.recent_activity.when}.`}
+                    </p>
+                    <div className="flex items-center gap-6 text-sm">
+                      <span className="text-white/60">
+                        <span className="text-white font-medium">{briefing.sleep_data.total_hours.toFixed(1)}h</span> total
+                      </span>
+                      {briefing.sleep_data.hrv_avg && (
+                        <span className="text-white/60">
+                          <span className="text-white font-medium">{Math.round(briefing.sleep_data.hrv_avg)}</span> HRV avg
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    {briefing.sleep_insight}
-                  </p>
-                </div>
 
-                <div className={`backdrop-blur-xl rounded-2xl border p-4 ${
-                  isDark 
-                    ? 'bg-gradient-to-br from-emerald-900/30 via-green-900/30 to-teal-900/30 border-white/10' 
-                    : 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 border-black/5'
-                }`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className={`h-5 w-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                    <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Today's Recommendation
-                    </span>
-                  </div>
-                  <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
-                    {briefing.recommendation}
-                  </p>
-                </div>
+                  {briefing.weather && (
+                    <div className="bg-slate-800/60 rounded-2xl p-5 border border-white/10">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <WeatherIcon className="w-8 h-8 text-blue-400" />
+                          <div>
+                            <p className="text-2xl font-bold text-white">
+                              {Math.round(briefing.weather.temp_f)}°F
+                            </p>
+                            <p className="text-white/60 text-sm">
+                              {briefing.weather.condition}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1.5">
+                            <Thermometer className="w-4 h-4 text-white/40" />
+                            <span className="text-white/60">
+                              Feels {Math.round(briefing.weather.feels_like_f)}°
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Droplets className="w-4 h-4 text-white/40" />
+                            <span className="text-white/60">
+                              {briefing.weather.humidity}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                {!feedbackSubmitted ? (
-                  <div className={`flex items-center justify-center gap-4 py-3 px-4 rounded-2xl ${
-                    isDark ? 'bg-white/5' : 'bg-black/5'
-                  }`}>
-                    <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-                      Was this helpful?
+                  <div className="bg-slate-800/60 rounded-2xl p-5 border border-pink-500/30 relative overflow-hidden">
+                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-pink-500 to-purple-500" />
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                      </div>
+                      <span className="text-white font-medium">Today's Recommendation</span>
+                    </div>
+                    <p className="text-white/80 leading-relaxed">
+                      {briefing.recommendation}
                     </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
+                  </div>
+
+                  {!feedbackSubmitted ? (
+                    <div className="flex items-center justify-center gap-4 py-4">
+                      <button
                         onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_up' })}
                         disabled={feedbackMutation.isPending}
-                        className={isDark ? 'border-white/20 hover:bg-white/10' : ''}
+                        className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
                         data-testid="button-feedback-up"
                       >
-                        <ThumbsUp className="h-4 w-4 mr-1" />
-                        Yes
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
+                        <ThumbsUp className="h-5 w-5 text-white/60" />
+                      </button>
+                      <button
                         onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_down' })}
                         disabled={feedbackMutation.isPending}
-                        className={isDark ? 'border-white/20 hover:bg-white/10' : ''}
+                        className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
                         data-testid="button-feedback-down"
                       >
-                        <ThumbsDown className="h-4 w-4 mr-1" />
-                        No
-                      </Button>
+                        <ThumbsDown className="h-5 w-5 text-white/60" />
+                      </button>
                     </div>
-                  </div>
-                ) : (
-                  <div className={`text-center py-3 text-sm rounded-2xl ${
-                    isDark ? 'bg-white/5 text-white/60' : 'bg-black/5 text-gray-500'
-                  }`}>
-                    Thanks for your feedback!
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-center py-4 text-sm text-white/60">
+                      Thanks for your feedback!
+                    </div>
+                  )}
 
-                {onTalkToFlo && (
-                  <Button
-                    onClick={handleTalkToFlo}
-                    className={`w-full h-12 rounded-2xl ${
-                      isDark 
-                        ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500' 
-                        : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400'
-                    }`}
-                    size="lg"
-                    data-testid="button-talk-to-flo"
-                  >
-                    <MessageCircle className="h-5 w-5 mr-2" />
-                    Talk to Flo About This
-                  </Button>
-                )}
+                  {onTalkToFlo && (
+                    <button
+                      onClick={handleTalkToFlo}
+                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                      data-testid="button-talk-to-flo"
+                    >
+                      <MessageCircle className="h-5 w-5" />
+                      Get your briefing from Flō
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

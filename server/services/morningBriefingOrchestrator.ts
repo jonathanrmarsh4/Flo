@@ -427,22 +427,50 @@ function generateInsightCandidates(
 
 async function fetchWeather(healthId: string, eventDate: string): Promise<DailyUserInsight['weather'] | undefined> {
   try {
+    // First try stored environmental data
     const { data } = await supabase
       .from('environmental_data')
       .select('temperature_c, weather_condition, humidity_pct')
       .eq('health_id', healthId)
       .eq('local_date', eventDate)
-      .single();
+      .maybeSingle();
 
-    if (!data) return undefined;
+    if (data && data.temperature_c != null) {
+      return {
+        temp_c: data.temperature_c,
+        condition: data.weather_condition || 'Clear',
+        humidity: data.humidity_pct || 50,
+        feels_like_c: data.temperature_c,
+      };
+    }
 
-    return {
-      temp_c: data.temperature_c,
-      condition: data.weather_condition || 'Clear',
-      humidity: data.humidity_pct || 50,
-      feels_like_c: data.temperature_c,
-    };
-  } catch {
+    // Fallback: Fetch live weather from OpenWeather using user's location
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('latitude, longitude')
+      .eq('health_id', healthId)
+      .maybeSingle();
+
+    // Use user's location or default to New York City
+    const lat = profile?.latitude || 40.7128;
+    const lon = profile?.longitude || -74.0060;
+    
+    const { getCurrentWeather } = await import('./openWeatherService');
+    const liveWeather = await getCurrentWeather(lat, lon);
+    
+    if (liveWeather) {
+      logger.debug(`[MorningBriefing] Fetched live weather for ${healthId}: ${liveWeather.weatherMain} ${liveWeather.temperature}°C`);
+      return {
+        temp_c: liveWeather.temperature,
+        condition: liveWeather.weatherMain,
+        humidity: liveWeather.humidity,
+        feels_like_c: liveWeather.feelsLike,
+      };
+    }
+
+    return undefined;
+  } catch (error: any) {
+    logger.debug(`[MorningBriefing] Weather fetch failed: ${error?.message || error}`);
     return undefined;
   }
 }
@@ -831,13 +859,8 @@ export async function getTodaysBriefing(userId: string): Promise<MorningBriefing
       readinessScore = Math.round(estimated);
     }
 
-    // Fetch weather data (may not exist)
-    const { data: envData } = await supabase
-      .from('environmental_data')
-      .select('temperature_c, weather_condition, humidity_pct')
-      .eq('health_id', healthId)
-      .eq('local_date', today)
-      .maybeSingle();
+    // Fetch weather data using shared function (with live fallback)
+    const weatherData = await fetchWeather(healthId, today);
 
     // Build response with fallbacks
     const sleepHours = sleepData?.total_sleep_min ? sleepData.total_sleep_min / 60 : 7;
@@ -854,12 +877,12 @@ export async function getTodaysBriefing(userId: string): Promise<MorningBriefing
         hrv_avg: sleepData?.hrv_ms ?? null,
       },
       recommendation: response.briefing_content?.recommendation ?? 'Focus on consistent habits today.',
-      weather: envData && envData.temperature_c != null ? {
-        temp_f: Math.round((envData.temperature_c * 9/5) + 32),
-        condition: envData.weather_condition || 'Clear',
-        description: envData.weather_condition || 'Clear skies',
-        humidity: envData.humidity_pct || 50,
-        feels_like_f: Math.round((envData.temperature_c * 9/5) + 32),
+      weather: weatherData ? {
+        temp_f: Math.round((weatherData.temp_c * 9/5) + 32),
+        condition: weatherData.condition,
+        description: weatherData.condition,
+        humidity: weatherData.humidity,
+        feels_like_f: Math.round((weatherData.feels_like_c * 9/5) + 32),
       } : undefined,
       greeting: response.briefing_content?.greeting ?? `Good morning! Your readiness is ${readinessScore}.`,
       readiness_insight: response.briefing_content?.readiness_insight ?? `Your readiness score is ${readinessScore}.`,
@@ -943,6 +966,10 @@ export async function generateBriefingForUser(
       const deepSleep = insights.today.deep_sleep_minutes ?? 60;
       
       briefingResponse = {
+        primary_focus: readinessScore >= 75 ? 'productivity' : 'recovery',
+        recommended_actions: readinessScore >= 75 
+          ? ['Focus on important work', 'Consider a workout', 'Stay hydrated']
+          : ['Take it easy today', 'Prioritize rest', 'Light activity only'],
         briefing_content: {
           greeting: `Good morning, ${userName}! Your readiness is at ${readinessScore}.`,
           readiness_insight: readinessScore >= 80 
@@ -950,13 +977,12 @@ export async function generateBriefingForUser(
             : readinessScore >= 60
             ? `Your recovery is moderate at ${readinessScore}. Pace yourself today.`
             : `Your recovery is lower at ${readinessScore}. Consider prioritizing rest.`,
-          sleep_insight: `You got ${sleepHours.toFixed(1)} hours of sleep with ${deepSleep} minutes of deep sleep.`,
+          sleep_insight: `You got ${sleepHours.toFixed(1)} hours of sleep with ${deepSleep.toFixed(0)} minutes of deep sleep.`,
           recommendation: readinessScore >= 75
             ? 'Great day for focused work or a workout.'
             : 'Take it easy today and prioritize recovery activities.',
         },
         push_text: `Good morning! Your readiness is ${readinessScore}. Tap to see your personalized insights.`,
-        oracle_context: `User ${userName} woke up with readiness ${readinessScore}, sleep ${sleepHours.toFixed(1)}h.`,
       };
     }
 
@@ -1023,6 +1049,24 @@ export async function generateBriefingForUser(
   } catch (error) {
     logger.error(`[MorningBriefing] Error in generateBriefingForUser for ${userId}:`, error);
     return null;
+  }
+}
+
+// ==================== DELETE BRIEFING (DEV ONLY) ====================
+
+export async function deleteTodaysBriefing(userId: string, eventDate: string): Promise<void> {
+  try {
+    const healthId = await getHealthId(userId);
+    
+    await clickhouse.command(`
+      ALTER TABLE flo_health.morning_briefing_log
+      DELETE WHERE health_id = '${healthId}' AND event_date = '${eventDate}'
+    `);
+    
+    logger.info(`[MorningBriefing] Deleted briefing for ${userId} on ${eventDate}`);
+  } catch (error) {
+    logger.error(`[MorningBriefing] Error deleting briefing for ${userId}:`, error);
+    throw error;
   }
 }
 

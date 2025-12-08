@@ -14214,15 +14214,21 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   if (process.env.NODE_ENV === 'development') {
     app.post("/api/briefing/dev-generate", async (req: any, res) => {
       try {
-        const { userId } = req.body;
+        const { userId, force } = req.body;
         if (!userId) {
           return res.status(400).json({ error: 'userId is required' });
         }
 
-        const { morningBriefingOrchestrator } = await import('./services/morningBriefingOrchestrator');
+        const { morningBriefingOrchestrator, deleteTodaysBriefing } = await import('./services/morningBriefingOrchestrator');
         const today = format(new Date(), 'yyyy-MM-dd');
         
-        logger.info(`[MorningBriefing] DEV: Generating briefing for ${userId} on ${today}`);
+        logger.info(`[MorningBriefing] DEV: Generating briefing for ${userId} on ${today} (force: ${!!force})`);
+        
+        // If force flag, delete existing briefing first
+        if (force) {
+          await deleteTodaysBriefing(userId, today);
+          logger.info(`[MorningBriefing] DEV: Deleted existing briefing for ${userId} on ${today}`);
+        }
         
         const briefingId = await morningBriefingOrchestrator.generateBriefingForUser(userId, today, 'manual');
         
