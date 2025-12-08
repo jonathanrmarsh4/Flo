@@ -9526,10 +9526,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/sleep/manual/timer/start", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { timezone } = req.body;
       
+      // Try to get timezone from body, query, or header (Capacitor may strip body)
+      let timezone = req.body?.timezone || req.query?.timezone || req.headers['x-timezone'];
+      
+      // Fallback to UTC if not provided (better than failing)
       if (!timezone) {
-        return res.status(400).json({ error: "Timezone is required" });
+        logger.warn(`[ManualSleep] No timezone provided for user ${userId}, using UTC fallback`);
+        timezone = 'UTC';
       }
       
       // Check if timer already active

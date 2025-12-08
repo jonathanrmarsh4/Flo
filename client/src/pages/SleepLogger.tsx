@@ -214,8 +214,8 @@ export default function SleepLogger() {
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
-      <div className="max-w-lg mx-auto px-4 py-6 pb-24">
+    <div className={`min-h-screen ${isDark ? 'bg-black' : 'bg-gray-50'}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Button
@@ -248,23 +248,23 @@ export default function SleepLogger() {
         <Button
           onClick={() => timerStatus?.active ? setShowStopDialog(true) : startTimerMutation.mutate()}
           disabled={startTimerMutation.isPending}
-          className="w-full mb-6 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+          className="w-full mb-6 h-14 bg-purple-600 hover:bg-purple-700 text-white text-lg font-medium rounded-2xl shadow-lg"
           data-testid="button-start-timer"
         >
           {timerStatus?.active ? (
             <>
-              <Square className="w-4 h-4 mr-2" />
+              <Square className="w-5 h-5 mr-2" />
               Stop Sleep Tracking ({formatElapsed(elapsedTime)})
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 mr-2" />
+              <Play className="w-5 h-5 mr-2" />
               Start Sleep Tracking
             </>
           )}
         </Button>
 
-        <Card className={`p-4 mb-6 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+        <Card className={`p-4 mb-6 rounded-2xl ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Manual Entry
@@ -272,18 +272,14 @@ export default function SleepLogger() {
             <button
               onClick={() => setShowManualEntry(true)}
               className={`p-1.5 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+              data-testid="button-open-manual-entry"
             >
               <Pencil className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-400'}`} />
             </button>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => setShowManualEntry(true)}
-            className={`w-full mt-3 ${isDark ? 'border-white/20 text-white/70 hover:bg-white/5' : ''}`}
-            data-testid="button-manual-entry"
-          >
+          <p className={`text-sm mt-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
             Log sleep manually
-          </Button>
+          </p>
         </Card>
 
         <div className="mb-4 flex items-center gap-2">
@@ -298,7 +294,7 @@ export default function SleepLogger() {
             Loading...
           </div>
         ) : entries.filter(e => e.source === 'manual').length === 0 ? (
-          <Card className={`p-6 text-center ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+          <Card className={`p-6 text-center rounded-2xl ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
             <Moon className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-white/30' : 'text-gray-300'}`} />
             <p className={`${isDark ? 'text-white/60' : 'text-gray-500'}`}>
               No manual sleep entries yet. Start tracking your sleep!
@@ -329,55 +325,41 @@ export default function SleepLogger() {
                   return null;
                 }
               };
+
+              const safeDuration = entry.duration_minutes && !isNaN(entry.duration_minutes) 
+                ? formatDuration(entry.duration_minutes) 
+                : '--';
               
               return (
                 <Card 
                   key={entry.id}
-                  className={`p-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}
+                  className={`p-4 rounded-2xl ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}
                   data-testid={`card-sleep-entry-${entry.id}`}
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center justify-between">
                     <div>
                       <span className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {formatDate(entry.sleep_date)}
                       </span>
-                      {formatTimeRange(entry.bedtime, entry.wake_time) && (
-                        <p className={`text-xs mt-0.5 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                          {formatTimeRange(entry.bedtime, entry.wake_time)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="text-right">
-                        <span className={`text-2xl font-bold ${getScoreColor(entry.nightflo_score)}`}>
-                          {entry.nightflo_score}
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                          {safeDuration}
                         </span>
-                        <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>score</p>
+                        <div className="flex items-center gap-1">
+                          <Sparkles className={`w-3 h-3 ${qualityColors[qualityLabel] || 'text-amber-400'}`} />
+                          <span className={`text-xs ${qualityColors[qualityLabel] || 'text-amber-400'}`}>
+                            {qualityLabel}
+                          </span>
+                        </div>
                       </div>
-                      {(entry.source === 'manual' || !entry.source) && (
-                        <button
-                          onClick={() => setEditingEntry(entry)}
-                          className={`p-1.5 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
-                          data-testid={`button-edit-${entry.id}`}
-                        >
-                          <Pencil className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-400'}`} />
-                        </button>
-                      )}
                     </div>
-                  </div>
-
-                  <div className="mb-3">
-                    <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Duration</p>
-                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {formatDuration(entry.duration_minutes)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className={`w-3.5 h-3.5 ${qualityColors[qualityLabel] || 'text-green-400'}`} />
-                    <span className={`text-xs font-medium ${qualityColors[qualityLabel] || 'text-green-400'}`}>
-                      {qualityLabel}
-                    </span>
+                    <button
+                      onClick={() => setEditingEntry(entry)}
+                      className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                      data-testid={`button-edit-${entry.id}`}
+                    >
+                      <Pencil className={`w-4 h-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                    </button>
                   </div>
                 </Card>
               );

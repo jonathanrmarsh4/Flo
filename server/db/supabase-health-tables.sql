@@ -261,6 +261,10 @@ CREATE TABLE IF NOT EXISTS sleep_nights (
   wrist_temperature REAL,
   oxygen_saturation REAL,
   source VARCHAR(20) DEFAULT 'healthkit' CHECK (source IN ('manual', 'healthkit')),
+  is_timer_active BOOLEAN DEFAULT FALSE,
+  timer_started_at TIMESTAMP,
+  quality_rating INTEGER CHECK (quality_rating >= 1 AND quality_rating <= 5),
+  notes TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
@@ -269,6 +273,22 @@ CREATE TABLE IF NOT EXISTS sleep_nights (
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'source') THEN
     ALTER TABLE sleep_nights ADD COLUMN source VARCHAR(20) DEFAULT 'healthkit' CHECK (source IN ('manual', 'healthkit'));
+  END IF;
+END $$;
+
+-- Add timer columns if they don't exist (for migrations)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'is_timer_active') THEN
+    ALTER TABLE sleep_nights ADD COLUMN is_timer_active BOOLEAN DEFAULT FALSE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'timer_started_at') THEN
+    ALTER TABLE sleep_nights ADD COLUMN timer_started_at TIMESTAMP;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'quality_rating') THEN
+    ALTER TABLE sleep_nights ADD COLUMN quality_rating INTEGER CHECK (quality_rating >= 1 AND quality_rating <= 5);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'notes') THEN
+    ALTER TABLE sleep_nights ADD COLUMN notes TEXT;
   END IF;
 END $$;
 
