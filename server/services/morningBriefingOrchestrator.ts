@@ -1,6 +1,9 @@
 import { createLogger } from '../utils/logger';
 import { clickhouse } from './clickhouseService';
-import { supabase, getHealthId } from './supabaseHealthStorage';
+import { getSupabaseClient } from './supabaseClient';
+import { getHealthId } from './supabaseHealthStorage';
+
+const supabase = getSupabaseClient();
 import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq, isNotNull, and } from 'drizzle-orm';
@@ -851,7 +854,7 @@ export async function getTodaysBriefing(userId: string): Promise<MorningBriefing
         hrv_avg: sleepData?.hrv_ms ?? null,
       },
       recommendation: response.briefing_content?.recommendation ?? 'Focus on consistent habits today.',
-      weather: envData?.temperature_c !== null ? {
+      weather: envData && envData.temperature_c != null ? {
         temp_f: Math.round((envData.temperature_c * 9/5) + 32),
         condition: envData.weather_condition || 'Clear',
         description: envData.weather_condition || 'Clear skies',

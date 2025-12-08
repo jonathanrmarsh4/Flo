@@ -14210,6 +14210,40 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
+  // DEV ONLY: POST /api/briefing/dev-generate - Generate briefing without auth (for testing)
+  if (process.env.NODE_ENV === 'development') {
+    app.post("/api/briefing/dev-generate", async (req: any, res) => {
+      try {
+        const { userId } = req.body;
+        if (!userId) {
+          return res.status(400).json({ error: 'userId is required' });
+        }
+
+        const { morningBriefingOrchestrator } = await import('./services/morningBriefingOrchestrator');
+        const today = format(new Date(), 'yyyy-MM-dd');
+        
+        logger.info(`[MorningBriefing] DEV: Generating briefing for ${userId} on ${today}`);
+        
+        const briefingId = await morningBriefingOrchestrator.generateBriefingForUser(userId, today, 'manual');
+        
+        if (!briefingId) {
+          return res.status(500).json({ error: 'Failed to generate briefing' });
+        }
+
+        const briefing = await morningBriefingOrchestrator.getTodaysBriefing(userId);
+
+        res.json({ 
+          success: true, 
+          briefingId,
+          briefing,
+        });
+      } catch (error: any) {
+        logger.error('[MorningBriefing] DEV Generate error:', error);
+        res.status(500).json({ error: error.message });
+      }
+    });
+  }
+
   // ===============================
   // ACTION PLAN API
   // ===============================
