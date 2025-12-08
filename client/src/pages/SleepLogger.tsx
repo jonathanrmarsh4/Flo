@@ -95,7 +95,8 @@ export default function SleepLogger() {
 
   const startTimerMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/sleep/manual/timer/start');
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await apiRequest('POST', '/api/sleep/manual/timer/start', { timezone });
       return res.json();
     },
     onSuccess: () => {
@@ -296,16 +297,16 @@ export default function SleepLogger() {
           <div className={`text-center py-8 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
             Loading...
           </div>
-        ) : entries.length === 0 ? (
+        ) : entries.filter(e => e.source === 'manual').length === 0 ? (
           <Card className={`p-6 text-center ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
             <Moon className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-white/30' : 'text-gray-300'}`} />
             <p className={`${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-              No sleep entries yet. Start tracking your sleep!
+              No manual sleep entries yet. Start tracking your sleep!
             </p>
           </Card>
         ) : (
           <div className="space-y-3">
-            {entries.map((entry) => {
+            {entries.filter(e => e.source === 'manual').map((entry) => {
               const qualityLabels = ['', 'Poor', 'Restless', 'Fair', 'Good', 'Refreshed'];
               const qualityLabel = qualityLabels[entry.quality_rating] || 'Fair';
               const qualityColors: Record<string, string> = {
@@ -365,25 +366,11 @@ export default function SleepLogger() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2 mb-3">
-                    <div>
-                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Duration</p>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {formatDuration(entry.duration_minutes).replace(' ', '')}
-                      </p>
-                    </div>
-                    <div>
-                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Deep</p>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>--</p>
-                    </div>
-                    <div>
-                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>REM</p>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>--</p>
-                    </div>
-                    <div>
-                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Awake</p>
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>--</p>
-                    </div>
+                  <div className="mb-3">
+                    <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Duration</p>
+                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {formatDuration(entry.duration_minutes)}
+                    </p>
                   </div>
 
                   <div className="flex items-center gap-1.5">
