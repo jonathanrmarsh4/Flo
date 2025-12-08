@@ -308,6 +308,46 @@ class CorrelationInsightService {
     });
 
     logger.debug(`[CorrelationInsight] Stored pending feedback ${feedbackId} for user ${userId}, visible at ${effectiveVisibleAt.toISOString()}`);
+
+    // Send push notification for ML alerts immediately
+    // The delivery window is for in-app display timing, but push should be immediate
+    try {
+      const title = this.getNotificationTitle(question);
+      const body = question.questionText.length > 100 
+        ? question.questionText.substring(0, 97) + '...' 
+        : question.questionText;
+      
+      const result = await apnsService.sendToUser(userId, {
+        title,
+        body,
+        data: {
+          type: 'ml_alert',
+          feedbackId,
+          urgency: question.urgency,
+        },
+      });
+
+      if (result.success) {
+        logger.info(`[CorrelationInsight] Push notification sent for ML alert ${feedbackId} to ${result.devicesReached} device(s)`);
+      } else {
+        logger.warn(`[CorrelationInsight] Failed to send push for ML alert ${feedbackId}: ${result.error}`);
+      }
+    } catch (error) {
+      // Don't fail the entire operation if push fails
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      logger.warn(`[CorrelationInsight] Push notification failed for ML alert ${feedbackId}: ${errorMsg}`);
+    }
+  }
+
+  private getNotificationTitle(question: GeneratedQuestion): string {
+    switch (question.urgency) {
+      case 'high':
+        return 'Health Alert';
+      case 'medium':
+        return 'Health Check-In';
+      default:
+        return 'Quick Check-In';
+    }
   }
 
   async getPendingFeedback(feedbackId: string): Promise<{
