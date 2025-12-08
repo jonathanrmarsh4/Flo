@@ -879,10 +879,12 @@ export async function getTodaysBriefing(userId: string): Promise<MorningBriefing
       recommendation: response.briefing_content?.recommendation ?? 'Focus on consistent habits today.',
       weather: weatherData ? {
         temp_f: Math.round((weatherData.temp_c * 9/5) + 32),
+        temp_c: Math.round(weatherData.temp_c),
         condition: weatherData.condition,
         description: weatherData.condition,
         humidity: weatherData.humidity,
         feels_like_f: Math.round((weatherData.feels_like_c * 9/5) + 32),
+        feels_like_c: Math.round(weatherData.feels_like_c),
       } : undefined,
       greeting: response.briefing_content?.greeting ?? `Good morning! Your readiness is ${readinessScore}.`,
       readiness_insight: response.briefing_content?.readiness_insight ?? `Your readiness score is ${readinessScore}.`,

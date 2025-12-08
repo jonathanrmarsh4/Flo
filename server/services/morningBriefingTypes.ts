@@ -209,10 +209,12 @@ export interface MorningBriefingData {
   recommendation: string;
   weather?: {
     temp_f: number;
+    temp_c: number;
     condition: string;
     description: string;
     humidity: number;
     feels_like_f: number;
+    feels_like_c: number;
   };
   greeting: string;
   readiness_insight: string;

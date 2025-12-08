@@ -254,7 +254,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
         case 'morning-briefing':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <MorningBriefingTile isDark={isDark} />
+              <MorningBriefingTile isDark={isDark} useMetric={true} />
             </SortableItem>
           );
 

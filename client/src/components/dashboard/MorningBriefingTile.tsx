@@ -8,12 +8,10 @@ import {
   CloudSnow, 
   Wind,
   Moon,
-  Sunrise,
   Zap,
   ThumbsUp, 
   ThumbsDown,
   MessageCircle,
-  Loader2,
   X,
   Droplets,
   Thermometer,
@@ -39,10 +37,12 @@ interface MorningBriefingData {
   recommendation: string;
   weather?: {
     temp_f: number;
+    temp_c: number;
     condition: string;
     description: string;
     humidity: number;
     feels_like_f: number;
+    feels_like_c: number;
   };
   greeting: string;
   readiness_insight: string;
@@ -52,6 +52,7 @@ interface MorningBriefingData {
 interface MorningBriefingTileProps {
   isDark: boolean;
   onTalkToFlo?: (context: string) => void;
+  useMetric?: boolean;
 }
 
 function getWeatherIcon(condition: string) {
@@ -98,7 +99,12 @@ function getSleepQualityColor(quality: string): string {
   }
 }
 
-export function MorningBriefingTile({ isDark, onTalkToFlo }: MorningBriefingTileProps) {
+function isMorningHours(): boolean {
+  const hour = new Date().getHours();
+  return hour >= 4 && hour < 12;
+}
+
+export function MorningBriefingTile({ isDark, onTalkToFlo, useMetric = true }: MorningBriefingTileProps) {
   const [showModal, setShowModal] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const { toast } = useToast();
@@ -106,6 +112,7 @@ export function MorningBriefingTile({ isDark, onTalkToFlo }: MorningBriefingTile
   const { data, isLoading } = useQuery<{ briefing: MorningBriefingData | null; available: boolean }>({
     queryKey: ['/api/briefing/today'],
     staleTime: 5 * 60 * 1000,
+    enabled: isMorningHours(),
   });
 
   const feedbackMutation = useMutation({
@@ -147,7 +154,7 @@ Recommendation: ${data.briefing.recommendation}`;
     setShowModal(false);
   };
 
-  if (isLoading || !data?.available || !data?.briefing) {
+  if (!isMorningHours() || isLoading || !data?.available || !data?.briefing) {
     return null;
   }
 
@@ -159,24 +166,27 @@ Recommendation: ${data.briefing.recommendation}`;
       <div 
         className={`backdrop-blur-xl rounded-3xl border p-5 transition-all cursor-pointer hover-elevate active-elevate-2 ${
           isDark 
-            ? 'bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-yellow-900/40 border-white/20' 
-            : 'bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 border-black/10'
+            ? 'bg-gradient-to-br from-purple-900/50 via-violet-900/40 to-fuchsia-900/30 border-white/20' 
+            : 'bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 border-black/10'
         }`}
         onClick={() => setShowModal(true)}
         data-testid="tile-morning-briefing"
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Sunrise className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+            <Sun className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
             <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Morning Briefing
             </h3>
           </div>
           {briefing.weather && (
             <div className="flex items-center gap-1.5">
-              <WeatherIcon className={`h-4 w-4 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+              <WeatherIcon className={`h-4 w-4 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
               <span className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
-                {Math.round(briefing.weather.temp_f)}°F
+                {useMetric 
+                  ? `${Math.round(briefing.weather.temp_c)}°C`
+                  : `${Math.round(briefing.weather.temp_f)}°F`
+                }
               </span>
             </div>
           )}
@@ -214,7 +224,7 @@ Recommendation: ${data.briefing.recommendation}`;
           />
           
           <div 
-            className="relative flex-1 flex flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 overflow-hidden"
+            className="relative flex flex-col h-full bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950"
             data-testid="morning-briefing-modal"
           >
             <button
@@ -225,8 +235,8 @@ Recommendation: ${data.briefing.recommendation}`;
               <X className="h-6 w-6 text-white/60" />
             </button>
 
-            <div className="flex-1 overflow-y-auto">
-              <div className="px-6 pt-12 pb-8">
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="px-6 pt-12 pb-4">
                 <div className="flex justify-center mb-6">
                   <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center">
                     <Sun className="w-10 h-10 text-yellow-400" />
@@ -288,10 +298,13 @@ Recommendation: ${data.briefing.recommendation}`;
                     <div className="bg-slate-800/60 rounded-2xl p-5 border border-white/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <WeatherIcon className="w-8 h-8 text-blue-400" />
+                          <WeatherIcon className="w-8 h-8 text-yellow-400" />
                           <div>
                             <p className="text-2xl font-bold text-white">
-                              {Math.round(briefing.weather.temp_f)}°F
+                              {useMetric 
+                                ? `${Math.round(briefing.weather.temp_c)}°C`
+                                : `${Math.round(briefing.weather.temp_f)}°F`
+                              }
                             </p>
                             <p className="text-white/60 text-sm">
                               {briefing.weather.condition}
@@ -302,7 +315,10 @@ Recommendation: ${data.briefing.recommendation}`;
                           <div className="flex items-center gap-1.5">
                             <Thermometer className="w-4 h-4 text-white/40" />
                             <span className="text-white/60">
-                              Feels {Math.round(briefing.weather.feels_like_f)}°
+                              Feels {useMetric 
+                                ? `${Math.round(briefing.weather.feels_like_c)}°`
+                                : `${Math.round(briefing.weather.feels_like_f)}°`
+                              }
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5">
@@ -330,44 +346,44 @@ Recommendation: ${data.briefing.recommendation}`;
                       {briefing.recommendation}
                     </p>
                   </div>
-
-                  {!feedbackSubmitted ? (
-                    <div className="flex items-center justify-center gap-4 py-4">
-                      <button
-                        onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_up' })}
-                        disabled={feedbackMutation.isPending}
-                        className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
-                        data-testid="button-feedback-up"
-                      >
-                        <ThumbsUp className="h-5 w-5 text-white/60" />
-                      </button>
-                      <button
-                        onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_down' })}
-                        disabled={feedbackMutation.isPending}
-                        className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
-                        data-testid="button-feedback-down"
-                      >
-                        <ThumbsDown className="h-5 w-5 text-white/60" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4 text-sm text-white/60">
-                      Thanks for your feedback!
-                    </div>
-                  )}
-
-                  {onTalkToFlo && (
-                    <button
-                      onClick={handleTalkToFlo}
-                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-                      data-testid="button-talk-to-flo"
-                    >
-                      <MessageCircle className="h-5 w-5" />
-                      Get your briefing from Flō
-                    </button>
-                  )}
                 </div>
               </div>
+            </div>
+
+            <div className="flex-shrink-0 px-6 pb-6 pt-2 bg-gradient-to-t from-slate-950 to-transparent">
+              {!feedbackSubmitted ? (
+                <div className="flex items-center justify-center gap-4 py-3">
+                  <button
+                    onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_up' })}
+                    disabled={feedbackMutation.isPending}
+                    className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
+                    data-testid="button-feedback-up"
+                  >
+                    <ThumbsUp className="h-5 w-5 text-white/60" />
+                  </button>
+                  <button
+                    onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_down' })}
+                    disabled={feedbackMutation.isPending}
+                    className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
+                    data-testid="button-feedback-down"
+                  >
+                    <ThumbsDown className="h-5 w-5 text-white/60" />
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-3 text-sm text-white/60">
+                  Thanks for your feedback!
+                </div>
+              )}
+
+              <button
+                onClick={handleTalkToFlo}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                data-testid="button-talk-to-flo"
+              >
+                <MessageCircle className="h-5 w-5" />
+                Get your briefing from Flō
+              </button>
             </div>
           </div>
         </div>
