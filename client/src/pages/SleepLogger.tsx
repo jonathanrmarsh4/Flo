@@ -16,10 +16,12 @@ import {
   Clock, 
   Plus, 
   Calendar,
-  Star,
+  Sparkles,
   Trash2,
   Edit3,
-  History
+  History,
+  Pencil,
+  X
 } from 'lucide-react';
 import {
   Dialog,
@@ -41,6 +43,7 @@ interface ManualSleepEntry {
   notes: string | null;
   is_timer_active: boolean;
   timer_started_at: string | null;
+  source?: 'manual' | 'healthkit';
 }
 
 interface ActiveTimer {
@@ -56,6 +59,13 @@ export default function SleepLogger() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<ManualSleepEntry | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'manual') {
+      setShowManualEntry(true);
+    }
+  }, []);
 
   const { data: entries = [], isLoading } = useQuery<ManualSleepEntry[]>({
     queryKey: ['/api/sleep/manual'],
@@ -205,78 +215,74 @@ export default function SleepLogger() {
   return (
     <div className={`min-h-screen ${isDark ? 'bg-black' : 'bg-gray-50'}`}>
       <div className="max-w-lg mx-auto px-4 py-6 pb-24">
-        <div className="flex items-center gap-3 mb-6">
-          <Button
-            variant="ghost"
-            size="icon"
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation('/')}
+              className={isDark ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-gray-100'}
+              data-testid="button-back"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </Button>
+            <div>
+              <h1 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Sleep Tracker
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                Manual sleep logging
+              </p>
+            </div>
+          </div>
+          <button 
             onClick={() => setLocation('/')}
-            className={isDark ? 'text-white hover:bg-white/10' : 'text-gray-900 hover:bg-gray-100'}
-            data-testid="button-back"
+            className={`p-2 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+            data-testid="button-close"
           >
-            <ChevronLeft className="w-6 h-6" />
-          </Button>
-          <Moon className={`w-6 h-6 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-          <h1 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Sleep Logger
-          </h1>
+            <X className={`w-5 h-5 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
+          </button>
         </div>
 
-        <Card className={`p-6 mb-6 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
-          <div className="text-center">
-            {timerStatus?.active ? (
-              <>
-                <div className={`text-xs mb-2 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
-                  Sleep Timer Running
-                </div>
-                <div className={`text-5xl font-mono mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-timer">
-                  {formatElapsed(elapsedTime)}
-                </div>
-                <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-                  Started at {timerStatus.started_at ? new Date(timerStatus.started_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '--'}
-                </p>
-                <Button
-                  onClick={() => setShowStopDialog(true)}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white"
-                  data-testid="button-stop-timer"
-                >
-                  <Square className="w-4 h-4 mr-2" />
-                  Stop & Log Sleep
-                </Button>
-              </>
-            ) : (
-              <>
-                <div className={`p-4 rounded-full inline-block mb-4 ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
-                  <Clock className={`w-10 h-10 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                </div>
-                <h2 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Track Your Sleep
-                </h2>
-                <p className={`text-sm mb-6 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-                  Start the timer when you go to bed, stop it when you wake up.
-                </p>
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => startTimerMutation.mutate()}
-                    disabled={startTimerMutation.isPending}
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                    data-testid="button-start-timer"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Start Sleep Timer
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowManualEntry(true)}
-                    className={`flex-1 ${isDark ? 'border-white/20 text-white hover:bg-white/5' : ''}`}
-                    data-testid="button-manual-entry"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Log Manually
-                  </Button>
-                </div>
-              </>
-            )}
+        <Button
+          onClick={() => timerStatus?.active ? setShowStopDialog(true) : startTimerMutation.mutate()}
+          disabled={startTimerMutation.isPending}
+          className="w-full mb-6 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-xl"
+          data-testid="button-start-timer"
+        >
+          {timerStatus?.active ? (
+            <>
+              <Square className="w-4 h-4 mr-2" />
+              Stop Sleep Tracking ({formatElapsed(elapsedTime)})
+            </>
+          ) : (
+            <>
+              <Play className="w-4 h-4 mr-2" />
+              Start Sleep Tracking
+            </>
+          )}
+        </Button>
+
+        <Card className={`p-4 mb-6 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+          <div className="flex items-center justify-between">
+            <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Manual Entry
+            </span>
+            <button
+              onClick={() => setShowManualEntry(true)}
+              className={`p-1.5 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+            >
+              <Pencil className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-400'}`} />
+            </button>
           </div>
+          <Button
+            variant="outline"
+            onClick={() => setShowManualEntry(true)}
+            className={`w-full mt-3 ${isDark ? 'border-white/20 text-white/70 hover:bg-white/5' : ''}`}
+            data-testid="button-manual-entry"
+          >
+            Log sleep manually
+          </Button>
         </Card>
 
         <div className="mb-4 flex items-center gap-2">
@@ -299,81 +305,96 @@ export default function SleepLogger() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {entries.map((entry) => (
-              <Card 
-                key={entry.id}
-                className={`p-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}
-                data-testid={`card-sleep-entry-${entry.id}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Calendar className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-400'}`} />
-                    <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {formatDate(entry.sleep_date)}
+            {entries.map((entry) => {
+              const qualityLabels = ['', 'Poor', 'Restless', 'Fair', 'Good', 'Refreshed'];
+              const qualityLabel = qualityLabels[entry.quality_rating] || 'Fair';
+              const qualityColors: Record<string, string> = {
+                'Poor': isDark ? 'text-red-400' : 'text-red-600',
+                'Restless': isDark ? 'text-orange-400' : 'text-orange-600',
+                'Fair': isDark ? 'text-amber-400' : 'text-amber-600',
+                'Good': isDark ? 'text-green-400' : 'text-green-600',
+                'Refreshed': isDark ? 'text-green-400' : 'text-green-600',
+              };
+              
+              const formatTimeRange = (bedtime: string | null, wakeTime: string | null) => {
+                if (!bedtime || !wakeTime) return null;
+                try {
+                  const bed = new Date(bedtime);
+                  const wake = new Date(wakeTime);
+                  const bedStr = bed.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const wakeStr = wake.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+                  return `${bedStr} - ${wakeStr}`;
+                } catch {
+                  return null;
+                }
+              };
+              
+              return (
+                <Card 
+                  key={entry.id}
+                  className={`p-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}
+                  data-testid={`card-sleep-entry-${entry.id}`}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <span className={`text-base font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {formatDate(entry.sleep_date)}
+                      </span>
+                      {formatTimeRange(entry.bedtime, entry.wake_time) && (
+                        <p className={`text-xs mt-0.5 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                          {formatTimeRange(entry.bedtime, entry.wake_time)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <span className={`text-2xl font-bold ${getScoreColor(entry.nightflo_score)}`}>
+                          {entry.nightflo_score}
+                        </span>
+                        <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>score</p>
+                      </div>
+                      {(entry.source === 'manual' || !entry.source) && (
+                        <button
+                          onClick={() => setEditingEntry(entry)}
+                          className={`p-1.5 rounded-full ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                          data-testid={`button-edit-${entry.id}`}
+                        >
+                          <Pencil className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-400'}`} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    <div>
+                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Duration</p>
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {formatDuration(entry.duration_minutes).replace(' ', '')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Deep</p>
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>--</p>
+                    </div>
+                    <div>
+                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>REM</p>
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>--</p>
+                    </div>
+                    <div>
+                      <p className={`text-[10px] ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Awake</p>
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>--</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className={`w-3.5 h-3.5 ${qualityColors[qualityLabel] || 'text-green-400'}`} />
+                    <span className={`text-xs font-medium ${qualityColors[qualityLabel] || 'text-green-400'}`}>
+                      {qualityLabel}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className={`text-lg font-semibold ${getScoreColor(entry.nightflo_score)}`}>
-                      {entry.nightflo_score}
-                    </span>
-                    <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                      / 100
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mb-2">
-                  <div className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                    {formatDuration(entry.duration_minutes)} sleep
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        className={`w-3.5 h-3.5 ${
-                          star <= entry.quality_rating
-                            ? isDark ? 'text-yellow-400 fill-yellow-400' : 'text-yellow-500 fill-yellow-500'
-                            : isDark ? 'text-white/20' : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {entry.notes && (
-                  <p className={`text-xs mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                    {entry.notes}
-                  </p>
-                )}
-
-                <div className="flex items-center gap-2 mt-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingEntry(entry)}
-                    className={`${isDark ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-700'}`}
-                    data-testid={`button-edit-${entry.id}`}
-                  >
-                    <Edit3 className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm('Delete this sleep entry?')) {
-                        deleteEntryMutation.mutate(entry.id);
-                      }
-                    }}
-                    className={`${isDark ? 'text-red-400 hover:text-red-300 hover:bg-red-500/10' : 'text-red-500 hover:text-red-700'}`}
-                    data-testid={`button-delete-${entry.id}`}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
@@ -385,28 +406,34 @@ export default function SleepLogger() {
           </DialogHeader>
           <div className="py-4">
             <p className={`text-sm mb-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-              How well did you sleep? ({formatDuration(Math.floor(elapsedTime / 60))})
+              How did you sleep? ({formatDuration(Math.floor(elapsedTime / 60))})
             </p>
             <div className="flex justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((rating) => (
+              {[
+                { value: 1, label: 'Poor' },
+                { value: 2, label: 'Restless' },
+                { value: 3, label: 'Fair' },
+                { value: 4, label: 'Good' },
+                { value: 5, label: 'Refresh' },
+              ].map(({ value, label }) => (
                 <button
-                  key={rating}
-                  onClick={() => setStopQuality(rating)}
-                  className={`p-2 rounded-full transition-all ${
-                    rating <= stopQuality
-                      ? 'bg-yellow-500/20 text-yellow-400'
-                      : isDark ? 'text-white/30 hover:text-white/50' : 'text-gray-300 hover:text-gray-400'
+                  key={value}
+                  onClick={() => setStopQuality(value)}
+                  className={`flex flex-col items-center justify-center w-14 h-16 rounded-lg border transition-all ${
+                    value === stopQuality
+                      ? isDark 
+                        ? 'bg-green-500/20 border-green-500 text-green-400' 
+                        : 'bg-green-100 border-green-500 text-green-700'
+                      : isDark 
+                        ? 'border-white/20 text-white/60 hover:border-white/40' 
+                        : 'border-gray-300 text-gray-500 hover:border-gray-400'
                   }`}
-                  data-testid={`button-quality-${rating}`}
+                  data-testid={`button-quality-${value}`}
                 >
-                  <Star className={`w-8 h-8 ${rating <= stopQuality ? 'fill-yellow-400' : ''}`} />
+                  <span className="text-lg font-semibold">{value}</span>
+                  <span className="text-[10px] mt-0.5">{label}</span>
                 </button>
               ))}
-            </div>
-            <div className="text-center mt-2">
-              <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-                {['', 'Very Poor', 'Poor', 'Fair', 'Good', 'Excellent'][stopQuality]}
-              </span>
             </div>
           </div>
           <DialogFooter>
@@ -475,6 +502,7 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
   const [minutes, setMinutes] = useState('30');
   const [quality, setQuality] = useState(3);
   const [notes, setNotes] = useState('');
+  const [minutesAwake, setMinutesAwake] = useState('0');
   const [useTimePickers, setUseTimePickers] = useState(false);
 
   useEffect(() => {
@@ -486,6 +514,7 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
       setMinutes((entry.duration_minutes % 60).toString());
       setQuality(entry.quality_rating);
       setNotes(entry.notes || '');
+      setMinutesAwake('0');
       setUseTimePickers(!!entry.bedtime || !!entry.wake_time);
     } else {
       const today = new Date().toISOString().split('T')[0];
@@ -496,32 +525,36 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
       setMinutes('30');
       setQuality(3);
       setNotes('');
-      setUseTimePickers(false);
+      setMinutesAwake('0');
+      setUseTimePickers(true);
     }
   }, [entry, open]);
 
   const handleSave = () => {
-    const durationMins = parseInt(hours) * 60 + parseInt(minutes);
-    if (durationMins < 1 || durationMins > 1440) {
+    if (!bedtime || !wakeTime) return;
+
+    const bedtimeDate = new Date(`${sleepDate}T${bedtime}:00`);
+    const waketimeDate = new Date(`${sleepDate}T${wakeTime}:00`);
+    if (waketimeDate <= bedtimeDate) {
+      waketimeDate.setDate(waketimeDate.getDate() + 1);
+    }
+    
+    const totalMinutes = Math.floor((waketimeDate.getTime() - bedtimeDate.getTime()) / (1000 * 60));
+    const awakeMinutes = parseInt(minutesAwake) || 0;
+    const sleepMinutes = Math.max(totalMinutes - awakeMinutes, 1);
+    
+    if (sleepMinutes < 1 || sleepMinutes > 1440) {
       return;
     }
 
     const data: any = {
       sleep_date: sleepDate,
-      duration_minutes: durationMins,
+      duration_minutes: sleepMinutes,
       quality_rating: quality,
       notes: notes || undefined,
+      bedtime: bedtimeDate.toISOString(),
+      wake_time: waketimeDate.toISOString(),
     };
-
-    if (useTimePickers && bedtime && wakeTime) {
-      const bedtimeDate = new Date(`${sleepDate}T${bedtime}:00`);
-      const waketimeDate = new Date(`${sleepDate}T${wakeTime}:00`);
-      if (waketimeDate <= bedtimeDate) {
-        waketimeDate.setDate(waketimeDate.getDate() + 1);
-      }
-      data.bedtime = bedtimeDate.toISOString();
-      data.wake_time = waketimeDate.toISOString();
-    }
 
     onSave(data);
   };
@@ -530,7 +563,7 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={`${isDark ? 'bg-gray-900 border-white/10 text-white' : ''} max-w-md`}>
         <DialogHeader>
-          <DialogTitle>{entry ? 'Edit Sleep Entry' : 'Log Sleep Manually'}</DialogTitle>
+          <DialogTitle>{entry ? 'Edit Sleep Session' : 'Log Sleep Manually'}</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
@@ -545,92 +578,76 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="useTimePickers"
-              checked={useTimePickers}
-              onChange={(e) => setUseTimePickers(e.target.checked)}
-              className="rounded"
-            />
-            <Label htmlFor="useTimePickers" className={isDark ? 'text-white/80' : ''}>
-              Set specific bed/wake times
-            </Label>
+          <div className="grid grid-cols-2 gap-4">
+            <div className={`rounded-xl p-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                <Label className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Bedtime</Label>
+              </div>
+              <Input
+                type="time"
+                value={bedtime}
+                onChange={(e) => setBedtime(e.target.value)}
+                className={`text-lg font-medium border-0 p-0 h-auto ${isDark ? 'bg-transparent text-white' : 'bg-transparent text-gray-900'}`}
+                data-testid="input-bedtime"
+              />
+            </div>
+            <div className={`rounded-xl p-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                <Label className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Wake time</Label>
+              </div>
+              <Input
+                type="time"
+                value={wakeTime}
+                onChange={(e) => setWakeTime(e.target.value)}
+                className={`text-lg font-medium border-0 p-0 h-auto ${isDark ? 'bg-transparent text-white' : 'bg-transparent text-gray-900'}`}
+                data-testid="input-waketime"
+              />
+            </div>
           </div>
 
-          {useTimePickers ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className={isDark ? 'text-white/80' : ''}>Bedtime</Label>
-                <Input
-                  type="time"
-                  value={bedtime}
-                  onChange={(e) => setBedtime(e.target.value)}
-                  className={isDark ? 'bg-white/5 border-white/20 text-white' : ''}
-                  data-testid="input-bedtime"
-                />
-              </div>
-              <div>
-                <Label className={isDark ? 'text-white/80' : ''}>Wake Time</Label>
-                <Input
-                  type="time"
-                  value={wakeTime}
-                  onChange={(e) => setWakeTime(e.target.value)}
-                  className={isDark ? 'bg-white/5 border-white/20 text-white' : ''}
-                  data-testid="input-waketime"
-                />
-              </div>
-            </div>
-          ) : (
-            <div>
-              <Label className={isDark ? 'text-white/80' : ''}>Sleep Duration</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number"
-                  min="0"
-                  max="23"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                  className={`w-20 ${isDark ? 'bg-white/5 border-white/20 text-white' : ''}`}
-                  data-testid="input-hours"
-                />
-                <span className={isDark ? 'text-white/60' : 'text-gray-500'}>hours</span>
-                <Input
-                  type="number"
-                  min="0"
-                  max="59"
-                  value={minutes}
-                  onChange={(e) => setMinutes(e.target.value)}
-                  className={`w-20 ${isDark ? 'bg-white/5 border-white/20 text-white' : ''}`}
-                  data-testid="input-minutes"
-                />
-                <span className={isDark ? 'text-white/60' : 'text-gray-500'}>min</span>
-              </div>
-            </div>
-          )}
+          <div>
+            <Label className={isDark ? 'text-white/80' : ''}>Minutes awake during night</Label>
+            <Input
+              type="number"
+              min="0"
+              max="480"
+              value={minutesAwake}
+              onChange={(e) => setMinutesAwake(e.target.value)}
+              className={`mt-2 ${isDark ? 'bg-white/5 border-white/20 text-white' : ''}`}
+              data-testid="input-minutes-awake"
+            />
+          </div>
 
           <div>
-            <Label className={isDark ? 'text-white/80' : ''}>Sleep Quality</Label>
-            <div className="flex justify-center gap-2 mt-2">
-              {[1, 2, 3, 4, 5].map((rating) => (
+            <Label className={isDark ? 'text-white/80' : ''}>How did you sleep?</Label>
+            <div className="flex justify-center gap-2 mt-3">
+              {[
+                { value: 1, label: 'Poor' },
+                { value: 2, label: 'Restless' },
+                { value: 3, label: 'Fair' },
+                { value: 4, label: 'Good' },
+                { value: 5, label: 'Refresh' },
+              ].map(({ value, label }) => (
                 <button
-                  key={rating}
-                  onClick={() => setQuality(rating)}
-                  className={`p-2 rounded-full transition-all ${
-                    rating <= quality
-                      ? 'bg-yellow-500/20 text-yellow-400'
-                      : isDark ? 'text-white/30 hover:text-white/50' : 'text-gray-300 hover:text-gray-400'
+                  key={value}
+                  onClick={() => setQuality(value)}
+                  className={`flex flex-col items-center justify-center w-14 h-16 rounded-lg border transition-all ${
+                    value === quality
+                      ? isDark 
+                        ? 'bg-green-500/20 border-green-500 text-green-400' 
+                        : 'bg-green-100 border-green-500 text-green-700'
+                      : isDark 
+                        ? 'border-white/20 text-white/60 hover:border-white/40' 
+                        : 'border-gray-300 text-gray-500 hover:border-gray-400'
                   }`}
-                  data-testid={`button-quality-${rating}`}
+                  data-testid={`button-quality-${value}`}
                 >
-                  <Star className={`w-6 h-6 ${rating <= quality ? 'fill-yellow-400' : ''}`} />
+                  <span className="text-lg font-semibold">{value}</span>
+                  <span className="text-[10px] mt-0.5">{label}</span>
                 </button>
               ))}
-            </div>
-            <div className="text-center mt-1">
-              <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
-                {['', 'Very Poor', 'Poor', 'Fair', 'Good', 'Excellent'][quality]}
-              </span>
             </div>
           </div>
 
@@ -658,10 +675,10 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
           <Button
             onClick={handleSave}
             disabled={isPending}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-green-600 hover:bg-green-700"
             data-testid="button-save-entry"
           >
-            {isPending ? 'Saving...' : 'Save Entry'}
+            {isPending ? 'Saving...' : entry ? 'Update Session' : 'Save Entry'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -63,6 +63,7 @@ export function SleepTile({ isDark, data }: SleepTileProps) {
         isDark={isDark} 
         data={data!} 
         onOpenDetail={() => setLocation('/sleep-logger')}
+        onManualLog={() => setLocation('/sleep-logger?mode=manual')}
       />
     );
   }
@@ -338,7 +339,7 @@ function ManualSleepDisplay({ isDark, entry, onEdit }: { isDark: boolean; entry:
   );
 }
 
-function HealthKitSleepDisplay({ isDark, data, onOpenDetail }: { isDark: boolean; data: HealthKitSleepData; onOpenDetail: () => void }) {
+function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog }: { isDark: boolean; data: HealthKitSleepData; onOpenDetail: () => void; onManualLog: () => void }) {
   const getScoreColors = () => {
     if (data.nightflo_score >= 80) {
       return {
@@ -552,6 +553,14 @@ function HealthKitSleepDisplay({ isDark, data, onOpenDetail }: { isDark: boolean
           </p>
         </div>
       </div>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); onManualLog(); }}
+        className={`w-full text-center mt-4 text-sm ${isDark ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'} transition-colors`}
+        data-testid="link-manual-log"
+      >
+        + Tap to manually log sleep
+      </button>
     </div>
   );
 }

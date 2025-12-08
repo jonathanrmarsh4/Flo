@@ -1570,6 +1570,7 @@ export interface ManualSleepEntry {
   score_label: string;
   is_timer_active?: boolean;
   timer_started_at?: Date | string | null;
+  source?: 'manual' | 'healthkit';
   created_at?: Date;
   updated_at?: Date;
 }
@@ -1625,6 +1626,7 @@ export async function upsertManualSleepEntry(userId: string, entry: Omit<ManualS
     .upsert({
       ...entry,
       health_id: healthId,
+      source: 'manual',
       updated_at: new Date().toISOString(),
     }, {
       onConflict: 'health_id,sleep_date',
@@ -1726,6 +1728,7 @@ export async function startManualSleepTimer(userId: string, timezone: string): P
     score_label: 'Low',
     is_timer_active: true,
     timer_started_at: now.toISOString(),
+    source: 'manual',
   };
 
   const { data, error } = await supabase
@@ -1733,6 +1736,7 @@ export async function startManualSleepTimer(userId: string, timezone: string): P
     .insert({
       ...entry,
       health_id: healthId,
+      source: 'manual',
     })
     .select()
     .single();
@@ -1791,6 +1795,7 @@ export async function stopManualSleepTimer(
       score_label: label,
       is_timer_active: false,
       timer_started_at: null,
+      source: 'manual',
       updated_at: new Date().toISOString(),
     })
     .eq('id', activeTimer.id)
@@ -1808,6 +1813,24 @@ export async function stopManualSleepTimer(
     score,
     label,
   });
+
+  return data;
+}
+
+export async function getManualSleepEntryById(userId: string, entryId: string): Promise<ManualSleepEntry | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('sleep_nights')
+    .select('*')
+    .eq('id', entryId)
+    .eq('health_id', healthId)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching manual sleep entry by ID:', error);
+    return null;
+  }
 
   return data;
 }

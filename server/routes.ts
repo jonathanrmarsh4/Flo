@@ -9479,7 +9479,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const days = parseInt(req.query.days as string) || 14;
       
       const entries = await supabaseHealthStorage.getManualSleepEntries(userId, days);
-      res.json(entries);
+      
+      // Use the explicit source field from the database
+      // Entries without source field default to 'healthkit' (conservative - protect wearable data)
+      const entriesWithSource = entries.map((entry: any) => ({
+        ...entry,
+        source: entry.source || 'healthkit'
+      }));
+      
+      res.json(entriesWithSource);
     } catch (error: any) {
       logger.error("[ManualSleep] Error getting entries:", error);
       return res.status(500).json({ error: error.message });
@@ -9660,6 +9668,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { entryId } = req.params;
       const { bedtime, wakeTime, qualityRating, notes } = req.body;
       
+      // First, verify this is a manual entry
+      const existingEntry = await supabaseHealthStorage.getManualSleepEntryById(userId, entryId);
+      if (!existingEntry) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      
+      // Check if this is a manual entry using the explicit source field
+      // No heuristic fallback - entries without source field default to protected (not editable)
+      const existingData = existingEntry as any;
+      const isManualEntry = existingData.source === 'manual';
+      
+      if (!isManualEntry) {
+        return res.status(403).json({ 
+          error: "Cannot edit HealthKit entries. Only manually logged sleep can be edited." 
+        });
+      }
+      
       const updates: any = {};
       if (bedtime) updates.bedtime = bedtime;
       if (wakeTime) updates.wake_time = wakeTime;
@@ -9671,15 +9696,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (notes !== undefined) updates.notes = notes;
       
-      const entry = await supabaseHealthStorage.updateManualSleepEntry(userId, entryId, updates);
+      const updatedEntry = await supabaseHealthStorage.updateManualSleepEntry(userId, entryId, updates);
       
-      if (!entry) {
+      if (!updatedEntry) {
         return res.status(404).json({ error: "Entry not found" });
       }
       
       logger.info(`[ManualSleep] Updated entry ${entryId} for user ${userId}`);
       
-      res.json({ success: true, entry });
+      res.json({ success: true, entry: updatedEntry });
     } catch (error: any) {
       logger.error("[ManualSleep] Error updating entry:", error);
       return res.status(500).json({ error: error.message });
@@ -9691,6 +9716,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { entryId } = req.params;
+      
+      // First, verify this is a manual entry
+      const existingEntry = await supabaseHealthStorage.getManualSleepEntryById(userId, entryId);
+      if (!existingEntry) {
+        return res.status(404).json({ error: "Entry not found" });
+      }
+      
+      // Check if this is a manual entry using the explicit source field
+      // No heuristic fallback - entries without source field default to protected (not deletable)
+      const existingData = existingEntry as any;
+      const isManualEntry = existingData.source === 'manual';
+      
+      if (!isManualEntry) {
+        return res.status(403).json({ 
+          error: "Cannot delete HealthKit entries. Only manually logged sleep can be deleted." 
+        });
+      }
       
       const success = await supabaseHealthStorage.deleteManualSleepEntry(userId, entryId);
       

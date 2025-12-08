@@ -260,9 +260,17 @@ CREATE TABLE IF NOT EXISTS sleep_nights (
   respiratory_rate REAL,
   wrist_temperature REAL,
   oxygen_saturation REAL,
+  source VARCHAR(20) DEFAULT 'healthkit' CHECK (source IN ('manual', 'healthkit')),
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Add source column if it doesn't exist (for migrations)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'source') THEN
+    ALTER TABLE sleep_nights ADD COLUMN source VARCHAR(20) DEFAULT 'healthkit' CHECK (source IN ('manual', 'healthkit'));
+  END IF;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_nights_unique ON sleep_nights(health_id, sleep_date);
 CREATE INDEX IF NOT EXISTS idx_sleep_nights_health_date ON sleep_nights(health_id, sleep_date);
