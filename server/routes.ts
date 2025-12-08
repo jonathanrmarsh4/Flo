@@ -4487,7 +4487,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? pending.question.options[responseOptionIndex!]
         : undefined;
 
-      await correlationInsightService.recordFeedbackResponse(
+      correlationInsightService.recordFeedbackResponse(
         userId,
         feedbackId,
         pending.question,
@@ -4499,22 +4499,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         channel || 'in_app'
       );
-
-      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-      const { getHealthId } = await import('./services/supabaseHealthStorage');
-      const healthId = await getHealthId(userId);
-      
-      await clickhouseBaselineEngine.storeFeedbackResponse(healthId, feedbackId, {
-        questionType: pending.question.questionType,
-        questionText: pending.question.questionText,
-        responseValue,
-        responseBoolean,
-        responseOption: selectedOption,
-        responseText,
-        triggerPattern: pending.question.triggerPattern,
-        triggerMetrics: pending.question.triggerMetrics,
-        collectionChannel: channel || 'in_app',
-      });
 
       // Save to user_insights for future reference
       const patternLabel = pending.question.triggerPattern === 'illness_precursor' 
@@ -4533,24 +4517,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const insightText = `${patternLabel} detected by ML: "${pending.question.questionText}" - User response: ${responseDesc}`;
       
-      await db.insert(userInsights).values({
-        userId,
-        text: insightText,
-        source: 'correlation_insight',
-        tags: ['ml_anomaly', pending.question.triggerPattern || 'pattern'].filter(Boolean),
-        importance: pending.question.urgency === 'high' ? 4 : pending.question.urgency === 'medium' ? 3 : 2,
-        status: 'active',
-      });
+      // Run critical database operations in parallel for faster response
+      const dbOperations: Promise<any>[] = [
+        db.insert(userInsights).values({
+          userId,
+          text: insightText,
+          source: 'correlation_insight',
+          tags: ['ml_anomaly', pending.question.triggerPattern || 'pattern'].filter(Boolean),
+          importance: pending.question.urgency === 'high' ? 4 : pending.question.urgency === 'medium' ? 3 : 2,
+          status: 'active',
+        }),
+        correlationInsightService.deletePendingFeedback(feedbackId),
+      ];
 
       if (pending.question.triggerPattern) {
-        await correlationInsightService.trackAnsweredPattern(
-          userId,
-          pending.question.triggerPattern,
-          pending.question.focusMetric
+        dbOperations.push(
+          correlationInsightService.trackAnsweredPattern(
+            userId,
+            pending.question.triggerPattern,
+            pending.question.focusMetric
+          )
         );
       }
 
-      await correlationInsightService.deletePendingFeedback(feedbackId);
+      await Promise.all(dbOperations);
+
+      // Fire-and-forget ClickHouse storage (non-blocking for faster response)
+      (async () => {
+        try {
+          const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+          const { getHealthId } = await import('./services/supabaseHealthStorage');
+          const healthId = await getHealthId(userId);
+          
+          await clickhouseBaselineEngine.storeFeedbackResponse(healthId, feedbackId, {
+            questionType: pending.question.questionType,
+            questionText: pending.question.questionText,
+            responseValue,
+            responseBoolean,
+            responseOption: selectedOption,
+            responseText,
+            triggerPattern: pending.question.triggerPattern,
+            triggerMetrics: pending.question.triggerMetrics,
+            collectionChannel: channel || 'in_app',
+          });
+        } catch (err) {
+          logger.error('[CorrelationFeedback] Background ClickHouse storage failed:', err);
+        }
+      })();
 
       logger.info('[CorrelationFeedback] Feedback submitted successfully', { 
         userId, 
