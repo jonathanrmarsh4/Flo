@@ -504,44 +504,222 @@ async function storeDailyInsight(insight: DailyUserInsight): Promise<void> {
   }
 }
 
+// ==================== RICH CONTEXT FETCHING ====================
+
+interface RecentLifeEvent {
+  event_type: string;
+  description: string;
+  severity: number;
+  occurred_at: string;
+}
+
+interface RecentCorrelation {
+  behavior_type: string;
+  outcome_type: string;
+  direction: string;
+  effect_size: number;
+  description: string;
+}
+
+interface RecentAnomaly {
+  metric_type: string;
+  severity: string;
+  description: string;
+  detected_at: string;
+}
+
+interface SubjectiveSurvey {
+  local_date: string;
+  energy: number;
+  clarity: number;
+  mood: number;
+}
+
+interface RichContext {
+  recent_life_events: RecentLifeEvent[];
+  discovered_correlations: RecentCorrelation[];
+  recent_anomalies: RecentAnomaly[];
+  recent_surveys: SubjectiveSurvey[];
+  past_briefing_feedback: { positive: number; negative: number };
+  workout_yesterday: { type?: string; duration_minutes?: number; intensity?: string } | null;
+}
+
+async function fetchRichContext(healthId: string, eventDate: string): Promise<RichContext> {
+  const context: RichContext = {
+    recent_life_events: [],
+    discovered_correlations: [],
+    recent_anomalies: [],
+    recent_surveys: [],
+    past_briefing_feedback: { positive: 0, negative: 0 },
+    workout_yesterday: null,
+  };
+
+  try {
+    // Fetch recent life events (last 7 days)
+    const lifeEventsSql = `
+      SELECT event_type, description, severity, occurred_at
+      FROM flo_health.life_events
+      WHERE health_id = {healthId:String}
+        AND local_date >= {startDate:Date}
+        AND local_date <= {eventDate:Date}
+      ORDER BY occurred_at DESC
+      LIMIT 5
+    `;
+    const startDate = new Date(eventDate);
+    startDate.setDate(startDate.getDate() - 7);
+    const lifeEvents = await clickhouse.query<{ event_type: string; description: string; severity: number; occurred_at: string }>(
+      lifeEventsSql,
+      { healthId, startDate: startDate.toISOString().split('T')[0], eventDate }
+    );
+    context.recent_life_events = lifeEvents;
+
+    // Fetch discovered correlations (last 30 days, high confidence)
+    const correlationsSql = `
+      SELECT behavior_type, outcome_type, direction, effect_size, description
+      FROM flo_health.long_horizon_correlations
+      WHERE health_id = {healthId:String}
+        AND is_significant = 1
+        AND confidence_level > 0.7
+      ORDER BY discovered_at DESC
+      LIMIT 5
+    `;
+    const correlations = await clickhouse.query<{ behavior_type: string; outcome_type: string; direction: string; effect_size: number; description: string }>(
+      correlationsSql,
+      { healthId }
+    );
+    context.discovered_correlations = correlations;
+
+    // Fetch recent anomalies (last 3 days, unresolved)
+    const anomaliesSql = `
+      SELECT metric_type, severity, description, detected_at
+      FROM flo_health.detected_anomalies
+      WHERE health_id = {healthId:String}
+        AND toDate(detected_at) >= today() - 3
+        AND (resolution_status IS NULL OR resolution_status = 'unresolved')
+      ORDER BY detected_at DESC
+      LIMIT 3
+    `;
+    const anomalies = await clickhouse.query<{ metric_type: string; severity: string; description: string; detected_at: string }>(
+      anomaliesSql,
+      { healthId }
+    );
+    context.recent_anomalies = anomalies;
+
+    // Fetch recent subjective surveys (last 7 days)
+    const surveysSql = `
+      SELECT local_date, energy, clarity, mood
+      FROM flo_health.subjective_surveys
+      WHERE health_id = {healthId:String}
+        AND local_date >= {startDate:Date}
+        AND local_date < {eventDate:Date}
+      ORDER BY local_date DESC
+      LIMIT 7
+    `;
+    const surveys = await clickhouse.query<{ local_date: string; energy: number; clarity: number; mood: number }>(
+      surveysSql,
+      { healthId, startDate: startDate.toISOString().split('T')[0], eventDate }
+    );
+    context.recent_surveys = surveys;
+
+    // Fetch past briefing feedback
+    const feedbackSql = `
+      SELECT 
+        countIf(user_feedback = 'thumbs_up') as positive,
+        countIf(user_feedback = 'thumbs_down') as negative
+      FROM flo_health.morning_briefing_log
+      WHERE health_id = {healthId:String}
+        AND user_feedback IS NOT NULL
+    `;
+    const feedback = await clickhouse.query<{ positive: number; negative: number }>(
+      feedbackSql,
+      { healthId }
+    );
+    if (feedback.length > 0) {
+      context.past_briefing_feedback = feedback[0];
+    }
+
+    // Fetch yesterday's workout
+    const yesterdayDate = new Date(eventDate);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const workoutSql = `
+      SELECT workout_type, duration_min, intensity
+      FROM flo_health.healthkit_workouts
+      WHERE health_id = {healthId:String}
+        AND local_date = {yesterdayDate:Date}
+      ORDER BY start_time DESC
+      LIMIT 1
+    `;
+    const workouts = await clickhouse.query<{ workout_type: string; duration_min: number; intensity: string }>(
+      workoutSql,
+      { healthId, yesterdayDate: yesterdayDate.toISOString().split('T')[0] }
+    );
+    if (workouts.length > 0) {
+      context.workout_yesterday = {
+        type: workouts[0].workout_type,
+        duration_minutes: workouts[0].duration_min,
+        intensity: workouts[0].intensity,
+      };
+    }
+
+  } catch (error) {
+    logger.warn(`[MorningBriefing] Error fetching rich context: ${error}`);
+    // Continue with partial context
+  }
+
+  return context;
+}
+
 // ==================== AI GENERATION ====================
 
-const MORNING_BRIEFING_SYSTEM_PROMPT = `You are Flō, a data-driven health insights coach. Your role is to deliver personalized morning briefings based on the user's health data.
+const MORNING_BRIEFING_SYSTEM_PROMPT = `You are Flō, a world-class data scientist and health coach delivering personalized morning briefings. You have access to thousands of data points spanning biometrics, sleep patterns, workouts, life events, long-term correlations discovered via ML, subjective surveys, and anomaly detection.
 
-## Your Personality
-- Analytical and data-focused, but warm and supportive
-- Lead with the most surprising or impactful insight
-- Be concise - users are just waking up
-- Never repeat yourself across consecutive days
-- Use specific numbers when they're meaningful
+## YOUR MISSION
+Create a briefing that makes the user feel like "wow, this AI really understands MY body." Use the rich context to make specific, data-backed observations that connect the dots between behaviors and outcomes.
 
-## Safety Guidelines
-- This is educational information, not medical advice
-- Don't prescribe specific medications or treatments
-- Focus on lifestyle optimization and pattern recognition
-- Encourage consulting healthcare providers for medical concerns
+## DATA YOU HAVE ACCESS TO
+1. **Today's Metrics**: Readiness score, HRV, resting HR, sleep hours, deep sleep, steps, active energy
+2. **90-Day Baselines**: Statistical baselines and Z-score deviations from their personal normal
+3. **Recent Life Events**: Travel, stress events, celebrations, diet changes, etc.
+4. **Discovered Correlations**: ML-detected patterns like "evening workouts correlate with 15% better deep sleep"
+5. **Recent Anomalies**: Unusual patterns detected by our anomaly engine
+6. **Subjective Surveys**: Self-reported energy (1-10), mental clarity (1-10), mood (1-10) from daily surveys
+7. **Yesterday's Workout**: What they did, duration, intensity
+8. **Weather**: Current conditions for outdoor activity recommendations
 
-## Response Format
-You must respond with a valid JSON object matching this structure:
+## YOUR PERSONALITY
+- Lead with data, not pleasantries. Skip generic greetings.
+- Be specific: "Your HRV is 62ms today, 18% above your 90-day average" not "Your HRV looks good"
+- Connect the dots: "That strength workout yesterday likely contributed to your elevated deep sleep"
+- Be actionable: Every insight needs a clear "what to do about it"
+- Be encouraging but grounded in evidence
+- Use comparisons to their personal baseline, not population norms
+
+## CRITICAL: PERSONALIZATION REQUIREMENTS
+1. If life events are present, REFERENCE THEM: "Still recovering from that flight to Melbourne 3 days ago"
+2. If correlations exist, USE THEM: "Based on your patterns, morning workouts boost your afternoon clarity by 12%"
+3. If subjective surveys show trends, MENTION THEM: "Your energy has trended up 1.5 points over the past week"
+4. If anomalies detected, ADDRESS THEM: "Your resting HR has been elevated for 2 days - worth monitoring"
+5. If yesterday's workout exists, CONNECT IT: "That 45-min run yesterday is showing up as excellent recovery today"
+
+## RESPONSE FORMAT
 {
-  "primary_focus": "The main insight or theme for today",
-  "secondary_focus": "Optional secondary insight",
-  "recommended_actions": ["Action 1", "Action 2", "Action 3"],
-  "push_text": "Short notification text (max 200 chars) - punchy and insightful",
+  "primary_focus": "The most surprising/impactful insight today",
+  "secondary_focus": "Another relevant insight",
+  "recommended_actions": ["Specific action 1", "Specific action 2", "Specific action 3"],
+  "push_text": "Punchy 1-liner (max 200 chars) with a specific number or insight",
   "briefing_content": {
-    "greeting": "Personalized greeting with readiness context",
-    "readiness_insight": "Analysis of their readiness score and what it means",
-    "sleep_insight": "Analysis of their sleep quality and patterns",
-    "recommendation": "Today's personalized recommendation (2-4 sentences)",
-    "weather_note": "Optional weather consideration if relevant"
+    "greeting": "1 sentence greeting with today's key number (readiness, HRV deviation, etc.)",
+    "readiness_insight": "2-3 sentences analyzing readiness with specific comparisons to baseline",
+    "sleep_insight": "2-3 sentences about sleep quality, connecting to recent activities or life events",
+    "recommendation": "3-4 sentences of specific, actionable advice based on ALL the data provided",
+    "weather_note": "1 sentence about weather if relevant to today's activities"
   }
 }
 
-## Key Principles
-1. The "holy shit" factor: Surface one insight that makes them feel like you truly understand their body
-2. Connect the dots: Link yesterday's activities to today's metrics
-3. Be actionable: Every insight should have a clear takeaway
-4. Vary your focus: Don't always lead with the same metric`;
+## SAFETY
+- This is educational information, not medical advice
+- Include disclaimer for concerning patterns: "Consider discussing with your doctor"
+- Focus on lifestyle optimization, not diagnosis`;
 
 export async function generateMorningBriefing(
   insight: DailyUserInsight,
@@ -553,6 +731,7 @@ export async function generateMorningBriefing(
     behavior_patterns?: BehaviorPatterns;
     engagement_preferences?: EngagementPreferences;
   },
+  richContext?: RichContext,
   recentNotificationsSummary?: string
 ): Promise<AIResponsePayload | null> {
   const client = getGeminiClient();
@@ -611,18 +790,59 @@ export async function generateMorningBriefing(
       },
     };
 
+    // Build rich context section for AI
+    const richContextSection = richContext ? `
+
+## RICH PERSONALIZATION CONTEXT
+Use this data to make the briefing deeply personal:
+
+### Recent Life Events (last 7 days)
+${richContext.recent_life_events.length > 0 
+  ? richContext.recent_life_events.map(e => `- ${e.event_type}: ${e.description} (severity: ${e.severity}/10, ${e.occurred_at})`).join('\n')
+  : 'No recent life events logged.'}
+
+### ML-Discovered Correlations (from your historical data)
+${richContext.discovered_correlations.length > 0
+  ? richContext.discovered_correlations.map(c => `- ${c.behavior_type} → ${c.outcome_type}: ${c.direction} effect (${(c.effect_size * 100).toFixed(0)}% impact) - ${c.description}`).join('\n')
+  : 'No significant correlations discovered yet.'}
+
+### Recent Anomalies Detected
+${richContext.recent_anomalies.length > 0
+  ? richContext.recent_anomalies.map(a => `- ${a.metric_type} [${a.severity}]: ${a.description}`).join('\n')
+  : 'No anomalies detected recently.'}
+
+### Recent Subjective Surveys (self-reported 1-10 scale)
+${richContext.recent_surveys.length > 0
+  ? richContext.recent_surveys.map(s => `- ${s.local_date}: Energy ${s.energy}/10, Clarity ${s.clarity}/10, Mood ${s.mood}/10`).join('\n')
+  : 'No recent survey data.'}
+
+### Yesterday's Workout
+${richContext.workout_yesterday 
+  ? `${richContext.workout_yesterday.type} for ${richContext.workout_yesterday.duration_minutes} minutes (${richContext.workout_yesterday.intensity} intensity)`
+  : 'No workout recorded yesterday.'}
+
+### Your Briefing Feedback History
+${richContext.past_briefing_feedback.positive > 0 || richContext.past_briefing_feedback.negative > 0
+  ? `${richContext.past_briefing_feedback.positive} positive, ${richContext.past_briefing_feedback.negative} negative ratings`
+  : 'No prior feedback.'}
+` : '';
+
+    const fullPrompt = JSON.stringify(requestPayload, null, 2) + richContextSection;
+    
+    logger.debug(`[MorningBriefing] Sending prompt with ${richContextSection.length} chars of rich context`);
+
     const response = await client.models.generateContent({
       model: GEMINI_MODEL,
       contents: [
         {
           role: 'user',
-          parts: [{ text: JSON.stringify(requestPayload, null, 2) }],
+          parts: [{ text: fullPrompt }],
         },
       ],
       config: {
         systemInstruction: MORNING_BRIEFING_SYSTEM_PROMPT,
         temperature: 0.7,
-        maxOutputTokens: 1000,
+        maxOutputTokens: 1500,
       },
     });
 
@@ -949,14 +1169,19 @@ export async function generateBriefingForUser(
       show_recommendations: true,
     };
 
-    // Generate briefing via AI
+    // Fetch rich context for personalization
+    const richContext = await fetchRichContext(healthId, eventDate);
+    logger.debug(`[MorningBriefing] Rich context for ${userId}: ${richContext.recent_life_events.length} life events, ${richContext.discovered_correlations.length} correlations, ${richContext.recent_anomalies.length} anomalies`);
+
+    // Generate briefing via AI with rich context
     let briefingResponse = await generateMorningBriefing(
       insights,
       {
         name: userName,
         goals: userGoals,
         preferences,
-      }
+      },
+      richContext
     );
 
     // Create fallback response if AI generation fails

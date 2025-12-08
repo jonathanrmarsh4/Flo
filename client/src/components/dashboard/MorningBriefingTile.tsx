@@ -348,44 +348,45 @@ Recommendation: ${data.briefing.recommendation}`;
                       {briefing.recommendation}
                     </p>
                   </div>
+
+                  {!feedbackSubmitted ? (
+                    <div className="flex items-center justify-center gap-4 py-4">
+                      <span className="text-white/50 text-sm mr-2">Was this helpful?</span>
+                      <button
+                        onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_up' })}
+                        disabled={feedbackMutation.isPending}
+                        className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
+                        data-testid="button-feedback-up"
+                      >
+                        <ThumbsUp className="h-5 w-5 text-white/60" />
+                      </button>
+                      <button
+                        onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_down' })}
+                        disabled={feedbackMutation.isPending}
+                        className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
+                        data-testid="button-feedback-down"
+                      >
+                        <ThumbsDown className="h-5 w-5 text-white/60" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-sm text-white/60">
+                      Thanks for your feedback!
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleTalkToFlo}
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                    data-testid="button-talk-to-flo"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                    Get your briefing from Flō
+                  </button>
+
+                  <div className="h-24" />
                 </div>
               </div>
-            </div>
-
-            <div className="flex-shrink-0 px-6 pb-6 pt-2 bg-gradient-to-t from-slate-950 to-transparent">
-              {!feedbackSubmitted ? (
-                <div className="flex items-center justify-center gap-4 py-3">
-                  <button
-                    onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_up' })}
-                    disabled={feedbackMutation.isPending}
-                    className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
-                    data-testid="button-feedback-up"
-                  >
-                    <ThumbsUp className="h-5 w-5 text-white/60" />
-                  </button>
-                  <button
-                    onClick={() => feedbackMutation.mutate({ feedback: 'thumbs_down' })}
-                    disabled={feedbackMutation.isPending}
-                    className="p-3 rounded-full bg-slate-800/60 border border-white/10 hover:bg-white/10 transition-colors"
-                    data-testid="button-feedback-down"
-                  >
-                    <ThumbsDown className="h-5 w-5 text-white/60" />
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center py-3 text-sm text-white/60">
-                  Thanks for your feedback!
-                </div>
-              )}
-
-              <button
-                onClick={handleTalkToFlo}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-pink-500 text-white font-medium flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-                data-testid="button-talk-to-flo"
-              >
-                <MessageCircle className="h-5 w-5" />
-                Get your briefing from Flō
-              </button>
             </div>
           </div>
         </div>

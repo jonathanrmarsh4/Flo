@@ -17,6 +17,7 @@ interface Message {
 interface VoiceChatScreenProps {
   isDark: boolean;
   onClose: () => void;
+  initialContext?: string;
 }
 
 const quickSuggestions = [
@@ -26,12 +27,14 @@ const quickSuggestions = [
   { icon: TrendingUp, text: "Show recent improvements", color: "from-green-500 to-emerald-500" },
 ];
 
-export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
+export function VoiceChatScreen({ isDark, onClose, initialContext }: VoiceChatScreenProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       type: 'flo',
-      content: "Tap the phone icon to start - I'll greet you and we can explore your health data together.",
+      content: initialContext 
+        ? "I see you want to discuss your morning briefing. Tap the phone icon and let's dive into your health insights!"
+        : "Tap the phone icon to start - I'll greet you and we can explore your health data together.",
       timestamp: new Date(),
       isVoice: false,
     },
@@ -46,6 +49,7 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
   
   // Use ref for accumulated transcript to avoid stale closure in callback
   const accumulatedTranscriptRef = useRef('');
+  const initialContextRef = useRef(initialContext);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -105,8 +109,13 @@ export function VoiceChatScreen({ isDark, onClose }: VoiceChatScreenProps) {
     onConnected: () => {
       console.log('[VoiceChat] Connected to Gemini Live');
       setIsConnecting(false); // Connection established
-      // Send initial greeting request
-      sendText("Hello! Please greet me and let me know you're ready to help with my health data.");
+      // Send initial greeting with context if provided from morning briefing
+      const context = initialContextRef.current;
+      if (context) {
+        sendText(`The user is coming from their morning briefing and wants to discuss it. Here is the context:\n\n${context}\n\nPlease greet them and provide actionable insights based on this data. Be specific about their metrics and what they mean.`);
+      } else {
+        sendText("Hello! Please greet me and let me know you're ready to help with my health data.");
+      }
       // Start listening for user speech
       startListening();
     },

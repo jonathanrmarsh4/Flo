@@ -49,6 +49,7 @@ interface DashboardScreenProps {
   onSettingsClick?: () => void;
   onThemeToggle?: () => void;
   onLogout?: () => void;
+  onTalkToFlo?: (context?: string) => void;
 }
 
 // Sortable wrapper component for tiles
@@ -139,7 +140,7 @@ function SortableItem({ id, isDark, children }: SortableItemProps) {
   );
 }
 
-export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogout }: DashboardScreenProps) {
+export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogout, onTalkToFlo }: DashboardScreenProps) {
   const [, setLocation] = useLocation();
   const [showInsights, setShowInsights] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -254,7 +255,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
         case 'morning-briefing':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <MorningBriefingTile isDark={isDark} useMetric={true} />
+              <MorningBriefingTile isDark={isDark} useMetric={true} onTalkToFlo={onTalkToFlo} />
             </SortableItem>
           );
 

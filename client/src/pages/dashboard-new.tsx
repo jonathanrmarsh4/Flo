@@ -16,6 +16,12 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const [isDark, setIsDark] = useState(true);
   const [isVoiceChatOpen, setIsVoiceChatOpen] = useState(false);
+  const [voiceChatContext, setVoiceChatContext] = useState<string | undefined>(undefined);
+
+  const handleTalkToFlo = (context?: string) => {
+    setVoiceChatContext(context);
+    setIsVoiceChatOpen(true);
+  };
 
   // Automatically request HealthKit permissions on iOS app launch
   useHealthKitAutoPermission();
@@ -52,6 +58,7 @@ export default function Dashboard() {
         onSettingsClick={handleSettingsClick}
         onThemeToggle={toggleTheme}
         onLogout={handleLogout}
+        onTalkToFlo={handleTalkToFlo}
       />
       
       <BottomNav 
@@ -63,7 +70,11 @@ export default function Dashboard() {
       <div style={{ display: isVoiceChatOpen ? 'block' : 'none' }}>
         <VoiceChatScreen 
           isDark={isDark}
-          onClose={() => setIsVoiceChatOpen(false)}
+          onClose={() => {
+            setIsVoiceChatOpen(false);
+            setVoiceChatContext(undefined);
+          }}
+          initialContext={voiceChatContext}
         />
       </div>
     </div>
