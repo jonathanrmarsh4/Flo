@@ -1782,6 +1782,105 @@ export async function stopManualSleepTimer(
   // Calculate NightFlo score
   const { score, label } = calculateManualNightfloScore(durationMinutes, qualityRating);
 
+  // Check if a different entry already exists for this sleep_date (unique constraint issue)
+  // If the timer was started on a different date than when it's being stopped,
+  // we need to handle the potential conflict
+  const timerStartDate = activeTimer.sleep_date;
+  
+  if (timerStartDate !== sleepDate) {
+    // The sleep_date is changing - check if there's already an entry for the target date
+    const { data: existingEntry } = await supabase
+      .from('sleep_nights')
+      .select('id, source')
+      .eq('health_id', healthId)
+      .eq('sleep_date', sleepDate)
+      .neq('id', activeTimer.id)
+      .maybeSingle();
+
+    if (existingEntry) {
+      // Check if the existing entry is from HealthKit - never overwrite those
+      if (existingEntry.source === 'healthkit') {
+        logger.warn('[SupabaseHealth] Cannot overwrite HealthKit sleep data, keeping timer on original date');
+        // Keep the timer entry on its original date instead of moving it
+        const { data, error } = await supabase
+          .from('sleep_nights')
+          .update({
+            wake_time: now.toISOString(),
+            waketime_local: waketimeLocal,
+            duration_minutes: durationMinutes,
+            quality_rating: qualityRating,
+            notes: notes || null,
+            nightflo_score: score,
+            score_label: label,
+            is_timer_active: false,
+            timer_started_at: null,
+            source: 'manual',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', activeTimer.id)
+          .select()
+          .single();
+
+        if (error) {
+          logger.error('[SupabaseHealth] Error stopping timer (kept original date):', error);
+          throw error;
+        }
+
+        return data;
+      }
+      
+      // Existing entry is manual - safe to merge/overwrite
+      logger.info('[SupabaseHealth] Found existing manual entry for sleep_date, using upsert approach');
+      
+      // Delete the timer row first
+      await supabase
+        .from('sleep_nights')
+        .delete()
+        .eq('id', activeTimer.id);
+      
+      // Upsert the sleep entry for the target date
+      const { data, error } = await supabase
+        .from('sleep_nights')
+        .upsert({
+          health_id: healthId,
+          sleep_date: sleepDate,
+          timezone: activeTimer.timezone,
+          bedtime: activeTimer.bedtime,
+          wake_time: now.toISOString(),
+          bedtime_local: activeTimer.bedtime_local,
+          waketime_local: waketimeLocal,
+          duration_minutes: durationMinutes,
+          quality_rating: qualityRating,
+          notes: notes || null,
+          nightflo_score: score,
+          score_label: label,
+          is_timer_active: false,
+          timer_started_at: null,
+          source: 'manual',
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'health_id,sleep_date',
+        })
+        .select()
+        .single();
+
+      if (error) {
+        logger.error('[SupabaseHealth] Error upserting stopped timer:', error);
+        throw error;
+      }
+
+      logger.info(`[SupabaseHealth] Stopped sleep timer (upsert)`, {
+        durationMin: durationMinutes,
+        quality: qualityRating,
+        score,
+        label,
+      });
+
+      return data;
+    }
+  }
+
+  // Normal case: just update the existing timer row
   const { data, error } = await supabase
     .from('sleep_nights')
     .update({
