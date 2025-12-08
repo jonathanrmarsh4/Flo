@@ -955,6 +955,25 @@ export async function getHealthkitWorkoutsByDate(userId: string, localDate: stri
   return data || [];
 }
 
+export async function getHealthkitWorkoutsByDateRange(userId: string, startDate: string, endDate: string): Promise<HealthkitWorkout[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('healthkit_workouts')
+    .select('*')
+    .eq('health_id', healthId)
+    .gte('start_date', `${startDate}T00:00:00`)
+    .lt('start_date', `${endDate}T23:59:59.999`)
+    .order('start_date', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching healthkit workouts by date range:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 // ==================== DIAGNOSTICS STUDIES ====================
 
 export interface DiagnosticsStudy {

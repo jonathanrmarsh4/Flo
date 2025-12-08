@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet } from 'lucide-react';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Trophy, X } from 'lucide-react';
 import { BottomNav } from './BottomNav';
 
 interface ActivityScreenProps {
@@ -97,6 +97,36 @@ interface GlucoseDaily {
   trendData: Array<{ date: string; value: number }>;
   targetMin: number;
   targetMax: number;
+}
+
+interface WeeklyWorkoutData {
+  weekData: Array<{
+    day: string;
+    date: string;
+    workouts: Array<{
+      type: string;
+      duration: number;
+      distance: number;
+      calories: number;
+      avgHR: number | null;
+      intensity: string;
+    }>;
+  }>;
+  thisWeek: {
+    workouts: number;
+    duration: number;
+    calories: number;
+    distance: number;
+    avgDuration: number;
+  };
+  bestWeek: {
+    workouts: number;
+    duration: number;
+    calories: number;
+    distance: number;
+    date: string;
+  } | null;
+  workoutTypes: Record<string, number>;
 }
 
 export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenProps) {
@@ -208,6 +238,8 @@ function EmptyState({ isDark, message }: { isDark: boolean; message: string }) {
 }
 
 function ActivityTabContent({ isDark }: { isDark: boolean }) {
+  const [showWorkoutDetails, setShowWorkoutDetails] = useState(false);
+
   const { data: summary, isLoading: summaryLoading } = useQuery<ActivitySummary>({
     queryKey: ['/api/activity/summary'],
   });
@@ -336,6 +368,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
         className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
           isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/60 border-black/10 hover:bg-white/80'
         }`}
+        onClick={() => setShowWorkoutDetails(true)}
         data-testid="tile-workouts"
       >
         <div className="flex items-center justify-between mb-4">
@@ -371,6 +404,10 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           </div>
         )}
       </button>
+
+      {showWorkoutDetails && (
+        <WorkoutDetailsModal isDark={isDark} onClose={() => setShowWorkoutDetails(false)} />
+      )}
       
       <button 
         className={`w-full backdrop-blur-xl rounded-3xl border p-6 transition-all text-left ${
@@ -1034,6 +1071,460 @@ function GlucoseTrendChart({ data, isDark, targetMin, targetMax }: GlucoseTrendC
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full bg-green-500"></div>
           <span className={isDark ? 'text-white/50' : 'text-gray-500'}>Target: {targetMin}-{targetMax} mg/dL</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: () => void }) {
+  const { data, isLoading } = useQuery<WeeklyWorkoutData>({
+    queryKey: ['/api/activity/workouts/weekly'],
+  });
+
+  const workoutColors: { [key: string]: { bg: string; text: string } } = {
+    'Run': { bg: 'bg-cyan-500', text: 'text-cyan-400' },
+    'Running': { bg: 'bg-cyan-500', text: 'text-cyan-400' },
+    'Strength': { bg: 'bg-purple-500', text: 'text-purple-400' },
+    'TraditionalStrengthTraining': { bg: 'bg-purple-500', text: 'text-purple-400' },
+    'FunctionalStrengthTraining': { bg: 'bg-purple-500', text: 'text-purple-400' },
+    'HIIT': { bg: 'bg-red-500', text: 'text-red-400' },
+    'HighIntensityIntervalTraining': { bg: 'bg-red-500', text: 'text-red-400' },
+    'Cycling': { bg: 'bg-blue-500', text: 'text-blue-400' },
+    'Swimming': { bg: 'bg-teal-500', text: 'text-teal-400' },
+    'Yoga': { bg: 'bg-green-500', text: 'text-green-400' },
+    'Pilates': { bg: 'bg-pink-500', text: 'text-pink-400' },
+    'Walking': { bg: 'bg-emerald-500', text: 'text-emerald-400' },
+    'Hiking': { bg: 'bg-amber-500', text: 'text-amber-400' },
+    'Elliptical': { bg: 'bg-indigo-500', text: 'text-indigo-400' },
+    'Rowing': { bg: 'bg-sky-500', text: 'text-sky-400' },
+    'StairStepper': { bg: 'bg-orange-500', text: 'text-orange-400' },
+    'CoreTraining': { bg: 'bg-violet-500', text: 'text-violet-400' },
+    'Flexibility': { bg: 'bg-lime-500', text: 'text-lime-400' },
+    'Dance': { bg: 'bg-fuchsia-500', text: 'text-fuchsia-400' },
+  };
+
+  const weekData = data?.weekData || [];
+  const thisWeek = data?.thisWeek || { workouts: 0, duration: 0, calories: 0, distance: 0, avgDuration: 0 };
+  const bestWeek = data?.bestWeek;
+  const workoutTypes = data?.workoutTypes || {};
+
+  const maxDailyDuration = Math.max(...weekData.map(d => 
+    d.workouts.reduce((sum, w) => sum + w.duration, 0)
+  ), 1);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
+        data-testid="modal-backdrop-workouts"
+      />
+      
+      <div className={`relative w-full max-w-lg rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto ${ 
+        isDark ? 'bg-slate-900' : 'bg-white'
+      }`} data-testid="modal-workout-details">
+        <div className={`sticky top-0 z-10 backdrop-blur-xl border-b ${
+          isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-black/10'
+        }`}>
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Workout Details
+                </h2>
+                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Last 7 days
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className={`p-2 rounded-xl transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+                data-testid="button-close-workout-details"
+              >
+                <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-6 space-y-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+            </div>
+          ) : (
+            <>
+              {/* This Week vs Best Week Comparison */}
+              <div className={`rounded-2xl border p-5 ${
+                isDark 
+                  ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-500/30' 
+                  : 'bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200'
+              }`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      This Week vs Best Week
+                    </h3>
+                    <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      Push yourself to beat your record!
+                    </p>
+                  </div>
+                  <Trophy className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className={`text-xs mb-2 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                      This Week
+                    </div>
+                    <div className="space-y-2">
+                      <div className={`flex justify-between text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        <span>Workouts:</span>
+                        <span className={isDark ? 'text-white' : 'text-gray-900'}>{thisWeek.workouts}</span>
+                      </div>
+                      <div className={`flex justify-between text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        <span>Duration:</span>
+                        <span className={isDark ? 'text-white' : 'text-gray-900'}>{thisWeek.duration}m</span>
+                      </div>
+                      <div className={`flex justify-between text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        <span>Calories:</span>
+                        <span className={isDark ? 'text-white' : 'text-gray-900'}>{thisWeek.calories}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className={`text-xs mb-2 flex items-center gap-1 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                      Best Week <Trophy className="w-3 h-3" />
+                    </div>
+                    {bestWeek ? (
+                      <div className="space-y-2">
+                        <div className={`flex justify-between text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          <span>Workouts:</span>
+                          <span className={`${
+                            thisWeek.workouts >= bestWeek.workouts 
+                              ? isDark ? 'text-green-400' : 'text-green-600'
+                              : isDark ? 'text-white' : 'text-gray-900'
+                          }`}>{bestWeek.workouts}</span>
+                        </div>
+                        <div className={`flex justify-between text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          <span>Duration:</span>
+                          <span className={`${
+                            thisWeek.duration >= bestWeek.duration 
+                              ? isDark ? 'text-green-400' : 'text-green-600'
+                              : isDark ? 'text-white' : 'text-gray-900'
+                          }`}>{bestWeek.duration}m</span>
+                        </div>
+                        <div className={`flex justify-between text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                          <span>Calories:</span>
+                          <span className={`${
+                            thisWeek.calories >= bestWeek.calories 
+                              ? isDark ? 'text-green-400' : 'text-green-600'
+                              : isDark ? 'text-white' : 'text-gray-900'
+                          }`}>{bestWeek.calories}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                        No previous data
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {bestWeek && (thisWeek.workouts >= bestWeek.workouts || thisWeek.duration >= bestWeek.duration) ? (
+                  <div className={`mt-4 p-3 rounded-xl ${
+                    isDark ? 'bg-green-500/20 border border-green-500/30' : 'bg-green-50 border border-green-200'
+                  }`}>
+                    <p className={`text-xs flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-700'}`}>
+                      <Trophy className="w-3 h-3" /> You're crushing it! New personal record!
+                    </p>
+                  </div>
+                ) : bestWeek ? (
+                  <div className={`mt-4 p-3 rounded-xl ${
+                    isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'
+                  }`}>
+                    <p className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                      Keep going! You need <span className={isDark ? 'text-purple-400' : 'text-purple-600'}>{bestWeek.workouts - thisWeek.workouts} more workouts</span> to beat your best week
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Weekly Summary Cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Total Workouts
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {thisWeek.workouts}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                    this week
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Total Time
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {thisWeek.duration}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    minutes
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Avg Duration
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {thisWeek.avgDuration}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                    min/workout
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl border ${
+                  isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Total Calories
+                  </div>
+                  <div className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {thisWeek.calories}
+                  </div>
+                  <div className={`text-xs mt-1 ${isDark ? 'text-orange-400' : 'text-orange-600'}`}>
+                    kcal
+                  </div>
+                </div>
+              </div>
+
+              {/* Workout Type Breakdown */}
+              {Object.keys(workoutTypes).length > 0 && (
+                <div>
+                  <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Workout Types
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(workoutTypes).map(([type, count]) => (
+                      <div 
+                        key={type}
+                        className={`p-3 rounded-xl border ${
+                          isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                        }`}
+                      >
+                        <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                          {type}
+                        </div>
+                        <div className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {count}× <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>sessions</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Daily Duration Chart - Stacked by Workout Type */}
+              {weekData.length > 0 && (
+                <div>
+                  <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Daily Workout Duration (Stacked)
+                  </h3>
+                  <div className="space-y-2">
+                    {weekData.map((day, index) => {
+                      const isToday = day.day === 'Today';
+                      const dayDuration = day.workouts.reduce((sum, w) => sum + w.duration, 0);
+                      const barPercent = dayDuration > 0 ? (dayDuration / maxDailyDuration) * 100 : 0;
+                      
+                      return (
+                        <div key={index} className="flex items-center gap-3">
+                          <div className={`w-12 text-xs ${
+                            isToday 
+                              ? isDark ? 'text-purple-400' : 'text-purple-600'
+                              : isDark ? 'text-white/50' : 'text-gray-500'
+                          }`}>
+                            {day.day}
+                          </div>
+                          <div className="flex-1">
+                            <div className={`h-8 rounded-lg overflow-hidden ${
+                              isDark ? 'bg-white/5' : 'bg-gray-100'
+                            }`}>
+                              {dayDuration > 0 && (
+                                <div 
+                                  className="h-full flex"
+                                  style={{ width: `${barPercent}%` }}
+                                >
+                                  {day.workouts.map((workout, wIndex) => {
+                                    const segmentPercent = (workout.duration / dayDuration) * 100;
+                                    const color = workoutColors[workout.type] || { bg: 'bg-gray-500' };
+                                    return (
+                                      <div
+                                        key={wIndex}
+                                        className={`h-full flex items-center justify-center ${color.bg} ${
+                                          isToday ? '' : 'opacity-70'
+                                        }`}
+                                        style={{ width: `${segmentPercent}%` }}
+                                        title={`${workout.type}: ${workout.duration}min`}
+                                      >
+                                        {segmentPercent > 20 && (
+                                          <span className="text-[10px] text-white px-1 truncate">
+                                            {workout.type}
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className={`w-16 text-xs text-right ${
+                            isDark ? 'text-white/70' : 'text-gray-700'
+                          }`}>
+                            {dayDuration} min
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legend */}
+                  {Object.keys(workoutTypes).length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {Object.entries(workoutTypes).map(([type]) => {
+                        const color = workoutColors[type] || { bg: 'bg-gray-500', text: 'text-gray-400' };
+                        return (
+                          <div key={type} className="flex items-center gap-1.5">
+                            <div className={`w-3 h-3 rounded ${color.bg}`} />
+                            <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                              {type}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Daily Workout Breakdown */}
+              {weekData.some(d => d.workouts.length > 0) && (
+                <div>
+                  <h3 className={`text-sm mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Workout Log
+                  </h3>
+                  <div className="space-y-2">
+                    {weekData.filter(day => day.workouts.length > 0).map((day, dayIndex) => {
+                      const isToday = day.day === 'Today';
+                      return (
+                        <div 
+                          key={dayIndex}
+                          className={`rounded-2xl border overflow-hidden ${
+                            isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+                          } ${
+                            isToday ? isDark ? 'ring-1 ring-purple-500/50' : 'ring-1 ring-purple-400/50' : ''
+                          }`}
+                        >
+                          <div className={`px-4 py-2 border-b ${
+                            isDark ? 'bg-white/5 border-white/10' : 'bg-gray-100 border-gray-200'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className={`text-sm ${
+                                  isToday 
+                                    ? isDark ? 'text-purple-400' : 'text-purple-600'
+                                    : isDark ? 'text-white/70' : 'text-gray-700'
+                                }`}>
+                                  {day.day}
+                                </span>
+                                <span className={`ml-2 text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                                  {day.date}
+                                </span>
+                              </div>
+                              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                                {day.workouts.length} workout{day.workouts.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className={`divide-y ${isDark ? 'divide-white/10' : 'divide-gray-200'}`}>
+                            {day.workouts.map((workout, workoutIndex) => (
+                              <div key={workoutIndex} className="px-4 py-3">
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <Dumbbell className={`w-4 h-4 ${
+                                      workout.intensity === 'High' 
+                                        ? isDark ? 'text-red-400' : 'text-red-600'
+                                        : workout.intensity === 'Moderate'
+                                        ? isDark ? 'text-orange-400' : 'text-orange-600'
+                                        : isDark ? 'text-green-400' : 'text-green-600'
+                                    }`} />
+                                    <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                      {workout.type}
+                                    </span>
+                                  </div>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                    workout.intensity === 'High' 
+                                      ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
+                                      : workout.intensity === 'Moderate'
+                                      ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
+                                      : isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                                  }`}>
+                                    {workout.intensity}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-4 text-xs">
+                                  <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
+                                    {workout.duration} min
+                                  </span>
+                                  {workout.distance > 0 && (
+                                    <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
+                                      {workout.distance} km
+                                    </span>
+                                  )}
+                                  <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
+                                    {workout.calories} cal
+                                  </span>
+                                  {workout.avgHR && (
+                                    <span className={isDark ? 'text-white/50' : 'text-gray-500'}>
+                                      {workout.avgHR} bpm
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {thisWeek.workouts === 0 && (
+                <div className={`text-center py-8 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  <Dumbbell className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>No workouts recorded this week</p>
+                  <p className="text-xs mt-1">Start exercising to see your data here</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

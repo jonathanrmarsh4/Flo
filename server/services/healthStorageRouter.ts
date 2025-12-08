@@ -529,6 +529,18 @@ export async function getHealthkitWorkoutsByDate(userId: string, localDate: stri
   return [];
 }
 
+export async function getHealthkitWorkoutsByDateRange(userId: string, startDate: string, endDate: string) {
+  if (isSupabaseHealthEnabled()) {
+    try {
+      return await supabaseHealth.getHealthkitWorkoutsByDateRange(userId, startDate, endDate);
+    } catch (error) {
+      logger.error("[HealthStorageRouter] Supabase getHealthkitWorkoutsByDateRange failed:", error);
+      return [];
+    }
+  }
+  return [];
+}
+
 interface GetLifeEventsOptions {
   startDate?: Date;
   limit?: number;

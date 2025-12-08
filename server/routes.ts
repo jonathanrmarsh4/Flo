@@ -9248,6 +9248,210 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get weekly workouts data (for Workout Details modal)
+  app.get("/api/activity/workouts/weekly", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get user's timezone
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const userTimezone = recentMetrics.length > 0 ? recentMetrics[0].timezone : 'UTC';
+      
+      // Calculate date range for last 7 days
+      const today = new Date();
+      const endDate = today.toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0];
+      
+      const startDateObj = new Date(today);
+      startDateObj.setDate(startDateObj.getDate() - 6);
+      const startDate = startDateObj.toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0];
+      
+      // Helper to calculate workout duration in MINUTES
+      const getWorkoutDurationMinutes = (w: any): number => {
+        if (w.duration && w.duration > 0) {
+          return w.duration;
+        }
+        if (w.start_date && w.end_date) {
+          const start = new Date(w.start_date).getTime();
+          const end = new Date(w.end_date).getTime();
+          const durationMinutes = (end - start) / 1000 / 60;
+          return Math.max(0, durationMinutes);
+        }
+        return 0;
+      };
+
+      // Get workouts for the last 7 days
+      const workouts = await healthRouter.getHealthkitWorkoutsByDateRange(userId, startDate, endDate);
+      
+      // Get all-time workouts for best week calculation (limit to last 365 days)
+      const yearAgo = new Date(today);
+      yearAgo.setDate(yearAgo.getDate() - 365);
+      const yearAgoDate = yearAgo.toLocaleString('en-CA', { 
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).split(',')[0];
+      
+      const allWorkouts = await healthRouter.getHealthkitWorkoutsByDateRange(userId, yearAgoDate, endDate);
+      
+      // Group workouts by day for the current week
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const weekData: Array<{
+        day: string;
+        date: string;
+        workouts: Array<{
+          type: string;
+          duration: number;
+          distance: number;
+          calories: number;
+          avgHR: number | null;
+          intensity: string;
+        }>;
+      }> = [];
+      
+      // Create entries for each of the last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const dateObj = new Date(today);
+        dateObj.setDate(dateObj.getDate() - i);
+        const dateStr = dateObj.toLocaleString('en-CA', { 
+          timeZone: userTimezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).split(',')[0];
+        
+        const dayOfWeek = dateObj.getDay();
+        const displayDay = i === 0 ? 'Today' : dayNames[dayOfWeek];
+        const displayDate = dateObj.toLocaleString('en-US', { 
+          timeZone: userTimezone,
+          month: 'short',
+          day: 'numeric'
+        });
+        
+        // Filter workouts for this day
+        const dayWorkouts = workouts.filter(w => {
+          const workoutDate = new Date(w.start_date).toLocaleString('en-CA', { 
+            timeZone: userTimezone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).split(',')[0];
+          return workoutDate === dateStr;
+        });
+        
+        // Determine intensity based on heart rate zones
+        const getIntensity = (avgHR: number | null): string => {
+          if (!avgHR) return 'Moderate';
+          if (avgHR >= 150) return 'High';
+          if (avgHR >= 120) return 'Moderate';
+          return 'Light';
+        };
+        
+        weekData.push({
+          day: displayDay,
+          date: displayDate,
+          workouts: dayWorkouts.map(w => ({
+            type: w.workout_type || 'Unknown',
+            duration: Math.round(getWorkoutDurationMinutes(w)),
+            distance: w.total_distance ? Math.round(w.total_distance / 1000 * 10) / 10 : 0,
+            calories: Math.round(w.total_energy_burned || 0),
+            avgHR: w.average_heart_rate || null,
+            intensity: getIntensity(w.average_heart_rate),
+          })),
+        });
+      }
+      
+      // Calculate weekly totals
+      const totalWorkouts = weekData.reduce((sum, day) => sum + day.workouts.length, 0);
+      const totalDuration = weekData.reduce((sum, day) => 
+        sum + day.workouts.reduce((s, w) => s + w.duration, 0), 0
+      );
+      const totalCalories = weekData.reduce((sum, day) => 
+        sum + day.workouts.reduce((s, w) => s + w.calories, 0), 0
+      );
+      const totalDistance = weekData.reduce((sum, day) => 
+        sum + day.workouts.reduce((s, w) => s + w.distance, 0), 0
+      );
+      const avgDuration = totalWorkouts > 0 ? Math.round(totalDuration / totalWorkouts) : 0;
+      
+      // Calculate workout type breakdown
+      const workoutTypes: Record<string, number> = {};
+      weekData.forEach(day => {
+        day.workouts.forEach(w => {
+          workoutTypes[w.type] = (workoutTypes[w.type] || 0) + 1;
+        });
+      });
+      
+      // Calculate best week ever from historical data
+      // Group all workouts by ISO week
+      const weeklyStats: Record<string, { workouts: number; duration: number; calories: number; distance: number; weekStart: string }> = {};
+      
+      allWorkouts.forEach(w => {
+        const workoutDate = new Date(w.start_date);
+        // Get the Monday of the week
+        const weekStart = new Date(workoutDate);
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1);
+        const weekKey = weekStart.toISOString().split('T')[0];
+        
+        if (!weeklyStats[weekKey]) {
+          weeklyStats[weekKey] = { 
+            workouts: 0, 
+            duration: 0, 
+            calories: 0, 
+            distance: 0,
+            weekStart: weekKey
+          };
+        }
+        
+        weeklyStats[weekKey].workouts++;
+        weeklyStats[weekKey].duration += getWorkoutDurationMinutes(w);
+        weeklyStats[weekKey].calories += w.total_energy_burned || 0;
+        weeklyStats[weekKey].distance += w.total_distance ? w.total_distance / 1000 : 0;
+      });
+      
+      // Find best week by total workouts (or duration as tiebreaker)
+      let bestWeek = { workouts: 0, duration: 0, calories: 0, distance: 0, date: '' };
+      Object.entries(weeklyStats).forEach(([weekKey, stats]) => {
+        if (stats.workouts > bestWeek.workouts || 
+            (stats.workouts === bestWeek.workouts && stats.duration > bestWeek.duration)) {
+          bestWeek = {
+            workouts: stats.workouts,
+            duration: Math.round(stats.duration),
+            calories: Math.round(stats.calories),
+            distance: Math.round(stats.distance * 10) / 10,
+            date: `Week of ${new Date(weekKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+          };
+        }
+      });
+      
+      return res.json({
+        weekData,
+        thisWeek: {
+          workouts: totalWorkouts,
+          duration: totalDuration,
+          calories: totalCalories,
+          distance: Math.round(totalDistance * 10) / 10,
+          avgDuration,
+        },
+        bestWeek: bestWeek.workouts > 0 ? bestWeek : null,
+        workoutTypes,
+      });
+    } catch (error: any) {
+      logger.error("[Activity] Error fetching weekly workouts:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================
   // Glucose Routes (for Activity Page - Glucose Tab)
   // ============================================
