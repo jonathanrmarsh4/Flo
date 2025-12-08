@@ -307,7 +307,7 @@ class ApnsService {
         // Setting to null will allow garbage collection
         this.client = null;
       } catch (error) {
-        logger.warn('[APNs] Error closing client:', error);
+        logger.warn('[APNs] Error closing client:', { error: error instanceof Error ? error.message : String(error) });
       }
     }
 
