@@ -259,7 +259,7 @@ export default function SleepLogger() {
           )}
         </Button>
 
-        <Card className={`p-4 mb-6 rounded-2xl ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+        <Card className={`p-4 mb-6 rounded-2xl ${isDark ? 'bg-white/10 border-white/15 backdrop-blur-sm' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center justify-between">
             <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Manual Entry
@@ -289,7 +289,7 @@ export default function SleepLogger() {
             Loading...
           </div>
         ) : entries.filter(e => e.source === 'manual').length === 0 ? (
-          <Card className={`p-6 text-center rounded-2xl ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}>
+          <Card className={`p-6 text-center rounded-2xl ${isDark ? 'bg-white/10 border-white/15 backdrop-blur-sm' : 'bg-white border-gray-200'}`}>
             <Moon className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-white/30' : 'text-gray-300'}`} />
             <p className={`${isDark ? 'text-white/60' : 'text-gray-500'}`}>
               No manual sleep entries yet. Start tracking your sleep!
@@ -328,7 +328,7 @@ export default function SleepLogger() {
               return (
                 <Card 
                   key={entry.id}
-                  className={`p-4 rounded-2xl ${isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200'}`}
+                  className={`p-4 rounded-2xl ${isDark ? 'bg-white/10 border-white/15 backdrop-blur-sm' : 'bg-white border-gray-200'}`}
                   data-testid={`card-sleep-entry-${entry.id}`}
                 >
                   <div className="flex items-center justify-between">
