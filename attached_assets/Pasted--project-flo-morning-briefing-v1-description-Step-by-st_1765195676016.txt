@@ -1,0 +1,205 @@
+{
+  "project": "flo_morning_briefing_v1",
+  "description": "Step-by-step deployment plan for a personalised ML+AI-driven daily morning briefing and push notification system.",
+  "steps": [
+    {
+      "step": 1,
+      "name": "Create ClickHouse daily_user_insights table",
+      "goal": "Have a central table that stores per-user daily baselines, today metrics, deviations and tags.",
+      "actions": [
+        "Create the `daily_user_insights` table in ClickHouse.",
+        "Include columns: user_id, event_date, event_timestamp, context_type, baselines (JSON), today (JSON), deviations (JSON), tags (Array(String)), created_at.",
+        "Add appropriate partitioning/indexing on event_date and user_id for fast lookups."
+      ],
+      "outputs": [
+        "ClickHouse DDL for daily_user_insights committed to repo.",
+        "Table deployed and accessible from backend."
+      ]
+    },
+    {
+      "step": 2,
+      "name": "Implement metrics aggregation and baselines job",
+      "goal": "Populate daily_user_insights with per-user baselines, today metrics and deviation calculations.",
+      "actions": [
+        "Write a scheduled job (e.g., nightly or early morning) that reads raw metrics (HRV, RHR, sleep, workouts, steps, alcohol tags, weight, BP, weather) from existing tables.",
+        "For each user, compute medium and long-term baselines (e.g., 7d/14d/30d metrics and trends).",
+        "Compute deviations for today vs baselines (direction, delta, severity).",
+        "Generate tags such as 'training_load_high', 'poor_sleep', 'mild_stress', 'great_progress', etc.",
+        "Insert/update a single row per user per day into daily_user_insights."
+      ],
+      "outputs": [
+        "Cron/scheduled job config for metrics aggregation.",
+        "First valid rows visible in daily_user_insights for test users."
+      ]
+    },
+    {
+      "step": 3,
+      "name": "Extend user_profile schema for personalisation",
+      "goal": "Store user goals, preferences, constraints and behaviour patterns needed for tailored coaching.",
+      "actions": [
+        "Add/extend a user_profile table or JSON column in Supabase to include: goals, preferences (wake time, notification_morning_hour, training preferences, tone), constraints (injuries, no_high_impact, doctor_flags), behaviour_patterns (3pm slump, caffeine sensitivity, alcohol HRV sensitivity, night_owl).",
+        "Add optional messaging_insights / engagement_preferences fields to support future feedback-based tuning.",
+        "Expose a simple backend function to fetch user_profile by user_id."
+      ],
+      "outputs": [
+        "Updated Supabase schema and migrations.",
+        "At least one test user with a fully populated profile."
+      ]
+    },
+    {
+      "step": 4,
+      "name": "Build orchestrator service skeleton",
+      "goal": "Create a service responsible for gluing ClickHouse, Supabase, Gemini and push notifications together.",
+      "actions": [
+        "Create a new module/service (e.g., in Node/TypeScript) called `morningBriefingOrchestrator`.",
+        "Add configuration for timezones and notification windows (e.g., based on notification_morning_hour or usual_wake_time).",
+        "Implement functions: getEligibleUsers(), fetchDailyInsight(user_id), fetchUserProfile(user_id).",
+        "Wire ClickHouse and Supabase clients into this service."
+      ],
+      "outputs": [
+        "Orchestrator module compiled and deployable.",
+        "Unit tests for basic data fetching functions."
+      ]
+    },
+    {
+      "step": 5,
+      "name": "Define AI request/response payloads and types",
+      "goal": "Standardise the JSON schema used between orchestrator and Gemini.",
+      "actions": [
+        "Create TypeScript interfaces/types for ai_request_payload and ai_response_payload as per design (user_profile, insight_packet, meta, primary_focus, secondary_focus, recommended_actions, push_text, debug_explanation).",
+        "Implement validation/parsing helpers to safely parse Gemini responses (e.g., zod or custom validator).",
+        "Add tests to ensure invalid AI responses are rejected and fallback behaviour is triggered."
+      ],
+      "outputs": [
+        "Shared types or DTOs for AI payloads.",
+        "Validation utilities with test coverage."
+      ]
+    },
+    {
+      "step": 6,
+      "name": "Implement Gemini prompt and integration",
+      "goal": "Connect to Gemini and generate personalised morning briefings based on the structured payload.",
+      "actions": [
+        "Configure Gemini client with credentials (Gemini 2.5 Pro or equivalent).",
+        "Implement a function `generateMorningBriefing(payload)` that:",
+        "  - Injects the system prompt (Flō coach instructions, safety constraints, non-repetitive behaviour).",
+        "  - Sends ai_request_payload as the user message JSON.",
+        "  - Parses and validates the AI response into ai_response_payload.",
+        "Update the system prompt to emphasise: short, punchy, non-repetitive, trend-aware, one surprising insight per message.",
+        "Log raw request/response in a safe debug-only store for early testing (no PII)."
+      ],
+      "outputs": [
+        "Working Gemini call from dev environment.",
+        "Example AI responses for a test user in logs."
+      ]
+    },
+    {
+      "step": 7,
+      "name": "Integrate push notification service",
+      "goal": "Send the generated push_text to the user’s device reliably.",
+      "actions": [
+        "Implement a pushNotificationService abstraction (APNs/FCM or existing push pipeline).",
+        "Add a function `sendMorningBriefingPush(user_id, push_text, context_type)`.",
+        "Ensure device tokens / subscriptions are already handled elsewhere in the app.",
+        "Handle success/failure and return a push_status to the orchestrator."
+      ],
+      "outputs": [
+        "Push notifications successfully sent to at least one test device.",
+        "Error handling path tested with simulated failures."
+      ]
+    },
+    {
+      "step": 8,
+      "name": "Wire the full morning briefing pipeline (MVP)",
+      "goal": "Run the end-to-end flow for a small set of test users.",
+      "actions": [
+        "In the orchestrator, create a scheduled job that:",
+        "  - Finds eligible users for the current window.",
+        "  - For each user: fetches daily_user_insights and user_profile.",
+        "  - Builds ai_request_payload including optional recent_notifications summary.",
+        "  - Calls generateMorningBriefing to get ai_response_payload.",
+        "  - Sends push_text via pushNotificationService.",
+        "  - Writes a notification_log entry with request, response and push_status.",
+        "Limit the first deployment to internal/test accounts only."
+      ],
+      "outputs": [
+        "Morning push delivered end-to-end for test users.",
+        "Logs confirming full pipeline execution."
+      ]
+    },
+    {
+      "step": 9,
+      "name": "Implement notification_log and in-app feedback",
+      "goal": "Capture user reactions to briefings to improve future behaviour.",
+      "actions": [
+        "Create notification_log table (Supabase or analytics store) with fields: id, user_id, created_at, context_type, ai_request_snapshot, ai_response_snapshot, push_status, push_error, opened_at, clicked_through, user_feedback, feedback_comment.",
+        "Update orchestrator to save a row per notification.",
+        "Update mobile app UI to:",
+        "  - Display the morning briefing content when opened.",
+        "  - Allow thumbs_up/thumbs_down or similar simple feedback per briefing.",
+        "  - Optionally capture a short free-text comment for 'off' or 'not relevant' messages.",
+        "Wire the app feedback events back to notification_log (update fields for existing log row)."
+      ],
+      "outputs": [
+        "Notification_log populated with real pushes.",
+        "User feedback correctly stored and queryable."
+      ]
+    },
+    {
+      "step": 10,
+      "name": "Use feedback in ML and AI selection logic",
+      "goal": "Adapt which topics are chosen and how often based on user engagement and feedback.",
+      "actions": [
+        "Add a ClickHouse job that reads notification_log joined with daily_user_insights and computes a notification_quality_score (e.g., based on thumbs, opens, clickthrough).",
+        "Aggregate per user and per primary_focus to derive engagement_preferences (high_response_focus_areas, low_response_focus_areas, avg_feedback_score).",
+        "Write these preferences back into user_profile or a related table.",
+        "Update orchestrator logic and/or Gemini prompt to:",
+        "  - Prioritise focus areas the user responds well to.",
+        "  - De-emphasise topics the user consistently dislikes, unless there is a significant risk/deviation.",
+        "Test over time that message focus mix changes when feedback changes."
+      ],
+      "outputs": [
+        "Engagement-based preferences visible for test users.",
+        "Observed differences in AI message focus driven by feedback."
+      ]
+    },
+    {
+      "step": 11,
+      "name": "Tuning for ‘holy shit’ moments",
+      "goal": "Increase perceived intelligence and impact of each briefing while maintaining safety.",
+      "actions": [
+        "Refine deviation logic in ClickHouse to emphasise:",
+        "  - Medium and long-term trends (7d vs 30d, weight 30d delta, sleep_debt_7d, etc.).",
+        "  - Specific behavioural correlations (e.g., alcohol vs HRV, late caffeine vs sleep).",
+        "Include at least one 'insight_candidate' field in the insight_packet summarising an interesting pattern.",
+        "Update Gemini prompt to:",
+        "  - Use at least one insight_candidate in push_text when available.",
+        "  - Highlight cause-effect patterns ('When you do X, Y tends to change the next day').",
+        "Iteratively test message examples with internal users until messages feel genuinely surprising and personal."
+      ],
+      "outputs": [
+        "Insight_candidate fields present in insight_packet for relevant days.",
+        "Qualitative feedback from internal testers that messages feel 'creepily accurate' and non-repetitive."
+      ]
+    },
+    {
+      "step": 12,
+      "name": "Rollout, monitoring and safety checks",
+      "goal": "Safely roll this feature out to real users and monitor quality and impact.",
+      "actions": [
+        "Enable the morning briefing pipeline for a small beta cohort of real users.",
+        "Set up dashboards for:",
+        "  - Number of morning pushes sent per day.",
+        "  - Open rate and feedback scores.",
+        "  - Error rates from Gemini and push service.",
+        "Add alerting if Gemini errors spike, push delivery fails frequently, or if feedback scores crash.",
+        "Perform a safety review of AI copy samples to ensure compliance with non-medical, lifestyle-only guidance.",
+        "Gradually expand to full user base once stability and quality are confirmed."
+      ],
+      "outputs": [
+        "Feature live for beta users with monitoring.",
+        "Plan ready for wider rollout based on metrics and safety review."
+      ]
+    }
+  ]
+}
