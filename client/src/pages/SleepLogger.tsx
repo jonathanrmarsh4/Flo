@@ -209,7 +209,7 @@ export default function SleepLogger() {
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-zinc-950' : 'bg-gray-50'}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
