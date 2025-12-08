@@ -36,6 +36,9 @@ interface ManualSleepEntry {
   sleep_date: string;
   bedtime: string | null;
   wake_time: string | null;
+  bedtime_local?: string | null;
+  waketime_local?: string | null;
+  timezone?: string;
   duration_minutes: number;
   quality_rating: number;
   nightflo_score: number;
@@ -50,6 +53,8 @@ interface ActiveTimer {
   isActive: boolean;
   startedAt: string | null;
   elapsedMinutes: number;
+  bedtimeLocal?: string;
+  timezone?: string;
 }
 
 export default function SleepLogger() {
@@ -74,12 +79,15 @@ export default function SleepLogger() {
   });
 
   useEffect(() => {
-    if (timerStatus?.isActive && timerStatus.startedAt) {
-      const startTime = new Date(timerStatus.startedAt).getTime();
+    if (timerStatus?.isActive && timerStatus.elapsedMinutes !== undefined) {
+      // Use server-calculated elapsed time as starting point to avoid timezone issues
+      const serverElapsedSeconds = timerStatus.elapsedMinutes * 60;
+      const startedAtMs = Date.now() - (serverElapsedSeconds * 1000);
+      
       const updateTimer = () => {
         const now = Date.now();
-        const diffMs = now - startTime;
-        setElapsedTime(Math.floor(diffMs / 1000));
+        const diffMs = now - startedAtMs;
+        setElapsedTime(Math.max(0, Math.floor(diffMs / 1000)));
       };
       updateTimer();
       const interval = setInterval(updateTimer, 1000);
@@ -87,7 +95,7 @@ export default function SleepLogger() {
     } else {
       setElapsedTime(0);
     }
-  }, [timerStatus?.isActive, timerStatus?.startedAt]);
+  }, [timerStatus?.isActive, timerStatus?.elapsedMinutes]);
 
   const startTimerMutation = useMutation({
     mutationFn: async () => {
@@ -539,8 +547,24 @@ function ManualEntryDialog({ isDark, open, onOpenChange, entry, onSave, isPendin
   useEffect(() => {
     if (entry) {
       setSleepDate(entry.sleep_date);
-      setBedtime(entry.bedtime ? new Date(entry.bedtime).toTimeString().slice(0, 5) : '');
-      setWakeTime(entry.wake_time ? new Date(entry.wake_time).toTimeString().slice(0, 5) : '');
+      // Use local times from server if available, otherwise convert from ISO
+      const bedtimeLocal = entry.bedtime_local || (entry.bedtime ? new Date(entry.bedtime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
+      const wakeTimeLocal = entry.waketime_local || (entry.wake_time ? new Date(entry.wake_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }) : '');
+      // Convert 12h format to 24h for input if needed
+      const to24h = (time12: string) => {
+        if (!time12) return '';
+        const match = time12.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
+        if (!match) return time12;
+        let [, h, m, period] = match;
+        let hour = parseInt(h);
+        if (period) {
+          if (period.toLowerCase() === 'pm' && hour !== 12) hour += 12;
+          if (period.toLowerCase() === 'am' && hour === 12) hour = 0;
+        }
+        return `${hour.toString().padStart(2, '0')}:${m}`;
+      };
+      setBedtime(to24h(bedtimeLocal));
+      setWakeTime(to24h(wakeTimeLocal));
       setHours(Math.floor(entry.duration_minutes / 60).toString());
       setMinutes((entry.duration_minutes % 60).toString());
       setQuality(entry.quality_rating);

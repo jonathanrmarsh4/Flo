@@ -23,6 +23,9 @@ interface ManualSleepEntry {
   sleep_date: string;
   bedtime: string | null;
   wake_time: string | null;
+  bedtime_local?: string | null;
+  waketime_local?: string | null;
+  timezone?: string;
   duration_minutes: number;
   quality_rating: number;
   nightflo_score: number;
@@ -176,10 +179,15 @@ function ManualSleepDisplay({ isDark, entry, onEdit }: { isDark: boolean; entry:
   const qualityLabels = ['', 'Very Poor', 'Poor', 'Fair', 'Good', 'Excellent'];
   const qualityLabel = qualityLabels[entry.quality_rating] || 'Fair';
 
-  const formatTime = (isoString: string | null) => {
-    if (!isoString) return '--:--';
+  const formatLocalTime = (localStr: string | null | undefined, isoFallback: string | null) => {
+    // Prefer pre-formatted local time if available
+    if (localStr) {
+      return localStr.toUpperCase();
+    }
+    // Fallback to converting ISO string
+    if (!isoFallback) return '--:--';
     try {
-      const d = new Date(isoString);
+      const d = new Date(isoFallback);
       return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch {
       return '--:--';
@@ -295,7 +303,7 @@ function ManualSleepDisplay({ isDark, entry, onEdit }: { isDark: boolean; entry:
                   Bedtime
                 </div>
                 <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-bedtime">
-                  {formatTime(entry.bedtime)}
+                  {formatLocalTime(entry.bedtime_local, entry.bedtime)}
                 </div>
               </div>
             </div>
@@ -315,7 +323,7 @@ function ManualSleepDisplay({ isDark, entry, onEdit }: { isDark: boolean; entry:
                   Wake
                 </div>
                 <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-waketime">
-                  {formatTime(entry.wake_time)}
+                  {formatLocalTime(entry.waketime_local, entry.wake_time)}
                 </div>
               </div>
             </div>
