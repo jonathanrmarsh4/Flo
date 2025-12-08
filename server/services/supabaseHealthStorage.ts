@@ -1621,7 +1621,7 @@ export async function upsertManualSleepEntry(userId: string, entry: Omit<ManualS
   const healthId = await getHealthId(userId);
   
   const { data, error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .upsert({
       ...entry,
       health_id: healthId,
@@ -1650,7 +1650,7 @@ export async function getManualSleepEntries(userId: string, days = 14): Promise<
   const healthId = await getHealthId(userId);
   
   const { data, error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .select('*')
     .eq('health_id', healthId)
     .order('sleep_date', { ascending: false })
@@ -1668,7 +1668,7 @@ export async function getManualSleepByDate(userId: string, sleepDate: string): P
   const healthId = await getHealthId(userId);
   
   const { data, error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .select('*')
     .eq('health_id', healthId)
     .eq('sleep_date', sleepDate)
@@ -1686,7 +1686,7 @@ export async function getActiveManualSleepTimer(userId: string): Promise<ManualS
   const healthId = await getHealthId(userId);
   
   const { data, error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .select('*')
     .eq('health_id', healthId)
     .eq('is_timer_active', true)
@@ -1729,7 +1729,7 @@ export async function startManualSleepTimer(userId: string, timezone: string): P
   };
 
   const { data, error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .insert({
       ...entry,
       health_id: healthId,
@@ -1779,7 +1779,7 @@ export async function stopManualSleepTimer(
   const { score, label } = calculateManualNightfloScore(durationMinutes, qualityRating);
 
   const { data, error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .update({
       sleep_date: sleepDate,
       wake_time: now.toISOString(),
@@ -1821,7 +1821,7 @@ export async function updateManualSleepEntry(
   
   // Get existing entry to recalculate if times changed
   const { data: existing, error: fetchError } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .select('*')
     .eq('id', entryId)
     .eq('health_id', healthId)
@@ -1879,7 +1879,7 @@ export async function updateManualSleepEntry(
   updateData.score_label = label;
 
   const { data, error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .update(updateData)
     .eq('id', entryId)
     .eq('health_id', healthId)
@@ -1899,7 +1899,7 @@ export async function deleteManualSleepEntry(userId: string, entryId: string): P
   const healthId = await getHealthId(userId);
   
   const { error } = await supabase
-    .from('manual_sleep_entries')
+    .from('sleep_nights')
     .delete()
     .eq('id', entryId)
     .eq('health_id', healthId);

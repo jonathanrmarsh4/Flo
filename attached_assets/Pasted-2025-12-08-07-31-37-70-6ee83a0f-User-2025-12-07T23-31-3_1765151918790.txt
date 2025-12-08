@@ -1,0 +1,108 @@
+2025-12-08 07:31:37.70
+6ee83a0f
+User
+[2025-12-07T23:31:37.707Z] [WARN] [BigQuery] BIGQUERY_SERVICE_ACCOUNT_JSON not set - BigQuery features will be disabled
+2025-12-08 07:31:53.62
+6ee83a0f
+User
+[2025-12-07T23:31:53.620Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:31:53.72
+6ee83a0f
+User
+[2025-12-07T23:31:53.728Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] getAllBiomarkerMeasurements requires Supabase - returning empty
+2025-12-08 07:32:27.93
+6ee83a0f
+User
+[2025-12-07T23:32:27.930Z] [ERROR] [InsightsEngineV2] Failed to store RAG insights: {"error":{"message":"Supabase health storage not enabled - cannot store health data","stack":"Error: Supabase health storage not enabled - cannot store health data\n at createDailyInsight2 (file:///home/runner/workspace/dist/index.js:6099:11)\n at generateDailyInsights (file:///home/runner/workspace/dist/index.js:38035:17)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async processInsightsGeneration (file:///home/runner/workspace/dist/index.js:38259:26)"}}
+2025-12-08 07:34:33.65
+6ee83a0f
+User
+[2025-12-07T23:34:33.657Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:34:33.82
+6ee83a0f
+User
+[2025-12-07T23:34:33.823Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:34:34.05
+6ee83a0f
+User
+[2025-12-07T23:34:34.058Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:34:34.05
+6ee83a0f
+User
+[2025-12-07T23:34:34.058Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:34:38.80
+6ee83a0f
+User
+[2025-12-07T23:34:38.801Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:34:38.80
+6ee83a0f
+User
+[2025-12-07T23:34:38.802Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:34:38.81
+6ee83a0f
+User
+[2025-12-07T23:34:38.814Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:44:39.19
+6ee83a0f
+User
+[2025-12-07T23:44:39.192Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:44:39.37
+6ee83a0f
+User
+[2025-12-07T23:44:39.375Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:44:39.73
+6ee83a0f
+User
+[2025-12-07T23:44:39.738Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:44:39.73
+6ee83a0f
+User
+[2025-12-07T23:44:39.738Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:44:47.76
+6ee83a0f
+User
+[2025-12-07T23:44:47.764Z] [WARN] [Readiness] No metrics found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date 2025-12-08
+2025-12-08 07:44:47.83
+6ee83a0f
+User
+[2025-12-07T23:44:47.831Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:44:47.99
+6ee83a0f
+User
+[2025-12-07T23:44:47.989Z] [WARN] [Readiness] No metrics found for user 717f4f8f-0454-4a13-aa2c-0ac8b69ee202, date 2025-12-07
+2025-12-08 07:44:48.03
+6ee83a0f
+User
+[2025-12-07T23:44:48.035Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:44:48.03
+6ee83a0f
+User
+[2025-12-07T23:44:48.038Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:44:48.16
+6ee83a0f
+User
+[2025-12-07T23:44:48.163Z] [ERROR] [SupabaseHealth] Error fetching manual sleep entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:44:48.16
+6ee83a0f
+User
+[2025-12-07T23:44:48.163Z] [ERROR] [ManualSleep] Error getting entries: {"error":{"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'public.sleep_nights'","message":"Could not find the table 'public.manual_sleep_entries' in the schema cache"}}
+2025-12-08 07:44:50.10
+6ee83a0f
+User
+[2025-12-07T23:44:50.100Z] [WARN] [Readiness] No metrics found for user 717f4f8f-0454-4a13-aa2c-0ac8b69ee202, date 2025-12-07
+2025-12-08 07:45:21.27
+6ee83a0f
+User
+[2025-12-07T23:45:21.279Z] [ERROR] [Billing] App Store webhook JWS verification failed {}
+2025-12-08 07:45:21.27
+6ee83a0f
+User
+[2025-12-07T23:45:21.278Z] [ERROR] [AppStore] Notification verification failed: {"error":{"message":"","stack":"Error\n at SignedDataVerifier.verifyNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:138:19)\n at SignedDataVerifier.verifyAndDecodeNotification (/home/runner/workspace/node_modules/@apple/app-store-server-library/dist/jws_verification.js:130:14)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async verifyAndDecodeNotification (file:///home/runner/workspace/dist/index.js:17957:35)\n at async file:///home/runner/workspace/dist/index.js:18709:25"}}
+2025-12-08 07:45:23.83
+6ee83a0f
+User
+[2025-12-07T23:45:23.831Z] [WARN] [HealthStorageRouter] [HealthStorageRouter] Daily insights require Supabase health storage
+2025-12-08 07:45:23.99
+6ee83a0f
+User
+[2025-12-07T23:45:23.998Z] [WARN] [Readiness] No metrics found for user 717f4f8f-0454-4a13-aa2c-0ac8b69ee202, date 2025-12-07
