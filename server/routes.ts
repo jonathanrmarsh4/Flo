@@ -7159,7 +7159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`[Location] Received location from user ${userId}: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
       
       const { saveLocation, getCachedWeather, saveWeatherCache } = await import('./services/supabaseHealthStorage');
-      const { getEnvironmentalData } = await import('./services/openWeatherService');
+      const { getCurrentWeatherWithQuotaGuard } = await import('./services/environmentalBackfillService');
       
       const locationRecord = await saveLocation(userId, {
         latitude,
@@ -7177,31 +7177,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!existingCache && process.env.OPENWEATHER_API_KEY) {
         try {
-          const envData = await getEnvironmentalData(latitude, longitude);
-          weatherData = envData.weather;
-          airQualityData = envData.airQuality;
-          
-          await saveWeatherCache(userId, today, { latitude, longitude }, weatherData, airQualityData);
-          logger.info(`[Location] Weather data cached for user ${userId}, date ${today}`);
-          
-          // Trigger ClickHouse environmental data sync (non-blocking background task)
-          (async () => {
-            try {
-              const { isClickHouseEnabled } = await import('./services/clickhouseService');
-              if (isClickHouseEnabled()) {
-                const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
-                const { getHealthId } = await import('./services/supabaseHealthStorage');
-                const healthId = await getHealthId(userId);
-                
-                const syncedCount = await clickhouseBaselineEngine.syncEnvironmentalData(healthId, 7);
-                logger.info(`[ClickHouseML] Auto-synced ${syncedCount} environmental records for ${userId}`);
+          const envData = await getCurrentWeatherWithQuotaGuard(latitude, longitude);
+          if (envData) {
+            weatherData = envData.weather;
+            airQualityData = envData.airQuality;
+            
+            await saveWeatherCache(userId, today, { latitude, longitude }, weatherData, airQualityData);
+            logger.info(`[Location] Weather data cached for user ${userId}, date ${today}`);
+            
+            // Trigger ClickHouse environmental data sync (non-blocking background task)
+            (async () => {
+              try {
+                const { isClickHouseEnabled } = await import('./services/clickhouseService');
+                if (isClickHouseEnabled()) {
+                  const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+                  const { getHealthId } = await import('./services/supabaseHealthStorage');
+                  const healthId = await getHealthId(userId);
+                  
+                  const syncedCount = await clickhouseBaselineEngine.syncEnvironmentalData(healthId, 7);
+                  logger.info(`[ClickHouseML] Auto-synced ${syncedCount} environmental records for ${userId}`);
+                }
+              } catch (clickhouseError: any) {
+                logger.warn(`[ClickHouseML] Environmental sync failed for ${userId}:`, clickhouseError.message);
               }
-            } catch (clickhouseError: any) {
-              logger.warn(`[ClickHouseML] Environmental sync failed for ${userId}:`, clickhouseError.message);
-            }
-          })();
-        } catch (weatherError) {
-          logger.error(`[Location] Failed to fetch weather data:`, weatherError);
+            })();
+          } else {
+            logger.warn(`[Location] Weather fetch skipped for user ${userId} (quota exhausted)`);
+          }
+        } catch (weatherError: any) {
+          const errorMsg = weatherError?.message || String(weatherError);
+          if (errorMsg.includes('QUOTA_RPC_UNAVAILABLE') || errorMsg.includes('QUOTA_INCREMENT_FAILED')) {
+            logger.error(`[Location] CRITICAL: Quota RPC unavailable - deploy increment_weather_api_quota to Supabase`);
+          } else {
+            logger.error(`[Location] Failed to fetch weather data:`, weatherError);
+          }
         }
       }
       
@@ -7246,16 +7255,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!cache && process.env.OPENWEATHER_API_KEY) {
         const location = await getLatestLocation(userId);
         if (location) {
-          const { getEnvironmentalData } = await import('./services/openWeatherService');
-          const envData = await getEnvironmentalData(location.latitude, location.longitude);
-          
-          cache = await saveWeatherCache(
-            userId, 
-            today, 
-            { latitude: location.latitude, longitude: location.longitude },
-            envData.weather,
-            envData.airQuality
-          );
+          try {
+            const { getCurrentWeatherWithQuotaGuard } = await import('./services/environmentalBackfillService');
+            const envData = await getCurrentWeatherWithQuotaGuard(location.latitude, location.longitude);
+            
+            if (envData) {
+              cache = await saveWeatherCache(
+                userId, 
+                today, 
+                { latitude: location.latitude, longitude: location.longitude },
+                envData.weather,
+                envData.airQuality
+              );
+            }
+          } catch (weatherError: any) {
+            const errorMsg = weatherError?.message || String(weatherError);
+            if (errorMsg.includes('QUOTA_RPC_UNAVAILABLE') || errorMsg.includes('QUOTA_INCREMENT_FAILED')) {
+              logger.error(`[Environmental] CRITICAL: Quota RPC unavailable - deploy increment_weather_api_quota to Supabase`);
+            } else {
+              logger.error(`[Environmental] Failed to fetch weather data:`, weatherError);
+            }
+          }
         }
       }
       

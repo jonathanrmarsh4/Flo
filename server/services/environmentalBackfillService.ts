@@ -9,15 +9,8 @@ const API_CALL_DELAY_MS = 1100;
 const MAX_RETRIES = 3;
 const DAILY_API_QUOTA = 950;
 
-let cachedQuotaDate: string | null = null;
-let cachedQuotaCalls = 0;
-
 async function getPersistedQuota(): Promise<{ date: string; callsUsed: number }> {
   const today = new Date().toISOString().split('T')[0];
-  
-  if (cachedQuotaDate === today) {
-    return { date: today, callsUsed: cachedQuotaCalls };
-  }
   
   try {
     const supabase = await getSupabaseClient();
@@ -30,68 +23,48 @@ async function getPersistedQuota(): Promise<{ date: string; callsUsed: number }>
     
     if (error && error.code !== 'PGRST116') {
       logger.error('[Quota] Error fetching quota:', error);
-      return { date: today, callsUsed: cachedQuotaCalls };
+      return { date: today, callsUsed: 0 };
     }
     
     if (data && data.api_calls_date === today) {
-      cachedQuotaDate = today;
-      cachedQuotaCalls = data.api_calls_today || 0;
-      return { date: today, callsUsed: cachedQuotaCalls };
+      return { date: today, callsUsed: data.api_calls_today || 0 };
     } else {
-      cachedQuotaDate = today;
-      cachedQuotaCalls = 0;
       return { date: today, callsUsed: 0 };
     }
   } catch (e) {
     logger.error('[Quota] Error reading persisted quota:', e);
-    return { date: today, callsUsed: cachedQuotaCalls };
+    return { date: today, callsUsed: 0 };
   }
 }
 
-async function incrementQuota(): Promise<number> {
+async function tryIncrementQuotaAtomic(): Promise<{ success: boolean; newCount: number }> {
   const today = new Date().toISOString().split('T')[0];
-  cachedQuotaCalls++;
-  cachedQuotaDate = today;
   
-  try {
-    const supabase = await getSupabaseClient();
-    
-    const { data: current, error: readError } = await supabase
-      .from('weather_backfill_status')
-      .select('api_calls_today, api_calls_date')
-      .eq('health_id', '__GLOBAL_QUOTA__')
-      .single();
-    
-    let newCount = 1;
-    if (!readError && current && current.api_calls_date === today) {
-      newCount = (current.api_calls_today || 0) + 1;
-    }
-    
-    await supabase
-      .from('weather_backfill_status')
-      .upsert({
-        health_id: '__GLOBAL_QUOTA__',
-        status: 'quota_tracker',
-        api_calls_today: newCount,
-        api_calls_date: today,
-      }, { onConflict: 'health_id' });
-    
-    cachedQuotaCalls = newCount;
-    
-    if (newCount % 100 === 0) {
-      logger.info(`[Quota] OpenWeather API calls today: ${newCount}/${DAILY_API_QUOTA}`);
-    }
-    
-    return newCount;
-  } catch (e) {
-    logger.error('[Quota] Error incrementing quota:', e);
-    return cachedQuotaCalls;
+  const supabase = await getSupabaseClient();
+  
+  const { data: result, error: rpcError } = await supabase.rpc('increment_weather_api_quota', {
+    quota_date: today,
+    max_quota: DAILY_API_QUOTA
+  });
+  
+  if (rpcError) {
+    logger.error('[Quota] RPC failed - cannot safely increment quota:', rpcError.message);
+    logger.error('[Quota] Please ensure increment_weather_api_quota function is deployed to Supabase');
+    throw new Error(`QUOTA_RPC_UNAVAILABLE: ${rpcError.message}`);
   }
-}
-
-async function canMakeApiCall(): Promise<boolean> {
-  const quota = await getPersistedQuota();
-  return quota.callsUsed < DAILY_API_QUOTA;
+  
+  const newCount = result as number;
+  
+  if (newCount === 0) {
+    logger.warn(`[Quota] Daily API quota exhausted (${DAILY_API_QUOTA}/${DAILY_API_QUOTA})`);
+    return { success: false, newCount: DAILY_API_QUOTA };
+  }
+  
+  if (newCount % 100 === 0) {
+    logger.info(`[Quota] OpenWeather API calls today: ${newCount}/${DAILY_API_QUOTA}`);
+  }
+  
+  return { success: true, newCount };
 }
 
 async function getQuotaStatusInternal(): Promise<{ date: string; callsUsed: number; remaining: number; quotaExhausted: boolean }> {
@@ -342,9 +315,10 @@ async function fetchAQIForDateRange(
   endDate: Date,
   retryCount = 0
 ): Promise<AirQualityData[]> {
-  if (!await canMakeApiCall()) {
-    const status = await getQuotaStatusInternal();
-    logger.warn(`[Backfill] Daily API quota exhausted (${status.callsUsed}/${DAILY_API_QUOTA})`);
+  const quotaResult = await tryIncrementQuotaAtomic();
+  
+  if (!quotaResult.success) {
+    logger.warn(`[Backfill] Daily API quota exhausted (${quotaResult.newCount}/${DAILY_API_QUOTA})`);
     throw new Error('QUOTA_EXHAUSTED: Daily OpenWeather API limit reached');
   }
   
@@ -352,7 +326,6 @@ async function fetchAQIForDateRange(
     const startTimestamp = Math.floor(startDate.getTime() / 1000);
     const endTimestamp = Math.floor(endDate.getTime() / 1000);
     
-    await incrementQuota();
     const data = await getHistoricalAirQuality(latitude, longitude, startTimestamp, endTimestamp);
     return data;
   } catch (error) {
@@ -368,6 +341,23 @@ async function fetchAQIForDateRange(
 
 export async function getQuotaStatus(): Promise<{ date: string; callsUsed: number; remaining: number; quotaExhausted: boolean }> {
   return getQuotaStatusInternal();
+}
+
+export async function getCurrentWeatherWithQuotaGuard(lat: number, lon: number): Promise<{
+  weather: any;
+  airQuality: any;
+  fetchedAt: string;
+  location: { lat: number; lon: number };
+} | null> {
+  const quotaResult = await tryIncrementQuotaAtomic();
+  
+  if (!quotaResult.success) {
+    logger.warn(`[Quota] Skipping current weather fetch - daily quota exhausted`);
+    return null;
+  }
+  
+  const { getEnvironmentalData } = await import('./openWeatherService');
+  return await getEnvironmentalData(lat, lon);
 }
 
 export async function runBackfillForUser(
@@ -552,8 +542,8 @@ export async function runBackfillForAllUsers(): Promise<{
   for (let i = 0; i < uniqueHealthIds.length; i++) {
     const healthId = uniqueHealthIds[i];
     
-    if (!await canMakeApiCall()) {
-      const quotaStatus = await getQuotaStatusInternal();
+    const quotaStatus = await getQuotaStatusInternal();
+    if (quotaStatus.quotaExhausted) {
       logger.warn(`[Backfill] Stopping bulk backfill: API quota exhausted (${quotaStatus.callsUsed}/${DAILY_API_QUOTA})`);
       stoppedDueToQuota = true;
       quotaExhaustedAt = i;
@@ -570,6 +560,10 @@ export async function runBackfillForAllUsers(): Promise<{
       stoppedDueToQuota = true;
       quotaExhaustedAt = i;
       logger.warn(`[Backfill] Stopping bulk backfill at user ${i + 1}/${uniqueHealthIds.length}: quota exhausted`);
+      break;
+    } else if (result.error?.includes('QUOTA_RPC_UNAVAILABLE') || result.error?.includes('QUOTA_INCREMENT_FAILED')) {
+      logger.error(`[Backfill] ABORTING bulk backfill: Quota RPC unavailable. Deploy increment_weather_api_quota function to Supabase.`);
+      failed++;
       break;
     } else {
       failed++;
