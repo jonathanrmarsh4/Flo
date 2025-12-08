@@ -3996,6 +3996,23 @@ export async function getLatestLocation(userId: string): Promise<LocationRecord 
   return data || null;
 }
 
+export async function getLatestLocationByHealthId(healthId: string): Promise<LocationRecord | null> {
+  const { data, error } = await supabase
+    .from('user_location_history')
+    .select('*')
+    .eq('health_id', healthId)
+    .order('recorded_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    logger.error('[SupabaseHealth] Error fetching latest location by healthId:', error);
+    return null;
+  }
+
+  return data || null;
+}
+
 export async function getLocationHistory(
   userId: string, 
   options?: { startDate?: string; endDate?: string; limit?: number }

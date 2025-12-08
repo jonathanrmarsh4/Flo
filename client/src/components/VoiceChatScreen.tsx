@@ -51,6 +51,21 @@ export function VoiceChatScreen({ isDark, onClose, initialContext }: VoiceChatSc
   const accumulatedTranscriptRef = useRef('');
   const initialContextRef = useRef(initialContext);
   
+  // Keep ref updated when initialContext prop changes (important for pre-rendered component)
+  useEffect(() => {
+    initialContextRef.current = initialContext;
+    // Update the initial message when context changes
+    if (initialContext) {
+      setMessages([{
+        id: '1',
+        type: 'flo',
+        content: "I see you want to discuss your morning briefing. Tap the phone icon and let's dive into your health insights!",
+        timestamp: new Date(),
+        isVoice: false,
+      }]);
+    }
+  }, [initialContext]);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   

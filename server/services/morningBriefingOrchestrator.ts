@@ -444,16 +444,13 @@ async function fetchWeather(healthId: string, eventDate: string): Promise<DailyU
       };
     }
 
-    // Fallback: Fetch live weather from OpenWeather using user's location
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('latitude, longitude')
-      .eq('health_id', healthId)
-      .maybeSingle();
-
-    // Use user's location or default to New York City
-    const lat = profile?.latitude || 40.7128;
-    const lon = profile?.longitude || -74.0060;
+    // Fallback: Fetch live weather from OpenWeather using user's latest location from history
+    const { getLatestLocationByHealthId } = await import('./supabaseHealthStorage');
+    const latestLocation = await getLatestLocationByHealthId(healthId);
+    
+    // Use user's device location or default to Sydney, Australia as fallback
+    const lat = latestLocation?.latitude || -33.8688;
+    const lon = latestLocation?.longitude || 151.2093;
     
     const { getCurrentWeather } = await import('./openWeatherService');
     const liveWeather = await getCurrentWeather(lat, lon);
