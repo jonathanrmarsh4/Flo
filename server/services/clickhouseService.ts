@@ -798,7 +798,70 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines and long-term correlation engine)');
+    // Daily user insights for morning briefing ML pipeline
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.daily_user_insights (
+          health_id String,
+          event_date Date,
+          event_timestamp DateTime64(3) DEFAULT now64(3),
+          context_type LowCardinality(String) DEFAULT 'morning_briefing',
+          baselines String,
+          today String,
+          deviations String,
+          tags Array(String),
+          insight_candidates String,
+          readiness_score Nullable(Float64),
+          sleep_hours Nullable(Float64),
+          deep_sleep_minutes Nullable(Float64),
+          hrv_avg Nullable(Float64),
+          rhr_avg Nullable(Float64),
+          steps Nullable(Float64),
+          active_energy Nullable(Float64),
+          workout_minutes Nullable(Float64),
+          weather_temp_c Nullable(Float64),
+          weather_condition Nullable(String),
+          created_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(created_at)
+        PARTITION BY toYYYYMM(event_date)
+        ORDER BY (health_id, event_date, context_type)
+        TTL event_date + INTERVAL 2 YEAR
+      `,
+    });
+
+    // Morning briefing log for tracking AI-generated briefings and user feedback
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.morning_briefing_log (
+          briefing_id UUID DEFAULT generateUUIDv4(),
+          health_id String,
+          event_date Date,
+          created_at DateTime64(3) DEFAULT now64(3),
+          ai_request_payload String,
+          ai_response_payload String,
+          push_text Nullable(String),
+          primary_focus Nullable(String),
+          secondary_focus Nullable(String),
+          recommended_actions Nullable(String),
+          push_status LowCardinality(String) DEFAULT 'pending',
+          push_sent_at Nullable(DateTime64(3)),
+          push_error Nullable(String),
+          opened_at Nullable(DateTime64(3)),
+          clicked_through UInt8 DEFAULT 0,
+          user_feedback LowCardinality(Nullable(String)),
+          feedback_comment Nullable(String),
+          feedback_at Nullable(DateTime64(3)),
+          trigger_source LowCardinality(String) DEFAULT 'sleep_end'
+        )
+        ENGINE = MergeTree()
+        PARTITION BY toYYYYMM(event_date)
+        ORDER BY (health_id, event_date, briefing_id)
+        TTL event_date + INTERVAL 2 YEAR
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, and morning briefing)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

@@ -8510,6 +8510,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't fail the sleep upload if Flōmentum fails
       }
 
+      // Trigger morning briefing generation after sleep data is available
+      // This runs asynchronously in the background to not block the response
+      (async () => {
+        try {
+          const { generateBriefingForUser } = await import('./services/morningBriefingOrchestrator');
+          await generateBriefingForUser(userId, sleepDate, 'sleep_end');
+        } catch (briefingError: any) {
+          logger.error(`[MorningBriefing] Error generating briefing for ${userId}:`, briefingError);
+        }
+      })();
+
       return res.json({ status: "upserted", sleepDate });
     } catch (error: any) {
       logger.error("[Sleep] Error processing raw sleep samples:", error);
@@ -14015,6 +14026,186 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       });
     } catch (error: any) {
       logger.error('[DailyInsightsV2] Refresh error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===============================
+  // MORNING BRIEFING API
+  // ===============================
+
+  // GET /api/briefing/today - Get today's morning briefing
+  app.get("/api/briefing/today", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { morningBriefingOrchestrator } = await import('./services/morningBriefingOrchestrator');
+      const briefing = await morningBriefingOrchestrator.getTodaysBriefing(userId);
+      
+      if (!briefing) {
+        return res.json({ briefing: null, available: false });
+      }
+
+      res.json({ briefing, available: true });
+    } catch (error: any) {
+      logger.error('[MorningBriefing] Get today briefing error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/briefing/feedback - Submit feedback for a morning briefing
+  app.post("/api/briefing/feedback", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const schema = z.object({
+        briefingId: z.string().uuid(),
+        feedback: z.enum(['thumbs_up', 'thumbs_down']),
+        comment: z.string().optional(),
+      });
+
+      const result = schema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: fromError(result.error).message });
+      }
+
+      const { briefingId, feedback, comment } = result.data;
+
+      const { morningBriefingOrchestrator } = await import('./services/morningBriefingOrchestrator');
+      await morningBriefingOrchestrator.recordBriefingFeedback(briefingId, feedback, comment);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[MorningBriefing] Feedback error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/briefing/generate - Manually trigger briefing generation (for testing)
+  app.post("/api/briefing/generate", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const healthId = await healthRouter.getHealthId(userId);
+      const today = format(new Date(), 'yyyy-MM-dd');
+      
+      const { morningBriefingOrchestrator } = await import('./services/morningBriefingOrchestrator');
+      
+      // Get user profile from Supabase
+      const profile = await supabaseHealthStorage.getProfile(userId);
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      
+      // Aggregate daily insights (always returns data with defaults)
+      const insights = await morningBriefingOrchestrator.aggregateDailyInsights(healthId, today);
+      
+      const userName = user[0]?.firstName || 'there';
+
+      // Generate the briefing
+      let briefingResponse = await morningBriefingOrchestrator.generateMorningBriefing(
+        insights,
+        {
+          name: userName,
+          goals: profile?.goals || [],
+          preferences: {
+            enabled: true,
+            notification_morning_hour: 7,
+            preferred_tone: 'supportive',
+            show_weather: true,
+            show_recommendations: true,
+          },
+        }
+      );
+
+      // Create fallback if AI generation fails
+      if (!briefingResponse) {
+        const sleepHours = insights.today.sleep_hours ?? 7;
+        const readinessScore = insights.today.readiness_score ?? 70;
+        const deepSleep = insights.today.deep_sleep_minutes ?? 60;
+        
+        briefingResponse = {
+          briefing_content: {
+            greeting: `Good morning, ${userName}! Your readiness is at ${readinessScore}.`,
+            readiness_insight: readinessScore >= 80 
+              ? `Your body is well-recovered today with a readiness of ${readinessScore}.`
+              : readinessScore >= 60
+              ? `Your recovery is moderate at ${readinessScore}. Pace yourself today.`
+              : `Your recovery is lower at ${readinessScore}. Consider prioritizing rest.`,
+            sleep_insight: `You got ${sleepHours.toFixed(1)} hours of sleep with ${deepSleep} minutes of deep sleep.`,
+            recommendation: readinessScore >= 75
+              ? 'Great day for focused work or a workout.'
+              : 'Take it easy today and prioritize recovery activities.',
+          },
+          push_text: `Good morning! Your readiness is ${readinessScore}. Tap to see your personalized insights.`,
+          oracle_context: `User ${userName} woke up with readiness ${readinessScore}, sleep ${sleepHours.toFixed(1)}h.`,
+        };
+      }
+
+      // Store the briefing
+      const briefingId = await morningBriefingOrchestrator.storeBriefingLog(
+        healthId,
+        today,
+        {
+          user_profile: {
+            name: userName,
+            goals: profile?.goals || [],
+            preferences: {
+              enabled: true,
+              notification_morning_hour: 7,
+              preferred_tone: 'supportive',
+              show_weather: true,
+              show_recommendations: true,
+            },
+          },
+          insight_packet: {
+            event_date: today,
+            readiness_score: insights.today.readiness_score,
+            baselines: {
+              hrv_mean: insights.baselines.hrv_mean,
+              rhr_mean: insights.baselines.rhr_mean,
+              sleep_duration_mean: insights.baselines.sleep_duration_mean,
+              deep_sleep_mean: insights.baselines.deep_sleep_mean,
+              steps_mean: insights.baselines.steps_mean,
+            },
+            today: {
+              hrv: insights.today.hrv,
+              rhr: insights.today.rhr,
+              sleep_hours: insights.today.sleep_hours,
+              deep_sleep_minutes: insights.today.deep_sleep_minutes,
+              steps: insights.today.steps,
+              active_energy: insights.today.active_energy,
+              workout_minutes: insights.today.workout_minutes,
+              readiness_score: insights.today.readiness_score,
+            },
+            deviations: insights.deviations,
+            tags: insights.tags,
+            insight_candidates: insights.insight_candidates,
+            weather: insights.weather,
+          },
+          meta: {
+            timestamp: new Date().toISOString(),
+            timezone: user[0]?.timezone || 'America/New_York',
+          },
+        },
+        briefingResponse,
+        'manual'
+      );
+
+      res.json({ 
+        success: true, 
+        briefingId,
+        briefing: briefingResponse,
+      });
+    } catch (error: any) {
+      logger.error('[MorningBriefing] Generate error:', error);
       res.status(500).json({ error: error.message });
     }
   });

@@ -38,6 +38,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
 - **HealthKit Sample Deduplication:** Server-side fingerprint-based deduplication for HealthKit samples.
 - **Self-Improvement Engine (SIE):** Admin-only sandbox AI for product improvement suggestions.
+- **Morning Briefing System:** Personalized AI-generated daily briefings triggered after sleep ends. Uses 90-day baseline Z-score deviations from ClickHouse ML engine to surface "holy shit" insights. Features readiness score, weather context, actionable recommendations, and "Talk to Flō" integration for contextual Oracle conversations. Stored in ClickHouse `daily_user_insights` and `morning_briefing_log` tables with user preferences in Supabase `profiles.ai_personalization` JSONB field.
 
 ## External Dependencies
 
