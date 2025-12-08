@@ -63,7 +63,7 @@ export function SleepTile({ isDark, data }: SleepTileProps) {
         isDark={isDark} 
         data={data!} 
         onOpenDetail={() => setLocation('/sleep-logger')}
-        onManualLog={() => setLocation('/sleep-logger?mode=manual')}
+        onManualLog={() => setLocation('/sleep-logger')}
       />
     );
   }

@@ -290,6 +290,22 @@ DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'notes') THEN
     ALTER TABLE sleep_nights ADD COLUMN notes TEXT;
   END IF;
+  -- Add bedtime/wake_time columns for manual sleep tracking
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'bedtime') THEN
+    ALTER TABLE sleep_nights ADD COLUMN bedtime TIMESTAMP;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'wake_time') THEN
+    ALTER TABLE sleep_nights ADD COLUMN wake_time TIMESTAMP;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'duration_minutes') THEN
+    ALTER TABLE sleep_nights ADD COLUMN duration_minutes INTEGER;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'nightflo_score') THEN
+    ALTER TABLE sleep_nights ADD COLUMN nightflo_score INTEGER DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sleep_nights' AND column_name = 'score_label') THEN
+    ALTER TABLE sleep_nights ADD COLUMN score_label VARCHAR(20) DEFAULT 'Low';
+  END IF;
 END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sleep_nights_unique ON sleep_nights(health_id, sleep_date);

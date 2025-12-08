@@ -60,12 +60,7 @@ export default function SleepLogger() {
   const [editingEntry, setEditingEntry] = useState<ManualSleepEntry | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('mode') === 'manual') {
-      setShowManualEntry(true);
-    }
-  }, []);
+  // Timer screen is always shown first - no auto-open of manual entry dialog
 
   const { data: entries = [], isLoading } = useQuery<ManualSleepEntry[]>({
     queryKey: ['/api/sleep/manual'],
@@ -214,7 +209,7 @@ export default function SleepLogger() {
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-black' : 'bg-gray-50'}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <div className={`min-h-screen ${isDark ? 'bg-zinc-950' : 'bg-gray-50'}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-lg mx-auto px-4 pt-4 pb-24">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
