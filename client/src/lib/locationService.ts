@@ -116,11 +116,13 @@ class LocationService {
       });
       
       if (!response.ok) {
-        console.error('[LocationService] Failed to sync location to server');
+        console.error('[LocationService] Failed to sync location to server, status:', response.status);
         return false;
       }
       
-      console.log('[LocationService] Location synced successfully');
+      // Parse response to check if weather was cached
+      const data = await response.json().catch(() => ({}));
+      console.log('[LocationService] Location synced successfully, response:', JSON.stringify(data));
       return true;
     } catch (error) {
       console.error('[LocationService] Error syncing location:', error);
