@@ -35,10 +35,24 @@ interface EnvironmentalData {
 export function AirQualityTile({ isDark }: AirQualityTileProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const { data: envData } = useQuery<EnvironmentalData>({
+  const { data: envData, error: envError, isLoading, isError } = useQuery<EnvironmentalData>({
     queryKey: ['/api/environmental/today'],
     refetchInterval: 300000,
   });
+
+  // Debug logging for AQI data
+  useEffect(() => {
+    console.log('[AQI] Query state:', { isLoading, isError, hasData: !!envData });
+    if (envError) {
+      console.error('[AQI] Query error:', envError);
+    }
+    if (envData) {
+      console.log('[AQI] Data received:', { 
+        hasAirQuality: !!envData.airQuality, 
+        aqi: envData.airQuality?.aqi 
+      });
+    }
+  }, [envData, envError, isLoading, isError]);
 
   const aqi = envData?.airQuality?.aqi ?? null;
   
