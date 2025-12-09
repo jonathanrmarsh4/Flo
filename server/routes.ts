@@ -7332,11 +7332,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "userId, title, and body are required" });
       }
 
-      const { apnsService } = await import("./services/apnsService");
-      const result = await apnsService.sendToUser(userId, { title, body });
+      // Try multiple ID formats to find device tokens
+      // Device tokens are registered with mobile JWT auth user_id (internal UUID format)
+      // But admin might enter health_id, internal user_id, or web auth ID
+      
+      const idsToTry: string[] = [userId];
+      const mappingDetails: any = { inputId: userId, triedIds: [userId] };
+      
+      // Check Supabase user_profiles for ID mappings
+      const { getSupabaseClient } = await import("./services/supabaseHealthStorage");
+      const supabase = getSupabaseClient();
+      
+      // Try to find user_profiles entry by health_id
+      const { data: byHealthId } = await supabase
+        .from('user_profiles')
+        .select('user_id, health_id')
+        .eq('health_id', userId)
+        .single();
+      
+      if (byHealthId?.user_id && !idsToTry.includes(byHealthId.user_id)) {
+        idsToTry.push(byHealthId.user_id);
+        mappingDetails.foundByHealthId = byHealthId.user_id;
+      }
+      
+      // Try to find user_profiles entry by user_id (reverse lookup)
+      const { data: byUserId } = await supabase
+        .from('user_profiles')
+        .select('user_id, health_id')
+        .eq('user_id', userId)
+        .single();
+      
+      if (byUserId?.health_id && !idsToTry.includes(byUserId.health_id)) {
+        idsToTry.push(byUserId.health_id);
+        mappingDetails.foundByUserId = byUserId.health_id;
+      }
+      
+      mappingDetails.triedIds = idsToTry;
+      logger.info(`[Admin] Test push - trying IDs: ${idsToTry.join(', ')}`);
 
-      logger.info(`[Admin] Test push notification sent: ${result.devicesReached} devices reached`);
-      res.json(result);
+      const { apnsService } = await import("./services/apnsService");
+      
+      // Try each ID until we find device tokens
+      for (const tryId of idsToTry) {
+        const result = await apnsService.sendToUser(tryId, { title, body });
+        if (result.devicesReached > 0) {
+          logger.info(`[Admin] Test push notification sent via ID ${tryId}: ${result.devicesReached} devices reached`);
+          return res.json({ ...result, usedId: tryId, mapping: mappingDetails });
+        }
+      }
+      
+      // No devices found with any ID
+      logger.warn(`[Admin] No devices found for any ID: ${idsToTry.join(', ')}`);
+      res.json({ 
+        devicesReached: 0, 
+        error: 'No active devices found',
+        mapping: mappingDetails,
+        hint: 'Ensure device token is registered and notifications are enabled in iOS settings'
+      });
     } catch (error) {
       logger.error('Error sending test push notification:', error);
       res.status(500).json({ error: "Failed to send test push notification" });
