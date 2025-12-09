@@ -1032,6 +1032,8 @@ export async function getTodaysBriefing(userId: string): Promise<MorningBriefing
     // Calculate today's date in user's timezone
     const { formatInTimeZone } = await import('date-fns-tz');
     const today = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
+    
+    logger.debug(`[MorningBriefing] getTodaysBriefing for ${userId}: timezone=${userTimezone}, today=${today}`);
 
     // Fetch briefing from ClickHouse
     const sql = `
@@ -1053,6 +1055,8 @@ export async function getTodaysBriefing(userId: string): Promise<MorningBriefing
       ai_response_payload: string;
       created_at: string;
     }>(sql, { healthId, today });
+
+    logger.debug(`[MorningBriefing] getTodaysBriefing query result: ${rows.length} rows found, event_dates=${rows.map(r => r.event_date).join(',')}`);
 
     if (rows.length === 0) return null;
 

@@ -14287,7 +14287,12 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
     try {
       const healthId = await healthRouter.getHealthId(userId);
-      const today = format(new Date(), 'yyyy-MM-dd');
+      
+      // Use user's timezone to determine "today" (same logic as scheduler)
+      const userResult = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+      const userTimezone = userResult[0]?.timezone || 'UTC';
+      const { formatInTimeZone } = await import('date-fns-tz');
+      const today = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
       
       const { morningBriefingOrchestrator } = await import('./services/morningBriefingOrchestrator');
       
@@ -14411,10 +14416,15 @@ If there's nothing worth remembering, just respond with "No brain updates needed
           return res.status(400).json({ error: 'userId is required' });
         }
 
+        // Use user's timezone to determine "today" (same logic as scheduler)
+        const userResult = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+        const userTimezone = userResult[0]?.timezone || 'UTC';
+        const { formatInTimeZone } = await import('date-fns-tz');
+        const today = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
+
         const { morningBriefingOrchestrator, deleteTodaysBriefing } = await import('./services/morningBriefingOrchestrator');
-        const today = format(new Date(), 'yyyy-MM-dd');
         
-        logger.info(`[MorningBriefing] DEV: Generating briefing for ${userId} on ${today} (force: ${!!force})`);
+        logger.info(`[MorningBriefing] DEV: Generating briefing for ${userId} on ${today} (tz: ${userTimezone}, force: ${!!force})`);
         
         // If force flag, delete existing briefing first
         if (force) {

@@ -106,6 +106,8 @@ async function processBriefingGeneration(catchUpMode: boolean = false) {
         if (!existingBriefing) {
           eligibleUsers.push(user);
           logger.debug(`[MorningBriefingScheduler] User ${user.id} eligible for briefing (7AM: ${is7AM}, catch-up: ${isPast7AM})`);
+        } else {
+          logger.debug(`[MorningBriefingScheduler] User ${user.id} already has briefing (7AM: ${is7AM}, catch-up: ${isPast7AM})`);
         }
       }
     }
