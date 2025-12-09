@@ -183,7 +183,7 @@ export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenPr
   // CGMScreen handles its own padding, BottomNav is included in CGMScreen layout
   if (activeTab === 'glucose') {
     return (
-      <div className="fixed inset-0 z-50">
+      <div className="fixed inset-0 z-50 overflow-y-auto">
         <CGMScreen 
           isDark={isDark} 
           onBack={() => setActiveTab('activity')} 
