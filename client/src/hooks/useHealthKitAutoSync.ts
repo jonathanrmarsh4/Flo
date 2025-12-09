@@ -172,6 +172,7 @@ export function useHealthKitAutoSync() {
             queryClient.refetchQueries({ queryKey: ['/api/readiness/today'], type: 'all' }),
             queryClient.refetchQueries({ queryKey: ['/api/flomentum/today'], type: 'all' }),
             queryClient.refetchQueries({ queryKey: ['/api/flomentum/weekly'], type: 'all' }),
+            queryClient.refetchQueries({ queryKey: ['/api/environmental/today'], type: 'all' }),
           ]);
           console.log('✅ [AutoSync] Dashboard refresh completed!');
           logger.info('✅ Dashboard queries refetched - UI updated');
