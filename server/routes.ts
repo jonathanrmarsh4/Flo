@@ -2428,6 +2428,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const biomarkers = await storage.getBiomarkers();
       const biomarkerMap = new Map(biomarkers.map(b => [b.id, b]));
       
+      logger.info('[HealthSummaryReport] Biomarker map size:', biomarkerMap.size);
+      if (biomarkers.length > 0) {
+        logger.info('[HealthSummaryReport] Sample biomarker from storage:', { 
+          id: biomarkers[0].id, 
+          name: biomarkers[0].name 
+        });
+      }
+      
       // Format date of birth from birthYear
       const dateOfBirth = profile?.birthYear ? `${profile.birthYear}` : 'Not specified';
       
@@ -2508,7 +2516,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      logger.info('[HealthSummaryReport] biomarkerHistory size after processing:', biomarkerHistory.size);
+      logger.info(`[HealthSummaryReport] biomarkerHistory size after processing: ${biomarkerHistory.size}`);
       
       // Log a sample of what biomarkers we found
       if (biomarkerHistory.size > 0) {
@@ -2536,9 +2544,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const categoryMap: Record<string, BiomarkerResult[]> = {};
       
       // Process each biomarker's history to create results
+      let matchedCount = 0;
+      let unmatchedCount = 0;
       for (const [biomarkerId, history] of biomarkerHistory.entries()) {
         const biomarker = biomarkerMap.get(biomarkerId);
-        if (!biomarker || history.length === 0) continue;
+        if (!biomarker || history.length === 0) {
+          unmatchedCount++;
+          if (unmatchedCount <= 3) {
+            logger.debug(`[HealthSummaryReport] No biomarker found for ID: ${biomarkerId}`);
+          }
+          continue;
+        }
+        matchedCount++;
         
         // Most recent value is first in history
         const latest = history[0];
@@ -2599,6 +2616,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!categoryMap[cat]) categoryMap[cat] = [];
         categoryMap[cat].push(bioResult);
       }
+      
+      logger.info(`[HealthSummaryReport] Biomarker processing complete: matched=${matchedCount}, unmatched=${unmatchedCount}, allResults=${allResults.length}`);
       
       // Calculate category statuses (each biomarker is already unique in categoryMap)
       const biomarkerCategories = Object.entries(categoryMap).map(([category, markers]) => {
