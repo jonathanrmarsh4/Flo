@@ -1,0 +1,56 @@
+2025-12-06 11:58:15.60
+44716d5e
+User
+[2025-12-06T03:58:15.608Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 12:25:08.26
+3e8c1826
+User
+[2025-12-06T04:25:08.261Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 12:40:07.21
+3e8c1826
+User
+[2025-12-06T04:40:07.213Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 15:11:39.66
+09f4ce5a
+User
+[2025-12-06T07:11:39.662Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 15:16:51.61
+09f4ce5a
+User
+[2025-12-06T07:16:51.614Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 19:06:56.71
+113351b8
+User
+[2025-12-06T11:06:56.711Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 19:18:41.00
+a751f1df
+User
+[2025-12-06T11:18:41.003Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 20:51:36.05
+51de14eb
+User
+[2025-12-06T12:51:36.052Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-06 21:45:25.88
+36270bdc
+User
+[2025-12-06T13:45:25.881Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-07 08:48:48.14
+8cef0c5b
+User
+[2025-12-07T00:48:48.147Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-08 11:41:19.20
+b8e05d2b
+User
+[2025-12-08T03:41:19.209Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-08 13:41:53.13
+50de7a60
+User
+[2025-12-08T05:41:53.132Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-08 16:23:09.39
+d70d041e
+User
+[2025-12-08T08:23:09.394Z] [INFO] [FloOracle] Fetched environmental context for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: clear sky, AQI 1
+2025-12-09 11:53:42.52
+f9a41db0
+User
+[2025-12-09T03:53:42.528Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 4 environmental records for 29d2a63e-44a2-472c-a825-89be5a07cbeb (with full AQI components)

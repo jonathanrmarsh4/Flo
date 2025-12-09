@@ -8258,13 +8258,16 @@ Important: This is for educational purposes. Include a brief note that users sho
       
       const today = new Date().toISOString().split('T')[0];
       const existingCache = await getCachedWeather(userId, today);
+      logger.info(`[Location] Cache check for ${today}: ${existingCache ? 'HIT' : 'MISS'}`);
       
       let weatherData = null;
       let airQualityData = null;
       
       if (!existingCache && process.env.OPENWEATHER_API_KEY) {
+        logger.info(`[Location] Fetching weather for user ${userId} at (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
         try {
           const envData = await getCurrentWeatherWithQuotaGuard(latitude, longitude);
+          logger.info(`[Location] Weather fetch result: ${envData ? 'SUCCESS' : 'NULL (quota exhausted or error)'}`);
           if (envData) {
             weatherData = envData.weather;
             airQualityData = envData.airQuality;

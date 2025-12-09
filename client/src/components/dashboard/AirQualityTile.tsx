@@ -35,16 +35,25 @@ interface EnvironmentalData {
 export function AirQualityTile({ isDark }: AirQualityTileProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const { data: envData, error: envError, isLoading, isError } = useQuery<EnvironmentalData>({
+  const { data: envData, error: envError, isLoading, isError, failureReason } = useQuery<EnvironmentalData>({
     queryKey: ['/api/environmental/today'],
     refetchInterval: 300000,
+    retry: false, // Don't retry on 404 - no location data
   });
 
-  // Debug logging for AQI data
+  // Debug logging for AQI data - fetch raw response for better error details
   useEffect(() => {
     console.log('[AQI] Query state:', { isLoading, isError, hasData: !!envData });
-    if (envError) {
-      console.error('[AQI] Query error:', envError);
+    if (isError) {
+      console.error('[AQI] Query failed - checking raw response...');
+      // Fetch directly to get error details
+      fetch('/api/environmental/today', { credentials: 'include' })
+        .then(res => {
+          console.log('[AQI] Direct fetch status:', res.status, res.statusText);
+          return res.json().catch(() => ({ parseError: true }));
+        })
+        .then(data => console.log('[AQI] Direct fetch response:', data))
+        .catch(err => console.error('[AQI] Direct fetch error:', err));
     }
     if (envData) {
       console.log('[AQI] Data received:', { 
@@ -52,7 +61,7 @@ export function AirQualityTile({ isDark }: AirQualityTileProps) {
         aqi: envData.airQuality?.aqi 
       });
     }
-  }, [envData, envError, isLoading, isError]);
+  }, [envData, isLoading, isError]);
 
   const aqi = envData?.airQuality?.aqi ?? null;
   
