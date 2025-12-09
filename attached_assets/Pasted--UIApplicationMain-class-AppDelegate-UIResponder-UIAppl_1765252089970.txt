@@ -1,0 +1,58 @@
+@UIApplicationMain
+class AppDelegate: UIResponder, UIApplicationDelegate {
+
+    var window: UIWindow?
+    
+    func application(_ application: UIApplication,
+                         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+            NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications,
+                                            object: deviceToken)
+        }
+        func application(_ application: UIApplication,
+                         didFailToRegisterForRemoteNotificationsWithError error: Error) {
+            NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications,
+                                            object: error)
+
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Override point for customization after application launch.
+        // Note: AVAudioSession is NOT configured on launch - it's configured on-demand 
+        // by NativeMicrophonePlugin when voice chat starts, to avoid affecting other audio features.
+        
+        // CRITICAL: Pre-warm the keyboard system on first launch to prevent 15s freeze
+        // This triggers iOS to initialize keyboard caches before user interaction
+        preWarmKeyboard()
+        
+        // Disable WKWebView rubber band bounce to prevent white strip during overscroll
+        // This must run after the window is set up, so we dispatch it to the next run loop
+        DispatchQueue.main.async {
+            if let window = self.window {
+                // Try UINavigationController first (common Capacitor setup)
+                if let nav = window.rootViewController as? UINavigationController,
+                   let bridgeVC = nav.viewControllers.first as? CAPBridgeViewController {
+                    self.configureWebView(bridgeVC)
+                    // Register custom plugins
+                    bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
+                    bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
+                    bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
+                    print("✅ HealthSyncPlugin registered manually")
+                    print("✅ WebViewCachePlugin registered manually")
+                    print("✅ NativeMicrophonePlugin registered manually")
+                }
+                // Fallback: direct CAPBridgeViewController
+                else if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
+                    self.configureWebView(bridgeVC)
+                    // Register custom plugins
+                    bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
+                    bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
+                    bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
+                    print("✅ HealthSyncPlugin registered manually")
+                    print("✅ WebViewCachePlugin registered manually")
+                    print("✅ NativeMicrophonePlugin registered manually")
+                }
+            }
+        }
+        
+        return true
+    }
+    
+    /// Pre-warm the iOS keyboard system to preven
