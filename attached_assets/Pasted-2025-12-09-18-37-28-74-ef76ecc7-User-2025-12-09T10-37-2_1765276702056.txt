@@ -1,0 +1,148 @@
+2025-12-09 18:37:28.74
+ef76ecc7
+User
+[2025-12-09T10:37:28.741Z] [WARN] [APNs] APNs client not available. Skipping batch send.
+2025-12-09 18:37:28.74
+ef76ecc7
+User
+[2025-12-09T10:37:28.741Z] [WARN] [APNs] No active APNs configuration found. Push notifications disabled.
+2025-12-09 18:37:28.74
+ef76ecc7
+User
+[2025-12-09T10:37:28.742Z] [WARN] [Admin] No devices found for any ID: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 18:37:28.78
+ef76ecc7
+User
+10:37:28 AM [express] POST /api/admin/test-push 200 in 722ms :: {"devicesReached":0,"error":"No activ…
+2025-12-09 18:37:28.78
+ef76ecc7
+User
+10:37:28 AM [express] POST /api/admin/test-push 200 in 722ms :: {"devicesReached":0,"error":"No activ…
+2025-12-09 18:38:01.01
+ef76ecc7
+User
+[2025-12-09T10:38:01.014Z] [INFO] [ReminderDelivery] Found 12 reminders ready for delivery
+2025-12-09 18:38:01.25
+ef76ecc7
+User
+[2025-12-09T10:38:01.254Z] [WARN] [ReminderDelivery] No user_profile found for health_id test_user_002, using as-is
+2025-12-09 18:38:01.44
+ef76ecc7
+User
+[2025-12-09T10:38:01.440Z] [WARN] [APNs] No active device tokens found for user test_user_002
+2025-12-09 18:38:01.44
+ef76ecc7
+User
+[2025-12-09T10:38:01.440Z] [WARN] [ReminderDelivery] No devices reached for user test_user_002 {"error":"No active devices"}
+2025-12-09 18:38:01.67
+ef76ecc7
+User
+[2025-12-09T10:38:01.677Z] [WARN] [ReminderDelivery] No user_profile found for health_id hkYl-n, using as-is
+2025-12-09 18:38:01.71
+ef76ecc7
+User
+[2025-12-09T10:38:01.715Z] [WARN] [APNs] No active device tokens found for user hkYl-n
+2025-12-09 18:38:01.71
+ef76ecc7
+User
+[2025-12-09T10:38:01.715Z] [WARN] [ReminderDelivery] No devices reached for user hkYl-n {"error":"No active devices"}
+2025-12-09 18:38:01.97
+ef76ecc7
+User
+[2025-12-09T10:38:01.972Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-persist-v1, using as-is
+2025-12-09 18:38:02.00
+ef76ecc7
+User
+[2025-12-09T10:38:02.009Z] [WARN] [APNs] No active device tokens found for user test-persist-v1
+2025-12-09 18:38:02.00
+ef76ecc7
+User
+[2025-12-09T10:38:02.009Z] [WARN] [ReminderDelivery] No devices reached for user test-persist-v1 {"error":"No active devices"}
+2025-12-09 18:38:02.25
+ef76ecc7
+User
+[2025-12-09T10:38:02.253Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-final-v1, using as-is
+2025-12-09 18:38:02.29
+ef76ecc7
+User
+[2025-12-09T10:38:02.290Z] [WARN] [ReminderDelivery] No devices reached for user test-final-v1 {"error":"No active devices"}
+2025-12-09 18:38:02.29
+ef76ecc7
+User
+[2025-12-09T10:38:02.290Z] [WARN] [APNs] No active device tokens found for user test-final-v1
+2025-12-09 18:38:02.53
+ef76ecc7
+User
+[2025-12-09T10:38:02.530Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-ecNcEQPR, using as-is
+2025-12-09 18:38:02.56
+ef76ecc7
+User
+[2025-12-09T10:38:02.568Z] [WARN] [APNs] No active device tokens found for user test-user-ecNcEQPR
+2025-12-09 18:38:02.56
+ef76ecc7
+User
+[2025-12-09T10:38:02.568Z] [WARN] [ReminderDelivery] No devices reached for user test-user-ecNcEQPR {"error":"No active devices"}
+2025-12-09 18:38:02.81
+ef76ecc7
+User
+[2025-12-09T10:38:02.810Z] [WARN] [ReminderDelivery] No user_profile found for health_id final-test, using as-is
+2025-12-09 18:38:02.84
+ef76ecc7
+User
+[2025-12-09T10:38:02.847Z] [WARN] [APNs] No active device tokens found for user final-test
+2025-12-09 18:38:02.84
+ef76ecc7
+User
+[2025-12-09T10:38:02.847Z] [WARN] [ReminderDelivery] No devices reached for user final-test {"error":"No active devices"}
+2025-12-09 18:38:03.10
+ef76ecc7
+User
+[2025-12-09T10:38:03.105Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-upload-history, using as-is
+2025-12-09 18:38:03.14
+ef76ecc7
+User
+[2025-12-09T10:38:03.142Z] [WARN] [APNs] No active device tokens found for user test-user-upload-history
+2025-12-09 18:38:03.14
+ef76ecc7
+User
+[2025-12-09T10:38:03.142Z] [WARN] [ReminderDelivery] No devices reached for user test-user-upload-history {"error":"No active devices"}
+2025-12-09 18:38:03.38
+ef76ecc7
+User
+[2025-12-09T10:38:03.384Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-insights, using as-is
+2025-12-09 18:38:03.42
+ef76ecc7
+User
+[2025-12-09T10:38:03.421Z] [WARN] [ReminderDelivery] No devices reached for user test-user-insights {"error":"No active devices"}
+2025-12-09 18:38:03.42
+ef76ecc7
+User
+[2025-12-09T10:38:03.421Z] [WARN] [APNs] No active device tokens found for user test-user-insights
+2025-12-09 18:38:03.66
+ef76ecc7
+User
+[2025-12-09T10:38:03.660Z] [WARN] [ReminderDelivery] No user_profile found for health_id TfHX3a, using as-is
+2025-12-09 18:38:03.69
+ef76ecc7
+User
+[2025-12-09T10:38:03.697Z] [WARN] [ReminderDelivery] No devices reached for user TfHX3a {"error":"No active devices"}
+2025-12-09 18:38:03.69
+ef76ecc7
+User
+[2025-12-09T10:38:03.697Z] [WARN] [APNs] No active device tokens found for user TfHX3a
+2025-12-09 18:38:03.94
+ef76ecc7
+User
+[2025-12-09T10:38:03.940Z] [WARN] [ReminderDelivery] No user_profile found for health_id K8aFip, using as-is
+2025-12-09 18:38:03.97
+ef76ecc7
+User
+[2025-12-09T10:38:03.978Z] [WARN] [APNs] No active device tokens found for user K8aFip
+2025-12-09 18:38:03.97
+ef76ecc7
+User
+[2025-12-09T10:38:03.978Z] [WARN] [ReminderDelivery] No devices reached for user K8aFip {"error":"No active devices"}
+2025-12-09 18:38:04.22
+ef76ecc7
+User
+[2025-12-09T10:38:04.229Z] [WARN] [ReminderDelivery] No user_profile found for health_id IHf4ob, using as-is
