@@ -1,0 +1,120 @@
+
+31ac9130
+User
+[2025-12-09T10:31:01.478Z] [WARN] [APNs] No active device tokens found for user test-final-v1
+2025-12-09 18:31:01.47
+31ac9130
+User
+[2025-12-09T10:31:01.478Z] [WARN] [ReminderDelivery] No devices reached for user test-final-v1 {"error":"No active devices"}
+2025-12-09 18:31:01.72
+31ac9130
+User
+[2025-12-09T10:31:01.720Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-ecNcEQPR, using as-is
+2025-12-09 18:31:01.75
+31ac9130
+User
+[2025-12-09T10:31:01.755Z] [WARN] [APNs] No active device tokens found for user test-user-ecNcEQPR
+2025-12-09 18:31:01.75
+31ac9130
+User
+[2025-12-09T10:31:01.756Z] [WARN] [ReminderDelivery] No devices reached for user test-user-ecNcEQPR {"error":"No active devices"}
+2025-12-09 18:31:02.00
+31ac9130
+User
+[2025-12-09T10:31:02.002Z] [WARN] [ReminderDelivery] No user_profile found for health_id final-test, using as-is
+2025-12-09 18:31:02.03
+31ac9130
+User
+[2025-12-09T10:31:02.037Z] [WARN] [ReminderDelivery] No devices reached for user final-test {"error":"No active devices"}
+2025-12-09 18:31:02.03
+31ac9130
+User
+[2025-12-09T10:31:02.037Z] [WARN] [APNs] No active device tokens found for user final-test
+2025-12-09 18:31:02.28
+31ac9130
+User
+[2025-12-09T10:31:02.278Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-upload-history, using as-is
+2025-12-09 18:31:02.31
+31ac9130
+User
+[2025-12-09T10:31:02.315Z] [WARN] [APNs] No active device tokens found for user test-user-upload-history
+2025-12-09 18:31:02.31
+31ac9130
+User
+[2025-12-09T10:31:02.315Z] [WARN] [ReminderDelivery] No devices reached for user test-user-upload-history {"error":"No active devices"}
+2025-12-09 18:31:02.55
+31ac9130
+User
+[2025-12-09T10:31:02.557Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-insights, using as-is
+2025-12-09 18:31:02.59
+31ac9130
+User
+[2025-12-09T10:31:02.595Z] [WARN] [ReminderDelivery] No devices reached for user test-user-insights {"error":"No active devices"}
+2025-12-09 18:31:02.59
+31ac9130
+User
+[2025-12-09T10:31:02.595Z] [WARN] [APNs] No active device tokens found for user test-user-insights
+2025-12-09 18:31:02.83
+31ac9130
+User
+[2025-12-09T10:31:02.835Z] [WARN] [ReminderDelivery] No user_profile found for health_id TfHX3a, using as-is
+2025-12-09 18:31:02.87
+31ac9130
+User
+[2025-12-09T10:31:02.870Z] [WARN] [APNs] No active device tokens found for user TfHX3a
+2025-12-09 18:31:02.87
+31ac9130
+User
+[2025-12-09T10:31:02.870Z] [WARN] [ReminderDelivery] No devices reached for user TfHX3a {"error":"No active devices"}
+2025-12-09 18:31:03.11
+31ac9130
+User
+[2025-12-09T10:31:03.114Z] [WARN] [ReminderDelivery] No user_profile found for health_id K8aFip, using as-is
+2025-12-09 18:31:03.14
+31ac9130
+User
+[2025-12-09T10:31:03.149Z] [WARN] [APNs] No active device tokens found for user K8aFip
+2025-12-09 18:31:03.14
+31ac9130
+User
+[2025-12-09T10:31:03.149Z] [WARN] [ReminderDelivery] No devices reached for user K8aFip {"error":"No active devices"}
+2025-12-09 18:31:03.39
+31ac9130
+User
+[2025-12-09T10:31:03.396Z] [WARN] [ReminderDelivery] No user_profile found for health_id IHf4ob, using as-is
+2025-12-09 18:31:03.43
+31ac9130
+User
+[2025-12-09T10:31:03.432Z] [WARN] [ReminderDelivery] No devices reached for user IHf4ob {"error":"No active devices"}
+2025-12-09 18:31:03.43
+31ac9130
+User
+[2025-12-09T10:31:03.431Z] [WARN] [APNs] No active device tokens found for user IHf4ob
+2025-12-09 18:31:03.67
+31ac9130
+User
+[2025-12-09T10:31:03.671Z] [WARN] [ReminderDelivery] No user_profile found for health_id apple-test-review, using as-is
+2025-12-09 18:31:03.70
+31ac9130
+User
+[2025-12-09T10:31:03.705Z] [WARN] [ReminderDelivery] No devices reached for user apple-test-review {"error":"No active devices"}
+2025-12-09 18:31:03.70
+31ac9130
+User
+[2025-12-09T10:31:03.705Z] [WARN] [APNs] No active device tokens found for user apple-test-review
+2025-12-09 18:31:15.34
+31ac9130
+User
+[2025-12-09T10:31:15.341Z] [ERROR] Error sending test push notification: {"error":{"message":"getSupabaseClient3 is not a function","stack":"TypeError: getSupabaseClient3 is not a function\n at file:///home/runner/workspace/dist/index.js:46599:25\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-09 18:31:15.39
+31ac9130
+User
+10:31:15 AM [express] POST /api/admin/test-push 500 in 247ms :: {"error":"Failed to send test push no…
+2025-12-09 18:31:15.39
+31ac9130
+User
+10:31:15 AM [express] POST /api/admin/test-push 500 in 247ms :: {"error":"Failed to send test push no…
+2025-12-09 18:31:15.39
+31ac9130
+User
+10:31:15 AM [express] POST /api/admin/test-push 500 in 247ms :: {"error":"Failed to send test push no…
