@@ -109,8 +109,6 @@ async function deliverQueuedReminders() {
 async function processThreePMSurveyNotifications() {
   try {
     const now = new Date();
-    const currentHour = now.getUTCHours();
-    const currentMinute = now.getUTCMinutes();
     
     // Use users.timezone (same as morning briefing) for consistency
     // Fall back to reminderTimezone only if user explicitly set a different reminder timezone
