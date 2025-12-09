@@ -833,6 +833,7 @@ export default function AdminDashboard() {
                                   {user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email}
                                 </div>
                                 <div className="text-xs text-white/50 truncate max-w-[200px]">{user.email}</div>
+                                <div className="text-xs text-white/30 font-mono truncate max-w-[200px]" data-testid={`text-user-id-${user.id}`}>{user.id}</div>
                               </div>
                             </td>
                             <td className="px-4 sm:px-6 py-4">
