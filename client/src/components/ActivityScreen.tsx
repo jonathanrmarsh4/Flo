@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from './BottomNav';
+import { CGMScreen } from './CGMScreen';
 
 interface ActivityScreenProps {
   isDark: boolean;
@@ -178,6 +179,19 @@ interface MacrosWeeklyData {
 export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenProps) {
   const [activeTab, setActiveTab] = useState<TabType>('activity');
 
+  // CGMScreen has its own full-page layout with header, so render it separately
+  // CGMScreen handles its own padding, BottomNav is included in CGMScreen layout
+  if (activeTab === 'glucose') {
+    return (
+      <div className="fixed inset-0 z-50">
+        <CGMScreen 
+          isDark={isDark} 
+          onBack={() => setActiveTab('activity')} 
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`fixed inset-0 z-50 ${
       isDark 
@@ -229,7 +243,6 @@ export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenPr
         <div className="max-w-2xl mx-auto">
           {activeTab === 'activity' && <ActivityTabContent isDark={isDark} />}
           {activeTab === 'nutrition' && <NutritionTabContent isDark={isDark} />}
-          {activeTab === 'glucose' && <GlucoseTabContent isDark={isDark} />}
         </div>
       </main>
 

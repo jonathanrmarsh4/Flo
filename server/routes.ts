@@ -14634,6 +14634,92 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
+  // GET /api/cgm/data - Get CGM data for the CGM screen (formatted for frontend)
+  app.get("/api/cgm/data", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService } = await import('./services/dexcomService');
+      const range = req.query.range as string || '6h';
+      
+      // Calculate hours from range
+      const hours = range === '3h' ? 3 : range === '24h' ? 24 : 6;
+      
+      // Get readings for the time range
+      const endDate = new Date();
+      const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      const readings = await dexcomService.getReadingsForRange(userId, startDate, endDate);
+      
+      // Get latest reading
+      const latestReading = await dexcomService.getLatestReading(userId);
+      
+      // Target range in mmol/L
+      const targetRange = { low: 3.9, high: 7.8 };
+      
+      // Convert mg/dL to mmol/L: mmol/L = mg/dL / 18.0182
+      const convertToMmol = (mgdL: number) => mgdL / 18.0182;
+      
+      // Extract and convert values to mmol/L
+      const valuesMmol = readings.map(r => convertToMmol(r.glucose_value || 0));
+      
+      const avgGlucose = valuesMmol.length > 0 
+        ? valuesMmol.reduce((sum, v) => sum + v, 0) / valuesMmol.length 
+        : 0;
+      const minGlucose = valuesMmol.length > 0 ? Math.min(...valuesMmol) : 0;
+      const maxGlucose = valuesMmol.length > 0 ? Math.max(...valuesMmol) : 0;
+      const inRangeCount = valuesMmol.filter(v => v >= targetRange.low && v <= targetRange.high).length;
+      const timeInRange = valuesMmol.length > 0 ? (inRangeCount / valuesMmol.length) * 100 : 0;
+      
+      // Calculate estimated A1c from average glucose (mmol/L)
+      // Formula: A1c = (avgGlucose + 2.59) / 1.59
+      const estimatedA1c = avgGlucose > 0 ? (avgGlucose + 2.59) / 1.59 : 0;
+      
+      // Count low alerts (readings below 3.0 mmol/L)
+      const lowAlerts = valuesMmol.filter(v => v < 3.0).length;
+      
+      // Format readings for chart with proper mmol/L conversion
+      const formattedReadings = readings.map(r => ({
+        valueMmol: parseFloat(convertToMmol(r.glucose_value || 0).toFixed(1)),
+        timestamp: r.recorded_at,
+        timeLabel: new Date(r.recorded_at).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      }));
+      
+      // Format current reading with mmol/L conversion
+      // Note: trend_rate from Dexcom is in mg/dL/min, convert to mmol/L/min
+      const currentReading = latestReading ? {
+        value: latestReading.glucose_value,
+        valueMmol: parseFloat(convertToMmol(latestReading.glucose_value || 0).toFixed(1)),
+        trend: latestReading.trend || 'flat',
+        trendRate: latestReading.trend_rate ? parseFloat(convertToMmol(latestReading.trend_rate).toFixed(2)) : 0,
+        recordedAt: latestReading.recorded_at,
+        source: 'dexcom',
+      } : null;
+      
+      res.json({
+        currentReading,
+        readings: formattedReadings,
+        stats: {
+          avgGlucose: parseFloat(avgGlucose.toFixed(1)),
+          minGlucose: parseFloat(minGlucose.toFixed(1)),
+          maxGlucose: parseFloat(maxGlucose.toFixed(1)),
+          timeInRange: parseFloat(timeInRange.toFixed(0)),
+          estimatedA1c: parseFloat(estimatedA1c.toFixed(1)),
+          lowAlerts,
+        },
+        targetRange,
+      });
+    } catch (error: any) {
+      logger.error('[CGM] Get data error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===============================
   // ACTION PLAN API
   // ===============================
