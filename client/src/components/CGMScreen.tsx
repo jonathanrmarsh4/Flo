@@ -235,20 +235,19 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
   // Not connected and not in demo mode - show connection card
   if (!cgmStatus?.connected && !demoMode) {
     return (
-      <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'} pb-24`}>
-        {/* Header */}
-        <div
-          className={`sticky top-0 z-10 backdrop-blur-xl border-b ${
-            isDark
-              ? 'bg-black/80 border-white/10'
-              : 'bg-white/80 border-gray-200'
-          }`}
-        >
-          <div className="px-6 py-4">
-            <div className="flex items-center justify-between mb-2">
+      <div className={`min-h-screen overflow-y-auto ${isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+      } pb-24`}>
+        {/* Header - matches Activity page styling */}
+        <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+        }`}>
+          <div className="px-4 py-3">
+            <div className="flex items-center mb-2">
               <button
                 onClick={onBack}
-                className={`p-2 rounded-xl transition-all ${
+                className={`p-2 -ml-2 rounded-xl transition-all ${
                   isDark
                     ? 'hover:bg-white/10 text-white'
                     : 'hover:bg-gray-100 text-gray-900'
@@ -258,20 +257,20 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
                 <ChevronLeft className="w-6 h-6" />
               </button>
             </div>
-            <h1 className={`text-3xl mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Glucose
             </h1>
             <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
               Continuous glucose monitoring
             </p>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-2 flex items-center gap-2">
               <div className="px-3 py-1 rounded-full text-xs flex items-center gap-1.5 bg-gray-500/20 text-gray-400">
                 <div className="w-1.5 h-1.5 rounded-full bg-current" />
                 Not connected
               </div>
             </div>
           </div>
-        </div>
+        </header>
 
         <div className="px-6 py-6 space-y-6">
           <motion.div
@@ -346,20 +345,19 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     : 0;
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'} pb-24`}>
-      {/* Header */}
-      <div
-        className={`sticky top-0 z-10 backdrop-blur-xl border-b ${
-          isDark
-            ? 'bg-black/80 border-white/10'
-            : 'bg-white/80 border-gray-200'
-        }`}
-      >
-        <div className="px-6 py-4">
+    <div className={`min-h-screen overflow-y-auto ${isDark 
+      ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+      : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+    } pb-24`}>
+      {/* Header - matches Activity page styling */}
+      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`}>
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between mb-2">
             <button
               onClick={onBack}
-              className={`p-2 rounded-xl transition-all ${
+              className={`p-2 -ml-2 rounded-xl transition-all ${
                 isDark
                   ? 'hover:bg-white/10 text-white'
                   : 'hover:bg-gray-100 text-gray-900'
@@ -370,7 +368,7 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
             </button>
             <button
               onClick={() => setShowSettings(true)}
-              className={`p-2 rounded-xl transition-all ${
+              className={`p-2 -mr-2 rounded-xl transition-all ${
                 isDark
                   ? 'hover:bg-white/10 text-white'
                   : 'hover:bg-gray-100 text-gray-900'
@@ -380,13 +378,13 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
               <Settings className="w-6 h-6" />
             </button>
           </div>
-          <h1 className={`text-3xl mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Glucose
           </h1>
           <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
             Continuous glucose monitoring
           </p>
-          <div className="mt-3 flex items-center gap-2">
+          <div className="mt-2 flex items-center gap-2">
             <div
               className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 ${
                 demoMode
@@ -403,7 +401,7 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="px-6 py-6 space-y-6">
         {/* Current Glucose Hero Card */}
