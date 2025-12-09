@@ -13,12 +13,15 @@ import { usePlan } from "@/hooks/usePlan";
 import { ListChecks, Filter, Sparkles } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 
-type CategoryFilter = 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
+type CategoryFilter = 'reports' | 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
 
 export default function ActionsScreen() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
+  
+  // Reports view shows different content than action items
+  const isReportsView = selectedCategory === 'reports';
   
   // Check user's plan for premium features
   const { data: planData } = usePlan();
@@ -102,6 +105,7 @@ export default function ActionsScreen() {
     : activeItems.filter(item => item.category === selectedCategory);
 
   const categoryFilterOptions = [
+    { value: 'reports' as CategoryFilter, label: 'Reports' },
     { value: 'all' as CategoryFilter, label: 'All' },
     { value: 'sleep_quality' as CategoryFilter, label: 'Sleep' },
     { value: 'activity_sleep' as CategoryFilter, label: 'Activity' },
@@ -117,10 +121,13 @@ export default function ActionsScreen() {
         <div className="px-4 py-3">
           <div>
             <h1 className="text-xl text-white" data-testid="heading-actions">
-              Actions
+              {isReportsView ? 'Reports' : 'Action Plan'}
             </h1>
             <p className="text-xs text-white/50">
-              {activeItems.length} active action{activeItems.length !== 1 ? 's' : ''}
+              {isReportsView 
+                ? 'Health reports and summaries'
+                : `${activeItems.length} active action${activeItems.length !== 1 ? 's' : ''}`
+              }
             </p>
           </div>
         </div>
@@ -149,80 +156,89 @@ export default function ActionsScreen() {
 
       {/* Content Area */}
       <main className="overflow-y-auto px-4 py-6 pb-32" style={{ height: 'calc(100vh - 140px)' }}>
-          {/* Lab Work Overdue Tile - Collapsible, starts collapsed */}
-          <div className="mb-4">
-            <OverdueLabWorkTile />
+        {isReportsView ? (
+          /* Reports View */
+          <div className="flex flex-col gap-4">
+            {/* Health Summary Report */}
+            <ReportTile />
+            
+            {/* Placeholder for future: 90-Day Baseline Report */}
+            {/* <BaselineReportTile /> */}
           </div>
+        ) : (
+          /* Action Plan View */
+          <>
+            {/* Lab Work Overdue Tile - Collapsible, starts collapsed */}
+            <div className="mb-4">
+              <OverdueLabWorkTile />
+            </div>
 
-          {/* Premium Upgrade Banner for Free Users */}
-          {isFreePlan && (
-            <div 
-              className="mb-4 p-4 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"
-              data-testid="premium-upgrade-banner"
-            >
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-white" />
+            {/* Premium Upgrade Banner for Free Users */}
+            {isFreePlan && (
+              <div 
+                className="mb-4 p-4 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10"
+                data-testid="premium-upgrade-banner"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-500 flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold mb-1">Unlock AI-Powered Actions</h3>
+                    <p className="text-white/70 text-sm leading-relaxed">
+                      Upgrade to Flō Premium to get personalized AI insights and actionable recommendations based on your health data.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
+                      onClick={() => setLocation('/billing')}
+                      data-testid="button-upgrade-premium"
+                    >
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Upgrade to Premium
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <h3 className="text-white font-semibold mb-1">Unlock AI-Powered Actions</h3>
-                  <p className="text-white/70 text-sm leading-relaxed">
-                    Upgrade to Flō Premium to get personalized AI insights and actionable recommendations based on your health data.
+              </div>
+            )}
+
+            {/* Action Items List */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
+                <ListChecks className="w-16 h-16 text-white/20" />
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-white">
+                    {selectedCategory === 'all' ? 'No Active Actions' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Actions`}
+                  </h3>
+                  <p className="text-sm text-white/60 mb-4">
+                    {selectedCategory === 'all'
+                      ? (isFreePlan 
+                          ? 'Upgrade to Premium to unlock personalized AI insights and actions tailored to your health data.'
+                          : 'Add insights from your AI Insights to start tracking your health goals.')
+                      : 'Try selecting a different category to see more actions.'
+                    }
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20"
-                    onClick={() => setLocation('/billing')}
-                    data-testid="button-upgrade-premium"
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Upgrade to Premium
-                  </Button>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Action Items List */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
-              <ListChecks className="w-16 h-16 text-white/20" />
-              <div>
-                <h3 className="text-lg font-semibold mb-2 text-white">
-                  {selectedCategory === 'all' ? 'No Active Actions' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Actions`}
-                </h3>
-                <p className="text-sm text-white/60 mb-4">
-                  {selectedCategory === 'all'
-                    ? (isFreePlan 
-                        ? 'Upgrade to Premium to unlock personalized AI insights and actions tailored to your health data.'
-                        : 'Add insights from your AI Insights to start tracking your health goals.')
-                    : 'Try selecting a different category to see more actions.'
-                  }
-                </p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {filteredItems.map((item) => (
+                  <ActionCard
+                    key={item.id}
+                    item={item}
+                    onComplete={handleComplete}
+                    onDismiss={handleDismiss}
+                  />
+                ))}
               </div>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              {filteredItems.map((item) => (
-                <ActionCard
-                  key={item.id}
-                  item={item}
-                  onComplete={handleComplete}
-                  onDismiss={handleDismiss}
-                />
-              ))}
-            </div>
-          )}
-
-        {/* Report Tile - Health Summary (moved to bottom) */}
-        <div className="mt-4">
-          <ReportTile />
-        </div>
+            )}
+          </>
+        )}
       </main>
 
       {/* Bottom Navigation */}
