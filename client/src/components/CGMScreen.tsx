@@ -235,10 +235,10 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
   // Not connected and not in demo mode - show connection card
   if (!cgmStatus?.connected && !demoMode) {
     return (
-      <div className={`min-h-screen overflow-y-auto ${isDark 
+      <div className={`fixed inset-0 z-50 ${isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
-      } pb-24`}>
+      }`}>
         {/* Header - matches Activity page styling */}
         <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
           isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
@@ -272,7 +272,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
           </div>
         </header>
 
-        <div className="px-6 py-6 space-y-6">
+        <main className="overflow-y-auto px-4 py-6 pb-32" style={{ height: 'calc(100vh - 140px)' }}>
+          <div className="space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -315,7 +316,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
               </div>
             </div>
           </motion.div>
-        </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -345,10 +347,10 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     : 0;
 
   return (
-    <div className={`min-h-screen overflow-y-auto ${isDark 
+    <div className={`fixed inset-0 z-50 ${isDark 
       ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
       : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
-    } pb-24`}>
+    }`}>
       {/* Header - matches Activity page styling */}
       <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
@@ -403,7 +405,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
         </div>
       </header>
 
-      <div className="px-6 py-6 space-y-6">
+      <main className="overflow-y-auto px-4 py-6 pb-32" style={{ height: 'calc(100vh - 140px)' }}>
+        <div className="space-y-6">
         {/* Current Glucose Hero Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -512,7 +515,7 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
 
             <div className="w-full h-64" style={{ minWidth: 0, minHeight: '16rem' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={readings}>
+                <AreaChart data={readings} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
                   <defs>
                     <linearGradient id="glucoseGradientInRange" x1="0" y1="0" x2="0" y2="1">
                       <stop
@@ -928,7 +931,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
             )}
           </div>
         </motion.div>
-      </div>
+        </div>
+      </main>
 
       {/* Settings Modal */}
       <AnimatePresence>
