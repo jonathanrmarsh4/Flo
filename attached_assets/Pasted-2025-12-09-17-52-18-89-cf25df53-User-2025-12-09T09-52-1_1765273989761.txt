@@ -1,0 +1,145 @@
+2025-12-09 17:52:18.89
+cf25df53
+User
+[2025-12-09T09:52:18.892Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 88 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-09 17:52:18.91
+cf25df53
+User
+[2025-12-09T09:52:18.911Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 88 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-09 17:52:18.91
+cf25df53
+User
+[2025-12-09T09:52:18.912Z] [INFO] [ClickHouseML] Auto-synced 184 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-09 17:52:18.91
+cf25df53
+User
+[2025-12-09T09:52:18.912Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 88 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-09 17:52:19.66
+cf25df53
+User
+[2025-12-09T09:52:19.660Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-02, score: 52
+2025-12-09 17:52:19.66
+cf25df53
+User
+[2025-12-09T09:52:19.660Z] [INFO] [SupabaseHealth] Flomentum upsert payload: {"date":"2025-12-02","score":52,"zone":"DRAINING","delta_vs_yesterday":null,"factors":[{"status":"negative","title":"Very short sleep","detail":"5h 54m (Target: 8h)","componentKey":"sleep","pointsContribution":-10},{"status":"positive","title":"Hit your step target","detail":"7,219 steps (Goal: 7,000)","componentKey":"steps","pointsContribution":8},{"status":"positive","title":"Good workout / activity today","detail":"32 min of exercise","componentKey":"intensity","pointsContribution":6},{"status":"neutral","title":"Resting HR stable","detail":"73 bpm (Baseline: 72 bpm)","componentKey":"resting_hr","pointsContribution":2},{"status":"negative","title":"HRV suppressed vs baseline","detail":"14 ms (Baseline: 19 ms)","componentKey":"hrv","pointsContribution":-4}],"daily_focus":{"title":"Prioritise sleep tonight","body":"Aim for bed by a consistent time and target at least 7 hours of sleep.","componentKey":"sleep"},"health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","updated_at":"2025-12-09T09:52:19.660Z"}
+2025-12-09 17:52:19.71
+cf25df53
+User
+[2025-12-09T09:52:19.713Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-07, score: 60
+2025-12-09 17:52:19.73
+cf25df53
+User
+[2025-12-09T09:52:19.733Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-08, score: 58
+2025-12-09 17:52:19.73
+cf25df53
+User
+[2025-12-09T09:52:19.735Z] [INFO] [SupabaseHealth] Flomentum upsert payload: {"date":"2025-12-04","score":62,"zone":"MAINTAINING","delta_vs_yesterday":null,"factors":[{"status":"negative","title":"Slightly short sleep","detail":"6h 29m (Target: 8h)","componentKey":"sleep","pointsContribution":-4},{"status":"positive","title":"Almost hit your step target","detail":"5,697 steps (Goal: 7,000)","componentKey":"steps","pointsContribution":4},{"status":"positive","title":"Good workout / activity today","detail":"51 min of exercise","componentKey":"intensity","pointsContribution":6},{"status":"positive","title":"Resting HR improving vs baseline","detail":"64 bpm (Baseline: 71 bpm)","componentKey":"resting_hr","pointsContribution":6}],"daily_focus":{"title":"Prioritise sleep tonight","body":"Aim for bed by a consistent time and target at least 7 hours of sleep.","componentKey":"sleep"},"health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","updated_at":"2025-12-09T09:52:19.735Z"}
+2025-12-09 17:52:19.73
+cf25df53
+User
+[2025-12-09T09:52:19.735Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-04, score: 62
+2025-12-09 17:52:23.09
+cf25df53
+User
+[2025-12-09T09:52:23.094Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Upserting mindfulness daily for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: 2 sessions, 0min on 2025-12-03
+2025-12-09 17:52:23.14
+cf25df53
+User
+[2025-12-09T09:52:23.149Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 readiness records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-09 17:52:23.33
+cf25df53
+User
+[2025-12-09T09:52:23.339Z] [INFO] [MindfulnessAggregator] Updated daily: 2 sessions, 0min total for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-03
+2025-12-09 17:52:23.59
+cf25df53
+User
+[2025-12-09T09:52:23.591Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Creating mindfulness session for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: 1min on 2025-12-03
+2025-12-09 17:52:23.62
+cf25df53
+User
+[2025-12-09T09:52:23.624Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 readiness records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-09 17:52:23.74
+cf25df53
+User
+[2025-12-09T09:52:23.741Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 training load records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-09 17:52:23.74
+cf25df53
+User
+[2025-12-09T09:52:23.741Z] [INFO] [ClickHouseML] Auto-synced 8 readiness, 8 training load for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 17:52:23.80
+cf25df53
+User
+[2025-12-09T09:52:23.802Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 training load records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-09 17:52:23.80
+cf25df53
+User
+[2025-12-09T09:52:23.802Z] [INFO] [ClickHouseML] Auto-synced 8 readiness, 8 training load for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 17:52:23.83
+cf25df53
+User
+[2025-12-09T09:52:23.836Z] [INFO] [MindfulnessAggregator] Recorded 1min mindfulness session for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-03
+2025-12-09 17:52:24.07
+cf25df53
+User
+[2025-12-09T09:52:24.078Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Upserting mindfulness daily for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: 2 sessions, 0min on 2025-12-03
+2025-12-09 17:52:24.31
+cf25df53
+User
+[2025-12-09T09:52:24.316Z] [INFO] [MindfulnessAggregator] Updated daily: 2 sessions, 0min total for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-03
+2025-12-09 17:52:24.55
+cf25df53
+User
+[2025-12-09T09:52:24.556Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Creating mindfulness session for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: 1min on 2025-12-09
+2025-12-09 17:52:24.80
+cf25df53
+User
+[2025-12-09T09:52:24.809Z] [INFO] [MindfulnessAggregator] Recorded 1min mindfulness session for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-09
+2025-12-09 17:52:25.05
+cf25df53
+User
+[2025-12-09T09:52:25.049Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Upserting mindfulness daily for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: 1 sessions, 0min on 2025-12-09
+2025-12-09 17:52:25.28
+cf25df53
+User
+[2025-12-09T09:52:25.288Z] [INFO] [HealthKit] Processed 4 mindfulness sessions into dedicated tables
+2025-12-09 17:52:25.28
+cf25df53
+User
+[2025-12-09T09:52:25.288Z] [INFO] [MindfulnessAggregator] Updated daily: 1 sessions, 0min total for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 on 2025-12-09
+2025-12-09 17:52:25.29
+cf25df53
+User
+9:52:25 AM [express] POST /api/healthkit/samples 200 in 4442ms :: {"inserted":0,"duplicates":4,"tota…
+2025-12-09 17:52:25.82
+cf25df53
+User
+[2025-12-09T09:52:25.825Z] [INFO] [HealthKit] Batch upload: 1200 samples from user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 17:52:25.83
+cf25df53
+User
+[2025-12-09T09:52:25.839Z] [INFO] [SupabaseHealth] createHealthkitSamples called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 with 1200 samples
+2025-12-09 17:52:25.83
+cf25df53
+User
+[2025-12-09T09:52:25.839Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 17:52:26.33
+cf25df53
+User
+[2025-12-09T09:52:26.339Z] [INFO] [SupabaseHealth] Pre-dedup: fetched 1420 existing samples for fingerprint comparison
+2025-12-09 17:52:26.34
+cf25df53
+User
+[2025-12-09T09:52:26.345Z] [INFO] [SupabaseHealth] Pre-dedup: skipped 1198 duplicate samples (same data_type, value, start_date, source)
+2025-12-09 17:52:26.34
+cf25df53
+User
+[2025-12-09T09:52:26.345Z] [INFO] [SupabaseHealth] Attempting to upsert 2 samples to healthkit_samples table
+2025-12-09 17:52:26.58
+cf25df53
+User
+[2025-12-09T09:52:26.584Z] [INFO] [SupabaseHealth] Successfully inserted 0 healthkit samples for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 (1198 duplicates skipped)
+2025-12-09 17:52:26.58
+cf25df53
+User
+[2025-12-09T09:52:26.584Z] [INFO] [HealthKit] Supabase batch upload: 0 inserted, 1200 duplicates
+
