@@ -82,6 +82,17 @@ class ApnsService {
   }
 
   /**
+   * Force re-initialization of APNs client (after config change)
+   */
+  async reinitialize(): Promise<void> {
+    logger.info('[APNs] Re-initializing APNs client...');
+    this.client = null;
+    this.config = null;
+    this.initializationPromise = null;
+    await this.initialize();
+  }
+
+  /**
    * Send a push notification to a specific device
    */
   async sendNotification(

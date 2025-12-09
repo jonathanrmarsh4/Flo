@@ -430,6 +430,41 @@ export default function AdminDashboard() {
     },
   });
 
+  // APNs Configuration
+  const [apnsTeamId, setApnsTeamId] = useState('QRJGSY642V');
+  const [apnsKeyId, setApnsKeyId] = useState('8PY6UV28L4');
+  const [apnsBundleId, setApnsBundleId] = useState('com.flo.healthapp');
+  const [apnsSigningKey, setApnsSigningKey] = useState('');
+  const [apnsEnvironment, setApnsEnvironment] = useState('production');
+
+  const { data: apnsConfigData, refetch: refetchApnsConfig } = useQuery({
+    queryKey: ['/api/admin/apns-config'],
+    refetchInterval: false,
+  });
+
+  const saveApnsConfigMutation = useMutation({
+    mutationFn: async (config: { teamId: string; keyId: string; signingKey: string; bundleId: string; environment: string }) => {
+      const res = await apiRequest('POST', '/api/admin/apns-config', config);
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'APNs Configuration Saved',
+        description: data.message || 'Push notifications are now configured',
+      });
+      refetchApnsConfig();
+      setApnsSigningKey(''); // Clear the key field after saving
+    },
+    onError: (error: any) => {
+      console.error('APNs config error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save APNs configuration',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSaveUser = (userId: string) => {
     updateUserMutation.mutate({ userId, role: editRole, status: editStatus });
   };
@@ -1765,6 +1800,98 @@ export default function AdminDashboard() {
             <AdminSandboxVoice />
 
             <AdminReportModelSettings />
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h4 className="text-base text-white mb-2 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-green-400" />
+                APNs Configuration
+              </h4>
+              <div className="text-xs text-white/50 mb-4">
+                Configure Apple Push Notification service credentials. Status: {(apnsConfigData as any)?.hasActiveConfig ? (
+                  <span className="text-green-400">Active ({(apnsConfigData as any)?.activeConfig?.environment})</span>
+                ) : (
+                  <span className="text-red-400">Not configured</span>
+                )}
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={apnsTeamId}
+                    onChange={(e) => setApnsTeamId(e.target.value)}
+                    placeholder="Team ID (e.g., QRJGSY642V)"
+                    className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-green-500"
+                    data-testid="input-apns-team-id"
+                  />
+                  <input
+                    type="text"
+                    value={apnsKeyId}
+                    onChange={(e) => setApnsKeyId(e.target.value)}
+                    placeholder="Key ID (e.g., 8PY6UV28L4)"
+                    className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-green-500"
+                    data-testid="input-apns-key-id"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={apnsBundleId}
+                  onChange={(e) => setApnsBundleId(e.target.value)}
+                  placeholder="Bundle ID (e.g., com.flo.healthapp)"
+                  className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-green-500"
+                  data-testid="input-apns-bundle-id"
+                />
+                <textarea
+                  value={apnsSigningKey}
+                  onChange={(e) => setApnsSigningKey(e.target.value)}
+                  placeholder="Signing Key (.p8 private key contents - paste the entire key including BEGIN/END lines)"
+                  rows={4}
+                  className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-xs font-mono placeholder:text-white/40 focus:outline-none focus:border-green-500 resize-none"
+                  data-testid="input-apns-signing-key"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={apnsEnvironment}
+                    onChange={(e) => setApnsEnvironment(e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm focus:outline-none focus:border-green-500"
+                    data-testid="select-apns-environment"
+                  >
+                    <option value="production">Production</option>
+                    <option value="sandbox">Sandbox</option>
+                  </select>
+                  <button
+                    onClick={() => {
+                      if (!apnsTeamId || !apnsKeyId || !apnsBundleId || !apnsSigningKey) {
+                        toast({ title: 'Error', description: 'All fields are required', variant: 'destructive' });
+                        return;
+                      }
+                      saveApnsConfigMutation.mutate({
+                        teamId: apnsTeamId,
+                        keyId: apnsKeyId,
+                        signingKey: apnsSigningKey,
+                        bundleId: apnsBundleId,
+                        environment: apnsEnvironment,
+                      });
+                    }}
+                    disabled={saveApnsConfigMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white transition-all disabled:opacity-50"
+                    data-testid="button-save-apns-config"
+                  >
+                    {saveApnsConfigMutation.isPending ? (
+                      <>
+                        <Activity className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Settings className="w-4 h-4" />
+                        <span className="text-sm">Save APNs Config</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h4 className="text-base text-white mb-2 flex items-center gap-2">

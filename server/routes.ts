@@ -7395,6 +7395,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get APNs configuration status (admin only)
+  app.get("/api/admin/apns-config", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const configs = await db
+        .select({
+          id: apnsConfiguration.id,
+          environment: apnsConfiguration.environment,
+          teamId: apnsConfiguration.teamId,
+          keyId: apnsConfiguration.keyId,
+          bundleId: apnsConfiguration.bundleId,
+          isActive: apnsConfiguration.isActive,
+          createdAt: apnsConfiguration.createdAt,
+          updatedAt: apnsConfiguration.updatedAt,
+        })
+        .from(apnsConfiguration)
+        .limit(5);
+
+      const activeConfig = configs.find(c => c.isActive);
+      
+      res.json({
+        hasActiveConfig: !!activeConfig,
+        configs: configs.map(c => ({
+          ...c,
+          hasSigningKey: true, // Don't expose the actual key
+        })),
+        activeConfig: activeConfig ? {
+          id: activeConfig.id,
+          environment: activeConfig.environment,
+          teamId: activeConfig.teamId,
+          keyId: activeConfig.keyId,
+          bundleId: activeConfig.bundleId,
+        } : null,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to get APNs config:', error);
+      res.status(500).json({ error: "Failed to get APNs configuration" });
+    }
+  });
+
+  // Save APNs configuration (admin only)
+  app.post("/api/admin/apns-config", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { teamId, keyId, signingKey, bundleId, environment } = req.body;
+
+      if (!teamId || !keyId || !signingKey || !bundleId) {
+        return res.status(400).json({ 
+          error: "teamId, keyId, signingKey, and bundleId are required" 
+        });
+      }
+
+      // Validate signingKey format
+      if (!signingKey.includes('BEGIN PRIVATE KEY') || !signingKey.includes('END PRIVATE KEY')) {
+        return res.status(400).json({ 
+          error: "signingKey must be a valid .p8 private key (PEM format)" 
+        });
+      }
+
+      // Deactivate all existing configs
+      await db
+        .update(apnsConfiguration)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(apnsConfiguration.isActive, true));
+
+      // Insert new config
+      const [newConfig] = await db
+        .insert(apnsConfiguration)
+        .values({
+          id: crypto.randomUUID(),
+          teamId,
+          keyId,
+          signingKey,
+          bundleId,
+          environment: environment || 'production',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning({
+          id: apnsConfiguration.id,
+          environment: apnsConfiguration.environment,
+          teamId: apnsConfiguration.teamId,
+          keyId: apnsConfiguration.keyId,
+          bundleId: apnsConfiguration.bundleId,
+          isActive: apnsConfiguration.isActive,
+        });
+
+      // Force re-initialize APNs service
+      const { apnsService } = await import("./services/apnsService");
+      await apnsService.reinitialize();
+
+      logger.info(`[Admin] APNs configuration saved: ${newConfig.id}`);
+      res.json({ 
+        success: true, 
+        message: "APNs configuration saved and activated",
+        config: newConfig,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to save APNs config:', error);
+      res.status(500).json({ error: "Failed to save APNs configuration", message: error.message });
+    }
+  });
+
   // Test 3PM survey notification (admin only)
   app.post("/api/admin/test-survey-notification", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
