@@ -43,24 +43,34 @@ export function AirQualityTile({ isDark }: AirQualityTileProps) {
     retry: false, // Don't retry on 404/503
   });
 
-  // Debug logging for AQI data and track error reason
+  // Extract error reason from query error
   useEffect(() => {
     console.log('[AQI] Query state:', { isLoading, isError, hasData: !!envData });
-    if (isError) {
-      // Fetch directly to get error reason
-      fetch('/api/environmental/today', { credentials: 'include' })
-        .then(res => {
-          console.log('[AQI] Direct fetch status:', res.status, res.statusText);
-          return res.json().catch(() => ({ parseError: true }));
-        })
-        .then(data => {
-          console.log('[AQI] Direct fetch response:', data);
-          setErrorReason(data?.reason || 'unknown');
-        })
-        .catch(err => {
-          console.error('[AQI] Direct fetch error:', err);
-          setErrorReason('unknown');
-        });
+    if (isError && envError) {
+      // Extract reason from the error response
+      const errorData = envError as any;
+      let reason = 'unknown';
+      
+      // Try to parse from response string (format: {"error":"...", "reason":"..."})
+      if (errorData?.response) {
+        try {
+          const parsed = typeof errorData.response === 'string' 
+            ? JSON.parse(errorData.response) 
+            : errorData.response;
+          reason = parsed?.reason || reason;
+        } catch (e) {
+          // If parsing fails, check status code
+          if (errorData?.status === 503) reason = 'api_error';
+          else if (errorData?.status === 404) reason = 'no_location_data';
+        }
+      } else if (errorData?.status === 503) {
+        reason = 'api_error';
+      } else if (errorData?.status === 404) {
+        reason = 'no_location_data';
+      }
+      
+      console.log('[AQI] Error detected:', { reason, status: errorData?.status });
+      setErrorReason(reason);
     } else {
       setErrorReason(null);
     }
@@ -70,7 +80,7 @@ export function AirQualityTile({ isDark }: AirQualityTileProps) {
         aqi: envData.airQuality?.aqi 
       });
     }
-  }, [envData, isLoading, isError]);
+  }, [envData, envError, isLoading, isError]);
 
   const aqi = envData?.airQuality?.aqi ?? null;
   
