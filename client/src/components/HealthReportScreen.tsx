@@ -139,9 +139,9 @@ export function HealthReportScreen({ isDark, onClose, reportData }: HealthReport
   };
 
   return (
-    <div className={`fixed inset-0 z-50 ${isDark ? 'bg-slate-900' : 'bg-gray-50'}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      {/* Minimal sticky toolbar with action buttons only */}
-      <header className={`sticky top-0 z-10 backdrop-blur-xl border-b transition-colors print:hidden ${
+    <div className={`fixed inset-0 z-50 flex flex-col ${isDark ? 'bg-slate-900' : 'bg-gray-50'}`}>
+      {/* Fixed toolbar with action buttons at the absolute top */}
+      <header className={`flex-shrink-0 backdrop-blur-xl border-b transition-colors print:hidden ${
         isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-gray-200'
       }`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="px-4 py-2">
@@ -179,7 +179,7 @@ export function HealthReportScreen({ isDark, onClose, reportData }: HealthReport
         </div>
       </header>
 
-      <main className="overflow-y-auto pb-8" style={{ height: 'calc(100vh - 50px - env(safe-area-inset-top))' }}>
+      <main className="flex-1 overflow-y-auto pb-8" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="max-w-4xl mx-auto p-4 print:p-0">
           
           {/* Print-only header */}
