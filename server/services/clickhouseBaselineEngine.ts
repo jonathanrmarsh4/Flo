@@ -71,6 +71,60 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'low',
     severity: { moderate: 20, high: 35 },
   },
+  rem_sleep: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'low',
+    severity: { moderate: 20, high: 35 },
+  },
+  core_sleep: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 25,
+    direction: 'both',
+    severity: { moderate: 25, high: 40 },
+  },
+  sleep_efficiency: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 10,
+    direction: 'low',
+    severity: { moderate: 10, high: 20 },
+  },
+  sleep_fragmentation: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'high',
+    severity: { moderate: 30, high: 50 },
+  },
+  sleep_duration_min: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  deep_sleep_pct: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 25,
+    direction: 'low',
+    severity: { moderate: 25, high: 40 },
+  },
+  rem_sleep_pct: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 25,
+    direction: 'low',
+    severity: { moderate: 25, high: 40 },
+  },
+  sleep_hrv: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  waso: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'high',
+    severity: { moderate: 30, high: 50 },
+  },
   glucose: {
     zScoreThreshold: 2.0,
     percentageThreshold: 15,
@@ -290,9 +344,108 @@ export class ClickHouseBaselineEngine {
         logger.info(`[ClickHouseML] Synced ${rows.length} metrics for ${healthId}`);
       }
 
-      return rows.length;
+      // Also sync detailed sleep components from sleep_nights table
+      const sleepRows = await this.syncSleepComponentsFromSupabase(healthId, daysBack);
+      
+      return rows.length + sleepRows;
     } catch (error) {
       logger.error('[ClickHouseML] Sync error:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Sync detailed sleep components from sleep_nights table to ClickHouse.
+   * This provides granular sleep stage data (deep, REM, core) for ML pattern detection.
+   */
+  async syncSleepComponentsFromSupabase(healthId: string, daysBack: number | null = 30): Promise<number> {
+    try {
+      const { getSupabaseClient } = await import('./supabaseClient');
+      const supabase = getSupabaseClient();
+
+      let query = supabase
+        .from('sleep_nights')
+        .select('*')
+        .eq('health_id', healthId)
+        .order('sleep_date', { ascending: true });
+
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        query = query.gte('sleep_date', startDateStr);
+      }
+
+      const { data: sleepNights, error } = await query;
+
+      if (error) {
+        logger.error('[ClickHouseML] Error fetching sleep_nights from Supabase:', error);
+        return 0;
+      }
+
+      if (!sleepNights || sleepNights.length === 0) {
+        logger.debug(`[ClickHouseML] No sleep_nights to sync for ${healthId}`);
+        return 0;
+      }
+
+      // Map sleep_nights fields to ClickHouse metric types
+      // NOTE: Supabase returns snake_case field names directly from the table
+      const sleepMappings: Record<string, string> = {
+        'deep_sleep_min': 'deep_sleep',           // Deep sleep in minutes
+        'rem_sleep_min': 'rem_sleep',             // REM sleep in minutes  
+        'core_sleep_min': 'core_sleep',           // Light/Core sleep in minutes
+        'total_sleep_min': 'sleep_duration_min',  // Total sleep in minutes (more granular than hours)
+        'sleep_efficiency_pct': 'sleep_efficiency', // Sleep efficiency percentage
+        'num_awakenings': 'sleep_awakenings',     // Number of awakenings
+        'fragmentation_index': 'sleep_fragmentation', // Sleep fragmentation index
+        'waso_min': 'waso',                       // Wake after sleep onset
+        'sleep_latency_min': 'sleep_latency',     // Time to fall asleep
+        'hrv_ms': 'sleep_hrv',                    // HRV during sleep
+        'deep_pct': 'deep_sleep_pct',             // Deep sleep percentage
+        'rem_pct': 'rem_sleep_pct',               // REM sleep percentage
+        'core_pct': 'core_sleep_pct',             // Core sleep percentage
+        'time_in_bed_min': 'time_in_bed',         // Time in bed
+      };
+
+      const rows: any[] = [];
+
+      for (const night of sleepNights) {
+        // Construct proper UTC timestamp from sleep_date (YYYY-MM-DD format)
+        const sleepDateStr = night.sleep_date;
+        const recordedAt = sleepDateStr ? new Date(`${sleepDateStr}T08:00:00Z`).toISOString() : null;
+        
+        if (!recordedAt || isNaN(new Date(recordedAt).getTime())) {
+          logger.warn(`[ClickHouseML] Invalid sleep_date for night: ${sleepDateStr}`);
+          continue;
+        }
+        
+        for (const [dbField, metricType] of Object.entries(sleepMappings)) {
+          const rawValue = night[dbField];
+          // Handle both numeric and string values (Supabase may return decimal strings)
+          if (rawValue === null || rawValue === undefined) continue;
+          
+          const numValue = typeof rawValue === 'string' ? parseFloat(rawValue) : Number(rawValue);
+          if (isNaN(numValue)) continue;
+          
+          rows.push({
+            health_id: healthId,
+            metric_type: metricType,
+            value: numValue,
+            recorded_at: recordedAt,
+            local_date: sleepDateStr,
+            source: 'healthkit_sleep',
+          });
+        }
+      }
+
+      if (rows.length > 0) {
+        await clickhouse.insert('health_metrics', rows);
+        logger.info(`[ClickHouseML] Synced ${rows.length} sleep component metrics for ${healthId} from ${sleepNights.length} nights`);
+      }
+
+      return rows.length;
+    } catch (error) {
+      logger.error('[ClickHouseML] Sleep sync error:', error);
       return 0;
     }
   }

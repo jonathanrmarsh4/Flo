@@ -88,6 +88,20 @@ interface UserHealthContext {
     steps: number | null;
     activeKcal: number | null;
   };
+  sleepDetails7Days: {
+    avgTotalSleepMin: number | null;
+    avgDeepSleepMin: number | null;
+    avgRemSleepMin: number | null;
+    avgCoreSleepMin: number | null;
+    avgEfficiencyPct: number | null;
+    avgAwakenings: number | null;
+    avgDeepPct: number | null;
+    avgRemPct: number | null;
+    avgCorePct: number | null;
+    avgHrvMs: number | null;
+    avgFragmentationIndex: number | null;
+    daysWithData: number;
+  } | null;
   recentTrends: {
     hrv: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
     rhr: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
@@ -255,6 +269,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         steps: null,
         activeKcal: null,
       },
+      sleepDetails7Days: null,
       recentTrends: null,
       healthkitMetrics: {
         weight: null,
@@ -433,9 +448,28 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
     logger.info(`[FloOracle] Supabase health enabled: ${supabaseEnabled}`);
 
     // Fetch sleep data from sleepNights via router (routes to Supabase) - fetch 10 days for trend analysis
-    let sleepNightsData: Array<{ sleepDate?: string; totalSleepMin?: number | null }> = [];
+    // Define extended type to include all sleep components
+    interface SleepNightExtended {
+      sleepDate?: string;
+      totalSleepMin?: number | null;
+      deepSleepMin?: number | null;
+      remSleepMin?: number | null;
+      coreSleepMin?: number | null;
+      sleepEfficiencyPct?: number | null;
+      numAwakenings?: number | null;
+      deepPct?: number | null;
+      remPct?: number | null;
+      corePct?: number | null;
+      hrvMs?: number | null;
+      fragmentationIndex?: number | null;
+      wasoMin?: number | null;
+      sleepLatencyMin?: number | null;
+      bedtimeLocal?: string | null;
+      waketimeLocal?: string | null;
+    }
+    let sleepNightsData: SleepNightExtended[] = [];
     try {
-      sleepNightsData = await getHealthRouterSleepNights(userId, 10);
+      sleepNightsData = await getHealthRouterSleepNights(userId, 10) as SleepNightExtended[];
       if (sleepNightsData.length > 0) {
         // Calculate 7-day average for sleep (take first 7 days since data is already DESC ordered)
         const sleepFor7Days = sleepNightsData.slice(0, 7);
@@ -448,6 +482,44 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
           const mins = Math.round(avgSleep % 60);
           context.wearableAvg7Days.sleep = `${hours}h${mins}m`;
         }
+        
+        // Calculate detailed sleep component averages for AI context
+        const avgSleepMetric = (key: keyof SleepNightExtended): number | null => {
+          const values = sleepFor7Days
+            .map(s => s[key] as number | null | undefined)
+            .filter((v): v is number => v != null && !isNaN(v));
+          return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+        };
+        
+        // Use explicit !== null checks to preserve legitimate 0 values (e.g., 0 awakenings)
+        const totalSleep = avgSleepMetric('totalSleepMin');
+        const deepSleep = avgSleepMetric('deepSleepMin');
+        const remSleep = avgSleepMetric('remSleepMin');
+        const coreSleep = avgSleepMetric('coreSleepMin');
+        const efficiency = avgSleepMetric('sleepEfficiencyPct');
+        const awakenings = avgSleepMetric('numAwakenings');
+        const deepPct = avgSleepMetric('deepPct');
+        const remPct = avgSleepMetric('remPct');
+        const corePct = avgSleepMetric('corePct');
+        const hrvMs = avgSleepMetric('hrvMs');
+        const fragIndex = avgSleepMetric('fragmentationIndex');
+        
+        context.sleepDetails7Days = {
+          avgTotalSleepMin: totalSleep !== null ? Math.round(totalSleep) : null,
+          avgDeepSleepMin: deepSleep !== null ? Math.round(deepSleep) : null,
+          avgRemSleepMin: remSleep !== null ? Math.round(remSleep) : null,
+          avgCoreSleepMin: coreSleep !== null ? Math.round(coreSleep) : null,
+          avgEfficiencyPct: efficiency !== null ? Math.round(efficiency * 10) / 10 : null,
+          avgAwakenings: awakenings !== null ? Math.round(awakenings * 10) / 10 : null,
+          avgDeepPct: deepPct !== null ? Math.round(deepPct * 10) / 10 : null,
+          avgRemPct: remPct !== null ? Math.round(remPct * 10) / 10 : null,
+          avgCorePct: corePct !== null ? Math.round(corePct * 10) / 10 : null,
+          avgHrvMs: hrvMs !== null ? Math.round(hrvMs) : null,
+          avgFragmentationIndex: fragIndex !== null ? Math.round(fragIndex * 100) / 100 : null,
+          daysWithData: sleepFor7Days.filter(s => s.totalSleepMin != null).length,
+        };
+        
+        logger.info(`[FloOracle] Fetched detailed sleep: ${context.sleepDetails7Days.daysWithData} days, deep=${context.sleepDetails7Days.avgDeepSleepMin}min, rem=${context.sleepDetails7Days.avgRemSleepMin}min, efficiency=${context.sleepDetails7Days.avgEfficiencyPct}%`);
       }
     } catch (error) {
       logger.error('[FloOracle] Error fetching sleep nights from Supabase:', error);
@@ -1169,6 +1241,60 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     if (wearable.steps) parts.push(`Steps ${wearable.steps}`);
     if (wearable.activeKcal) parts.push(`Active kcal ${wearable.activeKcal}`);
     lines.push(`7-day wearable avg: ${parts.join(', ')}`);
+  }
+
+  // Add detailed sleep breakdown section for quality analysis
+  const sleep = context.sleepDetails7Days;
+  if (sleep && sleep.daysWithData > 0) {
+    lines.push('');
+    lines.push(`SLEEP QUALITY BREAKDOWN (${sleep.daysWithData}-day avg):`);
+    
+    // Total sleep time
+    if (sleep.avgTotalSleepMin != null) {
+      const hrs = Math.floor(sleep.avgTotalSleepMin / 60);
+      const mins = Math.round(sleep.avgTotalSleepMin % 60);
+      lines.push(`  Total sleep: ${hrs}h ${mins}min`);
+    }
+    
+    // Sleep stages with percentages (critical for quality assessment)
+    const stages: string[] = [];
+    if (sleep.avgDeepSleepMin != null) {
+      const deepHrs = sleep.avgDeepSleepMin >= 60 ? `${Math.floor(sleep.avgDeepSleepMin / 60)}h ${Math.round(sleep.avgDeepSleepMin % 60)}min` : `${Math.round(sleep.avgDeepSleepMin)} min`;
+      const deepPctStr = sleep.avgDeepPct != null ? ` (${sleep.avgDeepPct}%)` : '';
+      stages.push(`Deep sleep: ${deepHrs}${deepPctStr}`);
+    }
+    if (sleep.avgRemSleepMin != null) {
+      const remHrs = sleep.avgRemSleepMin >= 60 ? `${Math.floor(sleep.avgRemSleepMin / 60)}h ${Math.round(sleep.avgRemSleepMin % 60)}min` : `${Math.round(sleep.avgRemSleepMin)} min`;
+      const remPctStr = sleep.avgRemPct != null ? ` (${sleep.avgRemPct}%)` : '';
+      stages.push(`REM sleep: ${remHrs}${remPctStr}`);
+    }
+    if (sleep.avgCoreSleepMin != null) {
+      const coreHrs = sleep.avgCoreSleepMin >= 60 ? `${Math.floor(sleep.avgCoreSleepMin / 60)}h ${Math.round(sleep.avgCoreSleepMin % 60)}min` : `${Math.round(sleep.avgCoreSleepMin)} min`;
+      const corePctStr = sleep.avgCorePct != null ? ` (${sleep.avgCorePct}%)` : '';
+      stages.push(`Light/Core sleep: ${coreHrs}${corePctStr}`);
+    }
+    stages.forEach(s => lines.push(`  ${s}`));
+    
+    // Sleep quality metrics
+    const qualityMetrics: string[] = [];
+    if (sleep.avgEfficiencyPct != null) {
+      qualityMetrics.push(`Efficiency: ${sleep.avgEfficiencyPct}%`);
+    }
+    if (sleep.avgAwakenings != null) {
+      qualityMetrics.push(`Awakenings: ${sleep.avgAwakenings} per night`);
+    }
+    if (sleep.avgFragmentationIndex != null) {
+      qualityMetrics.push(`Fragmentation: ${sleep.avgFragmentationIndex}`);
+    }
+    if (sleep.avgHrvMs != null) {
+      qualityMetrics.push(`Sleep HRV: ${sleep.avgHrvMs} ms`);
+    }
+    if (qualityMetrics.length > 0) {
+      lines.push(`  Quality metrics: ${qualityMetrics.join(', ')}`);
+    }
+    
+    // Add context about ideal ranges for AI interpretation
+    lines.push(`  [Reference: Ideal deep sleep 13-23%, REM 20-25%, efficiency >85%]`);
   }
 
   // Add recent trends section (last 48h vs 7-day baseline)
