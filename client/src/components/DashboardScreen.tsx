@@ -8,7 +8,6 @@ import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AirQualityTile } from './dashboard/AirQualityTile';
 import { AnomalyAlertTile } from './dashboard/AnomalyAlertTile';
 import { MorningBriefingTile } from './dashboard/MorningBriefingTile';
-import { CGMTile } from './dashboard/CGMTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { ThreePMSurveyModal } from './ThreePMSurveyModal';
@@ -339,13 +338,6 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
                   isDark={isDark}
                 />
               )}
-            </SortableItem>
-          );
-
-        case 'cgm':
-          return (
-            <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <CGMTile isDark={isDark} />
             </SortableItem>
           );
 

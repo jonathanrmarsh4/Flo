@@ -8,8 +8,7 @@ export type TileId =
   | 'flomentum'
   | 'readiness'
   | 'sleep'
-  | 'insights'
-  | 'cgm';
+  | 'insights';
 
 // Default tile order (Flo Overview is locked at top, these are the sortable tiles below it)
 const DEFAULT_TILE_ORDER: TileId[] = [
@@ -18,7 +17,6 @@ const DEFAULT_TILE_ORDER: TileId[] = [
   'insights',
   'sleep',
   'readiness',
-  'cgm',
   'heart-metabolic',
   'body-composition',
 ];

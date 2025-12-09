@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X } from 'lucide-react';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { BottomNav } from './BottomNav';
 
 interface ActivityScreenProps {
@@ -1138,6 +1139,15 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
   );
 }
 
+interface CGMStatus {
+  connected: boolean;
+  isSandbox?: boolean;
+  connectedAt?: string;
+  lastSyncAt?: string;
+  syncStatus?: 'active' | 'error' | 'disconnected';
+  errorMessage?: string;
+}
+
 function GlucoseTabContent({ isDark }: { isDark: boolean }) {
   const [timeRange, setTimeRange] = useState<'day' | '7d' | '14d'>('day');
 
@@ -1145,7 +1155,16 @@ function GlucoseTabContent({ isDark }: { isDark: boolean }) {
     queryKey: ['/api/glucose/daily', { range: timeRange }],
   });
 
-  if (isLoading) {
+  const { data: cgmStatus, isLoading: cgmLoading } = useQuery<CGMStatus>({
+    queryKey: ['/api/dexcom/status'],
+    staleTime: 60 * 1000,
+  });
+
+  const handleConnectCGM = () => {
+    window.location.href = '/api/auth/dexcom/connect';
+  };
+
+  if (isLoading || cgmLoading) {
     return <LoadingSpinner isDark={isDark} />;
   }
 
@@ -1162,8 +1181,35 @@ function GlucoseTabContent({ isDark }: { isDark: boolean }) {
   const targetMin = glucoseData?.targetMin ?? 70;
   const targetMax = glucoseData?.targetMax ?? 140;
 
-  if (currentGlucose == null && trendData.length === 0) {
-    return <EmptyState isDark={isDark} message="No glucose data available. Connect a continuous glucose monitor or log blood glucose readings." />;
+  // Show CGM connection card only when not connected
+  if (!cgmStatus?.connected && currentGlucose == null && trendData.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+          isDark ? 'bg-gradient-to-br from-cyan-900/40 via-teal-900/40 to-emerald-900/40 border-white/20' : 'bg-gradient-to-br from-cyan-50 via-teal-50 to-emerald-50 border-black/10'
+        }`}>
+          <div className="text-center py-4">
+            <div className="flex justify-center mb-4">
+              <Activity className={`w-16 h-16 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+            </div>
+            <h4 className={`text-lg mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Connect Your CGM
+            </h4>
+            <p className={`text-sm mb-6 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+              Link your Dexcom to see real-time glucose data, trends, and time-in-range analysis.
+            </p>
+            <Button 
+              onClick={handleConnectCGM}
+              className="gap-2"
+              data-testid="button-connect-dexcom"
+            >
+              <Link2 className="w-4 h-4" />
+              Connect Dexcom
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   return (
