@@ -4401,7 +4401,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Device token management (for push notifications)
   app.post("/api/device-tokens", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub;
+      
+      logger.info(`[DeviceToken] Registration request - userId: ${userId}, hasBody: ${!!req.body}, token: ${req.body?.deviceToken?.substring(0, 20)}...`);
+      
+      if (!userId) {
+        logger.warn(`[DeviceToken] No userId found in request - auth may have failed`);
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
       const { insertDeviceTokenSchema } = await import("@shared/schema");
       
       const validation = insertDeviceTokenSchema.safeParse({
@@ -4411,7 +4419,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       if (!validation.success) {
-        return res.status(400).json({ error: "Invalid device token data" });
+        logger.warn(`[DeviceToken] Validation failed:`, validation.error.errors);
+        return res.status(400).json({ error: "Invalid device token data", details: validation.error.errors });
       }
 
       // Check if token already exists
@@ -4434,8 +4443,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(eq(deviceTokens.deviceToken, validation.data.deviceToken))
           .returning();
         
-        logger.info(`[DeviceToken] Updated device token for user ${userId}`);
-        return res.json(updated);
+        logger.info(`[DeviceToken] Updated device token for user ${userId} - tokenId: ${updated?.id}`);
+        return res.json({ success: true, action: 'updated', tokenId: updated?.id });
       }
 
       // Insert new token
@@ -4444,8 +4453,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .values(validation.data)
         .returning();
 
-      logger.info(`[DeviceToken] Registered new device token for user ${userId}`);
-      res.json(token);
+      logger.info(`[DeviceToken] Registered NEW device token for user ${userId} - tokenId: ${token?.id}`);
+      res.json({ success: true, action: 'created', tokenId: token?.id });
     } catch (error) {
       logger.error('Error registering device token:', error);
       res.status(500).json({ error: "Failed to register device token" });
