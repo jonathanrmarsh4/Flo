@@ -1,0 +1,105 @@
+2025-12-09 05:37:25.11
+fe7a9bf9
+User
+[2025-12-08T21:37:25.114Z] [ERROR] [MorningBriefing] [MorningBriefing] No JSON found in response: {"error":"```json\n{\n \"primary_focus\": \"Your deep sleep plummeted to just 22 minutes last night, a significant 63.2% below your 60-minute baseline.\",\n \"secondary_focus\": \"Readiness is at 64, influenced by your HRV dropping 41.1% to 29.4ms compared to your 50ms baseline.\",\n \"recommended_actions\": [\n \"Prioritize active recovery: aim for ~4,000 steps today, about half your 8,000-step baseline.\",\n \"Take a 15-20 minute outdoor walk mid-morning for light exposure, dressed warmly due to -2.88°C temps.\",\n \"Target at least 7.5 hours of sleep tonight to recover from last night's 6.2 hours and improve deep sleep.\",\n \"Avoid alcohol and intense workouts after 5 PM to support better sleep quality.\"\n ],\n \"push_text\": \"Jon, your readiness is 64 with"}
+2025-12-09 08:02:43.35
+b5d57b14
+User
+[2025-12-09T00:02:43.352Z] [WARN] [CorrelationInsight] Failed to send push for ML alert ce8fb6e4-a99f-4d76-b909-0c0a98acb940: No active devices
+2025-12-09 08:02:43.42
+b5d57b14
+User
+[2025-12-09T00:02:43.429Z] [WARN] [CorrelationInsight] Failed to send push for ML alert e252c7d8-3b23-46f0-b97a-d89817bb30cd: No active devices
+
+2025-12-09 08:02:43.50
+b5d57b14
+User
+[2025-12-09T00:02:43.505Z] [WARN] [CorrelationInsight] Failed to send push for ML alert f882f9ff-fc93-47ab-9581-6fcff701ac37: No active devices
+2025-12-09 14:00:26.14
+2e020e19
+User
+[2025-12-09T06:00:26.147Z] [WARN] [CorrelationInsight] Failed to send push for ML alert 2d38fc16-4ab6-4ad1-8d0a-0fb54280c6a7: No active devices
+2025-12-09 14:00:26.22
+2e020e19
+User
+[2025-12-09T06:00:26.221Z] [WARN] [CorrelationInsight] Failed to send push for ML alert eb7d3291-d60c-4cf1-b6c8-0c53165bcdca: No active devices
+2025-12-09 14:00:26.29
+2e020e19
+User
+[2025-12-09T06:00:26.296Z] [WARN] [CorrelationInsight] Failed to send push for ML alert c77ed798-d735-4b1f-9e2e-c23162fa07f9: No active devices
+2025-12-09 18:11:07.27
+8c270a35
+User
+10:11:07 AM [express] POST /api/admin/cli/test-push 200 in 10ms
+2025-12-09 18:23:26.94
+a4909868
+User
+[2025-12-09T10:23:26.945Z] [INFO] [Admin] Test push notification sent: 0 devices reached
+2025-12-09 18:23:26.98
+a4909868
+User
+10:23:26 AM [express] POST /api/admin/test-push 200 in 522ms :: {"success":false,"devicesReached":0,"…
+2025-12-09 18:23:32.34
+a4909868
+User
+[2025-12-09T10:23:32.349Z] [INFO] [Admin] Test push notification sent: 0 devices reached
+2025-12-09 18:23:32.38
+a4909868
+User
+10:23:32 AM [express] POST /api/admin/test-push 200 in 144ms :: {"success":false,"devicesReached":0,"…
+2025-12-09 18:23:38.45
+a4909868
+User
+[2025-12-09T10:23:38.458Z] [INFO] [Admin] Test push notification sent: 0 devices reached
+2025-12-09 18:23:38.49
+a4909868
+User
+10:23:38 AM [express] POST /api/admin/test-push 200 in 144ms :: {"success":false,"devicesReached":0,"…
+2025-12-09 18:30:42.90
+31ac9130
+User
+[2025-12-09T10:30:42.906Z] [ERROR] Error sending test push notification: {"error":{"message":"getSupabaseClient3 is not a function","stack":"TypeError: getSupabaseClient3 is not a function\n at file:///home/runner/workspace/dist/index.js:46599:25\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-09 18:30:42.94
+31ac9130
+User
+10:30:42 AM [express] POST /api/admin/test-push 500 in 116ms :: {"error":"Failed to send test push no…
+2025-12-09 18:30:53.59
+31ac9130
+User
+[2025-12-09T10:30:53.595Z] [ERROR] Error sending test push notification: {"error":{"message":"getSupabaseClient3 is not a function","stack":"TypeError: getSupabaseClient3 is not a function\n at file:///home/runner/workspace/dist/index.js:46599:25\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-09 18:30:53.63
+31ac9130
+User
+10:30:53 AM [express] POST /api/admin/test-push 500 in 444ms :: {"error":"Failed to send test push no…
+2025-12-09 18:31:15.34
+31ac9130
+User
+[2025-12-09T10:31:15.341Z] [ERROR] Error sending test push notification: {"error":{"message":"getSupabaseClient3 is not a function","stack":"TypeError: getSupabaseClient3 is not a function\n at file:///home/runner/workspace/dist/index.js:46599:25\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-09 18:31:15.39
+31ac9130
+User
+10:31:15 AM [express] POST /api/admin/test-push 500 in 247ms :: {"error":"Failed to send test push no…
+2025-12-09 18:37:28.65
+ef76ecc7
+User
+[2025-12-09T10:37:28.655Z] [INFO] [Admin] Test push - trying IDs: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 18:37:28.78
+ef76ecc7
+User
+10:37:28 AM [express] POST /api/admin/test-push 200 in 722ms :: {"devicesReached":0,"error":"No activ…
+2025-12-09 18:48:25.33
+7fcc20a5
+User
+[2025-12-09T10:48:25.332Z] [INFO] [Admin] Test push - trying IDs: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 18:48:25.44
+7fcc20a5
+User
+10:48:25 AM [express] POST /api/admin/test-push 200 in 720ms :: {"devicesReached":0,"error":"No activ…
+2025-12-09 18:48:46.00
+7fcc20a5
+User
+[2025-12-09T10:48:46.009Z] [INFO] [Admin] Test push - trying IDs: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 18:48:46.12
+7fcc20a5
+User
+10:48:46 AM [express] POST /api/admin/test-push 200 in 713ms :: {"devicesReached":0,"error":"No activ…
