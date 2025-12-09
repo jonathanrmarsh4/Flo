@@ -8424,22 +8424,38 @@ Important: This is for educational purposes. Include a brief note that users sho
       let cache = await getCachedWeather(userId, today);
       logger.info(`[Environmental] Cache lookup result: ${cache ? 'found' : 'not found'}`);
       
+      // Track if user has location for better error messaging
+      let hasLocation = false;
+      let quotaExhausted = false;
+      
       if (!cache && process.env.OPENWEATHER_API_KEY) {
         const location = await getLatestLocation(userId);
+        hasLocation = !!location;
         logger.info(`[Environmental] Location lookup result: ${location ? `found (${location.latitude?.toFixed(4)}, ${location.longitude?.toFixed(4)})` : 'not found'}`);
         if (location) {
           try {
-            const { getCurrentWeatherWithQuotaGuard } = await import('./services/environmentalBackfillService');
-            const envData = await getCurrentWeatherWithQuotaGuard(location.latitude, location.longitude);
+            const { getCurrentWeatherWithQuotaGuard, getQuotaStatus } = await import('./services/environmentalBackfillService');
             
-            if (envData) {
-              cache = await saveWeatherCache(
-                userId, 
-                today, 
-                { latitude: location.latitude, longitude: location.longitude },
-                envData.weather,
-                envData.airQuality
-              );
+            // Check quota status before attempting fetch
+            const quotaStatus = await getQuotaStatus();
+            if (quotaStatus.quotaExhausted) {
+              logger.warn(`[Environmental] Daily quota exhausted (${quotaStatus.callsUsed}/${quotaStatus.callsUsed + quotaStatus.remaining})`);
+              quotaExhausted = true;
+            } else {
+              const envData = await getCurrentWeatherWithQuotaGuard(location.latitude, location.longitude);
+              
+              if (envData) {
+                cache = await saveWeatherCache(
+                  userId, 
+                  today, 
+                  { latitude: location.latitude, longitude: location.longitude },
+                  envData.weather,
+                  envData.airQuality
+                );
+              } else {
+                // getCurrentWeatherWithQuotaGuard returned null - quota exhausted during fetch
+                quotaExhausted = true;
+              }
             }
           } catch (weatherError: any) {
             const errorMsg = weatherError?.message || String(weatherError);
@@ -8453,8 +8469,17 @@ Important: This is for educational purposes. Include a brief note that users sho
       }
       
       if (!cache) {
-        logger.warn(`[Environmental] No data available for user ${userId} - no cache and no location`);
-        return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
+        // Return different reasons so frontend can show appropriate message
+        if (!hasLocation) {
+          logger.warn(`[Environmental] No location data for user ${userId}`);
+          return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
+        } else if (quotaExhausted) {
+          logger.warn(`[Environmental] Quota exhausted for user ${userId} - weather unavailable`);
+          return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "quota_exhausted" });
+        } else {
+          logger.warn(`[Environmental] Weather fetch failed for user ${userId}`);
+          return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "api_error" });
+        }
       }
       
       // Flatten air quality data for frontend consumption

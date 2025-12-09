@@ -35,25 +35,34 @@ interface EnvironmentalData {
 export function AirQualityTile({ isDark }: AirQualityTileProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const { data: envData, error: envError, isLoading, isError, failureReason } = useQuery<EnvironmentalData>({
+  const [errorReason, setErrorReason] = useState<string | null>(null);
+  
+  const { data: envData, error: envError, isLoading, isError } = useQuery<EnvironmentalData>({
     queryKey: ['/api/environmental/today'],
     refetchInterval: 300000,
-    retry: false, // Don't retry on 404 - no location data
+    retry: false, // Don't retry on 404/503
   });
 
-  // Debug logging for AQI data - fetch raw response for better error details
+  // Debug logging for AQI data and track error reason
   useEffect(() => {
     console.log('[AQI] Query state:', { isLoading, isError, hasData: !!envData });
     if (isError) {
-      console.error('[AQI] Query failed - checking raw response...');
-      // Fetch directly to get error details
+      // Fetch directly to get error reason
       fetch('/api/environmental/today', { credentials: 'include' })
         .then(res => {
           console.log('[AQI] Direct fetch status:', res.status, res.statusText);
           return res.json().catch(() => ({ parseError: true }));
         })
-        .then(data => console.log('[AQI] Direct fetch response:', data))
-        .catch(err => console.error('[AQI] Direct fetch error:', err));
+        .then(data => {
+          console.log('[AQI] Direct fetch response:', data);
+          setErrorReason(data?.reason || 'unknown');
+        })
+        .catch(err => {
+          console.error('[AQI] Direct fetch error:', err);
+          setErrorReason('unknown');
+        });
+    } else {
+      setErrorReason(null);
     }
     if (envData) {
       console.log('[AQI] Data received:', { 
@@ -173,7 +182,9 @@ export function AirQualityTile({ isDark }: AirQualityTileProps) {
                   isDark ? "text-white/40" : "text-gray-400"
                 }`}
               >
-                Enable location to see air quality
+                {errorReason === 'quota_exhausted' || errorReason === 'api_error' 
+                  ? "Weather data temporarily unavailable"
+                  : "Enable location to see air quality"}
               </span>
             )}
           </div>
