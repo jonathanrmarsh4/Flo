@@ -1,0 +1,105 @@
+2025-12-09 17:38:00.50
+cf25df53
+User
+[2025-12-09T09:38:00.500Z] [WARN] [ReminderDelivery] No devices reached for user test_user_002 {"error":"No active devices"}
+2025-12-09 17:38:00.50
+cf25df53
+User
+[2025-12-09T09:38:00.500Z] [WARN] [APNs] No active device tokens found for user test_user_002
+2025-12-09 17:38:00.53
+cf25df53
+User
+[2025-12-09T09:38:00.536Z] [WARN] [APNs] No active device tokens found for user hkYl-n
+2025-12-09 17:38:00.53
+cf25df53
+User
+[2025-12-09T09:38:00.536Z] [WARN] [ReminderDelivery] No devices reached for user hkYl-n {"error":"No active devices"}
+2025-12-09 17:38:00.57
+cf25df53
+User
+[2025-12-09T09:38:00.573Z] [WARN] [ReminderDelivery] No devices reached for user test-persist-v1 {"error":"No active devices"}
+2025-12-09 17:38:00.57
+cf25df53
+User
+[2025-12-09T09:38:00.572Z] [WARN] [APNs] No active device tokens found for user test-persist-v1
+2025-12-09 17:38:00.60
+cf25df53
+User
+[2025-12-09T09:38:00.609Z] [WARN] [APNs] No active device tokens found for user test-final-v1
+2025-12-09 17:38:00.60
+cf25df53
+User
+[2025-12-09T09:38:00.609Z] [WARN] [ReminderDelivery] No devices reached for user test-final-v1 {"error":"No active devices"}
+2025-12-09 17:38:00.64
+cf25df53
+User
+[2025-12-09T09:38:00.645Z] [WARN] [APNs] No active device tokens found for user test-user-ecNcEQPR
+2025-12-09 17:38:00.64
+cf25df53
+User
+[2025-12-09T09:38:00.645Z] [WARN] [ReminderDelivery] No devices reached for user test-user-ecNcEQPR {"error":"No active devices"}
+2025-12-09 17:38:00.68
+cf25df53
+User
+[2025-12-09T09:38:00.682Z] [WARN] [ReminderDelivery] No devices reached for user final-test {"error":"No active devices"}
+2025-12-09 17:38:00.68
+cf25df53
+User
+[2025-12-09T09:38:00.682Z] [WARN] [APNs] No active device tokens found for user final-test
+2025-12-09 17:38:00.71
+cf25df53
+User
+[2025-12-09T09:38:00.718Z] [WARN] [ReminderDelivery] No devices reached for user test-user-upload-history {"error":"No active devices"}
+2025-12-09 17:38:00.71
+cf25df53
+User
+[2025-12-09T09:38:00.718Z] [WARN] [APNs] No active device tokens found for user test-user-upload-history
+2025-12-09 17:38:00.75
+cf25df53
+User
+[2025-12-09T09:38:00.753Z] [WARN] [APNs] No active device tokens found for user test-user-insights
+2025-12-09 17:38:00.75
+cf25df53
+User
+[2025-12-09T09:38:00.753Z] [WARN] [ReminderDelivery] No devices reached for user test-user-insights {"error":"No active devices"}
+2025-12-09 17:38:00.79
+cf25df53
+User
+[2025-12-09T09:38:00.790Z] [WARN] [APNs] No active device tokens found for user TfHX3a
+2025-12-09 17:38:00.79
+cf25df53
+User
+[2025-12-09T09:38:00.790Z] [WARN] [ReminderDelivery] No devices reached for user TfHX3a {"error":"No active devices"}
+2025-12-09 17:38:00.82
+cf25df53
+User
+[2025-12-09T09:38:00.827Z] [WARN] [APNs] No active device tokens found for user K8aFip
+
+2025-12-09 17:38:00.82
+cf25df53
+User
+[2025-12-09T09:38:00.827Z] [WARN] [ReminderDelivery] No devices reached for user K8aFip {"error":"No active devices"}
+2025-12-09 17:38:00.86
+cf25df53
+User
+[2025-12-09T09:38:00.863Z] [WARN] [APNs] No active device tokens found for user IHf4ob
+2025-12-09 17:38:00.86
+cf25df53
+User
+[2025-12-09T09:38:00.863Z] [WARN] [ReminderDelivery] No devices reached for user IHf4ob {"error":"No active devices"}
+2025-12-09 17:38:00.89
+cf25df53
+User
+[2025-12-09T09:38:00.899Z] [WARN] [APNs] No active device tokens found for user apple-test-review
+2025-12-09 17:38:00.89
+cf25df53
+User
+[2025-12-09T09:38:00.899Z] [WARN] [ReminderDelivery] No devices reached for user apple-test-review {"error":"No active devices"}
+2025-12-09 17:38:05.00
+cf25df53
+User
+9:38:05 AM [express] GET /api/anomaly-alerts/pending 304 in 181ms :: {"alerts":[]}
+2025-12-09 17:38:05.00
+cf25df53
+User
+9:38:05 AM [express] GET /api/anomaly-alerts/pending 304 in 181ms :: {"alerts":[]}
