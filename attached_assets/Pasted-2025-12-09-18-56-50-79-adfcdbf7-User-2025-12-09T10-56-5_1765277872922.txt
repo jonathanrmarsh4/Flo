@@ -1,0 +1,146 @@
+2025-12-09 18:56:50.79
+adfcdbf7
+User
+[2025-12-09T10:56:50.799Z] [INFO] [APNs] Sending notification to device: FE02E4C5AD...
+2025-12-09 18:56:50.80
+adfcdbf7
+User
+[2025-12-09T10:56:50.801Z] [ERROR] [APNs] Failed to send notification: {"error":{"message":"Invalid private key provided for algorithm ES256.","stack":"Error: Invalid private key provided for algorithm ES256.\n at checkIsCompatibleAlgorithm (/home/runner/workspace/node_modules/fast-jwt/src/signer.js:38:11)\n at createSigner (/home/runner/workspace/node_modules/fast-jwt/src/signer.js:226:7)\n at ApnsClient._getSigningToken (file:///home/runner/workspace/node_modules/apns2/dist/esm/apns.js:137:24)\n at ApnsClient.send (file:///home/runner/workspace/node_modules/apns2/dist/esm/apns.js:54:43)\n at ApnsService.sendNotification (file:///home/runner/workspace/dist/index.js:16425:29)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async file:///home/runner/workspace/dist/index.js:16472:28\n at async Promise.all (index 0)\n at async ApnsService.sendBatchNotifications (file:///home/runner/workspace/dist/index.js:16470:25)\n at async ApnsService.sendToUser (file:///home/runner/workspace/dist/index.js:16497:27)"}}
+2025-12-09 18:56:50.80
+adfcdbf7
+User
+[2025-12-09T10:56:50.801Z] [INFO] [APNs] Batch send complete: 0 successful, 1 failed
+2025-12-09 18:56:50.80
+adfcdbf7
+User
+[2025-12-09T10:56:50.801Z] [WARN] [Admin] No devices found for any ID: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-09 18:56:50.83
+adfcdbf7
+User
+10:56:50 AM [express] POST /api/admin/test-push 200 in 659ms :: {"devicesReached":0,"error":"No activ…
+2025-12-09 18:56:50.83
+adfcdbf7
+User
+10:56:50 AM [express] POST /api/admin/test-push 200 in 659ms :: {"devicesReached":0,"error":"No activ…
+2025-12-09 18:56:50.83
+adfcdbf7
+User
+10:56:50 AM [express] POST /api/admin/test-push 200 in 659ms :: {"devicesReached":0,"error":"No activ…
+2025-12-09 18:57:00.31
+adfcdbf7
+User
+[2025-12-09T10:57:00.313Z] [INFO] [ReminderDelivery] Found 12 reminders ready for delivery
+2025-12-09 18:57:00.55
+adfcdbf7
+User
+[2025-12-09T10:57:00.557Z] [WARN] [ReminderDelivery] No user_profile found for health_id test_user_002, using as-is
+2025-12-09 18:57:00.59
+adfcdbf7
+User
+[2025-12-09T10:57:00.591Z] [WARN] [ReminderDelivery] No devices reached for user test_user_002 {"error":"No active devices"}
+2025-12-09 18:57:00.59
+adfcdbf7
+User
+[2025-12-09T10:57:00.591Z] [WARN] [APNs] No active device tokens found for user test_user_002
+2025-12-09 18:57:00.84
+adfcdbf7
+User
+[2025-12-09T10:57:00.845Z] [WARN] [ReminderDelivery] No user_profile found for health_id hkYl-n, using as-is
+2025-12-09 18:57:00.87
+adfcdbf7
+User
+[2025-12-09T10:57:00.879Z] [WARN] [APNs] No active device tokens found for user hkYl-n
+2025-12-09 18:57:00.87
+adfcdbf7
+User
+[2025-12-09T10:57:00.879Z] [WARN] [ReminderDelivery] No devices reached for user hkYl-n {"error":"No active devices"}
+2025-12-09 18:57:01.11
+adfcdbf7
+User
+[2025-12-09T10:57:01.118Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-persist-v1, using as-is
+2025-12-09 18:57:01.15
+adfcdbf7
+User
+[2025-12-09T10:57:01.153Z] [WARN] [ReminderDelivery] No devices reached for user test-persist-v1 {"error":"No active devices"}
+2025-12-09 18:57:01.15
+adfcdbf7
+User
+[2025-12-09T10:57:01.153Z] [WARN] [APNs] No active device tokens found for user test-persist-v1
+2025-12-09 18:57:01.39
+adfcdbf7
+User
+[2025-12-09T10:57:01.390Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-final-v1, using as-is
+2025-12-09 18:57:01.42
+adfcdbf7
+User
+[2025-12-09T10:57:01.424Z] [WARN] [ReminderDelivery] No devices reached for user test-final-v1 {"error":"No active devices"}
+2025-12-09 18:57:01.42
+adfcdbf7
+User
+[2025-12-09T10:57:01.424Z] [WARN] [APNs] No active device tokens found for user test-final-v1
+2025-12-09 18:57:01.66
+adfcdbf7
+User
+[2025-12-09T10:57:01.663Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-ecNcEQPR, using as-is
+2025-12-09 18:57:01.67
+adfcdbf7
+User
+[2025-12-09T10:57:01.679Z] [INFO] [CGMSync] Running initial sync check
+2025-12-09 18:57:01.69
+adfcdbf7
+User
+[2025-12-09T10:57:01.698Z] [WARN] [APNs] No active device tokens found for user test-user-ecNcEQPR
+2025-12-09 18:57:01.69
+adfcdbf7
+User
+[2025-12-09T10:57:01.698Z] [WARN] [ReminderDelivery] No devices reached for user test-user-ecNcEQPR {"error":"No active devices"}
+2025-12-09 18:57:01.97
+adfcdbf7
+User
+[2025-12-09T10:57:01.972Z] [WARN] [ReminderDelivery] No user_profile found for health_id final-test, using as-is
+
+2025-12-09 18:57:02.00
+adfcdbf7
+User
+[2025-12-09T10:57:02.007Z] [WARN] [APNs] No active device tokens found for user final-test
+2025-12-09 18:57:02.00
+adfcdbf7
+User
+[2025-12-09T10:57:02.007Z] [WARN] [ReminderDelivery] No devices reached for user final-test {"error":"No active devices"}
+2025-12-09 18:57:02.24
+adfcdbf7
+User
+[2025-12-09T10:57:02.248Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-upload-history, using as-is
+2025-12-09 18:57:02.28
+adfcdbf7
+User
+[2025-12-09T10:57:02.283Z] [WARN] [APNs] No active device tokens found for user test-user-upload-history
+2025-12-09 18:57:02.28
+adfcdbf7
+User
+[2025-12-09T10:57:02.283Z] [WARN] [ReminderDelivery] No devices reached for user test-user-upload-history {"error":"No active devices"}
+2025-12-09 18:57:02.53
+adfcdbf7
+User
+[2025-12-09T10:57:02.532Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-insights, using as-is
+2025-12-09 18:57:02.56
+adfcdbf7
+User
+[2025-12-09T10:57:02.566Z] [WARN] [APNs] No active device tokens found for user test-user-insights
+2025-12-09 18:57:02.56
+adfcdbf7
+User
+[2025-12-09T10:57:02.566Z] [WARN] [ReminderDelivery] No devices reached for user test-user-insights {"error":"No active devices"}
+2025-12-09 18:57:02.56
+adfcdbf7
+User
+[2025-12-09T10:57:02.566Z] [WARN] [ReminderDelivery] No devices reached for user test-user-insights {"error":"No active devices"}
+2025-12-09 18:57:02.56
+adfcdbf7
+User
+[2025-12-09T10:57:02.566Z] [WARN] [APNs] No active device tokens found for user test-user-insights
+2025-12-09 18:57:02.80
+adfcdbf7
+User
+[2025-12-09T10:57:02.805Z] [WARN] [ReminderDelivery] No user_profile found for health_id TfHX3a, using as-is
+

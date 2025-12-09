@@ -46,11 +46,37 @@ class ApnsService {
         ? 'api.push.apple.com'
         : 'api.sandbox.push.apple.com';
 
+      // Normalize the signing key - ensure proper PEM format with newlines
+      let signingKey = this.config.signingKey;
+      
+      // If the key is all on one line (newlines were stripped), reformat it
+      if (signingKey && !signingKey.includes('\n')) {
+        // Extract the base64 content between BEGIN and END markers
+        const beginMarker = '-----BEGIN PRIVATE KEY-----';
+        const endMarker = '-----END PRIVATE KEY-----';
+        
+        let base64Content = signingKey
+          .replace(beginMarker, '')
+          .replace(endMarker, '')
+          .replace(/\s+/g, '');
+        
+        // Rebuild the key with proper PEM format (64 char lines)
+        const lines = [];
+        lines.push(beginMarker);
+        for (let i = 0; i < base64Content.length; i += 64) {
+          lines.push(base64Content.substring(i, i + 64));
+        }
+        lines.push(endMarker);
+        signingKey = lines.join('\n');
+        
+        logger.info('[APNs] Reformatted signing key to proper PEM format');
+      }
+
       // Initialize APNs client with token-based authentication
       this.client = new ApnsClient({
         team: this.config.teamId,
         keyId: this.config.keyId,
-        signingKey: Buffer.from(this.config.signingKey, 'utf-8'),
+        signingKey: Buffer.from(signingKey, 'utf-8'),
         defaultTopic: this.config.bundleId,
         requestTimeout: 10000, // 10 second timeout
         keepAlive: true,
