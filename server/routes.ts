@@ -2771,6 +2771,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         activeInterventions: activeInterventions,
       };
       
+      logger.info('[HealthSummaryReport] Sending response:', {
+        totalBiomarkers,
+        biomarkerCategoriesCount: biomarkerCategories.length,
+        criticalAlertsCount: criticalAlerts.length,
+        retestRecommendationsCount: retestRecommendations.length,
+        correlationInsightsCount: correlationInsights.length,
+        activeInterventionsCount: activeInterventions.length,
+        sampleCategory: biomarkerCategories[0]?.category,
+        sampleMarkerCount: biomarkerCategories[0]?.markers?.length,
+      });
+      
       res.json(healthReportData);
       
     } catch (error: any) {

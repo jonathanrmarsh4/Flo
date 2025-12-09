@@ -84,8 +84,18 @@ const defaultReportData: HealthReportData = {
 };
 
 export function HealthReportScreen({ isDark, onClose, reportData }: HealthReportScreenProps) {
+  console.log('[HealthReportScreen] reportData prop:', reportData);
+  console.log('[HealthReportScreen] reportData?.patientData:', reportData?.patientData);
+  console.log('[HealthReportScreen] reportData?.biomarkerCategories:', reportData?.biomarkerCategories);
+  
   const data = reportData || defaultReportData;
   const { patientData, criticalAlerts, biomarkerCategories, correlationInsights, retestRecommendations, activeInterventions } = data;
+  
+  console.log('[HealthReportScreen] Using data:', { 
+    totalBiomarkers: patientData.totalBiomarkers,
+    biomarkerCategoriesCount: biomarkerCategories?.length,
+    retestRecommendationsCount: retestRecommendations?.length 
+  });
 
   const handleDownloadPDF = () => {
     window.print();

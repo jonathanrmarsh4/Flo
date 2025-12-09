@@ -29,6 +29,10 @@ export function ReportTile() {
       return response.json() as Promise<HealthReportData>;
     },
     onSuccess: (data) => {
+      console.log('[ReportTile] API response received:', JSON.stringify(data, null, 2));
+      console.log('[ReportTile] patientData:', data?.patientData);
+      console.log('[ReportTile] biomarkerCategories count:', data?.biomarkerCategories?.length);
+      console.log('[ReportTile] retestRecommendations count:', data?.retestRecommendations?.length);
       setReportData(data);
       setShowFullReport(true);
     },
