@@ -1,0 +1,95 @@
+
+[Nutrition] ✅ Aggregation triggered for 2025-12-09
+[Nutrition] ✅ Aggregation triggered for 2025-12-08
+[Nutrition] ✅ Aggregation triggered for 2025-12-04
+[Nutrition] ✅ Aggregation triggered for 2025-12-07
+[Nutrition] ✅ Aggregation triggered for 2025-12-03
+[Nutrition] ✅ Aggregation triggered for 2025-12-06
+[Nutrition] ✅ Aggregation triggered for 2025-12-05
+[Nutrition] ✅ Aggregation triggered for 2025-12-02
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+📊 [HealthSyncPlugin] Sync #1 completed, 1 active syncs remaining
+[Workouts] Found 12 workouts
+[Sleep] Successfully uploaded raw samples for 2025-12-03
+[Sleep] Successfully uploaded raw samples for 2025-12-04
+[Sleep] Successfully uploaded raw samples for 2025-12-02
+[Sleep] Successfully uploaded raw samples for 2025-12-05
+[Sleep] Successfully uploaded raw samples for 2025-12-08
+[Sleep] Successfully uploaded raw samples for 2025-12-07
+[Sleep] Successfully uploaded raw samples for 2025-12-06
+[Sleep] Successfully uploaded raw samples for 2025-12-09
+[Sleep] Successfully uploaded 8 sleep nights
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Found 12 workouts
+[Workouts] Uploading 12 workouts to backend
+[Workouts] Upload successful: {"inserted":0,"duplicates":12,"total":12}
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 2 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 1 mindfulness sessions
+[Mindfulness] Found 1 mindfulness sessions
+[Mindfulness] Uploading 4 samples to backend
+[Mindfulness] Successfully uploaded 4 samples
+[Nutrition] Querying 26 nutrition types for 2025-12-02
+[Nutrition] Querying 26 nutrition types for 2025-12-03
+[Nutrition] Querying 26 nutrition types for 2025-12-04
+[Nutrition] Querying 26 nutrition types for 2025-12-05
+[Nutrition] Querying 26 nutrition types for 2025-12-06
+[Nutrition] Querying 26 nutrition types for 2025-12-07
+[Nutrition] Querying 26 nutrition types for 2025-12-08
+[Nutrition] Querying 26 nutrition types for 2025-12-09
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-02
+[Nutrition] ✅ Found data: dietaryProtein:7, dietaryEnergyConsumed:8, dietaryCarbohydrates:7, dietaryFatTotal:7, dietaryFiber:5, dietarySugar:7, dietaryFatSaturated:7, dietaryFatMonounsaturated:7, dietaryCholesterol:7, dietaryFatPolyunsaturated:7, dietaryPotassium:7, dietaryCalcium:7, dietarySodium:9, dietaryIron:7, dietaryMagnesium:7, dietaryZinc:7, dietaryVitaminA:6, dietaryVitaminC:3, dietaryVitaminD:2, dietaryVitaminK:4, dietaryVitaminE:7, dietaryVitaminB6:7, dietaryVitaminB12:4, dietaryFolate:5, dietaryCaffeine:3, dietaryWater:22
+[Nutrition] Total samples collected: 176
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-03
+[Nutrition] ✅ Found data: dietaryProtein:7, dietaryEnergyConsumed:8, dietaryFatTotal:7, dietaryFiber:7, dietaryCarbohydrates:8, dietarySugar:8, dietaryFatSaturated:7, dietaryFatMonounsaturated:5, dietaryFatPolyunsaturated:5, dietaryCholesterol:5, dietarySodium:9, dietaryPotassium:6, dietaryCalcium:7, dietaryIron:5, dietaryMagnesium:6, dietaryZinc:5, dietaryVitaminD:2, dietaryVitaminA:3, dietaryVitaminC:3, dietaryVitaminE:5, dietaryVitaminB6:5, dietaryVitaminB12:4, dietaryFolate:4, dietaryVitaminK:5, dietaryCaffeine:3, dietaryWater:22
+[Nutrition] Total samples collected: 161
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-04
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:7, dietaryCarbohydrates:6, dietaryProtein:7, dietaryFatTotal:7, dietaryFatSaturated:7, dietaryFiber:5, dietarySugar:6, dietaryFatMonounsaturated:7, dietaryFatPolyunsaturated:7, dietarySodium:6, dietaryCholesterol:5, dietaryPotassium:7, dietaryIron:6, dietaryMagnesium:7, dietaryCalcium:7, dietaryZinc:7, dietaryVitaminC:4, dietaryVitaminD:4, dietaryVitaminA:6, dietaryVitaminE:6, dietaryVitaminB6:6, dietaryVitaminB12:4, dietaryFolate:7, dietaryVitaminK:7, dietaryCaffeine:1, dietaryWater:27
+[Nutrition] Total samples collected: 176
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-05
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryCarbohydrates:5, dietaryFatTotal:5, dietaryFiber:3, dietaryFatMonounsaturated:5, dietarySugar:5, dietaryCholesterol:3, dietaryFatPolyunsaturated:5, dietaryPotassium:5, dietaryFatSaturated:5, dietarySodium:6, dietaryIron:4, dietaryCalcium:5, dietaryMagnesium:5, dietaryZinc:5, dietaryVitaminD:2, dietaryVitaminC:3, dietaryVitaminA:3, dietaryVitaminK:5, dietaryVitaminE:5, dietaryVitaminB6:5, dietaryFolate:5, dietaryVitaminB12:3, dietaryCaffeine:3, dietaryWater:21
+[Nutrition] Total samples collected: 132
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-06
+[Nutrition] ✅ Found data: dietaryProtein:5, dietaryEnergyConsumed:6, dietaryCarbohydrates:6, dietarySugar:6, dietaryFiber:5, dietaryFatMonounsaturated:5, dietaryFatTotal:5, dietaryFatSaturated:5, dietaryFatPolyunsaturated:5, dietaryCholesterol:4, dietaryPotassium:5, dietaryCalcium:5, dietaryIron:5, dietaryMagnesium:5, dietaryZinc:5, dietaryVitaminA:4, dietaryVitaminC:5, dietaryVitaminD:2, dietaryVitaminE:5, dietaryVitaminK:5, dietaryVitaminB6:5, dietaryVitaminB12:4, dietaryFolate:5, dietaryCaffeine:2, dietarySodium:7, dietaryWater:18
+[Nutrition] Total samples collected: 139
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-07
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryFatTotal:6, dietaryCarbohydrates:6, dietaryFiber:3, dietaryFatSaturated:5, dietaryFatMonounsaturated:5, dietaryFatPolyunsaturated:5, dietarySugar:6, dietaryCholesterol:3, dietarySodium:7, dietaryPotassium:6, dietaryMagnesium:6, dietaryCalcium:6, dietaryIron:6, dietaryZinc:6, dietaryVitaminD:2, dietaryVitaminC:5, dietaryVitaminA:3, dietaryVitaminE:5, dietaryVitaminB6:6, dietaryVitaminK:4, dietaryFolate:5, dietaryCaffeine:1, dietaryVitaminB12:4, dietaryWater:23
+[Nutrition] Total samples collected: 145
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-08
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:6, dietaryFatTotal:6, dietaryFiber:6, dietaryCarbohydrates:6, dietarySugar:6, dietaryFatMonounsaturated:6, dietaryFatSaturated:6, dietarySodium:6, dietaryCholesterol:4, dietaryCalcium:6, dietaryPotassium:6, dietaryFatPolyunsaturated:6, dietaryMagnesium:6, dietaryZinc:6, dietaryIron:6, dietaryVitaminA:4, dietaryVitaminD:2, dietaryVitaminE:6, dietaryVitaminC:3, dietaryVitaminK:6, dietaryVitaminB6:6, dietaryVitaminB12:4, dietaryFolate:5, dietaryCaffeine:2, dietaryWater:24
+[Nutrition] Total samples collected: 156
+[Nutrition] Queried 26 types for 2025-12-09
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:5, dietaryProtein:4, dietaryCarbohydrates:5, dietaryFiber:3, dietarySugar:5, dietaryFatTotal:4, dietaryFatMonounsaturated:2, dietaryFatSaturated:4, dietarySodium:5, dietaryPotassium:3, dietaryIron:1, dietaryMagnesium:2, dietaryFatPolyunsaturated:2, dietaryZinc:2, dietaryVitaminC:2, dietaryCalcium:4, dietaryVitaminK:2, dietaryVitaminE:2, dietaryVitaminA:1, dietaryVitaminB6:2, dietaryFolate:2, dietaryWater:3, dietaryCaffeine:1
+[Nutrition] Total samples collected: 66
+[Nutrition] Uploading 1151 samples to backend
+[Nutrition] Successfully uploaded 1151 samples
+[Nutrition] ✅ Aggregation triggered for 2025-12-09
+[Nutrition] ✅ Aggregation triggered for 2025-12-07
+[Nutrition] ✅ Aggregation triggered for 2025-12-04
+[Nutrition] ✅ Aggregation triggered for 2025-12-02
+[Nutrition] ✅ Aggregation triggered for 2025-12-08
+[Nutrition] ✅ Aggregation triggered for 2025-12-05
+[Nutrition] ✅ Aggregation triggered for 2025-12-06
+[Nutrition] ✅ Aggregation triggered for 2025-12-03
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+📊 [HealthSyncPlugin] Sync #2 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+[Workouts] Found 12 workouts
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x126664690 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
