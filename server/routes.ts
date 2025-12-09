@@ -8377,17 +8377,53 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
   
+  // Diagnostic endpoint to check location status for debugging
+  app.get("/api/location/status", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      const { getLatestLocation, getLocationHistory, getHealthId } = await import('./services/supabaseHealthStorage');
+      const healthId = await getHealthId(userId);
+      const latestLocation = await getLatestLocation(userId);
+      const recentLocations = await getLocationHistory(userId, { limit: 5 });
+      
+      res.json({
+        userId: userId.substring(0, 8) + '...',
+        healthId: healthId ? healthId.substring(0, 8) + '...' : null,
+        hasLocation: !!latestLocation,
+        latestLocation: latestLocation ? {
+          lat: latestLocation.latitude?.toFixed(4),
+          lon: latestLocation.longitude?.toFixed(4),
+          recordedAt: latestLocation.recorded_at,
+          source: latestLocation.source,
+        } : null,
+        recentLocationCount: recentLocations.length,
+        recentLocations: recentLocations.map((l: any) => ({
+          recordedAt: l.recorded_at,
+          source: l.source,
+        })),
+      });
+    } catch (error: any) {
+      logger.error(`[Location] Error checking location status:`, error);
+      res.status(500).json({ error: error.message || "Failed to check location status" });
+    }
+  });
+  
   app.get("/api/environmental/today", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const today = new Date().toISOString().split('T')[0];
       
+      logger.info(`[Environmental] Fetching today's data for user ${userId}, date ${today}`);
+      
       const { getCachedWeather, getLatestLocation, saveWeatherCache } = await import('./services/supabaseHealthStorage');
       
       let cache = await getCachedWeather(userId, today);
+      logger.info(`[Environmental] Cache lookup result: ${cache ? 'found' : 'not found'}`);
       
       if (!cache && process.env.OPENWEATHER_API_KEY) {
         const location = await getLatestLocation(userId);
+        logger.info(`[Environmental] Location lookup result: ${location ? `found (${location.latitude?.toFixed(4)}, ${location.longitude?.toFixed(4)})` : 'not found'}`);
         if (location) {
           try {
             const { getCurrentWeatherWithQuotaGuard } = await import('./services/environmentalBackfillService');
@@ -8414,7 +8450,8 @@ Important: This is for educational purposes. Include a brief note that users sho
       }
       
       if (!cache) {
-        return res.status(404).json({ error: "No environmental data available" });
+        logger.warn(`[Environmental] No data available for user ${userId} - no cache and no location`);
+        return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
       }
       
       // Flatten air quality data for frontend consumption
