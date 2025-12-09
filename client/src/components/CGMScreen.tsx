@@ -76,9 +76,78 @@ interface CGMData {
   };
 }
 
+// Generate demo data for testing
+function generateDemoData(range: '3h' | '6h' | '24h'): CGMData {
+  const now = new Date();
+  const hoursMap = { '3h': 3, '6h': 6, '24h': 24 };
+  const hours = hoursMap[range];
+  const readings: CGMData['readings'] = [];
+  
+  // Generate realistic glucose pattern with meals and sleep
+  for (let i = hours * 12; i >= 0; i--) { // Every 5 minutes
+    const time = new Date(now.getTime() - i * 5 * 60 * 1000);
+    const hour = time.getHours();
+    
+    // Base glucose around 5.5 mmol/L
+    let base = 5.5;
+    
+    // Simulate meal spikes
+    if (hour >= 7 && hour <= 9) base += Math.sin((hour - 7) * Math.PI / 2) * 2; // Breakfast
+    if (hour >= 12 && hour <= 14) base += Math.sin((hour - 12) * Math.PI / 2) * 2.5; // Lunch
+    if (hour >= 18 && hour <= 20) base += Math.sin((hour - 18) * Math.PI / 2) * 3; // Dinner
+    
+    // Add some randomness
+    const noise = (Math.random() - 0.5) * 1.2;
+    const value = Math.max(3.0, Math.min(12.0, base + noise));
+    
+    readings.push({
+      valueMmol: parseFloat(value.toFixed(1)),
+      timestamp: time.toISOString(),
+      timeLabel: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
+  }
+  
+  // Calculate stats from readings
+  const values = readings.map(r => r.valueMmol);
+  const inRange = values.filter(v => v >= 3.9 && v <= 7.8).length;
+  const avgGlucose = values.reduce((a, b) => a + b, 0) / values.length;
+  const lowAlerts = values.filter(v => v < 3.0).length;
+  
+  // GMI formula: A1c = (avgGlucose * 18.0182 + 46.7) / 28.7 (simplified)
+  const estimatedA1c = parseFloat(((avgGlucose + 2.59) / 1.59).toFixed(1));
+  
+  const latestReading = readings[readings.length - 1];
+  const prevReading = readings[readings.length - 2];
+  const trendRate = latestReading && prevReading 
+    ? parseFloat((latestReading.valueMmol - prevReading.valueMmol).toFixed(2))
+    : 0;
+  
+  return {
+    currentReading: {
+      value: Math.round(latestReading.valueMmol * 18.0182),
+      valueMmol: latestReading.valueMmol,
+      trend: trendRate > 0.1 ? 'rising' : trendRate < -0.1 ? 'falling' : 'stable',
+      trendRate,
+      recordedAt: latestReading.timestamp,
+      source: 'demo',
+    },
+    readings,
+    stats: {
+      avgGlucose: parseFloat(avgGlucose.toFixed(1)),
+      minGlucose: parseFloat(Math.min(...values).toFixed(1)),
+      maxGlucose: parseFloat(Math.max(...values).toFixed(1)),
+      timeInRange: parseFloat(((inRange / values.length) * 100).toFixed(0)),
+      estimatedA1c,
+      lowAlerts,
+    },
+    targetRange: { low: 3.9, high: 7.8 },
+  };
+}
+
 export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
   const [trendRange, setTrendRange] = useState<'3h' | '6h' | '24h'>('6h');
   const [showSettings, setShowSettings] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   const { data: cgmStatus, isLoading: statusLoading } = useQuery<CGMStatus>({
     queryKey: ['/api/dexcom/status'],
@@ -163,8 +232,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     );
   }
 
-  // Not connected - show connection card
-  if (!cgmStatus?.connected) {
+  // Not connected and not in demo mode - show connection card
+  if (!cgmStatus?.connected && !demoMode) {
     return (
       <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'} pb-24`}>
         {/* Header */}
@@ -226,14 +295,25 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
               <p className={`text-sm mb-8 max-w-sm mx-auto ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                 Link your Dexcom to see real-time glucose data, trends, time-in-range analysis, and AI-powered insights.
               </p>
-              <Button 
-                onClick={handleConnectCGM}
-                className="gap-2 px-8 py-3"
-                data-testid="button-connect-dexcom"
-              >
-                <Link2 className="w-4 h-4" />
-                Connect Dexcom
-              </Button>
+              <div className="flex flex-col gap-3">
+                <Button 
+                  onClick={handleConnectCGM}
+                  className="gap-2 px-8 py-3"
+                  data-testid="button-connect-dexcom"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Connect Dexcom
+                </Button>
+                <Button 
+                  onClick={() => setDemoMode(true)}
+                  variant="outline"
+                  className="gap-2 px-8 py-3"
+                  data-testid="button-view-demo"
+                >
+                  <Activity className="w-4 h-4" />
+                  View Demo
+                </Button>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -241,10 +321,14 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     );
   }
 
-  // Connected - show full CGM screen
-  const currentReading = cgmData?.currentReading;
-  const readings = cgmData?.readings ?? [];
-  const stats = cgmData?.stats ?? {
+  // Demo mode or connected - show full CGM screen
+  // Use demo data when in demo mode, otherwise use real data
+  const demoData = demoMode ? generateDemoData(trendRange) : null;
+  const displayData = demoMode ? demoData : cgmData;
+  
+  const currentReading = displayData?.currentReading;
+  const readings = displayData?.readings ?? [];
+  const stats = displayData?.stats ?? {
     avgGlucose: 0,
     minGlucose: 0,
     maxGlucose: 0,
@@ -252,7 +336,7 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     estimatedA1c: 0,
     lowAlerts: 0,
   };
-  const targetRange = cgmData?.targetRange ?? { low: 3.9, high: 7.8 };
+  const targetRange = displayData?.targetRange ?? { low: 3.9, high: 7.8 };
 
   const currentGlucose = currentReading?.valueMmol ?? 0;
   const currentTrend = currentReading?.trend ?? 'stable';
@@ -305,13 +389,17 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
           <div className="mt-3 flex items-center gap-2">
             <div
               className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 ${
-                cgmStatus?.isSandbox
+                demoMode
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : cgmStatus?.isSandbox
                   ? 'bg-yellow-500/20 text-yellow-400'
                   : 'bg-green-500/20 text-green-400'
               }`}
             >
               <div className="w-1.5 h-1.5 rounded-full bg-current" />
-              Connected • Dexcom{cgmStatus?.isSandbox ? ' (Sandbox)' : ''}
+              {demoMode 
+                ? 'Demo Mode' 
+                : `Connected • Dexcom${cgmStatus?.isSandbox ? ' (Sandbox)' : ''}`}
             </div>
           </div>
         </div>
@@ -735,35 +823,65 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
           }`}
         >
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center flex-shrink-0">
-              <Droplet className="w-6 h-6 text-white" />
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+              demoMode 
+                ? 'bg-gradient-to-br from-purple-500 to-purple-600'
+                : 'bg-gradient-to-br from-orange-500 to-orange-600'
+            }`}>
+              {demoMode ? <Activity className="w-6 h-6 text-white" /> : <Droplet className="w-6 h-6 text-white" />}
             </div>
             <div className="flex-1">
               <h3 className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Dexcom CGM
+                {demoMode ? 'Demo Mode' : 'Dexcom CGM'}
               </h3>
               <p className={`text-sm mb-3 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                {cgmStatus?.isSandbox ? 'Sandbox mode - test data only' : 'Real-time glucose monitoring connected'}
+                {demoMode 
+                  ? 'Simulated glucose data for preview purposes' 
+                  : cgmStatus?.isSandbox 
+                    ? 'Sandbox mode - test data only' 
+                    : 'Real-time glucose monitoring connected'}
               </p>
-              <div className="flex items-center gap-4 text-xs">
-                <div className={isDark ? 'text-white/50' : 'text-gray-500'}>
-                  Connected: {cgmStatus?.connectedAt ? new Date(cgmStatus.connectedAt).toLocaleDateString() : 'Unknown'}
+              {!demoMode && (
+                <div className="flex items-center gap-4 text-xs">
+                  <div className={isDark ? 'text-white/50' : 'text-gray-500'}>
+                    Connected: {cgmStatus?.connectedAt ? new Date(cgmStatus.connectedAt).toLocaleDateString() : 'Unknown'}
+                  </div>
+                  <div className={isDark ? 'text-white/50' : 'text-gray-500'}>
+                    Last sync: {cgmStatus?.lastSyncAt ? new Date(cgmStatus.lastSyncAt).toLocaleTimeString() : 'Never'}
+                  </div>
                 </div>
-                <div className={isDark ? 'text-white/50' : 'text-gray-500'}>
-                  Last sync: {cgmStatus?.lastSyncAt ? new Date(cgmStatus.lastSyncAt).toLocaleTimeString() : 'Never'}
-                </div>
-              </div>
+              )}
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-white/10">
-            <button
-              onClick={() => disconnectMutation.mutate()}
-              disabled={disconnectMutation.isPending}
-              className={`text-sm ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-500'} transition-colors`}
-              data-testid="button-disconnect-dexcom"
-            >
-              {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect Dexcom'}
-            </button>
+            {demoMode ? (
+              <div className="flex flex-col gap-3">
+                <Button 
+                  onClick={handleConnectCGM}
+                  className="gap-2 w-full"
+                  data-testid="button-connect-dexcom-from-demo"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Connect Real Dexcom
+                </Button>
+                <button
+                  onClick={() => setDemoMode(false)}
+                  className={`text-sm ${isDark ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-500'} transition-colors`}
+                  data-testid="button-exit-demo"
+                >
+                  Exit Demo
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending}
+                className={`text-sm ${isDark ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-500'} transition-colors`}
+                data-testid="button-disconnect-dexcom"
+              >
+                {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect Dexcom'}
+              </button>
+            )}
           </div>
         </motion.div>
       </div>
