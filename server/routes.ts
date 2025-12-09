@@ -2492,10 +2492,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           for (const m of measurements) {
-            // Normalize snake_case from Supabase
+            // Normalize snake_case from Supabase - measurements use valueCanonical/valueRaw, not value
             const biomarkerId = m.biomarker_id || m.biomarkerId;
-            const value = m.value;
-            const unit = m.unit;
+            const value = m.valueCanonical ?? m.value_canonical ?? m.valueRaw ?? m.value_raw ?? m.value;
+            const unit = m.unitCanonical ?? m.unit_canonical ?? m.unitRaw ?? m.unit_raw ?? m.unit;
             
             if (value === null || value === undefined) continue;
             if (!biomarkerId) {
