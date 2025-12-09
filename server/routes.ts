@@ -7386,6 +7386,259 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================================================
+  // CLI-Compatible Device Token & Push Notification Debug Endpoints
+  // Use x-admin-key header for authentication from terminal/Postman
+  // ============================================================================
+
+  // List device tokens for a user (CLI-compatible)
+  app.get("/api/cli/device-tokens/:userId", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId } = req.params;
+      
+      const tokens = await db
+        .select()
+        .from(deviceTokens)
+        .where(eq(deviceTokens.userId, userId));
+
+      logger.info(`[CLI] Device tokens lookup for user ${userId}: ${tokens.length} found`);
+      
+      res.json({
+        userId,
+        tokenCount: tokens.length,
+        tokens: tokens.map(t => ({
+          id: t.id,
+          platform: t.platform,
+          isActive: t.isActive,
+          tokenPreview: t.deviceToken.substring(0, 20) + '...',
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+        })),
+      });
+    } catch (error: any) {
+      logger.error('[CLI] Device tokens lookup error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Register a device token manually (CLI-compatible for testing)
+  app.post("/api/cli/device-tokens", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId, deviceToken, platform = 'ios' } = req.body;
+      
+      if (!userId || !deviceToken) {
+        return res.status(400).json({ error: "userId and deviceToken are required" });
+      }
+
+      // Check if token already exists
+      const [existing] = await db
+        .select()
+        .from(deviceTokens)
+        .where(eq(deviceTokens.deviceToken, deviceToken))
+        .limit(1);
+
+      if (existing) {
+        // Update existing token
+        await db
+          .update(deviceTokens)
+          .set({
+            userId,
+            platform,
+            isActive: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(deviceTokens.deviceToken, deviceToken));
+        
+        logger.info(`[CLI] Updated existing device token for user ${userId}`);
+        res.json({ success: true, message: "Device token updated", userId, platform });
+      } else {
+        // Insert new token
+        await db
+          .insert(deviceTokens)
+          .values({
+            userId,
+            deviceToken,
+            platform,
+            isActive: true,
+          });
+        
+        logger.info(`[CLI] Registered new device token for user ${userId}`);
+        res.json({ success: true, message: "Device token registered", userId, platform });
+      }
+    } catch (error: any) {
+      logger.error('[CLI] Device token registration error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Send test push notification (CLI-compatible)
+  app.post("/api/cli/test-push", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId, title = "Flō Test", body = "This is a test push notification" } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "userId is required" });
+      }
+
+      // First check if user has device tokens
+      const tokens = await db
+        .select()
+        .from(deviceTokens)
+        .where(and(
+          eq(deviceTokens.userId, userId),
+          eq(deviceTokens.isActive, true)
+        ));
+
+      if (tokens.length === 0) {
+        return res.status(400).json({ 
+          error: "No active device tokens found for this user",
+          hint: "Register a token first using POST /api/cli/device-tokens",
+          userId,
+        });
+      }
+
+      const { apnsService } = await import("./services/apnsService");
+      const result = await apnsService.sendToUser(userId, { 
+        title, 
+        body,
+        data: { type: 'test' },
+      });
+
+      logger.info(`[CLI] Test push sent to user ${userId}: ${result.devicesReached} devices reached`);
+      
+      res.json({
+        success: result.success,
+        devicesReached: result.devicesReached,
+        error: result.error,
+        tokensAvailable: tokens.length,
+      });
+    } catch (error: any) {
+      logger.error('[CLI] Test push error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check environmental/AQI data for a user (CLI-compatible)
+  app.get("/api/cli/environmental/:userId", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId } = req.params;
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { getCachedWeather, getLatestLocation } = await import('./services/supabaseHealthStorage');
+      
+      // Check location
+      const location = await getLatestLocation(userId);
+      
+      // Check cached weather for today
+      const cachedWeather = await getCachedWeather(userId, today);
+      
+      // Check if API key exists
+      const hasApiKey = !!process.env.OPENWEATHER_API_KEY;
+      
+      logger.info(`[CLI] Environmental check for user ${userId}: location=${!!location}, cache=${!!cachedWeather}, apiKey=${hasApiKey}`);
+      
+      res.json({
+        userId,
+        date: today,
+        hasOpenWeatherApiKey: hasApiKey,
+        location: location ? {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          recordedAt: location.recordedAt,
+        } : null,
+        cachedWeather: cachedWeather ? {
+          temperature: cachedWeather.temperature,
+          humidity: cachedWeather.humidity,
+          aqi: cachedWeather.aqi,
+          aqiLabel: cachedWeather.aqiLabel,
+          cachedAt: cachedWeather.cachedAt,
+        } : null,
+        diagnosis: !location 
+          ? "No location stored - user needs to grant location permission in app"
+          : !hasApiKey
+            ? "OpenWeather API key not configured"
+            : !cachedWeather
+              ? "No cached data - fetch may have failed or not been triggered"
+              : "Data available",
+      });
+    } catch (error: any) {
+      logger.error('[CLI] Environmental check error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check APNs configuration status (CLI-compatible)
+  app.get("/api/cli/apns-status", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const configs = await db
+        .select({
+          id: apnsConfiguration.id,
+          teamId: apnsConfiguration.teamId,
+          keyId: apnsConfiguration.keyId,
+          bundleId: apnsConfiguration.bundleId,
+          environment: apnsConfiguration.environment,
+          isActive: apnsConfiguration.isActive,
+          createdAt: apnsConfiguration.createdAt,
+        })
+        .from(apnsConfiguration);
+
+      const totalTokens = await db
+        .select({ count: deviceTokens.id })
+        .from(deviceTokens);
+
+      const activeTokens = await db
+        .select({ count: deviceTokens.id })
+        .from(deviceTokens)
+        .where(eq(deviceTokens.isActive, true));
+
+      res.json({
+        apnsConfigurations: configs,
+        deviceTokenStats: {
+          total: totalTokens.length,
+          active: activeTokens.length,
+        },
+      });
+    } catch (error: any) {
+      logger.error('[CLI] APNs status error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ============================================================================
   // Self-Improvement Engine (SIE) - Sandbox Mode
   // Unrestricted AI analysis of Flō's data landscape for product improvements
   // ============================================================================
