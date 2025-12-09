@@ -2659,15 +2659,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const outOfRange = new Set(allResults.filter(r => r.status !== 'optimal').map(r => r.name)).size;
       const requiresAttention = criticalAlerts.length;
       
-      // Generate overall assessment
+      // Generate overall assessment  
       let overallAssessment = "";
+      let aiExecutiveSummary = "";
+      
       if (totalBiomarkers === 0) {
         overallAssessment = "No biomarker data available yet. Upload your blood work results to generate a comprehensive health analysis.";
-      } else if (outOfRange === 0) {
-        overallAssessment = "All biomarkers are within optimal ranges. Continue your current health practices and schedule routine follow-up testing.";
+        aiExecutiveSummary = "";
       } else {
-        const categories = [...new Set(criticalAlerts.map(a => a.marker.split(' ')[0]))];
-        overallAssessment = `Analysis identified ${outOfRange} biomarker${outOfRange > 1 ? 's' : ''} requiring attention. Primary areas for intervention: ${categories.slice(0, 3).join(', ')}. Consider consulting with your healthcare provider for personalized guidance.`;
+        // Generate AI executive summary using Gemini
+        try {
+          const { GoogleGenAI } = await import('@google/genai');
+          const apiKey = process.env.GOOGLE_AI_API_KEY;
+          
+          if (apiKey) {
+            const gemini = new GoogleGenAI({ apiKey });
+            
+            // Build context for the AI
+            const biomarkerSummary = allResults.slice(0, 20).map(r => 
+              `${r.name}: ${r.value} ${r.unit} (${r.status}, trend: ${r.trend})`
+            ).join('\n');
+            
+            const categoryStats = Object.entries(categoryMap).map(([cat, markers]) => {
+              const optimalCount = markers.filter(m => m.status === 'optimal').length;
+              return `${cat}: ${optimalCount}/${markers.length} optimal`;
+            }).join(', ');
+            
+            const prompt = `You are a health analyst writing an executive summary for a personalized health report. Be warm, encouraging, and actionable.
+
+Patient Profile:
+- Age: ${ageYears || 'Unknown'} years
+- Sex: ${profile?.sex || 'Not specified'}
+- Total biomarkers analyzed: ${totalBiomarkers}
+- Biomarkers in optimal range: ${totalBiomarkers - outOfRange}
+- Biomarkers needing attention: ${outOfRange}
+
+Category Overview: ${categoryStats}
+
+Key Biomarkers:
+${biomarkerSummary}
+
+Write a 2-3 paragraph executive summary that:
+1. Opens with an encouraging but honest assessment of overall health status
+2. Highlights the most important findings (both positive and areas for improvement)
+3. Provides practical guidance on how to interpret this report and next steps
+
+Use simple, accessible language. Avoid medical jargon. Be specific about which biomarkers to focus on if any need attention. End with an actionable recommendation.
+
+Important: This is for educational purposes. Include a brief note that users should discuss findings with their healthcare provider.`;
+
+            const result = await gemini.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              config: {
+                temperature: 0.7,
+                maxOutputTokens: 800,
+              },
+            });
+            
+            aiExecutiveSummary = result.text || '';
+            logger.info('[HealthSummaryReport] AI executive summary generated successfully');
+          }
+        } catch (aiError: any) {
+          logger.warn('[HealthSummaryReport] Failed to generate AI executive summary:', aiError?.message);
+        }
+        
+        // Fallback static assessment
+        if (outOfRange === 0) {
+          overallAssessment = "All biomarkers are within optimal ranges. Continue your current health practices and schedule routine follow-up testing.";
+        } else {
+          const categories = [...new Set(criticalAlerts.map(a => a.marker.split(' ')[0]))];
+          overallAssessment = `Analysis identified ${outOfRange} biomarker${outOfRange > 1 ? 's' : ''} requiring attention. Primary areas for intervention: ${categories.slice(0, 3).join(', ')}. Consider consulting with your healthcare provider for personalized guidance.`;
+        }
       }
       
       // Build enhanced retest recommendations for ALL biomarkers, sorted by priority
@@ -2810,6 +2873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           outOfRange: outOfRange,
           requiresAttention: requiresAttention,
           overallAssessment: overallAssessment,
+          aiExecutiveSummary: aiExecutiveSummary,
         },
         criticalAlerts: criticalAlerts,
         biomarkerCategories: biomarkerCategories,

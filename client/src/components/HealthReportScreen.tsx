@@ -18,6 +18,7 @@ export interface HealthReportData {
     outOfRange: number;
     requiresAttention: number;
     overallAssessment: string;
+    aiExecutiveSummary?: string;
   };
   criticalAlerts: Array<{
     marker: string;
@@ -277,12 +278,26 @@ export function HealthReportScreen({ isDark, onClose, reportData }: HealthReport
               </div>
             </div>
 
-            {/* Overall Assessment */}
-            <div className={`p-4 rounded-lg border print:border-gray-300 ${isDark ? 'bg-blue-500/5 border-blue-500/20' : 'bg-blue-50 border-blue-200'}`}>
-              <p className={`text-sm ${isDark ? 'text-blue-200' : 'text-blue-900'} print:text-blue-900`}>
-                <strong>Overall Assessment:</strong> {patientData.overallAssessment}
-              </p>
-            </div>
+            {/* AI Executive Summary */}
+            {patientData.aiExecutiveSummary ? (
+              <div className={`p-5 rounded-xl border print:border-gray-300 ${isDark ? 'bg-gradient-to-br from-teal-500/10 to-blue-500/10 border-teal-500/20' : 'bg-gradient-to-br from-teal-50 to-blue-50 border-teal-200'}`}>
+                <div className="flex items-center gap-2 mb-3">
+                  <Activity className={`w-4 h-4 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+                  <span className={`text-xs font-medium uppercase tracking-wide ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
+                    AI Health Analysis
+                  </span>
+                </div>
+                <div className={`text-sm leading-relaxed whitespace-pre-wrap ${isDark ? 'text-white/80' : 'text-gray-700'} print:text-gray-900`}>
+                  {patientData.aiExecutiveSummary}
+                </div>
+              </div>
+            ) : (
+              <div className={`p-4 rounded-lg border print:border-gray-300 ${isDark ? 'bg-blue-500/5 border-blue-500/20' : 'bg-blue-50 border-blue-200'}`}>
+                <p className={`text-sm ${isDark ? 'text-blue-200' : 'text-blue-900'} print:text-blue-900`}>
+                  <strong>Overall Assessment:</strong> {patientData.overallAssessment}
+                </p>
+              </div>
+            )}
           </section>
 
           {criticalAlerts.length > 0 && (
