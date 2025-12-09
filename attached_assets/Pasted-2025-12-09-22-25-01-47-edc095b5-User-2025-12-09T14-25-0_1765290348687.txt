@@ -1,0 +1,120 @@
+2025-12-09 22:25:01.47
+edc095b5
+User
+[2025-12-09T14:25:01.476Z] [WARN] [APNs] No active device tokens found for user test-final-v1
+2025-12-09 22:25:01.47
+edc095b5
+User
+[2025-12-09T14:25:01.476Z] [WARN] [ReminderDelivery] No devices reached for user test-final-v1 {"error":"No active devices"}
+2025-12-09 22:25:01.70
+edc095b5
+User
+[2025-12-09T14:25:01.709Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-ecNcEQPR, using as-is
+2025-12-09 22:25:01.75
+edc095b5
+User
+[2025-12-09T14:25:01.752Z] [WARN] [APNs] No active device tokens found for user test-user-ecNcEQPR
+2025-12-09 22:25:01.75
+edc095b5
+User
+[2025-12-09T14:25:01.752Z] [WARN] [ReminderDelivery] No devices reached for user test-user-ecNcEQPR {"error":"No active devices"}
+2025-12-09 22:25:02.00
+edc095b5
+User
+[2025-12-09T14:25:02.002Z] [WARN] [ReminderDelivery] No user_profile found for health_id final-test, using as-is
+2025-12-09 22:25:02.04
+edc095b5
+User
+[2025-12-09T14:25:02.046Z] [WARN] [APNs] No active device tokens found for user final-test
+2025-12-09 22:25:02.04
+edc095b5
+User
+[2025-12-09T14:25:02.046Z] [WARN] [ReminderDelivery] No devices reached for user final-test {"error":"No active devices"}
+2025-12-09 22:25:02.28
+edc095b5
+User
+[2025-12-09T14:25:02.288Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-upload-history, using as-is
+2025-12-09 22:25:02.33
+edc095b5
+User
+[2025-12-09T14:25:02.330Z] [WARN] [ReminderDelivery] No devices reached for user test-user-upload-history {"error":"No active devices"}
+2025-12-09 22:25:02.33
+edc095b5
+User
+[2025-12-09T14:25:02.330Z] [WARN] [APNs] No active device tokens found for user test-user-upload-history
+2025-12-09 22:25:02.56
+edc095b5
+User
+[2025-12-09T14:25:02.563Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-insights, using as-is
+2025-12-09 22:25:02.60
+edc095b5
+User
+[2025-12-09T14:25:02.607Z] [WARN] [ReminderDelivery] No devices reached for user test-user-insights {"error":"No active devices"}
+2025-12-09 22:25:02.60
+edc095b5
+User
+[2025-12-09T14:25:02.607Z] [WARN] [APNs] No active device tokens found for user test-user-insights
+2025-12-09 22:25:02.84
+edc095b5
+User
+[2025-12-09T14:25:02.843Z] [WARN] [ReminderDelivery] No user_profile found for health_id TfHX3a, using as-is
+2025-12-09 22:25:02.88
+edc095b5
+User
+[2025-12-09T14:25:02.887Z] [WARN] [ReminderDelivery] No devices reached for user TfHX3a {"error":"No active devices"}
+2025-12-09 22:25:02.88
+edc095b5
+User
+[2025-12-09T14:25:02.887Z] [WARN] [APNs] No active device tokens found for user TfHX3a
+2025-12-09 22:25:03.12
+edc095b5
+User
+[2025-12-09T14:25:03.124Z] [WARN] [ReminderDelivery] No user_profile found for health_id K8aFip, using as-is
+2025-12-09 22:25:03.16
+edc095b5
+User
+[2025-12-09T14:25:03.168Z] [WARN] [ReminderDelivery] No devices reached for user K8aFip {"error":"No active devices"}
+2025-12-09 22:25:03.16
+edc095b5
+User
+[2025-12-09T14:25:03.168Z] [WARN] [APNs] No active device tokens found for user K8aFip
+2025-12-09 22:25:03.39
+edc095b5
+User
+[2025-12-09T14:25:03.399Z] [WARN] [ReminderDelivery] No user_profile found for health_id IHf4ob, using as-is
+2025-12-09 22:25:03.44
+edc095b5
+User
+[2025-12-09T14:25:03.443Z] [WARN] [ReminderDelivery] No devices reached for user IHf4ob {"error":"No active devices"}
+2025-12-09 22:25:03.44
+edc095b5
+User
+[2025-12-09T14:25:03.443Z] [WARN] [APNs] No active device tokens found for user IHf4ob
+2025-12-09 22:25:03.67
+edc095b5
+User
+[2025-12-09T14:25:03.678Z] [WARN] [ReminderDelivery] No user_profile found for health_id apple-test-review, using as-is
+2025-12-09 22:25:03.72
+edc095b5
+User
+[2025-12-09T14:25:03.721Z] [WARN] [APNs] No active device tokens found for user apple-test-review
+2025-12-09 22:25:03.72
+edc095b5
+User
+[2025-12-09T14:25:03.722Z] [WARN] [ReminderDelivery] No devices reached for user apple-test-review {"error":"No active devices"}
+2025-12-09 22:25:03.72
+edc095b5
+User
+[2025-12-09T14:25:03.722Z] [WARN] [ReminderDelivery] No devices reached for user apple-test-review {"error":"No active devices"}
+2025-12-09 22:25:03.72
+edc095b5
+User
+[2025-12-09T14:25:03.721Z] [WARN] [APNs] No active device tokens found for user apple-test-review
+2025-12-09 22:25:03.72
+edc095b5
+User
+[2025-12-09T14:25:03.722Z] [WARN] [ReminderDelivery] No devices reached for user apple-test-review {"error":"No active devices"}
+2025-12-09 22:25:03.72
+edc095b5
+User
+[2025-12-09T14:25:03.721Z] [WARN] [APNs] No
