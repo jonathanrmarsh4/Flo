@@ -47,29 +47,28 @@ export function AirQualityTile({ isDark }: AirQualityTileProps) {
   useEffect(() => {
     console.log('[AQI] Query state:', { isLoading, isError, hasData: !!envData });
     if (isError && envError) {
-      // Extract reason from the error response
-      const errorData = envError as any;
+      // Error format from queryClient: Error("503: {\"error\":\"...\",\"reason\":\"api_error\"}")
+      const errorMessage = (envError as Error)?.message || '';
       let reason = 'unknown';
       
-      // Try to parse from response string (format: {"error":"...", "reason":"..."})
-      if (errorData?.response) {
+      // Parse error message format: "STATUS: JSON_BODY"
+      const colonIndex = errorMessage.indexOf(':');
+      if (colonIndex > 0) {
+        const statusStr = errorMessage.substring(0, colonIndex).trim();
+        const jsonStr = errorMessage.substring(colonIndex + 1).trim();
+        const status = parseInt(statusStr, 10);
+        
         try {
-          const parsed = typeof errorData.response === 'string' 
-            ? JSON.parse(errorData.response) 
-            : errorData.response;
+          const parsed = JSON.parse(jsonStr);
           reason = parsed?.reason || reason;
         } catch (e) {
-          // If parsing fails, check status code
-          if (errorData?.status === 503) reason = 'api_error';
-          else if (errorData?.status === 404) reason = 'no_location_data';
+          // If JSON parse fails, use status code
+          if (status === 503) reason = 'api_error';
+          else if (status === 404) reason = 'no_location_data';
         }
-      } else if (errorData?.status === 503) {
-        reason = 'api_error';
-      } else if (errorData?.status === 404) {
-        reason = 'no_location_data';
       }
       
-      console.log('[AQI] Error detected:', { reason, status: errorData?.status });
+      console.log('[AQI] Error detected:', { reason, message: errorMessage.substring(0, 100) });
       setErrorReason(reason);
     } else {
       setErrorReason(null);
