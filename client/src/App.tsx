@@ -166,6 +166,10 @@ function Router() {
           const config = getNotificationConfig();
           initializeFlomentumNotifications(config);
         });
+        // Initialize APNs push notifications for remote server-sent notifications
+        import('@/services/pushNotificationService').then(({ pushNotificationService }) => {
+          pushNotificationService.initialize();
+        });
       });
     }
   }, [isNative, isAuthenticated]);
