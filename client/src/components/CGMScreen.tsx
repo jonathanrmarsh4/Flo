@@ -584,6 +584,21 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
                       return null;
                     }}
                   />
+                  {/* Red zone above target range */}
+                  <ReferenceArea
+                    y1={targetRange.high}
+                    y2={12}
+                    fill={isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.08)'}
+                    fillOpacity={1}
+                  />
+                  {/* Red zone below target range */}
+                  <ReferenceArea
+                    y1={2}
+                    y2={targetRange.low}
+                    fill={isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.1)'}
+                    fillOpacity={1}
+                  />
+                  {/* Green target zone */}
                   <ReferenceArea
                     y1={targetRange.low}
                     y2={targetRange.high}
@@ -620,6 +635,37 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
                     stroke={isDark ? '#06b6d4' : '#0891b2'}
                     strokeWidth={2.5}
                     fill="url(#glucoseGradientInRange)"
+                    dot={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      if (!payload) return null;
+                      const isOutOfRange = payload.valueMmol < targetRange.low || payload.valueMmol > targetRange.high;
+                      if (!isOutOfRange) return null;
+                      return (
+                        <circle
+                          key={`dot-${cx}-${cy}`}
+                          cx={cx}
+                          cy={cy}
+                          r={4}
+                          fill={isDark ? '#ef4444' : '#dc2626'}
+                          stroke={isDark ? '#fca5a5' : '#fecaca'}
+                          strokeWidth={2}
+                        />
+                      );
+                    }}
+                    activeDot={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      const isOutOfRange = payload.valueMmol < targetRange.low || payload.valueMmol > targetRange.high;
+                      return (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={6}
+                          fill={isOutOfRange ? (isDark ? '#ef4444' : '#dc2626') : (isDark ? '#06b6d4' : '#0891b2')}
+                          stroke={isOutOfRange ? (isDark ? '#fca5a5' : '#fecaca') : (isDark ? '#67e8f9' : '#a5f3fc')}
+                          strokeWidth={2}
+                        />
+                      );
+                    }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
