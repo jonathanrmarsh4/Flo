@@ -112,17 +112,20 @@ async function processThreePMSurveyNotifications() {
     const currentHour = now.getUTCHours();
     const currentMinute = now.getUTCMinutes();
     
+    // Use users.timezone (same as morning briefing) for consistency
+    // Fall back to reminderTimezone only if user explicitly set a different reminder timezone
     const activeUsers = await db
       .select({
         id: users.id,
         firstName: users.firstName,
+        timezone: users.timezone,
         reminderTimezone: users.reminderTimezone,
       })
       .from(users)
       .where(
         and(
           eq(users.status, 'active'),
-          isNotNull(users.reminderTimezone)
+          isNotNull(users.timezone)
         )
       );
 
@@ -135,7 +138,8 @@ async function processThreePMSurveyNotifications() {
     
     for (const user of activeUsers) {
       try {
-        const timezone = user.reminderTimezone || 'UTC';
+        // Prefer reminderTimezone if explicitly set, otherwise use general timezone
+        const timezone = user.reminderTimezone || user.timezone || 'UTC';
         const userNow = new TZDate(now, timezone);
         const userHour = userNow.getHours();
         const userMinute = userNow.getMinutes();
