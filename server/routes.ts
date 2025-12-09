@@ -2622,13 +2622,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overallAssessment = `Analysis identified ${outOfRange} biomarker${outOfRange > 1 ? 's' : ''} requiring attention. Primary areas for intervention: ${categories.slice(0, 3).join(', ')}. Consider consulting with your healthcare provider for personalized guidance.`;
       }
       
-      // Build retest recommendations based on status
-      const retestRecommendations = criticalAlerts.slice(0, 6).map(alert => ({
-        marker: alert.marker,
-        priority: alert.severity === 'critical' ? 'High' : 'Moderate',
-        interval: alert.severity === 'critical' ? '3 months' : '6 months',
-        rationale: `${alert.severity === 'critical' ? 'Outside reference range' : 'Outside optimal range'}, monitoring recommended`,
-      }));
+      // Build enhanced retest recommendations based on status, trend, and time since last test
+      const retestRecommendations = allResults
+        .filter(r => r.status !== 'optimal')
+        .sort((a, b) => {
+          // Prioritize by severity, then by trend direction (worsening trends first)
+          const severityOrder = { low: 0, high: 0, attention: 1, optimal: 2 };
+          const aSeverity = severityOrder[a.status] ?? 2;
+          const bSeverity = severityOrder[b.status] ?? 2;
+          if (aSeverity !== bSeverity) return aSeverity - bSeverity;
+          // Worsening trends get higher priority (up for bad markers, down for others)
+          const aWorsening = (a.status === 'high' && a.trend === 'up') || (a.status === 'low' && a.trend === 'down');
+          const bWorsening = (b.status === 'high' && b.trend === 'up') || (b.status === 'low' && b.trend === 'down');
+          if (aWorsening && !bWorsening) return -1;
+          if (!aWorsening && bWorsening) return 1;
+          return 0;
+        })
+        .slice(0, 8)
+        .map(r => {
+          // Calculate days since last test
+          const lastTestDate = new Date(r.lastTested);
+          const daysSinceTest = Math.floor((Date.now() - lastTestDate.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Determine priority based on multiple factors
+          let priority = 'Routine';
+          let interval = '6 months';
+          let rationale = '';
+          
+          const isCritical = r.status === 'low' || r.status === 'high';
+          const isWorsening = (r.status === 'high' && r.trend === 'up') || (r.status === 'low' && r.trend === 'down');
+          const isImproving = (r.status === 'high' && r.trend === 'down') || (r.status === 'low' && r.trend === 'up');
+          
+          if (isCritical && isWorsening) {
+            priority = 'High';
+            interval = '4-6 weeks';
+            rationale = `${r.status === 'low' ? 'Below' : 'Above'} reference range and trending ${r.trend}. Urgent follow-up recommended.`;
+          } else if (isCritical) {
+            priority = 'High';
+            interval = isImproving ? '3 months' : '6-8 weeks';
+            rationale = `${r.status === 'low' ? 'Below' : 'Above'} reference range${isImproving ? ' but improving' : ''}. Monitor response to intervention.`;
+          } else if (isWorsening) {
+            priority = 'Moderate';
+            interval = '3 months';
+            rationale = `Outside optimal range with ${r.trend === 'up' ? 'increasing' : 'decreasing'} trend. Track progression.`;
+          } else if (r.status === 'attention') {
+            priority = 'Moderate';
+            interval = isImproving ? '6 months' : '4 months';
+            rationale = `Outside optimal range${isImproving ? ' but trending toward normal' : ''}. Continue monitoring.`;
+          }
+          
+          return { marker: r.name, priority, interval, rationale };
+        });
       
       // Get active action plan items as interventions (from Supabase via healthRouter)
       let activeInterventions: any[] = [];
@@ -2636,17 +2680,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const actionItems = await healthRouter.getActionPlanItems(userId, 'active');
         if (actionItems && Array.isArray(actionItems)) {
           activeInterventions = actionItems
-            .slice(0, 5)
+            .slice(0, 6)
             .map((item: any) => ({
               title: item.snapshot_title || item.snapshotTitle || 'Health Optimization',
               started: new Date(item.added_at || item.addedAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
               target: item.target_value || item.targetValue ? `${item.target_value || item.targetValue} ${item.unit || ''}` : 'Optimal range',
-              actions: (item.snapshot_steps || item.snapshotSteps)?.slice(0, 3) || ['Follow recommended protocol'],
-              progress: 'In progress',
+              actions: (item.snapshot_steps || item.snapshotSteps)?.slice(0, 4) || ['Follow recommended protocol'],
+              progress: item.status === 'completed' ? 'Completed' : 'In progress',
             }));
         }
       } catch (error: any) {
         logger.debug('No action plan items found for health summary report', { error: error?.message });
+      }
+      
+      // Fetch correlation insights from ClickHouse ML engine and brain system
+      let correlationInsights: any[] = [];
+      try {
+        const { getHealthId } = await import('./services/supabaseHealthStorage');
+        const healthId = await getHealthId(userId);
+        
+        if (healthId) {
+          // Get long-term behavioral correlations from ClickHouse
+          const { ClickHouseCorrelationEngine } = await import('./services/clickhouseCorrelationEngine');
+          const correlationEngine = new ClickHouseCorrelationEngine();
+          const longTermCorrelations = await correlationEngine.getLongTermInsights(healthId, 5);
+          
+          // Get recent pattern-based insights from brain
+          const { correlationInsightService } = await import('./services/correlationInsightService');
+          const recentInsights = await correlationInsightService.getRecentInsights(userId, 3);
+          
+          // Format long-term correlations for report with safe defaults
+          const longTermFormatted = longTermCorrelations
+            .filter(c => c && (c.naturalLanguageInsight || c.behaviorType))
+            .map(c => {
+              // Safe string extraction with fallbacks
+              const insight = c.naturalLanguageInsight || '';
+              const behaviorType = c.behaviorType || 'Behavior';
+              const outcomeType = c.outcomeType || 'Outcome';
+              const behaviorDesc = c.behaviorDescription || behaviorType;
+              const outcomeDesc = c.outcomeDescription || outcomeType;
+              const direction = c.effectDirection || 'positive';
+              const effectPct = typeof c.effectSizePct === 'number' ? c.effectSizePct : 0;
+              const pValue = typeof c.pValue === 'number' ? c.pValue : 0.05;
+              const confidence = typeof c.confidenceLevel === 'number' ? c.confidenceLevel : 0.5;
+              const months = c.timeRangeMonths || 3;
+              
+              return {
+                title: insight.split('.')[0] || `${behaviorType} → ${outcomeType}`,
+                description: insight || `${behaviorDesc} shows a ${direction} correlation with ${outcomeDesc}`,
+                biomarkersInvolved: [behaviorType, outcomeType].filter(Boolean),
+                clinicalRelevance: `${Math.abs(effectPct).toFixed(1)}% ${direction === 'positive' ? 'improvement' : 'impact'} observed over ${months} months (p=${pValue.toFixed(3)}, confidence: ${(confidence * 100).toFixed(0)}%)`,
+              };
+            });
+          
+          // Format recent insights for report with safe defaults
+          const recentFormatted = recentInsights
+            .filter(i => i && (i.title || i.description))
+            .map(i => ({
+              title: i.title || 'Pattern Detected',
+              description: i.description || 'An interesting health pattern was identified in your data.',
+              biomarkersInvolved: i.metricsInvolved || [],
+              clinicalRelevance: `Pattern confidence: ${((i.confidence || 0.5) * 100).toFixed(0)}%. ${i.attribution || 'Based on multi-metric analysis.'}`,
+            }));
+          
+          correlationInsights = [...longTermFormatted, ...recentFormatted].slice(0, 6);
+          logger.info(`[HealthSummaryReport] Found ${correlationInsights.length} correlation insights for user ${userId}`);
+        }
+      } catch (error: any) {
+        logger.debug('Error fetching correlation insights for health summary report', { error: error?.message });
       }
       
       // Build the response in HealthReportData format
@@ -2665,7 +2766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         criticalAlerts: criticalAlerts,
         biomarkerCategories: biomarkerCategories,
-        correlationInsights: [], // Will be populated by AI in future enhancement
+        correlationInsights: correlationInsights,
         retestRecommendations: retestRecommendations,
         activeInterventions: activeInterventions,
       };
