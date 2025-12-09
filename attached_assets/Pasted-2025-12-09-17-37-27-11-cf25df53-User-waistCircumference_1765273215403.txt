@@ -1,0 +1,149 @@
+2025-12-09 17:37:27.11
+cf25df53
+User
+"waistCircumferenceCm": null,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"respiratoryRateBpm": 16.40740740740741,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"avgHeartRateBpm": 86.15915391257042,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"leanBodyMassKg": null,
+2025-12-09 17:37:27.11
+cf25df53
+User
+📥 [BODY COMP DEBUG] Raw req.body: {
+2025-12-09 17:37:27.11
+cf25df53
+User
+"dietaryWaterMl": 2485.824595339209,
+2025-12-09 17:37:27.11
+cf25df53
+User
+}
+2025-12-09 17:37:27.11
+cf25df53
+User
+"localDate": "2025-12-03"
+2025-12-09 17:37:27.11
+cf25df53
+User
+"heightCm": null,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"systolicBp": 146,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"standHours": null,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"bodyFatPercent": null,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"weightKg": null,
+2025-12-09 17:37:27.11
+cf25df53
+User
+📊 [HEALTHKIT DEBUG] Extended metrics from iOS: {
+2025-12-09 17:37:27.11
+cf25df53
+User
+"bmi": null,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"bodyTempC": 35.50420379638672
+2025-12-09 17:37:27.11
+cf25df53
+User
+"basalEnergyKcal": 1712.306999999971,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"flightsClimbed": 2,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"distanceMeters": 2666.2284845149443,
+2025-12-09 17:37:27.11
+cf25df53
+User
+"exercise_minutes": 35.99506040215492,
+2025-12-09 17:37:27.11
+cf25df53
+User
+📤 [SUPABASE] Writing daily metrics to Supabase: {
+2025-12-09 17:37:27.11
+cf25df53
+User
+"steps_normalized": 3672,
+2025-12-09 17:37:27.99
+cf25df53
+User
+[2025-12-09T09:37:27.992Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-03, score: 52
+2025-12-09 17:37:27.99
+cf25df53
+User
+[2025-12-09T09:37:27.992Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+2025-12-09 17:37:27.99
+cf25df53
+User
+[2025-12-09T09:37:27.992Z] [INFO] [SupabaseHealth] Flomentum upsert payload: {"date":"2025-12-03","score":52,"zone":"DRAINING","delta_vs_yesterday":null,"factors":[{"status":"negative","title":"Slightly short sleep","detail":"6h 56m (Target: 8h)","componentKey":"sleep","pointsContribution":-4},{"status":"negative","title":"Low movement today","detail":"3,672 steps (Goal: 7,000)","componentKey":"steps","pointsContribution":-6},{"status":"positive","title":"Good workout / activity today","detail":"35 min of exercise","componentKey":"intensity","pointsContribution":6},{"status":"positive","title":"Resting HR improving vs baseline","detail":"63 bpm (Baseline: 71 bpm)","componentKey":"resting_hr","pointsContribution":6}],"daily_focus":{"title":"Boost your movement today","body":"Add a 15–20 min walk to reach your step target.","componentKey":"steps"},"health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","updated_at":"2025-12-09T09:37:27.992Z"}
+2025-12-09 17:37:28.02
+cf25df53
+User
+[2025-12-09T09:37:28.023Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+2025-12-09 17:37:28.02
+cf25df53
+User
+[2025-12-09T09:37:28.023Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-08, score: 56
+2025-12-09 17:37:28.02
+cf25df53
+User
+[2025-12-09T09:37:28.023Z] [INFO] [SupabaseHealth] Flomentum upsert payload: {"date":"2025-12-08","score":56,"zone":"DRAINING","delta_vs_yesterday":null,"factors":[{"status":"negative","title":"Very short sleep","detail":"4h 50m (Target: 8h)","componentKey":"sleep","pointsContribution":-10},{"status":"positive","title":"Hit your step target","detail":"7,555 steps (Goal: 7,000)","componentKey":"steps","pointsContribution":8},{"status":"positive","title":"Good workout / activity today","detail":"33 min of exercise","componentKey":"intensity","pointsContribution":6},{"status":"negative","title":"High sedentary time","detail":"1 stand hours (Target: 10+ hours)","componentKey":"sedentary","pointsContribution":-2},{"status":"positive","title":"Heart rate variability stable or improving","detail":"29 ms (Baseline: 21 ms)","componentKey":"hrv","pointsContribution":4}],"daily_focus":{"title":"Prioritise sleep tonight","body":"Aim for bed by a consistent time and target at least 7 hours of sleep.","componentKey":"sleep"},"health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","updated_at":"2025-12-09T09:37:28.023Z"}
+2025-12-09 17:37:28.05
+cf25df53
+User
+[2025-12-09T09:37:28.053Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 96 metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-09 17:37:28.05
+cf25df53
+User
+[2025-12-09T09:37:28.054Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 96 metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-09 17:37:28.05
+cf25df53
+User
+[2025-12-09T09:37:28.057Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+2025-12-09 17:37:28.05
+cf25df53
+User
+[2025-12-09T09:37:28.057Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-04, score: 60
+2025-12-09 17:37:28.05
+cf25df53
+User
+[2025-12-09T09:37:28.057Z] [INFO] [SupabaseHealth] Flomentum upsert payload: {"date":"2025-12-04","score":60,"zone":"MAINTAINING","delta_vs_yesterday":null,"factors":[{"status":"negative","title":"Slightly short sleep","detail":"6h 29m (Target: 8h)","componentKey":"sleep","pointsContribution":-4},{"status":"positive","title":"Almost hit your step target","detail":"5,697 steps (Goal: 7,000)","componentKey":"steps","pointsContribution":4},{"status":"positive","title":"Good workout / activity today","detail":"51 min of exercise","componentKey":"intensity","pointsContribution":6},{"status":"negative","title":"High sedentary time","detail":"1 stand hours (Target: 10+ hours)","componentKey":"sedentary","pointsContribution":-2},{"status":"positive","title":"Resting HR improving vs baseline","detail":"64 bpm (Baseline: 71 bpm)","componentKey":"resting_hr","pointsContribution":6}],"daily_focus":{"title":"Prioritise sleep tonight","body":"Aim for bed by a consistent time and target at least 7 hours of sleep.","componentKey":"sleep"},"health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","updated_at":"2025-12-09T09:37:28.057Z"}
+2025-12-09 17:37:28.06
+cf25df53
+User
+[2025-12-09T09:37:28.066Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, date: 2025-12-09, score: 58
+2025-12-09 17:37:28.06
+cf25df53
+User
+[2025-12-09T09:37:28.066Z] [INFO] [SupabaseHealth] Flomentum upsert payload: {"date":"2025-12-09","score":58,"zone":"DRAINING","delta_vs_yesterday":null,"factors":[{"status":"negative","title":"Very short sleep","detail":"5h 18m (Target: 8h)","componentKey":"sleep","pointsContribution":-10},{"status":"positive","title":"Almost hit your step target","detail":"5,570 steps (Goal: 7,000)","componentKey":"steps","pointsContribution":4},{"status":"positive","title":"Good workout / activity today","detail":"40 min of exercise","componentKey":"intensity","pointsContribution":6},{"status":"negative","title":"High sedentary time","detail":"1 stand hours (Target: 10+ hours)","componentKey":"sedentary","pointsContribution":-2},{"status":"positive","title":"Resting HR improving vs baseline","detail":"63 bpm (Baseline: 69 bpm)","componentKey":"resting_hr","pointsContribution":6},{"status":"positive","title":"Heart rate variability stable or improving","detail":"32 ms (Baseline: 22 ms)","componentKey":"hrv","pointsContribution":4}],"daily_focus":{"title":"Prioritise sleep tonight","body":"Aim for bed by a consistent time and target at least 7 hours of sleep.","componentKey":"sleep"},"health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","updated_at":"2025-12-09T09:37:28.066Z"}
+2025-12-09 17:37:28.06
+cf25df53
+User
+[2025-12-09T09:37:28.066Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+2025-12-09 17:37:28.06
+cf25df53
+User
+[2025-12-09T09:37:28.068Z] [INFO] [SupabaseHealth] Got healthId 29d2a63e-44a2-472c-a825-89be5a07cbeb for flomentum upsert
+

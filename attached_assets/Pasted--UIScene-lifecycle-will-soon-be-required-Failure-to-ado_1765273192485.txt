@@ -1,0 +1,624 @@
+`UIScene` lifecycle will soon be required. Failure to adopt will result in an assert in the future.
+Could not create a sandbox extension for '/var/containers/Bundle/Application/747C7E40-5A66-447B-A5F2-266F05B28D98/App.app'
+⚡️  Loading app at https://get-flo.com...
+✅ Find interaction disabled
+✅ UITextInteraction removed from WKWebView subview
+✅ Keyboard notification handlers configured
+✅ SharedWorker disabled to prevent WKWebView freeze
+✅ WKUIDelegate configured for media capture permissions
+✅ WebView keyboard handling configured
+✅ HealthSyncPlugin registered manually
+✅ WebViewCachePlugin registered manually
+✅ NativeMicrophonePlugin registered manually
+Networking process (0x115050100) took 16.019246 seconds to launch
+WebContent process (0x1150e00c0) took 9.974098 seconds to launch
+GPU process (0x11510c1e0) took 9.966706 seconds to launch
+✅ WKWebView input accessory bar removed to prevent constraint conflicts
+XPC connection interrupted
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+Reporter disconnected. { function=sendMessage, reporterID=219352569741313 }
+✅ Keyboard pre-warmed for first-run optimization
+0x1150e00c0 - [PID=51076] WebProcessProxy::didBecomeUnresponsive:
+0x109b58e18 - [pageProxyID=7, webPageID=8, PID=51076] WebPageProxy::processDidBecomeUnresponsive:
+Reporter disconnected or already stopped. { func=stop, reporterID=219352569741313 }
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+WebContent[51079] Unable to hide query parameters from script (missing data)
+Error acquiring assertion: <Error Domain=RBSServiceErrorDomain Code=1 "((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))" UserInfo={NSLocalizedFailureReason=((target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.rendering AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.networking AND target is not running or doesn't have entitlement com.apple.developer.web-browser-engine.webcontent))}>
+0x115148300 - ProcessAssertion::acquireSync Failed to acquire RBS assertion 'XPCConnectionTerminationWatchdog' for process with PID=51076, error: (null)
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x1240fee20 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x1240ff240 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+⚡️  [log] - [StoreKit] Module loaded, Subscriptions: object
+⚡️  [log] - [QueryClient] SecureStoragePlugin pre-loaded
+⚡️  To Native ->  App addListener 88118575
+⚡️  To Native ->  App addListener 88118576
+⚡️  To Native ->  App getLaunchUrl 88118577
+⚡️  To Native ->  SecureStoragePlugin get 88118578
+⚡️  TO JS undefined
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY1MTkwMjczLCJleHAiOjE3NjU3OTUwNzN9.ziO1
+⚡️  To Native ->  App addListener 88118579
+⚡️  [error] - [ERROR] API request failed {"status":404,"response":"{\"error\":\"No environmental data available\"}"}
+⚡️  To Native ->  Preferences get 88118580
+⚡️  TO JS {"value":"1765272968826"}
+⚡️  To Native ->  Preferences get 88118581
+⚡️  TO JS {"value":"1765272062933"}
+⚡️  [warn] - [Stripe Native] Missing VITE_STRIPE_PUBLISHABLE_KEY
+⚡️  To Native ->  Preferences get 88118582
+⚡️  TO JS {"value":"1.0.1"}
+⚡️  To Native ->  SecureStoragePlugin get ⚡️  [log] - 🚀 [AutoSync] App launched - triggering initial HealthKit sync...
+88118583
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY1MTkwMjczLCJleHAiOjE3NjU3OTUwNzN9.ziO1
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 88118584
+🔄 [HealthSyncPlugin] syncReadinessData called (defaultDays: 7, waitForAuth: true)
+✅ [HealthSyncPlugin] Requesting authorization for 75 HealthKit data types
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"success":true,"days":7,"message":"Background sync started"}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+⚡️  [log] - 🚀 [AutoSync] Sync result: {"success":true,"days":7,"message":"Background sync started"}
+⚡️  [log] - 🏋️ [AutoSync] Syncing workouts...
+⚡️  To Native ->  HealthSyncPlugin syncWorkouts 88118585
+💪 [HealthSyncPlugin] Queuing workout sync for last 7 days...
+⚡️  TO JS {"success":true,"days":7,"message":"Workout sync started"}
+⚡️  [log] - 🏋️ [AutoSync] Workout sync result: {"success":true,"days":7,"message":"Workout sync started"}
+⚡️  [log] - 📍 [AutoSync] Syncing location for environmental data...
+⚡️  To Native ->  Geolocation checkPermissions 88118586
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, checking sync status...
+🔍 [HealthSyncPlugin] Checking server sync status...
+⚡️  TO JS {"location":"granted","coarseLocation":"granted"}
+⚡️  To Native ->  Geolocation checkPermissions 88118587
+⚡️  [log] - 📍 [AutoSync] Location permission status: granted
+⚡️  TO JS {"location":"granted","coarseLocation":"granted"}
+⚡️  To Native ->  Geolocation checkPermissions 88118588
+🔓 [HealthSyncPlugin] Authorization requested for 75 types, success: true
+🔓 [HealthSyncPlugin] Workout authorization requested, success: true
+⚡️  TO JS {"location":"granted","coarseLocation":"granted"}
+⚡️  To Native ->  Geolocation getCurrentPosition 88118589
+[Workouts] Found 13 workouts
+quic_conn_process_inbound [C1.1.1.1:2] [-f30a6569837e3c86] unable to parse packet
+⚡️  [log] - 🌍 [Timezone] Hook initialized - checking timezone on launch
+⚡️  To Native ->  Preferences get 88118590
+⚡️  To Native ->  Preferences get 88118591
+⚡️  To Native ->  LocalNotifications ⚡️  TO JS checkPermissions {"value":"1765270554740"}
+88118592
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - [API] Making request: GET https://get-flo.com/api/user/timezone
+⚡️  [log] - [API] Headers prepared: ["Authorization"]
+⚡️  TO JS {"display":"granted"}
+⚡️  To Native ->  LocalNotifications addListener 88118593
+⚡️  To Native ->  LocalNotifications addListener 88118594
+⚡️  To Native ->  LocalNotifications cancel 88118595
+⚡️  TO JS undefined
+⚡️  [log] - [API] Response received: 200 OK
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  [log] - [Flōmentum Notifications] All scheduled notifications cancelled
+⚡️  To Native ->  LocalNotifications schedule 88118596
+⚡️  TO JS {"notifications":[{"id":100}]}
+⚡️  To Native ->  LocalNotifications schedule 88118597
+⚡️  [log] - [Flōmentum Notifications] Daily score scheduled for 20:00
+⚡️  TO JS {"notifications":[{"id":101}]}
+⚡️  [log] - [Flōmentum Notifications] Sync reminder scheduled for 09:00
+⚡️  To Native ->  LocalNotifications schedule 88118598
+⚡️  TO JS {"notifications":[{"id":102}]}
+⚡️  To Native ->  LocalNotifications schedule 88118599
+⚡️  [log] - [Flōmentum Notifications] Weekly summary scheduled for Mondays at 8 AM
+⚡️  TO JS {"notifications":[{"id":103}]}
+⚡️  To Native ->  LocalNotifications schedule 88118600
+⚡️  TO JS {"notifications":[{"id":104}]}
+⚡️  To Native ->  LocalNotifications schedule 88118601
+⚡️  TO JS {"notifications":[{"id":105}]}
+⚡️  [log] - [Flōmentum Notifications] Daily action reminders scheduled
+⚡️  [log] - [Flōmentum Notifications] Initialization complete
+📊 [HealthSyncPlugin] Server sync status: needsHistoricalSync=false, startDate=nil
+✅ [HealthSyncPlugin] Backfill already complete, performing incremental sync (7 days)
+[Normalisation] Syncing last 7 days: 2025-12-02 09:37:06 +0000 to 2025-12-09 09:37:06 +0000
+[ExerciseMinutes] Querying workouts for day: 2025-12-02 00:00:00 to 2025-12-03 00:00:00
+[ExerciseMinutes] Processing 1 workouts with deduplication...
+[ExerciseMinutes] Querying workouts for day: 2025-12-03 00:00:00 to 2025-12-04 00:00:00
+[ExerciseMinutes]  ✓  Train: 32.7 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 32.7 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7219 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3077 steps
+[Steps] Using iPhone primary source: 7219 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-04 00:00:00 to 2025-12-05 00:00:00
+[Temperature] Found 1 wrist temp samples, avg: 35.49216842651367°C
+[Temperature] Using wrist temperature: 35.49216842651367°C
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Train: 36.0 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 36.0 min from 1 unique workouts
+[ExerciseMinutes] Querying workouts for day: 2025-12-05 00:00:00 to 2025-12-06 00:00:00
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3672 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1442 steps
+[Steps] Using iPhone primary source: 3672 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-06 00:00:00 to 2025-12-07 00:00:00
+[Temperature] Found 1 wrist temp samples, avg: 35.50420379638672°C
+[Temperature] Using wrist temperature: 35.50420379638672°C
+[ExerciseMinutes] Querying workouts for day: 2025-12-07 00:00:00 to 2025-12-08 00:00:00
+[ExerciseMinutes] Processing 1 workouts with deduplication...
+[ExerciseMinutes]  ✓  Train: 51.9 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 51.9 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5697 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3149 steps
+[Steps] Using iPhone primary source: 5697 steps (from 2 sources)
+[Temperature] Found 1 wrist temp samples, avg: 35.85344696044922°C
+[Temperature] Using wrist temperature: 35.85344696044922°C
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 5.4 min
+[ExerciseMinutes]  ✓  Train: 38.1 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 43.4 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5742 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2558 steps
+[Steps] Using iPhone primary source: 5742 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-08 00:00:00 to 2025-12-09 00:00:00
+[ExerciseMinutes] Querying workouts for day: 2025-12-09 00:00:00 to 2025-12-10 00:00:00
+[Temperature] Found 1 wrist temp samples, avg: 36.0062370300293°C
+[Temperature] Using wrist temperature: 36.0062370300293°C
+[ExerciseMinutes] Processing 3 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.0 min
+[ExerciseMinutes]  ✓  Train: 18.3 min
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 3.0 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 25.2 min from 3 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7226 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3543 steps
+[Steps] Using iPhone primary source: 7226 steps (from 2 sources)
+[Temperature] Found 1 wrist temp samples, avg: 35.837711334228516°C
+[Temperature] Using wrist temperature: 35.837711334228516°C
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 3.3 min
+[ExerciseMinutes]  ✓  Train: 33.7 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 37.0 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 9020 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 4149 steps
+[Steps] Using iPhone primary source: 9020 steps (from 2 sources)
+[Temperature] Found 1 wrist temp samples, avg: 35.571083068847656°C
+[Temperature] Using wrist temperature: 35.571083068847656°C
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.0 min
+[ExerciseMinutes]  ✓  Train: 29.5 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 33.5 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7555 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2911 steps
+[Steps] Using iPhone primary source: 7555 steps (from 2 sources)
+[Temperature] Found 1 wrist temp samples, avg: 35.73710632324219°C
+[Temperature] Using wrist temperature: 35.73710632324219°C
+[ExerciseMinutes] Processing 4 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.5 min
+[ExerciseMinutes]  ✓  Train: 35.8 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 40.3 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5570 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1835 steps
+[Steps] Using iPhone primary source: 5570 steps (from 2 sources)
+[Temperature] No wrist temperature samples found
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-12-02: {"localDate":"2025-12-02","stepsSourcesMetadata":{"iphone_steps":7219,"final_steps":7219,"overlaps_detected":0,"gaps_filled":0,"priority_order":"iPhone","source_identifiers":["com.apple.health.6E1CE52...
+[Normalisation] Sending payload for 2025-12-03: {"localDate":"2025-12-03","stepsSourcesMetadata":{"iphone_steps":3672,"final_steps":3672,"overlaps_detected":0,"gaps_filled":0,"priority_order":"iPhone","source_identifiers":["com.apple.health.6E1CE52...
+[Normalisation] Sending payload for 2025-12-04: {"localDate":"2025-12-04","stepsSourcesMetadata":{"iphone_steps":5697,"final_steps":5697,"overlaps_detected":0,"gaps_filled":0,"priority_order":"iPhone","source_identifiers":["com.apple.health.6E1CE52...
+[Normalisation] Sending payload for 2025-12-05: {"localDate":"2025-12-05","bodyTemperatureCelsius":36.0062370300293,"standHours":1,"stepsSourcesMetadata":{"priority_order":"iPhone","notes":"Using HKStatisticsQuery with .separateBySource for accurat...
+[Normalisation] Sending payload for 2025-12-06: {"localDate":"2025-12-06","stepsSourcesMetadata":{"overlaps_detected":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A...
+[Normalisation] Sending payload for 2025-12-07: {"localDate":"2025-12-07","bodyTemperatureCelsius":35.571083068847656,"standHours":2,"stepsSourcesMetadata":{"iphone_steps":9020,"final_steps":9020,"overlaps_detected":0,"gaps_filled":0,"priority_orde...
+[Normalisation] Sending payload for 2025-12-08: {"localDate":"2025-12-08","stepsSourcesMetadata":{"priority_order":"iPhone","overlaps_detected":0,"iphone_steps":7555,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com...
+[Normalisation] Sending payload for 2025-12-09: {"localDate":"2025-12-09","standHours":1,"activeEnergyKcal":787.6981564245885,"flightsClimbed":3,"dietaryWaterMl":565.1537,"basalEnergyKcal":1243.402999999965,"distanceMeters":4272.932410374982,"timez...
+⚡️  To Native ->  PushNotifications checkPermissions 88118602
+⚡️  TO JS {"receive":"granted"}
+⚡️  To Native ->  PushNotifications addListener 88118603
+⚡️  [log] - [PushNotifications] Current permission status: granted
+⚡️  To Native ->  PushNotifications addListener 88118604
+⚡️  To Native ->  PushNotifications addListener 88118605
+⚡️  To Native ->  PushNotifications addListener 88118606
+⚡️  To Native ->  PushNotifications register 88118607
+⚡️  TO JS undefined
+⚡️  [log] - [PushNotifications] Initialization complete
+⚡️  TO JS {"value":"FE02E4C5AD4D757D5218B8EE9951F5A19736634B6988E1B64C4E95DFE2AFA890"}
+⚡️  [log] - [PushNotifications] APNs registration successful, token: FE02E4C5AD4D757D5218...
+⚡️  [log] - [PushNotifications] Registering token with backend...
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/device-tokens
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  [log] - [API] Response received: 200 OK
+⚡️  [log] - [PushNotifications] Token registered successfully: {}
+[Normalisation] Successfully uploaded metrics for 2025-12-02
+[Normalisation] Successfully uploaded metrics for 2025-12-03
+[Normalisation] Successfully uploaded metrics for 2025-12-06
+[Normalisation] Successfully uploaded metrics for 2025-12-05
+[Normalisation] Successfully uploaded metrics for 2025-12-04
+[Normalisation] Successfully uploaded metrics for 2025-12-08
+[Normalisation] Successfully uploaded metrics for 2025-12-09
+[Normalisation] Successfully uploaded metrics for 2025-12-07
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-12-02, window: 2025-12-01 07:00:00 +0000 to 2025-12-02 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-03, window: 2025-12-02 07:00:00 +0000 to 2025-12-03 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-04, window: 2025-12-03 07:00:00 +0000 to 2025-12-04 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-05, window: 2025-12-04 07:00:00 +0000 to 2025-12-05 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-06, window: 2025-12-05 07:00:00 +0000 to 2025-12-06 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-07, window: 2025-12-06 07:00:00 +0000 to 2025-12-07 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-08, window: 2025-12-07 07:00:00 +0000 to 2025-12-08 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-09, window: 2025-12-08 07:00:00 +0000 to 2025-12-09 07:00:00 +0000
+[Sleep] Found 26 raw sleep samples for 2025-12-03
+[Sleep] Uploading 26 raw samples for 2025-12-03
+[Sleep] Found 28 raw sleep samples for 2025-12-04
+[Sleep] Found 23 raw sleep samples for 2025-12-02
+[Sleep] Uploading 28 raw samples for 2025-12-04
+[Sleep] Uploading 23 raw samples for 2025-12-02
+[Sleep] Found 26 raw sleep samples for 2025-12-06
+[Sleep] Found 29 raw sleep samples for 2025-12-05
+[Sleep] Uploading 26 raw samples for 2025-12-06
+[Sleep] Found 19 raw sleep samples for 2025-12-08
+[Sleep] Uploading 29 raw samples for 2025-12-05
+[Sleep] Found 33 raw sleep samples for 2025-12-07
+[Sleep] Uploading 19 raw samples for 2025-12-08
+[Sleep] Found 34 raw sleep samples for 2025-12-09
+[Sleep] Uploading 33 raw samples for 2025-12-07
+[Sleep] Uploading 34 raw samples for 2025-12-09
+[Sleep] Successfully uploaded raw samples for 2025-12-02
+[Sleep] Successfully uploaded raw samples for 2025-12-03
+[Sleep] Successfully uploaded raw samples for 2025-12-04
+[Sleep] Successfully uploaded raw samples for 2025-12-07
+[Sleep] Successfully uploaded raw samples for 2025-12-06
+[Sleep] Successfully uploaded raw samples for 2025-12-08
+[Sleep] Successfully uploaded raw samples for 2025-12-05
+[Sleep] Successfully uploaded raw samples for 2025-12-09
+[Sleep] Successfully uploaded 8 sleep nights
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Found 13 workouts
+[Workouts] Uploading 13 workouts to backend
+[Workouts] Upload successful: {"inserted":0,"duplicates":13,"total":13}
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 2 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 1 mindfulness sessions
+[Mindfulness] Found 1 mindfulness sessions
+[Mindfulness] Uploading 4 samples to backend
+⚡️  TO JS {"timestamp":1765273032164.4622,"coords":{"heading":-1,"longitude":115.81632372720236,"speed":-1,"altitudeAccuracy":30,"latitude":-31.896344505050337,"accuracy":11.013649776408812,"altitude":18.937773516292637}}
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/location
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+[Mindfulness] Successfully uploaded 4 samples
+[Nutrition] Querying 26 nutrition types for 2025-12-02
+[Nutrition] Querying 26 nutrition types for 2025-12-03
+[Nutrition] Querying 26 nutrition types for 2025-12-04
+[Nutrition] Querying 26 nutrition types for 2025-12-05
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Querying 26 nutrition types for 2025-12-06
+[Nutrition] Querying 26 nutrition types for 2025-12-07
+[Nutrition] Querying 26 nutrition types for 2025-12-08
+[Nutrition] Querying 26 nutrition types for 2025-12-09
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-02
+[Nutrition] ✅ Found data: dietaryProtein:7, dietaryEnergyConsumed:8, dietaryCarbohydrates:7, dietaryFatTotal:7, dietaryFiber:5, dietarySugar:7, dietaryFatSaturated:7, dietaryFatMonounsaturated:7, dietaryFatPolyunsaturated:7, dietarySodium:9, dietaryCholesterol:7, dietaryCalcium:7, dietaryPotassium:7, dietaryIron:7, dietaryZinc:7, dietaryMagnesium:7, dietaryVitaminA:6, dietaryVitaminD:2, dietaryVitaminC:3, dietaryVitaminE:7, dietaryVitaminB6:7, dietaryVitaminK:4, dietaryVitaminB12:4, dietaryCaffeine:3, dietaryFolate:5, dietaryWater:22
+[Nutrition] Total samples collected: 176
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-03
+[Nutrition] ✅ Found data: dietaryProtein:7, dietaryCarbohydrates:8, dietaryEnergyConsumed:8, dietaryFiber:7, dietarySugar:8, dietaryFatTotal:7, dietaryFatSaturated:7, dietaryFatPolyunsaturated:5, dietaryFatMonounsaturated:5, dietaryCholesterol:5, dietaryPotassium:6, dietaryCalcium:7, dietarySodium:9, dietaryIron:5, dietaryMagnesium:6, dietaryZinc:5, dietaryVitaminC:3, dietaryVitaminA:3, dietaryVitaminD:2, dietaryVitaminE:5, dietaryVitaminK:5, dietaryVitaminB6:5, dietaryVitaminB12:4, dietaryFolate:4, dietaryCaffeine:3, dietaryWater:22
+[Nutrition] Total samples collected: 161
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-04
+[Nutrition] ✅ Found data: dietaryProtein:7, dietaryEnergyConsumed:7, dietaryCarbohydrates:6, dietaryFatTotal:7, dietaryFiber:5, dietarySugar:6, dietaryFatSaturated:7, dietaryFatPolyunsaturated:7, dietaryFatMonounsaturated:7, dietarySodium:6, dietaryCholesterol:5, dietaryPotassium:7, dietaryMagnesium:7, dietaryCalcium:7, dietaryIron:6, dietaryZinc:7, dietaryVitaminA:6, dietaryVitaminE:6, dietaryVitaminD:4, dietaryVitaminC:4, dietaryVitaminB6:6, dietaryVitaminK:7, dietaryVitaminB12:4, dietaryCaffeine:1, dietaryFolate:7, dietaryWater:27
+[Nutrition] Total samples collected: 176
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-05
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryFatTotal:5, dietaryFiber:3, dietaryCarbohydrates:5, dietarySugar:5, dietaryFatMonounsaturated:5, dietaryFatSaturated:5, dietaryFatPolyunsaturated:5, dietarySodium:6, dietaryCholesterol:3, dietaryCalcium:5, dietaryPotassium:5, dietaryZinc:5, dietaryIron:4, dietaryMagnesium:5, dietaryVitaminD:2, dietaryVitaminC:3, dietaryVitaminA:3, dietaryVitaminE:5, dietaryVitaminK:5, dietaryVitaminB6:5, dietaryVitaminB12:3, dietaryCaffeine:3, dietaryFolate:5, dietaryWater:21
+[Nutrition] Total samples collected: 132
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-06
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryFatTotal:5, dietaryCarbohydrates:6, dietaryFiber:5, dietarySugar:6, dietaryFatSaturated:5, dietaryFatPolyunsaturated:5, dietaryCholesterol:4, dietaryFatMonounsaturated:5, dietarySodium:7, dietaryCalcium:5, dietaryPotassium:5, dietaryMagnesium:5, dietaryIron:5, dietaryZinc:5, dietaryVitaminA:4, dietaryVitaminD:2, dietaryVitaminE:5, dietaryVitaminK:5, dietaryVitaminC:5, dietaryVitaminB6:5, dietaryCaffeine:2, dietaryVitaminB12:4, dietaryFolate:5, dietaryWater:18
+[Nutrition] Total samples collected: 139
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-07
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryCarbohydrates:6, dietaryFiber:3, dietaryFatTotal:6, dietarySugar:6, dietaryFatMonounsaturated:5, dietaryFatPolyunsaturated:5, dietaryFatSaturated:5, dietaryCholesterol:3, dietarySodium:7, dietaryIron:6, dietaryPotassium:6, dietaryCalcium:6, dietaryVitaminA:3, dietaryMagnesium:6, dietaryVitaminC:5, dietaryZinc:6, dietaryVitaminD:2, dietaryVitaminK:4, dietaryVitaminB6:6, dietaryVitaminE:5, dietaryVitaminB12:4, dietaryCaffeine:1, dietaryFolate:5, dietaryWater:23
+[Nutrition] Total samples collected: 145
+[Nutrition] Queried 26 types for 2025-12-08
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:6, dietaryCarbohydrates:6, dietaryFatTotal:6, dietaryFiber:6, dietarySugar:6, dietaryFatMonounsaturated:6, dietaryFatSaturated:6, dietaryFatPolyunsaturated:6, dietaryCholesterol:4, dietarySodium:6, dietaryCalcium:6, dietaryPotassium:6, dietaryMagnesium:6, dietaryZinc:6, dietaryIron:6, dietaryVitaminC:3, dietaryVitaminD:2, dietaryVitaminA:4, dietaryVitaminE:6, dietaryVitaminK:6, dietaryVitaminB12:4, dietaryFolate:5, dietaryCaffeine:2, dietaryVitaminB6:6, dietaryWater:24
+[Nutrition] Total samples collected: 156
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-09
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:7, dietaryProtein:6, dietaryFatTotal:6, dietaryCarbohydrates:7, dietaryFiber:5, dietaryFatSaturated:6, dietarySugar:7, dietaryCholesterol:2, dietaryFatMonounsaturated:4, dietaryFatPolyunsaturated:4, dietarySodium:7, dietaryPotassium:5, dietaryCalcium:6, dietaryIron:3, dietaryMagnesium:4, dietaryVitaminA:2, dietaryZinc:4, dietaryVitaminC:4, dietaryVitaminE:4, dietaryVitaminD:1, dietaryVitaminK:4, dietaryVitaminB12:2, dietaryVitaminB6:4, dietaryCaffeine:2, dietaryFolate:4, dietaryWater:5
+[Nutrition] Total samples collected: 115
+[Nutrition] Uploading 1200 samples to backend
+⚡️  [log] - [API] Response received: 200 OK
+⚡️  [log] - [LocationService] Location synced successfully
+⚡️  [log] - 📍 [AutoSync] Location synced successfully
+⚡️  [log] - ✅ [AutoSync] Sync success block entered
+⚡️  To Native ->  Preferences set 88118608
+⚡️  TO JS undefined
+⚡️  [log] - ⏳ [AutoSync] Waiting 4s for backend upload to complete...
+[Nutrition] Successfully uploaded 1200 samples
+[Nutrition] ✅ Aggregation triggered for 2025-12-09
+[Nutrition] ✅ Aggregation triggered for 2025-12-04
+[Nutrition] ✅ Aggregation triggered for 2025-12-08
+[Nutrition] ✅ Aggregation triggered for 2025-12-07
+[Nutrition] ✅ Aggregation triggered for 2025-12-06
+[Nutrition] ✅ Aggregation triggered for 2025-12-02
+[Nutrition] ✅ Aggregation triggered for 2025-12-05
+[Nutrition] ✅ Aggregation triggered for 2025-12-03
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+[Workouts] Found 13 workouts
+⚡️  [log] - 🔄 [AutoSync] Refetching dashboard queries...
+⚡️  [log] - ✅ [AutoSync] Dashboard refresh completed!
+⚡️  To Native ->  LocalNotifications schedule 88118609
+⚡️  TO JS {"notifications":[{"id":1}]}
+⚡️  [log] - [Notifications] Sent: Health data synced ✓
+⚡️  TO JS {"actionTypeId":"","title":"Health data synced ✓","id":1,"body":"Your latest HealthKit metrics are ready","extra":{},"schedule":{"at":"2025-12-09T09:37:24Z"},"attachments":[],"sound":""}
+⚡️  [log] - [Notifications] Received in foreground: {"actionTypeId":"","title":"Health data synced ✓","id":1,"body":"Your latest HealthKit metrics are ready","extra":{},"schedule":{"at":"2025-12-09T09:37:24Z"},"attachments":[],"sound":""}
+⚡️  To Native ->  SecureStoragePlugin get 88118610
+⚡️  TO JS {"value":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwOTVmODk3OC1hM2FkLTRmZTEtYWYzOS0xYmJhOWI2ZThkNzgiLCJpc3MiOiJmbG8taGVhbHRoLWFwcCIsImF1ZCI6ImZsby1tb2JpbGUtY2xpZW50IiwidHlwZSI6Im1vYmlsZSIsInZlciI6MCwiaWF0IjoxNzY1MTkwMjczLCJleHAiOjE3NjU3OTUwNzN9.ziO1
+⚡️  To Native ->  HealthSyncPlugin syncReadinessData 88118611
+🔄 [HealthSyncPlugin] syncReadinessData called (defaultDays: 7, waitForAuth: true)
+✅ [HealthSyncPlugin] Requesting authorization for 75 HealthKit data types
+🔑 [HealthSyncPlugin] Auth token received and stored
+📊 [HealthSyncPlugin] Active syncs: 1
+⚡️  TO JS {"days":7,"message":"Background sync started","success":true}
+⏳ [HealthSyncPlugin] Waiting for HealthKit authorization...
+🔍 [HealthSyncPlugin] Auth check attempt 1/20: status = 1
+✅ [HealthSyncPlugin] Auth status determined (status=1), proceeding with sync
+✅ [HealthSyncPlugin] HealthKit authorization ready, checking sync status...
+🔍 [HealthSyncPlugin] Checking server sync status...
+🔓 [HealthSyncPlugin] Authorization requested for 75 types, success: true
+📊 [HealthSyncPlugin] Server sync status: needsHistoricalSync=false, startDate=nil
+✅ [HealthSyncPlugin] Backfill already complete, performing incremental sync (7 days)
+[Normalisation] Syncing last 7 days: 2025-12-02 09:37:26 +0000 to 2025-12-09 09:37:26 +0000
+[ExerciseMinutes] Querying workouts for day: 2025-12-02 00:00:00 to 2025-12-03 00:00:00
+[ExerciseMinutes] Processing 1 workouts with deduplication...
+[ExerciseMinutes]  ✓  Train: 32.7 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 32.7 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7219 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3077 steps
+[Steps] Using iPhone primary source: 7219 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-03 00:00:00 to 2025-12-04 00:00:00
+[Temperature] Found 1 wrist temp samples, avg: 35.49216842651367°C
+[Temperature] Using wrist temperature: 35.49216842651367°C
+[ExerciseMinutes] Querying workouts for day: 2025-12-04 00:00:00 to 2025-12-05 00:00:00
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Train: 36.0 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 36.0 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 3672 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1442 steps
+[Steps] Using iPhone primary source: 3672 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-05 00:00:00 to 2025-12-06 00:00:00
+[Temperature] Found 1 wrist temp samples, avg: 35.50420379638672°C
+[Temperature] Using wrist temperature: 35.50420379638672°C
+[ExerciseMinutes] Processing 1 workouts with deduplication...
+[ExerciseMinutes]  ✓  Train: 51.9 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 51.9 min from 1 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5697 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3149 steps
+[Steps] Using iPhone primary source: 5697 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-06 00:00:00 to 2025-12-07 00:00:00
+[Temperature] Found 1 wrist temp samples, avg: 35.85344696044922°C
+[Temperature] Using wrist temperature: 35.85344696044922°C
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 5.4 min
+[ExerciseMinutes]  ✓  Train: 38.1 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 43.4 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5742 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2558 steps
+[Steps] Using iPhone primary source: 5742 steps (from 2 sources)
+[ExerciseMinutes] Querying workouts for day: 2025-12-07 00:00:00 to 2025-12-08 00:00:00
+[Temperature] Found 1 wrist temp samples, avg: 36.0062370300293°C
+[Temperature] Using wrist temperature: 36.0062370300293°C
+[ExerciseMinutes] Querying workouts for day: 2025-12-08 00:00:00 to 2025-12-09 00:00:00
+[ExerciseMinutes] Processing 3 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.0 min
+[ExerciseMinutes]  ✓  Train: 18.3 min
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 3.0 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 25.2 min from 3 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7226 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 3543 steps
+[Steps] Using iPhone primary source: 7226 steps (from 2 sources)
+[Temperature] Found 1 wrist temp samples, avg: 35.837711334228516°C
+[Temperature] Using wrist temperature: 35.837711334228516°C
+[ExerciseMinutes] Querying workouts for day: 2025-12-09 00:00:00 to 2025-12-10 00:00:00
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 3.3 min
+[ExerciseMinutes]  ✓  Train: 33.7 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 37.0 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 9020 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 4149 steps
+[Steps] Using iPhone primary source: 9020 steps (from 2 sources)
+[Temperature] Found 1 wrist temp samples, avg: 35.571083068847656°C
+[Temperature] Using wrist temperature: 35.571083068847656°C
+[ExerciseMinutes] Processing 2 workouts with deduplication...
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.0 min
+[ExerciseMinutes]  ✓  Train: 29.5 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 33.5 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 7555 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 2911 steps
+[Steps] Using iPhone primary source: 7555 steps (from 2 sources)
+[Temperature] Found 1 wrist temp samples, avg: 35.73710632324219°C
+[Temperature] Using wrist temperature: 35.73710632324219°C
+[ExerciseMinutes] Processing 4 workouts with deduplication...
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ⏭️  No overlap (outside day window)
+[ExerciseMinutes]  ✓  Jonathan’s Apple Watch: 4.5 min
+[ExerciseMinutes]  ✓  Train: 35.8 min
+[ExerciseMinutes] ═══════════════════
+[ExerciseMinutes] Total: 40.3 min from 2 unique workouts
+[Steps] iPhone source com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4: 5570 steps
+[Steps] iPhone source com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D: 1835 steps
+[Steps] Using iPhone primary source: 5570 steps (from 2 sources)
+[Temperature] No wrist temperature samples found
+[Normalisation] Uploading 8 days of normalized metrics to backend
+[Normalisation] Sending payload for 2025-12-02: {"localDate":"2025-12-02","stepsSourcesMetadata":{"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4"]...
+[Normalisation] Sending payload for 2025-12-03: {"localDate":"2025-12-03","stepsSourcesMetadata":{"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4"]...
+[Normalisation] Sending payload for 2025-12-04: {"localDate":"2025-12-04","stepsSourcesMetadata":{"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4"]...
+[Normalisation] Sending payload for 2025-12-05: {"localDate":"2025-12-05","bodyTemperatureCelsius":36.0062370300293,"standHours":1,"stepsSourcesMetadata":{"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D"...
+[Normalisation] Sending payload for 2025-12-06: {"localDate":"2025-12-06","stepsSourcesMetadata":{"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4"]...
+[Normalisation] Sending payload for 2025-12-07: {"localDate":"2025-12-07","bodyTemperatureCelsius":35.571083068847656,"standHours":2,"stepsSourcesMetadata":{"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9...
+[Normalisation] Sending payload for 2025-12-08: {"localDate":"2025-12-08","stepsSourcesMetadata":{"gaps_filled":0,"source_identifiers":["com.apple.health.6E1CE527-B412-4567-BEB3-B4718EC58B9D","com.apple.health.FAF1019B-3E01-48BA-89F1-D835119A39E4"]...
+[Normalisation] Sending payload for 2025-12-09: {"localDate":"2025-12-09","standHours":1,"activeEnergyKcal":787.6981564245885,"flightsClimbed":3,"dietaryWaterMl":565.1537,"basalEnergyKcal":1243.402999999965,"distanceMeters":4272.932410374982,"timez...
+[Normalisation] Successfully uploaded metrics for 2025-12-03
+[Normalisation] Successfully uploaded metrics for 2025-12-08
+[Normalisation] Successfully uploaded metrics for 2025-12-04
+[Normalisation] Successfully uploaded metrics for 2025-12-06
+[Normalisation] Successfully uploaded metrics for 2025-12-09
+[Normalisation] Successfully uploaded metrics for 2025-12-05
+[Normalisation] Successfully uploaded metrics for 2025-12-07
+[Normalisation] Successfully uploaded metrics for 2025-12-02
+[Normalisation] Successfully uploaded all metrics
+[Sleep] Collecting raw sleep samples for 8 days
+[Sleep] Querying samples for 2025-12-02, window: 2025-12-01 07:00:00 +0000 to 2025-12-02 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-03, window: 2025-12-02 07:00:00 +0000 to 2025-12-03 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-04, window: 2025-12-03 07:00:00 +0000 to 2025-12-04 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-05, window: 2025-12-04 07:00:00 +0000 to 2025-12-05 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-06, window: 2025-12-05 07:00:00 +0000 to 2025-12-06 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-07, window: 2025-12-06 07:00:00 +0000 to 2025-12-07 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-08, window: 2025-12-07 07:00:00 +0000 to 2025-12-08 07:00:00 +0000
+[Sleep] Querying samples for 2025-12-09, window: 2025-12-08 07:00:00 +0000 to 2025-12-09 07:00:00 +0000
+[Sleep] Found 23 raw sleep samples for 2025-12-02
+[Sleep] Uploading 23 raw samples for 2025-12-02
+[Sleep] Found 26 raw sleep samples for 2025-12-03
+[Sleep] Found 28 raw sleep samples for 2025-12-04
+[Sleep] Uploading 26 raw samples for 2025-12-03
+[Sleep] Found 26 raw sleep samples for 2025-12-06
+[Sleep] Uploading 28 raw samples for 2025-12-04
+[Sleep] Found 19 raw sleep samples for 2025-12-08
+[Sleep] Uploading 26 raw samples for 2025-12-06
+[Sleep] Found 29 raw sleep samples for 2025-12-05
+[Sleep] Uploading 19 raw samples for 2025-12-08
+[Sleep] Found 33 raw sleep samples for 2025-12-07
+[Sleep] Uploading 29 raw samples for 2025-12-05
+[Sleep] Found 34 raw sleep samples for 2025-12-09
+[Sleep] Uploading 33 raw samples for 2025-12-07
+[Sleep] Uploading 34 raw samples for 2025-12-09
+[Sleep] Successfully uploaded raw samples for 2025-12-03
+[Sleep] Successfully uploaded raw samples for 2025-12-02
+[Sleep] Successfully uploaded raw samples for 2025-12-04
+[Sleep] Successfully uploaded raw samples for 2025-12-05
+[Sleep] Successfully uploaded raw samples for 2025-12-07
+[Sleep] Successfully uploaded raw samples for 2025-12-06
+[Sleep] Successfully uploaded raw samples for 2025-12-08
+[Sleep] Successfully uploaded raw samples for 2025-12-09
+[Sleep] Successfully uploaded 8 sleep nights
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+[Workouts] Found 13 workouts
+[Workouts] Uploading 13 workouts to backend
+[Workouts] Upload successful: {"inserted":0,"duplicates":13,"total":13}
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 2 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 0 mindfulness sessions
+[Mindfulness] Found 1 mindfulness sessions
+[Mindfulness] Found 1 mindfulness sessions
+[Mindfulness] Uploading 4 samples to backend
+Failed to terminate process: Error Domain=com.apple.extensionKit.errorDomain Code=18 "(null)" UserInfo={NSUnderlyingError=0x124244c00 {Error Domain=RBSRequestErrorDomain Code=3 "No such process found" UserInfo={NSLocalizedFailureReason=No such process found}}}
+[Mindfulness] Successfully uploaded 4 samples
+[Nutrition] Querying 26 nutrition types for 2025-12-02
+[Nutrition] Querying 26 nutrition types for 2025-12-03
+[Nutrition] Querying 26 nutrition types for 2025-12-04
+[Nutrition] Querying 26 nutrition types for 2025-12-05
+[Nutrition] Querying 26 nutrition types for 2025-12-06
+[Nutrition] Querying 26 nutrition types for 2025-12-07
+[Nutrition] Querying 26 nutrition types for 2025-12-08
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Querying 26 nutrition types for 2025-12-09
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-02
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:8, dietaryCarbohydrates:7, dietaryProtein:7, dietaryFiber:5, dietaryFatTotal:7, dietaryFatSaturated:7, dietarySugar:7, dietaryFatPolyunsaturated:7, dietaryFatMonounsaturated:7, dietaryCholesterol:7, dietaryCalcium:7, dietarySodium:9, dietaryPotassium:7, dietaryIron:7, dietaryMagnesium:7, dietaryZinc:7, dietaryVitaminC:3, dietaryVitaminD:2, dietaryVitaminA:6, dietaryVitaminE:7, dietaryVitaminK:4, dietaryVitaminB12:4, dietaryFolate:5, dietaryCaffeine:3, dietaryVitaminB6:7, dietaryWater:22
+[Nutrition] Total samples collected: 176
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-03
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:8, dietaryCarbohydrates:8, dietaryFatTotal:7, dietaryProtein:7, dietaryFiber:7, dietarySugar:8, dietaryFatMonounsaturated:5, dietaryFatSaturated:7, dietaryCholesterol:5, dietaryFatPolyunsaturated:5, dietarySodium:9, dietaryPotassium:6, dietaryCalcium:7, dietaryMagnesium:6, dietaryIron:5, dietaryVitaminC:3, dietaryVitaminA:3, dietaryZinc:5, dietaryVitaminD:2, dietaryVitaminK:5, dietaryVitaminE:5, dietaryVitaminB6:5, dietaryVitaminB12:4, dietaryFolate:4, dietaryCaffeine:3, dietaryWater:22
+[Nutrition] Total samples collected: 161
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-04
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:7, dietaryCarbohydrates:6, dietaryProtein:7, dietaryFiber:5, dietaryFatTotal:7, dietarySugar:6, dietaryFatSaturated:7, dietaryFatPolyunsaturated:7, dietaryFatMonounsaturated:7, dietaryCholesterol:5, dietaryPotassium:7, dietaryCalcium:7, dietarySodium:6, dietaryIron:6, dietaryZinc:7, dietaryVitaminA:6, dietaryMagnesium:7, dietaryVitaminC:4, dietaryVitaminD:4, dietaryVitaminE:6, dietaryVitaminK:7, dietaryVitaminB12:4, dietaryVitaminB6:6, dietaryCaffeine:1, dietaryFolate:7, dietaryWater:27
+[Nutrition] Total samples collected: 176
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-05
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryCarbohydrates:5, dietaryFiber:3, dietarySugar:5, dietaryFatTotal:5, dietaryFatMonounsaturated:5, dietaryFatSaturated:5, dietaryFatPolyunsaturated:5, dietaryCholesterol:3, dietaryPotassium:5, dietaryCalcium:5, dietaryIron:4, dietarySodium:6, dietaryMagnesium:5, dietaryZinc:5, dietaryVitaminA:3, dietaryVitaminC:3, dietaryVitaminD:2, dietaryVitaminE:5, dietaryVitaminK:5, dietaryVitaminB12:3, dietaryFolate:5, dietaryCaffeine:3, dietaryVitaminB6:5, dietaryWater:21
+[Nutrition] Total samples collected: 132
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-06
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryCarbohydrates:6, dietaryFatTotal:5, dietarySugar:6, dietaryFiber:5, dietaryFatSaturated:5, dietaryFatMonounsaturated:5, dietaryCholesterol:4, dietarySodium:7, dietaryPotassium:5, dietaryFatPolyunsaturated:5, dietaryMagnesium:5, dietaryCalcium:5, dietaryIron:5, dietaryZinc:5, dietaryVitaminD:2, dietaryVitaminA:4, dietaryVitaminC:5, dietaryVitaminK:5, dietaryVitaminE:5, dietaryFolate:5, dietaryVitaminB12:4, dietaryVitaminB6:5, dietaryCaffeine:2, dietaryWater:18
+[Nutrition] Total samples collected: 139
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-07
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:5, dietaryCarbohydrates:6, dietaryFatTotal:6, dietarySugar:6, dietaryFiber:3, dietaryFatSaturated:5, dietaryFatPolyunsaturated:5, dietaryFatMonounsaturated:5, dietaryCholesterol:3, dietarySodium:7, dietaryCalcium:6, dietaryIron:6, dietaryPotassium:6, dietaryMagnesium:6, dietaryZinc:6, dietaryVitaminA:3, dietaryVitaminC:5, dietaryVitaminE:5, dietaryVitaminD:2, dietaryVitaminK:4, dietaryVitaminB6:6, dietaryVitaminB12:4, dietaryFolate:5, dietaryCaffeine:1, dietaryWater:23
+[Nutrition] Total samples collected: 145
+[Nutrition] Queried 26 types for 2025-12-08
+[Nutrition] ✅ Found data: dietaryEnergyConsumed:6, dietaryProtein:6, dietaryFatTotal:6, dietaryCarbohydrates:6, dietaryFiber:6, dietaryFatSaturated:6, dietarySugar:6, dietaryFatMonounsaturated:6, dietaryFatPolyunsaturated:6, dietarySodium:6, dietaryCholesterol:4, dietaryPotassium:6, dietaryIron:6, dietaryCalcium:6, dietaryMagnesium:6, dietaryZinc:6, dietaryVitaminA:4, dietaryVitaminD:2, dietaryVitaminC:3, dietaryVitaminE:6, dietaryVitaminK:6, dietaryVitaminB6:6, dietaryVitaminB12:4, dietaryFolate:5, dietaryCaffeine:2, dietaryWater:24
+[Nutrition] Total samples collected: 156
+[Nutrition] ✅ Authorization confirmed - found 1 sample(s)
+[Nutrition] Queried 26 types for 2025-12-09
+[Nutrition] ✅ Found data: dietaryProtein:6, dietaryEnergyConsumed:7, dietaryCarbohydrates:7, dietaryFatTotal:6, dietaryFiber:5, dietaryFatMonounsaturated:4, dietaryFatSaturated:6, dietarySugar:7, dietaryFatPolyunsaturated:4, dietarySodium:7, dietaryCholesterol:2, dietaryIron:3, dietaryCalcium:6, dietaryPotassium:5, dietaryMagnesium:4, dietaryVitaminA:2, dietaryVitaminD:1, dietaryVitaminC:4, dietaryZinc:4, dietaryVitaminE:4, dietaryVitaminB6:4, dietaryVitaminK:4, dietaryVitaminB12:2, dietaryWater:5, dietaryFolate:4, dietaryCaffeine:2
+[Nutrition] Total samples collected: 115
+[Nutrition] Uploading 1200 samples to backend
+[Nutrition] Successfully uploaded 1200 samples
+[Nutrition] ✅ Aggregation triggered for 2025-12-09
+[Nutrition] ✅ Aggregation triggered for 2025-12-08
+[Nutrition] ✅ Aggregation triggered for 2025-12-04
+[Nutrition] ✅ Aggregation triggered for 2025-12-05
+[Nutrition] ✅ Aggregation triggered for 2025-12-06
+[Nutrition] ✅ Aggregation triggered for 2025-12-02
+[Nutrition] ✅ Aggregation triggered for 2025-12-03
+[Nutrition] ✅ Aggregation triggered for 2025-12-07
+✅ [HealthSyncPlugin] Successfully synced 7 days in background!
+[Workouts] Syncing last 7 days of workouts
+[Workouts] Querying workout data (skipping auth check due to iOS privacy policy)
+📊 [HealthSyncPlugin] Sync #1 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+[Workouts] Found 13 workouts
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = dismissAutoFillPanel, customInfoType = UIUserInteractionRemoteInputOperations
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 88118612
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 88118613
+⚡️  TO JS {"value":"1765273133176"}
+⚡️  To Native ->  Preferences get 88118614
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  To Native ->  Preferences get 88118615
+⚡️  TO JS {"value":"1765270554740"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+Snapshotting a view (0x11a5fe400, UIKeyboardImpl) that is not in a visible window requires afterScreenUpdates:YES.
+⚡️  To Native ->  Preferences set 88118616
+⚡️  TO JS undefined
+⚡️  To Native ->  Preferences set 88118617
+⚡️  TO JS undefined
+WebContent[51079] 0x500000163004150 - [sessionID=1] WebProcess::markAllLayersVolatile: Failed to mark layers as volatile for webPageID=37
