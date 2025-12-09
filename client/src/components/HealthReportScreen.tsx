@@ -130,57 +130,49 @@ export function HealthReportScreen({ isDark, onClose, reportData }: HealthReport
 
   return (
     <div className={`fixed inset-0 z-50 ${isDark ? 'bg-slate-900' : 'bg-gray-50'}`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      {/* Minimal sticky toolbar with action buttons only */}
       <header className={`sticky top-0 z-10 backdrop-blur-xl border-b transition-colors print:hidden ${
         isDark ? 'bg-slate-900/95 border-white/10' : 'bg-white/95 border-gray-200'
       }`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className={`text-xl font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Health Summary Report
-              </h1>
-              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                {patientData.reportPeriod}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleShare}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-                }`}
-                title="Share Report"
-                data-testid="button-share-report"
-              >
-                <Share2 className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-              </button>
-              <button
-                onClick={handleDownloadPDF}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-                }`}
-                title="Download PDF"
-                data-testid="button-download-pdf"
-              >
-                <Download className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-              </button>
-              <button
-                onClick={onClose}
-                className={`p-2 rounded-lg transition-colors ${
-                  isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
-                }`}
-                data-testid="button-close-report"
-              >
-                <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
-              </button>
-            </div>
+        <div className="px-4 py-2">
+          <div className="flex items-center justify-end gap-2">
+            <button
+              onClick={handleShare}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              }`}
+              title="Share Report"
+              data-testid="button-share-report"
+            >
+              <Share2 className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </button>
+            <button
+              onClick={handleDownloadPDF}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              }`}
+              title="Download PDF"
+              data-testid="button-download-pdf"
+            >
+              <Download className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </button>
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+              }`}
+              data-testid="button-close-report"
+            >
+              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="overflow-y-auto pb-8" style={{ height: 'calc(100vh - 65px - env(safe-area-inset-top))' }}>
+      <main className="overflow-y-auto pb-8" style={{ height: 'calc(100vh - 50px - env(safe-area-inset-top))' }}>
         <div className="max-w-4xl mx-auto p-4 print:p-0">
           
+          {/* Print-only header */}
           <div className="hidden print:block mb-8 pb-4 border-b-2 border-gray-300">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -189,79 +181,93 @@ export function HealthReportScreen({ isDark, onClose, reportData }: HealthReport
               </div>
               <div className="text-right text-sm text-gray-600">
                 <div>Report Date: {patientData.reportDate}</div>
-                <div>Analysis Period: 12 months</div>
+                <div>Analysis Period: {patientData.reportPeriod}</div>
               </div>
             </div>
           </div>
 
+          {/* Executive Summary Section with Hero Title */}
           <section className={`rounded-2xl border p-6 mb-4 print:border-gray-300 print:rounded-none print:shadow-none ${
             isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'
           }`}>
-            <div className="flex items-center gap-2 mb-4">
+            {/* Section label */}
+            <div className="flex items-center gap-2 mb-3">
               <User className={`w-5 h-5 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
-              <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'} print:text-gray-900`}>
+              <span className={`text-sm font-medium ${isDark ? 'text-white/70' : 'text-gray-600'} print:text-gray-700`}>
                 Executive Summary
-              </h2>
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* Report Title Row */}
+            <div className="flex items-start justify-between mb-6">
               <div>
-                <div className={`text-xs uppercase tracking-wider mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'} print:text-gray-600`}>
-                  Patient Information
-                </div>
-                <div className={`space-y-1 ${isDark ? 'text-white/80' : 'text-gray-700'} print:text-gray-900`}>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Name:</span>
+                <h1 className={`text-2xl font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'} print:text-gray-900`}>
+                  Health Summary Report
+                </h1>
+                <p className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'} print:text-gray-600`}>
+                  {patientData.reportPeriod}
+                </p>
+              </div>
+            </div>
+
+            {/* Patient Info + Summary Cards Layout */}
+            <div className="flex flex-wrap gap-x-8 gap-y-4 mb-6">
+              {/* Patient Info - Left Column */}
+              <div className={`space-y-1 ${isDark ? 'text-white/80' : 'text-gray-700'} print:text-gray-900`}>
+                {patientData.name && patientData.name !== 'User' && (
+                  <div className="flex gap-4">
+                    <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Name:</span>
                     <span className="text-sm font-medium">{patientData.name}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Date of Birth:</span>
-                    <span className="text-sm font-medium">{patientData.dateOfBirth}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Age:</span>
-                    <span className="text-sm font-medium">{patientData.age} years</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Sex:</span>
-                    <span className="text-sm font-medium">{patientData.sex}</span>
-                  </div>
+                )}
+                <div className="flex gap-4">
+                  <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Date of Birth:</span>
+                  <span className="text-sm font-medium">{patientData.dateOfBirth}</span>
+                </div>
+                <div className="flex gap-4">
+                  <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Age:</span>
+                  <span className="text-sm font-medium">{patientData.age} years</span>
+                </div>
+                <div className="flex gap-4">
+                  <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Sex:</span>
+                  <span className="text-sm font-medium">{patientData.sex}</span>
+                </div>
+                <div className="flex gap-4">
+                  <span className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-500'}`}>Report Date:</span>
+                  <span className="text-sm font-medium">{patientData.reportDate}</span>
                 </div>
               </div>
 
-              <div>
-                <div className={`text-xs uppercase tracking-wider mb-2 ${isDark ? 'text-white/50' : 'text-gray-500'} print:text-gray-600`}>
-                  Report Summary
+              {/* Summary Cards - Right Side */}
+              <div className="flex gap-2 ml-auto">
+                <div className={`p-3 rounded-lg border text-center min-w-[70px] print:border-gray-300 ${isDark ? 'bg-teal-500/10 border-teal-500/30' : 'bg-teal-50 border-teal-200'}`}>
+                  <div className={`text-2xl font-bold mb-1 ${isDark ? 'text-teal-400' : 'text-teal-700'} print:text-teal-700`}>
+                    {patientData.totalBiomarkers}
+                  </div>
+                  <div className={`text-xs ${isDark ? 'text-teal-300' : 'text-teal-600'} print:text-teal-700`}>
+                    Biomarkers
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className={`p-3 rounded-lg border print:border-gray-300 ${isDark ? 'bg-teal-500/10 border-teal-500/30' : 'bg-teal-50 border-teal-200'}`}>
-                    <div className={`text-2xl font-bold mb-1 ${isDark ? 'text-teal-400' : 'text-teal-700'} print:text-teal-700`}>
-                      {patientData.totalBiomarkers}
-                    </div>
-                    <div className={`text-xs ${isDark ? 'text-teal-300' : 'text-teal-600'} print:text-teal-700`}>
-                      Biomarkers
-                    </div>
+                <div className={`p-3 rounded-lg border text-center min-w-[70px] print:border-gray-300 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+                  <div className={`text-2xl font-bold mb-1 ${isDark ? 'text-amber-400' : 'text-amber-700'} print:text-amber-700`}>
+                    {patientData.outOfRange}
                   </div>
-                  <div className={`p-3 rounded-lg border print:border-gray-300 ${isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
-                    <div className={`text-2xl font-bold mb-1 ${isDark ? 'text-amber-400' : 'text-amber-700'} print:text-amber-700`}>
-                      {patientData.outOfRange}
-                    </div>
-                    <div className={`text-xs ${isDark ? 'text-amber-300' : 'text-amber-600'} print:text-amber-700`}>
-                      Suboptimal
-                    </div>
+                  <div className={`text-xs ${isDark ? 'text-amber-300' : 'text-amber-600'} print:text-amber-700`}>
+                    Suboptimal
                   </div>
-                  <div className={`p-3 rounded-lg border print:border-gray-300 ${isDark ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}`}>
-                    <div className={`text-2xl font-bold mb-1 ${isDark ? 'text-red-400' : 'text-red-700'} print:text-red-700`}>
-                      {patientData.requiresAttention}
-                    </div>
-                    <div className={`text-xs ${isDark ? 'text-red-300' : 'text-red-600'} print:text-red-700`}>
-                      Attention
-                    </div>
+                </div>
+                <div className={`p-3 rounded-lg border text-center min-w-[70px] print:border-gray-300 ${isDark ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'}`}>
+                  <div className={`text-2xl font-bold mb-1 ${isDark ? 'text-red-400' : 'text-red-700'} print:text-red-700`}>
+                    {patientData.requiresAttention}
+                  </div>
+                  <div className={`text-xs ${isDark ? 'text-red-300' : 'text-red-600'} print:text-red-700`}>
+                    Attention
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* Overall Assessment */}
             <div className={`p-4 rounded-lg border print:border-gray-300 ${isDark ? 'bg-blue-500/5 border-blue-500/20' : 'bg-blue-50 border-blue-200'}`}>
               <p className={`text-sm ${isDark ? 'text-blue-200' : 'text-blue-900'} print:text-blue-900`}>
                 <strong>Overall Assessment:</strong> {patientData.overallAssessment}
