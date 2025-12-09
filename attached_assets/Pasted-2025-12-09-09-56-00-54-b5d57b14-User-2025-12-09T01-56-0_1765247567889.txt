@@ -1,0 +1,173 @@
+2025-12-09 09:56:00.54
+b5d57b14
+User
+[2025-12-09T01:56:00.540Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 09:57:00.51
+b5d57b14
+User
+[2025-12-09T01:57:00.514Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 09:57:00.51
+b5d57b14
+User
+[2025-12-09T01:57:00.514Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 09:58:01.00
+b5d57b14
+User
+[2025-12-09T01:58:01.000Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 09:58:01.00
+b5d57b14
+User
+[2025-12-09T01:58:01.000Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 09:59:00.51
+b5d57b14
+User
+[2025-12-09T01:59:00.512Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 09:59:00.51
+b5d57b14
+User
+[2025-12-09T01:59:00.511Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:00:00.43
+b5d57b14
+User
+[2025-12-09T02:00:00.434Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:00:00.43
+b5d57b14
+User
+[2025-12-09T02:00:00.434Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:01:00.53
+b5d57b14
+User
+[2025-12-09T02:01:00.535Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:01:00.53
+b5d57b14
+User
+[2025-12-09T02:01:00.535Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:02:00.54
+b5d57b14
+User
+[2025-12-09T02:02:00.546Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:02:00.54
+b5d57b14
+User
+[2025-12-09T02:02:00.546Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:03:00.95
+b5d57b14
+User
+[2025-12-09T02:03:00.955Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:03:00.95
+b5d57b14
+User
+[2025-12-09T02:03:00.955Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:04:00.50
+b5d57b14
+User
+[2025-12-09T02:04:00.501Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:04:00.50
+b5d57b14
+User
+[2025-12-09T02:04:00.502Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:05:00.74
+b5d57b14
+User
+[2025-12-09T02:05:00.742Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:05:00.74
+b5d57b14
+User
+[2025-12-09T02:05:00.742Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:06:00.71
+b5d57b14
+User
+[2025-12-09T02:06:00.719Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:06:00.71
+b5d57b14
+User
+[2025-12-09T02:06:00.719Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:07:00.53
+b5d57b14
+User
+[2025-12-09T02:07:00.530Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:07:00.53
+b5d57b14
+User
+[2025-12-09T02:07:00.529Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:08:00.54
+b5d57b14
+User
+[2025-12-09T02:08:00.543Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:08:00.54
+b5d57b14
+User
+[2025-12-09T02:08:00.543Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:09:00.60
+b5d57b14
+User
+[2025-12-09T02:09:00.606Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:09:00.60
+b5d57b14
+User
+[2025-12-09T02:09:00.605Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:10:00.40
+b5d57b14
+User
+[2025-12-09T02:10:00.404Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:10:00.40
+b5d57b14
+User
+[2025-12-09T02:10:00.404Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:11:00.51
+b5d57b14
+User
+[2025-12-09T02:11:00.516Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:11:00.51
+b5d57b14
+User
+[2025-12-09T02:11:00.516Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:12:00.52
+b5d57b14
+User
+[2025-12-09T02:12:00.519Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:12:00.52
+b5d57b14
+User
+[2025-12-09T02:12:00.519Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:13:00.49
+b5d57b14
+User
+[2025-12-09T02:13:00.497Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:13:00.49
+b5d57b14
+User
+[2025-12-09T02:13:00.497Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:14:00.54
+b5d57b14
+User
+[2025-12-09T02:14:00.547Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:14:00.54
+b5d57b14
+User
+[2025-12-09T02:14:00.547Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:15:00.43
+b5d57b14
+User
+[2025-12-09T02:15:00.438Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:15:00.43
+b5d57b14
+User
+[2025-12-09T02:15:00.437Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:16:00.53
+b5d57b14
+User
+[2025-12-09T02:16:00.534Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+2025-12-09 10:16:00.53
+b5d57b14
+User
+[2025-12-09T02:16:00.533Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:17:00.29
+1781e8dc
+User
+[2025-12-09T02:17:00.296Z] [WARN] [APNs] No active device tokens found for user 34226453
+2025-12-09 10:17:00.29
+1781e8dc
+User
+[2025-12-09T02:17:00.296Z] [WARN] [ReminderDelivery] No devices reached for user 34226453 {"error":"No active devices"}
+
