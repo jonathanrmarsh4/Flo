@@ -4,21 +4,21 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { getAuthHeaders, getApiBaseUrl } from "@/lib/queryClient";
 import { FileText, Share2, Loader2 } from "lucide-react";
-import { FullReportScreen, FullReportData } from "./FullReportScreen";
+import { HealthReportScreen, HealthReportData } from "./HealthReportScreen";
 
 export function ReportTile() {
   const { toast } = useToast();
   const [showFullReport, setShowFullReport] = useState(false);
-  const [reportData, setReportData] = useState<FullReportData | null>(null);
+  const [reportData, setReportData] = useState<HealthReportData | null>(null);
 
   const generateReportMutation = useMutation({
     mutationFn: async () => {
       const baseUrl = getApiBaseUrl();
       const headers = await getAuthHeaders();
       
-      console.log('[ReportTile] Generating report with auth headers:', Object.keys(headers));
+      console.log('[ReportTile] Generating health summary report with auth headers:', Object.keys(headers));
       
-      const response = await fetch(`${baseUrl}/api/comprehensive-report`, {
+      const response = await fetch(`${baseUrl}/api/health-summary-report`, {
         headers,
         credentials: 'include',
       });
@@ -26,7 +26,7 @@ export function ReportTile() {
         const error = await response.json();
         throw new Error(error.error || error.message || 'Failed to generate report');
       }
-      return response.json() as Promise<FullReportData>;
+      return response.json() as Promise<HealthReportData>;
     },
     onSuccess: (data) => {
       setReportData(data);
@@ -109,9 +109,9 @@ export function ReportTile() {
         </div>
       </div>
 
-      {/* Full Report Modal */}
+      {/* Health Summary Report Modal */}
       {showFullReport && (
-        <FullReportScreen 
+        <HealthReportScreen 
           isDark={true} 
           onClose={() => setShowFullReport(false)} 
           reportData={reportData || undefined}

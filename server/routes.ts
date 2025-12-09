@@ -2411,6 +2411,276 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/health-summary-report - Generate Health Summary Report (new design)
+  app.get("/api/health-summary-report", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get user profile
+      const profile = await storage.getProfile(userId);
+      const userName = req.user.claims.username || profile?.firstName || 'User';
+      
+      // Calculate age using mid-year assumption
+      let ageYears = profile?.birthYear ? calculateAgeFromBirthYear(profile.birthYear) : null;
+      
+      // Get biomarker sessions from Supabase
+      const sessions = await healthRouter.getBiomarkerSessions(userId);
+      const biomarkers = await storage.getBiomarkers();
+      const biomarkerMap = new Map(biomarkers.map(b => [b.id, b]));
+      
+      // Format date of birth from birthYear
+      const dateOfBirth = profile?.birthYear ? `${profile.birthYear}` : 'Not specified';
+      
+      // Build report period string
+      const reportDate = new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Determine date range from sessions
+      let reportPeriod = "12-month analysis";
+      if (sessions.length > 0) {
+        const sortedSessions = [...sessions].sort((a, b) => 
+          new Date(b.testDate).getTime() - new Date(a.testDate).getTime()
+        );
+        const oldestDate = new Date(sortedSessions[sortedSessions.length - 1].testDate);
+        const newestDate = new Date(sortedSessions[0].testDate);
+        const monthsDiff = Math.ceil((newestDate.getTime() - oldestDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
+        reportPeriod = `${monthsDiff || 1}-month analysis`;
+      }
+      
+      // Sort sessions by date (newest first) and normalize snake_case fields
+      const sortedSessions = [...sessions]
+        .map((s: any) => ({
+          id: s.id,
+          testDate: s.test_date || s.testDate,
+        }))
+        .sort((a, b) => new Date(b.testDate).getTime() - new Date(a.testDate).getTime());
+      
+      // Fetch measurements for all sessions to build historical data
+      // { biomarkerId -> [{ value, date, sessionId }] ordered newest first }
+      const biomarkerHistory = new Map<string, { value: number; date: Date; unit?: string }[]>();
+      
+      for (const session of sortedSessions) {
+        if (!session.id) continue;
+        try {
+          const measurements = await healthRouter.getMeasurementsBySession(session.id);
+          for (const m of measurements) {
+            // Normalize snake_case from Supabase
+            const biomarkerId = m.biomarker_id || m.biomarkerId;
+            const value = m.value;
+            const unit = m.unit;
+            
+            if (value === null || value === undefined) continue;
+            if (!biomarkerHistory.has(biomarkerId)) {
+              biomarkerHistory.set(biomarkerId, []);
+            }
+            biomarkerHistory.get(biomarkerId)!.push({
+              value,
+              date: new Date(session.testDate),
+              unit,
+            });
+          }
+        } catch (err) {
+          logger.debug(`Failed to fetch measurements for session ${session.id}`);
+        }
+      }
+      
+      // Collect all biomarker results for categorization
+      interface BiomarkerResult {
+        name: string;
+        value: number;
+        unit: string;
+        status: 'optimal' | 'attention' | 'low' | 'high';
+        trend: 'up' | 'down' | 'stable';
+        change: string;
+        category: string;
+        standardRange: string;
+        optimalRange: string;
+        lastTested: string;
+        note?: string;
+        biomarkerId: string;
+      }
+      
+      const allResults: BiomarkerResult[] = [];
+      const categoryMap: Record<string, BiomarkerResult[]> = {};
+      
+      // Process each biomarker's history to create results
+      for (const [biomarkerId, history] of biomarkerHistory.entries()) {
+        const biomarker = biomarkerMap.get(biomarkerId);
+        if (!biomarker || history.length === 0) continue;
+        
+        // Most recent value is first in history
+        const latest = history[0];
+        const value = latest.value;
+        const unit = latest.unit || biomarker.unit || '';
+        const refLow = biomarker.refLow;
+        const refHigh = biomarker.refHigh;
+        const optLow = biomarker.optLow || refLow;
+        const optHigh = biomarker.optHigh || refHigh;
+        
+        // Determine status
+        let status: 'optimal' | 'attention' | 'low' | 'high' = 'optimal';
+        if (value !== null && refLow !== null && refHigh !== null) {
+          if (value < refLow) status = 'low';
+          else if (value > refHigh) status = 'high';
+          else if (optLow !== null && optHigh !== null) {
+            if (value < optLow || value > optHigh) status = 'attention';
+          }
+        }
+        
+        // Calculate trend using historical data (compare newest to previous)
+        let trend: 'up' | 'down' | 'stable' = 'stable';
+        let change = '0%';
+        
+        if (history.length >= 2) {
+          const newest = history[0].value;
+          const previous = history[1].value;
+          
+          if (previous !== 0 && previous !== null) {
+            const changePercent = ((newest - previous) / Math.abs(previous)) * 100;
+            change = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`;
+            
+            // Determine trend direction (threshold of 2% to consider significant)
+            if (changePercent > 2) trend = 'up';
+            else if (changePercent < -2) trend = 'down';
+          }
+        }
+        
+        // Create result object
+        const bioResult: BiomarkerResult = {
+          name: biomarker.name,
+          value: value ?? 0,
+          unit,
+          status,
+          trend,
+          change,
+          category: biomarker.category || 'General',
+          standardRange: refLow !== null && refHigh !== null ? `${refLow}-${refHigh}` : 'N/A',
+          optimalRange: optLow !== null && optHigh !== null ? `${optLow}-${optHigh}` : 'N/A',
+          lastTested: latest.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          biomarkerId,
+        };
+        
+        allResults.push(bioResult);
+        
+        // Group by category
+        const cat = bioResult.category;
+        if (!categoryMap[cat]) categoryMap[cat] = [];
+        categoryMap[cat].push(bioResult);
+      }
+      
+      // Calculate category statuses (each biomarker is already unique in categoryMap)
+      const biomarkerCategories = Object.entries(categoryMap).map(([category, markers]) => {
+        const hasAttention = markers.some(m => m.status === 'attention' || m.status === 'low' || m.status === 'high');
+        
+        return {
+          category,
+          status: hasAttention ? 'attention' : 'good',
+          markers: markers.slice(0, 10).map(m => ({
+            name: m.name,
+            value: m.value,
+            unit: m.unit,
+            status: m.status,
+            trend: m.trend,
+            change: m.change,
+          })),
+        };
+      });
+      
+      // Find critical alerts (biomarkers needing attention)
+      const criticalAlerts = allResults
+        .filter(r => r.status === 'low' || r.status === 'high' || r.status === 'attention')
+        .slice(0, 5)
+        .map(r => ({
+          marker: r.name,
+          currentValue: r.value,
+          unit: r.unit,
+          standardRange: r.standardRange,
+          optimalRange: r.optimalRange,
+          trend: r.trend === 'up' ? 'increasing' : r.trend === 'down' ? 'declining' : 'stable',
+          severity: r.status === 'low' || r.status === 'high' ? 'critical' : 'moderate',
+          lastTested: r.lastTested,
+          note: `${r.status === 'low' ? 'Below' : r.status === 'high' ? 'Above' : 'Outside'} optimal range. Consider discussing with your healthcare provider.`,
+        }));
+      
+      // Count statistics
+      const uniqueBiomarkers = new Set(allResults.map(r => r.name));
+      const totalBiomarkers = uniqueBiomarkers.size;
+      const outOfRange = new Set(allResults.filter(r => r.status !== 'optimal').map(r => r.name)).size;
+      const requiresAttention = criticalAlerts.length;
+      
+      // Generate overall assessment
+      let overallAssessment = "";
+      if (totalBiomarkers === 0) {
+        overallAssessment = "No biomarker data available yet. Upload your blood work results to generate a comprehensive health analysis.";
+      } else if (outOfRange === 0) {
+        overallAssessment = "All biomarkers are within optimal ranges. Continue your current health practices and schedule routine follow-up testing.";
+      } else {
+        const categories = [...new Set(criticalAlerts.map(a => a.marker.split(' ')[0]))];
+        overallAssessment = `Analysis identified ${outOfRange} biomarker${outOfRange > 1 ? 's' : ''} requiring attention. Primary areas for intervention: ${categories.slice(0, 3).join(', ')}. Consider consulting with your healthcare provider for personalized guidance.`;
+      }
+      
+      // Build retest recommendations based on status
+      const retestRecommendations = criticalAlerts.slice(0, 6).map(alert => ({
+        marker: alert.marker,
+        priority: alert.severity === 'critical' ? 'High' : 'Moderate',
+        interval: alert.severity === 'critical' ? '3 months' : '6 months',
+        rationale: `${alert.severity === 'critical' ? 'Outside reference range' : 'Outside optimal range'}, monitoring recommended`,
+      }));
+      
+      // Get active action plan items as interventions (from Supabase via healthRouter)
+      let activeInterventions: any[] = [];
+      try {
+        const actionItems = await healthRouter.getActionPlanItems(userId, 'active');
+        if (actionItems && Array.isArray(actionItems)) {
+          activeInterventions = actionItems
+            .slice(0, 5)
+            .map((item: any) => ({
+              title: item.snapshot_title || item.snapshotTitle || 'Health Optimization',
+              started: new Date(item.added_at || item.addedAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              target: item.target_value || item.targetValue ? `${item.target_value || item.targetValue} ${item.unit || ''}` : 'Optimal range',
+              actions: (item.snapshot_steps || item.snapshotSteps)?.slice(0, 3) || ['Follow recommended protocol'],
+              progress: 'In progress',
+            }));
+        }
+      } catch (error: any) {
+        logger.debug('No action plan items found for health summary report', { error: error?.message });
+      }
+      
+      // Build the response in HealthReportData format
+      const healthReportData = {
+        patientData: {
+          name: userName,
+          age: ageYears || 0,
+          sex: profile?.sex || 'Not specified',
+          dateOfBirth: dateOfBirth,
+          reportDate: reportDate,
+          reportPeriod: reportPeriod,
+          totalBiomarkers: totalBiomarkers,
+          outOfRange: outOfRange,
+          requiresAttention: requiresAttention,
+          overallAssessment: overallAssessment,
+        },
+        criticalAlerts: criticalAlerts,
+        biomarkerCategories: biomarkerCategories,
+        correlationInsights: [], // Will be populated by AI in future enhancement
+        retestRecommendations: retestRecommendations,
+        activeInterventions: activeInterventions,
+      };
+      
+      res.json(healthReportData);
+      
+    } catch (error: any) {
+      logger.error('Error generating health summary report:', error);
+      res.status(500).json({ 
+        error: "Failed to generate health summary report",
+        message: error.message
+      });
+    }
+  });
+
   // GET /api/biomarkers/top-to-improve - Get top 3 biomarkers needing improvement
   app.get("/api/biomarkers/top-to-improve", isAuthenticated, async (req: any, res) => {
     try {
