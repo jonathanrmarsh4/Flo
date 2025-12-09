@@ -405,6 +405,31 @@ export default function AdminDashboard() {
     },
   });
 
+  const [testPushUserId, setTestPushUserId] = useState<string>('');
+  const testPushMutation = useMutation({
+    mutationFn: async ({ userId, title, body }: { userId: string; title: string; body: string }) => {
+      const res = await apiRequest('POST', '/api/admin/test-push', { userId, title, body });
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: 'Push Notification Sent',
+        description: data.devicesReached 
+          ? `Sent to ${data.devicesReached} device(s)` 
+          : 'No devices found for user',
+      });
+      console.log('[TestPush] Result:', data);
+    },
+    onError: (error: any) => {
+      console.error('Test push error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send test push',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleSaveUser = (userId: string) => {
     updateUserMutation.mutate({ userId, role: editRole, status: editStatus });
   };
@@ -1740,6 +1765,70 @@ export default function AdminDashboard() {
             <AdminSandboxVoice />
 
             <AdminReportModelSettings />
+
+            <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
+              <h4 className="text-base text-white mb-2 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-cyan-400" />
+                Test Push Notification
+              </h4>
+              <div className="text-xs text-white/50 mb-4">
+                Send a test push notification to verify APNs delivery. Enter a user ID (internal UUID format) to test.
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  value={testPushUserId}
+                  onChange={(e) => setTestPushUserId(e.target.value)}
+                  placeholder="User ID (e.g., 095f8978-a3ad-4fe1-af39-1bba9b6e8d78)"
+                  className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-cyan-500"
+                  data-testid="input-test-push-user-id"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      const userId = testPushUserId.trim() || user?.id;
+                      if (userId) {
+                        testPushMutation.mutate({ 
+                          userId, 
+                          title: 'Test Notification', 
+                          body: 'Push notifications are working!' 
+                        });
+                      } else {
+                        toast({ title: 'Error', description: 'Please enter a User ID', variant: 'destructive' });
+                      }
+                    }}
+                    disabled={testPushMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white transition-all disabled:opacity-50"
+                    data-testid="button-send-test-push"
+                  >
+                    {testPushMutation.isPending ? (
+                      <>
+                        <Activity className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bell className="w-4 h-4" />
+                        <span className="text-sm">Send Test Push</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (user?.id) {
+                        setTestPushUserId(user.id);
+                        toast({ title: 'User ID Set', description: 'Using your own user ID' });
+                      }
+                    }}
+                    className="px-3 py-2 rounded-lg bg-white/10 border border-white/20 hover:bg-white/20 text-white text-xs transition-all"
+                    data-testid="button-use-my-id"
+                  >
+                    Use My ID
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h4 className="text-base text-white mb-2 flex items-center gap-2">
