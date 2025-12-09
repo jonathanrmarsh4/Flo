@@ -3,11 +3,14 @@ import { getHistoricalAirQuality, getCurrentWeather, AirQualityData } from './op
 
 const logger = createLogger('EnvironmentalBackfill');
 
-const BACKFILL_MONTHS = 12;
+// Limit backfill to 1 month per run - accumulates over time
+const BACKFILL_MONTHS = 1;
 const DAYS_PER_API_CALL = 5;
 const API_CALL_DELAY_MS = 1100;
 const MAX_RETRIES = 3;
 const DAILY_API_QUOTA = 950;
+// Reserve some quota for real-time weather requests (100 calls/day)
+const BACKFILL_QUOTA_RESERVE = 100;
 
 async function getPersistedQuota(): Promise<{ date: string; callsUsed: number }> {
   const today = new Date().toISOString().split('T')[0];
@@ -79,7 +82,7 @@ async function getQuotaStatusInternal(): Promise<{ date: string; callsUsed: numb
 
 interface BackfillStatus {
   healthId: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'no_location_data';
+  status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'no_location_data' | 'paused_quota';
   backfillStartedAt: Date | null;
   backfillCompletedAt: Date | null;
   lastProcessedDate: string | null;
@@ -368,6 +371,13 @@ export async function runBackfillForUser(
   
   logger.info(`[Backfill] Starting ${monthsBack}-month backfill for health_id ${healthId}`);
 
+  // Check quota upfront - reserve some for real-time requests
+  const quotaStatus = await getQuotaStatusInternal();
+  if (quotaStatus.remaining < BACKFILL_QUOTA_RESERVE) {
+    logger.warn(`[Backfill] Skipping user ${healthId} - insufficient quota (${quotaStatus.remaining} remaining, need ${BACKFILL_QUOTA_RESERVE} reserve)`);
+    return { success: false, daysProcessed: 0, error: 'QUOTA_INSUFFICIENT: Not enough quota for backfill' };
+  }
+
   const existingStatus = await getBackfillStatus(healthId);
   if (existingStatus?.status === 'completed' && !forceRefresh) {
     logger.info(`[Backfill] User ${healthId} already backfilled, skipping`);
@@ -380,13 +390,26 @@ export async function runBackfillForUser(
   }
 
   const endDate = new Date();
-  const startDate = new Date();
+  let startDate = new Date();
   startDate.setMonth(startDate.getMonth() - monthsBack);
+
+  // Resume from last processed date if paused due to quota
+  let resuming = false;
+  if ((existingStatus?.status === 'paused_quota' || existingStatus?.status === 'failed') && existingStatus.lastProcessedDate) {
+    const lastProcessed = new Date(existingStatus.lastProcessedDate);
+    // Start from the day after the last processed date
+    lastProcessed.setDate(lastProcessed.getDate() + 1);
+    if (lastProcessed < endDate) {
+      startDate = lastProcessed;
+      resuming = true;
+      logger.info(`[Backfill] Resuming user ${healthId} from ${startDate.toISOString().split('T')[0]}`);
+    }
+  }
 
   await updateBackfillStatus(healthId, {
     status: 'in_progress',
-    backfillStartedAt: new Date(),
-    earliestDate: startDate.toISOString().split('T')[0],
+    backfillStartedAt: resuming ? undefined : new Date(),
+    earliestDate: resuming ? undefined : startDate.toISOString().split('T')[0],
     latestDate: endDate.toISOString().split('T')[0],
     errorLog: '',
   });
@@ -501,8 +524,11 @@ export async function runBackfillForUser(
     const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error(`[Backfill] Failed for ${healthId}:`, error);
     
+    // Use 'paused_quota' status for quota-related errors so we can resume later
+    const isQuotaError = errorMsg.includes('QUOTA_EXHAUSTED') || errorMsg.includes('QUOTA_INSUFFICIENT');
+    
     await updateBackfillStatus(healthId, {
-      status: 'failed',
+      status: isQuotaError ? 'paused_quota' : 'failed',
       errorLog: errorMsg,
     });
 
@@ -515,6 +541,7 @@ export async function runBackfillForAllUsers(): Promise<{
   successful: number; 
   failed: number;
   noLocationData: number;
+  pausedQuota: number;
   quotaExhaustedAt?: number;
   stoppedDueToQuota: boolean;
 }> {
@@ -527,7 +554,7 @@ export async function runBackfillForAllUsers(): Promise<{
 
   if (error) {
     logger.error('[Backfill] Error fetching users:', error);
-    return { total: 0, successful: 0, failed: 0, noLocationData: 0, stoppedDueToQuota: false };
+    return { total: 0, successful: 0, failed: 0, noLocationData: 0, pausedQuota: 0, stoppedDueToQuota: false };
   }
 
   const uniqueHealthIds = Array.from(new Set(users?.map(u => u.health_id) || []));
@@ -536,6 +563,7 @@ export async function runBackfillForAllUsers(): Promise<{
   let successful = 0;
   let failed = 0;
   let noLocationData = 0;
+  let pausedQuota = 0;
   let stoppedDueToQuota = false;
   let quotaExhaustedAt: number | undefined;
 
@@ -543,8 +571,8 @@ export async function runBackfillForAllUsers(): Promise<{
     const healthId = uniqueHealthIds[i];
     
     const quotaStatus = await getQuotaStatusInternal();
-    if (quotaStatus.quotaExhausted) {
-      logger.warn(`[Backfill] Stopping bulk backfill: API quota exhausted (${quotaStatus.callsUsed}/${DAILY_API_QUOTA})`);
+    if (quotaStatus.remaining < BACKFILL_QUOTA_RESERVE) {
+      logger.warn(`[Backfill] Stopping bulk backfill: insufficient quota (${quotaStatus.remaining} remaining, need ${BACKFILL_QUOTA_RESERVE} reserve)`);
       stoppedDueToQuota = true;
       quotaExhaustedAt = i;
       break;
@@ -556,7 +584,8 @@ export async function runBackfillForAllUsers(): Promise<{
       successful++;
     } else if (result.error === 'No location history available') {
       noLocationData++;
-    } else if (result.error?.includes('QUOTA_EXHAUSTED')) {
+    } else if (result.error?.includes('QUOTA_EXHAUSTED') || result.error?.includes('QUOTA_INSUFFICIENT')) {
+      pausedQuota++;
       stoppedDueToQuota = true;
       quotaExhaustedAt = i;
       logger.warn(`[Backfill] Stopping bulk backfill at user ${i + 1}/${uniqueHealthIds.length}: quota exhausted`);
@@ -577,7 +606,7 @@ export async function runBackfillForAllUsers(): Promise<{
     : `Bulk backfill complete: ${successful} successful, ${failed} failed, ${noLocationData} no location data`;
   logger.info(`[Backfill] ${message}`);
 
-  return { total: uniqueHealthIds.length, successful, failed, noLocationData, quotaExhaustedAt, stoppedDueToQuota };
+  return { total: uniqueHealthIds.length, successful, failed, noLocationData, pausedQuota, quotaExhaustedAt, stoppedDueToQuota };
 }
 
 export async function getBackfillStats(): Promise<{
@@ -587,6 +616,7 @@ export async function getBackfillStats(): Promise<{
   completed: number;
   failed: number;
   noLocationData: number;
+  pausedQuota: number;
   apiQuota: { date: string; callsUsed: number; remaining: number; quotaExhausted: boolean };
 }> {
   const supabase = await getSupabaseClient();
@@ -598,7 +628,7 @@ export async function getBackfillStats(): Promise<{
   if (error) {
     logger.error('[Backfill] Error fetching stats:', error);
     return { 
-      total: 0, pending: 0, inProgress: 0, completed: 0, failed: 0, noLocationData: 0,
+      total: 0, pending: 0, inProgress: 0, completed: 0, failed: 0, noLocationData: 0, pausedQuota: 0,
       apiQuota: await getQuotaStatusInternal()
     };
   }
@@ -611,6 +641,7 @@ export async function getBackfillStats(): Promise<{
     completed: statuses.filter(s => s.status === 'completed').length,
     failed: statuses.filter(s => s.status === 'failed').length,
     noLocationData: statuses.filter(s => s.status === 'no_location_data').length,
+    pausedQuota: statuses.filter(s => s.status === 'paused_quota').length,
     apiQuota: await getQuotaStatusInternal(),
   };
 }
