@@ -2453,19 +2453,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort sessions by date (newest first) and normalize snake_case fields
       const sortedSessions = [...sessions]
         .map((s: any) => ({
-          id: s.id,
+          id: s.id || s.session_id,
           testDate: s.test_date || s.testDate,
         }))
         .sort((a, b) => new Date(b.testDate).getTime() - new Date(a.testDate).getTime());
+      
+      logger.info('[HealthSummaryReport] Processing sessions:', {
+        sessionCount: sortedSessions.length,
+        sampleSession: sortedSessions[0] ? { id: sortedSessions[0].id, testDate: sortedSessions[0].testDate } : null,
+        rawSampleSession: sessions[0] ? Object.keys(sessions[0]) : null,
+      });
       
       // Fetch measurements for all sessions to build historical data
       // { biomarkerId -> [{ value, date, sessionId }] ordered newest first }
       const biomarkerHistory = new Map<string, { value: number; date: Date; unit?: string }[]>();
       
       for (const session of sortedSessions) {
-        if (!session.id) continue;
+        if (!session.id) {
+          logger.debug('[HealthSummaryReport] Skipping session without ID');
+          continue;
+        }
         try {
           const measurements = await healthRouter.getMeasurementsBySession(session.id);
+          logger.debug(`[HealthSummaryReport] Session ${session.id}: found ${measurements.length} measurements`);
           for (const m of measurements) {
             // Normalize snake_case from Supabase
             const biomarkerId = m.biomarker_id || m.biomarkerId;
