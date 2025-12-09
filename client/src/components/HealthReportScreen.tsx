@@ -278,16 +278,16 @@ export function HealthReportScreen({ isDark, onClose, reportData }: HealthReport
               </div>
             </div>
 
-            {/* AI Executive Summary */}
+            {/* AI Executive Summary - Dynamic height, no truncation */}
             {patientData.aiExecutiveSummary ? (
               <div className={`p-5 rounded-xl border print:border-gray-300 ${isDark ? 'bg-gradient-to-br from-teal-500/10 to-blue-500/10 border-teal-500/20' : 'bg-gradient-to-br from-teal-50 to-blue-50 border-teal-200'}`}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Activity className={`w-4 h-4 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+                  <Activity className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
                   <span className={`text-xs font-medium uppercase tracking-wide ${isDark ? 'text-teal-300' : 'text-teal-700'}`}>
                     AI Health Analysis
                   </span>
                 </div>
-                <div className={`text-sm leading-relaxed whitespace-pre-wrap ${isDark ? 'text-white/80' : 'text-gray-700'} print:text-gray-900`}>
+                <div className={`text-sm leading-relaxed ${isDark ? 'text-white/80' : 'text-gray-700'} print:text-gray-900`} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                   {patientData.aiExecutiveSummary}
                 </div>
               </div>
@@ -389,27 +389,36 @@ export function HealthReportScreen({ isDark, onClose, reportData }: HealthReport
                           </tr>
                         </thead>
                         <tbody>
-                          {category.markers.map((marker, mIdx) => (
-                            <tr key={mIdx} className={`border-t ${isDark ? 'border-white/10' : 'border-gray-200 print:border-gray-300'}`}>
-                              <td className={`p-3 ${isDark ? 'text-white/80' : 'text-gray-900'}`}>{marker.name}</td>
-                              <td className={`p-3 text-right ${isDark ? 'text-white/80' : 'text-gray-900'}`}>
-                                {marker.value} {marker.unit}
-                              </td>
-                              <td className="p-3 text-center">
-                                {getTrendIcon(marker.trend)}
-                              </td>
-                              <td className={`p-3 text-right ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                                {marker.change}
-                              </td>
-                              <td className="p-3 text-center">
-                                <span className={`inline-block w-3 h-3 rounded-full ${
-                                  marker.status === 'optimal' ? 'bg-teal-500' : 
-                                  marker.status === 'attention' ? 'bg-amber-500' : 
-                                  'bg-red-500'
-                                }`} />
-                              </td>
-                            </tr>
-                          ))}
+                          {category.markers.map((marker, mIdx) => {
+                            // Format value to 1 decimal place if numeric
+                            const formattedValue = typeof marker.value === 'number' 
+                              ? marker.value.toFixed(1) 
+                              : (parseFloat(marker.value) ? parseFloat(marker.value).toFixed(1) : marker.value);
+                            
+                            // Determine status color - ensure all markers show a status dot
+                            const statusColor = marker.status === 'optimal' ? 'bg-teal-500' : 
+                              marker.status === 'attention' ? 'bg-amber-500' : 
+                              (marker.status === 'low' || marker.status === 'high') ? 'bg-red-500' :
+                              'bg-teal-500'; // Default to green if status is undefined
+                            
+                            return (
+                              <tr key={mIdx} className={`border-t ${isDark ? 'border-white/10' : 'border-gray-200 print:border-gray-300'}`}>
+                                <td className={`p-3 ${isDark ? 'text-white/80' : 'text-gray-900'}`}>{marker.name}</td>
+                                <td className={`p-3 text-right ${isDark ? 'text-white/80' : 'text-gray-900'}`}>
+                                  {formattedValue} {marker.unit}
+                                </td>
+                                <td className="p-3 text-center">
+                                  {getTrendIcon(marker.trend)}
+                                </td>
+                                <td className={`p-3 text-right ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                                  {marker.change}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <span className={`inline-block w-3 h-3 rounded-full ${statusColor}`} />
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>

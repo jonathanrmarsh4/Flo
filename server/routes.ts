@@ -2733,56 +2733,63 @@ Important: This is for educational purposes. Include a brief note that users sho
         }
       }
       
-      // Build enhanced retest recommendations for ALL biomarkers, sorted by priority
+      // Build retest recommendations - only show overdue or expiring within 90 days
+      const now = new Date();
       const retestRecommendations = allResults
-        .sort((a, b) => {
-          // Prioritize by severity, then by trend direction (worsening trends first)
-          const severityOrder = { low: 0, high: 0, attention: 1, optimal: 2 };
-          const aSeverity = severityOrder[a.status] ?? 2;
-          const bSeverity = severityOrder[b.status] ?? 2;
-          if (aSeverity !== bSeverity) return aSeverity - bSeverity;
-          // Worsening trends get higher priority (up for bad markers, down for others)
-          const aWorsening = (a.status === 'high' && a.trend === 'up') || (a.status === 'low' && a.trend === 'down');
-          const bWorsening = (b.status === 'high' && b.trend === 'up') || (b.status === 'low' && b.trend === 'down');
-          if (aWorsening && !bWorsening) return -1;
-          if (!aWorsening && bWorsening) return 1;
-          return 0;
-        })
-        .slice(0, 10) // Show top 10 recommendations
         .map(r => {
-          // Determine priority based on multiple factors
-          let priority = 'Low';
-          let interval = '12 months';
-          let rationale = 'Stable and optimal, routine monitoring';
-          
+          // Determine priority and retest interval based on status
           const isCritical = r.status === 'low' || r.status === 'high';
           const isWorsening = (r.status === 'high' && r.trend === 'up') || (r.status === 'low' && r.trend === 'down');
           const isImproving = (r.status === 'high' && r.trend === 'down') || (r.status === 'low' && r.trend === 'up');
           
+          let priority = 'Low';
+          let intervalMonths = 12;
+          let rationale = 'Stable and optimal, routine monitoring';
+          
           if (isCritical && isWorsening) {
             priority = 'High';
-            interval = '3 months';
+            intervalMonths = 3;
             rationale = `${r.status === 'low' ? 'Below' : 'Above'} optimal range, trending ${r.trend === 'up' ? 'upward' : 'downward'}`;
           } else if (isCritical) {
             priority = 'High';
-            interval = isImproving ? '3 months' : '3 months';
+            intervalMonths = 3;
             rationale = `${r.status === 'low' ? 'Below' : 'Above'} optimal range${isImproving ? ', active intervention underway' : ', monitor closely'}`;
           } else if (r.status === 'attention' && isWorsening) {
             priority = 'Moderate';
-            interval = '3 months';
-            rationale = `Trending ${r.trend === 'up' ? 'upward' : 'downward'}, ${r.trend === 'up' ? 'insulin sensitivity concerns' : 'lifestyle modifications initiated'}`;
+            intervalMonths = 3;
+            rationale = `Trending ${r.trend === 'up' ? 'upward' : 'downward'}, lifestyle modifications recommended`;
           } else if (r.status === 'attention') {
             priority = 'Moderate';
-            interval = '6 months';
-            rationale = `Below optimal, ${isImproving ? 'exercise intervention started' : 'lifestyle modifications recommended'}`;
-          } else if (r.status === 'optimal') {
-            priority = 'Low';
-            interval = '12 months';
-            rationale = 'Stable and optimal, routine monitoring';
+            intervalMonths = 6;
+            rationale = `Below optimal, ${isImproving ? 'improvement observed' : 'lifestyle modifications recommended'}`;
           }
           
-          return { marker: r.name, priority, interval, rationale };
-        });
+          // Calculate when retest is due based on last tested date
+          const lastTestedDate = r.lastTested ? new Date(r.lastTested) : null;
+          let dueDate: Date | null = null;
+          let daysUntilDue = Infinity;
+          
+          if (lastTestedDate && !isNaN(lastTestedDate.getTime())) {
+            dueDate = new Date(lastTestedDate);
+            dueDate.setMonth(dueDate.getMonth() + intervalMonths);
+            daysUntilDue = Math.floor((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          }
+          
+          return { 
+            marker: r.name, 
+            priority, 
+            interval: `${intervalMonths} months`, 
+            rationale,
+            daysUntilDue,
+            isOverdue: daysUntilDue < 0,
+            expiresWithin90Days: daysUntilDue <= 90
+          };
+        })
+        // Only include overdue or expiring within 90 days
+        .filter(r => r.isOverdue || r.expiresWithin90Days)
+        .sort((a, b) => a.daysUntilDue - b.daysUntilDue) // Sort by urgency
+        .slice(0, 15) // Limit to 15 items
+        .map(({ marker, priority, interval, rationale }) => ({ marker, priority, interval, rationale }));
       
       // Get active action plan items as interventions (from Supabase via healthRouter)
       let activeInterventions: any[] = [];
