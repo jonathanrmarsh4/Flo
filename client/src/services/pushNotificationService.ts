@@ -1,10 +1,10 @@
-import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import { apiRequest } from '@/lib/queryClient';
 
 class PushNotificationService {
   private isInitialized = false;
   private deviceToken: string | null = null;
+  private PushNotificationsModule: any = null;
 
   async initialize(): Promise<void> {
     if (this.isInitialized) {
@@ -18,6 +18,11 @@ class PushNotificationService {
     }
 
     try {
+      // Dynamic import to avoid build issues - only loads on native platforms
+      const module = await import('@capacitor/push-notifications');
+      this.PushNotificationsModule = module.PushNotifications;
+      const PushNotifications = this.PushNotificationsModule;
+
       const permStatus = await PushNotifications.checkPermissions();
       console.log('[PushNotifications] Current permission status:', permStatus.receive);
 
@@ -34,7 +39,7 @@ class PushNotificationService {
         return;
       }
 
-      await this.setupListeners();
+      await this.setupListeners(PushNotifications);
       await PushNotifications.register();
       
       this.isInitialized = true;
@@ -44,8 +49,8 @@ class PushNotificationService {
     }
   }
 
-  private async setupListeners(): Promise<void> {
-    PushNotifications.addListener('registration', async (token: Token) => {
+  private async setupListeners(PushNotifications: any): Promise<void> {
+    PushNotifications.addListener('registration', async (token: { value: string }) => {
       console.log('[PushNotifications] APNs registration successful, token:', token.value.substring(0, 20) + '...');
       this.deviceToken = token.value;
       await this.registerTokenWithBackend(token.value);
@@ -55,11 +60,11 @@ class PushNotificationService {
       console.error('[PushNotifications] Registration error:', error);
     });
 
-    PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+    PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
       console.log('[PushNotifications] Notification received:', notification);
     });
 
-    PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
+    PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
       console.log('[PushNotifications] Notification action performed:', action);
     });
   }
@@ -80,7 +85,7 @@ class PushNotificationService {
   }
 
   async unregister(): Promise<void> {
-    if (!Capacitor.isNativePlatform()) {
+    if (!Capacitor.isNativePlatform() || !this.PushNotificationsModule) {
       return;
     }
 
@@ -90,7 +95,7 @@ class PushNotificationService {
         console.log('[PushNotifications] Token unregistered from backend');
       }
 
-      await PushNotifications.removeAllListeners();
+      await this.PushNotificationsModule.removeAllListeners();
       this.isInitialized = false;
       this.deviceToken = null;
       console.log('[PushNotifications] Unregistered');
