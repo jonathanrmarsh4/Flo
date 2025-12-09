@@ -2476,6 +2476,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const measurements = await healthRouter.getMeasurementsBySession(session.id);
           logger.debug(`[HealthSummaryReport] Session ${session.id}: found ${measurements.length} measurements`);
+          
+          // Log first measurement structure to understand the data shape
+          if (measurements.length > 0 && session === sortedSessions[0]) {
+            logger.info('[HealthSummaryReport] Sample measurement keys:', Object.keys(measurements[0]));
+            logger.info('[HealthSummaryReport] Sample measurement:', JSON.stringify(measurements[0]));
+          }
+          
           for (const m of measurements) {
             // Normalize snake_case from Supabase
             const biomarkerId = m.biomarker_id || m.biomarkerId;
@@ -2483,6 +2490,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const unit = m.unit;
             
             if (value === null || value === undefined) continue;
+            if (!biomarkerId) {
+              logger.debug('[HealthSummaryReport] Skipping measurement without biomarkerId');
+              continue;
+            }
             if (!biomarkerHistory.has(biomarkerId)) {
               biomarkerHistory.set(biomarkerId, []);
             }
@@ -2495,6 +2506,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (err) {
           logger.debug(`Failed to fetch measurements for session ${session.id}`);
         }
+      }
+      
+      logger.info('[HealthSummaryReport] biomarkerHistory size after processing:', biomarkerHistory.size);
+      
+      // Log a sample of what biomarkers we found
+      if (biomarkerHistory.size > 0) {
+        const sampleIds = [...biomarkerHistory.keys()].slice(0, 3);
+        logger.info('[HealthSummaryReport] Sample biomarker IDs in history:', sampleIds);
       }
       
       // Collect all biomarker results for categorization
