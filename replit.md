@@ -40,6 +40,13 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Self-Improvement Engine (SIE):** Admin-only sandbox AI for product improvement suggestions.
 - **Morning Briefing System:** Personalized AI-generated daily briefings triggered after sleep ends. Uses 90-day baseline Z-score deviations from ClickHouse ML engine to surface "holy shit" insights. Features readiness score, weather context, actionable recommendations, and "Talk to Flō" integration for contextual Oracle conversations. Stored in ClickHouse `daily_user_insights` and `morning_briefing_log` tables with user preferences in Supabase `profiles.ai_personalization` JSONB field.
 - **Dexcom CGM Integration:** Direct OAuth2 integration with Dexcom API for continuous glucose monitoring. Features secure OAuth flow with server-side state validation, automatic 5-minute data sync via `cgmSyncScheduler`, real-time glucose dashboard tile with trend arrows and time-in-range visualization. Supports sandbox and production modes. Data stored in Supabase `cgm_connections` and `cgm_readings` tables. Redirect URI: `https://get-flo.com/api/auth/dexcom/callback`. Environment variables: `DEXCOM_CLIENT_ID`, `DEXCOM_CLIENT_SECRET`, `DEXCOM_SANDBOX`, `DEXCOM_REDIRECT_URI`.
+- **Apple Push Notifications (APNs):** Configurable via Admin Dashboard → Settings → APNs Configuration. Configuration stored in Neon database (`apns_configuration` table), not environment variables. Key details:
+  - **Team ID:** `QRJGSY642V`
+  - **Key ID:** `8PY6UV28L4`
+  - **Bundle ID:** `com.flo.healthapp`
+  - **Signing Key:** Full .p8 private key contents (include BEGIN/END markers)
+  - **Environment:** Use **Sandbox** for Xcode builds, **Production** for TestFlight/App Store builds
+  - Device tokens are stored in Supabase `device_tokens` table and auto-deactivated when APNs reports them invalid
 
 ## External Dependencies
 
