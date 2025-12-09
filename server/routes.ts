@@ -14485,7 +14485,29 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
-  // GET /api/auth/dexcom/connect - Initiate OAuth flow
+  // POST /api/auth/dexcom/start - Get OAuth URL (mobile-friendly, accepts JWT)
+  // Returns the OAuth URL for the client to navigate to
+  app.post("/api/auth/dexcom/start", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService, generateSecureState } = await import('./services/dexcomService');
+      // Generate cryptographically secure state stored server-side
+      const state = generateSecureState(userId);
+      const authUrl = dexcomService.getAuthorizationUrl(state);
+      
+      logger.info(`[Dexcom] Generated OAuth URL for user ${userId}`);
+      res.json({ authUrl });
+    } catch (error: any) {
+      logger.error('[Dexcom] Start error:', error);
+      res.status(500).json({ error: 'Failed to initiate Dexcom connection' });
+    }
+  });
+
+  // GET /api/auth/dexcom/connect - Initiate OAuth flow (legacy/web browser flow)
   app.get("/api/auth/dexcom/connect", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {

@@ -171,8 +171,16 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     },
   });
 
-  const handleConnectCGM = () => {
-    window.location.href = '/api/auth/dexcom/connect';
+  const handleConnectCGM = async () => {
+    try {
+      // Use POST endpoint which accepts JWT auth headers from apiRequest
+      const response = await apiRequest('POST', '/api/auth/dexcom/start');
+      const data = await response.json() as { authUrl: string };
+      // Navigate to Dexcom OAuth page
+      window.location.href = data.authUrl;
+    } catch (error) {
+      console.error('[CGM] Error initiating Dexcom connection:', error);
+    }
   };
 
   const getTrendIcon = (trend: string) => {
