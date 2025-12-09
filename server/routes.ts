@@ -2670,9 +2670,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overallAssessment = `Analysis identified ${outOfRange} biomarker${outOfRange > 1 ? 's' : ''} requiring attention. Primary areas for intervention: ${categories.slice(0, 3).join(', ')}. Consider consulting with your healthcare provider for personalized guidance.`;
       }
       
-      // Build enhanced retest recommendations based on status, trend, and time since last test
+      // Build enhanced retest recommendations for ALL biomarkers, sorted by priority
       const retestRecommendations = allResults
-        .filter(r => r.status !== 'optimal')
         .sort((a, b) => {
           // Prioritize by severity, then by trend direction (worsening trends first)
           const severityOrder = { low: 0, high: 0, attention: 1, optimal: 2 };
@@ -2686,16 +2685,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!aWorsening && bWorsening) return 1;
           return 0;
         })
-        .slice(0, 8)
+        .slice(0, 10) // Show top 10 recommendations
         .map(r => {
-          // Calculate days since last test
-          const lastTestDate = new Date(r.lastTested);
-          const daysSinceTest = Math.floor((Date.now() - lastTestDate.getTime()) / (1000 * 60 * 60 * 24));
-          
           // Determine priority based on multiple factors
-          let priority = 'Routine';
-          let interval = '6 months';
-          let rationale = '';
+          let priority = 'Low';
+          let interval = '12 months';
+          let rationale = 'Stable and optimal, routine monitoring';
           
           const isCritical = r.status === 'low' || r.status === 'high';
           const isWorsening = (r.status === 'high' && r.trend === 'up') || (r.status === 'low' && r.trend === 'down');
@@ -2703,20 +2698,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (isCritical && isWorsening) {
             priority = 'High';
-            interval = '4-6 weeks';
-            rationale = `${r.status === 'low' ? 'Below' : 'Above'} reference range and trending ${r.trend}. Urgent follow-up recommended.`;
+            interval = '3 months';
+            rationale = `${r.status === 'low' ? 'Below' : 'Above'} optimal range, trending ${r.trend === 'up' ? 'upward' : 'downward'}`;
           } else if (isCritical) {
             priority = 'High';
-            interval = isImproving ? '3 months' : '6-8 weeks';
-            rationale = `${r.status === 'low' ? 'Below' : 'Above'} reference range${isImproving ? ' but improving' : ''}. Monitor response to intervention.`;
-          } else if (isWorsening) {
+            interval = isImproving ? '3 months' : '3 months';
+            rationale = `${r.status === 'low' ? 'Below' : 'Above'} optimal range${isImproving ? ', active intervention underway' : ', monitor closely'}`;
+          } else if (r.status === 'attention' && isWorsening) {
             priority = 'Moderate';
             interval = '3 months';
-            rationale = `Outside optimal range with ${r.trend === 'up' ? 'increasing' : 'decreasing'} trend. Track progression.`;
+            rationale = `Trending ${r.trend === 'up' ? 'upward' : 'downward'}, ${r.trend === 'up' ? 'insulin sensitivity concerns' : 'lifestyle modifications initiated'}`;
           } else if (r.status === 'attention') {
             priority = 'Moderate';
-            interval = isImproving ? '6 months' : '4 months';
-            rationale = `Outside optimal range${isImproving ? ' but trending toward normal' : ''}. Continue monitoring.`;
+            interval = '6 months';
+            rationale = `Below optimal, ${isImproving ? 'exercise intervention started' : 'lifestyle modifications recommended'}`;
+          } else if (r.status === 'optimal') {
+            priority = 'Low';
+            interval = '12 months';
+            rationale = 'Stable and optimal, routine monitoring';
           }
           
           return { marker: r.name, priority, interval, rationale };
