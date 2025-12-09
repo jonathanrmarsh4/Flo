@@ -45,8 +45,24 @@ async function deliverQueuedReminders() {
 
     for (const reminder of pendingReminders as QueuedReminder[]) {
       try {
+        // Map health_id to internal user_id for device token lookup
+        // reminder.user_id contains health_id, but device_tokens are stored by internal user_id
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('health_id', reminder.user_id)
+          .single();
+        
+        const internalUserId = userProfile?.user_id || reminder.user_id;
+        
+        if (!userProfile) {
+          logger.warn(`[ReminderDelivery] No user_profile found for health_id ${reminder.user_id}, using as-is`);
+        } else {
+          logger.debug(`[ReminderDelivery] Mapped health_id ${reminder.user_id} -> internal user_id ${internalUserId}`);
+        }
+        
         const result = await apnsService.sendToUser(
-          reminder.user_id,
+          internalUserId,
           {
             title: reminder.title,
             body: reminder.body,
