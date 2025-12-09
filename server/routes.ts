@@ -14453,6 +14453,188 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   }
 
   // ===============================
+  // DEXCOM CGM INTEGRATION API
+  // ===============================
+
+  // GET /api/dexcom/status - Check connection status
+  app.get("/api/dexcom/status", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService } = await import('./services/dexcomService');
+      const connection = await dexcomService.getConnection(userId);
+      
+      if (!connection) {
+        return res.json({ connected: false });
+      }
+
+      res.json({
+        connected: true,
+        isSandbox: connection.is_sandbox,
+        connectedAt: connection.connected_at,
+        lastSyncAt: connection.last_sync_at,
+        syncStatus: connection.sync_status,
+        errorMessage: connection.error_message,
+      });
+    } catch (error: any) {
+      logger.error('[Dexcom] Status check error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/auth/dexcom/connect - Initiate OAuth flow
+  app.get("/api/auth/dexcom/connect", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService, generateSecureState } = await import('./services/dexcomService');
+      // Generate cryptographically secure state stored server-side
+      const state = generateSecureState(userId);
+      const authUrl = dexcomService.getAuthorizationUrl(state);
+      
+      logger.info(`[Dexcom] Initiating OAuth for user ${userId}`);
+      res.redirect(authUrl);
+    } catch (error: any) {
+      logger.error('[Dexcom] Connect error:', error);
+      res.status(500).json({ error: 'Failed to initiate Dexcom connection' });
+    }
+  });
+
+  // GET /api/auth/dexcom/callback - Handle OAuth callback
+  app.get("/api/auth/dexcom/callback", async (req: any, res) => {
+    try {
+      const { code, state, error: oauthError } = req.query;
+
+      if (oauthError) {
+        logger.warn('[Dexcom] OAuth error:', oauthError);
+        return res.redirect('/?dexcom=error&reason=' + encodeURIComponent(oauthError));
+      }
+
+      if (!code || !state) {
+        return res.redirect('/?dexcom=error&reason=missing_params');
+      }
+
+      // Validate state server-side (cryptographically secure, one-time use)
+      const { validateAndConsumeState, dexcomService } = await import('./services/dexcomService');
+      const stateValidation = validateAndConsumeState(state as string);
+      
+      if (!stateValidation.valid || !stateValidation.userId) {
+        logger.warn('[Dexcom] Invalid or expired OAuth state');
+        return res.redirect('/?dexcom=error&reason=invalid_state');
+      }
+
+      const userId = stateValidation.userId;
+      const tokens = await dexcomService.exchangeCodeForTokens(code as string);
+      await dexcomService.saveConnection(userId, tokens);
+      
+      logger.info(`[Dexcom] Successfully connected for user ${userId}`);
+      
+      const syncResult = await dexcomService.syncUserData(userId);
+      logger.info(`[Dexcom] Initial sync: ${syncResult.recordsCount} readings`);
+
+      res.redirect('/?dexcom=connected');
+    } catch (error: any) {
+      logger.error('[Dexcom] Callback error:', error);
+      res.redirect('/?dexcom=error&reason=' + encodeURIComponent(error.message));
+    }
+  });
+
+  // DELETE /api/dexcom/disconnect - Disconnect Dexcom
+  app.delete("/api/dexcom/disconnect", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService } = await import('./services/dexcomService');
+      await dexcomService.deleteConnection(userId);
+      
+      logger.info(`[Dexcom] Disconnected for user ${userId}`);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('[Dexcom] Disconnect error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // POST /api/dexcom/sync - Manually trigger sync
+  app.post("/api/dexcom/sync", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService } = await import('./services/dexcomService');
+      const result = await dexcomService.syncUserData(userId);
+      
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[Dexcom] Manual sync error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/dexcom/readings - Get glucose readings
+  app.get("/api/dexcom/readings", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService } = await import('./services/dexcomService');
+      const hours = parseInt(req.query.hours as string) || 24;
+      
+      const endDate = new Date();
+      const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
+      
+      const readings = await dexcomService.getReadingsForRange(userId, startDate, endDate);
+      const latest = readings.length > 0 ? readings[readings.length - 1] : null;
+      const timeInRange = await dexcomService.calculateTimeInRange(userId, hours);
+      
+      res.json({
+        readings,
+        latest,
+        timeInRange,
+        hours,
+      });
+    } catch (error: any) {
+      logger.error('[Dexcom] Get readings error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/dexcom/latest - Get latest glucose reading
+  app.get("/api/dexcom/latest", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { dexcomService } = await import('./services/dexcomService');
+      const latest = await dexcomService.getLatestReading(userId);
+      
+      if (!latest) {
+        return res.json({ reading: null });
+      }
+
+      res.json({ reading: latest });
+    } catch (error: any) {
+      logger.error('[Dexcom] Get latest error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===============================
   // ACTION PLAN API
   // ===============================
 

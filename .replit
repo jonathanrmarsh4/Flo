@@ -76,3 +76,5 @@ SUPABASE_HEALTH_ENABLED = "true"
 [userenv.shared]
 ENABLE_DAILY_REMINDERS = "true"
 ENABLE_FOLLOW_UP_SCHEDULER = "true"
+DEXCOM_SANDBOX = "true"
+DEXCOM_REDIRECT_URI = "https://get-flo.com/api/auth/dexcom/callback"

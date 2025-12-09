@@ -10,6 +10,7 @@ import { initializeReminderDeliveryService } from "./services/reminderDeliverySe
 import { startFollowUpScheduler } from "./services/followUpScheduler";
 import { clickhouseOrchestrator } from "./services/clickhouseOrchestrator";
 import { startMorningBriefingScheduler } from "./services/morningBriefingScheduler";
+import { startCGMSyncScheduler } from "./services/cgmSyncScheduler";
 
 const app = express();
 
@@ -171,6 +172,9 @@ app.use((req, res, next) => {
       
       // Start the morning briefing scheduler (7 AM local time delivery)
       startMorningBriefingScheduler();
+      
+      // Start the CGM sync scheduler (every 5 minutes for connected Dexcom users)
+      startCGMSyncScheduler();
     }, 5000);
   });
 })();
