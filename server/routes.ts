@@ -7340,7 +7340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mappingDetails: any = { inputId: userId, triedIds: [userId] };
       
       // Check Supabase user_profiles for ID mappings
-      const { getSupabaseClient } = await import("./services/supabaseHealthStorage");
+      const { getSupabaseClient } = await import("./services/supabaseClient");
       const supabase = getSupabaseClient();
       
       // Try to find user_profiles entry by health_id
