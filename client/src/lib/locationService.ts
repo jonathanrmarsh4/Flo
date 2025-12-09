@@ -14,17 +14,33 @@ export interface LocationPermissionStatus {
   location: 'prompt' | 'prompt-with-rationale' | 'granted' | 'denied';
 }
 
+// Helper to detect if running in native iOS/Android context
+// Capacitor.isNativePlatform() can return false in webview contexts
+function isNativeContext(): boolean {
+  const platform = Capacitor.getPlatform();
+  const isNative = Capacitor.isNativePlatform();
+  const isIOS = platform === 'ios';
+  const isAndroid = platform === 'android';
+  
+  console.log('[LocationService] Platform detection:', { platform, isNative, isIOS, isAndroid });
+  
+  // Consider native if either the explicit check passes OR platform is ios/android
+  return isNative || isIOS || isAndroid;
+}
+
 class LocationService {
   private lastKnownLocation: LocationData | null = null;
   private watchId: string | null = null;
 
   async checkPermissions(): Promise<LocationPermissionStatus> {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isNativeContext()) {
+      console.log('[LocationService] Not in native context, returning denied');
       return { location: 'denied' };
     }
     
     try {
       const result = await Geolocation.checkPermissions();
+      console.log('[LocationService] Permission check result:', result.location);
       return { location: result.location };
     } catch (error) {
       console.error('[LocationService] Error checking permissions:', error);
@@ -33,12 +49,14 @@ class LocationService {
   }
 
   async requestPermissions(): Promise<LocationPermissionStatus> {
-    if (!Capacitor.isNativePlatform()) {
+    if (!isNativeContext()) {
+      console.log('[LocationService] Not in native context, cannot request permissions');
       return { location: 'denied' };
     }
     
     try {
       const result = await Geolocation.requestPermissions();
+      console.log('[LocationService] Permission request result:', result.location);
       return { location: result.location };
     } catch (error) {
       console.error('[LocationService] Error requesting permissions:', error);
@@ -47,8 +65,8 @@ class LocationService {
   }
 
   async getCurrentPosition(): Promise<LocationData | null> {
-    if (!Capacitor.isNativePlatform()) {
-      console.log('[LocationService] Not on native platform, skipping location');
+    if (!isNativeContext()) {
+      console.log('[LocationService] Not in native context, skipping location');
       return null;
     }
     
@@ -115,7 +133,7 @@ class LocationService {
   }
 
   async startWatching(callback?: (location: LocationData) => void): Promise<void> {
-    if (!Capacitor.isNativePlatform() || this.watchId) {
+    if (!isNativeContext() || this.watchId) {
       return;
     }
     
