@@ -10623,25 +10623,18 @@ Important: This is for educational purposes. Include a brief note that users sho
       }
       
       // Determine today's local date from user's perspective
-      // CRITICAL: Use the most recent localDate from Supabase as our anchor point
-      // This ensures we're aligned with the user's actual device-reported dates
-      let todayLocalDate: string;
-      if (nutritionData.length > 0 && nutritionData[0].localDate) {
-        // Use the most recent localDate from Supabase as our reference
-        todayLocalDate = nutritionData[0].localDate;
-      } else {
-        // Fallback: use formatToParts to get today in user's timezone
-        const parts = new Intl.DateTimeFormat('en-CA', {
-          timeZone: userTimezone,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }).formatToParts(new Date());
-        const year = parts.find(p => p.type === 'year')?.value || '2025';
-        const month = parts.find(p => p.type === 'month')?.value || '01';
-        const day = parts.find(p => p.type === 'day')?.value || '01';
-        todayLocalDate = `${year}-${month}-${day}`;
-      }
+      // CRITICAL: Always calculate today using the user's timezone - don't rely on database records
+      // which may be stale early in the morning before new data syncs
+      const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: userTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).formatToParts(new Date());
+      const year = parts.find(p => p.type === 'year')?.value || '2025';
+      const month = parts.find(p => p.type === 'month')?.value || '01';
+      const day = parts.find(p => p.type === 'day')?.value || '01';
+      const todayLocalDate = `${year}-${month}-${day}`;
       
       // Helper to subtract days from a YYYY-MM-DD string
       const subtractDays = (dateStr: string, days: number): string => {
