@@ -7,8 +7,9 @@ import Stripe from "stripe";
 import { generateInsightCards } from "../services/correlationEngine";
 import { syncBloodWorkEmbeddings, syncHealthKitEmbeddings } from "../services/embeddingService";
 import { db } from "../db";
-import { userDailyMetrics, bloodWorkRecords, systemSettings, insertSystemSettingsSchema } from "@shared/schema";
+import { userDailyMetrics, bloodWorkRecords, systemSettings, insertSystemSettingsSchema, userMetricBaselines } from "@shared/schema";
 import { eq, desc, and, gte, sql } from "drizzle-orm";
+import * as healthRouter from "../services/healthStorageRouter";
 import { generateDailyReminder } from "../services/dailyReminderService";
 import { fromError } from "zod-validation-error";
 import { sendAccountApprovalEmail } from "../services/emailService";
@@ -888,12 +889,270 @@ export function registerAdminRoutes(app: Express) {
           'baselineCalculator.calculateBaseline()',
         ],
         unifiedApi: 'clickhouseBaselineEngine.getMetricsForAnalysis()',
-        refactorStep: 1,
-        description: 'Step 1 of ML Architecture Refactor - ClickHouse as single source of truth',
+        refactorStep: 2,
+        description: 'Step 2 of ML Architecture Refactor - Extended schema with trend/freshness fields, RAG & Neon comparison logging',
       });
     } catch (error: any) {
       logger.error('[Admin] ML status check failed:', error);
       res.status(500).json({ error: error.message || "Failed to check ML status" });
+    }
+  });
+
+  /**
+   * Compare RAG activity baselines against ClickHouse
+   * This helps validate that ClickHouse trend fields match ragInsightGenerator calculations
+   */
+  app.get('/api/admin/ml/rag-comparison/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get health ID
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      const healthId = user.healthId || userId;
+
+      // Get daily metrics from Supabase
+      const dailyMetrics = await healthRouter.getUserDailyMetrics(healthId, { limit: 30 });
+      const workouts: any[] = []; // Workout comparison not needed for baseline validation
+
+      // Simulate ragInsightGenerator.computeActivityBaselines
+      // Calculate step baselines (same logic as ragInsightGenerator)
+      const stepsData = dailyMetrics.filter((m: any) => m.steps !== null).map((m: any) => ({ date: m.date, value: m.steps! }));
+      const ragBaselines: any = {
+        steps: {
+          current7DayAvg: null,
+          baseline30Day: null,
+          percentBelowBaseline: null,
+          suggestedTarget: null,
+        },
+        workouts: {
+          thisWeekCount: 0,
+          weeklyAverage: 0,
+          isBelowAverage: false,
+          suggestedTarget: null,
+        },
+        exerciseMinutes: {
+          weeklyTotal: null,
+          dailyAverage: null,
+        },
+      };
+
+      if (stepsData.length >= 7) {
+        const last7Days = stepsData.slice(0, 7);
+        const recentAvg = last7Days.reduce((sum: number, d: any) => sum + d.value, 0) / last7Days.length;
+        ragBaselines.steps.current7DayAvg = Math.round(recentAvg);
+
+        const last30Days = stepsData.slice(0, Math.min(30, stepsData.length));
+        const baseline30 = last30Days.reduce((sum: number, d: any) => sum + d.value, 0) / last30Days.length;
+        ragBaselines.steps.baseline30Day = Math.round(baseline30);
+
+        if (baseline30 > 0) {
+          const percentBelow = ((baseline30 - recentAvg) / baseline30 * 100);
+          ragBaselines.steps.percentBelowBaseline = percentBelow > 0 ? Math.round(percentBelow * 10) / 10 : 0;
+        }
+      }
+
+      // Calculate exercise minutes baseline
+      const exerciseData = dailyMetrics.filter((m: any) => m.exerciseMinutes !== null).map((m: any) => m.exerciseMinutes!);
+      if (exerciseData.length >= 7) {
+        const last7Days = exerciseData.slice(0, 7);
+        ragBaselines.exerciseMinutes.weeklyTotal = Math.round(last7Days.reduce((sum: number, v: number) => sum + v, 0));
+        ragBaselines.exerciseMinutes.dailyAverage = Math.round(ragBaselines.exerciseMinutes.weeklyTotal / 7);
+      }
+
+      const { compareRAGActivityBaselines } = await import('../services/baselineComparisonLogger');
+      const result = await compareRAGActivityBaselines(healthId, ragBaselines);
+
+      logger.info(`[Admin] RAG comparison for ${userId}: ${(result.overallAgreementRate * 100).toFixed(1)}% agreement`);
+      res.json({
+        ...result,
+        ragBaselinesCalculated: ragBaselines,
+        dataPointsUsed: {
+          stepsData: stepsData.length,
+          exerciseData: exerciseData.length,
+          workouts: workouts.length,
+        },
+      });
+    } catch (error: any) {
+      logger.error('[Admin] RAG comparison failed:', error);
+      res.status(500).json({ error: error.message || "Failed to compare RAG baselines" });
+    }
+  });
+
+  /**
+   * Compare Neon baselineCalculator stats against ClickHouse
+   * This helps validate that ClickHouse produces the same baseline stats as legacy Neon-based system
+   */
+  app.get('/api/admin/ml/neon-comparison/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get health ID
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      const healthId = user.healthId || userId;
+
+      // Get Neon baselines from userMetricBaselines table
+      const neonBaselines = await db.select()
+        .from(userMetricBaselines)
+        .where(eq(userMetricBaselines.userId, userId));
+
+      if (neonBaselines.length === 0) {
+        return res.json({
+          healthId,
+          message: 'No Neon baselines found for this user',
+          comparisons: [],
+          overallAgreementRate: 1,
+          discrepancies: [],
+        });
+      }
+
+      // Convert to comparison format
+      const neonBaselineStats = neonBaselines.map(b => ({
+        metricKey: b.metricKey,
+        mean: b.mean,
+        stdDev: b.stdDev,
+        numSamples: b.numSamples,
+        windowDays: b.windowDays,
+      }));
+
+      const { compareNeonBaselines } = await import('../services/baselineComparisonLogger');
+      const result = await compareNeonBaselines(healthId, neonBaselineStats);
+
+      logger.info(`[Admin] Neon comparison for ${userId}: ${(result.overallAgreementRate * 100).toFixed(1)}% agreement`);
+      res.json({
+        ...result,
+        neonBaselineCount: neonBaselines.length,
+        neonMetrics: neonBaselines.map(b => b.metricKey),
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Neon comparison failed:', error);
+      res.status(500).json({ error: error.message || "Failed to compare Neon baselines" });
+    }
+  });
+
+  /**
+   * Run all three comparison systems and get aggregate statistics
+   */
+  app.get('/api/admin/ml/full-comparison/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      const healthId = user.healthId || userId;
+
+      // Run all three comparisons
+      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
+      const { compareBaselineCalculations, compareRAGActivityBaselines, compareNeonBaselines } = await import('../services/baselineComparisonLogger');
+
+      // 1. Get ClickHouse unified analysis
+      const unifiedAnalysis = await clickhouseBaselineEngine.getMetricsForAnalysis(healthId, { windowDays: 90 });
+
+      // 2. Anomaly detection comparison (existing)
+      const dailyMetrics = await healthRouter.getUserDailyMetrics(healthId, { limit: 90 });
+      const metricSnapshots = new Map<string, Array<{ date: string; value: number }>>();
+      const metricMappings: Record<string, string> = {
+        resting_heart_rate_bpm: 'resting_heart_rate',
+        hrv_ms: 'hrv',
+        steps_normalized: 'steps',
+        active_energy_kcal: 'active_energy',
+        sleep_hours: 'sleep_duration',
+      };
+
+      for (const record of dailyMetrics || []) {
+        for (const [dbField, metricName] of Object.entries(metricMappings)) {
+          const value = (record as any)[dbField];
+          if (value !== null && value !== undefined) {
+            if (!metricSnapshots.has(metricName)) {
+              metricSnapshots.set(metricName, []);
+            }
+            metricSnapshots.get(metricName)!.push({
+              date: (record as any).local_date,
+              value: value,
+            });
+          }
+        }
+      }
+
+      const anomalyComparison = await compareBaselineCalculations(healthId, metricSnapshots);
+
+      // 3. RAG comparison
+      const stepsData = dailyMetrics.filter((m: any) => m.steps !== null).map((m: any) => ({ date: m.date, value: m.steps! }));
+      const ragBaselines: any = {
+        steps: { current7DayAvg: null, baseline30Day: null, percentBelowBaseline: null, suggestedTarget: null },
+        workouts: { thisWeekCount: 0, weeklyAverage: 0, isBelowAverage: false, suggestedTarget: null },
+        exerciseMinutes: { weeklyTotal: null, dailyAverage: null },
+      };
+
+      if (stepsData.length >= 7) {
+        const last7Days = stepsData.slice(0, 7);
+        ragBaselines.steps.current7DayAvg = Math.round(last7Days.reduce((sum: number, d: any) => sum + d.value, 0) / last7Days.length);
+        const last30Days = stepsData.slice(0, Math.min(30, stepsData.length));
+        ragBaselines.steps.baseline30Day = Math.round(last30Days.reduce((sum: number, d: any) => sum + d.value, 0) / last30Days.length);
+      }
+
+      const ragComparison = await compareRAGActivityBaselines(healthId, ragBaselines);
+
+      // 4. Neon comparison
+      const neonBaselines = await db.select()
+        .from(userMetricBaselines)
+        .where(eq(userMetricBaselines.userId, userId));
+
+      const neonComparison = neonBaselines.length > 0
+        ? await compareNeonBaselines(healthId, neonBaselines.map(b => ({
+            metricKey: b.metricKey,
+            mean: b.mean,
+            stdDev: b.stdDev,
+            numSamples: b.numSamples,
+            windowDays: b.windowDays,
+          })))
+        : { overallAgreementRate: 1, discrepancies: [], comparisons: [] };
+
+      // Calculate overall score
+      const weights = { anomaly: 0.4, rag: 0.3, neon: 0.3 };
+      const overallAgreement = 
+        (anomalyComparison.summary.agreementRate * weights.anomaly) +
+        (ragComparison.overallAgreementRate * weights.rag) +
+        (neonComparison.overallAgreementRate * weights.neon);
+
+      res.json({
+        healthId,
+        timestamp: new Date().toISOString(),
+        overallAgreement: Math.round(overallAgreement * 1000) / 10,
+        status: overallAgreement >= 0.9 ? 'READY_FOR_MIGRATION' : overallAgreement >= 0.7 ? 'NEEDS_REVIEW' : 'DISCREPANCIES_DETECTED',
+        clickhouseMetrics: unifiedAnalysis.metrics.length,
+        comparisons: {
+          anomalyDetection: {
+            agreementRate: anomalyComparison.summary.agreementRate,
+            matching: anomalyComparison.matchingMetrics,
+            discrepant: anomalyComparison.discrepantMetrics,
+            worstDiscrepancies: anomalyComparison.summary.worstDiscrepancies.slice(0, 3),
+          },
+          ragActivityBaselines: {
+            agreementRate: ragComparison.overallAgreementRate,
+            fieldsCompared: ragComparison.comparisons.length,
+            discrepancies: ragComparison.discrepancies,
+          },
+          neonBaselines: {
+            agreementRate: neonComparison.overallAgreementRate,
+            metricsCompared: neonComparison.comparisons.length,
+            discrepancies: neonComparison.discrepancies,
+          },
+        },
+        recommendation: overallAgreement >= 0.9 
+          ? 'ClickHouse baselines match shadow math - safe to proceed with migration'
+          : 'Review discrepancies before proceeding - some calculations differ',
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Full comparison failed:', error);
+      res.status(500).json({ error: error.message || "Failed to run full comparison" });
     }
   });
 }

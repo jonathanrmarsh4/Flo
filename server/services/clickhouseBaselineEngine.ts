@@ -962,6 +962,26 @@ export class ClickHouseBaselineEngine {
 
       const recentMap = new Map(recentMetrics.map(r => [r.metric_type, r]));
 
+      // Step 2b: Get weekly and monthly averages (for trend context)
+      const trendSql = `
+        SELECT
+          metric_type,
+          avgIf(value, recorded_at >= now() - INTERVAL 7 DAY) as weekly_avg,
+          avgIf(value, recorded_at >= now() - INTERVAL 30 DAY) as monthly_avg
+        FROM flo_health.health_metrics
+        WHERE health_id = {healthId:String}
+          AND recorded_at >= now() - INTERVAL 30 DAY
+        GROUP BY metric_type
+      `;
+
+      const trendMetrics = await clickhouse.query<{
+        metric_type: string;
+        weekly_avg: number | null;
+        monthly_avg: number | null;
+      }>(trendSql, { healthId });
+
+      const trendMap = new Map(trendMetrics.map(t => [t.metric_type, t]));
+
       // Step 3: Build MetricAnalysis for each metric
       const metrics: MetricAnalysis[] = [];
       
@@ -1034,6 +1054,39 @@ export class ClickHouseBaselineEngine {
         if (sampleCountRecent >= 3) confidenceScore += 0.1;
         confidenceScore = Math.min(1, confidenceScore);
         
+        // Get trend data for this metric
+        const trendData = trendMap.get(baseline.metricType);
+        const weeklyAverage = trendData?.weekly_avg ?? null;
+        const monthlyAverage = trendData?.monthly_avg ?? null;
+        
+        // Calculate percent below baseline (for activity insights)
+        const percentBelowBaseline = baseline.meanValue > 0 && currentValue < baseline.meanValue
+          ? ((baseline.meanValue - currentValue) / baseline.meanValue) * 100
+          : null;
+        
+        // Calculate suggested target (baseline mean as target for underperformance)
+        const suggestedTarget = percentBelowBaseline !== null && percentBelowBaseline > 10
+          ? baseline.meanValue
+          : null;
+        
+        // Freshness calculation (days since last data point)
+        const lastUpdatedDays = (Date.now() - latestDate.getTime()) / (24 * 60 * 60 * 1000);
+        let freshnessCategory: 'green' | 'yellow' | 'red' = 'green';
+        if (lastUpdatedDays > 90) freshnessCategory = 'red';
+        else if (lastUpdatedDays > 30) freshnessCategory = 'yellow';
+        
+        // Half-life depends on metric type (wearable data updates daily, blood work less often)
+        const halfLifeDays = this.getMetricHalfLife(baseline.metricType);
+        
+        // Clinical context - brief interpretation text
+        const clinicalContext = this.generateClinicalContext(
+          baseline.metricType,
+          currentValue,
+          baseline.meanValue,
+          direction,
+          severity
+        );
+
         const metricAnalysis: MetricAnalysis = {
           metric: baseline.metricType,
           currentValue,
@@ -1058,6 +1111,19 @@ export class ClickHouseBaselineEngine {
             direction,
             isSignificant: effectivelySignificant,
           },
+          trend: {
+            consecutiveDaysAbove: 0,  // TODO: Add SQL query for streak calculation
+            consecutiveDaysBelow: 0,  // TODO: Add SQL query for streak calculation
+            weeklyAverage,
+            monthlyAverage,
+            percentBelowBaseline,
+            suggestedTarget,
+          },
+          freshness: {
+            category: freshnessCategory,
+            lastUpdatedDays: Math.round(lastUpdatedDays),
+            halfLifeDays,
+          },
           interpretation: {
             severity,
             thresholdUsed: threshold ? {
@@ -1065,6 +1131,7 @@ export class ClickHouseBaselineEngine {
               percentageThreshold: threshold.percentageThreshold,
               direction: threshold.direction,
             } : null,
+            clinicalContext,
           },
           dataQuality: {
             hasEnoughData,
@@ -1112,6 +1179,74 @@ export class ClickHouseBaselineEngine {
       logger.error('[ClickHouseML] getMetricsForAnalysis error:', error);
       return emptyResult;
     }
+  }
+
+  /**
+   * Get expected update frequency (half-life) for a metric type
+   * Used for freshness calculation - wearable data updates daily, blood work less often
+   */
+  private getMetricHalfLife(metricType: string): number {
+    const wearableMetrics = [
+      'steps', 'active_energy', 'heart_rate', 'resting_heart_rate', 'hrv',
+      'sleep_duration', 'deep_sleep', 'rem_sleep', 'sleep_duration_min',
+      'respiratory_rate', 'oxygen_saturation', 'wrist_temperature_deviation',
+      'distance_walking_running', 'exercise_time', 'stand_time', 'stand_hours',
+      'flights_climbed', 'basal_energy_burned', 'walking_heart_rate_avg',
+      'mindful_minutes', 'walking_speed', 'walking_step_length',
+      'walking_double_support_percentage', 'walking_asymmetry_percentage',
+      'stair_ascent_speed', 'stair_descent_speed', 'six_minute_walk_test_distance'
+    ];
+    
+    const bloodWorkMetrics = [
+      'glucose', 'cholesterol', 'triglycerides', 'hdl', 'ldl', 'hemoglobin',
+      'hematocrit', 'platelets', 'white_blood_cells', 'red_blood_cells',
+      'tsh', 'vitamin_d', 'vitamin_b12', 'ferritin', 'creatinine', 'alt', 'ast'
+    ];
+    
+    if (wearableMetrics.some(m => metricType.toLowerCase().includes(m))) {
+      return 1; // Daily updates expected
+    }
+    if (bloodWorkMetrics.some(m => metricType.toLowerCase().includes(m))) {
+      return 90; // Quarterly updates typical for blood work
+    }
+    return 7; // Default weekly for unknown metrics
+  }
+
+  /**
+   * Generate brief clinical context text for a metric analysis
+   */
+  private generateClinicalContext(
+    metricType: string,
+    currentValue: number,
+    baselineMean: number,
+    direction: 'above' | 'below' | 'normal',
+    severity: 'normal' | 'low' | 'moderate' | 'high'
+  ): string | null {
+    if (severity === 'normal') return null;
+    
+    const metricLabels: Record<string, string> = {
+      'hrv': 'Heart rate variability',
+      'resting_heart_rate': 'Resting heart rate',
+      'sleep_duration': 'Sleep duration',
+      'sleep_duration_min': 'Sleep duration',
+      'deep_sleep': 'Deep sleep',
+      'rem_sleep': 'REM sleep',
+      'steps': 'Daily steps',
+      'active_energy': 'Active calories',
+      'wrist_temperature_deviation': 'Wrist temperature',
+      'respiratory_rate': 'Breathing rate',
+      'oxygen_saturation': 'Blood oxygen',
+    };
+    
+    const label = metricLabels[metricType] || metricType.replace(/_/g, ' ');
+    const percentDiff = Math.abs(((currentValue - baselineMean) / baselineMean) * 100).toFixed(0);
+    
+    if (direction === 'above') {
+      return `${label} is ${percentDiff}% above your 90-day baseline (${severity} deviation)`;
+    } else if (direction === 'below') {
+      return `${label} is ${percentDiff}% below your 90-day baseline (${severity} deviation)`;
+    }
+    return null;
   }
 
   /**

@@ -34,12 +34,21 @@ The platform features a mobile-first, content-focused minimalist design inspired
     - **Biomarker Pattern Learner:** Trains blood work baselines from CDC NHANES population data.
     - **HealthKit Pattern Learner:** Trains wearable/activity baselines from synthetic data.
 - **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection, predictive insights, and long-term pattern recognition. Features full history sync, pattern memory, seasonal pattern detection, real-time auto-sync, 90-day baseline + Z-score anomaly detection, and proactive anomaly alerts.
-- **ML Architecture Refactor (In Progress):** Step 1 establishes ClickHouse as the single source of truth for baseline calculations via `getMetricsForAnalysis()` API. Features:
-  - Unified `MetricAnalysis` interface with baseline, z-score, deviation, severity, direction
-  - Comparison logging between ClickHouse and legacy shadow math (anomalyDetectionEngine, ragInsightGenerator, baselineCalculator)
-  - Feature flag `USE_CLICKHOUSE_ML_SOURCE` (default: false) for safe rollout
-  - Admin endpoints: `/api/admin/ml/unified-analysis/:userId`, `/api/admin/ml/baseline-comparison/:userId`, `/api/admin/ml/source-of-truth-status`
-  - Step 2: Validate results match across all consumers; Step 3: Remove shadow math after validation
+- **ML Architecture Refactor (Step 2 Complete):** Consolidating 4 baseline calculation systems into single ClickHouse source of truth:
+  - **Step 1 (Complete):** Unified `getMetricsForAnalysis()` API with `MetricAnalysis` interface
+  - **Step 2 (Complete):** Extended schema with trend context (weekly/monthly averages, percent below baseline, suggested targets), freshness classification (green/yellow/red categories, half-life by metric type), and clinical context generation
+  - **Comparison Logging:** Three comparison systems validate ClickHouse matches shadow math before removal:
+    - `compareBaselineCalculations()` - anomalyDetectionEngine comparison
+    - `compareRAGActivityBaselines()` - ragInsightGenerator step/exercise baselines
+    - `compareNeonBaselines()` - baselineCalculator Neon rolling-window stats
+  - **Admin Endpoints:**
+    - `/api/admin/ml/unified-analysis/:userId` - Full ClickHouse MetricAnalysis output
+    - `/api/admin/ml/baseline-comparison/:userId` - AnomalyDetection vs ClickHouse
+    - `/api/admin/ml/rag-comparison/:userId` - RAG activity baselines vs ClickHouse
+    - `/api/admin/ml/neon-comparison/:userId` - Neon baselineCalculator vs ClickHouse
+    - `/api/admin/ml/full-comparison/:userId` - All three systems with aggregate score
+    - `/api/admin/ml/source-of-truth-status` - Refactor status
+  - **Step 3 (Pending):** Remove shadow math after validation confirms agreement
 - **Long-Horizon Correlation Engine:** Discovers statistically significant behavior-outcome correlations over months using Mann-Whitney U test. Now includes subjective survey data (Energy, Clarity, Mood) as outcome metrics, enabling correlations like "afternoon workouts correlate with 8% higher energy levels" or "consistent bedtime correlates with improved mental clarity."
 - **User Engagement:** AI Feedback Questions (1-10 scale responses stored in ClickHouse `user_feedback` table), Daily 3PM Subjective Survey (synced to ClickHouse `subjective_surveys` and aggregated into `weekly_outcome_rollups` for ML correlation), and Daily Reminder Notifications.
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
