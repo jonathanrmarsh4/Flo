@@ -60,23 +60,22 @@ async function backfillAllUsers(daysBack: number = 90) {
 
 export { backfillBehaviorFactors, backfillAllUsers };
 
-if (require.main === module) {
-  const healthId = process.argv[2];
-  const daysBack = parseInt(process.argv[3] || '90', 10);
+// ES module entry point
+const healthId = process.argv[2];
+const daysBack = parseInt(process.argv[3] || '90', 10);
 
-  if (!healthId) {
-    console.log('Usage: npx tsx server/scripts/backfill-behavior-factors.ts <health_id> [days_back]');
-    console.log('  Or use "all" to backfill all users');
-    process.exit(1);
-  }
-
-  (healthId === 'all' ? backfillAllUsers(daysBack) : backfillBehaviorFactors(healthId, daysBack))
-    .then(() => {
-      console.log('Backfill complete');
-      process.exit(0);
-    })
-    .catch(err => {
-      console.error('Backfill failed:', err);
-      process.exit(1);
-    });
+if (!healthId) {
+  console.log('Usage: npx tsx server/scripts/backfill-behavior-factors.ts <health_id> [days_back]');
+  console.log('  Or use "all" to backfill all users');
+  process.exit(1);
 }
+
+(healthId === 'all' ? backfillAllUsers(daysBack) : backfillBehaviorFactors(healthId, daysBack))
+  .then(() => {
+    console.log('Backfill complete');
+    process.exit(0);
+  })
+  .catch(err => {
+    console.error('Backfill failed:', err);
+    process.exit(1);
+  });
