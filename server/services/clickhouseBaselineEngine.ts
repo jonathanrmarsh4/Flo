@@ -161,6 +161,241 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'low',
     severity: { moderate: 15, high: 25 },
   },
+  // ========== ACTIVITY & FITNESS ==========
+  exercise_minutes: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  stand_hours: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 25,
+    direction: 'both',
+    severity: { moderate: 25, high: 40 },
+  },
+  flights_climbed: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 40,
+    direction: 'both',
+    severity: { moderate: 40, high: 60 },
+  },
+  distance_walking_running: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  distance_cycling: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 40,
+    direction: 'both',
+    severity: { moderate: 40, high: 60 },
+  },
+  basal_energy: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  vo2_max: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 10,
+    direction: 'both',
+    severity: { moderate: 10, high: 20 },
+  },
+  // ========== BODY COMPOSITION ==========
+  weight: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 3,
+    direction: 'both',
+    severity: { moderate: 3, high: 5 },
+  },
+  body_fat_percentage: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 10,
+    direction: 'both',
+    severity: { moderate: 10, high: 20 },
+  },
+  lean_body_mass: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 5,
+    direction: 'both',
+    severity: { moderate: 5, high: 10 },
+  },
+  bmi: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 5,
+    direction: 'both',
+    severity: { moderate: 5, high: 10 },
+  },
+  waist_circumference: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 5,
+    direction: 'both',
+    severity: { moderate: 5, high: 10 },
+  },
+  // ========== GAIT & MOBILITY ==========
+  walking_speed: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  walking_step_length: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  walking_double_support: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'both',
+    severity: { moderate: 20, high: 35 },
+  },
+  walking_asymmetry: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 25,
+    direction: 'high',
+    severity: { moderate: 25, high: 40 },
+  },
+  walking_steadiness: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'low',
+    severity: { moderate: 15, high: 25 },
+  },
+  six_minute_walk_distance: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  stair_ascent_speed: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'both',
+    severity: { moderate: 20, high: 35 },
+  },
+  stair_descent_speed: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'both',
+    severity: { moderate: 20, high: 35 },
+  },
+  // ========== NUTRITION ==========
+  calories: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 25,
+    direction: 'both',
+    severity: { moderate: 25, high: 40 },
+  },
+  protein: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  carbohydrates: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  fat_total: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  fiber: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  sugar: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 35,
+    direction: 'both',
+    severity: { moderate: 35, high: 60 },
+  },
+  sodium: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  caffeine: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 40,
+    direction: 'both',
+    severity: { moderate: 40, high: 70 },
+  },
+  water: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 30,
+    direction: 'both',
+    severity: { moderate: 30, high: 50 },
+  },
+  // ========== VITALS ==========
+  body_temperature: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 2,
+    direction: 'both',
+    severity: { moderate: 2, high: 4 },
+  },
+  walking_heart_rate: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  // ========== MINDFULNESS & RECOVERY ==========
+  mindfulness_minutes: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 40,
+    direction: 'both',
+    severity: { moderate: 40, high: 60 },
+  },
+  readiness_score: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  recovery_score: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 15,
+    direction: 'both',
+    severity: { moderate: 15, high: 25 },
+  },
+  // ========== SUBJECTIVE METRICS ==========
+  energy_level: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'both',
+    severity: { moderate: 20, high: 35 },
+  },
+  mental_clarity: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'both',
+    severity: { moderate: 20, high: 35 },
+  },
+  mood: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 20,
+    direction: 'both',
+    severity: { moderate: 20, high: 35 },
+  },
+  stress_level: {
+    zScoreThreshold: 1.5,
+    percentageThreshold: 25,
+    direction: 'high',
+    severity: { moderate: 25, high: 40 },
+  },
 };
 
 const CGM_ABSOLUTE_THRESHOLDS = {
@@ -687,12 +922,20 @@ export class ClickHouseBaselineEngine {
 
       const anomalies: AnomalyResult[] = [];
 
+      // Default threshold for any metric not explicitly defined - opens up the system to ALL metrics
+      const DEFAULT_THRESHOLD = {
+        zScoreThreshold: 1.5,
+        percentageThreshold: 25,
+        direction: 'both' as const,
+        severity: { moderate: 25, high: 40 },
+      };
+
       for (const metric of recentMetrics) {
         const baseline = baselineMap.get(metric.metric_type);
         if (!baseline || baseline.sampleCount < 3) continue;
 
-        const threshold = METRIC_THRESHOLDS[metric.metric_type];
-        if (!threshold) continue;
+        // Use explicit threshold if defined, otherwise use default (allowing ALL metrics to trigger)
+        const threshold = METRIC_THRESHOLDS[metric.metric_type] || DEFAULT_THRESHOLD;
 
         const deviation = metric.current_value - baseline.meanValue;
         const deviationPct = (deviation / baseline.meanValue) * 100;

@@ -82,12 +82,51 @@ class CorrelationInsightService {
       
       // All questions visible immediately - no staggered delivery
       const visibleAt = new Date();
+      const anomalyDate = new Date().toISOString().split('T')[0];
 
       for (const question of feedbackQuestions) {
         const feedbackId = randomUUID();
         
-        await this.storePendingFeedback(userId, feedbackId, question, visibleAt);
-        logger.info(`[CorrelationInsight] Stored feedback question ${feedbackId} for user ${userId}`);
+        // Find the matching anomaly for this question to get causal analysis
+        const matchingAnomaly = anomalies.find(a => a.metricType === question.focusMetric);
+        let causalAnalysis: {
+          insightText?: string;
+          likelyCauses?: string[];
+          whatsWorking?: string[];
+          patternConfidence?: number;
+          isRecurringPattern?: boolean;
+          historicalMatchCount?: number;
+        } | undefined;
+        
+        if (matchingAnomaly) {
+          // Generate smart insight with ML causal analysis
+          const smartInsight = await dynamicFeedbackGenerator.generateSmartInsight(
+            healthId,
+            matchingAnomaly,
+            anomalyDate
+          );
+          
+          if (smartInsight) {
+            causalAnalysis = {
+              insightText: smartInsight.insightText,
+              likelyCauses: smartInsight.likelyCauses,
+              whatsWorking: smartInsight.whatsWorking,
+              patternConfidence: smartInsight.confidence,
+              isRecurringPattern: smartInsight.isRecurringPattern,
+              historicalMatchCount: 0, // Will be populated by historical pattern matching
+            };
+            logger.info(`[CorrelationInsight] Generated smart insight for ${question.focusMetric}`, {
+              hasLikelyCauses: smartInsight.likelyCauses.length > 0,
+              hasWhatsWorking: smartInsight.whatsWorking.length > 0,
+              confidence: smartInsight.confidence,
+            });
+          }
+        }
+        
+        await this.storePendingFeedback(userId, feedbackId, question, visibleAt, causalAnalysis);
+        logger.info(`[CorrelationInsight] Stored feedback question ${feedbackId} for user ${userId}`, {
+          hasCausalAnalysis: !!causalAnalysis,
+        });
       }
     }
 

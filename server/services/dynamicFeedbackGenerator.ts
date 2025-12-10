@@ -65,17 +65,71 @@ export interface GeneratedQuestion {
 }
 
 const METRIC_DISPLAY_NAMES: Record<string, string> = {
+  // Core vitals
   hrv: 'heart rate variability',
   resting_heart_rate: 'resting heart rate',
   wrist_temperature_deviation: 'overnight wrist temperature',
   respiratory_rate: 'breathing rate',
   oxygen_saturation: 'blood oxygen',
+  body_temperature: 'body temperature',
+  walking_heart_rate: 'walking heart rate',
+  // Activity
   steps: 'daily steps',
   active_energy: 'active calories',
+  exercise_minutes: 'exercise time',
+  stand_hours: 'stand hours',
+  flights_climbed: 'flights climbed',
+  distance_walking_running: 'walking/running distance',
+  distance_cycling: 'cycling distance',
+  basal_energy: 'basal energy',
+  vo2_max: 'VO2 max',
+  // Sleep
   sleep_duration: 'sleep duration',
   deep_sleep: 'deep sleep',
   rem_sleep: 'REM sleep',
+  core_sleep: 'core sleep',
+  sleep_efficiency: 'sleep efficiency',
+  sleep_fragmentation: 'sleep fragmentation',
+  sleep_hrv: 'overnight HRV',
+  waso: 'wake after sleep onset',
+  // Blood sugar
   glucose: 'blood glucose',
+  cgm_glucose: 'glucose level',
+  cgm_variability: 'glucose variability',
+  time_in_range: 'time in target range',
+  // Body composition
+  weight: 'body weight',
+  body_fat_percentage: 'body fat',
+  lean_body_mass: 'lean mass',
+  bmi: 'BMI',
+  waist_circumference: 'waist circumference',
+  // Gait & mobility
+  walking_speed: 'walking speed',
+  walking_step_length: 'step length',
+  walking_double_support: 'double support time',
+  walking_asymmetry: 'walking asymmetry',
+  walking_steadiness: 'walking steadiness',
+  six_minute_walk_distance: 'six-minute walk distance',
+  stair_ascent_speed: 'stair climbing speed',
+  stair_descent_speed: 'stair descent speed',
+  // Nutrition
+  calories: 'calorie intake',
+  protein: 'protein intake',
+  carbohydrates: 'carb intake',
+  fat_total: 'fat intake',
+  fiber: 'fiber intake',
+  sugar: 'sugar intake',
+  sodium: 'sodium intake',
+  caffeine: 'caffeine intake',
+  water: 'water intake',
+  // Recovery & wellness
+  mindfulness_minutes: 'mindfulness time',
+  readiness_score: 'readiness score',
+  recovery_score: 'recovery score',
+  energy_level: 'energy level',
+  mental_clarity: 'mental clarity',
+  mood: 'mood',
+  stress_level: 'stress level',
 };
 
 export class DynamicFeedbackGenerator {
