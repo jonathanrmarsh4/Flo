@@ -271,6 +271,23 @@ export interface MetricAnalysis {
     isSignificant: boolean;     // exceeds threshold for this metric
   };
   
+  // Trend context (Step 2: for ragInsightGenerator compatibility)
+  trend: {
+    consecutiveDaysAbove: number;    // days in a row above baseline
+    consecutiveDaysBelow: number;    // days in a row below baseline
+    weeklyAverage: number | null;    // 7-day average (for RAG activity baselines)
+    monthlyAverage: number | null;   // 30-day average (for RAG activity baselines)
+    percentBelowBaseline: number | null;  // how far below baseline (for activity insights)
+    suggestedTarget: number | null;  // recommended target value (for actionable insights)
+  };
+  
+  // Freshness classification (Step 2: for anomalyDetectionEngine compatibility)
+  freshness: {
+    category: 'green' | 'yellow' | 'red';  // green=<30d, yellow=30-90d, red=>90d
+    lastUpdatedDays: number;               // days since last data point
+    halfLifeDays: number;                  // expected update frequency for this metric
+  };
+  
   // Clinical interpretation
   interpretation: {
     severity: 'normal' | 'low' | 'moderate' | 'high';
@@ -279,6 +296,7 @@ export interface MetricAnalysis {
       percentageThreshold: number;
       direction: 'both' | 'high' | 'low';
     } | null;
+    clinicalContext: string | null;  // brief clinical interpretation text
   };
   
   // Data quality indicators
