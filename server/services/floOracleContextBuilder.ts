@@ -35,7 +35,12 @@ import {
   getEnvironmentalContext,
   type EnvironmentalContext,
 } from './healthStorageRouter';
-import { getDailyMetrics as getSupabaseDailyMetrics, getActionPlanItems as getSupabaseActionPlanItems } from './supabaseHealthStorage';
+import { 
+  getDailyMetrics as getSupabaseDailyMetrics, 
+  getActionPlanItems as getSupabaseActionPlanItems,
+  getPendingBiomarkerFollowups,
+  type BiomarkerFollowup,
+} from './supabaseHealthStorage';
 
 // In-memory cache for user health context (5 minute TTL)
 interface CachedContext {
@@ -219,6 +224,36 @@ function getRelativeDateLabel(date: Date, timezone: string): string {
 function formatBiomarkerValue(value: number | null, unit: string = ''): string {
   if (value === null || value === undefined) return 'not recorded';
   return `${value}${unit ? ' ' + unit : ''}`;
+}
+
+/**
+ * Format pending biomarker follow-ups for Flō Oracle context
+ * This tells the AI about scheduled appointments so it doesn't keep repeating concerns
+ */
+function formatBiomarkerFollowupsContext(followups: BiomarkerFollowup[]): string {
+  if (!followups || followups.length === 0) return '';
+  
+  const lines: string[] = [
+    '',
+    'SCHEDULED BIOMARKER FOLLOW-UPS (do NOT repeatedly mention these concerns - user is already addressing them):',
+  ];
+  
+  for (const followup of followups) {
+    const dateStr = followup.scheduled_date 
+      ? new Date(followup.scheduled_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : 'date pending';
+    
+    lines.push(`• ${followup.biomarker_name}: ${followup.action_description} (${dateStr})`);
+    
+    if (followup.concern_description) {
+      lines.push(`  Concern: ${followup.concern_description} - USER IS ALREADY AWARE AND TAKING ACTION`);
+    }
+  }
+  
+  lines.push('');
+  lines.push('IMPORTANT: Instead of repeating these concerns, you can ask supportively about the upcoming appointment or how they are feeling about it.');
+  
+  return lines.join('\n');
 }
 
 interface BloodPanelHistory {
@@ -1025,6 +1060,18 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.warn('[FloOracle] Failed to fetch life events:', error);
     }
 
+    // Fetch pending biomarker follow-ups (scheduled appointments for concerns)
+    let biomarkerFollowupsContext = '';
+    try {
+      const pendingFollowups = await getPendingBiomarkerFollowups(userId);
+      if (pendingFollowups.length > 0) {
+        biomarkerFollowupsContext = formatBiomarkerFollowupsContext(pendingFollowups);
+        logger.info(`[FloOracle] Fetched ${pendingFollowups.length} pending biomarker followups for user ${userId}`);
+      }
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch biomarker followups:', error);
+    }
+
     // Fetch BigQuery correlation insights (anomalies and patterns)
     let correlationContext = '';
     try {
@@ -1036,7 +1083,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.debug('[FloOracle] Correlation insights not available:', error);
     }
 
-    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory) + lifeEventsContext + correlationContext;
+    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory) + lifeEventsContext + biomarkerFollowupsContext + correlationContext;
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars, includesLifeEvents: ${lifeEventsContext.length > 0})`);
     
     // Cache the result

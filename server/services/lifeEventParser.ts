@@ -90,6 +90,46 @@ export function parseDateHint(dateHint: string | undefined | null, timezone?: st
   }
 }
 
+/**
+ * Parse a date hint for FUTURE appointments/scheduled follow-ups
+ * Unlike parseDateHint, this ALLOWS future dates since appointments are typically scheduled ahead
+ * Uses forwardDate: true to prefer upcoming dates
+ */
+export function parseFutureDate(dateHint: string | undefined | null): Date | null {
+  if (!dateHint) return null;
+  
+  try {
+    const referenceDate = new Date();
+    
+    // Use chrono to parse with FORWARD date preference
+    const results = chrono.parse(dateHint, referenceDate, {
+      forwardDate: true,
+    });
+    
+    if (results.length > 0 && results[0].start) {
+      const parsedDate = results[0].start.date();
+      
+      logger.info('[LifeEventParser] Parsed future date', {
+        dateHint,
+        parsedDate: parsedDate.toISOString(),
+        referenceDate: referenceDate.toISOString(),
+        isFuture: parsedDate > referenceDate,
+      });
+      
+      return parsedDate;
+    }
+    
+    logger.info('[LifeEventParser] Could not parse future date', { dateHint });
+    return null;
+  } catch (error: any) {
+    logger.error('[LifeEventParser] Future date parsing error', { 
+      dateHint, 
+      error: error.message 
+    });
+    return null;
+  }
+}
+
 // Cheap pre-filter to avoid calling Grok on every message
 // Uses specific phrases and high-signal terms to avoid false positives
 const TRIGGER_WORDS = [
@@ -371,4 +411,181 @@ export function formatAcknowledgment(
   acknowledgment: string
 ): string {
   return `${acknowledgment}`;
+}
+
+// ==================== BIOMARKER FOLLOWUP EXTRACTION ====================
+
+// Common biomarker names for detection
+const BIOMARKER_KEYWORDS = [
+  'psa', 'cholesterol', 'ldl', 'hdl', 'triglycerides', 'glucose', 'hba1c', 'a1c',
+  'vitamin d', 'vitamin b12', 'b12', 'iron', 'ferritin', 'testosterone', 'thyroid',
+  'tsh', 't3', 't4', 'cortisol', 'crp', 'hs-crp', 'homocysteine', 'uric acid',
+  'creatinine', 'egfr', 'liver', 'alt', 'ast', 'kidney', 'blood pressure',
+  'hemoglobin', 'platelets', 'white blood cells', 'red blood cells', 'apob',
+  'lp(a)', 'lipoprotein', 'insulin', 'dhea', 'estrogen', 'progesterone',
+];
+
+// Appointment/action keywords
+const APPOINTMENT_KEYWORDS = [
+  'appointment', 'doctor', 'specialist', 'urologist', 'cardiologist', 'endocrinologist',
+  'scheduled', 'seeing', 'meeting', 'consultation', 'follow-up', 'followup', 'follow up',
+  'retest', 'another test', 'getting tested', 'check-up', 'checkup',
+];
+
+export interface BiomarkerFollowupExtraction {
+  biomarkerName: string;
+  actionType: 'specialist_appointment' | 'retest' | 'lifestyle_change' | 'monitoring';
+  actionDescription: string;
+  scheduledDate?: Date;
+  dateHint?: string;
+  acknowledgment: string;
+}
+
+/**
+ * Check if message might contain a biomarker follow-up mention
+ */
+export function couldContainBiomarkerFollowup(message: string): boolean {
+  const lowerMessage = message.toLowerCase();
+  
+  const hasBiomarker = BIOMARKER_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  const hasAppointment = APPOINTMENT_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+  
+  return hasBiomarker && hasAppointment;
+}
+
+/**
+ * Extract biomarker follow-up information from a message
+ * Used when user mentions scheduling an appointment for a specific biomarker concern
+ */
+export async function extractBiomarkerFollowup(
+  message: string
+): Promise<BiomarkerFollowupExtraction | null> {
+  try {
+    if (!couldContainBiomarkerFollowup(message)) {
+      return null;
+    }
+
+    if (!geminiChatClient.isAvailable() && !process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+      logger.warn('[LifeEventParser] No AI providers available for biomarker followup extraction');
+      return null;
+    }
+
+    const systemPrompt = `You are a health assistant extracting biomarker follow-up appointments from user messages.
+
+When a user mentions they have scheduled an appointment or follow-up for a specific biomarker or health concern, extract:
+
+1. biomarkerName: The specific biomarker they are addressing (e.g., "PSA", "Cholesterol", "Vitamin D")
+2. actionType: One of "specialist_appointment", "retest", "lifestyle_change", or "monitoring"
+3. actionDescription: A brief description of what they are doing (e.g., "Specialist appointment with urologist")
+4. dateHint: Any date mentioned (e.g., "January 6th", "next Tuesday", "in two weeks") or null
+5. acknowledgment: A brief supportive message
+
+Output JSON:
+{
+  "biomarkerName": "PSA",
+  "actionType": "specialist_appointment",
+  "actionDescription": "Specialist appointment with urologist",
+  "dateHint": "January 6th",
+  "acknowledgment": "Got it - I won't keep bringing up PSA since you have this handled."
+}
+
+If no clear biomarker follow-up is detected, return: {"detected": false}
+
+Examples:
+User: "I know about the PSA, I already have an appointment with a specialist on January 6th"
+→ {"biomarkerName": "PSA", "actionType": "specialist_appointment", "actionDescription": "Specialist appointment scheduled", "dateHint": "January 6th", "acknowledgment": "Understood - I'll note the PSA follow-up appointment."}
+
+User: "My doctor says to retest my vitamin D in 3 months"
+→ {"biomarkerName": "Vitamin D", "actionType": "retest", "actionDescription": "Retest scheduled with doctor", "dateHint": "in 3 months", "acknowledgment": "Got it - vitamin D retest noted."}
+
+User: "I'm seeing my cardiologist about the cholesterol next week"
+→ {"biomarkerName": "Cholesterol", "actionType": "specialist_appointment", "actionDescription": "Cardiologist appointment", "dateHint": "next week", "acknowledgment": "Noted - cholesterol follow-up with cardiologist scheduled."}`;
+
+    let response: string | null = null;
+    let provider = 'gemini';
+
+    try {
+      if (geminiChatClient.isAvailable()) {
+        response = await geminiChatClient.chat([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ], {
+          model: 'gemini-2.5-flash',
+          temperature: 0.2,
+          maxTokens: 300,
+        });
+      }
+    } catch (geminiError: any) {
+      logger.warn('[LifeEventParser] Gemini failed for biomarker followup, trying OpenAI', { 
+        error: geminiError.message 
+      });
+    }
+
+    if (!response && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+      provider = 'openai';
+      try {
+        const openaiResponse = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          temperature: 0.2,
+          max_tokens: 300,
+        });
+        response = openaiResponse.choices[0]?.message?.content || null;
+      } catch (openaiError: any) {
+        logger.error('[LifeEventParser] OpenAI fallback also failed for biomarker followup', { 
+          error: openaiError.message 
+        });
+        return null;
+      }
+    }
+
+    if (!response) {
+      return null;
+    }
+
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      return null;
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    
+    // Check if extraction was detected
+    if (parsed.detected === false || !parsed.biomarkerName) {
+      return null;
+    }
+
+    // Parse the date hint if present - use FUTURE date parser for appointments
+    let scheduledDate: Date | undefined;
+    if (parsed.dateHint) {
+      // Use parseFutureDate instead of parseDateHint since appointments are typically scheduled ahead
+      const parsedDate = parseFutureDate(parsed.dateHint);
+      if (parsedDate) {
+        scheduledDate = parsedDate;
+      }
+    }
+
+    logger.info('[LifeEventParser] Extracted biomarker followup:', {
+      provider,
+      biomarker: parsed.biomarkerName,
+      actionType: parsed.actionType,
+      dateHint: parsed.dateHint,
+      scheduledDate: scheduledDate?.toISOString(),
+    });
+
+    return {
+      biomarkerName: parsed.biomarkerName,
+      actionType: parsed.actionType || 'specialist_appointment',
+      actionDescription: parsed.actionDescription || 'Follow-up scheduled',
+      scheduledDate,
+      dateHint: parsed.dateHint,
+      acknowledgment: parsed.acknowledgment || 'Got it - follow-up noted.',
+    };
+  } catch (error: any) {
+    logger.error('[LifeEventParser] Biomarker followup extraction error:', error);
+    return null;
+  }
 }

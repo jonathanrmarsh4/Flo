@@ -7,9 +7,9 @@
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getRecentChatHistory, getUserMemoriesContext } from './floOracleContextBuilder';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
-import { couldContainLifeEvent, extractLifeEvents } from './lifeEventParser';
+import { couldContainLifeEvent, extractLifeEvents, couldContainBiomarkerFollowup, extractBiomarkerFollowup } from './lifeEventParser';
 import { parseConversationalIntent } from './conversationalIntentParser';
-import { createFollowUpRequest, createLifeContextFact } from './supabaseHealthStorage';
+import { createFollowUpRequest, createLifeContextFact, createBiomarkerFollowup } from './supabaseHealthStorage';
 import { logger } from '../logger';
 import { db } from '../db';
 import { floChatMessages, users, VOICE_NAME_TO_GEMINI } from '@shared/schema';
@@ -749,6 +749,14 @@ Start the conversation warmly, using their name if you have it.`;
             error: err.message 
           });
         });
+        
+        // Also check for biomarker follow-up mentions (e.g., "I have an appointment for my PSA on January 6th")
+        this.processBiomarkerFollowupAsync(state.userId, extractionText, sessionId).catch(err => {
+          logger.error('[GeminiVoice] Biomarker followup processing failed', { 
+            sessionId, 
+            error: err.message 
+          });
+        });
       } else if (state.lifeEventsProcessed) {
         logger.info('[GeminiVoice] Skipping duplicate life event processing', { sessionId });
       }
@@ -938,6 +946,72 @@ Start the conversation warmly, using their name if you have it.`;
         error: error.message,
         stack: error.stack?.substring(0, 300),
         totalTimeMs: Date.now() - startTime,
+      });
+    }
+  }
+
+  /**
+   * Process biomarker follow-up mentions from voice transcripts
+   * Detects when user mentions scheduling appointments for specific biomarkers
+   * so Flō Oracle knows not to keep repeating concerns
+   */
+  private async processBiomarkerFollowupAsync(
+    userId: string, 
+    transcript: string,
+    sessionId?: string
+  ): Promise<void> {
+    try {
+      // Check if transcript might contain biomarker follow-up info
+      if (!couldContainBiomarkerFollowup(transcript)) {
+        return;
+      }
+      
+      logger.info('[GeminiVoice] Potential biomarker follow-up detected', { 
+        userId, 
+        transcriptPreview: transcript.substring(0, 100) 
+      });
+      
+      const extraction = await extractBiomarkerFollowup(transcript);
+      
+      if (!extraction) {
+        logger.debug('[GeminiVoice] No biomarker follow-up extracted', { userId });
+        return;
+      }
+      
+      // Create the biomarker followup record
+      const followup = await createBiomarkerFollowup(userId, {
+        biomarker_name: extraction.biomarkerName,
+        action_type: extraction.actionType,
+        action_description: extraction.actionDescription,
+        scheduled_date: extraction.scheduledDate,
+        concern_description: `Elevated ${extraction.biomarkerName}`,
+        source: 'voice',
+      });
+      
+      // Add confirmation message to chat
+      const dateStr = extraction.scheduledDate 
+        ? ` (${extraction.scheduledDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`
+        : '';
+      const confirmationMsg = `[Noted] ${extraction.biomarkerName} follow-up${dateStr} - I won't keep mentioning this since you're on it.`;
+      
+      await db.insert(floChatMessages).values({
+        userId,
+        sender: 'flo',
+        message: confirmationMsg,
+        sessionId: sessionId,
+      });
+      
+      logger.info('[GeminiVoice] Biomarker follow-up logged', {
+        userId,
+        biomarker: extraction.biomarkerName,
+        actionType: extraction.actionType,
+        scheduledDate: extraction.scheduledDate?.toISOString(),
+        followupId: followup.id,
+      });
+    } catch (error: any) {
+      logger.error('[GeminiVoice] Biomarker follow-up processing error', { 
+        userId, 
+        error: error.message,
       });
     }
   }

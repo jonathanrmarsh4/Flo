@@ -4138,4 +4138,188 @@ export async function getWeatherHistory(
   return data || [];
 }
 
+// ==================== BIOMARKER FOLLOWUPS ====================
+// Track scheduled appointments/actions for specific biomarker concerns
+// Helps Flō avoid repeating concerns when user has already scheduled follow-up
+
+export type BiomarkerFollowupStatus = 'scheduled' | 'completed' | 'cancelled';
+
+export interface BiomarkerFollowup {
+  id?: string;
+  health_id: string;
+  biomarker_name: string;  // e.g., 'PSA', 'Cholesterol', 'Vitamin D'
+  biomarker_code?: string;  // LOINC code if available
+  concern_description: string;  // e.g., 'elevated PSA levels'
+  action_type: string;  // e.g., 'specialist_appointment', 'retest', 'lifestyle_change'
+  action_description: string;  // e.g., 'Specialist appointment scheduled'
+  scheduled_date?: string;  // Date of the follow-up appointment
+  status: BiomarkerFollowupStatus;
+  notes?: string;
+  source: 'voice' | 'text' | 'system';
+  created_at?: string;
+  updated_at?: string;
+  resolved_at?: string;
+}
+
+export interface BiomarkerFollowupInput {
+  biomarker_name: string;
+  biomarker_code?: string;
+  concern_description?: string;
+  action_type: string;
+  action_description: string;
+  scheduled_date?: Date | string;
+  notes?: string;
+  source?: 'voice' | 'text' | 'system';
+}
+
+/**
+ * Create a biomarker follow-up record
+ * Used when user mentions scheduling an appointment for a specific concern
+ */
+export async function createBiomarkerFollowup(
+  userId: string, 
+  input: BiomarkerFollowupInput
+): Promise<BiomarkerFollowup> {
+  const healthId = await getHealthId(userId);
+  
+  const insertData = {
+    health_id: healthId,
+    biomarker_name: input.biomarker_name.toUpperCase(),
+    biomarker_code: input.biomarker_code || null,
+    concern_description: input.concern_description || `Elevated ${input.biomarker_name}`,
+    action_type: input.action_type,
+    action_description: input.action_description,
+    scheduled_date: input.scheduled_date 
+      ? (input.scheduled_date instanceof Date 
+          ? input.scheduled_date.toISOString().split('T')[0] 
+          : input.scheduled_date)
+      : null,
+    status: 'scheduled' as BiomarkerFollowupStatus,
+    notes: input.notes || null,
+    source: input.source || 'voice',
+  };
+  
+  logger.info('[SupabaseHealth] Creating biomarker followup:', { 
+    userId, 
+    biomarker: input.biomarker_name,
+    action: input.action_type,
+    scheduledDate: insertData.scheduled_date,
+  });
+  
+  const { data, error } = await supabase
+    .from('biomarker_followups')
+    .insert(insertData)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error creating biomarker followup:', error);
+    throw error;
+  }
+  
+  return data;
+}
+
+/**
+ * Get all pending (scheduled) biomarker follow-ups for a user
+ * Used by Flō Oracle to know what concerns to suppress
+ */
+export async function getPendingBiomarkerFollowups(userId: string): Promise<BiomarkerFollowup[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('biomarker_followups')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('status', 'scheduled')
+    .order('scheduled_date', { ascending: true });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching pending biomarker followups:', error);
+    throw error;
+  }
+  
+  return data || [];
+}
+
+/**
+ * Get all biomarker follow-ups for a specific biomarker
+ */
+export async function getBiomarkerFollowupsByName(
+  userId: string, 
+  biomarkerName: string
+): Promise<BiomarkerFollowup[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('biomarker_followups')
+    .select('*')
+    .eq('health_id', healthId)
+    .ilike('biomarker_name', biomarkerName)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching biomarker followups by name:', error);
+    throw error;
+  }
+  
+  return data || [];
+}
+
+/**
+ * Mark a biomarker follow-up as completed
+ */
+export async function completeBiomarkerFollowup(
+  followupId: string,
+  notes?: string
+): Promise<BiomarkerFollowup> {
+  const { data, error } = await supabase
+    .from('biomarker_followups')
+    .update({
+      status: 'completed' as BiomarkerFollowupStatus,
+      resolved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      notes: notes || undefined,
+    })
+    .eq('id', followupId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error completing biomarker followup:', error);
+    throw error;
+  }
+  
+  logger.info('[SupabaseHealth] Biomarker followup completed:', { id: followupId });
+  return data;
+}
+
+/**
+ * Cancel a biomarker follow-up
+ */
+export async function cancelBiomarkerFollowup(
+  followupId: string,
+  reason?: string
+): Promise<BiomarkerFollowup> {
+  const { data, error } = await supabase
+    .from('biomarker_followups')
+    .update({
+      status: 'cancelled' as BiomarkerFollowupStatus,
+      resolved_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      notes: reason || undefined,
+    })
+    .eq('id', followupId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error cancelling biomarker followup:', error);
+    throw error;
+  }
+  
+  logger.info('[SupabaseHealth] Biomarker followup cancelled:', { id: followupId });
+  return data;
+}
+
 logger.info('[SupabaseHealth] Health storage service initialized');
