@@ -557,7 +557,20 @@ Respond with JSON only:
     questionText: string;
   } | null> {
     try {
+      logger.info('[FeedbackGenerator] Starting generateSmartInsight', { 
+        healthId, 
+        metricType: anomaly.metricType,
+        deviationPct: anomaly.deviationPct,
+        anomalyDate 
+      });
+      
       const mlAttribution = await this.gatherMLAttribution(healthId, anomaly, anomalyDate);
+      
+      logger.info('[FeedbackGenerator] ML attribution gathered', {
+        rankedCausesCount: mlAttribution.rankedCauses.length,
+        hasHistoricalPattern: !!mlAttribution.historicalPattern,
+        positivePatternsCount: mlAttribution.positivePatterns.length,
+      });
       
       const metricName = METRIC_DISPLAY_NAMES[anomaly.metricType] || anomaly.metricType;
       const direction = anomaly.direction === 'above' ? 'higher' : 'lower';

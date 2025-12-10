@@ -8112,6 +8112,52 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // CLI: Trigger correlation analysis for a user (for testing causal analysis)
+  app.post("/api/cli/correlation-analysis/:userId", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId } = req.params;
+      
+      logger.info('[CLI] Triggering correlation analysis', { userId });
+      
+      const { correlationInsightService } = await import('./services/correlationInsightService');
+      const result = await correlationInsightService.runFullAnalysis(userId);
+      
+      logger.info('[CLI] Correlation analysis complete', { 
+        userId,
+        anomaliesDetected: result.anomalies?.length || 0,
+        questionsGenerated: result.feedbackQuestions?.length || 0,
+        insightsGenerated: result.insights?.length || 0,
+      });
+      
+      res.json({
+        success: true,
+        userId,
+        anomaliesDetected: result.anomalies?.length || 0,
+        questionsGenerated: result.feedbackQuestions?.length || 0,
+        insightsGenerated: result.insights?.length || 0,
+        anomalies: result.anomalies?.map(a => ({
+          metricType: a.metricType,
+          deviationPct: a.deviationPct,
+          direction: a.direction,
+        })),
+        feedbackQuestions: result.feedbackQuestions?.map(q => ({
+          questionText: q.questionText?.substring(0, 50) + '...',
+          focusMetric: q.focusMetric,
+        })),
+      });
+    } catch (error: any) {
+      logger.error('[CLI] Correlation analysis error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ============================================================================
   // Self-Improvement Engine (SIE) - Sandbox Mode
   // Unrestricted AI analysis of Flō's data landscape for product improvements
