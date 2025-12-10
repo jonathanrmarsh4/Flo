@@ -1,0 +1,81 @@
+2025-12-10 16:06:00.54
+adfed402
+User
+[2025-12-10T08:06:00.546Z] [WARN] [ReminderDelivery] No user_profile found for health_id hkYl-n, using as-is
+2025-12-10 16:06:00.58
+adfed402
+User
+[2025-12-10T08:06:00.580Z] [WARN] [APNs] No active device tokens found for user hkYl-n
+2025-12-10 16:06:00.58
+adfed402
+User
+[2025-12-10T08:06:00.581Z] [WARN] [ReminderDelivery] No devices reached for user hkYl-n {"error":"No active devices"}
+2025-12-10 16:06:00.82
+adfed402
+User
+[2025-12-10T08:06:00.821Z] [WARN] [ReminderDelivery] No user_profile found for health_id TfHX3a, using as-is
+2025-12-10 16:06:00.85
+adfed402
+User
+[2025-12-10T08:06:00.857Z] [WARN] [ReminderDelivery] No devices reached for user TfHX3a {"error":"No active devices"}
+2025-12-10 16:06:00.85
+adfed402
+User
+[2025-12-10T08:06:00.856Z] [WARN] [APNs] No active device tokens found for user TfHX3a
+2025-12-10 16:06:01.09
+adfed402
+User
+[2025-12-10T08:06:01.093Z] [WARN] [ReminderDelivery] No user_profile found for health_id K8aFip, using as-is
+2025-12-10 16:06:01.12
+adfed402
+User
+[2025-12-10T08:06:01.128Z] [WARN] [ReminderDelivery] No devices reached for user K8aFip {"error":"No active devices"}
+2025-12-10 16:06:01.12
+adfed402
+User
+[2025-12-10T08:06:01.127Z] [WARN] [APNs] No active device tokens found for user K8aFip
+2025-12-10 16:06:01.36
+adfed402
+User
+[2025-12-10T08:06:01.369Z] [WARN] [ReminderDelivery] No user_profile found for health_id IHf4ob, using as-is
+2025-12-10 16:06:01.40
+adfed402
+User
+[2025-12-10T08:06:01.404Z] [WARN] [APNs] No active device tokens found for user IHf4ob
+2025-12-10 16:06:01.40
+adfed402
+User
+[2025-12-10T08:06:01.404Z] [WARN] [ReminderDelivery] No devices reached for user IHf4ob {"error":"No active devices"}
+2025-12-10 16:06:01.64
+adfed402
+User
+[2025-12-10T08:06:01.642Z] [WARN] [ReminderDelivery] No user_profile found for health_id 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, using as-is
+2025-12-10 16:06:01.67
+adfed402
+User
+[2025-12-10T08:06:01.676Z] [WARN] [ReminderDelivery] No devices reached for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"error":"No active devices"}
+2025-12-10 16:06:01.67
+adfed402
+User
+[2025-12-10T08:06:01.676Z] [WARN] [APNs] No active device tokens found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-10 16:06:10.39
+adfed402
+User
+8:06:10 AM [express] GET /api/admin/api-usage 304 in 330ms :: [{"date":"2025-12-10","queries":29,"co…
+2025-12-10 16:06:11.73
+adfed402
+User
+8:06:11 AM [express] GET /api/admin/ml-usage/query-stats 200 in 707ms :: {"tables":[{"name":"health_…
+2025-12-10 16:06:11.85
+adfed402
+User
+8:06:11 AM [express] GET /api/admin/audit-logs 304 in 109ms :: [{"id":"0e23cf82-177b-4abe-b4a0-5c929…
+2025-12-10 16:06:12.15
+adfed402
+User
+8:06:12 AM [express] GET /api/admin/ml-usage/metrics 304 in 107ms :: {"metrics":{"totalWindowsToday"…
+2025-12-10 16:06:12.30
+adfed402
+User
+8:06:12 AM [express] GET /api/admin/overview 304 in 483ms :: {"totalUsers":9,"activeUsers":9,"totalR…
+

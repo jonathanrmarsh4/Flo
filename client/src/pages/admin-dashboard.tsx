@@ -437,29 +437,54 @@ export default function AdminDashboard() {
   const [apnsSigningKey, setApnsSigningKey] = useState('');
   const [apnsEnvironment, setApnsEnvironment] = useState('production');
 
-  const { data: apnsConfigData, refetch: refetchApnsConfig } = useQuery({
+  const { data: apnsConfigData, refetch: refetchApnsConfig, isLoading: apnsConfigLoading, error: apnsConfigError } = useQuery({
     queryKey: ['/api/admin/apns-config'],
     refetchInterval: false,
   });
 
+  // Log APNs config data for debugging
+  useEffect(() => {
+    console.log('[APNs] Config data:', apnsConfigData);
+    console.log('[APNs] Config error:', apnsConfigError);
+    // Populate form with existing config values
+    const config = (apnsConfigData as any)?.activeConfig;
+    if (config) {
+      if (config.teamId) setApnsTeamId(config.teamId);
+      if (config.keyId) setApnsKeyId(config.keyId);
+      if (config.bundleId) setApnsBundleId(config.bundleId);
+      if (config.environment) setApnsEnvironment(config.environment);
+    }
+  }, [apnsConfigData, apnsConfigError]);
+
   const saveApnsConfigMutation = useMutation({
     mutationFn: async (config: { teamId: string; keyId: string; signingKey: string; bundleId: string; environment: string }) => {
+      console.log('[APNs] Starting save mutation with config:', { 
+        teamId: config.teamId, 
+        keyId: config.keyId, 
+        bundleId: config.bundleId,
+        environment: config.environment,
+        signingKeyLength: config.signingKey?.length || 0
+      });
       const res = await apiRequest('POST', '/api/admin/apns-config', config);
-      return await res.json();
+      const data = await res.json();
+      console.log('[APNs] Save response:', data);
+      return data;
     },
     onSuccess: (data: any) => {
+      console.log('[APNs] Save successful, invalidating cache');
       toast({
         title: 'APNs Configuration Saved',
         description: data.message || 'Push notifications are now configured',
       });
-      refetchApnsConfig();
+      // Invalidate and refetch the APNs config query
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/apns-config'] });
       setApnsSigningKey(''); // Clear the key field after saving
     },
     onError: (error: any) => {
-      console.error('APNs config error:', error);
+      console.error('[APNs] Save error:', error);
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to save APNs configuration',
+        title: 'Error Saving APNs Config',
+        description: error.message || 'Failed to save APNs configuration. Check console for details.',
         variant: 'destructive',
       });
     },
@@ -1816,7 +1841,11 @@ export default function AdminDashboard() {
                 APNs Configuration
               </h4>
               <div className="text-xs text-white/50 mb-4">
-                Configure Apple Push Notification service credentials. Status: {(apnsConfigData as any)?.hasActiveConfig ? (
+                Configure Apple Push Notification service credentials. Status: {apnsConfigLoading ? (
+                  <span className="text-yellow-400">Loading...</span>
+                ) : apnsConfigError ? (
+                  <span className="text-red-400">Error loading config</span>
+                ) : (apnsConfigData as any)?.hasActiveConfig ? (
                   <span className="text-green-400">Active ({(apnsConfigData as any)?.activeConfig?.environment})</span>
                 ) : (
                   <span className="text-red-400">Not configured</span>
