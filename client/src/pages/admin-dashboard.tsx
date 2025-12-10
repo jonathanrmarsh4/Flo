@@ -15,6 +15,7 @@ import { AdminAnalyticsTab } from '@/components/admin/AdminAnalyticsTab';
 import { AdminSandboxVoice } from '@/components/admin/AdminSandboxVoice';
 import { AdminMessagesManager } from '@/components/admin/AdminMessagesManager';
 import { AdminSIE } from '@/components/admin/AdminSIE';
+import { AdminMLSettings } from '@/components/admin/AdminMLSettings';
 
 interface AdminUserSummary {
   id: string;
@@ -1834,6 +1835,8 @@ export default function AdminDashboard() {
             <AdminSandboxVoice />
 
             <AdminReportModelSettings />
+
+            <AdminMLSettings />
 
             <div className="rounded-2xl border bg-white/5 border-white/10 p-6">
               <h4 className="text-base text-white mb-2 flex items-center gap-2">

@@ -2,6 +2,74 @@ import { clickhouse, isClickHouseEnabled } from './clickhouseService';
 import { getSupabaseClient } from './supabaseClient';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { db } from '../db';
+import { mlSensitivitySettings } from '@shared/schema';
+
+interface MLSettings {
+  anomalyZScoreThreshold: number;
+  anomalyMinConfidence: number;
+  minPatternMatches: number;
+  historyWindowMonths: number;
+  minPositiveOccurrences: number;
+  positiveOutcomeThreshold: number;
+  insightConfidenceThreshold: number;
+  maxCausesToShow: number;
+  maxPositivePatternsToShow: number;
+  enableProactiveAlerts: boolean;
+  alertCooldownHours: number;
+}
+
+const DEFAULT_ML_SETTINGS: MLSettings = {
+  anomalyZScoreThreshold: 2.0,
+  anomalyMinConfidence: 0.5,
+  minPatternMatches: 3,
+  historyWindowMonths: 24,
+  minPositiveOccurrences: 5,
+  positiveOutcomeThreshold: 0.1,
+  insightConfidenceThreshold: 0.3,
+  maxCausesToShow: 3,
+  maxPositivePatternsToShow: 3,
+  enableProactiveAlerts: true,
+  alertCooldownHours: 4,
+};
+
+let cachedSettings: MLSettings | null = null;
+let settingsCachedAt = 0;
+const SETTINGS_CACHE_TTL_MS = 60000; // 1 minute cache
+
+async function getMLSettings(): Promise<MLSettings> {
+  const now = Date.now();
+  if (cachedSettings && (now - settingsCachedAt) < SETTINGS_CACHE_TTL_MS) {
+    return cachedSettings;
+  }
+  
+  try {
+    const [settings] = await db.select().from(mlSensitivitySettings).limit(1);
+    if (settings) {
+      cachedSettings = {
+        anomalyZScoreThreshold: settings.anomalyZScoreThreshold,
+        anomalyMinConfidence: settings.anomalyMinConfidence,
+        minPatternMatches: settings.minPatternMatches,
+        historyWindowMonths: settings.historyWindowMonths,
+        minPositiveOccurrences: settings.minPositiveOccurrences,
+        positiveOutcomeThreshold: settings.positiveOutcomeThreshold,
+        insightConfidenceThreshold: settings.insightConfidenceThreshold,
+        maxCausesToShow: settings.maxCausesToShow,
+        maxPositivePatternsToShow: settings.maxPositivePatternsToShow,
+        enableProactiveAlerts: settings.enableProactiveAlerts,
+        alertCooldownHours: settings.alertCooldownHours,
+      };
+      settingsCachedAt = now;
+      return cachedSettings;
+    }
+  } catch (error) {
+    logger.warn('[BehaviorAttribution] Failed to load ML settings, using defaults', { error });
+  }
+  
+  return DEFAULT_ML_SETTINGS;
+}
+
+export { getMLSettings, MLSettings };
 
 interface BehaviorFactor {
   factor_category: string;
@@ -1292,12 +1360,15 @@ export class BehaviorAttributionEngine {
         ? `This pattern (${behaviorDescriptions.join(' + ')}) has preceded ${outcomeDesc} ${this.formatMetricName(outcomeMetric)} ${matchCount} times over the past ${range.months_of_data} months.`
         : '';
 
+      // Use ML settings for recurring pattern threshold
+      const mlSettings = await getMLSettings();
+      
       return {
         matchCount,
         totalHistoryMonths: range.months_of_data,
         matchDates: matchDates.slice(0, 10), // Return up to 10 example dates
         patternConfidence,
-        isRecurringPattern: matchCount >= 3,
+        isRecurringPattern: matchCount >= mlSettings.minPatternMatches,
         patternDescription,
       };
     } catch (error) {
@@ -1309,11 +1380,12 @@ export class BehaviorAttributionEngine {
   /**
    * Find positive patterns - behaviors that consistently precede GOOD outcomes.
    * Helps identify "what's working" so users can keep doing it.
+   * Uses ML sensitivity settings for thresholds.
    */
   async findPositivePatterns(
     healthId: string,
     outcomeMetric: string,
-    lookbackMonths: number = 24
+    lookbackMonths?: number
   ): Promise<{
     patterns: {
       behaviors: { category: string; key: string; description: string }[];
@@ -1328,8 +1400,12 @@ export class BehaviorAttributionEngine {
     }
 
     try {
+      // Get ML settings for thresholds
+      const mlSettings = await getMLSettings();
+      const effectiveLookbackMonths = lookbackMonths ?? mlSettings.historyWindowMonths;
+      
       const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - lookbackMonths);
+      startDate.setMonth(startDate.getMonth() - effectiveLookbackMonths);
       const startDateStr = startDate.toISOString().split('T')[0];
 
       // Find days with positive outcome deviations
@@ -1349,12 +1425,14 @@ export class BehaviorAttributionEngine {
         goodDaysQuery, { healthId, outcomeMetric, startDate: startDateStr }
       );
 
-      if (goodDays.length < 3) {
+      if (goodDays.length < mlSettings.minPositiveOccurrences) {
         return { patterns: [] };
       }
 
       // Find common behaviors on those good days
       const goodDatesList = goodDays.map(d => `'${d.local_date}'`).join(',');
+      const minOccurrences = mlSettings.minPositiveOccurrences;
+      const outcomeThreshold = mlSettings.positiveOutcomeThreshold * 100; // Convert to percentage
       const commonBehaviorsQuery = `
         SELECT 
           factor_category,
@@ -1366,11 +1444,11 @@ export class BehaviorAttributionEngine {
         WHERE health_id = {healthId:String}
           AND local_date IN (${goodDatesList})
           AND is_notable = 1
-          AND deviation_from_baseline > 10
+          AND deviation_from_baseline > ${outcomeThreshold}
         GROUP BY factor_category, factor_key
-        HAVING occurrence_count >= 3
+        HAVING occurrence_count >= ${minOccurrences}
         ORDER BY occurrence_count DESC
-        LIMIT 10
+        LIMIT ${mlSettings.maxPositivePatternsToShow * 3}
       `;
 
       const commonBehaviors = await clickhouse.query<{

@@ -2868,3 +2868,40 @@ export const answeredFeedbackPatterns = pgTable("answered_feedback_patterns", {
 }));
 
 export type AnsweredFeedbackPattern = typeof answeredFeedbackPatterns.$inferSelect;
+
+// ML Sensitivity Settings (admin-tunable parameters for the causality engine)
+export const mlSensitivitySettings = pgTable("ml_sensitivity_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Anomaly detection thresholds
+  anomalyZScoreThreshold: real("anomaly_z_score_threshold").default(2.0).notNull(),
+  anomalyMinConfidence: real("anomaly_min_confidence").default(0.5).notNull(),
+  
+  // Pattern matching settings
+  minPatternMatches: integer("min_pattern_matches").default(3).notNull(),
+  historyWindowMonths: integer("history_window_months").default(24).notNull(),
+  
+  // Positive pattern detection
+  minPositiveOccurrences: integer("min_positive_occurrences").default(5).notNull(),
+  positiveOutcomeThreshold: real("positive_outcome_threshold").default(0.1).notNull(),
+  
+  // Insight generation
+  insightConfidenceThreshold: real("insight_confidence_threshold").default(0.3).notNull(),
+  maxCausesToShow: integer("max_causes_to_show").default(3).notNull(),
+  maxPositivePatternsToShow: integer("max_positive_patterns_to_show").default(3).notNull(),
+  
+  // Notification controls
+  enableProactiveAlerts: boolean("enable_proactive_alerts").default(true).notNull(),
+  alertCooldownHours: integer("alert_cooldown_hours").default(4).notNull(),
+  
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedBy: varchar("updated_by").references(() => users.id),
+});
+
+export const insertMLSensitivitySettingsSchema = createInsertSchema(mlSensitivitySettings).omit({
+  id: true,
+  updatedAt: true,
+} as const);
+
+export type InsertMLSensitivitySettings = z.infer<typeof insertMLSensitivitySettingsSchema>;
+export type MLSensitivitySettings = typeof mlSensitivitySettings.$inferSelect;

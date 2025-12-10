@@ -7662,6 +7662,145 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Get ML Sensitivity Settings (admin only)
+  app.get("/api/admin/ml-settings", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { mlSensitivitySettings } = await import("@shared/schema");
+      
+      const [settings] = await db.select().from(mlSensitivitySettings).limit(1);
+      
+      if (!settings) {
+        // Return defaults if no settings exist
+        return res.json({
+          anomalyZScoreThreshold: 2.0,
+          anomalyMinConfidence: 0.5,
+          minPatternMatches: 3,
+          historyWindowMonths: 24,
+          minPositiveOccurrences: 5,
+          positiveOutcomeThreshold: 0.1,
+          insightConfidenceThreshold: 0.3,
+          maxCausesToShow: 3,
+          maxPositivePatternsToShow: 3,
+          enableProactiveAlerts: true,
+          alertCooldownHours: 4,
+        });
+      }
+      
+      res.json(settings);
+    } catch (error: any) {
+      logger.error('[Admin] Failed to get ML settings:', error);
+      res.status(500).json({ error: "Failed to get ML sensitivity settings" });
+    }
+  });
+
+  // Update ML Sensitivity Settings (admin only)
+  app.patch("/api/admin/ml-settings", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { mlSensitivitySettings } = await import("@shared/schema");
+      const updates = req.body;
+      
+      // Validate numeric ranges
+      if (updates.anomalyZScoreThreshold !== undefined) {
+        const val = Number(updates.anomalyZScoreThreshold);
+        if (val < 0.5 || val > 5.0) {
+          return res.status(400).json({ error: "anomalyZScoreThreshold must be between 0.5 and 5.0" });
+        }
+        updates.anomalyZScoreThreshold = val;
+      }
+      
+      if (updates.anomalyMinConfidence !== undefined) {
+        const val = Number(updates.anomalyMinConfidence);
+        if (val < 0 || val > 1) {
+          return res.status(400).json({ error: "anomalyMinConfidence must be between 0 and 1" });
+        }
+        updates.anomalyMinConfidence = val;
+      }
+      
+      if (updates.minPatternMatches !== undefined) {
+        const val = Number(updates.minPatternMatches);
+        if (val < 1 || val > 20) {
+          return res.status(400).json({ error: "minPatternMatches must be between 1 and 20" });
+        }
+        updates.minPatternMatches = val;
+      }
+      
+      if (updates.historyWindowMonths !== undefined) {
+        const val = Number(updates.historyWindowMonths);
+        if (val < 1 || val > 120) {
+          return res.status(400).json({ error: "historyWindowMonths must be between 1 and 120" });
+        }
+        updates.historyWindowMonths = val;
+      }
+      
+      // Check if settings exist
+      const [existing] = await db.select({ id: mlSensitivitySettings.id }).from(mlSensitivitySettings).limit(1);
+      
+      if (existing) {
+        // Update existing
+        const [updated] = await db
+          .update(mlSensitivitySettings)
+          .set({ ...updates, updatedAt: new Date(), updatedBy: req.user.id })
+          .where(eq(mlSensitivitySettings.id, existing.id))
+          .returning();
+        
+        logger.info(`[Admin] ML settings updated by user ${req.user.id}`, { changes: Object.keys(updates) });
+        res.json({ success: true, settings: updated });
+      } else {
+        // Insert new
+        const [created] = await db
+          .insert(mlSensitivitySettings)
+          .values({ ...updates, updatedBy: req.user.id })
+          .returning();
+        
+        logger.info(`[Admin] ML settings created by user ${req.user.id}`);
+        res.json({ success: true, settings: created });
+      }
+    } catch (error: any) {
+      logger.error('[Admin] Failed to update ML settings:', error);
+      res.status(500).json({ error: "Failed to update ML sensitivity settings", message: error.message });
+    }
+  });
+
+  // Reset ML Sensitivity Settings to defaults (admin only)
+  app.post("/api/admin/ml-settings/reset", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { mlSensitivitySettings } = await import("@shared/schema");
+      
+      const defaults = {
+        anomalyZScoreThreshold: 2.0,
+        anomalyMinConfidence: 0.5,
+        minPatternMatches: 3,
+        historyWindowMonths: 24,
+        minPositiveOccurrences: 5,
+        positiveOutcomeThreshold: 0.1,
+        insightConfidenceThreshold: 0.3,
+        maxCausesToShow: 3,
+        maxPositivePatternsToShow: 3,
+        enableProactiveAlerts: true,
+        alertCooldownHours: 4,
+        updatedAt: new Date(),
+        updatedBy: req.user.id,
+      };
+      
+      const [existing] = await db.select({ id: mlSensitivitySettings.id }).from(mlSensitivitySettings).limit(1);
+      
+      if (existing) {
+        await db
+          .update(mlSensitivitySettings)
+          .set(defaults)
+          .where(eq(mlSensitivitySettings.id, existing.id));
+      } else {
+        await db.insert(mlSensitivitySettings).values(defaults);
+      }
+      
+      logger.info(`[Admin] ML settings reset to defaults by user ${req.user.id}`);
+      res.json({ success: true, settings: defaults });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to reset ML settings:', error);
+      res.status(500).json({ error: "Failed to reset ML settings" });
+    }
+  });
+
   // Test 3PM survey notification (admin only)
   app.post("/api/admin/test-survey-notification", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
