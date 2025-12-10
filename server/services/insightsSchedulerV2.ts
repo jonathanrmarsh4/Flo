@@ -13,11 +13,12 @@
 
 import cron from 'node-cron';
 import { db } from '../db';
-import { users, dailyInsights, userDailyMetrics } from '../../shared/schema';
-import { eq, and, isNotNull, sql } from 'drizzle-orm';
+import { users } from '../../shared/schema';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { logger } from '../logger';
 import { formatInTimeZone, format } from 'date-fns-tz';
 import { generateDailyInsights } from './insightsEngineV2';
+import * as healthRouter from './healthStorageRouter';
 
 let cronTask: ReturnType<typeof cron.schedule> | null = null;
 const runningGenerations = new Set<string>(); // Track running insight generations for idempotency
@@ -75,32 +76,28 @@ async function processInsightsGeneration(catchUpMode: boolean = false) {
   logger.info(`[InsightsV2Scheduler] Starting hourly check for users needing insights (catchUp: ${catchUpMode})`);
   
   try {
-    // Get all active users with timezone data who have health data
-    const usersWithData = await db
-      .selectDistinct({ userId: userDailyMetrics.userId })
-      .from(userDailyMetrics);
-    
-    const userIdsWithData = new Set(usersWithData.map(u => u.userId));
-    
-    // Get all active users with timezone data
+    // Get all active users with timezone data AND healthId (users with Supabase health data)
+    // healthId is set when users have health profiles in Supabase
     const allUsers = await db
       .select({
         id: users.id,
         firstName: users.firstName,
         timezone: users.timezone,
+        healthId: users.healthId,
       })
       .from(users)
       .where(
         and(
           eq(users.status, 'active'),
-          isNotNull(users.timezone)
+          isNotNull(users.timezone),
+          isNotNull(users.healthId) // Only users with health profiles
         )
       );
     
-    // Filter to users who actually have health data
-    const usersWithHealthData = allUsers.filter(u => userIdsWithData.has(u.id));
+    // All users with healthId have health data in Supabase
+    const usersWithHealthData = allUsers;
     
-    logger.info(`[InsightsV2Scheduler] Found ${allUsers.length} active users, ${usersWithHealthData.length} have health data`);
+    logger.info(`[InsightsV2Scheduler] Found ${allUsers.length} active users with timezone and healthId`);
     
     const now = new Date();
     let eligibleUsers: typeof usersWithHealthData = [];
@@ -113,22 +110,19 @@ async function processInsightsGeneration(catchUpMode: boolean = false) {
         // Check if it's past 6 AM in their timezone
         if (!isPast6AMInTimezone(user.timezone, now)) continue;
         
-        // Check if they already have insights for today (in their local timezone)
+        // Check if they already have insights for today in Supabase (where daily_insights are stored)
         const todayLocal = getTodayInTimezone(user.timezone, now);
-        const existingInsights = await db
-          .select({ id: dailyInsights.id })
-          .from(dailyInsights)
-          .where(
-            and(
-              eq(dailyInsights.userId, user.id),
-              eq(dailyInsights.generatedDate, todayLocal)
-            )
-          )
-          .limit(1);
-        
-        if (existingInsights.length === 0) {
+        try {
+          const existingInsights = await healthRouter.getDailyInsightsByDate(user.id, todayLocal);
+          
+          if (existingInsights.length === 0) {
+            eligibleUsers.push(user);
+            logger.info(`[InsightsV2Scheduler] CATCH-UP: User ${user.id} (${user.firstName || 'Unknown'}) missing insights for ${todayLocal}`);
+          }
+        } catch (error: any) {
+          // If error checking, assume user needs insights
+          logger.warn(`[InsightsV2Scheduler] Error checking existing insights for ${user.id}, assuming eligible:`, error?.message);
           eligibleUsers.push(user);
-          logger.info(`[InsightsV2Scheduler] CATCH-UP: User ${user.id} (${user.firstName || 'Unknown'}) missing insights for ${todayLocal}`);
         }
       }
       
