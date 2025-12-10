@@ -6,7 +6,24 @@ const openai = new OpenAI();
 
 const EXTRACTION_PROMPT = `You are an expert personal context extractor for a health AI assistant. Extract every concrete fact, goal, preference, symptom, mood, habit, interest, relationship, stress factor, life event, health concern, or medical discussion from the conversation below.
 
-CRITICAL: Pay special attention to health discussions that should NOT be repeated in future conversations:
+🚨 HIGHEST PRIORITY - TOPIC SUPPRESSIONS:
+When a user says ANY of the following, you MUST create a "topic_suppression" memory:
+- "don't mention X again"
+- "stop talking about X"  
+- "I don't want to hear about X"
+- "don't bring up X"
+- "X is under control, don't mention it"
+- "I'm already seeing a doctor about X"
+- "I have an appointment for X"
+- "I know about X, no need to remind me"
+- Any explicit request to NOT discuss a specific health topic, biomarker, or concern
+
+For topic_suppression type, ALWAYS set importance: "high" and include:
+- extracted.topic: the specific topic/biomarker to suppress (e.g., "PSA levels", "cholesterol")
+- extracted.reason: why they want it suppressed (e.g., "doctor appointment scheduled Jan 6", "under control")
+- extracted.until: any mentioned date (e.g., "2025-01-06") or null if indefinite
+
+ALSO pay attention to health discussions that should NOT be repeated in future conversations:
 - Biomarker concerns (high/low PSA, cholesterol, glucose, A1C, etc.)
 - Medical conditions being monitored
 - Medications and supplements being taken
@@ -19,10 +36,11 @@ Return valid JSON only (no markdown). Use this exact schema:
 {
   "memories": [
     {
-      "type": "goal_set|goal_update|symptom|mood_report|habit|personal_interest|life_context|preference|relationship|health_observation|biomarker_concern|medical_condition|medication|health_discussion",
+      "type": "goal_set|goal_update|symptom|mood_report|habit|personal_interest|life_context|preference|relationship|health_observation|biomarker_concern|medical_condition|medication|health_discussion|topic_suppression",
       "raw": "exact quote or paraphrase from user",
       "extracted": {
         // structured data varies by type, include all relevant fields
+        // For topic_suppression: MUST include topic (what to suppress), reason (why), until (date or null)
         // For biomarker_concern: include biomarker name, value if mentioned, whether high/low/normal
         // For medical_condition: include condition name, status (active/resolved/monitoring)
         // For medication: include name, purpose if known
@@ -46,8 +64,9 @@ Guidelines:
 - ALWAYS extract biomarker discussions (PSA, cholesterol, A1C, glucose, testosterone, etc.)
 - ALWAYS extract medical conditions or diagnoses mentioned
 - ALWAYS extract medications, supplements, or treatments discussed
+- 🚨 ALWAYS extract topic_suppression when user explicitly asks NOT to discuss something
 - Set importance based on:
-  - high: health concerns, biomarker issues, medical conditions, medications, goals, significant symptoms, major life events, mental health concerns
+  - high: topic_suppression (ALWAYS), health concerns, biomarker issues, medical conditions, medications, goals, significant symptoms, major life events, mental health concerns
   - medium: habits, preferences, regular patterns, supplement routines
   - low: casual mentions, minor details
 

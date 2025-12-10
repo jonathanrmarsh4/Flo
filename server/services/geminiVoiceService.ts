@@ -6,6 +6,7 @@
 
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getRecentChatHistory, getUserMemoriesContext } from './floOracleContextBuilder';
+import { getSuppressedTopicsContext } from './userMemoryService';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
 import { couldContainLifeEvent, extractLifeEvents, couldContainBiomarkerFollowup, extractBiomarkerFollowup } from './lifeEventParser';
 import { parseConversationalIntent } from './conversationalIntentParser';
@@ -67,6 +68,14 @@ ANTI-REPETITION RULES (MANDATORY):
 - The health context below shows their current metrics - but if you see in the history that you already told them "your HRV is elevated", DON'T repeat that observation.
 - Focus on NEW insights, follow-up questions, or actionable advice rather than re-announcing the same data points.
 
+🚫 SUPPRESSED TOPICS (ABSOLUTE RULE - NEVER VIOLATE):
+- If you see a "SUPPRESSED TOPICS" section in the health context, those topics are BANNED.
+- NEVER mention, reference, or bring up suppressed topics under ANY circumstances.
+- The user has explicitly told you to STOP discussing these topics.
+- If the user's health data shows a concerning value for a suppressed topic, DO NOT MENTION IT.
+- The ONLY exception: if the user explicitly asks about it in THIS conversation.
+- Violating this rule is a critical failure - it damages user trust.
+
 SAFETY GUARDRAILS:
 - Never prescribe medications or specific dosages.
 - For serious symptoms, encourage them to seek medical attention.
@@ -113,9 +122,51 @@ export interface VoiceSessionState {
 
 class GeminiVoiceService {
   private sessionStates: Map<string, VoiceSessionState> = new Map();
+  
+  constructor() {
+    // Cleanup stale sessions every 10 minutes
+    setInterval(() => {
+      this.cleanupStaleSessions();
+    }, 10 * 60 * 1000);
+  }
 
   isAvailable(): boolean {
     return geminiLiveClient.isAvailable();
+  }
+  
+  /**
+   * Cleanup stale sessions to prevent connection issues
+   */
+  private cleanupStaleSessions(): void {
+    const now = Date.now();
+    const maxAge = 30 * 60 * 1000; // 30 minutes
+    let cleanedCount = 0;
+    
+    const entries = Array.from(this.sessionStates.entries());
+    for (const [sessionId, state] of entries) {
+      const age = now - state.startedAt.getTime();
+      if (age > maxAge && !state.isActive) {
+        this.sessionStates.delete(sessionId);
+        cleanedCount++;
+      }
+    }
+    
+    // Also cleanup gemini client stale sessions
+    geminiLiveClient.cleanupStaleSessions(maxAge);
+    
+    if (cleanedCount > 0) {
+      logger.info('[GeminiVoice] Cleaned up stale voice session states', { cleanedCount });
+    }
+  }
+  
+  /**
+   * Get detailed session counts (for debugging)
+   */
+  getSessionDetails(): { voiceStates: number; geminiSessions: number } {
+    return {
+      voiceStates: this.sessionStates.size,
+      geminiSessions: geminiLiveClient.getActiveSessionCount(),
+    };
   }
 
   /**
@@ -175,33 +226,59 @@ class GeminiVoiceService {
     });
     
     let healthContext = '';
+    const contextStartTime = Date.now();
     try {
-      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights, chatHistory, memoriesContext] = await Promise.all([
-        buildUserHealthContext(userId),
-        getActiveActionPlanItems(userId),
-        getRelevantInsights(userId),
-        getRecentLifeEvents(userId),
-        getHybridInsights(userId, 'health medical reports specialist documents cardiology', { recentLimit: 15, semanticLimit: 10 })
-          .catch(err => {
+      // Helper: Wrap a promise with timeout to prevent blocking
+      const withTimeout = <T>(promise: Promise<T>, fallback: T, timeoutMs: number = 5000): Promise<T> =>
+        Promise.race([
+          promise,
+          new Promise<T>((resolve) => setTimeout(() => {
+            logger.warn('[GeminiVoice] Context fetch timed out, using fallback');
+            resolve(fallback);
+          }, timeoutMs)),
+        ]);
+
+      const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights, chatHistory, memoriesContext, suppressedTopicsContext] = await Promise.all([
+        withTimeout(buildUserHealthContext(userId), ''),
+        withTimeout(getActiveActionPlanItems(userId), ''),
+        withTimeout(getRelevantInsights(userId), ''),
+        withTimeout(getRecentLifeEvents(userId), ''),
+        withTimeout(
+          getHybridInsights(userId, 'health medical reports specialist documents cardiology', { recentLimit: 5, semanticLimit: 3 }),
+          { merged: [], recentInsights: [], semanticInsights: [] },
+          3000 // Shorter timeout for semantic search
+        ).catch(err => {
             logger.error('[GeminiVoice] Failed to retrieve brain insights:', err);
-            return { merged: [] };
+            return { merged: [], recentInsights: [], semanticInsights: [] };
           }),
-        getRecentChatHistory(userId, 15)
+        withTimeout(getRecentChatHistory(userId, 8), '', 3000)
           .catch(err => {
             logger.error('[GeminiVoice] Failed to retrieve chat history:', err);
             return '';
           }),
-        getUserMemoriesContext(userId, 15)
+        withTimeout(getUserMemoriesContext(userId, 8), '', 3000)
           .catch(err => {
             logger.error('[GeminiVoice] Failed to retrieve conversational memories:', err);
             return '';
           }),
+        withTimeout(getSuppressedTopicsContext(userId), '')
+          .catch(err => {
+            logger.error('[GeminiVoice] Failed to retrieve suppressed topics:', err);
+            return '';
+          }),
       ]);
+      
+      logger.info('[GeminiVoice] Context fetch completed', { 
+        userId, 
+        durationMs: Date.now() - contextStartTime 
+      });
       
       // Format brain memory insights (includes medical documents, chat learnings, etc.)
       const brainContext = formatInsightsForChat(brainInsights.merged);
       
+      // CRITICAL: Put suppressed topics FIRST so AI sees them prominently
       healthContext = [
+        suppressedTopicsContext || '', // Suppressed topics at the TOP - most important
         baseHealthContext,
         actionPlanContext,
         insightsContext,

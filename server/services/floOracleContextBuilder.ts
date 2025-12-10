@@ -174,7 +174,7 @@ interface UserHealthContext {
 
 // Import age calculation utility that uses mid-year (July 1st) assumption for ±6 month accuracy
 import { calculateAgeFromBirthYear } from "@shared/utils/ageCalculation";
-import { getMemoriesAsContext } from './userMemoryService';
+import { getMemoriesAsContext, getSuppressedTopicsContext } from './userMemoryService';
 
 // Format a date in the user's local timezone as YYYY-MM-DD
 function formatDateInTimezone(date: Date, timezone: string): string {

@@ -23,7 +23,7 @@ function getRelativeTime(date: Date): string {
 }
 
 export interface MemoryPayload {
-  type: 'goal_set' | 'goal_update' | 'symptom' | 'mood_report' | 'habit' | 'personal_interest' | 'life_context' | 'preference' | 'relationship' | 'health_observation' | 'biomarker_concern' | 'medical_condition' | 'medication' | 'health_discussion';
+  type: 'goal_set' | 'goal_update' | 'symptom' | 'mood_report' | 'habit' | 'personal_interest' | 'life_context' | 'preference' | 'relationship' | 'health_observation' | 'biomarker_concern' | 'medical_condition' | 'medication' | 'health_discussion' | 'topic_suppression';
   raw: string;
   extracted: Record<string, any>;
   importance?: 'low' | 'medium' | 'high';
@@ -265,6 +265,9 @@ function extractTagsFromMemory(memory: MemoryPayload): string[] {
   if (memory.type === 'health_discussion') {
     tags.push('health', 'discussion');
   }
+  if (memory.type === 'topic_suppression') {
+    tags.push('suppression', 'do-not-mention', 'preference');
+  }
   
   if (memory.importance === 'high') {
     tags.push('important');
@@ -275,4 +278,54 @@ function extractTagsFromMemory(memory: MemoryPayload): string[] {
   }
   
   return Array.from(new Set(tags));
+}
+
+/**
+ * Get all topic suppressions for a user
+ * These are explicit "don't mention X" instructions from past conversations
+ */
+export async function getSuppressedTopics(userId: string): Promise<UserMemory[]> {
+  try {
+    const healthId = await getHealthId(userId);
+    
+    const { data, error } = await supabase
+      .from('user_memory')
+      .select('*')
+      .eq('health_id', healthId)
+      .eq('memory->>type', 'topic_suppression')
+      .order('occurred_at', { ascending: false });
+    
+    if (error) {
+      logger.error('[UserMemory] Error fetching suppressed topics:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    logger.error('[UserMemory] Error getting suppressed topics:', error);
+    return [];
+  }
+}
+
+/**
+ * Format suppressed topics as a clear context string for AI
+ */
+export async function getSuppressedTopicsContext(userId: string): Promise<string> {
+  try {
+    const suppressions = await getSuppressedTopics(userId);
+    
+    if (!suppressions.length) return '';
+    
+    const lines = suppressions.map(row => {
+      const m = row.memory;
+      const topic = m.extracted?.topic || m.extracted?.biomarker || m.raw;
+      const reason = m.extracted?.reason || 'user requested';
+      return `- ${topic} (${reason})`;
+    });
+    
+    return `\n\n🚫 SUPPRESSED TOPICS - DO NOT MENTION THESE:\n${lines.join('\n')}\n[User has explicitly asked you to NOT bring up these topics unless they ask first]`;
+  } catch (error) {
+    logger.error('[UserMemory] Error building suppressed topics context:', error);
+    return '';
+  }
 }

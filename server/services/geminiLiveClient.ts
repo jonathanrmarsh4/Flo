@@ -363,6 +363,51 @@ class GeminiLiveClient {
   getActiveSessionCount(): number {
     return this.activeSessions.size;
   }
+
+  /**
+   * Get all active session IDs (for debugging)
+   */
+  getActiveSessionIds(): string[] {
+    return Array.from(this.activeSessions.keys());
+  }
+
+  /**
+   * Force cleanup stale sessions (sessions older than given age)
+   * This helps prevent connection issues from accumulated stale sessions
+   */
+  cleanupStaleSessions(maxAgeMs: number = 30 * 60 * 1000): number {
+    const now = Date.now();
+    let cleanedCount = 0;
+    
+    // Use Array.from to avoid MapIterator compatibility issues
+    const entries = Array.from(this.sessionMetadata.entries());
+    for (const [sessionId, metadata] of entries) {
+      if (now - metadata.startTime > maxAgeMs) {
+        logger.warn('[GeminiLive] Cleaning up stale session', { 
+          sessionId, 
+          ageMs: now - metadata.startTime 
+        });
+        
+        const session = this.activeSessions.get(sessionId);
+        if (session) {
+          try {
+            session.close();
+          } catch (e) {
+            // Ignore close errors on stale sessions
+          }
+          this.activeSessions.delete(sessionId);
+        }
+        this.sessionMetadata.delete(sessionId);
+        cleanedCount++;
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      logger.info('[GeminiLive] Cleaned up stale sessions', { cleanedCount });
+    }
+    
+    return cleanedCount;
+  }
 }
 
 export const geminiLiveClient = new GeminiLiveClient();
