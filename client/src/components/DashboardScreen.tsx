@@ -304,17 +304,10 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
     queryKey: ['/api/sleep/today'],
   });
 
-  // Render individual tiles based on ID
+  // Render individual tiles based on ID (Morning Briefing is now above Flō Overview, not sortable)
   const renderTile = (tileId: TileId) => {
     const tileContent = (() => {
       switch (tileId) {
-        case 'morning-briefing':
-          return (
-            <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <MorningBriefingTile isDark={isDark} useMetric={true} onTalkToFlo={onTalkToFlo} />
-            </SortableItem>
-          );
-
         case 'heart-metabolic':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
@@ -589,6 +582,9 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
 
             {/* Anomaly Alert Tile - Shows when ML detects a health pattern */}
             <AnomalyAlertTile isDark={isDark} />
+
+            {/* Morning Briefing Tile - Shows 7am-12pm above Flō Overview */}
+            <MorningBriefingTile isDark={isDark} useMetric={true} onTalkToFlo={onTalkToFlo} />
 
             {/* Hero Tile - Flō Overview (Locked at top, not draggable) */}
             <FloOverviewTile 

@@ -100,10 +100,9 @@ function getSleepQualityColor(quality: string): string {
 }
 
 function isMorningHours(): boolean {
-  // TODO: Restore morning-only visibility (4 AM - 12 PM) after testing
-  // const hour = new Date().getHours();
-  // return hour >= 4 && hour < 12;
-  return true; // Temporarily show 24/7 for testing
+  // Show tile from 7 AM to noon (12 PM) local time
+  const hour = new Date().getHours();
+  return hour >= 7 && hour < 12;
 }
 
 export function MorningBriefingTile({ isDark, onTalkToFlo, useMetric = true }: MorningBriefingTileProps) {
