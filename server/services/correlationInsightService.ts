@@ -66,13 +66,14 @@ class CorrelationInsightService {
     if (anomalies.length > 0) {
       const allQuestions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
       
+      // Only filter based on specific focusMetric (e.g., "resting_heart_rate"), not generic patterns like "single_metric"
       feedbackQuestions = allQuestions.filter(q => {
-        const pattern = q.triggerPattern || '';
         const metric = q.focusMetric || '';
-        const isRecentlyAnswered = recentlyAnswered.has(pattern) || (metric && recentlyAnswered.has(metric));
+        // Only filter if the specific metric was recently answered, not generic patterns
+        const isRecentlyAnswered = metric && recentlyAnswered.has(metric);
         
         if (isRecentlyAnswered) {
-          logger.info(`[CorrelationInsight] Filtering out question with pattern "${pattern}" - already answered within ${PATTERN_COOLDOWN_HOURS}h`);
+          logger.info(`[CorrelationInsight] Filtering out question with metric "${metric}" - already answered within ${PATTERN_COOLDOWN_HOURS}h`);
         }
         return !isRecentlyAnswered;
       });
@@ -411,13 +412,14 @@ class CorrelationInsightService {
       ))
       .orderBy(pendingCorrelationFeedback.createdAt);
 
+    // Only filter based on specific focusMetric (e.g., "resting_heart_rate"), not generic patterns like "single_metric"
     const filteredRows = rows.filter(row => {
-      const pattern = row.triggerPattern || '';
       const metric = row.focusMetric || '';
-      const isRecentlyAnswered = recentlyAnswered.has(pattern) || (metric && recentlyAnswered.has(metric));
+      // Only filter if the specific metric was recently answered, not generic patterns
+      const isRecentlyAnswered = metric && recentlyAnswered.has(metric);
       
       if (isRecentlyAnswered) {
-        logger.debug(`[CorrelationInsight] Filtering pending feedback with pattern "${pattern}" - already answered`);
+        logger.debug(`[CorrelationInsight] Filtering pending feedback with metric "${metric}" - already answered`);
       }
       return !isRecentlyAnswered;
     });
