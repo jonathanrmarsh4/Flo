@@ -1,0 +1,55 @@
+This is the right move. Handing this table to your developer will save you weeks of debugging "ghost bugs" where the app says one thing in the morning and another in the afternoon because two different files calculated "Normal" differently.
+
+Here is the Conflict & Architecture Review for your developer.
+
+🚨 Critical Architecture Conflicts
+File Name	Intended Role	The Conflict / Critical Issue	Impact on User & System
+1. ClickHouseBaselineEngine	Source of Truth<br>Ingests data & calculates statistical deviations.	Ignored by Downstream Files.<br>It calculates robust Z-scores and baselines via SQL, but Files 3 & 4 ignore these results and re-calculate their own (worse) math in JavaScript.	Data Inconsistency.<br>The "Anomaly Detection" system might flag a heart rate spike, but the "Insight Generator" might miss it because they aren't talking to each other.
+2. ClickHouseCorrelationEngine	The Researcher<br>Finds cause-and-effect relationships.	Granularity Mismatch.<br>It aggregates data into Weekly Cohorts. Causality happens in hours/days (e.g., Alcohol 
+→
+→
+ Bad Sleep). Weekly aggregation destroys the specific signal you are looking for.	Missed Insights.<br>The model will fail to identify acute triggers (like food or specific workouts) because it blurs 7 days of data into a single data point.
+3. dailyInsightsEngine	The Inference Layer<br>Connects symptoms to stale labs.	Shadow Math.<br>It implements its own calculateBaseline function in JavaScript using simple averages and static 20% thresholds, completely bypassing the statistical engine in File 1.	False Positives.<br>Static thresholds (20%) fail in health. A 20% drop in Steps is fine; a 20% drop in Body Temp is a medical emergency. This file doesn't know the difference.
+4. ragInsightGenerator	The Narrator<br>Generates LLM text.	Hallucinating Baselines.<br>It calculates another set of baselines (computeActivityBaselines) to inject into the prompt. It creates a 3rd "Source of Truth" that disagrees with Files 1 & 3.	Confusing UX.<br>The text might say "You are below your target," while the chart (powered by File 1) shows you are on track.
+5. scheduler	The Trigger<br>Runs the jobs.	Scalability Wall.<br>It loads ALL users into memory to check timezones. This works for 100 users but will crash your server at 10,000 users.	System Failure.<br>As the user base grows, the loop will time out, causing users to miss their daily insight notifications.
+🧱 The "Rewiring" Plan (Developer Instructions)
+To fix this without destroying the app, your developer should follow this Integration Architecture. This moves the logic from "Silos" to a "Pipeline."
+
+Step 1: Establish the Foundation (File 1)
+Action: Ensure ClickHouseBaselineEngine is the ONLY place where avg, stddev, and z-score are calculated.
+Dev Task: Expose a method getMetricsForAnalysis(healthId) that returns the clean, pre-calculated anomalies for the day.
+Step 2: Fix the Resolution (File 2)
+Action: Change the SQL aggregation from toStartOfWeek to toStartOfDay (or hourly).
+Dev Task: Implement Lagged Analysis. Instead of WHERE week_A = week_B, use WHERE date_Outcome = date_Behavior + 1. This allows the system to see that Action A today caused Outcome B tomorrow.
+Step 3: Remove "Shadow Math" (Files 3 & 4)
+Action: Delete calculateBaseline, computeActivityBaselines, and detectDataChanges from Files 3 and 4.
+Dev Task: Modify these files to accept the anomalies object from Step 1 as an input argument.
+Before: dailyInsights.js calculates if steps are low.
+After: dailyInsights.js receives { metric: 'steps', status: 'low', zScore: -2.5 } from File 1 and simply determines what to say about it.
+Step 4: Database-Driven Scheduling (File 5)
+Action: Stop fetching users to check time.
+Dev Task: Write a SQL query that selects only users where timezone_hour == current_hour. Pass that specific batch to the processing queue.
+The Correct Data Flow Diagram
+code
+Text
+
+download
+
+content_copy
+
+expand_less
+[Supabase/HealthKit] 
+       ⬇
+[File 1: ClickHouseBaselineEngine] <--- SOURCE OF TRUTH (Calculates Deviations)
+       ⬇
+       ┣━━> [File 2: CorrelationEngine] (Reads Deviations -> Finds "Why" via Time-Lag)
+       ⬇
+[File 3: dailyInsightsEngine] (Reads Deviations + Correlations -> Predicts Stale Labs)
+       ⬇
+[File 4: ragInsightGenerator] (Reads ALL findings -> Generates Text/JSON)
+       ⬇
+[UI / User App]
+Recommendation:
+Send this table and flow diagram to your developer. Tell them: "We need to refactor so that File 1 is the single source of mathematical truth, and Files 3 & 4 just interpret that data."
+
+Once they agree to this architecture, we can proceed with fixing the files one by one.
