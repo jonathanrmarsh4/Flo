@@ -69,6 +69,13 @@ Links detected outcome anomalies to co-occurring behavior factors.
 ### 1. Nutrition
 - `total_calories` - Daily calorie intake
 - `protein_g` - Protein intake in grams
+- `carbohydrates_g` - Carbohydrate intake in grams
+- `fat_total_g` - Total fat intake in grams
+- `fat_saturated_g` - Saturated fat intake in grams
+- `fiber_g` - Fiber intake in grams
+- `sugar_g` - Sugar intake in grams
+- `sodium_mg` - Sodium intake in milligrams
+- `water_ml` - Water intake in milliliters
 - `last_meal_time` - Time of last meal (stored as minutes since midnight for baseline calculation)
 - `caffeine_mg` - Caffeine consumption
 - `alcohol_g` - Alcohol consumption
@@ -94,14 +101,33 @@ Links detected outcome anomalies to co-occurring behavior factors.
 - `aqi` - Air Quality Index
 - `temperature_c` - Temperature in Celsius
 - `humidity_pct` - Humidity percentage
+- `pressure_hpa` - Barometric pressure in hPa
+- `uv_index` - UV index
+- `cloud_cover_pct` - Cloud cover percentage
+- `wind_speed_mps` - Wind speed in meters per second
 
-### 5. Life Event
+### 5. Location (Travel Detection)
+- `latitude` - Current latitude
+- `longitude` - Current longitude
+- `city` - Current city name
+- `timezone` - Current timezone
+
+**Note:** Location changes are detected by comparing latitude/longitude deviations from baseline. Large deviations indicate travel which can significantly impact health metrics.
+
+### 6. CGM (Continuous Glucose Monitoring)
+- `avg_glucose_mg_dl` - Average daily glucose in mg/dL
+- `glucose_variability` - Standard deviation of glucose readings
+- `time_in_range_pct` - Percentage of time glucose was 70-180 mg/dL
+- `max_glucose_mg_dl` - Maximum glucose (spike detection)
+- `min_glucose_mg_dl` - Minimum glucose (low detection)
+- `cgm_readings_count` - Number of CGM readings that day
+
+### 7. Life Event
 - Various user-logged events with severity scores
-- Categories include stress, travel, illness, etc.
+- Categories include stress, travel, illness, massage, etc.
 
-### 6. Lifestyle
-- `bedtime` - Time user went to bed
-- (Future: wake_time, screen_time, social_time)
+### 8. Lifestyle
+- `bedtime` - Time user went to bed (minutes since midnight)
 
 ## Usage
 

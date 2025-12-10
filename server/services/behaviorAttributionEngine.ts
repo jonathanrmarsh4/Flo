@@ -143,6 +143,105 @@ export class BehaviorAttributionEngine {
           is_notable: false,
           source: 'healthkit',
         });
+
+        // All macros - carbs, fat, fiber, sugar, sodium
+        if (nutrition.carbohydrates_g != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.NUTRITION,
+            factor_key: 'carbohydrates_g',
+            numeric_value: nutrition.carbohydrates_g,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (nutrition.fat_total_g != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.NUTRITION,
+            factor_key: 'fat_total_g',
+            numeric_value: nutrition.fat_total_g,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (nutrition.fiber_g != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.NUTRITION,
+            factor_key: 'fiber_g',
+            numeric_value: nutrition.fiber_g,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (nutrition.sugar_g != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.NUTRITION,
+            factor_key: 'sugar_g',
+            numeric_value: nutrition.sugar_g,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (nutrition.sodium_mg != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.NUTRITION,
+            factor_key: 'sodium_mg',
+            numeric_value: nutrition.sodium_mg,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (nutrition.fat_saturated_g != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.NUTRITION,
+            factor_key: 'fat_saturated_g',
+            numeric_value: nutrition.fat_saturated_g,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (nutrition.water_ml != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.NUTRITION,
+            factor_key: 'water_ml',
+            numeric_value: nutrition.water_ml,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
       }
 
       // 2. Workout factors from workout_sessions or healthkit_workouts
@@ -315,6 +414,117 @@ export class BehaviorAttributionEngine {
             source: 'openweather',
           });
         }
+
+        // Additional environmental factors
+        if (environment.pressure_hpa != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
+            factor_key: 'pressure_hpa',
+            numeric_value: environment.pressure_hpa,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'openweather',
+          });
+        }
+
+        if (environment.uv_index != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
+            factor_key: 'uv_index',
+            numeric_value: environment.uv_index,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: environment.uv_index >= 8,
+            source: 'openweather',
+          });
+        }
+
+        if (environment.cloud_cover_pct != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
+            factor_key: 'cloud_cover_pct',
+            numeric_value: environment.cloud_cover_pct,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'openweather',
+          });
+        }
+
+        if (environment.wind_speed_mps != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
+            factor_key: 'wind_speed_mps',
+            numeric_value: environment.wind_speed_mps,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'openweather',
+          });
+        }
+
+        // Location tracking for travel detection
+        if (environment.latitude != null && environment.longitude != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LOCATION,
+            factor_key: 'latitude',
+            numeric_value: environment.latitude,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'openweather',
+          });
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LOCATION,
+            factor_key: 'longitude',
+            numeric_value: environment.longitude,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'openweather',
+          });
+        }
+
+        if (environment.city_name != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LOCATION,
+            factor_key: 'city',
+            numeric_value: null,
+            string_value: environment.city_name,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'openweather',
+          });
+        }
+
+        if (environment.timezone != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LOCATION,
+            factor_key: 'timezone',
+            numeric_value: null,
+            string_value: environment.timezone,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'system',
+          });
+        }
       }
 
       // 5. Life events from life_events table
@@ -367,6 +577,106 @@ export class BehaviorAttributionEngine {
             baseline_value: null,
             is_notable: false,
             source: 'healthkit',
+          });
+        }
+      }
+
+      // 7. CGM data from cgm_readings (glucose metrics)
+      const { data: cgmReadings } = await supabase
+        .from('cgm_readings')
+        .select('*')
+        .eq('health_id', healthId)
+        .gte('recorded_at', `${localDate}T00:00:00`)
+        .lt('recorded_at', `${localDate}T23:59:59`);
+
+      if (cgmReadings && cgmReadings.length > 0) {
+        const glucoseValues = cgmReadings.map(r => r.glucose_value).filter((v): v is number => v != null);
+        
+        if (glucoseValues.length > 0) {
+          // Average glucose
+          const avgGlucose = glucoseValues.reduce((a, b) => a + b, 0) / glucoseValues.length;
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'avg_glucose_mg_dl',
+            numeric_value: Math.round(avgGlucose),
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: avgGlucose > 140 || avgGlucose < 70,
+            source: 'cgm',
+          });
+
+          // Glucose variability (standard deviation)
+          const mean = avgGlucose;
+          const variance = glucoseValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / glucoseValues.length;
+          const stdDev = Math.sqrt(variance);
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'glucose_variability',
+            numeric_value: Math.round(stdDev * 10) / 10,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: stdDev > 30,
+            source: 'cgm',
+          });
+
+          // Time in range (70-180 mg/dL)
+          const inRange = glucoseValues.filter(v => v >= 70 && v <= 180).length;
+          const timeInRangePct = (inRange / glucoseValues.length) * 100;
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'time_in_range_pct',
+            numeric_value: Math.round(timeInRangePct),
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: timeInRangePct < 70,
+            source: 'cgm',
+          });
+
+          // Max glucose (spikes)
+          const maxGlucose = Math.max(...glucoseValues);
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'max_glucose_mg_dl',
+            numeric_value: maxGlucose,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: maxGlucose > 180,
+            source: 'cgm',
+          });
+
+          // Min glucose (lows)
+          const minGlucose = Math.min(...glucoseValues);
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'min_glucose_mg_dl',
+            numeric_value: minGlucose,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: minGlucose < 70,
+            source: 'cgm',
+          });
+
+          // Number of readings
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'cgm_readings_count',
+            numeric_value: glucoseValues.length,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'cgm',
           });
         }
       }
@@ -609,17 +919,29 @@ export class BehaviorAttributionEngine {
       'environment': 'Environmental',
       'life_event': 'Life event',
       'lifestyle': 'Lifestyle',
+      'location': 'Location',
+      'cgm': 'CGM',
     };
 
     const keyLabels: Record<string, string> = {
+      // Nutrition
       'total_calories': 'calorie intake',
       'protein_g': 'protein intake',
+      'carbohydrates_g': 'carbs intake',
+      'fat_total_g': 'fat intake',
+      'fiber_g': 'fiber intake',
+      'sugar_g': 'sugar intake',
+      'sodium_mg': 'sodium intake',
+      'fat_saturated_g': 'saturated fat',
+      'water_ml': 'water intake',
       'last_meal_time': 'last meal timing',
       'caffeine_mg': 'caffeine',
       'alcohol_g': 'alcohol',
+      // Workout
       'total_duration_min': 'duration',
       'workout_types': 'type',
       'first_workout_time': 'timing',
+      // Recovery
       'mindfulness_min': 'mindfulness',
       'sauna': 'sauna session',
       'cold_plunge': 'cold plunge',
@@ -627,10 +949,28 @@ export class BehaviorAttributionEngine {
       'hot_tub': 'hot tub',
       'cryotherapy': 'cryotherapy',
       'contrast_therapy': 'contrast therapy',
+      // Environment
       'aqi': 'air quality (AQI)',
       'temperature_c': 'temperature',
       'humidity_pct': 'humidity',
+      'pressure_hpa': 'barometric pressure',
+      'uv_index': 'UV index',
+      'cloud_cover_pct': 'cloud cover',
+      'wind_speed_mps': 'wind speed',
+      // Location
+      'latitude': 'latitude',
+      'longitude': 'longitude',
+      'city': 'city',
+      'timezone': 'timezone',
+      // Lifestyle
       'bedtime': 'bedtime',
+      // CGM
+      'avg_glucose_mg_dl': 'average glucose',
+      'glucose_variability': 'glucose variability',
+      'time_in_range_pct': 'time in range',
+      'max_glucose_mg_dl': 'glucose spike (max)',
+      'min_glucose_mg_dl': 'glucose low (min)',
+      'cgm_readings_count': 'CGM readings',
     };
 
     const catLabel = catLabels[category] || category;
