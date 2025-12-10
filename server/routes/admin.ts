@@ -768,4 +768,132 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ error: error.message || "Failed to record feedback" });
     }
   });
+
+  /**
+   * ============================================================================
+   * ML BASELINE VALIDATION ENDPOINTS
+   * ============================================================================
+   * 
+   * Step 1 of ML Architecture Refactor:
+   * These endpoints allow validation of ClickHouse as the single source of truth
+   * by comparing results against shadow math implementations.
+   */
+  
+  app.get('/api/admin/ml/unified-analysis/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const windowDays = parseInt(req.query.windowDays as string) || 90;
+      const lookbackHours = parseInt(req.query.lookbackHours as string) || 48;
+
+      const { getHealthId } = await import('../services/supabaseHealthStorage');
+      const healthId = await getHealthId(userId);
+      
+      if (!healthId) {
+        return res.status(404).json({ error: "Health ID not found for user" });
+      }
+
+      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
+      const result = await clickhouseBaselineEngine.getMetricsForAnalysis(healthId, {
+        windowDays,
+        lookbackHours,
+      });
+
+      logger.info(`[Admin] Unified ML analysis for ${userId}: ${result.metrics.length} metrics, ${result.anomalies.length} anomalies`);
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[Admin] Unified ML analysis failed:', error);
+      res.status(500).json({ error: error.message || "Failed to run unified analysis" });
+    }
+  });
+
+  app.get('/api/admin/ml/baseline-comparison/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+
+      const { getHealthId } = await import('../services/supabaseHealthStorage');
+      const healthId = await getHealthId(userId);
+      
+      if (!healthId) {
+        return res.status(404).json({ error: "Health ID not found for user" });
+      }
+
+      const { compareBaselineCalculations } = await import('../services/baselineComparisonLogger');
+      const { getSupabaseClient } = await import('../services/supabaseClient');
+      const supabase = getSupabaseClient();
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const startDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+      const { data: metrics, error } = await supabase
+        .from('user_daily_metrics')
+        .select('*')
+        .eq('health_id', healthId)
+        .gte('local_date', startDateStr)
+        .order('local_date', { ascending: true });
+
+      if (error) {
+        logger.error('[Admin] Failed to fetch metrics for comparison:', error);
+        return res.status(500).json({ error: "Failed to fetch metrics" });
+      }
+
+      const metricSnapshots = new Map<string, Array<{ date: string; value: number }>>();
+      
+      const metricMappings: Record<string, string> = {
+        hrv_ms: 'hrv',
+        resting_hr_bpm: 'resting_heart_rate',
+        steps_normalized: 'steps',
+        active_energy_kcal: 'active_energy',
+        sleep_hours: 'sleep_duration',
+        oxygen_saturation_pct: 'oxygen_saturation',
+        respiratory_rate_bpm: 'respiratory_rate',
+      };
+
+      for (const record of metrics || []) {
+        for (const [dbField, metricName] of Object.entries(metricMappings)) {
+          const value = record[dbField];
+          if (value !== null && value !== undefined) {
+            if (!metricSnapshots.has(metricName)) {
+              metricSnapshots.set(metricName, []);
+            }
+            metricSnapshots.get(metricName)!.push({
+              date: record.local_date,
+              value: value,
+            });
+          }
+        }
+      }
+
+      const result = await compareBaselineCalculations(healthId, metricSnapshots);
+      
+      logger.info(`[Admin] Baseline comparison for ${userId}: ${result.matchingMetrics}/${result.totalMetrics} matching, ${result.discrepantMetrics} discrepant`);
+      res.json(result);
+    } catch (error: any) {
+      logger.error('[Admin] Baseline comparison failed:', error);
+      res.status(500).json({ error: error.message || "Failed to compare baselines" });
+    }
+  });
+
+  app.get('/api/admin/ml/source-of-truth-status', isAuthenticated, requireAdmin, async (_req, res) => {
+    try {
+      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
+      const isInitialized = await clickhouseBaselineEngine.ensureInitialized();
+
+      res.json({
+        status: isInitialized ? 'operational' : 'unavailable',
+        sourceOfTruth: 'ClickHouseBaselineEngine',
+        deprecatedSystems: [
+          'anomalyDetectionEngine.calculateBaseline()',
+          'ragInsightGenerator.computeActivityBaselines()',
+          'baselineCalculator.calculateBaseline()',
+        ],
+        unifiedApi: 'clickhouseBaselineEngine.getMetricsForAnalysis()',
+        refactorStep: 1,
+        description: 'Step 1 of ML Architecture Refactor - ClickHouse as single source of truth',
+      });
+    } catch (error: any) {
+      logger.error('[Admin] ML status check failed:', error);
+      res.status(500).json({ error: error.message || "Failed to check ML status" });
+    }
+  });
 }

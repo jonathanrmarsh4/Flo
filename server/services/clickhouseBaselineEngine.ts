@@ -226,6 +226,101 @@ export interface MLModelStats {
   recall: number;
 }
 
+/**
+ * ============================================================================
+ * UNIFIED METRIC ANALYSIS - SINGLE SOURCE OF TRUTH
+ * ============================================================================
+ * 
+ * This interface is the canonical output format for all baseline/anomaly data.
+ * All downstream consumers (insightsEngineV2, ragInsightGenerator, anomalyDetectionEngine)
+ * should use this instead of calculating their own baselines.
+ * 
+ * Step 1 of ML Architecture Refactor:
+ * - getMetricsForAnalysis() returns this unified format
+ * - Downstream files consume this, not raw data
+ * - Eliminates "shadow math" where different files calculate different baselines
+ */
+export interface MetricAnalysis {
+  metric: string;
+  
+  // Current state
+  currentValue: number;
+  currentDate: string;
+  sampleCountRecent: number;  // samples in lookback period (e.g., 48h)
+  
+  // Baseline (from ClickHouse - THE source of truth)
+  baseline: {
+    mean: number;
+    stdDev: number | null;
+    min: number | null;
+    max: number | null;
+    sampleCount: number;
+    windowDays: number;
+    percentile10: number | null;
+    percentile25: number | null;
+    percentile75: number | null;
+    percentile90: number | null;
+  };
+  
+  // Deviation analysis (calculated from baseline)
+  deviation: {
+    absolute: number;           // currentValue - baseline.mean
+    percentage: number;         // ((current - mean) / mean) * 100
+    zScore: number | null;      // (current - mean) / stdDev
+    direction: 'above' | 'below' | 'normal';
+    isSignificant: boolean;     // exceeds threshold for this metric
+  };
+  
+  // Clinical interpretation
+  interpretation: {
+    severity: 'normal' | 'low' | 'moderate' | 'high';
+    thresholdUsed: {
+      zScoreThreshold: number;
+      percentageThreshold: number;
+      direction: 'both' | 'high' | 'low';
+    } | null;
+  };
+  
+  // Data quality indicators
+  dataQuality: {
+    hasEnoughData: boolean;     // sampleCount >= minRequired (3)
+    isStale: boolean;           // currentDate is > 24h old
+    confidenceScore: number;    // 0-1 based on sample count & recency
+  };
+}
+
+/**
+ * Summary response from getMetricsForAnalysis()
+ */
+export interface MetricsAnalysisResult {
+  healthId: string;
+  analysisTimestamp: string;
+  windowDays: number;
+  lookbackHours: number;
+  
+  // All metrics with their analysis
+  metrics: MetricAnalysis[];
+  
+  // Pre-filtered views for convenience
+  anomalies: MetricAnalysis[];           // only significant deviations
+  highSeverity: MetricAnalysis[];        // severity = 'high'
+  
+  // Pattern detection (multi-metric)
+  patterns: Array<{
+    patternType: string;
+    confidence: number;
+    involvedMetrics: string[];
+    description: string;
+  }>;
+  
+  // Data quality summary
+  dataQualitySummary: {
+    totalMetrics: number;
+    metricsWithEnoughData: number;
+    averageConfidence: number;
+  };
+}
+
 export class ClickHouseBaselineEngine {
   private initialized = false;
 
@@ -772,6 +867,321 @@ export class ClickHouseBaselineEngine {
     }
 
     return anomalies;
+  }
+
+  /**
+   * ============================================================================
+   * getMetricsForAnalysis - THE UNIFIED API (Single Source of Truth)
+   * ============================================================================
+   * 
+   * This is THE method that downstream consumers should use instead of:
+   * - anomalyDetectionEngine.calculateBaseline()
+   * - ragInsightGenerator.computeActivityBaselines()
+   * - baselineCalculator.calculateBaseline()
+   * 
+   * All baseline math happens HERE in ClickHouse SQL, not in JavaScript.
+   * Downstream files just interpret the results, they don't recalculate.
+   * 
+   * @param healthId - User's health ID
+   * @param options - Configuration for window and lookback periods
+   * @returns MetricsAnalysisResult with all metrics, anomalies, and patterns
+   */
+  async getMetricsForAnalysis(
+    healthId: string,
+    options: { windowDays?: number; lookbackHours?: number } = {}
+  ): Promise<MetricsAnalysisResult> {
+    const { windowDays = 90, lookbackHours = 48 } = options;
+    const analysisTimestamp = new Date().toISOString();
+    
+    // Default empty result
+    const emptyResult: MetricsAnalysisResult = {
+      healthId,
+      analysisTimestamp,
+      windowDays,
+      lookbackHours,
+      metrics: [],
+      anomalies: [],
+      highSeverity: [],
+      patterns: [],
+      dataQualitySummary: {
+        totalMetrics: 0,
+        metricsWithEnoughData: 0,
+        averageConfidence: 0,
+      },
+    };
+
+    if (!await this.ensureInitialized()) return emptyResult;
+
+    try {
+      // Step 1: Get baselines from ClickHouse (90-day window for robust statistics)
+      const baselines = await this.calculateBaselines(healthId, windowDays);
+      const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
+      
+      if (baselines.length === 0) {
+        logger.debug(`[ClickHouseML] No baselines available for ${healthId}`);
+        return emptyResult;
+      }
+
+      // Step 2: Get current values (recent lookback period)
+      const recentSql = `
+        SELECT
+          metric_type,
+          avg(value) as current_value,
+          max(recorded_at) as latest_date,
+          count() as sample_count
+        FROM flo_health.health_metrics
+        WHERE health_id = {healthId:String}
+          AND recorded_at >= now() - INTERVAL {lookbackHours:UInt32} HOUR
+        GROUP BY metric_type
+      `;
+
+      const recentMetrics = await clickhouse.query<{
+        metric_type: string;
+        current_value: number;
+        latest_date: string;
+        sample_count: number;
+      }>(recentSql, { healthId, lookbackHours });
+
+      const recentMap = new Map(recentMetrics.map(r => [r.metric_type, r]));
+
+      // Step 3: Build MetricAnalysis for each metric
+      const metrics: MetricAnalysis[] = [];
+      
+      for (const baseline of baselines) {
+        const recent = recentMap.get(baseline.metricType);
+        const currentValue = recent?.current_value ?? baseline.meanValue;
+        const currentDate = recent?.latest_date ?? analysisTimestamp;
+        const sampleCountRecent = recent?.sample_count ?? 0;
+        
+        // Calculate deviation
+        const absoluteDeviation = currentValue - baseline.meanValue;
+        const percentageDeviation = baseline.meanValue !== 0 
+          ? (absoluteDeviation / baseline.meanValue) * 100 
+          : 0;
+        const zScore = baseline.stdDev && baseline.stdDev > 0
+          ? absoluteDeviation / baseline.stdDev
+          : null;
+        
+        // Determine direction
+        let direction: 'above' | 'below' | 'normal' = 'normal';
+        if (percentageDeviation > 5) direction = 'above';
+        else if (percentageDeviation < -5) direction = 'below';
+        
+        // Get threshold config for this metric
+        const threshold = METRIC_THRESHOLDS[baseline.metricType];
+        
+        // Check significance
+        const absDeviation = Math.abs(percentageDeviation);
+        const absZScore = zScore !== null ? Math.abs(zScore) : 0;
+        const isSignificant = threshold 
+          ? (absDeviation >= threshold.percentageThreshold || 
+             (zScore !== null && absZScore >= threshold.zScoreThreshold))
+          : absDeviation >= 20; // Default 20% threshold
+        
+        // Apply direction filter (e.g., only flag high temp, not low)
+        const directionValid = !threshold || 
+          threshold.direction === 'both' ||
+          (threshold.direction === 'high' && direction === 'above') ||
+          (threshold.direction === 'low' && direction === 'below');
+        
+        const effectivelySignificant = isSignificant && directionValid;
+        
+        // Determine severity
+        let severity: 'normal' | 'low' | 'moderate' | 'high' = 'normal';
+        if (effectivelySignificant && threshold) {
+          if (baseline.metricType === 'wrist_temperature_deviation') {
+            // Temperature uses absolute value thresholds
+            const absValue = Math.abs(currentValue);
+            if (absValue >= threshold.severity.high) severity = 'high';
+            else if (absValue >= threshold.severity.moderate) severity = 'moderate';
+            else severity = 'low';
+          } else {
+            if (absDeviation >= threshold.severity.high) severity = 'high';
+            else if (absDeviation >= threshold.severity.moderate) severity = 'moderate';
+            else severity = 'low';
+          }
+        }
+        
+        // Data quality
+        const hasEnoughData = baseline.sampleCount >= 3;
+        const latestDate = new Date(currentDate);
+        const isStale = (Date.now() - latestDate.getTime()) > 24 * 60 * 60 * 1000;
+        
+        // Confidence score: 0-1 based on sample count and recency
+        let confidenceScore = 0.5;
+        if (baseline.sampleCount >= 30) confidenceScore += 0.3;
+        else if (baseline.sampleCount >= 14) confidenceScore += 0.2;
+        else if (baseline.sampleCount >= 7) confidenceScore += 0.1;
+        if (!isStale) confidenceScore += 0.1;
+        if (sampleCountRecent >= 3) confidenceScore += 0.1;
+        confidenceScore = Math.min(1, confidenceScore);
+        
+        const metricAnalysis: MetricAnalysis = {
+          metric: baseline.metricType,
+          currentValue,
+          currentDate,
+          sampleCountRecent,
+          baseline: {
+            mean: baseline.meanValue,
+            stdDev: baseline.stdDev,
+            min: baseline.minValue,
+            max: baseline.maxValue,
+            sampleCount: baseline.sampleCount,
+            windowDays,
+            percentile10: baseline.percentile10,
+            percentile25: baseline.percentile25,
+            percentile75: baseline.percentile75,
+            percentile90: baseline.percentile90,
+          },
+          deviation: {
+            absolute: absoluteDeviation,
+            percentage: percentageDeviation,
+            zScore,
+            direction,
+            isSignificant: effectivelySignificant,
+          },
+          interpretation: {
+            severity,
+            thresholdUsed: threshold ? {
+              zScoreThreshold: threshold.zScoreThreshold,
+              percentageThreshold: threshold.percentageThreshold,
+              direction: threshold.direction,
+            } : null,
+          },
+          dataQuality: {
+            hasEnoughData,
+            isStale,
+            confidenceScore,
+          },
+        };
+        
+        metrics.push(metricAnalysis);
+      }
+      
+      // Step 4: Filter anomalies and high-severity
+      const anomalies = metrics.filter(m => m.deviation.isSignificant);
+      const highSeverity = metrics.filter(m => m.interpretation.severity === 'high');
+      
+      // Step 5: Detect patterns (reuse existing logic)
+      const patterns = this.detectUnifiedPatterns(metrics);
+      
+      // Step 6: Build data quality summary
+      const metricsWithEnoughData = metrics.filter(m => m.dataQuality.hasEnoughData).length;
+      const averageConfidence = metrics.length > 0
+        ? metrics.reduce((sum, m) => sum + m.dataQuality.confidenceScore, 0) / metrics.length
+        : 0;
+      
+      const result: MetricsAnalysisResult = {
+        healthId,
+        analysisTimestamp,
+        windowDays,
+        lookbackHours,
+        metrics,
+        anomalies,
+        highSeverity,
+        patterns,
+        dataQualitySummary: {
+          totalMetrics: metrics.length,
+          metricsWithEnoughData,
+          averageConfidence,
+        },
+      };
+      
+      logger.info(`[ClickHouseML] getMetricsForAnalysis: ${metrics.length} metrics, ${anomalies.length} anomalies, ${patterns.length} patterns for ${healthId}`);
+      
+      return result;
+    } catch (error) {
+      logger.error('[ClickHouseML] getMetricsForAnalysis error:', error);
+      return emptyResult;
+    }
+  }
+
+  /**
+   * Detect multi-metric patterns from unified MetricAnalysis array
+   */
+  private detectUnifiedPatterns(metrics: MetricAnalysis[]): MetricsAnalysisResult['patterns'] {
+    const patterns: MetricsAnalysisResult['patterns'] = [];
+    const anomalyMetrics = metrics.filter(m => m.deviation.isSignificant);
+    
+    if (anomalyMetrics.length < 2) return patterns;
+    
+    const metricNames = anomalyMetrics.map(m => m.metric);
+    
+    // Illness precursor pattern
+    const illnessIndicators = ['wrist_temperature_deviation', 'respiratory_rate', 'resting_heart_rate', 'hrv', 'oxygen_saturation'];
+    const illnessMatches = anomalyMetrics.filter(m => 
+      illnessIndicators.includes(m.metric) &&
+      ((m.metric === 'wrist_temperature_deviation' && m.deviation.direction === 'above') ||
+       (m.metric === 'respiratory_rate' && m.deviation.direction === 'above') ||
+       (m.metric === 'resting_heart_rate' && m.deviation.direction === 'above') ||
+       (m.metric === 'hrv' && m.deviation.direction === 'below') ||
+       (m.metric === 'oxygen_saturation' && m.deviation.direction === 'below'))
+    );
+    
+    if (illnessMatches.length >= 2) {
+      const avgConfidence = illnessMatches.reduce((sum, m) => sum + m.dataQuality.confidenceScore, 0) / illnessMatches.length;
+      patterns.push({
+        patternType: 'illness_precursor',
+        confidence: Math.min(0.95, avgConfidence + 0.15),
+        involvedMetrics: illnessMatches.map(m => m.metric),
+        description: 'Multiple vital signs suggest early illness onset. Elevated temperature, respiratory rate, and/or heart rate with decreased HRV.',
+      });
+    }
+    
+    // Recovery deficit pattern
+    const hrvLow = anomalyMetrics.find(m => m.metric === 'hrv' && m.deviation.direction === 'below');
+    const sleepLow = anomalyMetrics.find(m => 
+      ['sleep_duration', 'deep_sleep', 'sleep_duration_min'].includes(m.metric) && 
+      m.deviation.direction === 'below'
+    );
+    
+    if (hrvLow && sleepLow) {
+      const avgConfidence = (hrvLow.dataQuality.confidenceScore + sleepLow.dataQuality.confidenceScore) / 2;
+      patterns.push({
+        patternType: 'recovery_deficit',
+        confidence: Math.min(0.9, avgConfidence + 0.1),
+        involvedMetrics: [hrvLow.metric, sleepLow.metric],
+        description: 'Low HRV combined with poor sleep indicates inadequate recovery. Consider rest day or reduced training load.',
+      });
+    }
+    
+    // Glucose-HRV correlation
+    const glucoseMetrics = ['glucose', 'cgm_glucose', 'cgm_hypo', 'cgm_hyper'];
+    const glucoseAnomaly = anomalyMetrics.find(m => glucoseMetrics.includes(m.metric));
+    const hrvAnomaly = anomalyMetrics.find(m => m.metric === 'hrv');
+    
+    if (glucoseAnomaly && hrvAnomaly) {
+      const patternType = glucoseAnomaly.deviation.direction === 'below' 
+        ? 'hypoglycemia_hrv_correlation' 
+        : 'hyperglycemia_hrv_correlation';
+      patterns.push({
+        patternType,
+        confidence: 0.85,
+        involvedMetrics: [glucoseAnomaly.metric, 'hrv'],
+        description: `Glucose dysregulation affecting HRV. ${glucoseAnomaly.deviation.direction === 'below' ? 'Low blood sugar' : 'High blood sugar'} correlates with heart rate variability changes.`,
+      });
+    }
+    
+    // Activity-sleep pattern
+    const activityHigh = anomalyMetrics.find(m => 
+      ['steps', 'active_energy', 'exercise'].includes(m.metric) && 
+      m.deviation.direction === 'above'
+    );
+    const sleepQualityLow = anomalyMetrics.find(m => 
+      ['deep_sleep', 'rem_sleep', 'sleep_efficiency'].includes(m.metric) && 
+      m.deviation.direction === 'below'
+    );
+    
+    if (activityHigh && sleepQualityLow) {
+      patterns.push({
+        patternType: 'overtraining_sleep_impact',
+        confidence: 0.75,
+        involvedMetrics: [activityHigh.metric, sleepQualityLow.metric],
+        description: 'High activity levels may be affecting sleep quality. Consider timing of exercise relative to bedtime.',
+      });
+    }
+    
+    return patterns;
   }
 
   async detectCgmAnomalies(healthId: string, options: { lookbackHours?: number } = {}): Promise<AnomalyResult[]> {
