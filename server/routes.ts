@@ -5460,21 +5460,16 @@ Important: This is for educational purposes. Include a brief note that users sho
           logger.warn(`[Admin] Filtered out ${questions.length - validQuestions.length} questions with invalid questionText`);
         }
         
-        const deliveryOffsets = {
-          morning: 0,
-          midday: 4 * 60 * 60 * 1000,
-          evening: 8 * 60 * 60 * 1000,
-        };
+        // All questions visible immediately - no staggered delivery
+        const visibleAt = new Date();
 
         for (const question of validQuestions) {
           const feedbackId = randomUUID();
-          const offset = deliveryOffsets[question.deliveryWindow || 'morning'];
-          const visibleAt = new Date(Date.now() + offset);
           
           await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt);
           feedbackQuestions.push({ ...question, feedbackId, visibleAt: visibleAt.toISOString() });
           feedbackIds.push(feedbackId);
-          logger.info(`[Admin] Stored feedback question ${feedbackId} (${question.deliveryWindow}) for user ${userId}`);
+          logger.info(`[Admin] Stored feedback question ${feedbackId} for user ${userId}`);
         }
       }
       
@@ -5536,21 +5531,16 @@ Important: This is for educational purposes. Include a brief note that users sho
       if (anomalies.length > 0) {
         const questions = await dynamicFeedbackGenerator.generateMultipleQuestions(anomalies, 3);
         
-        const deliveryOffsets = {
-          morning: 0,
-          midday: 4 * 60 * 60 * 1000,
-          evening: 8 * 60 * 60 * 1000,
-        };
+        // All questions visible immediately - no staggered delivery
+        const visibleAt = new Date();
 
         for (const question of questions) {
           const feedbackId = randomUUID();
-          const offset = deliveryOffsets[question.deliveryWindow || 'morning'];
-          const visibleAt = new Date(Date.now() + offset);
           
           await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt);
           feedbackQuestions.push({ ...question, feedbackId, visibleAt: visibleAt.toISOString() });
           feedbackIds.push(feedbackId);
-          logger.info(`[Admin] Stored simulated feedback question ${feedbackId} (${question.deliveryWindow}) for user ${userId}`);
+          logger.info(`[Admin] Stored simulated feedback question ${feedbackId} for user ${userId}`);
         }
       }
       

@@ -50,7 +50,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
     - `/api/admin/ml/source-of-truth-status` - Refactor status
   - **Step 3 (Pending):** Remove shadow math after validation confirms agreement
 - **Long-Horizon Correlation Engine:** Discovers statistically significant behavior-outcome correlations over months using Mann-Whitney U test. Now includes subjective survey data (Energy, Clarity, Mood) as outcome metrics, enabling correlations like "afternoon workouts correlate with 8% higher energy levels" or "consistent bedtime correlates with improved mental clarity."
-- **User Engagement:** AI Feedback Questions (1-10 scale responses stored in ClickHouse `user_feedback` table), Daily 3PM Subjective Survey (synced to ClickHouse `subjective_surveys` and aggregated into `weekly_outcome_rollups` for ML correlation), and Daily Reminder Notifications.
+- **User Engagement:** AI Feedback Questions (1-10 scale responses stored in ClickHouse `user_feedback` table, delivered immediately when anomalies detected - no timed delay), Daily 3PM Subjective Survey (synced to ClickHouse `subjective_surveys` and aggregated into `weekly_outcome_rollups` for ML correlation), and Daily Reminder Notifications.
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
 - **HealthKit Sample Deduplication:** Server-side fingerprint-based deduplication for HealthKit samples.
 - **Self-Improvement Engine (SIE):** Admin-only sandbox AI for product improvement suggestions.

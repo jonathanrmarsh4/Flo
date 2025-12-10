@@ -79,19 +79,14 @@ class CorrelationInsightService {
 
       logger.info(`[CorrelationInsight] Filtered ${allQuestions.length - feedbackQuestions.length} recently-answered questions, keeping ${feedbackQuestions.length}`);
       
-      const deliveryOffsets = {
-        morning: 0,
-        midday: 4 * 60 * 60 * 1000,
-        evening: 8 * 60 * 60 * 1000,
-      };
+      // All questions visible immediately - no staggered delivery
+      const visibleAt = new Date();
 
       for (const question of feedbackQuestions) {
         const feedbackId = randomUUID();
-        const offset = deliveryOffsets[question.deliveryWindow || 'morning'];
-        const visibleAt = new Date(Date.now() + offset);
         
         await this.storePendingFeedback(userId, feedbackId, question, visibleAt);
-        logger.info(`[CorrelationInsight] Stored feedback question ${feedbackId} (${question.deliveryWindow}) for user ${userId}`);
+        logger.info(`[CorrelationInsight] Stored feedback question ${feedbackId} for user ${userId}`);
       }
     }
 
