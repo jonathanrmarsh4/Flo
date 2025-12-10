@@ -1188,6 +1188,219 @@ export class BehaviorAttributionEngine {
       return { totalAttributions: 0, confirmedExperiments: 0, refutedExperiments: 0, topContributingFactors: [] };
     }
   }
+  /**
+   * Find historical occurrences where similar behavior patterns preceded similar outcomes.
+   * Searches ALL available data (years if available) to identify repeating cause-effect patterns.
+   * Returns: number of times this pattern has occurred, dates, and confidence score.
+   */
+  async findHistoricalPatternMatches(
+    healthId: string,
+    currentAnomalyDate: string,
+    outcomeMetric: string,
+    outcomeDirection: 'above' | 'below',
+    notableBehaviors: { category: string; key: string; direction: 'above' | 'below' }[]
+  ): Promise<{
+    matchCount: number;
+    totalHistoryMonths: number;
+    matchDates: string[];
+    patternConfidence: number;
+    isRecurringPattern: boolean;
+    patternDescription: string;
+  }> {
+    if (!await this.ensureInitialized() || notableBehaviors.length === 0) {
+      return { matchCount: 0, totalHistoryMonths: 0, matchDates: [], patternConfidence: 0, isRecurringPattern: false, patternDescription: '' };
+    }
+
+    try {
+      // First, get the user's full data range
+      const rangeQuery = `
+        SELECT 
+          min(local_date) as first_date,
+          max(local_date) as last_date,
+          dateDiff('month', min(local_date), max(local_date)) as months_of_data
+        FROM flo_health.daily_behavior_factors
+        WHERE health_id = {healthId:String}
+      `;
+      const [range] = await clickhouse.query<{ first_date: string; last_date: string; months_of_data: number }>(
+        rangeQuery, { healthId }
+      );
+
+      if (!range || range.months_of_data < 1) {
+        return { matchCount: 0, totalHistoryMonths: 0, matchDates: [], patternConfidence: 0, isRecurringPattern: false, patternDescription: '' };
+      }
+
+      // Build behavior pattern matching conditions
+      const behaviorConditions = notableBehaviors.map((b, i) => {
+        const dirCondition = b.direction === 'above' ? '> 0' : '< 0';
+        return `countIf(factor_category = {cat${i}:String} AND factor_key = {key${i}:String} AND deviation_from_baseline ${dirCondition}) > 0`;
+      }).join(' AND ');
+
+      const params: Record<string, string> = { healthId, currentAnomalyDate, outcomeMetric };
+      notableBehaviors.forEach((b, i) => {
+        params[`cat${i}`] = b.category;
+        params[`key${i}`] = b.key;
+      });
+
+      // Find all days where this exact behavior pattern occurred (excluding current day)
+      const patternDaysQuery = `
+        SELECT local_date
+        FROM flo_health.daily_behavior_factors
+        WHERE health_id = {healthId:String}
+          AND local_date != {currentAnomalyDate:Date}
+        GROUP BY local_date
+        HAVING ${behaviorConditions}
+        ORDER BY local_date DESC
+      `;
+
+      const patternDays = await clickhouse.query<{ local_date: string }>(patternDaysQuery, params);
+
+      if (patternDays.length === 0) {
+        return { matchCount: 0, totalHistoryMonths: range.months_of_data, matchDates: [], patternConfidence: 0, isRecurringPattern: false, patternDescription: '' };
+      }
+
+      // Now check which of these days also had the same outcome direction
+      const outcomeDirection_ = outcomeDirection === 'above' ? '>' : '<';
+      const matchingOutcomesQuery = `
+        SELECT DISTINCT local_date
+        FROM flo_health.healthkit_samples
+        WHERE health_id = {healthId:String}
+          AND sample_type = {outcomeMetric:String}
+          AND local_date IN (${patternDays.map(d => `'${d.local_date}'`).join(',')})
+          AND z_score ${outcomeDirection_} 1.5
+        ORDER BY local_date DESC
+        LIMIT 50
+      `;
+
+      const matchingOutcomes = await clickhouse.query<{ local_date: string }>(matchingOutcomesQuery, params);
+
+      const matchDates = matchingOutcomes.map(d => d.local_date);
+      const matchCount = matchDates.length;
+
+      // Calculate pattern confidence based on frequency over time
+      // More matches over longer time = higher confidence
+      const monthsWithPattern = matchCount / Math.max(range.months_of_data, 1);
+      const patternConfidence = Math.min(0.95, 0.3 + (matchCount * 0.07) + (monthsWithPattern * 0.1));
+
+      // Build human-readable pattern description
+      const behaviorDescriptions = notableBehaviors.map(b => {
+        const dir = b.direction === 'above' ? 'higher' : 'lower';
+        return `${this.formatFactorName(b.category, b.key)} was ${dir} than usual`;
+      });
+
+      const outcomeDesc = outcomeDirection === 'above' ? 'elevated' : 'lower';
+      const patternDescription = matchCount > 0
+        ? `This pattern (${behaviorDescriptions.join(' + ')}) has preceded ${outcomeDesc} ${this.formatMetricName(outcomeMetric)} ${matchCount} times over the past ${range.months_of_data} months.`
+        : '';
+
+      return {
+        matchCount,
+        totalHistoryMonths: range.months_of_data,
+        matchDates: matchDates.slice(0, 10), // Return up to 10 example dates
+        patternConfidence,
+        isRecurringPattern: matchCount >= 3,
+        patternDescription,
+      };
+    } catch (error) {
+      logger.error(`[BehaviorAttribution] Error finding historical pattern matches:`, error);
+      return { matchCount: 0, totalHistoryMonths: 0, matchDates: [], patternConfidence: 0, isRecurringPattern: false, patternDescription: '' };
+    }
+  }
+
+  /**
+   * Find positive patterns - behaviors that consistently precede GOOD outcomes.
+   * Helps identify "what's working" so users can keep doing it.
+   */
+  async findPositivePatterns(
+    healthId: string,
+    outcomeMetric: string,
+    lookbackMonths: number = 24
+  ): Promise<{
+    patterns: {
+      behaviors: { category: string; key: string; description: string }[];
+      outcomeImprovement: number;
+      occurrenceCount: number;
+      lastOccurred: string;
+      confidence: number;
+    }[];
+  }> {
+    if (!await this.ensureInitialized()) {
+      return { patterns: [] };
+    }
+
+    try {
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - lookbackMonths);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      // Find days with positive outcome deviations
+      const goodDaysQuery = `
+        SELECT local_date, avg(z_score) as avg_z
+        FROM flo_health.healthkit_samples
+        WHERE health_id = {healthId:String}
+          AND sample_type = {outcomeMetric:String}
+          AND local_date >= {startDate:Date}
+          AND z_score > 1.0
+        GROUP BY local_date
+        ORDER BY avg_z DESC
+        LIMIT 100
+      `;
+
+      const goodDays = await clickhouse.query<{ local_date: string; avg_z: number }>(
+        goodDaysQuery, { healthId, outcomeMetric, startDate: startDateStr }
+      );
+
+      if (goodDays.length < 3) {
+        return { patterns: [] };
+      }
+
+      // Find common behaviors on those good days
+      const goodDatesList = goodDays.map(d => `'${d.local_date}'`).join(',');
+      const commonBehaviorsQuery = `
+        SELECT 
+          factor_category,
+          factor_key,
+          count(*) as occurrence_count,
+          avg(deviation_from_baseline) as avg_deviation,
+          max(local_date) as last_occurred
+        FROM flo_health.daily_behavior_factors
+        WHERE health_id = {healthId:String}
+          AND local_date IN (${goodDatesList})
+          AND is_notable = 1
+          AND deviation_from_baseline > 10
+        GROUP BY factor_category, factor_key
+        HAVING occurrence_count >= 3
+        ORDER BY occurrence_count DESC
+        LIMIT 10
+      `;
+
+      const commonBehaviors = await clickhouse.query<{
+        factor_category: string;
+        factor_key: string;
+        occurrence_count: number;
+        avg_deviation: number;
+        last_occurred: string;
+      }>(commonBehaviorsQuery, { healthId });
+
+      const avgImprovement = goodDays.reduce((sum, d) => sum + d.avg_z, 0) / goodDays.length;
+
+      const patterns = commonBehaviors.map(b => ({
+        behaviors: [{
+          category: b.factor_category,
+          key: b.factor_key,
+          description: this.formatFactorName(b.factor_category, b.factor_key),
+        }],
+        outcomeImprovement: avgImprovement * 10, // Convert Z-score to percentage
+        occurrenceCount: b.occurrence_count,
+        lastOccurred: b.last_occurred,
+        confidence: Math.min(0.9, 0.3 + (b.occurrence_count * 0.1)),
+      }));
+
+      return { patterns };
+    } catch (error) {
+      logger.error(`[BehaviorAttribution] Error finding positive patterns:`, error);
+      return { patterns: [] };
+    }
+  }
 }
 
 export const behaviorAttributionEngine = new BehaviorAttributionEngine();

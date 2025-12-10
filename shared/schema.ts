@@ -2832,6 +2832,14 @@ export const pendingCorrelationFeedback = pgTable("pending_correlation_feedback"
   focusMetric: varchar("focus_metric", { length: 50 }),
   deliveryWindow: varchar("delivery_window", { length: 20 }),
   
+  // ML-computed causal analysis (full history pattern matching)
+  insightText: text("insight_text"),
+  likelyCauses: jsonb("likely_causes").$type<string[]>(),
+  whatsWorking: jsonb("whats_working").$type<string[]>(),
+  patternConfidence: real("pattern_confidence"),
+  isRecurringPattern: boolean("is_recurring_pattern").default(false),
+  historicalMatchCount: integer("historical_match_count"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   visibleAt: timestamp("visible_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),

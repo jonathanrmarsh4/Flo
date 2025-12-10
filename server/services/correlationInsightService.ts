@@ -269,10 +269,38 @@ class CorrelationInsightService {
     userId: string,
     feedbackId: string,
     question: GeneratedQuestion,
-    visibleAt?: Date
-  ): Promise<void> {
+    visibleAt?: Date,
+    causalAnalysis?: {
+      insightText?: string;
+      likelyCauses?: string[];
+      whatsWorking?: string[];
+      patternConfidence?: number;
+      isRecurringPattern?: boolean;
+      historicalMatchCount?: number;
+    }
+  ): Promise<boolean> {
     const expiresAt = new Date(Date.now() + FEEDBACK_EXPIRY_HOURS * 60 * 60 * 1000);
     const effectiveVisibleAt = visibleAt || new Date();
+    
+    // Check if a pending question already exists for this user and focusMetric today
+    // This prevents duplicate questions for the same insight on the same day
+    if (question.focusMetric) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const existingToday = await db.select({ feedbackId: pendingCorrelationFeedback.feedbackId })
+        .from(pendingCorrelationFeedback)
+        .where(and(
+          eq(pendingCorrelationFeedback.userId, userId),
+          eq(pendingCorrelationFeedback.focusMetric, question.focusMetric),
+          gt(pendingCorrelationFeedback.createdAt, today)
+        ))
+        .limit(1);
+      
+      if (existingToday.length > 0) {
+        logger.debug(`[CorrelationInsight] Skipping duplicate question for metric "${question.focusMetric}" - already have one today`);
+        return false;
+      }
+    }
     
     await db.insert(pendingCorrelationFeedback).values({
       feedbackId,
@@ -287,6 +315,13 @@ class CorrelationInsightService {
       deliveryWindow: question.deliveryWindow || null,
       visibleAt: effectiveVisibleAt,
       expiresAt,
+      // ML-computed causal analysis
+      insightText: causalAnalysis?.insightText || null,
+      likelyCauses: causalAnalysis?.likelyCauses || null,
+      whatsWorking: causalAnalysis?.whatsWorking || null,
+      patternConfidence: causalAnalysis?.patternConfidence || null,
+      isRecurringPattern: causalAnalysis?.isRecurringPattern || false,
+      historicalMatchCount: causalAnalysis?.historicalMatchCount || null,
     }).onConflictDoUpdate({
       target: pendingCorrelationFeedback.feedbackId,
       set: {
@@ -300,6 +335,12 @@ class CorrelationInsightService {
         deliveryWindow: question.deliveryWindow || null,
         visibleAt: effectiveVisibleAt,
         expiresAt,
+        insightText: causalAnalysis?.insightText || null,
+        likelyCauses: causalAnalysis?.likelyCauses || null,
+        whatsWorking: causalAnalysis?.whatsWorking || null,
+        patternConfidence: causalAnalysis?.patternConfidence || null,
+        isRecurringPattern: causalAnalysis?.isRecurringPattern || false,
+        historicalMatchCount: causalAnalysis?.historicalMatchCount || null,
       },
     });
 
@@ -333,6 +374,8 @@ class CorrelationInsightService {
       const errorMsg = error instanceof Error ? error.message : String(error);
       logger.warn(`[CorrelationInsight] Push notification failed for ML alert ${feedbackId}: ${errorMsg}`);
     }
+    
+    return true;
   }
 
   private getNotificationTitle(question: GeneratedQuestion): string {

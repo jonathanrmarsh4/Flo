@@ -1,8 +1,56 @@
 import { GoogleGenAI } from '@google/genai';
 import { AnomalyResult } from './clickhouseBaselineEngine';
 import { logger } from '../utils/logger';
+import { db } from '../db';
+import { lifeEvents, userDailyMetrics, sleepNights } from '@shared/schema';
+import { eq, and, gte, desc } from 'drizzle-orm';
+import { behaviorAttributionEngine } from './behaviorAttributionEngine';
 
 const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
+
+// Interface for behavioral context around an anomaly
+interface BehavioralContext {
+  recentLifeEvents: Array<{
+    eventType: string;
+    description: string;
+    happenedAt: Date;
+  }>;
+  recentActivity: {
+    avgSteps: number;
+    avgActiveEnergy: number;
+    avgExerciseMinutes: number;
+    daysWithData: number;
+  } | null;
+  recentSleep: {
+    avgDuration: number;
+    avgDeepSleep: number;
+    avgRemSleep: number;
+    daysWithData: number;
+  } | null;
+}
+
+// ML-computed attribution data for smarter insights
+interface MLAttribution {
+  rankedCauses: Array<{
+    category: string;
+    key: string;
+    description: string;
+    deviation: number;
+    contribution: 'high' | 'medium' | 'low';
+  }>;
+  historicalPattern: {
+    matchCount: number;
+    totalHistoryMonths: number;
+    isRecurringPattern: boolean;
+    patternDescription: string;
+    confidence: number;
+  } | null;
+  positivePatterns: Array<{
+    description: string;
+    occurrenceCount: number;
+    outcomeImprovement: number;
+  }>;
+}
 
 export interface GeneratedQuestion {
   questionText: string;
@@ -361,6 +409,202 @@ Respond with JSON only:
     }
 
     return { value: null, raw: transcript };
+  }
+
+  /**
+   * Gather ML-computed attribution data for an anomaly.
+   * Searches full history (years if available) to find causal patterns.
+   */
+  async gatherMLAttribution(
+    healthId: string,
+    anomaly: AnomalyResult,
+    anomalyDate: string
+  ): Promise<MLAttribution> {
+    try {
+      // Get attributed factors from the day of the anomaly
+      const attributedFactors = await behaviorAttributionEngine.findAttributedFactors(
+        healthId,
+        anomalyDate,
+        anomaly.metricType,
+        anomaly.deviationPct
+      );
+
+      const rankedCauses = attributedFactors.map(f => ({
+        category: f.category,
+        key: f.key,
+        description: this.formatFactorDescription(f.category, f.key),
+        deviation: f.deviation,
+        contribution: f.contribution,
+      }));
+
+      // Search full history for pattern matches
+      let historicalPattern = null;
+      if (rankedCauses.length > 0) {
+        const notableBehaviors = rankedCauses.slice(0, 3).map(c => ({
+          category: c.category,
+          key: c.key,
+          direction: (c.deviation > 0 ? 'above' : 'below') as 'above' | 'below',
+        }));
+
+        const patternMatch = await behaviorAttributionEngine.findHistoricalPatternMatches(
+          healthId,
+          anomalyDate,
+          anomaly.metricType,
+          anomaly.direction,
+          notableBehaviors
+        );
+
+        if (patternMatch.matchCount > 0) {
+          historicalPattern = {
+            matchCount: patternMatch.matchCount,
+            totalHistoryMonths: patternMatch.totalHistoryMonths,
+            isRecurringPattern: patternMatch.isRecurringPattern,
+            patternDescription: patternMatch.patternDescription,
+            confidence: patternMatch.patternConfidence,
+          };
+        }
+      }
+
+      // Find positive patterns for this metric (what's working)
+      const positiveResult = await behaviorAttributionEngine.findPositivePatterns(
+        healthId,
+        anomaly.metricType,
+        24 // Look back 24 months
+      );
+
+      const positivePatterns = positiveResult.patterns.slice(0, 3).map(p => ({
+        description: p.behaviors.map(b => b.description).join(' + '),
+        occurrenceCount: p.occurrenceCount,
+        outcomeImprovement: p.outcomeImprovement,
+      }));
+
+      return { rankedCauses, historicalPattern, positivePatterns };
+    } catch (error) {
+      logger.error('[FeedbackGenerator] Error gathering ML attribution', { error, healthId });
+      return { rankedCauses: [], historicalPattern: null, positivePatterns: [] };
+    }
+  }
+
+  /**
+   * Generate a smart insight with causal analysis using ML data + AI formatting.
+   * The ML layer computes causes, AI layer formats the narrative.
+   */
+  async generateSmartInsight(
+    healthId: string,
+    anomaly: AnomalyResult,
+    anomalyDate: string,
+    userContext?: { preferredName?: string }
+  ): Promise<{
+    insightText: string;
+    likelyCauses: string[];
+    whatsWorking: string[];
+    confidence: number;
+    isRecurringPattern: boolean;
+    questionText: string;
+  } | null> {
+    try {
+      const mlAttribution = await this.gatherMLAttribution(healthId, anomaly, anomalyDate);
+      
+      const metricName = METRIC_DISPLAY_NAMES[anomaly.metricType] || anomaly.metricType;
+      const direction = anomaly.direction === 'above' ? 'higher' : 'lower';
+      const pct = Math.abs(Math.round(anomaly.deviationPct));
+
+      // Build the AI prompt with ML-computed data
+      const causesSection = mlAttribution.rankedCauses.length > 0
+        ? `LIKELY CAUSES (ML-computed, do not invent new ones):\n${mlAttribution.rankedCauses.map((c, i) => 
+            `${i + 1}. ${c.description}: ${Math.abs(Math.round(c.deviation))}% ${c.deviation > 0 ? 'higher' : 'lower'} than usual (${c.contribution} contribution)`
+          ).join('\n')}`
+        : 'LIKELY CAUSES: None identified yet - need more data.';
+
+      const historySection = mlAttribution.historicalPattern
+        ? `HISTORICAL PATTERN (ML-computed):\n${mlAttribution.historicalPattern.patternDescription}\nThis pattern has occurred ${mlAttribution.historicalPattern.matchCount} times over ${mlAttribution.historicalPattern.totalHistoryMonths} months.\nConfidence: ${Math.round(mlAttribution.historicalPattern.confidence * 100)}%`
+        : 'HISTORICAL PATTERN: First time seeing this exact combination.';
+
+      const positiveSection = mlAttribution.positivePatterns.length > 0
+        ? `WHAT'S WORKING FOR THIS METRIC (positive patterns to reinforce):\n${mlAttribution.positivePatterns.map(p => 
+            `- ${p.description}: appeared ${p.occurrenceCount} times when ${metricName} was good`
+          ).join('\n')}`
+        : '';
+
+      const prompt = `You are a health AI assistant creating a personalized insight for a user.
+
+DETECTED CHANGE:
+${metricName} is ${pct}% ${direction} than the user's baseline
+
+${causesSection}
+
+${historySection}
+
+${positiveSection}
+
+${userContext?.preferredName ? `USER NAME: ${userContext.preferredName}` : ''}
+
+Generate a warm, insightful message that:
+1. Summarizes the detected change in plain language
+2. References the ML-computed likely causes (do NOT invent causes not in the list)
+3. If this is a recurring pattern, mention that for credibility ("This has happened X times before when...")
+4. If there are positive patterns, highlight what's working so they can keep doing it
+5. End with asking how they feel on a 1-10 scale
+6. Be conversational and caring, not clinical
+7. Under 100 words total
+8. Use "Your data shows" instead of "I noticed"
+
+Respond with JSON only:
+{
+  "insightText": "The main insight message",
+  "questionText": "The 1-10 feeling question",
+  "highlightedCauses": ["cause 1", "cause 2"],
+  "reinforcementMessage": "Optional: What's working that they should keep doing"
+}`;
+
+      const response = await genai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          temperature: 0.6,
+        },
+      });
+
+      const text = response.text || '';
+      const parsed = JSON.parse(text);
+
+      const likelyCauses = mlAttribution.rankedCauses.slice(0, 3).map(c => c.description);
+      const whatsWorking = mlAttribution.positivePatterns.map(p => p.description);
+
+      return {
+        insightText: parsed.insightText || '',
+        likelyCauses,
+        whatsWorking,
+        confidence: mlAttribution.historicalPattern?.confidence || 0.3,
+        isRecurringPattern: mlAttribution.historicalPattern?.isRecurringPattern || false,
+        questionText: parsed.questionText || `On a scale of 1-10, how are you feeling right now?`,
+      };
+    } catch (error) {
+      logger.error('[FeedbackGenerator] Error generating smart insight', { error });
+      return null;
+    }
+  }
+
+  private formatFactorDescription(category: string, key: string): string {
+    const keyLabels: Record<string, string> = {
+      'total_calories': 'calorie intake',
+      'protein_g': 'protein intake',
+      'last_meal_time': 'dinner timing',
+      'caffeine_mg': 'caffeine',
+      'alcohol_g': 'alcohol',
+      'total_duration_min': 'workout duration',
+      'first_workout_time': 'workout timing',
+      'mindfulness_min': 'mindfulness practice',
+      'sauna': 'sauna session',
+      'ice_bath': 'ice bath',
+      'cold_plunge': 'cold plunge',
+      'bedtime': 'bedtime',
+      'aqi': 'air quality',
+      'temperature_c': 'temperature',
+      'avg_glucose_mg_dl': 'blood glucose',
+    };
+    return keyLabels[key] || key.replace(/_/g, ' ');
   }
 }
 

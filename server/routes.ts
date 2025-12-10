@@ -5445,7 +5445,7 @@ Important: This is for educational purposes. Include a brief note that users sho
       const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
       const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { windowDays, bypassRateLimit: true });
       
-      // Generate multiple feedback questions (top 3 by severity/confidence) with staggered delivery
+      // Generate smart insights with ML causal analysis for top anomalies
       const feedbackQuestions: any[] = [];
       const feedbackIds: string[] = [];
       if (anomalies.length > 0) {
@@ -5462,12 +5462,48 @@ Important: This is for educational purposes. Include a brief note that users sho
         
         // All questions visible immediately - no staggered delivery
         const visibleAt = new Date();
+        const anomalyDate = new Date().toISOString().split('T')[0];
 
-        for (const question of validQuestions) {
+        for (let i = 0; i < validQuestions.length; i++) {
+          const question = validQuestions[i];
           const feedbackId = randomUUID();
           
-          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt);
-          feedbackQuestions.push({ ...question, feedbackId, visibleAt: visibleAt.toISOString() });
+          // Find the anomaly that matches this question's focusMetric
+          const matchingAnomaly = anomalies.find(a => a.metricType === question.focusMetric) || anomalies[i];
+          
+          // Generate smart insight with ML causal analysis (full history search)
+          let causalAnalysis = undefined;
+          if (matchingAnomaly) {
+            const smartInsight = await dynamicFeedbackGenerator.generateSmartInsight(
+              healthId,
+              matchingAnomaly,
+              anomalyDate,
+              { preferredName: undefined }
+            );
+            
+            if (smartInsight) {
+              causalAnalysis = {
+                insightText: smartInsight.insightText,
+                likelyCauses: smartInsight.likelyCauses,
+                whatsWorking: smartInsight.whatsWorking,
+                patternConfidence: smartInsight.confidence,
+                isRecurringPattern: smartInsight.isRecurringPattern,
+              };
+              // Use the smart insight's question if available
+              if (smartInsight.questionText) {
+                question.questionText = smartInsight.questionText;
+              }
+              logger.info(`[Admin] Generated smart insight with ${smartInsight.likelyCauses.length} causes, ${smartInsight.whatsWorking.length} positive patterns`);
+            }
+          }
+          
+          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt, causalAnalysis);
+          feedbackQuestions.push({ 
+            ...question, 
+            feedbackId, 
+            visibleAt: visibleAt.toISOString(),
+            ...causalAnalysis,
+          });
           feedbackIds.push(feedbackId);
           logger.info(`[Admin] Stored feedback question ${feedbackId} for user ${userId}`);
         }
@@ -5533,12 +5569,45 @@ Important: This is for educational purposes. Include a brief note that users sho
         
         // All questions visible immediately - no staggered delivery
         const visibleAt = new Date();
+        const anomalyDate = new Date().toISOString().split('T')[0];
 
-        for (const question of questions) {
+        for (let i = 0; i < questions.length; i++) {
+          const question = questions[i];
           const feedbackId = randomUUID();
           
-          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt);
-          feedbackQuestions.push({ ...question, feedbackId, visibleAt: visibleAt.toISOString() });
+          // Find matching anomaly and generate smart insight with causal analysis
+          const matchingAnomaly = anomalies.find(a => a.metricType === question.focusMetric) || anomalies[i];
+          
+          let causalAnalysis = undefined;
+          if (matchingAnomaly) {
+            const smartInsight = await dynamicFeedbackGenerator.generateSmartInsight(
+              healthId,
+              matchingAnomaly,
+              anomalyDate,
+              { preferredName: undefined }
+            );
+            
+            if (smartInsight) {
+              causalAnalysis = {
+                insightText: smartInsight.insightText,
+                likelyCauses: smartInsight.likelyCauses,
+                whatsWorking: smartInsight.whatsWorking,
+                patternConfidence: smartInsight.confidence,
+                isRecurringPattern: smartInsight.isRecurringPattern,
+              };
+              if (smartInsight.questionText) {
+                question.questionText = smartInsight.questionText;
+              }
+            }
+          }
+          
+          await correlationInsightService.storePendingFeedback(userId, feedbackId, question, visibleAt, causalAnalysis);
+          feedbackQuestions.push({ 
+            ...question, 
+            feedbackId, 
+            visibleAt: visibleAt.toISOString(),
+            ...causalAnalysis,
+          });
           feedbackIds.push(feedbackId);
           logger.info(`[Admin] Stored simulated feedback question ${feedbackId} for user ${userId}`);
         }

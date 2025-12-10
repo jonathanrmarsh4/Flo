@@ -51,6 +51,13 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - **Step 3 (Pending):** Remove shadow math after validation confirms agreement
 - **Long-Horizon Correlation Engine:** Discovers statistically significant behavior-outcome correlations over months using Mann-Whitney U test. Now includes subjective survey data (Energy, Clarity, Mood) as outcome metrics, enabling correlations like "afternoon workouts correlate with 8% higher energy levels" or "consistent bedtime correlates with improved mental clarity."
 - **User Engagement:** AI Feedback Questions (1-10 scale responses stored in ClickHouse `user_feedback` table, delivered immediately when anomalies detected - no timed delay), Daily 3PM Subjective Survey (synced to ClickHouse `subjective_surveys` and aggregated into `weekly_outcome_rollups` for ML correlation), and Daily Reminder Notifications.
+- **ML Causality Engine (Hybrid ML+AI Architecture):** Identifies WHY health metrics change by analyzing behavior patterns across full history (years if available). Key components:
+  - **BehaviorAttributionEngine:** Syncs daily behavior factors (nutrition, workouts, recovery, supplements, life events, environment, CGM data) to ClickHouse `daily_behavior_factors` table with 30-day baseline calculations for each factor.
+  - **Historical Pattern Matching:** `findHistoricalPatternMatches()` searches full user history to find when specific behavior combinations preceded similar outcomes. Returns match count, confidence score, and recurring pattern flag.
+  - **Positive Pattern Detection:** `findPositivePatterns()` identifies behaviors that consistently precede GOOD outcomes over 24 months - surfaces "what's working" so users can keep doing it.
+  - **Smart Insight Generation:** `generateSmartInsight()` combines ML-computed causes with Gemini formatting. ML layer computes ranked causes with confidence, AI layer formats warm narratives. AI never invents causes - only formats what ML found.
+  - **Feedback Loop:** User 1-10 responses wire back to ClickHouse to strengthen attribution weights over time.
+  - **Schema Extensions:** `pending_correlation_feedback` table extended with `insightText`, `likelyCauses`, `whatsWorking`, `patternConfidence`, `isRecurringPattern`, `historicalMatchCount` for rich causal context.
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
 - **HealthKit Sample Deduplication:** Server-side fingerprint-based deduplication for HealthKit samples.
 - **Self-Improvement Engine (SIE):** Admin-only sandbox AI for product improvement suggestions.
