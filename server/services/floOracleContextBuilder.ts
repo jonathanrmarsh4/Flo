@@ -1223,7 +1223,13 @@ export async function getUserHealthMetrics(userId: string): Promise<{
 }
 
 function buildContextString(context: UserHealthContext, bloodPanelHistory: BloodPanelHistory[] = [], workoutHistory: any[] = []): string {
-  const lines: string[] = ['USER CONTEXT (never shared with user):'];
+  // Add timestamp so Gemini knows this is existing data, not new information
+  const contextTimestamp = new Date().toISOString();
+  const lines: string[] = [
+    `USER HEALTH CONTEXT (snapshot as of ${contextTimestamp}):`,
+    '[NOTE: This is the user\'s current health state - NOT breaking news. Check conversation history before mentioning any metric.]',
+    '',
+  ];
   
   lines.push(`Age: ${context.age ?? 'unknown'} | Sex: ${context.sex} | Primary goal: ${context.primaryGoals.join(', ') || 'general health'}`);
   
@@ -2098,15 +2104,19 @@ export async function getRecentChatHistory(userId: string, limit: number = 20): 
       sessionMessages.get(sessionKey)!.push(msg);
     }
     
-    // Create clearly delimited section
+    // Create clearly delimited section with anti-repetition reminder
     const lines = [
       '',
       '═══════════════════════════════════════════════════════════',
-      'PREVIOUS VOICE CONVERSATIONS (use this to recall what you discussed):',
+      'PREVIOUS VOICE CONVERSATIONS (CHECK BEFORE MENTIONING ANY HEALTH METRIC):',
+      '[CRITICAL: If you see yourself already mentioned a metric below, DO NOT repeat it]',
       '═══════════════════════════════════════════════════════════',
     ];
     
-    // Format messages, showing context of recent voice conversations
+    // Track global turn number across sessions
+    let globalTurnNumber = 1;
+    
+    // Format messages, showing context of recent voice conversations with clear turn numbers
     for (const [sessionId, messages] of sessionMessages) {
       if (messages.length > 0) {
         const sessionDate = messages[0].createdAt;
@@ -2117,14 +2127,18 @@ export async function getRecentChatHistory(userId: string, limit: number = 20): 
         for (const msg of messages) {
           const speaker = msg.sender === 'user' ? 'User' : 'Flō';
           // Truncate long messages to save context space
-          const truncatedMsg = msg.message.length > 200 
-            ? msg.message.substring(0, 200) + '...' 
+          const truncatedMsg = msg.message.length > 250 
+            ? msg.message.substring(0, 250) + '...' 
             : msg.message;
-          lines.push(`  ${speaker}: ${truncatedMsg}`);
+          // Clear turn-by-turn format so Gemini can easily see what was already said
+          lines.push(`  Turn ${globalTurnNumber}: ${speaker} said: "${truncatedMsg}"`);
+          globalTurnNumber++;
         }
       }
     }
     
+    lines.push('');
+    lines.push('[END OF HISTORY - Remember: topics mentioned above are OLD NEWS]');
     lines.push('═══════════════════════════════════════════════════════════');
     
     logger.info(`[FloOracle] Retrieved ${chronologicalMessages.length} voice chat messages for user ${userId} (filtered from ${recentMessages.length})`);
