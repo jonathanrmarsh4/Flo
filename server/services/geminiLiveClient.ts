@@ -24,6 +24,7 @@ export interface LiveSessionCallbacks {
   onAudioChunk: (audioData: Buffer) => void;
   onTranscript: (text: string, isFinal: boolean) => void;
   onModelText: (text: string) => void;
+  onTurnComplete?: () => void;
   onError: (error: Error) => void;
   onClose: () => void;
 }
@@ -270,6 +271,7 @@ class GeminiLiveClient {
       // Handle turn complete
       if (message.serverContent?.turnComplete) {
         callbacks.onTranscript('', true);
+        callbacks.onTurnComplete?.();
       }
     } catch (error: any) {
       logger.error('[GeminiLive] Error processing message', { error: error.message });

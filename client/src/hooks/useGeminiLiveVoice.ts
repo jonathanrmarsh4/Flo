@@ -18,6 +18,7 @@ interface GeminiLiveState {
 interface UseGeminiLiveVoiceOptions {
   onTranscript?: (text: string, isFinal: boolean) => void;
   onFloResponse?: (text: string) => void;
+  onTurnComplete?: () => void;
   onError?: (error: string) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
@@ -343,6 +344,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
               // Model's text response
               console.log('[GeminiLive] Model response:', message.text?.substring(0, 50));
               options.onFloResponse?.(message.text);
+              break;
+
+            case 'turn_complete':
+              // Model finished its turn - signal to flush accumulated text
+              console.log('[GeminiLive] Turn complete');
+              options.onTurnComplete?.();
               break;
 
             case 'error':

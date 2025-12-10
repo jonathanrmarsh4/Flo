@@ -47,7 +47,8 @@ export function AdminSIE() {
   const [showBrainstorm, setShowBrainstorm] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [currentUserText, setCurrentUserText] = useState('');
-  const [sieResponseText, setSieResponseText] = useState('');
+  const [isSieResponding, setIsSieResponding] = useState(false);
+  const pendingSieTextRef = useRef<string>('');
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
   
   const [showHistory, setShowHistory] = useState(false);
@@ -118,7 +119,8 @@ export function AdminSIE() {
   }, []);
 
   const handleSieResponse = useCallback((text: string) => {
-    setSieResponseText(prev => prev + text);
+    pendingSieTextRef.current += text;
+    setIsSieResponding(true);
   }, []);
 
   const handleVoiceError = useCallback((error: string) => {
@@ -137,12 +139,22 @@ export function AdminSIE() {
     });
   }, [toast]);
 
-  const handleDisconnected = useCallback(() => {
-    if (sieResponseText.trim()) {
-      setTranscript(prev => [...prev, { role: 'sie', text: sieResponseText.trim(), timestamp: new Date() }]);
-      setSieResponseText('');
+  const flushPendingSieText = useCallback(() => {
+    const text = pendingSieTextRef.current.trim();
+    if (text) {
+      setTranscript(prev => [...prev, { role: 'sie', text, timestamp: new Date() }]);
     }
-  }, [sieResponseText]);
+    pendingSieTextRef.current = '';
+    setIsSieResponding(false);
+  }, []);
+
+  const handleDisconnected = useCallback(() => {
+    flushPendingSieText();
+  }, [flushPendingSieText]);
+
+  const handleTurnComplete = useCallback(() => {
+    flushPendingSieText();
+  }, [flushPendingSieText]);
 
   const {
     isConnected,
@@ -157,6 +169,7 @@ export function AdminSIE() {
     endpoint: 'sie-brainstorm',
     onTranscript: handleTranscript,
     onFloResponse: handleSieResponse,
+    onTurnComplete: handleTurnComplete,
     onError: handleVoiceError,
     onConnected: handleConnected,
     onDisconnected: handleDisconnected,
@@ -179,14 +192,7 @@ export function AdminSIE() {
     if (transcriptScrollRef.current) {
       transcriptScrollRef.current.scrollTop = transcriptScrollRef.current.scrollHeight;
     }
-  }, [transcript, currentUserText, sieResponseText]);
-
-  useEffect(() => {
-    if (!isSpeaking && sieResponseText.trim()) {
-      setTranscript(prev => [...prev, { role: 'sie', text: sieResponseText.trim(), timestamp: new Date() }]);
-      setSieResponseText('');
-    }
-  }, [isSpeaking, sieResponseText]);
+  }, [transcript, currentUserText, isSieResponding]);
 
   const handleToggleConnection = async () => {
     if (isConnected) {
@@ -693,16 +699,16 @@ export function AdminSIE() {
                         </div>
                       )}
                       
-                      {sieResponseText && (
-                        <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 mr-8">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-purple-400">SIE (responding...)</span>
+                      {isSieResponding && (
+                        <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20 mr-8 animate-pulse">
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                            <span className="text-xs font-medium text-purple-400">SIE is thinking...</span>
                           </div>
-                          <p className="text-sm text-white/70">{sieResponseText}</p>
                         </div>
                       )}
                       
-                      {transcript.length === 0 && !currentUserText && !sieResponseText && !isConnected && (
+                      {transcript.length === 0 && !currentUserText && !isSieResponding && !isConnected && (
                         <div className="text-center py-8 text-white/40 text-sm">
                           <Mic className="w-8 h-8 mx-auto mb-2 opacity-50" />
                           <p>Start a voice session to brainstorm with SIE</p>

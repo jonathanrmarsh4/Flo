@@ -16376,6 +16376,13 @@ If there's nothing worth remembering, just respond with "No brain updates needed
             }));
           }
         },
+        onTurnComplete: () => {
+          if (ws.readyState === WebSocket.default.OPEN) {
+            ws.send(JSON.stringify({
+              type: 'turn_complete',
+            }));
+          }
+        },
         onError: (error: Error) => {
           if (ws.readyState === WebSocket.default.OPEN) {
             ws.send(JSON.stringify({
@@ -16707,6 +16714,13 @@ If there's nothing worth remembering, just respond with "No brain updates needed
               ws.send(JSON.stringify({
                 type: 'response_text',
                 text,
+              }));
+            }
+          },
+          onTurnComplete: () => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'turn_complete',
               }));
             }
           },
