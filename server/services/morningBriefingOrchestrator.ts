@@ -525,6 +525,22 @@ interface SubjectiveSurvey {
   mood: number;
 }
 
+interface BehaviorAttribution {
+  factor_category: string;
+  factor_key: string;
+  deviation_pct: number;
+  is_notable: boolean;
+}
+
+interface CausalInsight {
+  metric_type: string;
+  deviation_pct: number;
+  likely_causes: string[];
+  whats_working: string[];
+  confidence: number;
+  is_recurring_pattern: boolean;
+}
+
 interface RichContext {
   recent_life_events: RecentLifeEvent[];
   discovered_correlations: RecentCorrelation[];
@@ -532,6 +548,8 @@ interface RichContext {
   recent_surveys: SubjectiveSurvey[];
   past_briefing_feedback: { positive: number; negative: number };
   workout_yesterday: { type?: string; duration_minutes?: number; intensity?: string } | null;
+  behavior_attributions: BehaviorAttribution[];
+  causal_insights: CausalInsight[];
 }
 
 async function fetchRichContext(healthId: string, eventDate: string): Promise<RichContext> {
@@ -542,6 +560,8 @@ async function fetchRichContext(healthId: string, eventDate: string): Promise<Ri
     recent_surveys: [],
     past_briefing_feedback: { positive: 0, negative: 0 },
     workout_yesterday: null,
+    behavior_attributions: [],
+    causal_insights: [],
   };
 
   try {
@@ -649,6 +669,55 @@ async function fetchRichContext(healthId: string, eventDate: string): Promise<Ri
         duration_minutes: workouts[0].duration_min,
         intensity: workouts[0].intensity,
       };
+    }
+
+    // Fetch notable behavior factors from yesterday (for sleep/recovery attribution)
+    const behaviorSql = `
+      SELECT 
+        factor_category,
+        factor_key,
+        toFloat64(deviation_from_baseline * 100) as deviation_pct,
+        is_notable
+      FROM flo_health.daily_behavior_factors
+      WHERE health_id = {healthId:String}
+        AND local_date = {yesterdayDate:Date}
+        AND is_notable = 1
+      ORDER BY abs(deviation_from_baseline) DESC
+      LIMIT 5
+    `;
+    const behaviorFactors = await clickhouse.query<{ factor_category: string; factor_key: string; deviation_pct: number; is_notable: number }>(
+      behaviorSql,
+      { healthId, yesterdayDate: yesterdayDate.toISOString().split('T')[0] }
+    );
+    context.behavior_attributions = behaviorFactors.map(f => ({
+      factor_category: f.factor_category,
+      factor_key: f.factor_key,
+      deviation_pct: f.deviation_pct,
+      is_notable: f.is_notable === 1,
+    }));
+
+    // Fetch recent causal insights from pending_correlation_feedback (today and yesterday)
+    try {
+      const { data: causalData } = await supabase
+        .from('pending_correlation_feedback')
+        .select('focus_metric, deviation_pct, likely_causes, whats_working, pattern_confidence, is_recurring_pattern')
+        .eq('health_id', healthId)
+        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(3);
+      
+      if (causalData && causalData.length > 0) {
+        context.causal_insights = causalData.map((c: any) => ({
+          metric_type: c.focus_metric,
+          deviation_pct: c.deviation_pct || 0,
+          likely_causes: c.likely_causes || [],
+          whats_working: c.whats_working || [],
+          confidence: c.pattern_confidence || 0.3,
+          is_recurring_pattern: c.is_recurring_pattern || false,
+        }));
+      }
+    } catch (causalError) {
+      logger.debug(`[MorningBriefing] Causal insights fetch failed: ${causalError}`);
     }
 
   } catch (error) {
