@@ -1,0 +1,88 @@
+2025-12-10 15:51:00.95
+a8c7ce5a
+User
+[2025-12-10T07:51:00.953Z] [WARN] [ReminderDelivery] No user_profile found for health_id TfHX3a, using as-is
+2025-12-10 15:51:00.98
+a8c7ce5a
+User
+[2025-12-10T07:51:00.987Z] [WARN] [APNs] No active device tokens found for user TfHX3a
+2025-12-10 15:51:00.98
+a8c7ce5a
+User
+[2025-12-10T07:51:00.987Z] [WARN] [ReminderDelivery] No devices reached for user TfHX3a {"error":"No active devices"}
+2025-12-10 15:51:01.26
+a8c7ce5a
+User
+[2025-12-10T07:51:01.263Z] [WARN] [ReminderDelivery] No user_profile found for health_id K8aFip, using as-is
+2025-12-10 15:51:01.26
+a8c7ce5a
+User
+[2025-12-10T07:51:01.263Z] [WARN] [ReminderDelivery] No user_profile found for health_id K8aFip, using as-is
+2025-12-10 15:51:01.29
+a8c7ce5a
+User
+[2025-12-10T07:51:01.298Z] [WARN] [APNs] No active device tokens found for user K8aFip
+2025-12-10 15:51:01.29
+a8c7ce5a
+User
+[2025-12-10T07:51:01.298Z] [WARN] [ReminderDelivery] No devices reached for user K8aFip {"error":"No active devices"}
+2025-12-10 15:51:01.54
+a8c7ce5a
+User
+[2025-12-10T07:51:01.545Z] [WARN] [ReminderDelivery] No user_profile found for health_id IHf4ob, using as-is
+2025-12-10 15:51:01.57
+a8c7ce5a
+User
+[2025-12-10T07:51:01.579Z] [WARN] [APNs] No active device tokens found for user IHf4ob
+2025-12-10 15:51:01.57
+a8c7ce5a
+User
+[2025-12-10T07:51:01.579Z] [WARN] [ReminderDelivery] No devices reached for user IHf4ob {"error":"No active devices"}
+2025-12-10 15:51:01.83
+a8c7ce5a
+User
+[2025-12-10T07:51:01.837Z] [WARN] [ReminderDelivery] No user_profile found for health_id 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, using as-is
+2025-12-10 15:51:01.87
+a8c7ce5a
+User
+[2025-12-10T07:51:01.872Z] [INFO] [APNs] Sending notification to 1 device(s) for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-10 15:51:01.87
+a8c7ce5a
+User
+[2025-12-10T07:51:01.872Z] [INFO] [APNs] Sending notification to device: 0F03C7EEA7...
+2025-12-10 15:51:01.90
+a8c7ce5a
+User
+[2025-12-10T07:51:01.909Z] [ERROR] [APNs] Failed to send notification: {"error":{"message":"APNS Error: 400 - InvalidPushType","stack":"Error: APNS Error: 400 - InvalidPushType\n at ApnsClient._handleServerResponse (file:///home/runner/workspace/node_modules/apns2/dist/esm/apns.js:115:23)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async ApnsService.sendNotification (file:///home/runner/workspace/dist/index.js:16569:11)\n at async file:///home/runner/workspace/dist/index.js:16616:28\n at async Promise.all (index 0)\n at async ApnsService.sendBatchNotifications (file:///home/runner/workspace/dist/index.js:16614:25)\n at async ApnsService.sendToUser (file:///home/runner/workspace/dist/index.js:16641:27)\n at async deliverQueuedReminders (file:///home/runner/workspace/dist/index.js:25824:24)\n at async cron2.schedule.timezone (file:///home/runner/workspace/dist/index.js:25938:5)\n at async Timeout._onTimeout (/home/runner/workspace/node_modules/node-cron/dist/esm/scheduler/runner.js:70:44)"}}
+2025-12-10 15:51:01.90
+a8c7ce5a
+User
+[2025-12-10T07:51:01.909Z] [WARN] [ReminderDelivery] No devices reached for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"error":"All devices failed"}
+2025-12-10 15:51:01.90
+a8c7ce5a
+User
+[2025-12-10T07:51:01.909Z] [INFO] [APNs] Batch send complete: 0 successful, 1 failed
+2025-12-10 15:51:05.99
+a8c7ce5a
+User
+7:51:05 AM [express] GET /api/admin/api-usage 304 in 341ms :: [{"date":"2025-12-10","queries":28,"co…
+2025-12-10 15:51:05.99
+a8c7ce5a
+User
+7:51:05 AM [express] GET /api/admin/api-usage 304 in 341ms :: [{"date":"2025-12-10","queries":28,"co…
+2025-12-10 15:51:05.99
+a8c7ce5a
+User
+7:51:05 AM [express] GET /api/admin/api-usage 304 in 341ms :: [{"date":"2025-12-10","queries":28,"co…
+2025-12-10 15:51:07.28
+a8c7ce5a
+User
+7:51:07 AM [express] GET /api/admin/overview 304 in 108ms :: {"totalUsers":9,"activeUsers":9,"totalR…
+2025-12-10 15:51:07.49
+a8c7ce5a
+User
+7:51:07 AM [express] GET /api/admin/ml-usage/metrics 304 in 107ms :: {"metrics":{"totalWindowsToday"…
+2025-12-10 15:51:07.60
+a8c7ce5a
+User
+7:51:07 AM [express] GET /api/admin/ml-usage/query-stats 200 in 700ms :: {"tables":[{"name":"health_…
