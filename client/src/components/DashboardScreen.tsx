@@ -181,7 +181,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   });
 
   const { data: pendingFeedbackData } = useQuery<{ alerts: PendingFeedbackAlert[] }>({
-    queryKey: ['/api/correlation/alerts'],
+    queryKey: ['/api/anomaly-alerts/pending'],
     refetchInterval: 60000,
   });
 
@@ -219,7 +219,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
     }
     setShowFeedbackModal(false);
     setCurrentFeedback(null);
-    queryClient.invalidateQueries({ queryKey: ['/api/correlation/alerts'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/anomaly-alerts/pending'] });
   };
   
   const canAccessInsights = planData?.features?.insights?.allowAiGeneratedInsightCards ?? true;
