@@ -750,6 +750,9 @@ You MUST cite specific metrics in every insight:
 3. **Anomalies**: If detected, ADDRESS them: "Alert: RHR up 6bpm for 3 consecutive days - could be stress or oncoming illness"
 4. **Surveys**: If trends exist, CITE them: "Energy rating trending up: 6.2 → 7.1 → 7.8 over the past 3 days"
 5. **Yesterday's Workout**: ALWAYS connect: "That 52-min strength session is showing up as +18min deep sleep"
+6. **ML Causal Attribution**: If behavior factors are present, EXPLAIN the WHY: "Your 3 sauna sessions yesterday (+200% above baseline) likely drove that exceptional deep sleep"
+7. **ML Causal Insights**: If likely causes are identified, ATTRIBUTE outcomes: "Your HRV spike appears linked to yesterday's reduced alcohol intake and extended sleep window"
+8. **Recurring Patterns**: If marked as recurring, EMPHASIZE: "This is a pattern we've seen 7 times before - your body consistently responds this way"
 
 ## OUTPUT LENGTH REQUIREMENTS
 - greeting: 1-2 sentences with THE most striking metric (40-80 words)
@@ -890,6 +893,27 @@ ${richContext.workout_yesterday
 ${richContext.past_briefing_feedback.positive > 0 || richContext.past_briefing_feedback.negative > 0
   ? `${richContext.past_briefing_feedback.positive} positive, ${richContext.past_briefing_feedback.negative} negative ratings`
   : 'No prior feedback.'}
+
+### ML CAUSAL ATTRIBUTION (Yesterday's Notable Behaviors)
+${richContext.behavior_attributions.length > 0
+  ? `These behaviors from yesterday likely influenced today's recovery metrics:\n${richContext.behavior_attributions.map(b => 
+      `- ${b.factor_category}/${b.factor_key}: ${b.deviation_pct > 0 ? '+' : ''}${b.deviation_pct.toFixed(0)}% vs baseline`
+    ).join('\n')}`
+  : 'No notable behavior deviations detected yesterday.'}
+
+### ML CAUSAL INSIGHTS (Why Metrics Changed)
+${richContext.causal_insights.length > 0
+  ? richContext.causal_insights.map(ci => {
+      const causes = ci.likely_causes?.length > 0 
+        ? `Likely causes: ${ci.likely_causes.slice(0, 3).join(', ')}`
+        : 'No clear causes identified';
+      const working = ci.whats_working?.length > 0
+        ? `What's working: ${ci.whats_working.slice(0, 2).join(', ')}`
+        : '';
+      const pattern = ci.is_recurring_pattern ? ' [RECURRING PATTERN]' : '';
+      return `- ${ci.metric_type}: ${ci.deviation_pct > 0 ? '+' : ''}${ci.deviation_pct?.toFixed(0) || 0}% deviation${pattern}\n  ${causes}${working ? '\n  ' + working : ''}`;
+    }).join('\n')
+  : 'No causal insights generated for today.'}
 ` : '';
 
     // Format the prompt to clearly separate data sections for better AI comprehension
