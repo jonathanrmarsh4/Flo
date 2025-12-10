@@ -259,22 +259,80 @@ export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onS
               </button>
             </div>
 
-            {/* Causal context section - shows insight and likely causes if available */}
+            {/* Causal context section - shows insight, likely causes, and confidence */}
             {causalContext?.insightText && (
               <div className={`mb-4 p-4 rounded-2xl ${isDark ? 'bg-white/10' : 'bg-blue-50'}`}>
-                <p className={`text-sm leading-relaxed mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                {/* Confidence badge and recurring pattern indicator */}
+                <div className="flex items-center gap-2 mb-2">
+                  {causalContext.patternConfidence != null && causalContext.patternConfidence > 0.3 && (
+                    <span 
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        causalContext.patternConfidence >= 0.7
+                          ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                          : causalContext.patternConfidence >= 0.4
+                            ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+                            : isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600'
+                      }`}
+                      data-testid="confidence-badge"
+                    >
+                      {Math.round(causalContext.patternConfidence * 100)}% confidence
+                    </span>
+                  )}
+                  {causalContext.isRecurringPattern && (
+                    <span 
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-700'
+                      }`}
+                      data-testid="recurring-pattern-badge"
+                    >
+                      Recurring pattern
+                      {causalContext.historicalMatchCount ? ` (${causalContext.historicalMatchCount}x)` : ''}
+                    </span>
+                  )}
+                </div>
+                <p className={`text-sm leading-relaxed mb-3 ${isDark ? 'text-white' : 'text-gray-800'}`}>
                   {causalContext.insightText}
                 </p>
+                {/* Likely causes as individual badges */}
                 {causalContext.likelyCauses && causalContext.likelyCauses.length > 0 && (
-                  <div className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-                    <span className="font-medium">Possible causes:</span>{' '}
-                    {causalContext.likelyCauses.join(', ')}
+                  <div className="mb-2">
+                    <span className={`text-xs font-medium block mb-1.5 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      Likely causes:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {causalContext.likelyCauses.map((cause, idx) => (
+                        <span 
+                          key={idx}
+                          className={`text-xs px-2 py-1 rounded-lg ${
+                            isDark ? 'bg-orange-500/20 text-orange-300' : 'bg-orange-100 text-orange-700'
+                          }`}
+                          data-testid={`cause-badge-${idx}`}
+                        >
+                          {cause}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
+                {/* What's working as individual badges */}
                 {causalContext.whatsWorking && causalContext.whatsWorking.length > 0 && (
-                  <div className={`text-xs mt-1 ${isDark ? 'text-green-400/80' : 'text-green-600'}`}>
-                    <span className="font-medium">What's working:</span>{' '}
-                    {causalContext.whatsWorking.join(', ')}
+                  <div>
+                    <span className={`text-xs font-medium block mb-1.5 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      What's working:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {causalContext.whatsWorking.map((item, idx) => (
+                        <span 
+                          key={idx}
+                          className={`text-xs px-2 py-1 rounded-lg ${
+                            isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-700'
+                          }`}
+                          data-testid={`working-badge-${idx}`}
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

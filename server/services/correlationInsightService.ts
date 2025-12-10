@@ -322,7 +322,7 @@ class CorrelationInsightService {
     const effectiveVisibleAt = visibleAt || new Date();
     
     // Check if a pending question already exists for this user and focusMetric today
-    // This prevents duplicate questions for the same insight on the same day
+    // If exists, UPDATE the existing record with new causal data instead of skipping
     if (question.focusMetric) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -336,7 +336,22 @@ class CorrelationInsightService {
         .limit(1);
       
       if (existingToday.length > 0) {
-        logger.debug(`[CorrelationInsight] Skipping duplicate question for metric "${question.focusMetric}" - already have one today`);
+        // Update existing record with new causal analysis data
+        if (causalAnalysis && (causalAnalysis.likelyCauses?.length || causalAnalysis.whatsWorking?.length)) {
+          await db.update(pendingCorrelationFeedback)
+            .set({
+              insightText: causalAnalysis.insightText || null,
+              likelyCauses: causalAnalysis.likelyCauses || null,
+              whatsWorking: causalAnalysis.whatsWorking || null,
+              patternConfidence: causalAnalysis.patternConfidence || null,
+              isRecurringPattern: causalAnalysis.isRecurringPattern || false,
+              historicalMatchCount: causalAnalysis.historicalMatchCount || null,
+            })
+            .where(eq(pendingCorrelationFeedback.feedbackId, existingToday[0].feedbackId));
+          logger.debug(`[CorrelationInsight] Updated existing question for metric "${question.focusMetric}" with causal data`);
+        } else {
+          logger.debug(`[CorrelationInsight] Skipping duplicate question for metric "${question.focusMetric}" - already have one today`);
+        }
         return false;
       }
     }

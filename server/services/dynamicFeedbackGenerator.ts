@@ -475,6 +475,14 @@ Respond with JSON only:
     anomalyDate: string
   ): Promise<MLAttribution> {
     try {
+      // First, ensure behavior factors are synced for this date
+      // This pulls nutrition, workouts, recovery, etc. from Supabase into ClickHouse
+      try {
+        await behaviorAttributionEngine.syncDailyBehaviorFactors(healthId, anomalyDate);
+      } catch (syncError) {
+        logger.warn('[FeedbackGenerator] Failed to sync behavior factors, continuing with existing data', { syncError });
+      }
+      
       // Get attributed factors from the day of the anomaly
       const attributedFactors = await behaviorAttributionEngine.findAttributedFactors(
         healthId,
@@ -636,12 +644,13 @@ Respond with JSON only:
       const text = response.text || '';
       const parsed = JSON.parse(text);
 
-      const likelyCauses = mlAttribution.rankedCauses.slice(0, 3).map(c => c.description);
-      const whatsWorking = mlAttribution.positivePatterns.map(p => p.description);
+      // Deduplicate causes - ML might return same factor multiple times
+      const uniqueCauses = [...new Set(mlAttribution.rankedCauses.map(c => c.description))].slice(0, 3);
+      const whatsWorking = [...new Set(mlAttribution.positivePatterns.map(p => p.description))];
 
       return {
         insightText: parsed.insightText || '',
-        likelyCauses,
+        likelyCauses: uniqueCauses,
         whatsWorking,
         confidence: mlAttribution.historicalPattern?.confidence || 0.3,
         isRecurringPattern: mlAttribution.historicalPattern?.isRecurringPattern || false,

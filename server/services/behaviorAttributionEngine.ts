@@ -761,7 +761,7 @@ export class BehaviorAttributionEngine {
           factor_key: f.factor_key,
           numeric_value: f.numeric_value,
           string_value: f.string_value,
-          time_value: f.time_value?.toISOString() || null,
+          time_value: f.time_value && !isNaN(f.time_value.getTime()) ? f.time_value.toISOString() : null,
           deviation_from_baseline: f.deviation_from_baseline,
           baseline_value: f.baseline_value,
           is_notable: f.is_notable ? 1 : 0,
@@ -1177,13 +1177,13 @@ export class BehaviorAttributionEngine {
         { healthId, nextDayStr }
       );
 
-      // Get the outcome value for the follow-up day from ClickHouse healthkit data
+      // Get the outcome value for the follow-up day from ClickHouse health_metrics
       const outcomeQuery = `
-        SELECT avg(value) as avg_value
-        FROM flo_health.healthkit_samples
-        WHERE health_id = {healthId:String}
-          AND sample_type = {outcomeMetric:String}
-          AND local_date = {nextDayStr:Date}
+        SELECT avg(hm.value) as avg_value
+        FROM flo_health.health_metrics hm
+        WHERE hm.health_id = {healthId:String}
+          AND hm.metric_type = {outcomeMetric:String}
+          AND hm.local_date = {nextDayStr:Date}
       `;
 
       const [followupOutcome] = await clickhouse.query<{ avg_value: number }>(
@@ -1327,15 +1327,21 @@ export class BehaviorAttributionEngine {
       }
 
       // Now check which of these days also had the same outcome direction
+      // Join health_metrics with metric_baselines to compute z_score on the fly
       const outcomeDirection_ = outcomeDirection === 'above' ? '>' : '<';
       const matchingOutcomesQuery = `
-        SELECT DISTINCT local_date
-        FROM flo_health.healthkit_samples
-        WHERE health_id = {healthId:String}
-          AND sample_type = {outcomeMetric:String}
-          AND local_date IN (${patternDays.map(d => `'${d.local_date}'`).join(',')})
-          AND z_score ${outcomeDirection_} 1.5
-        ORDER BY local_date DESC
+        SELECT DISTINCT hm.local_date
+        FROM flo_health.health_metrics hm
+        LEFT JOIN flo_health.metric_baselines mb 
+          ON hm.health_id = mb.health_id 
+          AND hm.metric_type = mb.metric_type 
+          AND hm.local_date = mb.baseline_date
+        WHERE hm.health_id = {healthId:String}
+          AND hm.metric_type = {outcomeMetric:String}
+          AND hm.local_date IN (${patternDays.map(d => `'${d.local_date}'`).join(',')})
+          AND mb.std_dev > 0
+          AND ((hm.value - mb.mean_value) / mb.std_dev) ${outcomeDirection_} 1.5
+        ORDER BY hm.local_date DESC
         LIMIT 50
       `;
 
@@ -1409,14 +1415,20 @@ export class BehaviorAttributionEngine {
       const startDateStr = startDate.toISOString().split('T')[0];
 
       // Find days with positive outcome deviations
+      // Join health_metrics with metric_baselines to compute z_score on the fly
       const goodDaysQuery = `
-        SELECT local_date, avg(z_score) as avg_z
-        FROM flo_health.healthkit_samples
-        WHERE health_id = {healthId:String}
-          AND sample_type = {outcomeMetric:String}
-          AND local_date >= {startDate:Date}
-          AND z_score > 1.0
-        GROUP BY local_date
+        SELECT hm.local_date, avg((hm.value - mb.mean_value) / mb.std_dev) as avg_z
+        FROM flo_health.health_metrics hm
+        LEFT JOIN flo_health.metric_baselines mb 
+          ON hm.health_id = mb.health_id 
+          AND hm.metric_type = mb.metric_type 
+          AND hm.local_date = mb.baseline_date
+        WHERE hm.health_id = {healthId:String}
+          AND hm.metric_type = {outcomeMetric:String}
+          AND hm.local_date >= {startDate:Date}
+          AND mb.std_dev > 0
+          AND ((hm.value - mb.mean_value) / mb.std_dev) > 1.0
+        GROUP BY hm.local_date
         ORDER BY avg_z DESC
         LIMIT 100
       `;
