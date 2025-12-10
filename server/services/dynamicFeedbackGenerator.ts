@@ -468,6 +468,7 @@ Respond with JSON only:
   /**
    * Gather ML-computed attribution data for an anomaly.
    * Searches full history (years if available) to find causal patterns.
+   * For sleep metrics, uses PREVIOUS day's behaviors since sleep is influenced by pre-bedtime activities.
    */
   async gatherMLAttribution(
     healthId: string,
@@ -475,18 +476,36 @@ Respond with JSON only:
     anomalyDate: string
   ): Promise<MLAttribution> {
     try {
-      // First, ensure behavior factors are synced for this date
+      // Sleep metrics are influenced by PREVIOUS day's behaviors (what you did before bed)
+      const sleepMetrics = ['rem_sleep', 'deep_sleep', 'sleep_duration', 'deep_sleep_pct', 
+                           'sleep_efficiency', 'rem_pct', 'awake_duration', 'sleep_latency'];
+      const isSleepMetric = sleepMetrics.some(m => anomaly.metricType.toLowerCase().includes(m.toLowerCase()));
+      
+      // For sleep metrics, look at previous day's behaviors
+      let behaviorDate = anomalyDate;
+      if (isSleepMetric) {
+        const prevDate = new Date(anomalyDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        behaviorDate = prevDate.toISOString().split('T')[0];
+        logger.info('[FeedbackGenerator] Using previous day for sleep metric attribution', { 
+          metricType: anomaly.metricType, 
+          anomalyDate, 
+          behaviorDate 
+        });
+      }
+      
+      // First, ensure behavior factors are synced for the relevant date
       // This pulls nutrition, workouts, recovery, etc. from Supabase into ClickHouse
       try {
-        await behaviorAttributionEngine.syncDailyBehaviorFactors(healthId, anomalyDate);
+        await behaviorAttributionEngine.syncDailyBehaviorFactors(healthId, behaviorDate);
       } catch (syncError) {
         logger.warn('[FeedbackGenerator] Failed to sync behavior factors, continuing with existing data', { syncError });
       }
       
-      // Get attributed factors from the day of the anomaly
+      // Get attributed factors from the behavior date (previous day for sleep, same day otherwise)
       const attributedFactors = await behaviorAttributionEngine.findAttributedFactors(
         healthId,
-        anomalyDate,
+        behaviorDate,
         anomaly.metricType,
         anomaly.deviationPct
       );

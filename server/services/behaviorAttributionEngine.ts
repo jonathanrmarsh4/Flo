@@ -321,7 +321,8 @@ export class BehaviorAttributionEngine {
         .lt('start_date', `${localDate}T23:59:59`);
 
       if (workouts && workouts.length > 0) {
-        const totalDuration = workouts.reduce((sum, w) => sum + (w.duration_minutes || 0), 0);
+        // Note: column is 'duration' not 'duration_minutes'
+        const totalDuration = workouts.reduce((sum, w) => sum + (w.duration || 0), 0);
         const totalCalories = workouts.reduce((sum, w) => sum + (w.total_energy_burned || 0), 0);
         const workoutTypes = Array.from(new Set(workouts.map(w => w.workout_type)));
 
@@ -406,11 +407,13 @@ export class BehaviorAttributionEngine {
       }
 
       // 3b. Sauna and cold plunge from life_events (recovery modalities)
+      // Note: life_events uses 'happened_at' timestamp, not 'event_date'
       const { data: recoveryEvents } = await supabase
         .from('life_events')
         .select('*')
         .eq('health_id', healthId)
-        .eq('event_date', localDate)
+        .gte('happened_at', `${localDate}T00:00:00`)
+        .lt('happened_at', `${localDate}T23:59:59`)
         .in('event_type', ['sauna', 'cold_plunge', 'ice_bath', 'hot_tub', 'cryotherapy', 'contrast_therapy']);
 
       if (recoveryEvents && recoveryEvents.length > 0) {
@@ -429,6 +432,41 @@ export class BehaviorAttributionEngine {
             is_notable: true,
             source: 'user_logged',
           });
+        }
+      }
+
+      // 3c. Also check for sauna/recovery in "other" events with activities in details
+      const { data: otherEvents } = await supabase
+        .from('life_events')
+        .select('*')
+        .eq('health_id', healthId)
+        .gte('happened_at', `${localDate}T00:00:00`)
+        .lt('happened_at', `${localDate}T23:59:59`)
+        .eq('event_type', 'other');
+
+      if (otherEvents && otherEvents.length > 0) {
+        for (const event of otherEvents) {
+          const details = event.details || {};
+          const activities = details.activities || [];
+          
+          // Check for recovery activities buried in "other" events
+          for (const activity of activities) {
+            const activityLower = (activity as string).toLowerCase();
+            if (['sauna', 'cold_plunge', 'ice_bath', 'cold plunge', 'ice bath'].includes(activityLower)) {
+              const durationMin = details.sauna_duration_min || details.duration_min || 15;
+              factors.push({
+                factor_category: FACTOR_CATEGORIES.RECOVERY,
+                factor_key: activityLower.replace(' ', '_'),
+                numeric_value: durationMin,
+                string_value: null,
+                time_value: event.happened_at ? new Date(event.happened_at) : null,
+                deviation_from_baseline: null,
+                baseline_value: null,
+                is_notable: true,
+                source: 'user_logged',
+              });
+            }
+          }
         }
       }
 
