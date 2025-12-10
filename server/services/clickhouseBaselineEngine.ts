@@ -68,13 +68,13 @@ const METRIC_THRESHOLDS: Record<string, {
   deep_sleep: {
     zScoreThreshold: 1.5,
     percentageThreshold: 20,
-    direction: 'low',
+    direction: 'both',  // Changed to 'both' - detect BOTH low AND high deep sleep (high = opportunity to learn what worked!)
     severity: { moderate: 20, high: 35 },
   },
   rem_sleep: {
     zScoreThreshold: 1.5,
     percentageThreshold: 20,
-    direction: 'low',
+    direction: 'both',  // Changed to 'both' - detect BOTH low AND high REM sleep
     severity: { moderate: 20, high: 35 },
   },
   core_sleep: {
@@ -104,13 +104,13 @@ const METRIC_THRESHOLDS: Record<string, {
   deep_sleep_pct: {
     zScoreThreshold: 1.5,
     percentageThreshold: 25,
-    direction: 'low',
+    direction: 'both',  // Changed to 'both' - detect high deep sleep % too
     severity: { moderate: 25, high: 40 },
   },
   rem_sleep_pct: {
     zScoreThreshold: 1.5,
     percentageThreshold: 25,
-    direction: 'low',
+    direction: 'both',  // Changed to 'both' - detect high REM % too
     severity: { moderate: 25, high: 40 },
   },
   sleep_hrv: {

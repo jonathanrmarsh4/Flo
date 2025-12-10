@@ -107,6 +107,13 @@ interface UserHealthContext {
     avgFragmentationIndex: number | null;
     daysWithData: number;
   } | null;
+  recentSleepNights: Array<{
+    date: string;
+    deepSleepMin: number | null;
+    remSleepMin: number | null;
+    totalSleepMin: number | null;
+    deviationFromBaseline: string | null;  // e.g., "+115%" for big jumps
+  }> | null;
   recentTrends: {
     hrv: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
     rhr: { recent: number | null; avg7d: number | null; change: number | null; direction: 'up' | 'down' | 'stable' | null };
@@ -305,6 +312,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
         activeKcal: null,
       },
       sleepDetails7Days: null,
+      recentSleepNights: null,
       recentTrends: null,
       healthkitMetrics: {
         weight: null,
@@ -553,6 +561,30 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
           avgFragmentationIndex: fragIndex !== null ? Math.round(fragIndex * 100) / 100 : null,
           daysWithData: sleepFor7Days.filter(s => s.totalSleepMin != null).length,
         };
+        
+        // Build individual night breakdown for the last 5 nights (for Oracle to spot outliers)
+        const avgDeepForDeviation = deepSleep ?? 0;
+        context.recentSleepNights = sleepNightsData.slice(0, 5).map(night => {
+          const nightDeep = night.deepSleepMin ?? null;
+          let deviationStr: string | null = null;
+          
+          // Calculate deviation from 7-day average if we have both values
+          if (nightDeep !== null && avgDeepForDeviation > 0) {
+            const deviation = ((nightDeep - avgDeepForDeviation) / avgDeepForDeviation) * 100;
+            if (Math.abs(deviation) >= 30) {
+              // Flag significant deviations (±30% or more)
+              deviationStr = deviation > 0 ? `+${Math.round(deviation)}% vs avg` : `${Math.round(deviation)}% vs avg`;
+            }
+          }
+          
+          return {
+            date: night.sleepDate || 'unknown',
+            deepSleepMin: nightDeep !== null ? Math.round(nightDeep * 10) / 10 : null,
+            remSleepMin: night.remSleepMin !== null && night.remSleepMin !== undefined ? Math.round(night.remSleepMin * 10) / 10 : null,
+            totalSleepMin: night.totalSleepMin !== null && night.totalSleepMin !== undefined ? Math.round(night.totalSleepMin) : null,
+            deviationFromBaseline: deviationStr,
+          };
+        });
         
         logger.info(`[FloOracle] Fetched detailed sleep: ${context.sleepDetails7Days.daysWithData} days, deep=${context.sleepDetails7Days.avgDeepSleepMin}min, rem=${context.sleepDetails7Days.avgRemSleepMin}min, efficiency=${context.sleepDetails7Days.avgEfficiencyPct}%`);
       }
@@ -1348,6 +1380,24 @@ function buildContextString(context: UserHealthContext, bloodPanelHistory: Blood
     
     // Add context about ideal ranges for AI interpretation
     lines.push(`  [Reference: Ideal deep sleep 13-23%, REM 20-25%, efficiency >85%]`);
+  }
+
+  // Add individual night breakdown so Oracle can spot specific outliers
+  const recentNights = context.recentSleepNights;
+  if (recentNights && recentNights.length > 0) {
+    lines.push('');
+    lines.push('INDIVIDUAL NIGHTS (last 5 nights - spot outliers!):');
+    for (const night of recentNights) {
+      const deepStr = night.deepSleepMin !== null ? `Deep: ${night.deepSleepMin} min` : '';
+      const remStr = night.remSleepMin !== null ? `REM: ${night.remSleepMin} min` : '';
+      const totalStr = night.totalSleepMin !== null ? `Total: ${Math.round(night.totalSleepMin / 60 * 10) / 10}h` : '';
+      const parts = [totalStr, deepStr, remStr].filter(Boolean).join(', ');
+      
+      // Highlight significant deviations with a clear text flag (no emojis)
+      const deviationFlag = night.deviationFromBaseline ? ` **NOTABLE: ${night.deviationFromBaseline}**` : '';
+      lines.push(`  ${night.date}: ${parts}${deviationFlag}`);
+    }
+    lines.push('  [TIP: Large deviations marked **NOTABLE** are opportunities - ask what was different that day!]');
   }
 
   // Add recent trends section (last 48h vs 7-day baseline)
