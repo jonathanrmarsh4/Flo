@@ -1,0 +1,93 @@
+Since you are using Gemini 2.5 Pro, you have a massive advantage: Context Caching and a 2 Million Token Window.
+
+You don't need complex vector databases or summary compression for "recent memory." You can simply keep the entire conversation history in the active context. The "simplest" fix for the "Groundhog Day" effect (repeating the HRV stat) is to change how you structure your prompt and utilize Gemini's caching to make it affordable.
+
+Here is the breakdown of the simplest setup for Gemini 2.5 Pro.
+
+1. The Architectural Fix: "Stateful" Context Caching
+
+The reason your AI repeats "Your HRV is elevated" is likely because you are feeding that RAG data into the prompt fresh every time, and the AI thinks it's breaking news.
+
+Instead of sending [RAG Data] + [New Question], you need to maintain a Cached Session that looks like this:
+
+The Structure:
+
+System Instructions: "You are a health coach..."
+
+Static Context (RAG): "User's HRV is 55 (Elevated)..."
+
+Conversation History: (The last 20+ turns of chat)
+
+The Logic: When you feed the history along with the RAG data, Gemini 2.5 Pro will look back and see:
+
+Turn 1: AI says "Your HRV is high."
+
+Turn 2: User says "Yeah, I had wine last night."
+
+Turn 3 (Current): User asks "What should I eat?"
+
+Because the "HRV is high" statement is visible in Turn 1, Gemini will treat it as old news and won't repeat it in Turn 3.
+
+2. The Code Implementation (Python SDK)
+
+Gemini 2.5 Pro supports Context Caching, which lets you upload this history once and just append to it (or re-reference it) so you don't pay to re-process the whole history every message.
+
+Here is the simplest meaningful implementation using the Google Gen AI SDK:
+
+Python
+import google.generativeai as genai
+import datetime
+
+# 1. Setup the "Session State"
+# In a real app, 'chat_history' comes from your database.
+chat_history = [
+    {"role": "user", "parts": ["Hi, how am I doing today?"]},
+    {"role": "model", "parts": ["Your HRV is elevated at 120ms. You might want to take it easy."]},
+    {"role": "user", "parts": ["Okay, I'll rest."]}
+]
+
+# 2. Add your RAG Data (The Health Metrics)
+# Crucial: timestamp it so the AI knows WHEN this data is from.
+current_rag_context = f"""
+[Current Health Data - {datetime.datetime.now()}]
+HRV: 120ms (Elevated)
+Resting Heart Rate: 65 bpm
+Goal: Marathon training
+"""
+
+# 3. Construct the "Anti-Nagging" System Instruction
+system_instruction = """
+You are an expert health coach.
+- Use the provided [Current Health Data] to inform your advice.
+- CHECK THE CHAT HISTORY first. If you have already alerted the user to a specific metric (like elevated HRV) in the recent history, DO NOT repeat that alert unless the value has changed significantly.
+- Treat the user's health data as a persistent state, not breaking news.
+"""
+
+# 4. Initialize the Chat with History
+model = genai.GenerativeModel(
+    model_name="gemini-2.5-pro",
+    system_instruction=system_instruction
+)
+
+# Load the history into the chat session
+chat = model.start_chat(history=chat_history)
+
+# 5. Inject RAG data invisibly or as a system update
+# A trick with Gemini is to send the RAG data as a 'user' message that implies context, 
+# or strictly keep it in the system instruction if it updates slowly.
+# For dynamic RAG, send it with the query:
+response = chat.send_message(f"Context: {current_rag_context}\n\nUser Question: What should I eat for lunch?")
+
+print(response.text)
+3. The "Anti-Nag" Prompt
+
+Gemini 2.5 Pro is excellent at following negative constraints. You must explicitly tell it how to handle the RAG data. Add this to your System Instruction:
+
+"Before mentioning any health metric from the context, review the conversation history. If this metric was already discussed or acknowledged by the user in the last 5 turns, do not mention it again unless explicitly asked."
+
+Summary of Differences
+
+Old Method	New Method (Gemini 2.5 Way)
+Input: RAG Data + User Question	Input: History + RAG Data + User Question
+AI View: "I see high HRV! I must warn the user!"	AI View: "I see high HRV, but I see I told them 5 mins ago. I'll stay quiet."
+Cost: High (re-sending everything)	Cost: Low (Use Context Caching for long histories)
