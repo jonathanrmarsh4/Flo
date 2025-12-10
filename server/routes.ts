@@ -74,6 +74,7 @@ import {
   userDailyEngagement,
   developerMessages,
   developerMessageReads,
+  developerMessageDismissals,
   userFeedback,
   sieBrainstormSessions,
   userInsights,
@@ -4768,8 +4769,19 @@ Important: This is for educational purposes. Include a brief note that users sho
         .from(developerMessageReads)
         .where(eq(developerMessageReads.userId, userId));
       
+      // Get which ones the user has dismissed
+      const dismissedMessages = await db
+        .select({ messageId: developerMessageDismissals.messageId })
+        .from(developerMessageDismissals)
+        .where(eq(developerMessageDismissals.userId, userId));
+      
       const readMessageIds = new Set(readMessages.map(r => r.messageId));
-      const unreadCount = messages.filter(m => !readMessageIds.has(m.id)).length;
+      const dismissedMessageIds = new Set(dismissedMessages.map(d => d.messageId));
+      
+      // Count messages that are not read AND not dismissed
+      const unreadCount = messages.filter(m => 
+        !readMessageIds.has(m.id) && !dismissedMessageIds.has(m.id)
+      ).length;
       
       res.json({ unreadCount });
     } catch (error) {
@@ -4799,7 +4811,7 @@ Important: This is for educational purposes. Include a brief note that users sho
         .orderBy(desc(developerMessages.createdAt));
       
       // Filter to messages targeting this user (null = all users, or userId in targetUserIds array)
-      const messages = allMessages.filter(m => 
+      const targetedMessages = allMessages.filter(m => 
         m.targetUserIds === null || (m.targetUserIds as string[]).includes(userId)
       );
       
@@ -4809,13 +4821,22 @@ Important: This is for educational purposes. Include a brief note that users sho
         .from(developerMessageReads)
         .where(eq(developerMessageReads.userId, userId));
       
-      const readMessageIds = new Set(readMessages.map(r => r.messageId));
+      // Get which ones the user has dismissed
+      const dismissedMessages = await db
+        .select({ messageId: developerMessageDismissals.messageId })
+        .from(developerMessageDismissals)
+        .where(eq(developerMessageDismissals.userId, userId));
       
-      // Add isRead status to messages (don't expose targetUserIds to users)
-      const messagesWithReadStatus = messages.map(({ targetUserIds, ...m }) => ({
-        ...m,
-        isRead: readMessageIds.has(m.id),
-      }));
+      const readMessageIds = new Set(readMessages.map(r => r.messageId));
+      const dismissedMessageIds = new Set(dismissedMessages.map(d => d.messageId));
+      
+      // Filter out dismissed messages and add isRead status (don't expose targetUserIds to users)
+      const messagesWithReadStatus = targetedMessages
+        .filter(m => !dismissedMessageIds.has(m.id))
+        .map(({ targetUserIds, ...m }) => ({
+          ...m,
+          isRead: readMessageIds.has(m.id),
+        }));
       
       res.json({ messages: messagesWithReadStatus });
     } catch (error) {
@@ -4860,6 +4881,46 @@ Important: This is for educational purposes. Include a brief note that users sho
     } catch (error) {
       logger.error('Error marking message as read:', error);
       res.status(500).json({ error: "Failed to mark message as read" });
+    }
+  });
+
+  // Dismiss (delete from inbox) a developer message for this user
+  app.delete("/api/notifications/messages/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const messageId = parseInt(req.params.id);
+      
+      if (isNaN(messageId)) {
+        return res.status(400).json({ error: "Invalid message ID" });
+      }
+      
+      // Check if already dismissed
+      const existing = await db
+        .select()
+        .from(developerMessageDismissals)
+        .where(
+          and(
+            eq(developerMessageDismissals.userId, userId),
+            eq(developerMessageDismissals.messageId, messageId)
+          )
+        )
+        .limit(1);
+      
+      if (existing.length === 0) {
+        // Mark as dismissed
+        await db
+          .insert(developerMessageDismissals)
+          .values({
+            userId,
+            messageId,
+          });
+      }
+      
+      logger.info(`[Notifications] Message ${messageId} dismissed by user ${userId}`);
+      res.json({ success: true });
+    } catch (error) {
+      logger.error('Error dismissing message:', error);
+      res.status(500).json({ error: "Failed to dismiss message" });
     }
   });
 
@@ -7209,7 +7270,7 @@ Important: This is for educational purposes. Include a brief note that users sho
   // Admin: Create a new developer message
   app.post("/api/admin/developer-messages", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
-      const { title, message, type, expiresAt, targetUserIds } = req.body;
+      const { title, message, type, expiresAt, targetUserIds, sendPush } = req.body;
       
       if (!title || !message) {
         return res.status(400).json({ error: "Title and message are required" });
@@ -7230,7 +7291,62 @@ Important: This is for educational purposes. Include a brief note that users sho
         messageId: newMessage.id, 
         targetUsers: targetUserIds?.length || 'all' 
       });
-      res.json(newMessage);
+      
+      // Send push notifications if requested
+      let pushResults = { sent: 0, failed: 0 };
+      if (sendPush) {
+        try {
+          const { apnsService } = await import("./services/apnsService");
+          
+          // Determine which users to notify
+          let userIdsToNotify: string[] = [];
+          
+          if (targetUserIds && targetUserIds.length > 0) {
+            // Specific users targeted
+            userIdsToNotify = targetUserIds;
+          } else {
+            // All users - get all active device tokens and extract unique user IDs
+            const allTokens = await db
+              .select({ userId: deviceTokens.userId })
+              .from(deviceTokens)
+              .where(eq(deviceTokens.isActive, true));
+            userIdsToNotify = [...new Set(allTokens.map(t => t.userId))];
+          }
+          
+          logger.info(`[Admin] Sending push notifications to ${userIdsToNotify.length} user(s)`);
+          
+          // Send push to each user
+          for (const userId of userIdsToNotify) {
+            try {
+              const result = await apnsService.sendToUser(userId, {
+                title: 'Important update from Flo',
+                body: title,
+                sound: 'default',
+                interruptionLevel: 'active',
+                data: {
+                  type: 'developer_message',
+                  messageId: newMessage.id,
+                },
+              });
+              
+              if (result.success) {
+                pushResults.sent += result.devicesReached;
+              } else {
+                pushResults.failed++;
+              }
+            } catch (pushError) {
+              logger.error(`[Admin] Failed to send push to user ${userId}:`, pushError);
+              pushResults.failed++;
+            }
+          }
+          
+          logger.info(`[Admin] Push notifications complete: ${pushResults.sent} sent, ${pushResults.failed} failed`);
+        } catch (pushError) {
+          logger.error('[Admin] Error sending push notifications:', pushError);
+        }
+      }
+      
+      res.json({ ...newMessage, pushResults: sendPush ? pushResults : null });
     } catch (error) {
       logger.error('Error creating developer message:', error);
       res.status(500).json({ error: "Failed to create message" });

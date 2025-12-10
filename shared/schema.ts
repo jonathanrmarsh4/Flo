@@ -2758,6 +2758,17 @@ export const developerMessageReads = pgTable("developer_message_reads", {
   userIdIdx: index("idx_developer_message_reads_user").on(table.userId),
 }));
 
+// Track which users have dismissed (deleted from inbox) which messages
+export const developerMessageDismissals = pgTable("developer_message_dismissals", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  messageId: integer("message_id").notNull().references(() => developerMessages.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  dismissedAt: timestamp("dismissed_at").defaultNow().notNull(),
+}, (table) => ({
+  userMessageUniqueIdx: uniqueIndex("idx_developer_message_dismissals_unique").on(table.userId, table.messageId),
+  userIdIdx: index("idx_developer_message_dismissals_user").on(table.userId),
+}));
+
 // Zod enums for validation
 export const DeveloperMessageTypeEnum = z.enum(["update", "outage", "feature"]);
 

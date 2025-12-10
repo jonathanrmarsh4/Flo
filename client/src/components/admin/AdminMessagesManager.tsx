@@ -59,6 +59,7 @@ export function AdminMessagesManager() {
   const [messageType, setMessageType] = useState<'update' | 'outage' | 'feature'>('update');
   const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [sendPush, setSendPush] = useState(false);
   
   const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'new' | 'in_review'>('all');
   const [expandedFeedback, setExpandedFeedback] = useState<number | null>(null);
@@ -84,20 +85,30 @@ export function AdminMessagesManager() {
   const featureRequests = feedback.filter(f => f.type === 'feature_request');
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (data: { title: string; message: string; type: string; targetUserIds?: string[] }) => {
+    mutationFn: async (data: { title: string; message: string; type: string; targetUserIds?: string[]; sendPush?: boolean }) => {
       return apiRequest('POST', '/api/admin/developer-messages', data);
     },
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/developer-messages'] });
       setTitle('');
       setMessage('');
       setMessageType('update');
       setTargetType('all');
       setSelectedUserIds([]);
-      toast({
-        title: 'Message Sent',
-        description: 'Your message has been sent to users',
-      });
+      setSendPush(false);
+      
+      const pushResults = response?.pushResults;
+      if (pushResults) {
+        toast({
+          title: 'Message Sent with Push',
+          description: `Message sent. Push notifications: ${pushResults.sent} delivered, ${pushResults.failed} failed.`,
+        });
+      } else {
+        toast({
+          title: 'Message Sent',
+          description: 'Your message has been sent to users',
+        });
+      }
     },
     onError: () => {
       toast({
@@ -151,6 +162,7 @@ export function AdminMessagesManager() {
       message: message.trim(),
       type: messageType,
       targetUserIds: targetType === 'specific' && selectedUserIds.length > 0 ? selectedUserIds : undefined,
+      sendPush,
     });
   };
 
@@ -324,6 +336,26 @@ export function AdminMessagesManager() {
                 className="bg-white/5 border-white/10 text-white placeholder:text-white/30 resize-none"
                 data-testid="input-message-body"
               />
+            </div>
+
+            <div className="flex items-center gap-3 p-4 rounded-lg border border-white/10 bg-white/5">
+              <input
+                type="checkbox"
+                id="send-push"
+                checked={sendPush}
+                onChange={(e) => setSendPush(e.target.checked)}
+                className="rounded border-white/20 w-5 h-5"
+                data-testid="checkbox-send-push"
+              />
+              <label htmlFor="send-push" className="flex-1 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-cyan-400" />
+                  <span className="text-white">Send Push Notification</span>
+                </div>
+                <p className="text-white/50 text-sm mt-1">
+                  Users will receive "Important update from Flo" on their devices
+                </p>
+              </label>
             </div>
 
             <Button

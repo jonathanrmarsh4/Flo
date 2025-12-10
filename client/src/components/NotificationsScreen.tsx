@@ -1,4 +1,4 @@
-import { Bell, ChevronLeft, Bug, Lightbulb, MessageSquare, Image, Send, Check, Loader2 } from 'lucide-react';
+import { Bell, ChevronLeft, Bug, Lightbulb, MessageSquare, Image, Send, Check, Loader2, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
@@ -45,6 +45,28 @@ export function NotificationsScreen({ isDark, onClose }: NotificationsScreenProp
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications/messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
+    },
+  });
+
+  const dismissMessageMutation = useMutation({
+    mutationFn: async (messageId: number) => {
+      return apiRequest('DELETE', `/api/notifications/messages/${messageId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications/messages'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications/unread-count'] });
+      toast({
+        title: 'Message dismissed',
+        description: 'The message has been removed from your inbox.',
+      });
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to dismiss message. Please try again.',
+        variant: 'destructive',
+      });
     },
   });
 
@@ -262,12 +284,28 @@ export function NotificationsScreen({ isDark, onClose }: NotificationsScreenProp
                   <div
                     key={message.id}
                     onClick={() => !message.isRead && markAsRead(message.id)}
-                    className={`backdrop-blur-xl rounded-3xl border p-6 transition-all cursor-pointer ${
+                    className={`backdrop-blur-xl rounded-3xl border p-6 transition-all cursor-pointer relative group ${
                       isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-white/80 border-gray-200 hover:bg-white'
                     } ${!message.isRead ? 'shadow-lg' : ''}`}
                     data-testid={`message-${message.id}`}
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dismissMessageMutation.mutate(message.id);
+                      }}
+                      disabled={dismissMessageMutation.isPending}
+                      className={`absolute top-4 right-4 p-2 rounded-full transition-all opacity-0 group-hover:opacity-100 ${
+                        isDark 
+                          ? 'bg-white/10 hover:bg-white/20 text-white/60 hover:text-white' 
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+                      }`}
+                      data-testid={`button-dismiss-message-${message.id}`}
+                      title="Remove from inbox"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <div className="flex items-start justify-between mb-3 pr-8">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
