@@ -58,6 +58,18 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - **Smart Insight Generation:** `generateSmartInsight()` combines ML-computed causes with Gemini formatting. ML layer computes ranked causes with confidence, AI layer formats warm narratives. AI never invents causes - only formats what ML found.
   - **Feedback Loop:** User 1-10 responses wire back to ClickHouse to strengthen attribution weights over time.
   - **Schema Extensions:** `pending_correlation_feedback` table extended with `insightText`, `likelyCauses`, `whatsWorking`, `patternConfidence`, `isRecurringPattern`, `historicalMatchCount` for rich causal context.
+  - **ML Sensitivity Settings (Admin-Tunable):** Dynamic configuration stored in Neon `ml_sensitivity_settings` table with 1-minute caching. Controls:
+    - `anomalyZScoreThreshold` (default 2.0): Z-score threshold for anomaly detection
+    - `minPatternMatches` (default 3): Minimum matches to flag as recurring pattern
+    - `historyWindowMonths` (default 24): Lookback period for pattern analysis
+    - `minPositiveOccurrences` (default 5): Minimum occurrences for positive patterns
+    - `positiveOutcomeThreshold` (default 0.1): Deviation threshold for positive outcomes
+    - `insightConfidenceThreshold` (default 0.3): Minimum confidence to show insights
+    - `maxCausesToShow` (default 3): Maximum likely causes per insight
+    - `maxPositivePatternsToShow` (default 3): Maximum positive patterns per insight
+    - `enableProactiveAlerts` (default true): Enable proactive anomaly alerts
+    - `alertCooldownHours` (default 4): Cooldown between alerts
+  - **Admin Panel:** Settings → ML Sensitivity Settings provides sliders for all controls with reset-to-defaults option.
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
 - **HealthKit Sample Deduplication:** Server-side fingerprint-based deduplication for HealthKit samples.
 - **Self-Improvement Engine (SIE):** Admin-only sandbox AI for product improvement suggestions.
