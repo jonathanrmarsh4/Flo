@@ -164,6 +164,9 @@ class GeminiLiveClient {
         // Wrap audio config in generationConfig per Google's format
         generationConfig: {
           responseModalities: [Modality.AUDIO],
+          // Low temperature for stable token selection - prevents spaced-out letters
+          // in transcription (e.g., "t r a n s c r i p t" instead of "transcript")
+          temperature: 0.1,
           speechConfig: config.voiceName ? {
             voiceConfig: {
               prebuiltVoiceConfig: {
