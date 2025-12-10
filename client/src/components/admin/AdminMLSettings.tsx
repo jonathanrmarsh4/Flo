@@ -59,10 +59,7 @@ export function AdminMLSettings() {
 
   const saveMutation = useMutation({
     mutationFn: async (updates: Partial<MLSettings>) => {
-      return apiRequest('/api/admin/ml-settings', {
-        method: 'PATCH',
-        body: JSON.stringify(updates),
-      });
+      return apiRequest('PATCH', '/api/admin/ml-settings', updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/ml-settings'] });
@@ -76,7 +73,7 @@ export function AdminMLSettings() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/admin/ml-settings/reset', { method: 'POST' });
+      return apiRequest('POST', '/api/admin/ml-settings/reset');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/ml-settings'] });
