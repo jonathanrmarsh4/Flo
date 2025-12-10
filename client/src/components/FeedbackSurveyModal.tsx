@@ -14,12 +14,22 @@ interface FeedbackQuestion {
   urgency: 'low' | 'medium' | 'high';
 }
 
+interface CausalContext {
+  insightText?: string | null;
+  likelyCauses?: string[] | null;
+  whatsWorking?: string[] | null;
+  patternConfidence?: number | null;
+  isRecurringPattern?: boolean;
+  historicalMatchCount?: number | null;
+}
+
 interface FeedbackSurveyModalProps {
   feedbackId: string;
   question: FeedbackQuestion;
   isDark: boolean;
   onClose: () => void;
   onSubmit?: () => void;
+  causalContext?: CausalContext;
 }
 
 const PATTERN_ICONS: Record<string, any> = {
@@ -43,7 +53,7 @@ interface TypedResponse {
   responseText?: string;
 }
 
-export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onSubmit }: FeedbackSurveyModalProps) {
+export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onSubmit, causalContext }: FeedbackSurveyModalProps) {
   const [scaleValue, setScaleValue] = useState<number | null>(null);
   const [booleanValue, setBooleanValue] = useState<boolean | null>(null);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
@@ -248,6 +258,27 @@ export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onS
                 <X className={`w-5 h-5 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
               </button>
             </div>
+
+            {/* Causal context section - shows insight and likely causes if available */}
+            {causalContext?.insightText && (
+              <div className={`mb-4 p-4 rounded-2xl ${isDark ? 'bg-white/10' : 'bg-blue-50'}`}>
+                <p className={`text-sm leading-relaxed mb-2 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                  {causalContext.insightText}
+                </p>
+                {causalContext.likelyCauses && causalContext.likelyCauses.length > 0 && (
+                  <div className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    <span className="font-medium">Possible causes:</span>{' '}
+                    {causalContext.likelyCauses.join(', ')}
+                  </div>
+                )}
+                {causalContext.whatsWorking && causalContext.whatsWorking.length > 0 && (
+                  <div className={`text-xs mt-1 ${isDark ? 'text-green-400/80' : 'text-green-600'}`}>
+                    <span className="font-medium">What's working:</span>{' '}
+                    {causalContext.whatsWorking.join(', ')}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className={`mb-6 p-4 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
               <div className="flex items-start gap-3">

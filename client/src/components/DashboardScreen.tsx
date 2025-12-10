@@ -6,7 +6,6 @@ import { SleepTile } from './dashboard/SleepTile';
 import { FlomentumGamifiedTile } from './dashboard/FlomentumGamifiedTile';
 import { UpgradePremiumTile } from './dashboard/UpgradePremiumTile';
 import { AirQualityTile } from './dashboard/AirQualityTile';
-import { AnomalyAlertTile } from './dashboard/AnomalyAlertTile';
 import { MorningBriefingTile } from './dashboard/MorningBriefingTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
@@ -151,6 +150,13 @@ interface PendingFeedbackAlert {
   urgency: 'low' | 'medium' | 'high';
   createdAt: string;
   expiresAt: string;
+  // ML-computed causal analysis
+  insightText?: string | null;
+  likelyCauses?: string[] | null;
+  whatsWorking?: string[] | null;
+  patternConfidence?: number | null;
+  isRecurringPattern?: boolean;
+  historicalMatchCount?: number | null;
 }
 
 const DISMISSED_FEEDBACK_KEY = 'flo-dismissed-ml-feedback';
@@ -563,11 +569,27 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
                            availableAlert.urgency === 'medium' ? 'Check-In' : 'Quick Question'}
                         </span>
                       </div>
-                      <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {availableAlert.questionText.length > 80 
-                          ? availableAlert.questionText.substring(0, 77) + '...' 
-                          : availableAlert.questionText}
-                      </p>
+                      {/* Show causal insight context if available, otherwise show question */}
+                      {availableAlert.insightText ? (
+                        <>
+                          <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {availableAlert.insightText.length > 120 
+                              ? availableAlert.insightText.substring(0, 117) + '...' 
+                              : availableAlert.insightText}
+                          </p>
+                          {availableAlert.likelyCauses && availableAlert.likelyCauses.length > 0 && (
+                            <div className={`mt-2 text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                              Possible causes: {availableAlert.likelyCauses.slice(0, 2).join(', ')}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {availableAlert.questionText.length > 80 
+                            ? availableAlert.questionText.substring(0, 77) + '...' 
+                            : availableAlert.questionText}
+                        </p>
+                      )}
                       <div className="flex items-center gap-1 mt-2">
                         <MessageCircle className={`w-3 h-3 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
                         <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
@@ -580,8 +602,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
               );
             })()}
 
-            {/* Anomaly Alert Tile - Shows when ML detects a health pattern */}
-            <AnomalyAlertTile isDark={isDark} />
+            {/* AnomalyAlertTile removed - using ML Feedback Banner above instead */}
 
             {/* Morning Briefing Tile - Shows 7am-12pm above Flō Overview */}
             <MorningBriefingTile isDark={isDark} useMetric={true} onTalkToFlo={onTalkToFlo} />
@@ -662,6 +683,14 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           isDark={isDark}
           onClose={handleFeedbackClose}
           onSubmit={handleFeedbackSubmit}
+          causalContext={{
+            insightText: currentFeedback.insightText,
+            likelyCauses: currentFeedback.likelyCauses,
+            whatsWorking: currentFeedback.whatsWorking,
+            patternConfidence: currentFeedback.patternConfidence,
+            isRecurringPattern: currentFeedback.isRecurringPattern,
+            historicalMatchCount: currentFeedback.historicalMatchCount,
+          }}
         />
       )}
     </div>

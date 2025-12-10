@@ -4968,6 +4968,13 @@ Important: This is for educational purposes. Include a brief note that users sho
           urgency: alert.question.urgency,
           createdAt: alert.createdAt.toISOString(),
           expiresAt: alert.expiresAt.toISOString(),
+          // ML-computed causal analysis context
+          insightText: alert.insightText || null,
+          likelyCauses: alert.likelyCauses || null,
+          whatsWorking: alert.whatsWorking || null,
+          patternConfidence: alert.patternConfidence || null,
+          isRecurringPattern: alert.isRecurringPattern || false,
+          historicalMatchCount: alert.historicalMatchCount || null,
         })),
       });
     } catch (error) {

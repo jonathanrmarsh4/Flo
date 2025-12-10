@@ -479,6 +479,13 @@ class CorrelationInsightService {
     visibleAt: Date;
     focusMetric: string | null;
     deliveryWindow: string | null;
+    // ML-computed causal analysis
+    insightText: string | null;
+    likelyCauses: string[] | null;
+    whatsWorking: string[] | null;
+    patternConfidence: number | null;
+    isRecurringPattern: boolean;
+    historicalMatchCount: number | null;
   }>> {
     await this.cleanupExpiredFeedback();
     await this.cleanupOldAnsweredPatterns();
@@ -526,6 +533,13 @@ class CorrelationInsightService {
       visibleAt: row.visibleAt,
       focusMetric: row.focusMetric,
       deliveryWindow: row.deliveryWindow,
+      // ML-computed causal analysis
+      insightText: row.insightText,
+      likelyCauses: row.likelyCauses,
+      whatsWorking: row.whatsWorking,
+      patternConfidence: row.patternConfidence,
+      isRecurringPattern: row.isRecurringPattern || false,
+      historicalMatchCount: row.historicalMatchCount,
     }));
   }
 
