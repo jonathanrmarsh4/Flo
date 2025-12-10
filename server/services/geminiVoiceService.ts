@@ -613,7 +613,7 @@ Start the conversation warmly, using their name if you have it.`;
           aiMentionedActivities,
           userTextPreview: userText.substring(0, 150),
         });
-        this.processLifeEventWithContext(state.userId, enhancedUserText, aiMentionedActivities).catch(err => {
+        this.processLifeEventWithContext(state.userId, enhancedUserText, aiMentionedActivities, sessionId).catch(err => {
           logger.error('[GeminiVoice] Fallback life event processing failed', { 
             sessionId, 
             error: err.message 
@@ -743,7 +743,7 @@ Start the conversation warmly, using their name if you have it.`;
           aiMentionedActivities,
         });
         
-        this.processLifeEventWithContext(state.userId, extractionText, aiMentionedActivities).catch(err => {
+        this.processLifeEventWithContext(state.userId, extractionText, aiMentionedActivities, sessionId).catch(err => {
           logger.error('[GeminiVoice] Life event processing failed', { 
             sessionId, 
             error: err.message 
@@ -803,7 +803,8 @@ Start the conversation warmly, using their name if you have it.`;
   private async processLifeEventWithContext(
     userId: string, 
     transcript: string, 
-    aiMentionedActivities: string[]
+    aiMentionedActivities: string[],
+    sessionId?: string
   ): Promise<void> {
     const startTime = Date.now();
     try {
@@ -883,6 +884,22 @@ Start the conversation warmly, using their name if you have it.`;
           savedEvents.push({
             eventType: extraction.eventType,
             eventId: result?.id,
+            acknowledgment: extraction.acknowledgment,
+          });
+          
+          // Add confirmation message to chat (as Flō message)
+          const confirmationMsg = this.formatLifeEventConfirmation(extraction.eventType, extraction.details, extraction.acknowledgment);
+          await db.insert(floChatMessages).values({
+            userId,
+            sender: 'flo',
+            message: confirmationMsg,
+            sessionId: sessionId,
+          });
+          
+          logger.info('[GeminiVoice] Life event confirmation added to chat', {
+            userId,
+            eventType: extraction.eventType,
+            confirmation: confirmationMsg,
           });
         } catch (saveError: any) {
           logger.error('[GeminiVoice] Failed to save individual event', {
@@ -1108,6 +1125,47 @@ Start the conversation warmly, using their name if you have it.`;
     }
     
     return topics.slice(0, 10); // Limit to 10 topics
+  }
+
+  /**
+   * Format a confirmation message for a logged life event
+   * Creates user-friendly messages for the chat display
+   */
+  private formatLifeEventConfirmation(
+    eventType: string,
+    details: Record<string, any>,
+    acknowledgment: string
+  ): string {
+    // Map event types to friendly icons and labels
+    const eventLabels: Record<string, string> = {
+      'sauna': 'Sauna session',
+      'ice_bath': 'Ice bath',
+      'workout': 'Workout',
+      'alcohol': 'Alcohol intake',
+      'supplements': 'Supplements',
+      'caffeine': 'Caffeine',
+      'stress': 'Stress level',
+      'breathwork': 'Breathwork',
+      'meditation': 'Meditation',
+      'late_meal': 'Late meal',
+      'symptoms': 'Symptoms',
+      'health_goal': 'Health goal',
+      'observation': 'Observation',
+    };
+    
+    const label = eventLabels[eventType] || eventType.replace(/_/g, ' ');
+    
+    // Build detail string if available
+    let detailStr = '';
+    if (details.duration_min) {
+      detailStr = ` (${details.duration_min} min)`;
+    } else if (details.temp_c) {
+      detailStr = ` at ${details.temp_c}°C`;
+    } else if (details.type) {
+      detailStr = ` - ${details.type}`;
+    }
+    
+    return `[Logged] ${label}${detailStr} - tracked for health insights`;
   }
 
   /**
