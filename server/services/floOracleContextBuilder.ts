@@ -41,6 +41,7 @@ import {
   getPendingBiomarkerFollowups,
   type BiomarkerFollowup,
 } from './supabaseHealthStorage';
+import { behaviorAttributionEngine } from './behaviorAttributionEngine';
 
 // In-memory cache for user health context (5 minute TTL)
 interface CachedContext {
@@ -2195,6 +2196,57 @@ export async function getRecentChatHistory(userId: string, limit: number = 20): 
     return lines.join('\n');
   } catch (error) {
     logger.error('[FloOracle] Error retrieving chat history:', error);
+    return '';
+  }
+}
+
+/**
+ * Get recent behavior attribution insights for the Oracle
+ * Surfaces causal hypotheses linking outcomes to specific behaviors
+ */
+export async function getBehaviorAttributionInsights(userId: string): Promise<string> {
+  try {
+    // Get user's health_id from profile
+    const profile = await getHealthRouterProfile(userId);
+    if (!profile?.health_id) {
+      return '';
+    }
+
+    const recentAttributions = await behaviorAttributionEngine.getRecentAttributions(profile.health_id, 3);
+    
+    if (recentAttributions.length === 0) {
+      return '';
+    }
+
+    const lines = [
+      '',
+      'BEHAVIOR ATTRIBUTION INSIGHTS (detected patterns linking behaviors to outcomes):',
+      '[Use these to provide personalized causal analysis when discussing health metrics]',
+    ];
+
+    for (const attribution of recentAttributions) {
+      const direction = attribution.outcomeDeviationPct > 0 ? 'improvement' : 'decline';
+      const metricLabel = attribution.outcomeMetric.replace(/_/g, ' ');
+      
+      lines.push(`• ${metricLabel}: ${Math.abs(Math.round(attribution.outcomeDeviationPct))}% ${direction}`);
+      
+      if (attribution.attributedFactors.length > 0) {
+        const topFactors = attribution.attributedFactors.slice(0, 3);
+        for (const factor of topFactors) {
+          const changeDir = factor.deviation > 0 ? 'higher' : 'lower';
+          lines.push(`  - ${factor.category} ${factor.key}: ${Math.abs(Math.round(factor.deviation))}% ${changeDir} than usual (${factor.value} vs baseline ${factor.baselineValue?.toFixed(1) || 'unknown'})`);
+        }
+        
+        if (attribution.experimentSuggestion) {
+          lines.push(`  💡 Suggestion: ${attribution.experimentSuggestion}`);
+        }
+      }
+    }
+
+    logger.info(`[FloOracle] Retrieved ${recentAttributions.length} behavior attribution insights for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving behavior attributions:', error);
     return '';
   }
 }

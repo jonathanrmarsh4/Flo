@@ -861,7 +861,61 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, and morning briefing)');
+    // Daily Behavior Factors - Unified daily aggregation of all behavior types
+    // Enables day-level attribution analysis when outcome anomalies are detected
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.daily_behavior_factors (
+          health_id String,
+          local_date Date,
+          factor_category LowCardinality(String),
+          factor_key LowCardinality(String),
+          numeric_value Nullable(Float64),
+          string_value Nullable(String),
+          time_value Nullable(DateTime64(3)),
+          deviation_from_baseline Nullable(Float64),
+          baseline_value Nullable(Float64),
+          is_notable UInt8 DEFAULT 0,
+          source LowCardinality(String),
+          metadata Nullable(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(local_date)
+        ORDER BY (health_id, local_date, factor_category, factor_key)
+        TTL local_date + INTERVAL 5 YEAR
+      `,
+    });
+
+    // Anomaly Attributions - Links detected anomalies to co-occurring behavior factors
+    // Powers the "what caused this?" hypothesis generation
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.anomaly_attributions (
+          attribution_id UUID DEFAULT generateUUIDv4(),
+          health_id String,
+          anomaly_date Date,
+          outcome_metric LowCardinality(String),
+          outcome_value Float64,
+          outcome_deviation_pct Float64,
+          attributed_factors String,
+          hypothesis_text String,
+          confidence_score Float64,
+          supporting_stats String,
+          experiment_suggested UInt8 DEFAULT 0,
+          experiment_outcome Nullable(String),
+          user_feedback Nullable(String),
+          was_helpful Nullable(UInt8),
+          created_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = MergeTree()
+        PARTITION BY toYYYYMM(anomaly_date)
+        ORDER BY (health_id, anomaly_date, attribution_id)
+        TTL anomaly_date + INTERVAL 3 YEAR
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, behavior attribution, and morning briefing)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);
