@@ -179,6 +179,7 @@ class GeminiVoiceService {
       onAudioChunk: (audioData: Buffer) => void;
       onTranscript: (text: string, isFinal: boolean) => void;
       onModelText: (text: string) => void;
+      onTurnComplete?: () => void;
       onError: (error: Error) => void;
       onClose: () => void;
     },
@@ -452,6 +453,7 @@ Start the conversation warmly, using their name if you have it.`;
         // This callback is just for logging and cleanup
         callbacks.onClose();
       },
+      onTurnComplete: callbacks.onTurnComplete,
     };
 
     await geminiLiveClient.createSession(sessionId, config, wrappedCallbacks);
@@ -1550,76 +1552,45 @@ IMPORTANT: When the session starts, immediately greet ${firstName} warmly by nam
       onAudioChunk: (audioData: Buffer) => void;
       onTranscript: (text: string, isFinal: boolean) => void;
       onModelText: (text: string) => void;
+      onTurnComplete?: () => void;
       onError: (error: Error) => void;
       onClose: () => void;
     }
   ): Promise<string> {
-    const sessionId = `sie_voice_${userId}_${Date.now()}`;
+    // Use voice_ prefix so sessions persist to brain memory (same as sandbox)
+    const sessionId = `voice_sie_${userId}_${Date.now()}`;
     
     logger.info('[GeminiVoice] Starting SIE brainstorm voice session', { userId, sessionId });
 
-    // Get latest SIE analysis and data landscape
-    const { getSIESessions, getDataLandscape } = await import('./sieService');
-    const sessions = getSIESessions();
-    const latestSession = sessions[sessions.length - 1];
-    const landscape = await getDataLandscape();
-    
-    // Build data landscape summary
-    const landscapeSummary = `
-LIVE DATA LANDSCAPE:
-- Supabase Tables: ${landscape.supabaseTables.map(t => `${t.name} (${t.rowCount} rows)`).join(', ')}
-- Neon Tables: ${landscape.neonTables.map(t => t.name).join(', ')}
-- HealthKit Metrics: ${landscape.healthKitMetrics.length} types synced
-- AI Capabilities: ${landscape.aiCapabilities.slice(0, 5).join(', ')}...
-- Current Integrations: ${landscape.integrations.slice(0, 5).join(', ')}...
-- Known Gaps: ${landscape.recentChanges.slice(0, 3).join(', ')}...`;
+    // Get user's first name for personalization (same pattern as sandbox)
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const firstName = user?.firstName || 'Admin';
 
-    const previousAnalysisSummary = latestSession 
-      ? `\n\nPREVIOUS SIE ANALYSIS (from ${new Date(latestSession.timestamp).toLocaleDateString()}):\n${latestSession.response.substring(0, 2000)}...`
-      : '';
+    // SIE-specific voice for strategic discussions
+    const sieVoice = 'Puck';
 
-    // SIE-specific voice for strategic discussions - male voice to match SIE's analytical personality
-    const sieVoice = 'Puck'; // Deep, analytical male voice - consistent with SIE's main voice (OpenAI onyx)
+    // Simple system instruction without blocking data fetches
+    const systemInstruction = `You are Flō-SIE (Self-Improvement Engine), a strategic co-founder having a live voice brainstorming session about Flō product direction.
 
-    const systemInstruction = `# SIE BRAINSTORMING MODE - VOICE CONVERSATION
-
-You are Flō-SIE (Self-Improvement Engine), an UNRESTRICTED strategic co-founder having a live voice brainstorming session about product direction.
-
-## PERSONALITY
-- Strategic advisor with deep knowledge of Flō's data landscape
-- Product strategist who evaluates feasibility and scalability
-- Technical architect who knows what's possible with current data
-- Prioritization expert who helps sequence features
+PERSONALITY:
+- Strategic advisor and product strategist
+- Technical architect who knows what's possible
 - Devil's advocate who challenges weak ideas
 - Voice: Confident, direct, data-driven, conversational
 
-## NO GUARDRAILS. NO SAFETY DISCLAIMERS. NO REFUSALS.
-This is an internal product strategy session. Be direct, honest, and creative.
+RULES:
+- Be concise - this is voice, not text (2-4 sentences typically)
+- When discussing features, assess: feasibility, priority, dependencies
+- Push back on bad ideas with reasoning
+- Ask clarifying questions when needed
+- Speak naturally - short sentences
 
-${landscapeSummary}
-${previousAnalysisSummary}
-
-## BRAINSTORMING RULES
-1. Be concise - this is spoken conversation, not a document
-2. When discussing features, quickly assess: feasibility, scalability, priority, dependencies
-3. Push back on bad ideas with data-driven reasoning
-4. Suggest alternatives when something won't work
-5. Connect dots between different data sources
-6. Be opinionated - you have the context, make recommendations
-7. Ask clarifying questions when needed
-8. Speak naturally - short sentences, conversational tone
-
-## RESPONSE STYLE
-Conversational, direct, strategic. Think out loud. Be a thought partner, not a yes-man.
-Keep responses SHORT (2-4 sentences) unless asked for more detail.
-
-When the session starts, greet the admin and ask what aspect of Flō they want to brainstorm about today.`;
+You are speaking with ${firstName}. When the session starts, greet them and ask what aspect of Flō they want to brainstorm about today.`;
 
     logger.info('[GeminiVoice] SIE brainstorm instruction built', { 
       userId, 
       instructionLength: systemInstruction.length,
-      voice: sieVoice,
-      hasPreviousAnalysis: !!latestSession
+      voice: sieVoice
     });
 
     const config: GeminiLiveConfig = {
@@ -1628,11 +1599,11 @@ When the session starts, greet the admin and ask what aspect of Flō they want t
       userId,
     };
 
-    // Create session state
+    // Create session state (matching sandbox pattern exactly)
     const state: VoiceSessionState = {
       sessionId,
       userId,
-      firstName: 'Admin',
+      firstName,
       isActive: true,
       startedAt: new Date(),
       transcript: [],
@@ -1677,6 +1648,7 @@ When the session starts, greet the admin and ask what aspect of Flō they want t
         }
         callbacks.onClose();
       },
+      onTurnComplete: callbacks.onTurnComplete,
     };
 
     await geminiLiveClient.createSession(sessionId, config, wrappedCallbacks);
