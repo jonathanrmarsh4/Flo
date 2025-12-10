@@ -11,11 +11,12 @@ import { MorningBriefingTile } from './dashboard/MorningBriefingTile';
 import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { ThreePMSurveyModal } from './ThreePMSurveyModal';
-import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell, ClipboardCheck } from 'lucide-react';
+import { FeedbackSurveyModal } from './FeedbackSurveyModal';
+import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell, ClipboardCheck, MessageCircle, AlertTriangle, ThermometerSnowflake, HeartPulse } from 'lucide-react';
 import { NotificationsScreen } from './NotificationsScreen';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { RAGInsightsScreen } from './RAGInsightsScreen';
 import { LockedTile } from './LockedTile';
 import { PaywallModal } from './PaywallModal';
@@ -140,11 +141,27 @@ function SortableItem({ id, isDark, children }: SortableItemProps) {
   );
 }
 
+interface PendingFeedbackAlert {
+  feedbackId: string;
+  questionText: string;
+  questionType: 'scale_1_10' | 'yes_no' | 'multiple_choice' | 'open_ended';
+  options?: string[];
+  triggerPattern: string;
+  triggerMetrics: Record<string, { value: number; deviation: number }>;
+  urgency: 'low' | 'medium' | 'high';
+  createdAt: string;
+  expiresAt: string;
+}
+
+const DISMISSED_FEEDBACK_KEY = 'flo-dismissed-ml-feedback';
+
 export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogout, onTalkToFlo }: DashboardScreenProps) {
   const [, setLocation] = useLocation();
   const [showInsights, setShowInsights] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [currentFeedback, setCurrentFeedback] = useState<PendingFeedbackAlert | null>(null);
   const [paywallModalId, setPaywallModalId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const { user } = useAuth();
@@ -163,8 +180,47 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
     queryKey: ['/api/notifications/unread-count'],
   });
 
+  const { data: pendingFeedbackData } = useQuery<{ alerts: PendingFeedbackAlert[] }>({
+    queryKey: ['/api/correlation/alerts'],
+    refetchInterval: 60000,
+  });
+
   const { data: planData } = usePlan();
   const { data: paywallModalsData } = usePaywallModals();
+
+  const getDismissedFeedbackIds = (): string[] => {
+    try {
+      const stored = localStorage.getItem(DISMISSED_FEEDBACK_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const dismissFeedback = (feedbackId: string) => {
+    try {
+      const dismissed = getDismissedFeedbackIds();
+      if (!dismissed.includes(feedbackId)) {
+        dismissed.push(feedbackId);
+        localStorage.setItem(DISMISSED_FEEDBACK_KEY, JSON.stringify(dismissed.slice(-50)));
+      }
+    } catch {}
+  };
+
+
+  const handleFeedbackClose = () => {
+    setShowFeedbackModal(false);
+    setCurrentFeedback(null);
+  };
+
+  const handleFeedbackSubmit = () => {
+    if (currentFeedback) {
+      dismissFeedback(currentFeedback.feedbackId);
+    }
+    setShowFeedbackModal(false);
+    setCurrentFeedback(null);
+    queryClient.invalidateQueries({ queryKey: ['/api/correlation/alerts'] });
+  };
   
   const canAccessInsights = planData?.features?.insights?.allowAiGeneratedInsightCards ?? true;
   const canAccessFlomentum = planData?.features?.flomentum?.allowFlomentumScoring ?? true;
@@ -464,6 +520,73 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           </div>
         ) : (
           <>
+            {/* ML Feedback Question Banner - Shows when there's a pending question */}
+            {pendingFeedbackData?.alerts && pendingFeedbackData.alerts.length > 0 && (() => {
+              const dismissed = getDismissedFeedbackIds();
+              const availableAlert = pendingFeedbackData.alerts.find(
+                alert => !dismissed.includes(alert.feedbackId)
+              );
+              if (!availableAlert) return null;
+              
+              const PatternIcon = availableAlert.triggerPattern === 'illness_precursor' 
+                ? ThermometerSnowflake 
+                : availableAlert.triggerPattern === 'elevated_rhr' 
+                  ? HeartPulse 
+                  : AlertTriangle;
+              
+              const urgencyColors = {
+                high: 'from-red-500/20 to-orange-500/20 border-red-400/30',
+                medium: 'from-orange-500/20 to-yellow-500/20 border-orange-400/30',
+                low: 'from-blue-500/20 to-cyan-500/20 border-blue-400/30',
+              };
+              
+              return (
+                <button
+                  onClick={() => {
+                    setCurrentFeedback(availableAlert);
+                    setShowFeedbackModal(true);
+                  }}
+                  className={`w-full backdrop-blur-xl rounded-2xl border p-4 transition-all hover:scale-[1.01] active:scale-[0.99] ${
+                    isDark 
+                      ? `bg-gradient-to-r ${urgencyColors[availableAlert.urgency]} border-white/10` 
+                      : `bg-gradient-to-r ${urgencyColors[availableAlert.urgency]} border-black/10`
+                  }`}
+                  data-testid="banner-ml-feedback"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-xl ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
+                      <PatternIcon className={`w-5 h-5 ${
+                        availableAlert.urgency === 'high' ? 'text-red-400' : 
+                        availableAlert.urgency === 'medium' ? 'text-orange-400' : 'text-blue-400'
+                      }`} />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-medium uppercase tracking-wide ${
+                          availableAlert.urgency === 'high' ? 'text-red-400' : 
+                          availableAlert.urgency === 'medium' ? 'text-orange-400' : 'text-blue-400'
+                        }`}>
+                          {availableAlert.urgency === 'high' ? 'Health Alert' : 
+                           availableAlert.urgency === 'medium' ? 'Check-In' : 'Quick Question'}
+                        </span>
+                      </div>
+                      <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {availableAlert.questionText.length > 80 
+                          ? availableAlert.questionText.substring(0, 77) + '...' 
+                          : availableAlert.questionText}
+                      </p>
+                      <div className="flex items-center gap-1 mt-2">
+                        <MessageCircle className={`w-3 h-3 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                        <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                          Tap to respond
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })()}
+
             {/* Anomaly Alert Tile - Shows when ML detects a health pattern */}
             <AnomalyAlertTile isDark={isDark} />
 
@@ -527,6 +650,24 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
         onClose={() => setShowSurveyModal(false)}
         isDark={isDark}
       />
+
+      {/* ML Feedback Question Modal */}
+      {showFeedbackModal && currentFeedback && (
+        <FeedbackSurveyModal
+          feedbackId={currentFeedback.feedbackId}
+          question={{
+            questionText: currentFeedback.questionText,
+            questionType: currentFeedback.questionType,
+            options: currentFeedback.options,
+            triggerPattern: currentFeedback.triggerPattern,
+            triggerMetrics: currentFeedback.triggerMetrics,
+            urgency: currentFeedback.urgency,
+          }}
+          isDark={isDark}
+          onClose={handleFeedbackClose}
+          onSubmit={handleFeedbackSubmit}
+        />
+      )}
     </div>
   );
 }
