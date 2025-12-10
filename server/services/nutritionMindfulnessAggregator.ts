@@ -291,10 +291,29 @@ export async function aggregateNutritionForDate(
     
     // Deduplicate: for each nutrient, use only the highest-priority source
     // This prevents double-counting when Apple Health creates derived entries
+    // EXCEPTION: Water is summed from ALL sources - water entries are typically unique (not duplicates)
+    const NUTRIENTS_SUM_ALL_SOURCES = ['waterMl'];
+    
     for (const [nutrient, sourceData] of Object.entries(samplesByNutrientAndSource)) {
       const sources = Object.entries(sourceData);
       
       if (sources.length === 0) continue;
+      
+      // Special handling for water: sum from ALL sources
+      // Unlike food where meals might be duplicated, water entries from different sources are typically unique
+      if (NUTRIENTS_SUM_ALL_SOURCES.includes(nutrient)) {
+        const allValues = sources.flatMap(([_, data]) => data.values);
+        const totalSum = allValues.reduce((a, b) => a + b, 0);
+        result[nutrient] = Math.round(totalSum * 100) / 100;
+        
+        if (sources.length > 1) {
+          const sourceBreakdown = sources.map(([key, data]) => 
+            `${data.displayName}(${data.values.reduce((a, b) => a + b, 0).toFixed(0)}ml)`
+          ).join(' + ');
+          logger.info(`[NutritionAggregator] ${nutrient}: summed ALL sources: ${sourceBreakdown} = ${totalSum.toFixed(0)}ml`);
+        }
+        continue;
+      }
       
       // Sort by priority (lower = better)
       sources.sort((a, b) => a[1].priority - b[1].priority);
