@@ -89,6 +89,7 @@
     "apns2": "^12.2.0",
     "bcryptjs": "^3.0.3",
     "capacitor-secure-storage-plugin": "^0.12.0",
+    "chrono-node": "^2.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

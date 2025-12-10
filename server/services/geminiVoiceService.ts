@@ -875,11 +875,25 @@ Start the conversation warmly, using their name if you have it.`;
       const savedEvents = [];
       for (const extraction of extractions) {
         try {
-          const result = await createLifeEvent(userId, {
+          // Build event data, including parsed date if available
+          const eventData: any = {
             eventType: extraction.eventType,
             details: extraction.details,
             notes: `Voice: ${extraction.acknowledgment}`,
-          });
+          };
+          
+          // Apply parsed date from natural language (e.g., "Sunday" → actual Sunday date)
+          if (extraction.occurredAt) {
+            eventData.happened_at = extraction.occurredAt;
+            logger.info('[GeminiVoice] Applying parsed date to life event', {
+              userId,
+              eventType: extraction.eventType,
+              dateHint: extraction.dateHint,
+              occurredAt: extraction.occurredAt.toISOString(),
+            });
+          }
+          
+          const result = await createLifeEvent(userId, eventData);
           
           savedEvents.push({
             eventType: extraction.eventType,
@@ -888,7 +902,7 @@ Start the conversation warmly, using their name if you have it.`;
           });
           
           // Add confirmation message to chat (as Flō message)
-          const confirmationMsg = this.formatLifeEventConfirmation(extraction.eventType, extraction.details, extraction.acknowledgment);
+          const confirmationMsg = this.formatLifeEventConfirmation(extraction.eventType, extraction.details, extraction.acknowledgment, extraction.occurredAt);
           await db.insert(floChatMessages).values({
             userId,
             sender: 'flo',
@@ -1134,7 +1148,8 @@ Start the conversation warmly, using their name if you have it.`;
   private formatLifeEventConfirmation(
     eventType: string,
     details: Record<string, any>,
-    acknowledgment: string
+    acknowledgment: string,
+    occurredAt?: Date
   ): string {
     // Map event types to friendly icons and labels
     const eventLabels: Record<string, string> = {
@@ -1165,7 +1180,20 @@ Start the conversation warmly, using their name if you have it.`;
       detailStr = ` - ${details.type}`;
     }
     
-    return `[Logged] ${label}${detailStr} - tracked for health insights`;
+    // Add date if it's not today
+    let dateStr = '';
+    if (occurredAt) {
+      const today = new Date();
+      const isToday = occurredAt.toDateString() === today.toDateString();
+      if (!isToday) {
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayName = dayNames[occurredAt.getDay()];
+        const monthDay = occurredAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        dateStr = ` (${dayName}, ${monthDay})`;
+      }
+    }
+    
+    return `[Logged] ${label}${detailStr}${dateStr} - tracked for health insights`;
   }
 
   /**

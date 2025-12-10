@@ -1,6 +1,7 @@
 import { logger } from '../logger';
 import { geminiChatClient } from './geminiChatClient';
 import OpenAI from 'openai';
+import * as chrono from 'chrono-node';
 
 /**
  * Life event parser with multi-provider support
@@ -18,11 +19,75 @@ interface LifeEventExtraction {
   eventType: string;
   details: Record<string, any>;
   acknowledgment: string;
+  dateHint?: string;  // Raw date reference like "Sunday", "yesterday", "last week"
+  occurredAt?: Date;  // Parsed date (populated after chrono processing)
 }
 
 interface MultipleLifeEventsExtraction {
   events: LifeEventExtraction[];
   acknowledgment: string;
+}
+
+/**
+ * Parse a date hint using chrono-node with bias toward past dates
+ * For life events, we assume users are talking about things that happened, not will happen
+ * Returns the parsed date or null if parsing fails
+ */
+export function parseDateHint(dateHint: string | undefined | null, timezone?: string): Date | null {
+  if (!dateHint) return null;
+  
+  try {
+    const referenceDate = new Date();
+    
+    // Use chrono to parse the natural language date
+    const results = chrono.parse(dateHint, referenceDate, {
+      forwardDate: false,
+    });
+    
+    if (results.length > 0 && results[0].start) {
+      let parsedDate = results[0].start.date();
+      
+      // CRITICAL: Bias toward past dates for life events
+      // If chrono returns a future date for ambiguous weekday references, go back one week
+      if (parsedDate > referenceDate) {
+        // Check if this is likely a weekday reference (no explicit "next" or future indicator)
+        const lowerHint = dateHint.toLowerCase();
+        const weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const isBareWeekday = weekdays.some(day => lowerHint.includes(day)) && 
+                              !lowerHint.includes('next') && 
+                              !lowerHint.includes('upcoming') &&
+                              !lowerHint.includes('this coming');
+        
+        if (isBareWeekday) {
+          // Go back 7 days to get the previous occurrence
+          parsedDate = new Date(parsedDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+          logger.info('[LifeEventParser] Adjusted future weekday to past', {
+            dateHint,
+            originalDate: results[0].start.date().toISOString(),
+            adjustedDate: parsedDate.toISOString(),
+          });
+        }
+      }
+      
+      logger.info('[LifeEventParser] Parsed date hint', {
+        dateHint,
+        parsedDate: parsedDate.toISOString(),
+        referenceDate: referenceDate.toISOString(),
+        timezone,
+      });
+      
+      return parsedDate;
+    }
+    
+    logger.info('[LifeEventParser] Could not parse date hint', { dateHint });
+    return null;
+  } catch (error: any) {
+    logger.error('[LifeEventParser] Date parsing error', { 
+      dateHint, 
+      error: error.message 
+    });
+    return null;
+  }
 }
 
 // Cheap pre-filter to avoid calling Grok on every message
@@ -98,11 +163,19 @@ Output JSON array with this structure (empty array [] if no events):
     {
       "eventType": "ice_bath|sauna|alcohol|late_meal|supplements|workout|stress|breathwork|caffeine|symptoms|health_goal|observation",
       "details": {...},
-      "acknowledgment": "Short acknowledgment for this specific event"
+      "acknowledgment": "Short acknowledgment for this specific event",
+      "dateHint": "Raw date reference if mentioned (e.g. 'Sunday', 'yesterday', 'last week', 'this morning') or null if today"
     }
   ],
   "combinedAcknowledgment": "Brief overall acknowledgment (1 sentence)"
 }
+
+DATE EXTRACTION RULES:
+- If user says "Sunday", "on Sunday", "last Sunday" → dateHint: "Sunday" or "last Sunday"
+- If user says "yesterday", "yesterday evening" → dateHint: "yesterday" or "yesterday evening"
+- If user says "last week", "a few days ago" → dateHint: "last week" or "a few days ago"
+- If user says "this morning", "earlier today" → dateHint: "this morning" or "earlier today"
+- If no time reference or it's implied as now/today → dateHint: null
 
 Event Type Mappings:
 - swim/swimming/ocean swim → workout (with type: "swim")
@@ -230,10 +303,22 @@ IMPORTANT: NEVER combine multiple activities into a single "other" event. Each a
     if (parsed.events && Array.isArray(parsed.events)) {
       const validEvents = parsed.events.filter(e => e.eventType && e.details);
       
+      // Parse date hints for each event
+      for (const event of validEvents) {
+        if (event.dateHint) {
+          const parsedDate = parseDateHint(event.dateHint);
+          if (parsedDate) {
+            event.occurredAt = parsedDate;
+          }
+        }
+      }
+      
       logger.info('[LifeEventParser] Extracted multiple events:', {
         provider,
         eventCount: validEvents.length,
         types: validEvents.map(e => e.eventType),
+        dateHints: validEvents.map(e => e.dateHint).filter(Boolean),
+        parsedDates: validEvents.map(e => e.occurredAt?.toISOString()).filter(Boolean),
       });
       
       return validEvents;
@@ -242,9 +327,19 @@ IMPORTANT: NEVER combine multiple activities into a single "other" event. Each a
     // Fallback: handle old single-event format for backward compatibility
     const singleEvent = parsed as unknown as LifeEventExtraction;
     if (singleEvent.eventType && singleEvent.details) {
+      // Parse date hint for single event
+      if (singleEvent.dateHint) {
+        const parsedDate = parseDateHint(singleEvent.dateHint);
+        if (parsedDate) {
+          singleEvent.occurredAt = parsedDate;
+        }
+      }
+      
       logger.info('[LifeEventParser] Extracted single event (legacy format):', {
         provider,
         type: singleEvent.eventType,
+        dateHint: singleEvent.dateHint,
+        occurredAt: singleEvent.occurredAt?.toISOString(),
       });
       return [singleEvent];
     }
