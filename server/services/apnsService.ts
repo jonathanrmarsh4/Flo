@@ -133,26 +133,23 @@ class ApnsService {
         return { success: false, error: 'APNs client not configured' };
       }
 
-      // Create notification with proper APNs payload structure
-      // Custom data should be in a separate object, not spread onto aps
-      const notificationPayload: any = {
+      // Create notification using apns2's NotificationOptions interface
+      // This properly sets the push type header required by APNs
+      const notification = new Notification(deviceToken, {
+        type: 'alert' as any,  // Required: tells APNs this is a visible alert notification
+        topic: this.config.bundleId,  // Explicit bundle ID
+        alert: {
+          title: payload.title,
+          body: payload.body,
+        },
+        badge: payload.badge,
+        sound: payload.sound || 'default',
+        data: payload.data,
+        // Set custom aps fields for interruption level
         aps: {
-          alert: {
-            title: payload.title,
-            body: payload.body,
-          },
-          badge: payload.badge,
-          sound: payload.sound || 'default',
           'interruption-level': payload.interruptionLevel || 'time-sensitive',
-        }
-      };
-
-      // Add custom data if provided (separate from aps)
-      if (payload.data) {
-        Object.assign(notificationPayload, payload.data);
-      }
-
-      const notification = new Notification(deviceToken, notificationPayload);
+        },
+      });
 
       // Send notification
       logger.info(`[APNs] Sending notification to device: ${deviceToken.substring(0, 10)}...`);
