@@ -232,7 +232,7 @@ export default function NewAssessmentWizard() {
                   key={intent.id}
                   className={`p-4 cursor-pointer transition-all ${
                     config.intent === intent.id
-                      ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/50'
+                      ? 'bg-white/10 border-cyan-400 border-2'
                       : 'bg-white/5 border-white/10 hover:bg-white/10'
                   }`}
                   onClick={() => setConfig({ ...config, intent: intent.id, supplementTypeId: '' })}
@@ -248,7 +248,7 @@ export default function NewAssessmentWizard() {
                     </div>
                     <div className="flex-1">
                       <h3 className="text-white font-medium">{intent.label}</h3>
-                      <p className="text-xs text-white/50">{intent.description}</p>
+                      <p className={`text-xs ${config.intent === intent.id ? 'text-white/70' : 'text-white/50'}`}>{intent.description}</p>
                     </div>
                     {config.intent === intent.id && (
                       <Check className="w-5 h-5 text-cyan-400" />
@@ -281,7 +281,7 @@ export default function NewAssessmentWizard() {
                     key={supp.id}
                     className={`p-4 cursor-pointer transition-all ${
                       config.supplementTypeId === supp.id
-                        ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/50'
+                        ? 'bg-white/10 border-cyan-400 border-2'
                         : 'bg-white/5 border-white/10 hover:bg-white/10'
                     }`}
                     onClick={() => setConfig({ 
@@ -310,12 +310,12 @@ export default function NewAssessmentWizard() {
                             <Check className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                           )}
                         </div>
-                        <p className="text-xs text-white/50 mt-0.5">{supp.protocolDescription}</p>
+                        <p className={`text-xs mt-0.5 ${config.supplementTypeId === supp.id ? 'text-white/70' : 'text-white/50'}`}>{supp.protocolDescription}</p>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
-                          <Badge className="bg-white/10 text-white/70 border-0 text-xs">
+                          <Badge className={`border-0 text-xs ${config.supplementTypeId === supp.id ? 'bg-cyan-500/20 text-cyan-300' : 'bg-white/10 text-white/70'}`}>
                             {defaultDosage.amount}{defaultDosage.unit}
                           </Badge>
-                          <Badge className="bg-white/10 text-white/70 border-0 text-xs">
+                          <Badge className={`border-0 text-xs ${config.supplementTypeId === supp.id ? 'bg-cyan-500/20 text-cyan-300' : 'bg-white/10 text-white/70'}`}>
                             {supp.recommendedDuration} days
                           </Badge>
                         </div>
