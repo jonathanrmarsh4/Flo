@@ -57,7 +57,7 @@ interface ProductInfo {
   dsldId?: string;
 }
 
-interface ExperimentConfig {
+interface AssessmentConfig {
   intent: string;
   supplementTypeId: string;
   product: ProductInfo;
@@ -65,7 +65,7 @@ interface ExperimentConfig {
   dosageUnit: string;
   dosageFrequency: string;
   dosageTiming: string;
-  experimentDays: number;
+  assessmentDays: number;
 }
 
 const STEPS: { id: WizardStep; label: string; icon: typeof Target }[] = [
@@ -76,11 +76,11 @@ const STEPS: { id: WizardStep; label: string; icon: typeof Target }[] = [
   { id: 'review', label: 'Review', icon: BarChart3 },
 ];
 
-export default function NewExperimentWizard() {
+export default function NewAssessmentWizard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<WizardStep>('intent');
-  const [config, setConfig] = useState<ExperimentConfig>({
+  const [config, setConfig] = useState<AssessmentConfig>({
     intent: '',
     supplementTypeId: '',
     product: { name: '' },
@@ -88,7 +88,7 @@ export default function NewExperimentWizard() {
     dosageUnit: 'mg',
     dosageFrequency: 'daily',
     dosageTiming: 'morning',
-    experimentDays: 30,
+    assessmentDays: 30,
   });
   const [productSearch, setProductSearch] = useState('');
 
@@ -101,8 +101,8 @@ export default function NewExperimentWizard() {
     enabled: !!config.supplementTypeId,
   });
 
-  // Create experiment mutation
-  const createExperimentMutation = useMutation({
+  // Create assessment mutation
+  const createAssessmentMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('POST', '/api/n1/experiments', {
         supplementTypeId: config.supplementTypeId,
@@ -118,22 +118,22 @@ export default function NewExperimentWizard() {
         dosageFrequency: config.dosageFrequency,
         dosageTiming: config.dosageTiming,
         primaryIntent: config.intent,
-        experimentDays: config.experimentDays,
+        experimentDays: config.assessmentDays,
       });
       return response.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/n1/experiments'] });
       toast({
-        title: "Experiment Created",
-        description: "Your N-of-1 experiment has been set up. Ready to start!",
+        title: "Assessment Created",
+        description: "Your N-of-1 assessment has been set up. Ready to start!",
       });
-      setLocation(`/experiments/${data.experiment.id}`);
+      setLocation(`/assessments/${data.experiment.id}`);
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create experiment",
+        description: error.message || "Failed to create assessment",
         variant: "destructive",
       });
     },
@@ -165,7 +165,7 @@ export default function NewExperimentWizard() {
       setCurrentStep(STEPS[nextIndex].id);
     } else {
       // Submit
-      createExperimentMutation.mutate();
+      createAssessmentMutation.mutate();
     }
   };
 
@@ -197,7 +197,7 @@ export default function NewExperimentWizard() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg text-white font-medium">New Experiment</h1>
+              <h1 className="text-lg text-white font-medium">New Assessment</h1>
               <p className="text-xs text-white/50">
                 Step {currentStepIndex + 1} of {STEPS.length}: {STEPS[currentStepIndex].label}
               </p>
@@ -222,7 +222,7 @@ export default function NewExperimentWizard() {
               </div>
               <h2 className="text-xl text-white font-semibold">What do you want to improve?</h2>
               <p className="text-sm text-white/60 mt-1">
-                Select your primary health goal for this experiment
+                Select your primary health goal for this assessment
               </p>
             </div>
             
@@ -291,7 +291,7 @@ export default function NewExperimentWizard() {
                       dosageUnit: defaultDosage.unit,
                       dosageFrequency: defaultDosage.frequency,
                       dosageTiming: defaultDosage.timing,
-                      experimentDays: supp.recommendedDuration,
+                      assessmentDays: supp.recommendedDuration,
                     })}
                     data-testid={`supplement-${supp.id}`}
                   >
@@ -465,18 +465,18 @@ export default function NewExperimentWizard() {
 
             {/* Duration */}
             <Card className="p-4 bg-white/5 border-white/10">
-              <h3 className="text-white font-medium mb-3">Experiment Duration</h3>
+              <h3 className="text-white font-medium mb-3">Assessment Duration</h3>
               <div className="grid grid-cols-3 gap-2">
                 {[21, 30, 45].map((days) => (
                   <Button
                     key={days}
                     variant="outline"
                     className={`${
-                      config.experimentDays === days
+                      config.assessmentDays === days
                         ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-400'
                         : 'bg-white/5 border-white/20 text-white/70'
                     }`}
-                    onClick={() => setConfig({ ...config, experimentDays: days })}
+                    onClick={() => setConfig({ ...config, assessmentDays: days })}
                     data-testid={`duration-${days}`}
                   >
                     {days} days
@@ -534,7 +534,7 @@ export default function NewExperimentWizard() {
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-3">
                 <FlaskConical className="w-8 h-8 text-cyan-400" />
               </div>
-              <h2 className="text-xl text-white font-semibold">Review Your Experiment</h2>
+              <h2 className="text-xl text-white font-semibold">Review Your Assessment</h2>
               <p className="text-sm text-white/60 mt-1">
                 Confirm the details before starting
               </p>
@@ -615,7 +615,7 @@ export default function NewExperimentWizard() {
                 
                 <div className="flex items-center justify-between">
                   <span className="text-white/60 text-sm">Duration</span>
-                  <span className="text-white font-medium">{config.experimentDays} days</span>
+                  <span className="text-white font-medium">{config.assessmentDays} days</span>
                 </div>
               </div>
             </Card>
@@ -641,11 +641,11 @@ export default function NewExperimentWizard() {
         <Button
           className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
           size="lg"
-          disabled={!canProceed() || createExperimentMutation.isPending}
+          disabled={!canProceed() || createAssessmentMutation.isPending}
           onClick={handleNext}
           data-testid="button-next"
         >
-          {createExperimentMutation.isPending ? (
+          {createAssessmentMutation.isPending ? (
             <div className="flex items-center gap-2">
               <div className="animate-spin w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
               Creating...
@@ -653,7 +653,7 @@ export default function NewExperimentWizard() {
           ) : currentStep === 'review' ? (
             <>
               <FlaskConical className="w-4 h-4 mr-2" />
-              Start Experiment
+              Start Assessment
             </>
           ) : (
             <>

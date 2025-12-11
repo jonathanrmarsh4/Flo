@@ -16,9 +16,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { SUPPLEMENT_CONFIGURATIONS } from "@shared/supplementConfig";
 
-type TabFilter = 'reports' | 'interventions' | 'experiments';
+type TabFilter = 'reports' | 'interventions' | 'assessments';
 
-interface N1Experiment {
+interface N1Assessment {
   id: string;
   supplement_type_id: string;
   product_name: string;
@@ -33,11 +33,11 @@ interface N1Experiment {
   experiment_end_date?: string;
 }
 
-function ExperimentCard({ experiment, onClick }: { experiment: N1Experiment; onClick: () => void }) {
-  const supplementConfig = SUPPLEMENT_CONFIGURATIONS[experiment.supplement_type_id];
+function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onClick: () => void }) {
+  const supplementConfig = SUPPLEMENT_CONFIGURATIONS[assessment.supplement_type_id];
   
   const getStatusInfo = () => {
-    switch (experiment.status) {
+    switch (assessment.status) {
       case 'pending':
         return { label: 'Ready to Start', color: 'bg-yellow-500/20 text-yellow-400', icon: Clock };
       case 'baseline':
@@ -51,7 +51,7 @@ function ExperimentCard({ experiment, onClick }: { experiment: N1Experiment; onC
       case 'cancelled':
         return { label: 'Cancelled', color: 'bg-red-500/20 text-red-400', icon: X };
       default:
-        return { label: experiment.status, color: 'bg-white/20 text-white', icon: Clock };
+        return { label: assessment.status, color: 'bg-white/20 text-white', icon: Clock };
     }
   };
   
@@ -60,12 +60,12 @@ function ExperimentCard({ experiment, onClick }: { experiment: N1Experiment; onC
   
   // Calculate progress
   let progress = 0;
-  if (experiment.status === 'active' && experiment.experiment_start_date) {
-    const startDate = new Date(experiment.experiment_start_date);
+  if (assessment.status === 'active' && assessment.experiment_start_date) {
+    const startDate = new Date(assessment.experiment_start_date);
     const now = new Date();
     const daysPassed = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    progress = Math.min(100, Math.round((daysPassed / experiment.experiment_days) * 100));
-  } else if (experiment.status === 'completed') {
+    progress = Math.min(100, Math.round((daysPassed / assessment.experiment_days) * 100));
+  } else if (assessment.status === 'completed') {
     progress = 100;
   }
   
@@ -73,13 +73,13 @@ function ExperimentCard({ experiment, onClick }: { experiment: N1Experiment; onC
     <Card 
       className="p-4 bg-white/5 border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
       onClick={onClick}
-      data-testid={`experiment-card-${experiment.id}`}
+      data-testid={`assessment-card-${assessment.id}`}
     >
       <div className="flex items-start gap-3">
-        {experiment.product_image_url ? (
+        {assessment.product_image_url ? (
           <img 
-            src={experiment.product_image_url} 
-            alt={experiment.product_name}
+            src={assessment.product_image_url} 
+            alt={assessment.product_name}
             className="w-12 h-12 rounded-lg object-cover bg-white/10"
           />
         ) : (
@@ -90,11 +90,11 @@ function ExperimentCard({ experiment, onClick }: { experiment: N1Experiment; onC
         
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-white font-medium truncate">{experiment.product_name}</h3>
+            <h3 className="text-white font-medium truncate">{assessment.product_name}</h3>
           </div>
           
-          {experiment.product_brand && (
-            <p className="text-xs text-white/50 mb-2">{experiment.product_brand}</p>
+          {assessment.product_brand && (
+            <p className="text-xs text-white/50 mb-2">{assessment.product_brand}</p>
           )}
           
           <div className="flex items-center gap-2 flex-wrap">
@@ -110,10 +110,10 @@ function ExperimentCard({ experiment, onClick }: { experiment: N1Experiment; onC
             )}
           </div>
           
-          {experiment.status === 'active' && (
+          {assessment.status === 'active' && (
             <div className="mt-3">
               <div className="flex items-center justify-between text-xs text-white/50 mb-1">
-                <span>Day {Math.floor(progress * experiment.experiment_days / 100) + 1} of {experiment.experiment_days}</span>
+                <span>Day {Math.floor(progress * assessment.experiment_days / 100) + 1} of {assessment.experiment_days}</span>
                 <span>{progress}%</span>
               </div>
               <Progress value={progress} className="h-1.5 bg-white/10" />
@@ -139,8 +139,8 @@ export default function ActionsScreen() {
     queryKey: ['/api/action-plan'],
   });
   
-  // Fetch N-of-1 experiments
-  const { data: experimentsData, isLoading: isLoadingExperiments } = useQuery<{ experiments: N1Experiment[] }>({
+  // Fetch N-of-1 assessments
+  const { data: assessmentsData, isLoading: isLoadingAssessments } = useQuery<{ experiments: N1Assessment[] }>({
     queryKey: ['/api/n1/experiments'],
   });
 
@@ -194,13 +194,13 @@ export default function ActionsScreen() {
 
   const allItems = actionPlanData?.items || [];
   const activeItems = allItems.filter(item => item.status === 'active');
-  const experiments = experimentsData?.experiments || [];
-  const activeExperiments = experiments.filter(e => ['pending', 'baseline', 'active', 'paused'].includes(e.status));
+  const assessments = assessmentsData?.experiments || [];
+  const activeAssessments = assessments.filter(e => ['pending', 'baseline', 'active', 'paused'].includes(e.status));
 
   const tabOptions = [
     { value: 'reports' as TabFilter, label: 'Reports' },
     { value: 'interventions' as TabFilter, label: 'Interventions' },
-    { value: 'experiments' as TabFilter, label: 'Experiments' },
+    { value: 'assessments' as TabFilter, label: 'Assessments' },
   ];
 
   const getHeaderText = () => {
@@ -209,8 +209,8 @@ export default function ActionsScreen() {
         return { title: 'Reports', subtitle: 'Health reports and summaries' };
       case 'interventions':
         return { title: 'Interventions', subtitle: `${activeItems.length} active intervention${activeItems.length !== 1 ? 's' : ''}` };
-      case 'experiments':
-        return { title: 'N-of-1 Experiments', subtitle: `${activeExperiments.length} active experiment${activeExperiments.length !== 1 ? 's' : ''}` };
+      case 'assessments':
+        return { title: 'N-of-1 Assessments', subtitle: `${activeAssessments.length} active assessment${activeAssessments.length !== 1 ? 's' : ''}` };
     }
   };
 
@@ -230,13 +230,13 @@ export default function ActionsScreen() {
             </p>
           </div>
           
-          {/* New Experiment Button - only show on experiments tab */}
-          {selectedTab === 'experiments' && (
+          {/* New Assessment Button - only show on assessments tab */}
+          {selectedTab === 'assessments' && (
             <Button
               size="icon"
               className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-              onClick={() => setLocation('/experiments/new')}
-              data-testid="button-new-experiment"
+              onClick={() => setLocation('/assessments/new')}
+              data-testid="button-new-assessment"
             >
               <Plus className="w-5 h-5" />
             </Button>
@@ -345,56 +345,56 @@ export default function ActionsScreen() {
           </>
         )}
 
-        {selectedTab === 'experiments' && (
-          /* Experiments View */
+        {selectedTab === 'assessments' && (
+          /* Assessments View */
           <>
-            {isLoadingExperiments ? (
+            {isLoadingAssessments ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
               </div>
-            ) : experiments.length === 0 ? (
+            ) : assessments.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
                 <FlaskConical className="w-16 h-16 text-white/20" />
                 <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">No Experiments Yet</h3>
+                  <h3 className="text-lg font-semibold mb-2 text-white">No Assessments Yet</h3>
                   <p className="text-sm text-white/60 mb-4 max-w-xs">
-                    Start your first N-of-1 experiment to scientifically test if a supplement works for YOUR body.
+                    Start your first N-of-1 assessment to scientifically test if a supplement works for YOUR body.
                   </p>
                   <Button
                     className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-                    onClick={() => setLocation('/experiments/new')}
-                    data-testid="button-start-first-experiment"
+                    onClick={() => setLocation('/assessments/new')}
+                    data-testid="button-start-first-assessment"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Start Your First Experiment
+                    Start Your First Assessment
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {/* Active Experiments */}
-                {activeExperiments.length > 0 && (
+                {/* Active Assessments */}
+                {activeAssessments.length > 0 && (
                   <>
                     <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Active</h2>
-                    {activeExperiments.map((experiment) => (
-                      <ExperimentCard
-                        key={experiment.id}
-                        experiment={experiment}
-                        onClick={() => setLocation(`/experiments/${experiment.id}`)}
+                    {activeAssessments.map((assessment) => (
+                      <AssessmentCard
+                        key={assessment.id}
+                        assessment={assessment}
+                        onClick={() => setLocation(`/assessments/${assessment.id}`)}
                       />
                     ))}
                   </>
                 )}
                 
-                {/* Completed Experiments */}
-                {experiments.filter(e => e.status === 'completed').length > 0 && (
+                {/* Completed Assessments */}
+                {assessments.filter(e => e.status === 'completed').length > 0 && (
                   <>
                     <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mt-4">Completed</h2>
-                    {experiments.filter(e => e.status === 'completed').map((experiment) => (
-                      <ExperimentCard
-                        key={experiment.id}
-                        experiment={experiment}
-                        onClick={() => setLocation(`/experiments/${experiment.id}`)}
+                    {assessments.filter(e => e.status === 'completed').map((assessment) => (
+                      <AssessmentCard
+                        key={assessment.id}
+                        assessment={assessment}
+                        onClick={() => setLocation(`/assessments/${assessment.id}`)}
                       />
                     ))}
                   </>

@@ -77,7 +77,7 @@ interface ResultsData {
   };
 }
 
-export default function ExperimentDetail() {
+export default function AssessmentDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -85,7 +85,7 @@ export default function ExperimentDetail() {
   const [checkinRatings, setCheckinRatings] = useState<Record<string, number>>({});
   const [checkinNotes, setCheckinNotes] = useState('');
 
-  // Fetch experiment details
+  // Fetch assessment details
   const { data: experimentData, isLoading } = useQuery<ExperimentData>({
     queryKey: ['/api/n1/experiments', id],
   });
@@ -102,22 +102,22 @@ export default function ExperimentDetail() {
     enabled: experimentData?.experiment.status === 'completed',
   });
 
-  // Start experiment mutation
-  const startExperimentMutation = useMutation({
+  // Start assessment mutation
+  const startAssessmentMutation = useMutation({
     mutationFn: async () => {
       return apiRequest('POST', `/api/n1/experiments/${id}/start`, { useRetroactiveBaseline: true });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/n1/experiments', id] });
       toast({
-        title: "Experiment Started",
-        description: "Your experiment is now active. Don't forget your daily check-ins!",
+        title: "Assessment Started",
+        description: "Your assessment is now active. Don't forget your daily check-ins!",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to start experiment",
+        description: error.message || "Failed to start assessment",
         variant: "destructive",
       });
     },
@@ -179,7 +179,7 @@ export default function ExperimentDetail() {
   if (!experimentData) {
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
-        <p className="text-white/60">Experiment not found</p>
+        <p className="text-white/60">Assessment not found</p>
       </div>
     );
   }
@@ -260,7 +260,7 @@ export default function ExperimentDetail() {
         {experiment.status === 'active' && (
           <Card className="p-4 bg-white/5 border-white/10 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-white/70 text-sm">Experiment Progress</span>
+              <span className="text-white/70 text-sm">Assessment Progress</span>
               <span className="text-white font-medium">Day {daysElapsed + 1} of {experiment.experiment_days}</span>
             </div>
             <Progress value={progress} className="h-2 bg-white/10" />
@@ -279,16 +279,16 @@ export default function ExperimentDetail() {
               </div>
               <div className="flex-1">
                 <h3 className="text-white font-medium">Ready to Start</h3>
-                <p className="text-xs text-white/60">Begin your experiment when you're ready</p>
+                <p className="text-xs text-white/60">Begin your assessment when you're ready</p>
               </div>
             </div>
             <Button
               className="w-full mt-4 bg-gradient-to-r from-cyan-500 to-blue-500"
-              onClick={() => startExperimentMutation.mutate()}
-              disabled={startExperimentMutation.isPending}
-              data-testid="button-start-experiment"
+              onClick={() => startAssessmentMutation.mutate()}
+              disabled={startAssessmentMutation.isPending}
+              data-testid="button-start-assessment"
             >
-              {startExperimentMutation.isPending ? 'Starting...' : 'Start Experiment'}
+              {startAssessmentMutation.isPending ? 'Starting...' : 'Start Assessment'}
             </Button>
           </Card>
         )}
@@ -384,7 +384,7 @@ export default function ExperimentDetail() {
                 <BarChart3 className="w-5 h-5 text-cyan-400" />
               </div>
               <div>
-                <h3 className="text-white font-medium">Experiment Results</h3>
+                <h3 className="text-white font-medium">Assessment Results</h3>
                 <p className="text-xs text-white/60">Analysis complete</p>
               </div>
             </div>
@@ -450,9 +450,9 @@ export default function ExperimentDetail() {
           </Card>
         )}
 
-        {/* Experiment Details */}
+        {/* Assessment Details */}
         <Card className="p-4 bg-white/5 border-white/10 mb-4">
-          <h3 className="text-white font-medium mb-3">Experiment Details</h3>
+          <h3 className="text-white font-medium mb-3">Assessment Details</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-white/60 text-sm">Dosage</span>
