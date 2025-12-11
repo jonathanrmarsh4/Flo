@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -94,15 +94,6 @@ interface ObjectiveMetricsData {
   }>;
 }
 
-interface MetricConfig {
-  key: string;
-  name: string;
-  color: string;
-  type: 'subjective' | 'objective';
-  yAxisId: 'left' | 'right';
-  unit?: string;
-}
-
 export default function AssessmentDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -111,7 +102,15 @@ export default function AssessmentDetail() {
   const [checkinRatings, setCheckinRatings] = useState<Record<string, number>>({});
   const [checkinNotes, setCheckinNotes] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null);
+  
+  // FROZEN BASELINE: Once computed, baseline stats are persisted and never recomputed
+  // Keyed by BOTH experiment ID and start date to prevent cross-experiment leakage
+  const frozenBaselineRef = useRef<{
+    objectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
+    subjectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
+    frozenForExperimentId: string;
+    frozenForStartDate: string;
+  } | null>(null);
 
   // Fetch assessment details
   const { data: experimentData, isLoading, isError, error } = useQuery<ExperimentData>({
@@ -238,246 +237,199 @@ export default function AssessmentDetail() {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
-  // Define metric configurations from SUPPLEMENT CONFIGURATION (not from data)
-  const metricConfigs = useMemo((): MetricConfig[] => {
-    const configs: MetricConfig[] = [];
-    
-    // Get supplement config from experiment data if available
-    const suppTypeId = experimentData?.experiment?.supplement_type_id;
-    const suppConfig = suppTypeId ? SUPPLEMENT_CONFIGURATIONS[suppTypeId] : null;
-    
-    // Subjective colors: purple, cyan, green (matching reference)
-    const subjectiveColors = ['#a855f7', '#22d3ee', '#22c55e', '#f97316', '#eab308', '#14b8a6'];
-    // Objective colors: pink/magenta, orange, indigo, teal (matching reference)
-    const objectiveColors = ['#ec4899', '#f97316', '#6366f1', '#14b8a6'];
-    
-    // Use supplement configuration to define expected metrics
-    if (suppConfig) {
-      // Add ALL subjective metrics from config
-      suppConfig.subjectiveMetrics.forEach((metric, index) => {
-        const key = metric.metric.toLowerCase().replace(/\s+/g, '_');
-        configs.push({
-          key,
-          name: metric.metric,
-          color: subjectiveColors[index % subjectiveColors.length],
-          type: 'subjective',
-          yAxisId: 'left',
-          unit: '/10',
-        });
-      });
-      
-      // Add ALL objective metrics from config
-      suppConfig.objectiveMetrics.forEach((metric, index) => {
-        // Map metric name to chart data key
-        let key = 'hrv';
-        let unit = 'ms';
-        const metricName = metric.metric.toLowerCase();
-        
-        if (metricName.includes('hrv')) {
-          key = 'hrv';
-          unit = 'ms';
-        } else if (metricName.includes('deep sleep')) {
-          key = 'deepSleepPct';
-          unit = '%';
-        } else if (metricName.includes('rem sleep')) {
-          key = 'remSleepPct';
-          unit = '%';
-        } else if (metricName.includes('sleep duration')) {
-          key = 'sleepDuration';
-          unit = 'min';
-        } else if (metricName.includes('resting') && metricName.includes('heart')) {
-          key = 'restingHeartRate';
-          unit = 'bpm';
-        } else if (metricName.includes('sleep efficiency')) {
-          key = 'sleepEfficiency';
-          unit = '%';
-        } else if (metricName.includes('weight')) {
-          key = 'weight';
-          unit = 'kg';
-        } else if (metricName.includes('active energy')) {
-          key = 'activeEnergy';
-          unit = 'kcal';
-        }
-        
-        configs.push({
-          key,
-          name: metric.metric,
-          color: objectiveColors[index % objectiveColors.length],
-          type: 'objective',
-          yAxisId: 'right',
-          unit,
-        });
-      });
-    }
-    
-    return configs;
-  }, [experimentData]);
+  // Z-SCORE DEVIATION PLOT: Calculate composite Z-scores for deviation chart
+  // Formula: Z = (DailyValue - BaselineAvg) / BaselineStdDev × Polarity
+  // Polarity: +1 for "higher is better" (HRV, Sleep), -1 for "lower is better" (RHR, Stress)
+  
+  // Metric polarity configuration - matches the JSON spec
+  const METRIC_POLARITIES = useMemo(() => ({
+    // Objective metrics
+    hrv: 1,           // Higher HRV is better
+    deepSleepPct: 1,  // Higher deep sleep is better
+    sleepDuration: 1, // Longer sleep is better
+    restingHeartRate: -1, // Lower RHR is better
+    // Subjective metrics  
+    sleep_quality: 1, // Higher rating is better
+    recovery: 1,      // Higher rating is better
+    stress_level: -1, // Lower stress is better (but rating is 0-10 where 10=stressed)
+  }), []);
+  
+  // Get supplement start date for vertical marker
+  const supplementStartDate = experimentData?.experiment?.experiment_start_date 
+    ? new Date(experimentData.experiment.experiment_start_date).toISOString().split('T')[0]
+    : null;
 
-  // Helper to calculate rolling average (trendline)
-  const calculateTrendline = useCallback((data: number[], windowSize: number = 3): number[] => {
-    if (data.length === 0) return [];
-    const result: number[] = [];
-    for (let i = 0; i < data.length; i++) {
-      const start = Math.max(0, i - windowSize + 1);
-      const window = data.slice(start, i + 1);
-      const avg = window.reduce((a, b) => a + b, 0) / window.length;
-      result.push(avg);
-    }
-    return result;
-  }, []);
-
-  // Generate PROGRESSIVE chart data - only days with actual data
+  // Generate Z-SCORE COMPOSITE chart data
   const chartData = useMemo(() => {
     if (!checkins.length && !objectiveMetrics.length) return [];
     
-    // Create a map of dates to data points - ONLY for days with actual data
+    // Create a map of dates to raw data points
     const dateMap = new Map<string, Record<string, any>>();
     
-    // Add subjective check-in data with normalized keys
+    // Add subjective check-in data
     checkins.forEach((checkin) => {
       const dateKey = checkin.checkin_date.split('T')[0];
-      const existing = dateMap.get(dateKey) || { dateKey, hasSubjective: false };
+      const existing = dateMap.get(dateKey) || { dateKey };
       
       if (checkin.ratings && Object.keys(checkin.ratings).length > 0) {
-        existing.hasSubjective = true;
         Object.entries(checkin.ratings).forEach(([key, value]) => {
-          // Normalize key to match supplement config format
           const normalizedKey = key.toLowerCase().replace(/\s+/g, '_');
           existing[normalizedKey] = value;
         });
       }
-      
       dateMap.set(dateKey, existing);
     });
     
-    // Add ALL objective HealthKit data (cast to any to allow additional properties)
+    // Add objective HealthKit data
     objectiveMetrics.forEach((metric: any) => {
       const dateKey = metric.date;
-      const existing = dateMap.get(dateKey) || { dateKey, hasObjective: false };
+      const existing = dateMap.get(dateKey) || { dateKey };
       
-      let hasAnyObjective = false;
-      if (metric.hrv !== undefined) { existing.hrv = metric.hrv; hasAnyObjective = true; }
-      if (metric.deepSleepPct !== undefined) { existing.deepSleepPct = metric.deepSleepPct; hasAnyObjective = true; }
-      if (metric.remSleepPct !== undefined) { existing.remSleepPct = metric.remSleepPct; hasAnyObjective = true; }
-      if (metric.sleepDuration !== undefined) { existing.sleepDuration = metric.sleepDuration; hasAnyObjective = true; }
-      if (metric.restingHeartRate !== undefined) { existing.restingHeartRate = metric.restingHeartRate; hasAnyObjective = true; }
-      if (metric.sleepEfficiency !== undefined) { existing.sleepEfficiency = metric.sleepEfficiency; hasAnyObjective = true; }
-      if (metric.weight !== undefined) { existing.weight = metric.weight; hasAnyObjective = true; }
-      if (metric.activeEnergy !== undefined) { existing.activeEnergy = metric.activeEnergy; hasAnyObjective = true; }
-      
-      if (hasAnyObjective) existing.hasObjective = true;
+      if (metric.hrv !== undefined) existing.hrv = metric.hrv;
+      if (metric.deepSleepPct !== undefined) existing.deepSleepPct = metric.deepSleepPct;
+      if (metric.sleepDuration !== undefined) existing.sleepDuration = metric.sleepDuration;
+      if (metric.restingHeartRate !== undefined) existing.restingHeartRate = metric.restingHeartRate;
       
       dateMap.set(dateKey, existing);
     });
     
-    // Sort by date - ONLY include days that have at least some data
-    const sortedData: Record<string, any>[] = Array.from(dateMap.entries())
-      .filter(([, data]) => data.hasSubjective || data.hasObjective)
-      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-      .map(([dateKey, data], index) => {
-        const date = new Date(dateKey);
-        return {
-          ...data,
-          day: index + 1,
-          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    // Sort by date, filter to days with data
+    const sortedDays = Array.from(dateMap.entries())
+      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime());
+    
+    // FROZEN BASELINE: Calculate once and persist via ref
+    // This ensures the control chart reference never shifts when late-arriving data syncs
+    const startDateStr = supplementStartDate;
+    const objectiveKeys = ['hrv', 'deepSleepPct', 'sleepDuration', 'restingHeartRate'];
+    const subjectiveKeys = ['sleep_quality', 'recovery', 'stress_level'];
+    
+    // Calculate baseline statistics for each metric
+    const calculateBaselineStats = (days: Record<string, any>[], key: string) => {
+      const values = days.map(d => d[key]).filter((v): v is number => v !== undefined);
+      if (values.length === 0) return null;
+      
+      const mean = values.reduce((a, b) => a + b, 0) / values.length;
+      
+      if (values.length < 2) {
+        return { mean, stdDev: 1 }; // Guard: single point uses stdDev=1
+      }
+      
+      const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+      const stdDev = Math.sqrt(variance) || 1;
+      return { mean, stdDev };
+    };
+    
+    // Use frozen baseline if already computed for THIS experiment's start date
+    // Keyed by both experiment ID and start date to prevent cross-experiment leakage
+    const experimentId = experimentData?.experiment?.id;
+    let objectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
+    let subjectiveBaselines: Record<string, { mean: number; stdDev: number } | null>;
+    
+    const isFrozenForThisExperiment = startDateStr && experimentId &&
+      frozenBaselineRef.current?.frozenForExperimentId === experimentId &&
+      frozenBaselineRef.current?.frozenForStartDate === startDateStr;
+    
+    if (isFrozenForThisExperiment) {
+      // USE FROZEN BASELINE - never recompute for this experiment
+      objectiveBaselines = frozenBaselineRef.current!.objectiveBaselines;
+      subjectiveBaselines = frozenBaselineRef.current!.subjectiveBaselines;
+    } else {
+      // COMPUTE BASELINE (will be frozen on first computation when startDate exists)
+      let baselineDays: Record<string, any>[];
+      
+      if (startDateStr) {
+        // Get days before supplement started
+        const preStartDays = sortedDays
+          .filter(([dateKey]) => dateKey < startDateStr)
+          .map(([, data]) => data);
+        
+        if (preStartDays.length >= 2) {
+          baselineDays = preStartDays;
+        } else {
+          // Fallback: use first 7 days overall
+          baselineDays = sortedDays.slice(0, Math.min(7, sortedDays.length)).map(([, data]) => data);
+        }
+      } else {
+        // No start date yet (baseline phase), use first 7 days
+        baselineDays = sortedDays.slice(0, Math.min(7, sortedDays.length)).map(([, data]) => data);
+      }
+      
+      // Compute baseline stats
+      objectiveBaselines = {};
+      objectiveKeys.forEach(key => {
+        objectiveBaselines[key] = calculateBaselineStats(baselineDays, key);
+      });
+      
+      subjectiveBaselines = {};
+      subjectiveKeys.forEach(key => {
+        subjectiveBaselines[key] = calculateBaselineStats(baselineDays, key);
+      });
+      
+      // FREEZE the baseline once supplement has started for this experiment
+      if (startDateStr && experimentId) {
+        frozenBaselineRef.current = {
+          objectiveBaselines,
+          subjectiveBaselines,
+          frozenForExperimentId: experimentId,
+          frozenForStartDate: startDateStr,
         };
-      });
-    
-    // Calculate PROGRESSIVE baseline trendlines (cumulative rolling average)
-    if (sortedData.length >= 1) {
-      const subjectiveKeys = metricConfigs.filter(m => m.type === 'subjective').map(m => m.key);
-      const objectiveKeys = metricConfigs.filter(m => m.type === 'objective').map(m => m.key);
-      
-      // Progressive subjective baseline - grows as data arrives
-      let subjectiveRunningSum = 0;
-      let subjectiveRunningCount = 0;
-      sortedData.forEach((d) => {
-        if (d.hasSubjective) {
-          const values = subjectiveKeys.map(k => d[k]).filter((v): v is number => v !== undefined);
-          if (values.length > 0) {
-            const avg = values.reduce((a, b) => a + b, 0) / values.length;
-            subjectiveRunningSum += avg;
-            subjectiveRunningCount++;
-          }
-        }
-        // Only add baseline point if we have ANY subjective data so far
-        if (subjectiveRunningCount > 0) {
-          d.subjectiveBaseline = subjectiveRunningSum / subjectiveRunningCount;
-        }
-      });
-      
-      // Progressive objective baseline - normalize all objective metrics to 0-100 scale for comparison
-      let objectiveRunningSum = 0;
-      let objectiveRunningCount = 0;
-      sortedData.forEach((d) => {
-        if (d.hasObjective) {
-          // Collect all objective values and normalize to 0-100 scale
-          const normalizedValues: number[] = [];
-          objectiveKeys.forEach((k) => {
-            const val = d[k];
-            if (val !== undefined) {
-              // Normalize based on expected ranges
-              let normalized = val;
-              if (k === 'hrv') normalized = Math.min(100, (val / 150) * 100); // HRV 0-150ms -> 0-100
-              else if (k === 'deepSleepPct' || k === 'remSleepPct' || k === 'sleepEfficiency') normalized = val; // Already %
-              else if (k === 'restingHeartRate') normalized = Math.max(0, 100 - ((val - 40) / 60) * 100); // RHR 40-100bpm -> 100-0 (lower is better)
-              else if (k === 'sleepDuration') normalized = Math.min(100, (val / 480) * 100); // 0-8hr -> 0-100
-              normalizedValues.push(normalized);
-            }
-          });
-          if (normalizedValues.length > 0) {
-            const avg = normalizedValues.reduce((a, b) => a + b, 0) / normalizedValues.length;
-            objectiveRunningSum += avg;
-            objectiveRunningCount++;
-          }
-        }
-        // Only add baseline point if we have ANY objective data so far
-        if (objectiveRunningCount > 0) {
-          d.objectiveBaseline = objectiveRunningSum / objectiveRunningCount;
-        }
-      });
+      }
     }
     
-    return sortedData;
-  }, [checkins, objectiveMetrics, metricConfigs]);
-  
-  // Calculate baseline averages for reference lines
-  const baselineAverages = useMemo(() => {
-    if (chartData.length < 2) return null;
+    // Build chart data with composite Z-scores
+    const result: Record<string, any>[] = [];
     
-    const subjectiveKeys = metricConfigs.filter(m => m.type === 'subjective').map(m => m.key);
-    const objectiveKeys = metricConfigs.filter(m => m.type === 'objective').map(m => m.key);
-    
-    // Use first 7 days (or available data) as baseline
-    const baselineWindow = chartData.slice(0, Math.min(7, Math.floor(chartData.length / 2)));
-    
-    // Calculate subjective baseline (0-10 scale)
-    let subjectiveBaseline: number | null = null;
-    if (subjectiveKeys.length > 0 && baselineWindow.length > 0) {
-      const allValues: number[] = [];
-      baselineWindow.forEach(d => {
-        subjectiveKeys.forEach(k => {
-          if (d[k] !== undefined) allValues.push(d[k] as number);
+    sortedDays.forEach(([dateKey, data], index) => {
+      const date = new Date(dateKey);
+      const isAfterStart = startDateStr && dateKey >= startDateStr;
+      
+      // Calculate Z-score for each available metric
+      const calculateZScore = (value: number | undefined, key: string, baselines: Record<string, { mean: number; stdDev: number } | null>) => {
+        if (value === undefined) return null;
+        const baseline = baselines[key];
+        if (!baseline) return null;
+        const polarity = METRIC_POLARITIES[key as keyof typeof METRIC_POLARITIES] || 1;
+        return ((value - baseline.mean) / baseline.stdDev) * polarity;
+      };
+      
+      // Calculate objective composite Z-score
+      const objectiveZScores: number[] = [];
+      objectiveKeys.forEach(key => {
+        const z = calculateZScore(data[key], key, objectiveBaselines);
+        if (z !== null) objectiveZScores.push(z);
+      });
+      const objectiveComposite = objectiveZScores.length > 0
+        ? objectiveZScores.reduce((a, b) => a + b, 0) / objectiveZScores.length
+        : undefined;
+      
+      // Calculate subjective composite Z-score
+      const subjectiveZScores: number[] = [];
+      subjectiveKeys.forEach(key => {
+        const z = calculateZScore(data[key], key, subjectiveBaselines);
+        if (z !== null) subjectiveZScores.push(z);
+      });
+      const subjectiveComposite = subjectiveZScores.length > 0
+        ? subjectiveZScores.reduce((a, b) => a + b, 0) / subjectiveZScores.length
+        : undefined;
+      
+      // Only include days with at least one composite value
+      if (objectiveComposite !== undefined || subjectiveComposite !== undefined) {
+        result.push({
+          day: index + 1,
+          dateKey,
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          objectiveComposite: objectiveComposite !== undefined ? Math.max(-3, Math.min(3, objectiveComposite)) : undefined,
+          subjectiveComposite: subjectiveComposite !== undefined ? Math.max(-3, Math.min(3, subjectiveComposite)) : undefined,
+          isStartDate: dateKey === startDateStr,
+          isAfterStart,
         });
-      });
-      if (allValues.length > 0) {
-        subjectiveBaseline = allValues.reduce((a, b) => a + b, 0) / allValues.length;
       }
-    }
+    });
     
-    // Calculate objective baseline (use HRV as primary)
-    let objectiveBaseline: number | null = null;
-    if (objectiveKeys.length > 0 && baselineWindow.length > 0) {
-      const hrvValues = baselineWindow.map(d => d.hrv).filter((v): v is number => v !== undefined);
-      if (hrvValues.length > 0) {
-        objectiveBaseline = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
-      }
-    }
-    
-    return { subjectiveBaseline, objectiveBaseline };
-  }, [chartData, metricConfigs]);
-
-  // Calculate AI analysis trends for the metrics
+    return result;
+  }, [checkins, objectiveMetrics, supplementStartDate, METRIC_POLARITIES, experimentData]);
+  
+  // Calculate AI analysis trends from composite Z-scores
   const aiAnalysis = useMemo(() => {
     if (!chartData.length || chartData.length < 3) return null;
     
@@ -487,43 +439,36 @@ export default function AssessmentDetail() {
       declined: [],
     };
     
-    metricConfigs.forEach((metric) => {
-      const values = chartData.map(d => (d as Record<string, unknown>)[metric.key] as number | undefined).filter((v): v is number => v !== undefined);
-      if (values.length < 3) return;
-      
-      // Compare first half vs second half average
-      const midpoint = Math.floor(values.length / 2);
-      const firstHalf = values.slice(0, midpoint);
-      const secondHalf = values.slice(midpoint);
-      
-      const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
-      const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-      
-      const changePercent = ((secondAvg - firstAvg) / firstAvg) * 100;
-      
-      // For metrics where higher is better
-      if (Math.abs(changePercent) < 5) {
-        analysis.noChange.push({ name: metric.name });
-      } else if (changePercent > 0) {
-        analysis.improved.push({ name: metric.name, change: changePercent });
+    // Analyze objective composite (Biometrics)
+    const objectiveValues = chartData.map(d => d.objectiveComposite).filter((v): v is number => v !== undefined);
+    if (objectiveValues.length >= 3) {
+      const recentAvg = objectiveValues.slice(-3).reduce((a, b) => a + b, 0) / 3;
+      // Positive Z-score = improvement (above baseline)
+      if (recentAvg > 0.5) {
+        analysis.improved.push({ name: 'Biometrics', change: recentAvg * 33 }); // Approx % improvement
+      } else if (recentAvg < -0.5) {
+        analysis.declined.push({ name: 'Biometrics', change: recentAvg * 33 });
       } else {
-        analysis.declined.push({ name: metric.name, change: changePercent });
+        analysis.noChange.push({ name: 'Biometrics' });
       }
-    });
+    }
+    
+    // Analyze subjective composite (How You Feel)
+    const subjectiveValues = chartData.map(d => d.subjectiveComposite).filter((v): v is number => v !== undefined);
+    if (subjectiveValues.length >= 3) {
+      const recentAvg = subjectiveValues.slice(-3).reduce((a, b) => a + b, 0) / 3;
+      if (recentAvg > 0.5) {
+        analysis.improved.push({ name: 'How You Feel', change: recentAvg * 33 });
+      } else if (recentAvg < -0.5) {
+        analysis.declined.push({ name: 'How You Feel', change: recentAvg * 33 });
+      } else {
+        analysis.noChange.push({ name: 'How You Feel' });
+      }
+    }
     
     return analysis;
-  }, [chartData, metricConfigs]);
+  }, [chartData]);
 
-  // Handle metric click to highlight
-  const handleMetricClick = useCallback((key: string) => {
-    setHighlightedMetric(prev => prev === key ? null : key);
-  }, []);
-
-  // Get metric names from check-in ratings for chart legend - MUST be before any early returns
-  const chartMetricNames = useMemo(() => {
-    if (!checkins.length || !checkins[0]?.ratings) return [];
-    return Object.keys(checkins[0].ratings);
-  }, [checkins]);
 
   if (isLoading) {
     return (
@@ -597,20 +542,38 @@ export default function AssessmentDetail() {
 
   const subjectiveMetrics = metrics.filter(m => m.metric_type === 'subjective');
 
-  // Line colors for different metrics
-  const metricColors = ['#22d3ee', '#a855f7', '#22c55e', '#f97316', '#ec4899'];
-
-  // Custom tooltip for the chart
+  // Custom tooltip for Z-score deviation chart
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
+      const data = payload[0]?.payload;
+      const formatZScore = (value: number | undefined) => {
+        if (value === undefined) return 'N/A';
+        const sign = value >= 0 ? '+' : '';
+        return `${sign}${value.toFixed(2)} σ`;
+      };
+      
       return (
         <div className="backdrop-blur-xl rounded-lg border p-3 shadow-lg bg-slate-900/95 border-white/20">
-          <p className="text-xs mb-2 text-white/60">{payload[0]?.payload?.date}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-sm text-white">
-              <span className="font-medium" style={{ color: entry.color }}>{entry.name}:</span> {entry.value?.toFixed(1)}
+          <p className="text-xs mb-2 text-white/60">{data?.date}</p>
+          {data?.objectiveComposite !== undefined && (
+            <p className="text-sm">
+              <span className="font-medium text-[#00E5FF]">Biometrics:</span>{' '}
+              <span className={data.objectiveComposite >= 0 ? 'text-green-400' : 'text-orange-400'}>
+                {formatZScore(data.objectiveComposite)}
+              </span>
             </p>
-          ))}
+          )}
+          {data?.subjectiveComposite !== undefined && (
+            <p className="text-sm">
+              <span className="font-medium text-[#FF9100]">How You Feel:</span>{' '}
+              <span className={data.subjectiveComposite >= 0 ? 'text-green-400' : 'text-orange-400'}>
+                {formatZScore(data.subjectiveComposite)}
+              </span>
+            </p>
+          )}
+          {data?.isStartDate && (
+            <p className="text-xs text-green-400 mt-1">← Supplement started</p>
+          )}
         </div>
       );
     }
@@ -679,7 +642,7 @@ export default function AssessmentDetail() {
           </Card>
         )}
 
-        {/* Enhanced Metrics Trend Chart with Dual Y-Axes */}
+        {/* Z-SCORE DEVIATION PLOT (Control Chart) */}
         {(experiment.status === 'baseline' || experiment.status === 'active' || experiment.status === 'completed') && (
           <Card className="p-4 bg-white/5 border-white/10 mb-4">
             <div className="flex items-center gap-3 mb-4">
@@ -687,11 +650,11 @@ export default function AssessmentDetail() {
                 <Activity className="w-5 h-5 text-purple-400" />
               </div>
               <div>
-                <h3 className="text-white font-medium">Metrics Trend</h3>
+                <h3 className="text-white font-medium">{supplementConfig?.name || 'Supplement'} Impact</h3>
                 <p className="text-xs text-white/60">
                   {experiment.status === 'baseline' 
                     ? 'Collecting baseline data before supplement starts' 
-                    : 'Subjective (1-10) + Objective HealthKit data'}
+                    : 'Deviation from your normal (Up = Better)'}
                 </p>
               </div>
             </div>
@@ -703,158 +666,128 @@ export default function AssessmentDetail() {
                 <p className="text-white/40 text-xs mt-1">
                   {experiment.status === 'baseline' 
                     ? 'Complete your first check-in to start tracking'
-                    : 'Your progress chart will appear after your first check-in'}
+                    : 'Need at least 2 days of baseline data to calculate deviations'}
                 </p>
               </div>
             ) : (
               <>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <LineChart data={chartData} margin={{ top: 10, right: 15, left: 5, bottom: 5 }}>
                       <XAxis 
-                        dataKey="day" 
+                        dataKey="date" 
                         stroke="#ffffff40" 
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
                       />
-                      {/* Left Y-axis for subjective metrics (1-10 scale) */}
+                      {/* Single Y-axis: Z-score from -3 to +3 */}
                       <YAxis 
-                        yAxisId="left"
-                        domain={[0, 10]} 
-                        stroke="#22d3ee" 
+                        domain={[-3, 3]} 
+                        stroke="#ffffff40" 
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
-                        width={25}
-                        label={{ value: '1-10', angle: -90, position: 'insideLeft', fill: '#22d3ee', fontSize: 9, offset: 10 }}
+                        width={70}
+                        ticks={[-3, -1.5, 0, 1.5, 3]}
+                        tickFormatter={(value) => {
+                          if (value === 3) return 'Much Better';
+                          if (value === 1.5) return 'Better';
+                          if (value === 0) return 'Normal';
+                          if (value === -1.5) return 'Worse';
+                          if (value === -3) return 'Much Worse';
+                          return value.toString();
+                        }}
                       />
-                      {/* Right Y-axis for objective metrics (variable scale) */}
-                      {metricConfigs.some(m => m.type === 'objective') && (
-                        <YAxis 
-                          yAxisId="right"
-                          orientation="right"
-                          domain={['auto', 'auto']} 
-                          stroke="#ec4899" 
-                          fontSize={10}
-                          tickLine={false}
-                          axisLine={false}
-                          width={35}
-                          label={{ value: 'Objective', angle: 90, position: 'insideRight', fill: '#ec4899', fontSize: 9, offset: 10 }}
+                      
+                      {/* Center reference line at 0 = "Normal" baseline */}
+                      <ReferenceLine 
+                        y={0} 
+                        stroke="#ffffff50" 
+                        strokeDasharray="8 4" 
+                        strokeWidth={2}
+                        label={{ 
+                          value: 'Baseline', 
+                          position: 'right', 
+                          fill: '#ffffff60', 
+                          fontSize: 10 
+                        }}
+                      />
+                      
+                      {/* Vertical marker at supplement start date */}
+                      {chartData.some(d => d.isStartDate) && (
+                        <ReferenceLine 
+                          x={chartData.find(d => d.isStartDate)?.date}
+                          stroke="#22c55e" 
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          label={{ 
+                            value: 'Started', 
+                            position: 'top', 
+                            fill: '#22c55e', 
+                            fontSize: 10 
+                          }}
                         />
                       )}
+                      
                       <Tooltip content={<CustomTooltip />} />
                       
-                      {/* Progressive GREY baseline trendlines - these grow as data arrives */}
-                      {chartData.some(d => d.subjectiveBaseline !== undefined) && (
+                      {/* Objective Composite Line - Cyan Solid */}
+                      {chartData.some(d => d.objectiveComposite !== undefined) && (
                         <Line
                           type="monotone"
-                          dataKey="subjectiveBaseline"
-                          yAxisId="left"
-                          stroke="#888888"
+                          dataKey="objectiveComposite"
+                          stroke="#00E5FF"
                           strokeWidth={3}
-                          strokeOpacity={0.4}
-                          strokeDasharray="8 4"
-                          dot={{ r: 4, fill: '#888888', strokeWidth: 0, fillOpacity: 0.5 }}
-                          name="Subjective Baseline"
+                          dot={{ r: 4, fill: '#00E5FF', strokeWidth: 0 }}
+                          activeDot={{ r: 6, strokeWidth: 2, fill: '#00E5FF' }}
+                          name="Biometrics (HealthKit)"
                           connectNulls
-                          legendType="none"
                         />
                       )}
                       
-                      {chartData.some(d => d.objectiveBaseline !== undefined) && (
+                      {/* Subjective Composite Line - Orange Dashed */}
+                      {chartData.some(d => d.subjectiveComposite !== undefined) && (
                         <Line
                           type="monotone"
-                          dataKey="objectiveBaseline"
-                          yAxisId="right"
-                          stroke="#888888"
+                          dataKey="subjectiveComposite"
+                          stroke="#FF9100"
                           strokeWidth={3}
-                          strokeOpacity={0.4}
                           strokeDasharray="8 4"
-                          dot={{ r: 4, fill: '#888888', strokeWidth: 0, fillOpacity: 0.5 }}
-                          name="Objective Baseline"
+                          dot={{ r: 4, fill: '#FF9100', strokeWidth: 0 }}
+                          activeDot={{ r: 6, strokeWidth: 2, fill: '#FF9100' }}
+                          name="How You Feel"
                           connectNulls
-                          legendType="none"
                         />
                       )}
-                      
-                      {/* Individual metric lines - deviate from baselines */}
-                      {metricConfigs.map((metric) => (
-                        <Line
-                          key={metric.key}
-                          type="monotone"
-                          dataKey={metric.key}
-                          yAxisId={metric.yAxisId}
-                          stroke={metric.color}
-                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2 : 1}
-                          strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.25}
-                          dot={{ r: 3, fill: metric.color, strokeWidth: 0 }}
-                          activeDot={{ r: 5, strokeWidth: 2, fill: metric.color }}
-                          name={metric.name}
-                          connectNulls
-                        />
-                      ))}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
                 
-                {/* Legend - matching reference design format */}
-                <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
-                  {/* Baseline trendline legend */}
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-6 h-0.5 border-t-2 border-dashed border-gray-500" />
-                      <span className="text-[10px] text-white/40">Baseline trendlines (grow as data arrives)</span>
+                {/* Legend - matching the JSON spec */}
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <div className="flex flex-wrap items-center gap-4">
+                    {/* Objective line legend */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-0.5 bg-[#00E5FF]" />
+                      <span className="text-xs text-[#00E5FF]">Biometrics (HealthKit)</span>
+                    </div>
+                    
+                    {/* Subjective line legend */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-0.5 border-t-2 border-dashed border-[#FF9100]" />
+                      <span className="text-xs text-[#FF9100]">How You Feel</span>
+                    </div>
+                    
+                    {/* Baseline legend */}
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-0.5 border-t-2 border-dashed border-white/50" />
+                      <span className="text-xs text-white/50">Your Normal</span>
                     </div>
                   </div>
                   
-                  {/* Subjective Metrics Row */}
-                  {metricConfigs.filter(m => m.type === 'subjective').length > 0 && (
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-xs text-white/60 font-medium">Subjective:</span>
-                      {metricConfigs.filter(m => m.type === 'subjective').map((metric) => (
-                        <button
-                          key={metric.key}
-                          onClick={() => handleMetricClick(metric.key)}
-                          className={`flex items-center gap-1.5 text-xs transition-all ${
-                            highlightedMetric === null || highlightedMetric === metric.key
-                              ? 'opacity-100'
-                              : 'opacity-40'
-                          }`}
-                          data-testid={`button-metric-${metric.key}`}
-                        >
-                          <div className="w-4 h-0.5" style={{ backgroundColor: metric.color }} />
-                          <span style={{ color: metric.color }}>{metric.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Objective Metrics Row */}
-                  {metricConfigs.filter(m => m.type === 'objective').length > 0 && (
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-xs text-white/60 font-medium">Objective:</span>
-                      {metricConfigs.filter(m => m.type === 'objective').map((metric) => (
-                        <button
-                          key={metric.key}
-                          onClick={() => handleMetricClick(metric.key)}
-                          className={`flex items-center gap-1.5 text-xs transition-all ${
-                            highlightedMetric === null || highlightedMetric === metric.key
-                              ? 'opacity-100'
-                              : 'opacity-40'
-                          }`}
-                          data-testid={`button-metric-${metric.key}`}
-                        >
-                          <div className="w-4 h-0.5" style={{ backgroundColor: metric.color }} />
-                          <span style={{ color: metric.color }}>{metric.name}</span>
-                          {metric.unit && <span style={{ color: metric.color }} className="opacity-70">({metric.unit})</span>}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  <p className="text-[10px] text-white/30 mt-2">
-                    Chart builds progressively as check-ins and HealthKit data arrive
+                  <p className="text-[10px] text-white/30 mt-3">
+                    Z-score normalized: Up always means improvement. Chart shows deviation from your baseline average.
                   </p>
                 </div>
               </>
