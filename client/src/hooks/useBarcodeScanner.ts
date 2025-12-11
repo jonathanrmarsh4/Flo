@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { useState, useEffect, useRef } from 'react';
 
 interface ScanResult {
@@ -14,10 +14,30 @@ interface BarcodeScannerHook {
   requestPermissions: () => Promise<boolean>;
 }
 
+interface BarcodeScannerPlugin {
+  isSupported(): Promise<{ supported: boolean }>;
+  checkPermissions(): Promise<{ camera: string }>;
+  requestPermissions(): Promise<{ camera: string }>;
+  scan(options: { formats: string[] }): Promise<{ barcodes: Array<{ rawValue: string; format: string }> }>;
+}
+
+const BarcodeFormats = {
+  UpcA: 'UPC_A',
+  UpcE: 'UPC_E', 
+  Ean8: 'EAN_8',
+  Ean13: 'EAN_13',
+  Code128: 'CODE_128',
+  Code39: 'CODE_39',
+  Code93: 'CODE_93',
+  Itf: 'ITF',
+  DataMatrix: 'DATA_MATRIX',
+  QrCode: 'QR_CODE',
+};
+
 export function useBarcodeScanner(): BarcodeScannerHook {
   const isNative = Capacitor.isNativePlatform();
   const [isSupported, setIsSupported] = useState(false);
-  const scannerModuleRef = useRef<any>(null);
+  const scannerRef = useRef<BarcodeScannerPlugin | null>(null);
   
   useEffect(() => {
     const loadAndCheckSupport = async () => {
@@ -28,18 +48,16 @@ export function useBarcodeScanner(): BarcodeScannerHook {
       }
       
       try {
-        console.log('[BarcodeScanner] Dynamically importing MLKit module...');
-        // @vite-ignore tells Vite to not try to bundle this module
-        const modulePath = '@capacitor-mlkit/barcode-scanning';
-        const module = await import(/* @vite-ignore */ modulePath);
-        scannerModuleRef.current = module;
-        console.log('[BarcodeScanner] Module loaded successfully');
+        console.log('[BarcodeScanner] Registering BarcodeScanner plugin...');
+        const scanner = registerPlugin<BarcodeScannerPlugin>('BarcodeScanner');
+        scannerRef.current = scanner;
+        console.log('[BarcodeScanner] Plugin registered:', scanner);
         
-        const { supported } = await module.BarcodeScanner.isSupported();
+        const { supported } = await scanner.isSupported();
         console.log('[BarcodeScanner] isSupported result:', supported);
         setIsSupported(supported);
       } catch (error) {
-        console.error('[BarcodeScanner] Error loading/checking support:', error);
+        console.error('[BarcodeScanner] Error registering/checking support:', error);
         setIsSupported(false);
       }
     };
@@ -49,14 +67,13 @@ export function useBarcodeScanner(): BarcodeScannerHook {
   
   console.log('[BarcodeScanner] Hook state - isNative:', isNative, 'isSupported:', isSupported, 'platform:', Capacitor.getPlatform());
 
-  const getScanner = async () => {
-    if (scannerModuleRef.current) {
-      return scannerModuleRef.current;
+  const getScanner = (): BarcodeScannerPlugin => {
+    if (scannerRef.current) {
+      return scannerRef.current;
     }
-    const modulePath = '@capacitor-mlkit/barcode-scanning';
-    const module = await import(/* @vite-ignore */ modulePath);
-    scannerModuleRef.current = module;
-    return module;
+    const scanner = registerPlugin<BarcodeScannerPlugin>('BarcodeScanner');
+    scannerRef.current = scanner;
+    return scanner;
   };
 
   const checkPermissions = async (): Promise<boolean> => {
@@ -64,8 +81,8 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     
     try {
       console.log('[BarcodeScanner] Checking permissions...');
-      const { BarcodeScanner } = await getScanner();
-      const { camera } = await BarcodeScanner.checkPermissions();
+      const scanner = getScanner();
+      const { camera } = await scanner.checkPermissions();
       console.log('[BarcodeScanner] Permission status:', camera);
       return camera === 'granted';
     } catch (error) {
@@ -79,8 +96,8 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     
     try {
       console.log('[BarcodeScanner] Requesting permissions...');
-      const { BarcodeScanner } = await getScanner();
-      const { camera } = await BarcodeScanner.requestPermissions();
+      const scanner = getScanner();
+      const { camera } = await scanner.requestPermissions();
       console.log('[BarcodeScanner] Permission request result:', camera);
       return camera === 'granted';
     } catch (error) {
@@ -98,14 +115,14 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     }
 
     try {
-      const { BarcodeScanner, BarcodeFormat } = await getScanner();
+      const scanner = getScanner();
       
       console.log('[BarcodeScanner] Checking/requesting permissions...');
-      const { camera } = await BarcodeScanner.checkPermissions();
+      const { camera } = await scanner.checkPermissions();
       console.log('[BarcodeScanner] Has permission:', camera);
       
       if (camera !== 'granted') {
-        const result = await BarcodeScanner.requestPermissions();
+        const result = await scanner.requestPermissions();
         console.log('[BarcodeScanner] Permission granted after request:', result.camera);
         if (result.camera !== 'granted') {
           console.log('[BarcodeScanner] Camera permission denied');
@@ -114,18 +131,18 @@ export function useBarcodeScanner(): BarcodeScannerHook {
       }
 
       console.log('[BarcodeScanner] Calling BarcodeScanner.scan()...');
-      const { barcodes } = await BarcodeScanner.scan({
+      const { barcodes } = await scanner.scan({
         formats: [
-          BarcodeFormat.UpcA,
-          BarcodeFormat.UpcE,
-          BarcodeFormat.Ean8,
-          BarcodeFormat.Ean13,
-          BarcodeFormat.Code128,
-          BarcodeFormat.Code39,
-          BarcodeFormat.Code93,
-          BarcodeFormat.Itf,
-          BarcodeFormat.DataMatrix,
-          BarcodeFormat.QrCode,
+          BarcodeFormats.UpcA,
+          BarcodeFormats.UpcE,
+          BarcodeFormats.Ean8,
+          BarcodeFormats.Ean13,
+          BarcodeFormats.Code128,
+          BarcodeFormats.Code39,
+          BarcodeFormats.Code93,
+          BarcodeFormats.Itf,
+          BarcodeFormats.DataMatrix,
+          BarcodeFormats.QrCode,
         ],
       });
 
