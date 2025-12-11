@@ -91,7 +91,7 @@ export default function AssessmentDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch assessment details
-  const { data: experimentData, isLoading } = useQuery<ExperimentData>({
+  const { data: experimentData, isLoading, isError, error } = useQuery<ExperimentData>({
     queryKey: ['/api/n1/experiments', id],
   });
 
@@ -202,6 +202,22 @@ export default function AssessmentDetail() {
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
         <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-cyan-400 rounded-full" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-center gap-4 p-4">
+        <p className="text-red-400">Failed to load assessment</p>
+        <p className="text-white/40 text-sm text-center">{(error as any)?.message || 'Unknown error'}</p>
+        <Button
+          variant="outline"
+          className="border-white/20 text-white"
+          onClick={() => setLocation('/actions')}
+        >
+          Go Back
+        </Button>
       </div>
     );
   }
