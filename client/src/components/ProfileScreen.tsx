@@ -12,6 +12,7 @@ import { DeleteDataConfirmation } from '@/components/DeleteDataConfirmation';
 import { HelpSupportScreen } from '@/components/HelpSupportScreen';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { PasskeyManagement } from '@/components/PasskeyManagement';
+import { IntegrationsSettings } from '@/components/IntegrationsSettings';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -1270,6 +1271,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
             </Button>
           </div>
         )}
+
+        {/* Integrations */}
+        <IntegrationsSettings isDark={isDark} />
 
         {/* Passkeys & Security */}
         <PasskeyManagement isDark={isDark} />

@@ -1484,6 +1484,8 @@ export interface SleepNight {
   respiratory_rate?: number | null;
   wrist_temperature?: number | null;
   oxygen_saturation?: number | null;
+  source?: 'manual' | 'healthkit' | 'oura' | 'dexcom';
+  oura_session_id?: string | null;
   created_at?: Date;
   updated_at?: Date;
 }

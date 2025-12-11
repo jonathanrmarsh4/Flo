@@ -2916,3 +2916,88 @@ export const insertMLSensitivitySettingsSchema = createInsertSchema(mlSensitivit
 
 export type InsertMLSensitivitySettings = z.infer<typeof insertMLSensitivitySettingsSchema>;
 export type MLSensitivitySettings = typeof mlSensitivitySettings.$inferSelect;
+
+// ============================================================================
+// User Integrations - OAuth connections to external health data sources
+// ============================================================================
+
+export const integrationProviderEnum = pgEnum("integration_provider", ["oura", "dexcom"]);
+export const integrationStatusEnum = pgEnum("integration_status", ["not_connected", "connected", "expired", "error"]);
+
+export const userIntegrations = pgTable("user_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  
+  provider: integrationProviderEnum("provider").notNull(),
+  status: integrationStatusEnum("status").default("not_connected").notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  
+  // OAuth tokens (encrypted at rest via application layer)
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  tokenScope: text("token_scope"),
+  
+  // Sync metadata
+  lastSyncAt: timestamp("last_sync_at"),
+  lastSyncError: text("last_sync_error"),
+  syncCursor: text("sync_cursor"), // For pagination/incremental sync
+  
+  // Priority settings - which metrics to prefer from this source over others
+  // e.g., ["hrv", "sleep_duration", "deep_sleep"] means prefer Oura for these metrics
+  priorityMetrics: jsonb("priority_metrics").$type<string[]>().default([]),
+  
+  // Provider-specific metadata (user info, subscription status, etc.)
+  providerMetadata: jsonb("provider_metadata").$type<Record<string, any>>(),
+  
+  connectedAt: timestamp("connected_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userProviderIdx: uniqueIndex("user_integrations_user_provider_idx").on(table.userId, table.provider),
+  userIdIdx: index("user_integrations_user_idx").on(table.userId),
+  statusIdx: index("user_integrations_status_idx").on(table.status),
+}));
+
+export const insertUserIntegrationSchema = createInsertSchema(userIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+} as const);
+
+export type InsertUserIntegration = z.infer<typeof insertUserIntegrationSchema>;
+export type UserIntegration = typeof userIntegrations.$inferSelect;
+
+// ============================================================================
+// Data Source Priority Settings - Global user preference for metric sources
+// ============================================================================
+
+export const dataSourceEnum = pgEnum("data_source", ["healthkit", "oura", "dexcom", "manual"]);
+
+export const userDataSourcePreferences = pgTable("user_data_source_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }).unique(),
+  
+  // Per-metric source priority - e.g., { "hrv": "oura", "steps": "healthkit", "blood_glucose": "dexcom" }
+  metricSources: jsonb("metric_sources").$type<Record<string, string>>().default({}),
+  
+  // Default source when no specific preference is set
+  defaultSource: dataSourceEnum("default_source").default("healthkit").notNull(),
+  
+  // Auto-select best source based on data quality (future feature)
+  autoSelectBestSource: boolean("auto_select_best_source").default(false).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("user_data_source_prefs_user_idx").on(table.userId),
+}));
+
+export const insertUserDataSourcePreferencesSchema = createInsertSchema(userDataSourcePreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+} as const);
+
+export type InsertUserDataSourcePreferences = z.infer<typeof insertUserDataSourcePreferencesSchema>;
+export type UserDataSourcePreferences = typeof userDataSourcePreferences.$inferSelect;

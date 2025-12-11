@@ -16672,6 +16672,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   
   // Authenticated billing routes (Stripe subscription management)
   app.use('/api/billing', isAuthenticated, billingRouter);
+  
+  // Integrations routes (Oura, Dexcom OAuth and data sync)
+  const integrationsRouter = await import('./routes/integrations');
+  app.use('/api/integrations', integrationsRouter.default);
 
   const httpServer = createServer(app);
   
