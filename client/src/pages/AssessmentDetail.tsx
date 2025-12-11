@@ -238,78 +238,80 @@ export default function AssessmentDetail() {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
-  // Define all metric configurations for the chart - matching reference design colors
+  // Define metric configurations from SUPPLEMENT CONFIGURATION (not from data)
   const metricConfigs = useMemo((): MetricConfig[] => {
     const configs: MetricConfig[] = [];
     
+    // Get supplement config from experiment data if available
+    const suppTypeId = experimentData?.experiment?.supplement_type_id;
+    const suppConfig = suppTypeId ? SUPPLEMENT_CONFIGURATIONS[suppTypeId] : null;
+    
     // Subjective colors: purple, cyan, green (matching reference)
     const subjectiveColors = ['#a855f7', '#22d3ee', '#22c55e', '#f97316', '#eab308', '#14b8a6'];
-    // Objective colors: pink/magenta, orange (matching reference)
+    // Objective colors: pink/magenta, orange, indigo, teal (matching reference)
     const objectiveColors = ['#ec4899', '#f97316', '#6366f1', '#14b8a6'];
     
-    // Add subjective metrics from check-ins
-    if (checkins.length && checkins[0]?.ratings) {
-      Object.keys(checkins[0].ratings).forEach((key, index) => {
+    // Use supplement configuration to define expected metrics
+    if (suppConfig) {
+      // Add ALL subjective metrics from config
+      suppConfig.subjectiveMetrics.forEach((metric, index) => {
+        const key = metric.metric.toLowerCase().replace(/\s+/g, '_');
         configs.push({
           key,
-          name: formatMetricName(key),
+          name: metric.metric,
           color: subjectiveColors[index % subjectiveColors.length],
           type: 'subjective',
           yAxisId: 'left',
           unit: '/10',
         });
       });
-    }
-    
-    // Add ALL available objective metrics
-    if (objectiveMetrics.length > 0) {
-      const sample = objectiveMetrics[0];
-      let objIndex = 0;
       
-      if (sample.hrv !== undefined) {
+      // Add ALL objective metrics from config
+      suppConfig.objectiveMetrics.forEach((metric, index) => {
+        // Map metric name to chart data key
+        let key = 'hrv';
+        let unit = 'ms';
+        const metricName = metric.metric.toLowerCase();
+        
+        if (metricName.includes('hrv')) {
+          key = 'hrv';
+          unit = 'ms';
+        } else if (metricName.includes('deep sleep')) {
+          key = 'deepSleepPct';
+          unit = '%';
+        } else if (metricName.includes('rem sleep')) {
+          key = 'remSleepPct';
+          unit = '%';
+        } else if (metricName.includes('sleep duration')) {
+          key = 'sleepDuration';
+          unit = 'min';
+        } else if (metricName.includes('resting') && metricName.includes('heart')) {
+          key = 'restingHeartRate';
+          unit = 'bpm';
+        } else if (metricName.includes('sleep efficiency')) {
+          key = 'sleepEfficiency';
+          unit = '%';
+        } else if (metricName.includes('weight')) {
+          key = 'weight';
+          unit = 'kg';
+        } else if (metricName.includes('active energy')) {
+          key = 'activeEnergy';
+          unit = 'kcal';
+        }
+        
         configs.push({
-          key: 'hrv',
-          name: 'HRV',
-          color: objectiveColors[objIndex++ % objectiveColors.length],
+          key,
+          name: metric.metric,
+          color: objectiveColors[index % objectiveColors.length],
           type: 'objective',
           yAxisId: 'right',
-          unit: 'ms',
+          unit,
         });
-      }
-      if (sample.deepSleepPct !== undefined) {
-        configs.push({
-          key: 'deepSleepPct',
-          name: 'Deep Sleep',
-          color: objectiveColors[objIndex++ % objectiveColors.length],
-          type: 'objective',
-          yAxisId: 'right',
-          unit: '%',
-        });
-      }
-      if (sample.restingHeartRate !== undefined) {
-        configs.push({
-          key: 'restingHeartRate',
-          name: 'Resting HR',
-          color: objectiveColors[objIndex++ % objectiveColors.length],
-          type: 'objective',
-          yAxisId: 'right',
-          unit: 'bpm',
-        });
-      }
-      if (sample.sleepEfficiency !== undefined) {
-        configs.push({
-          key: 'sleepEfficiency',
-          name: 'Sleep Efficiency',
-          color: objectiveColors[objIndex++ % objectiveColors.length],
-          type: 'objective',
-          yAxisId: 'right',
-          unit: '%',
-        });
-      }
+      });
     }
     
     return configs;
-  }, [checkins, objectiveMetrics]);
+  }, [experimentData]);
 
   // Helper to calculate rolling average (trendline)
   const calculateTrendline = useCallback((data: number[], windowSize: number = 3): number[] => {
@@ -324,42 +326,53 @@ export default function AssessmentDetail() {
     return result;
   }, []);
 
-  // Generate enhanced chart data merging subjective and objective metrics
+  // Generate PROGRESSIVE chart data - only days with actual data
   const chartData = useMemo(() => {
     if (!checkins.length && !objectiveMetrics.length) return [];
     
-    // Create a map of dates to data points
+    // Create a map of dates to data points - ONLY for days with actual data
     const dateMap = new Map<string, Record<string, any>>();
     
-    // Add subjective check-in data
+    // Add subjective check-in data with normalized keys
     checkins.forEach((checkin) => {
       const dateKey = checkin.checkin_date.split('T')[0];
-      const existing = dateMap.get(dateKey) || { dateKey };
+      const existing = dateMap.get(dateKey) || { dateKey, hasSubjective: false };
       
-      if (checkin.ratings) {
+      if (checkin.ratings && Object.keys(checkin.ratings).length > 0) {
+        existing.hasSubjective = true;
         Object.entries(checkin.ratings).forEach(([key, value]) => {
-          existing[key] = value;
+          // Normalize key to match supplement config format
+          const normalizedKey = key.toLowerCase().replace(/\s+/g, '_');
+          existing[normalizedKey] = value;
         });
       }
       
       dateMap.set(dateKey, existing);
     });
     
-    // Add objective HealthKit data
-    objectiveMetrics.forEach((metric) => {
+    // Add ALL objective HealthKit data (cast to any to allow additional properties)
+    objectiveMetrics.forEach((metric: any) => {
       const dateKey = metric.date;
-      const existing = dateMap.get(dateKey) || { dateKey };
+      const existing = dateMap.get(dateKey) || { dateKey, hasObjective: false };
       
-      if (metric.hrv !== undefined) existing.hrv = metric.hrv;
-      if (metric.deepSleepPct !== undefined) existing.deepSleepPct = metric.deepSleepPct;
-      if (metric.restingHeartRate !== undefined) existing.restingHeartRate = metric.restingHeartRate;
-      if (metric.sleepEfficiency !== undefined) existing.sleepEfficiency = metric.sleepEfficiency;
+      let hasAnyObjective = false;
+      if (metric.hrv !== undefined) { existing.hrv = metric.hrv; hasAnyObjective = true; }
+      if (metric.deepSleepPct !== undefined) { existing.deepSleepPct = metric.deepSleepPct; hasAnyObjective = true; }
+      if (metric.remSleepPct !== undefined) { existing.remSleepPct = metric.remSleepPct; hasAnyObjective = true; }
+      if (metric.sleepDuration !== undefined) { existing.sleepDuration = metric.sleepDuration; hasAnyObjective = true; }
+      if (metric.restingHeartRate !== undefined) { existing.restingHeartRate = metric.restingHeartRate; hasAnyObjective = true; }
+      if (metric.sleepEfficiency !== undefined) { existing.sleepEfficiency = metric.sleepEfficiency; hasAnyObjective = true; }
+      if (metric.weight !== undefined) { existing.weight = metric.weight; hasAnyObjective = true; }
+      if (metric.activeEnergy !== undefined) { existing.activeEnergy = metric.activeEnergy; hasAnyObjective = true; }
+      
+      if (hasAnyObjective) existing.hasObjective = true;
       
       dateMap.set(dateKey, existing);
     });
     
-    // Sort by date and add display formatting
+    // Sort by date - ONLY include days that have at least some data
     const sortedData: Record<string, any>[] = Array.from(dateMap.entries())
+      .filter(([, data]) => data.hasSubjective || data.hasObjective)
       .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
       .map(([dateKey, data], index) => {
         const date = new Date(dateKey);
@@ -370,47 +383,63 @@ export default function AssessmentDetail() {
         };
       });
     
-    // Calculate trendlines for subjective and objective metrics
-    if (sortedData.length > 1) {
-      // Get subjective metric keys
+    // Calculate PROGRESSIVE baseline trendlines (cumulative rolling average)
+    if (sortedData.length >= 1) {
       const subjectiveKeys = metricConfigs.filter(m => m.type === 'subjective').map(m => m.key);
       const objectiveKeys = metricConfigs.filter(m => m.type === 'objective').map(m => m.key);
       
-      // Calculate average subjective trendline (normalized 0-10)
-      if (subjectiveKeys.length > 0) {
-        const subjectiveAvgs = sortedData.map(d => {
+      // Progressive subjective baseline - grows as data arrives
+      let subjectiveRunningSum = 0;
+      let subjectiveRunningCount = 0;
+      sortedData.forEach((d) => {
+        if (d.hasSubjective) {
           const values = subjectiveKeys.map(k => d[k]).filter((v): v is number => v !== undefined);
-          return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
-        });
-        const validSubjective = subjectiveAvgs.filter((v): v is number => v !== null);
-        const subjectiveTrend = calculateTrendline(validSubjective);
-        let trendIdx = 0;
-        sortedData.forEach((d, i) => {
-          if (subjectiveAvgs[i] !== null) {
-            d.subjectiveTrendline = subjectiveTrend[trendIdx++];
+          if (values.length > 0) {
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            subjectiveRunningSum += avg;
+            subjectiveRunningCount++;
           }
-        });
-      }
+        }
+        // Only add baseline point if we have ANY subjective data so far
+        if (subjectiveRunningCount > 0) {
+          d.subjectiveBaseline = subjectiveRunningSum / subjectiveRunningCount;
+        }
+      });
       
-      // Calculate objective trendline using HRV as primary metric (most common objective)
-      if (objectiveKeys.length > 0) {
-        // Use HRV values directly for trendline (primary objective metric)
-        const hrvValues = sortedData.map(d => d.hrv !== undefined ? d.hrv : null);
-        const validHrv = hrvValues.filter((v): v is number => v !== null);
-        if (validHrv.length > 0) {
-          const objectiveTrend = calculateTrendline(validHrv);
-          let trendIdx = 0;
-          sortedData.forEach((d, i) => {
-            if (hrvValues[i] !== null) {
-              d.objectiveTrendline = objectiveTrend[trendIdx++];
+      // Progressive objective baseline - normalize all objective metrics to 0-100 scale for comparison
+      let objectiveRunningSum = 0;
+      let objectiveRunningCount = 0;
+      sortedData.forEach((d) => {
+        if (d.hasObjective) {
+          // Collect all objective values and normalize to 0-100 scale
+          const normalizedValues: number[] = [];
+          objectiveKeys.forEach((k) => {
+            const val = d[k];
+            if (val !== undefined) {
+              // Normalize based on expected ranges
+              let normalized = val;
+              if (k === 'hrv') normalized = Math.min(100, (val / 150) * 100); // HRV 0-150ms -> 0-100
+              else if (k === 'deepSleepPct' || k === 'remSleepPct' || k === 'sleepEfficiency') normalized = val; // Already %
+              else if (k === 'restingHeartRate') normalized = Math.max(0, 100 - ((val - 40) / 60) * 100); // RHR 40-100bpm -> 100-0 (lower is better)
+              else if (k === 'sleepDuration') normalized = Math.min(100, (val / 480) * 100); // 0-8hr -> 0-100
+              normalizedValues.push(normalized);
             }
           });
+          if (normalizedValues.length > 0) {
+            const avg = normalizedValues.reduce((a, b) => a + b, 0) / normalizedValues.length;
+            objectiveRunningSum += avg;
+            objectiveRunningCount++;
+          }
         }
-      }
+        // Only add baseline point if we have ANY objective data so far
+        if (objectiveRunningCount > 0) {
+          d.objectiveBaseline = objectiveRunningSum / objectiveRunningCount;
+        }
+      });
     }
     
     return sortedData;
-  }, [checkins, objectiveMetrics, metricConfigs, calculateTrendline]);
+  }, [checkins, objectiveMetrics, metricConfigs]);
   
   // Calculate baseline averages for reference lines
   const baselineAverages = useMemo(() => {
@@ -716,7 +745,40 @@ export default function AssessmentDetail() {
                       )}
                       <Tooltip content={<CustomTooltip />} />
                       
-                      {/* All metric lines - each metric gets its own colored line */}
+                      {/* Progressive GREY baseline trendlines - these grow as data arrives */}
+                      {chartData.some(d => d.subjectiveBaseline !== undefined) && (
+                        <Line
+                          type="monotone"
+                          dataKey="subjectiveBaseline"
+                          yAxisId="left"
+                          stroke="#888888"
+                          strokeWidth={3}
+                          strokeOpacity={0.4}
+                          strokeDasharray="8 4"
+                          dot={{ r: 4, fill: '#888888', strokeWidth: 0, fillOpacity: 0.5 }}
+                          name="Subjective Baseline"
+                          connectNulls
+                          legendType="none"
+                        />
+                      )}
+                      
+                      {chartData.some(d => d.objectiveBaseline !== undefined) && (
+                        <Line
+                          type="monotone"
+                          dataKey="objectiveBaseline"
+                          yAxisId="right"
+                          stroke="#888888"
+                          strokeWidth={3}
+                          strokeOpacity={0.4}
+                          strokeDasharray="8 4"
+                          dot={{ r: 4, fill: '#888888', strokeWidth: 0, fillOpacity: 0.5 }}
+                          name="Objective Baseline"
+                          connectNulls
+                          legendType="none"
+                        />
+                      )}
+                      
+                      {/* Individual metric lines - deviate from baselines */}
                       {metricConfigs.map((metric) => (
                         <Line
                           key={metric.key}
@@ -724,10 +786,10 @@ export default function AssessmentDetail() {
                           dataKey={metric.key}
                           yAxisId={metric.yAxisId}
                           stroke={metric.color}
-                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2.5 : 1.5}
-                          strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.3}
-                          dot={false}
-                          activeDot={{ r: 4, strokeWidth: 2, fill: metric.color }}
+                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2 : 1}
+                          strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.25}
+                          dot={{ r: 3, fill: metric.color, strokeWidth: 0 }}
+                          activeDot={{ r: 5, strokeWidth: 2, fill: metric.color }}
                           name={metric.name}
                           connectNulls
                         />
@@ -738,7 +800,13 @@ export default function AssessmentDetail() {
                 
                 {/* Legend - matching reference design format */}
                 <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
-                  <p className="text-[10px] text-white/50 mb-3">Click any metric below to focus on it and see success target projection</p>
+                  {/* Baseline trendline legend */}
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-6 h-0.5 border-t-2 border-dashed border-gray-500" />
+                      <span className="text-[10px] text-white/40">Baseline trendlines (grow as data arrives)</span>
+                    </div>
+                  </div>
                   
                   {/* Subjective Metrics Row */}
                   {metricConfigs.filter(m => m.type === 'subjective').length > 0 && (
@@ -784,6 +852,10 @@ export default function AssessmentDetail() {
                       ))}
                     </div>
                   )}
+                  
+                  <p className="text-[10px] text-white/30 mt-2">
+                    Chart builds progressively as check-ins and HealthKit data arrive
+                  </p>
                 </div>
               </>
             )}
