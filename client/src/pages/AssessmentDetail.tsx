@@ -338,7 +338,7 @@ export default function AssessmentDetail() {
     };
     
     metricConfigs.forEach((metric) => {
-      const values = chartData.map(d => d[metric.key]).filter(v => v !== undefined);
+      const values = chartData.map(d => (d as Record<string, unknown>)[metric.key] as number | undefined).filter((v): v is number => v !== undefined);
       if (values.length < 3) return;
       
       // Compare first half vs second half average
@@ -530,7 +530,7 @@ export default function AssessmentDetail() {
         )}
 
         {/* Enhanced Metrics Trend Chart with Dual Y-Axes */}
-        {(experiment.status === 'active' || experiment.status === 'completed') && chartData.length > 1 && (
+        {(experiment.status === 'baseline' || experiment.status === 'active' || experiment.status === 'completed') && (
           <Card className="p-4 bg-white/5 border-white/10 mb-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
@@ -539,96 +539,114 @@ export default function AssessmentDetail() {
               <div>
                 <h3 className="text-white font-medium">Metrics Trend</h3>
                 <p className="text-xs text-white/60">
-                  Subjective (1-10) + Objective HealthKit data
+                  {experiment.status === 'baseline' 
+                    ? 'Collecting baseline data before supplement starts' 
+                    : 'Subjective (1-10) + Objective HealthKit data'}
                 </p>
               </div>
             </div>
             
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <XAxis 
-                    dataKey="date" 
-                    stroke="#ffffff40" 
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  {/* Left Y-axis for subjective metrics (1-10 scale) */}
-                  <YAxis 
-                    yAxisId="left"
-                    domain={[0, 10]} 
-                    stroke="#22d3ee" 
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    width={25}
-                    label={{ value: '1-10', angle: -90, position: 'insideLeft', fill: '#22d3ee', fontSize: 9, offset: 10 }}
-                  />
-                  {/* Right Y-axis for objective metrics (variable scale) */}
-                  {metricConfigs.some(m => m.type === 'objective') && (
-                    <YAxis 
-                      yAxisId="right"
-                      orientation="right"
-                      domain={['auto', 'auto']} 
-                      stroke="#ec4899" 
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                      width={35}
-                      label={{ value: 'HRV/%', angle: 90, position: 'insideRight', fill: '#ec4899', fontSize: 9, offset: 10 }}
-                    />
-                  )}
-                  <Tooltip content={<CustomTooltip />} />
-                  {metricConfigs.map((metric) => (
-                    <Line
-                      key={metric.key}
-                      type="monotone"
-                      dataKey={metric.key}
-                      yAxisId={metric.yAxisId}
-                      stroke={metric.color}
-                      strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2.5 : 1}
-                      strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.25}
-                      dot={highlightedMetric === metric.key}
-                      activeDot={{ r: 4, strokeWidth: 2 }}
-                      name={metric.name}
-                      connectNulls
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Interactive Legend */}
-            <div className="mt-4 pt-3 border-t border-white/10">
-              <div className="flex flex-wrap gap-2">
-                {metricConfigs.map((metric) => (
-                  <button
-                    key={metric.key}
-                    onClick={() => handleMetricClick(metric.key)}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
-                      highlightedMetric === null || highlightedMetric === metric.key
-                        ? 'opacity-100'
-                        : 'opacity-40'
-                    } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
-                    style={{ 
-                      backgroundColor: `${metric.color}20`,
-                      color: metric.color,
-                    }}
-                    data-testid={`button-metric-${metric.key}`}
-                  >
-                    {metric.type === 'objective' ? (
-                      metric.key === 'hrv' ? <Heart className="w-3 h-3" /> : <Moon className="w-3 h-3" />
-                    ) : null}
-                    <span>{metric.name}</span>
-                    {metric.unit && <span className="opacity-60">{metric.unit}</span>}
-                  </button>
-                ))}
+            {chartData.length === 0 ? (
+              <div className="h-40 flex flex-col items-center justify-center text-center">
+                <BarChart3 className="w-10 h-10 text-white/20 mb-3" />
+                <p className="text-white/60 text-sm">No data recorded yet</p>
+                <p className="text-white/40 text-xs mt-1">
+                  {experiment.status === 'baseline' 
+                    ? 'Complete your first check-in to start tracking'
+                    : 'Your progress chart will appear after your first check-in'}
+                </p>
               </div>
-              <p className="text-[10px] text-white/40 mt-2">
-                Tap a metric to highlight • Left axis: subjective • Right axis: objective
-              </p>
-            </div>
+            ) : (
+              <>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="#ffffff40" 
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      {/* Left Y-axis for subjective metrics (1-10 scale) */}
+                      <YAxis 
+                        yAxisId="left"
+                        domain={[0, 10]} 
+                        stroke="#22d3ee" 
+                        fontSize={10}
+                        tickLine={false}
+                        axisLine={false}
+                        width={25}
+                        label={{ value: '1-10', angle: -90, position: 'insideLeft', fill: '#22d3ee', fontSize: 9, offset: 10 }}
+                      />
+                      {/* Right Y-axis for objective metrics (variable scale) */}
+                      {metricConfigs.some(m => m.type === 'objective') && (
+                        <YAxis 
+                          yAxisId="right"
+                          orientation="right"
+                          domain={['auto', 'auto']} 
+                          stroke="#ec4899" 
+                          fontSize={10}
+                          tickLine={false}
+                          axisLine={false}
+                          width={35}
+                          label={{ value: 'HRV/%', angle: 90, position: 'insideRight', fill: '#ec4899', fontSize: 9, offset: 10 }}
+                        />
+                      )}
+                      <Tooltip content={<CustomTooltip />} />
+                      {metricConfigs.map((metric) => (
+                        <Line
+                          key={metric.key}
+                          type="monotone"
+                          dataKey={metric.key}
+                          yAxisId={metric.yAxisId}
+                          stroke={metric.color}
+                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2.5 : 1}
+                          strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.25}
+                          dot={true}
+                          activeDot={{ r: 4, strokeWidth: 2 }}
+                          name={metric.name}
+                          connectNulls
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Interactive Legend */}
+                <div className="mt-4 pt-3 border-t border-white/10">
+                  <div className="flex flex-wrap gap-2">
+                    {metricConfigs.map((metric) => (
+                      <button
+                        key={metric.key}
+                        onClick={() => handleMetricClick(metric.key)}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
+                          highlightedMetric === null || highlightedMetric === metric.key
+                            ? 'opacity-100'
+                            : 'opacity-40'
+                        } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
+                        style={{ 
+                          backgroundColor: `${metric.color}20`,
+                          color: metric.color,
+                        }}
+                        data-testid={`button-metric-${metric.key}`}
+                      >
+                        {metric.type === 'objective' ? (
+                          metric.key === 'hrv' ? <Heart className="w-3 h-3" /> : <Moon className="w-3 h-3" />
+                        ) : null}
+                        <span>{metric.name}</span>
+                        {metric.unit && <span className="opacity-60">{metric.unit}</span>}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-white/40 mt-2">
+                    {chartData.length === 1 
+                      ? 'First data point recorded • More points will appear with each check-in'
+                      : 'Tap a metric to highlight • Left axis: subjective • Right axis: objective'}
+                  </p>
+                </div>
+              </>
+            )}
           </Card>
         )}
 
