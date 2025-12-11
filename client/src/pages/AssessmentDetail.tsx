@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -111,6 +111,13 @@ export default function AssessmentDetail() {
     frozenForExperimentId: string;
     frozenForStartDate: string;
   } | null>(null);
+
+  // Clear frozen baseline when navigating to a different experiment
+  useEffect(() => {
+    if (id && frozenBaselineRef.current?.frozenForExperimentId !== id) {
+      frozenBaselineRef.current = null;
+    }
+  }, [id]);
 
   // Fetch assessment details
   const { data: experimentData, isLoading, isError, error } = useQuery<ExperimentData>({
@@ -412,10 +419,13 @@ export default function AssessmentDetail() {
         ? subjectiveZScores.reduce((a, b) => a + b, 0) / subjectiveZScores.length
         : undefined;
       
-      // Only include days with at least one composite value
-      if (objectiveComposite !== undefined || subjectiveComposite !== undefined) {
+      // Only include days ON OR AFTER the experiment start date (or all if no start date yet)
+      // This ensures the chart only shows experiment period data, not baseline period
+      const shouldInclude = !startDateStr || dateKey >= startDateStr;
+      
+      if (shouldInclude && (objectiveComposite !== undefined || subjectiveComposite !== undefined)) {
         result.push({
-          day: index + 1,
+          day: result.length + 1, // Day number relative to experiment start
           dateKey,
           date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           objectiveComposite: objectiveComposite !== undefined ? Math.max(-3, Math.min(3, objectiveComposite)) : undefined,
