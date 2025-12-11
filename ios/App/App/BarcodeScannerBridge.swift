@@ -3,18 +3,8 @@ import Capacitor
 import AVFoundation
 import UIKit
 
-@objc(BarcodeScannerBridge)
+@objc(BarcodeScanner)
 class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDelegate {
-    override var identifier: String { "BarcodeScannerBridge" }
-    override var jsName: String { "BarcodeScanner" }
-    override var pluginMethods: [CAPPluginMethod] {
-        [
-            CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise),
-            CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
-            CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
-            CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)
-        ]
-    }
     
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
