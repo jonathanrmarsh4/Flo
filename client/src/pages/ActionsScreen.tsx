@@ -121,12 +121,12 @@ export default function ActionsScreen() {
         <div className="px-4 py-3">
           <div>
             <h1 className="text-xl text-white" data-testid="heading-actions">
-              {isReportsView ? 'Reports' : 'Action Plan'}
+              {isReportsView ? 'Reports' : 'Interventions'}
             </h1>
             <p className="text-xs text-white/50">
               {isReportsView 
                 ? 'Health reports and summaries'
-                : `${activeItems.length} active action${activeItems.length !== 1 ? 's' : ''}`
+                : `${activeItems.length} active intervention${activeItems.length !== 1 ? 's' : ''}`
               }
             </p>
           </div>

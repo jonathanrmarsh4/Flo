@@ -36,7 +36,7 @@ export function FloBottomNav() {
     },
     {
       id: 'actions',
-      label: 'Actions',
+      label: 'Interventions',
       icon: Target,
       path: '/actions',
     },
