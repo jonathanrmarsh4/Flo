@@ -130,9 +130,38 @@ export default function NewAssessmentWizard() {
       return response.json() as Promise<BarcodeLookupResponse>;
     },
     onSuccess: (data) => {
-      // Auto-populate product fields
+      // Determine dosage from ingredient or fall back to defaults
+      // Use getDefaultDosage for universal fallback to ensure we always have valid dosage values
+      const fallbackDefaults = getDefaultDosage(data.detectedSupplementType || '');
+      let dosageAmount = fallbackDefaults.amount;
+      let dosageUnit = fallbackDefaults.unit;
+      let dosageFrequency = fallbackDefaults.frequency;
+      let dosageTiming = fallbackDefaults.timing;
+      
+      // Override with primary ingredient if available
+      if (data.primaryIngredient?.amount) {
+        dosageAmount = data.primaryIngredient.amount;
+        dosageUnit = data.primaryIngredient.unit || 'mg';
+      } else if (data.detectedSupplementType && DEFAULT_DOSAGES[data.detectedSupplementType]) {
+        // Use supplement-specific defaults if available
+        const defaults = DEFAULT_DOSAGES[data.detectedSupplementType];
+        dosageAmount = defaults.amount;
+        dosageUnit = defaults.unit;
+        dosageFrequency = defaults.frequency;
+        dosageTiming = defaults.timing;
+      }
+
+      // If a supplement type was detected, get its configuration
+      const detectedSupp = data.detectedSupplementType 
+        ? SUPPLEMENT_CONFIGURATIONS[data.detectedSupplementType] 
+        : null;
+
+      // Full state reset with new values - replaces all relevant fields
       setConfig(prev => ({
         ...prev,
+        // Reset supplement selection if detected type changed
+        supplementTypeId: data.detectedSupplementType || '',
+        // Auto-populate product fields
         product: {
           name: data.product.productName,
           brand: data.product.brandName,
@@ -143,26 +172,20 @@ export default function NewAssessmentWizard() {
             ? `${data.primaryIngredient.amount || ''}${data.primaryIngredient.unit || ''}`
             : undefined,
         },
-        // Auto-set dosage if we have ingredient info
-        ...(data.primaryIngredient?.amount && {
-          dosageAmount: data.primaryIngredient.amount,
-          dosageUnit: data.primaryIngredient.unit || 'mg',
-        }),
+        // Set dosage (from ingredient or defaults)
+        dosageAmount,
+        dosageUnit,
+        dosageFrequency,
+        dosageTiming,
+        // Update assessment duration if we detected a supplement type
+        assessmentDays: detectedSupp?.recommendedDuration || prev.assessmentDays,
       }));
-
-      // If a supplement type was detected and matches our list, auto-select it
-      if (data.detectedSupplementType && SUPPLEMENT_CONFIGURATIONS[data.detectedSupplementType]) {
-        const detectedSupp = SUPPLEMENT_CONFIGURATIONS[data.detectedSupplementType];
-        setConfig(prev => ({
-          ...prev,
-          supplementTypeId: data.detectedSupplementType!,
-          assessmentDays: detectedSupp.recommendedDuration,
-        }));
-      }
 
       toast({
         title: "Product Found",
-        description: `${data.product.productName} by ${data.product.brandName}`,
+        description: data.detectedSupplementType 
+          ? `${data.product.productName} - ${SUPPLEMENT_CONFIGURATIONS[data.detectedSupplementType]?.name || 'Supplement'} detected`
+          : `${data.product.productName} by ${data.product.brandName}`,
       });
       setShowBarcodeInput(false);
       setBarcodeInput('');
