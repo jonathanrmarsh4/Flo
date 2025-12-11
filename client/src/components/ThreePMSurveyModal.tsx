@@ -82,6 +82,7 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
   const [hoveredValue, setHoveredValue] = useState<number | null>(null);
   const [phase, setPhase] = useState<'daily' | 'supplements'>('daily');
   const [supplementStep, setSupplementStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -102,6 +103,7 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
       setSupplementStep(0);
       setSurveyData({ energy: null, clarity: null, mood: null });
       setSupplementRatings({});
+      setIsSubmitting(false);
     }
   }, [isOpen]);
   
@@ -229,16 +231,21 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
   const currentValue = getCurrentValue();
 
   const handleValueSelect = async (value: number) => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
     if (phase === 'daily') {
       const questionId = dailyQuestions[currentStep].id;
       const newSurveyData = { ...surveyData, [questionId]: value };
       setSurveyData(newSurveyData);
 
       setTimeout(async () => {
-        if (currentStep < dailyQuestions.length - 1) {
-          setCurrentStep(currentStep + 1);
-        } else {
-          try {
+        try {
+          if (currentStep < dailyQuestions.length - 1) {
+            setCurrentStep(currentStep + 1);
+            setIsSubmitting(false);
+          } else {
             await submitDailySurveyMutation.mutateAsync({
               energy: newSurveyData.energy!,
               clarity: newSurveyData.clarity!,
@@ -251,9 +258,11 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
             } else {
               handleComplete();
             }
-          } catch (error) {
-            // Error already shown via mutation onError
+            setIsSubmitting(false);
           }
+        } catch (error) {
+          // Error already shown via mutation onError
+          setIsSubmitting(false);
         }
       }, 300);
     } else {
@@ -272,9 +281,9 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
       }));
 
       setTimeout(async () => {
-        const isLastQuestionForExperiment = (supplementStep + 1) % SUPPLEMENT_QUESTIONS.length === 0;
-        
         try {
+          const isLastQuestionForExperiment = (supplementStep + 1) % SUPPLEMENT_QUESTIONS.length === 0;
+          
           if (isLastQuestionForExperiment) {
             await submitSupplementCheckinMutation.mutateAsync({ experimentId, ratings: newRatings });
           }
@@ -284,8 +293,10 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
           } else {
             handleComplete();
           }
+          setIsSubmitting(false);
         } catch (error) {
           // Error already shown via mutation onError, don't advance
+          setIsSubmitting(false);
         }
       }, 300);
     }
@@ -446,17 +457,21 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((value) => {
                     const isSelected = currentValue === value;
                     const isHovered = hoveredValue === value;
+                    const isDisabled = isSubmitting;
                     return (
                       <button
                         key={value}
                         onClick={() => handleValueSelect(value)}
                         onMouseEnter={() => setHoveredValue(value)}
                         onMouseLeave={() => setHoveredValue(null)}
+                        disabled={isDisabled}
                         data-testid={`button-scale-${value}`}
                         className={`relative aspect-square rounded-xl transition-all duration-200 flex items-center justify-center ${
+                          isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                        } ${
                           isSelected
                             ? `${getScaleColor(value, isInverted)} ring-4 ${getScaleColorRing(value, isInverted)} scale-110`
-                            : isHovered
+                            : isHovered && !isDisabled
                             ? isDark ? 'bg-white/20 scale-105' : 'bg-black/10 scale-105'
                             : isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'
                         }`}
@@ -528,10 +543,10 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
             )}
             <button
               onClick={() => currentValue && handleValueSelect(currentValue)}
-              disabled={!currentValue || submitDailySurveyMutation.isPending || submitSupplementCheckinMutation.isPending}
+              disabled={!currentValue || isSubmitting}
               data-testid="button-next"
               className={`flex-1 px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 ${
-                currentValue && !submitDailySurveyMutation.isPending && !submitSupplementCheckinMutation.isPending
+                currentValue && !isSubmitting
                   ? phase === 'supplements'
                     ? isDark
                       ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
@@ -544,7 +559,7 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
                   : 'bg-black/5 text-gray-400 cursor-not-allowed'
               }`}
             >
-              {(submitDailySurveyMutation.isPending || submitSupplementCheckinMutation.isPending) ? (
+              {isSubmitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : phase === 'daily' && currentStep < dailyQuestions.length - 1 ? (
                 <>
