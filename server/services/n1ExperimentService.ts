@@ -773,6 +773,74 @@ class N1ExperimentService {
 
     return experimentsNeedingCheckin;
   }
+
+  // Get objective HealthKit metrics for experiment date range
+  async getObjectiveMetrics(experimentId: string, userId: string): Promise<Array<{
+    date: string;
+    hrv?: number;
+    deepSleepPct?: number;
+    restingHeartRate?: number;
+    sleepEfficiency?: number;
+  }>> {
+    const experimentData = await this.getExperiment(experimentId, userId);
+    if (!experimentData) {
+      return [];
+    }
+
+    const experiment = experimentData.experiment;
+    
+    // Determine date range - from baseline/experiment start to now or end date
+    let startDate: Date;
+    if (experiment.baseline_start_date) {
+      startDate = new Date(experiment.baseline_start_date);
+    } else if (experiment.experiment_start_date) {
+      startDate = new Date(experiment.experiment_start_date);
+    } else if (experiment.created_at) {
+      startDate = new Date(experiment.created_at);
+    } else {
+      return [];
+    }
+    
+    let endDate: Date;
+    if (experiment.experiment_end_date) {
+      endDate = new Date(experiment.experiment_end_date);
+    } else {
+      endDate = new Date();
+    }
+    
+    // If end date is in the future, use today
+    const today = new Date();
+    if (endDate > today) {
+      endDate = today;
+    }
+
+    // Fetch sleep nights which contain HRV and deep sleep data
+    const { data: sleepNights, error } = await supabase
+      .from('sleep_nights')
+      .select('sleep_date, hrv_ms, deep_pct, resting_hr_bpm, sleep_efficiency_pct')
+      .eq('health_id', experiment.health_id)
+      .gte('sleep_date', startDate.toISOString().split('T')[0])
+      .lte('sleep_date', endDate.toISOString().split('T')[0])
+      .order('sleep_date', { ascending: true });
+
+    if (error) {
+      logger.error('Failed to fetch objective metrics', { error: error.message });
+      return [];
+    }
+
+    if (!sleepNights) {
+      return [];
+    }
+
+    // Transform to a simple format for the frontend
+    return sleepNights.map(night => ({
+      date: night.sleep_date,
+      hrv: night.hrv_ms ?? undefined,
+      deepSleepPct: night.deep_pct ?? undefined,
+      restingHeartRate: night.resting_hr_bpm ?? undefined,
+      sleepEfficiency: night.sleep_efficiency_pct ?? undefined,
+    }));
+  }
 }
 
 export const n1ExperimentService = new N1ExperimentService();

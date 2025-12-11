@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,14 @@ import {
   X,
   Activity,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Brain,
+  Heart,
+  Moon
 } from "lucide-react";
 import { SUPPLEMENT_CONFIGURATIONS, type SupplementTypeConfig } from "@shared/supplementConfig";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface ExperimentData {
   experiment: {
@@ -81,6 +84,25 @@ interface ResultsData {
   };
 }
 
+interface ObjectiveMetricsData {
+  metrics: Array<{
+    date: string;
+    hrv?: number;
+    deepSleepPct?: number;
+    restingHeartRate?: number;
+    sleepEfficiency?: number;
+  }>;
+}
+
+interface MetricConfig {
+  key: string;
+  name: string;
+  color: string;
+  type: 'subjective' | 'objective';
+  yAxisId: 'left' | 'right';
+  unit?: string;
+}
+
 export default function AssessmentDetail() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
@@ -89,6 +111,7 @@ export default function AssessmentDetail() {
   const [checkinRatings, setCheckinRatings] = useState<Record<string, number>>({});
   const [checkinNotes, setCheckinNotes] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [highlightedMetric, setHighlightedMetric] = useState<string | null>(null);
 
   // Fetch assessment details
   const { data: experimentData, isLoading, isError, error } = useQuery<ExperimentData>({
@@ -99,6 +122,12 @@ export default function AssessmentDetail() {
   const { data: checkinsData } = useQuery<CheckinData>({
     queryKey: ['/api/n1/experiments', id, 'checkins'],
     enabled: !!experimentData,
+  });
+
+  // Fetch objective HealthKit metrics (HRV, Deep Sleep, etc.)
+  const { data: objectiveData } = useQuery<ObjectiveMetricsData>({
+    queryKey: ['/api/n1/experiments', id, 'objective-metrics'],
+    enabled: !!experimentData && (experimentData.experiment.status === 'active' || experimentData.experiment.status === 'completed'),
   });
 
   // Fetch results if completed
@@ -200,33 +229,145 @@ export default function AssessmentDetail() {
 
   // Get checkins from query data (need to access before useMemo)
   const checkins = checkinsData?.checkins || [];
+  const objectiveMetrics = objectiveData?.metrics || [];
 
-  // Generate chart data from check-ins - MUST be before any early returns
+  // Define all metric configurations for the chart
+  const metricConfigs = useMemo((): MetricConfig[] => {
+    const configs: MetricConfig[] = [];
+    
+    // Add subjective metrics from check-ins
+    if (checkins.length && checkins[0]?.ratings) {
+      const subjectiveColors = ['#22d3ee', '#a855f7', '#22c55e', '#f97316'];
+      Object.keys(checkins[0].ratings).forEach((key, index) => {
+        configs.push({
+          key,
+          name: key,
+          color: subjectiveColors[index % subjectiveColors.length],
+          type: 'subjective',
+          yAxisId: 'left',
+          unit: '/10',
+        });
+      });
+    }
+    
+    // Add objective metrics if we have data
+    if (objectiveMetrics.length > 0) {
+      const sample = objectiveMetrics[0];
+      if (sample.hrv !== undefined) {
+        configs.push({
+          key: 'hrv',
+          name: 'HRV',
+          color: '#ec4899',
+          type: 'objective',
+          yAxisId: 'right',
+          unit: 'ms',
+        });
+      }
+      if (sample.deepSleepPct !== undefined) {
+        configs.push({
+          key: 'deepSleepPct',
+          name: 'Deep Sleep',
+          color: '#6366f1',
+          type: 'objective',
+          yAxisId: 'right',
+          unit: '%',
+        });
+      }
+    }
+    
+    return configs;
+  }, [checkins, objectiveMetrics]);
+
+  // Generate enhanced chart data merging subjective and objective metrics
   const chartData = useMemo(() => {
-    if (!checkins.length) return [];
+    if (!checkins.length && !objectiveMetrics.length) return [];
     
-    // Sort checkins by date
-    const sortedCheckins = [...checkins].sort((a, b) => 
-      new Date(a.checkin_date).getTime() - new Date(b.checkin_date).getTime()
-    );
+    // Create a map of dates to data points
+    const dateMap = new Map<string, Record<string, any>>();
     
-    return sortedCheckins.map((checkin, index) => {
-      const date = new Date(checkin.checkin_date);
-      const dataPoint: Record<string, any> = {
-        day: index + 1,
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      };
+    // Add subjective check-in data
+    checkins.forEach((checkin) => {
+      const dateKey = checkin.checkin_date.split('T')[0];
+      const existing = dateMap.get(dateKey) || { dateKey };
       
-      // Add each rating to the data point
       if (checkin.ratings) {
         Object.entries(checkin.ratings).forEach(([key, value]) => {
-          dataPoint[key] = value;
+          existing[key] = value;
         });
       }
       
-      return dataPoint;
+      dateMap.set(dateKey, existing);
     });
-  }, [checkins]);
+    
+    // Add objective HealthKit data
+    objectiveMetrics.forEach((metric) => {
+      const dateKey = metric.date;
+      const existing = dateMap.get(dateKey) || { dateKey };
+      
+      if (metric.hrv !== undefined) existing.hrv = metric.hrv;
+      if (metric.deepSleepPct !== undefined) existing.deepSleepPct = metric.deepSleepPct;
+      if (metric.restingHeartRate !== undefined) existing.restingHeartRate = metric.restingHeartRate;
+      if (metric.sleepEfficiency !== undefined) existing.sleepEfficiency = metric.sleepEfficiency;
+      
+      dateMap.set(dateKey, existing);
+    });
+    
+    // Sort by date and add display formatting
+    const sortedData = Array.from(dateMap.entries())
+      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+      .map(([dateKey, data], index) => {
+        const date = new Date(dateKey);
+        return {
+          ...data,
+          day: index + 1,
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        };
+      });
+    
+    return sortedData;
+  }, [checkins, objectiveMetrics]);
+
+  // Calculate AI analysis trends for the metrics
+  const aiAnalysis = useMemo(() => {
+    if (!chartData.length || chartData.length < 3) return null;
+    
+    const analysis: { improved: Array<{ name: string; change: number }>; noChange: Array<{ name: string }>; declined: Array<{ name: string; change: number }> } = {
+      improved: [],
+      noChange: [],
+      declined: [],
+    };
+    
+    metricConfigs.forEach((metric) => {
+      const values = chartData.map(d => d[metric.key]).filter(v => v !== undefined);
+      if (values.length < 3) return;
+      
+      // Compare first half vs second half average
+      const midpoint = Math.floor(values.length / 2);
+      const firstHalf = values.slice(0, midpoint);
+      const secondHalf = values.slice(midpoint);
+      
+      const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+      const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+      
+      const changePercent = ((secondAvg - firstAvg) / firstAvg) * 100;
+      
+      // For metrics where higher is better
+      if (Math.abs(changePercent) < 5) {
+        analysis.noChange.push({ name: metric.name });
+      } else if (changePercent > 0) {
+        analysis.improved.push({ name: metric.name, change: changePercent });
+      } else {
+        analysis.declined.push({ name: metric.name, change: changePercent });
+      }
+    });
+    
+    return analysis;
+  }, [chartData, metricConfigs]);
+
+  // Handle metric click to highlight
+  const handleMetricClick = useCallback((key: string) => {
+    setHighlightedMetric(prev => prev === key ? null : key);
+  }, []);
 
   // Get metric names from check-in ratings for chart legend - MUST be before any early returns
   const chartMetricNames = useMemo(() => {
@@ -388,7 +529,7 @@ export default function AssessmentDetail() {
           </Card>
         )}
 
-        {/* Metrics Trend Chart */}
+        {/* Enhanced Metrics Trend Chart with Dual Y-Axes */}
         {(experiment.status === 'active' || experiment.status === 'completed') && chartData.length > 1 && (
           <Card className="p-4 bg-white/5 border-white/10 mb-4">
             <div className="flex items-center gap-3 mb-4">
@@ -397,58 +538,169 @@ export default function AssessmentDetail() {
               </div>
               <div>
                 <h3 className="text-white font-medium">Metrics Trend</h3>
-                <p className="text-xs text-white/60">Your progress over time</p>
+                <p className="text-xs text-white/60">
+                  Subjective (1-10) + Objective HealthKit data
+                </p>
               </div>
             </div>
             
-            <div className="h-48">
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <XAxis 
-                    dataKey="day" 
+                    dataKey="date" 
                     stroke="#ffffff40" 
                     fontSize={10}
                     tickLine={false}
                     axisLine={false}
                   />
+                  {/* Left Y-axis for subjective metrics (1-10 scale) */}
                   <YAxis 
+                    yAxisId="left"
                     domain={[0, 10]} 
-                    stroke="#ffffff40" 
+                    stroke="#22d3ee" 
                     fontSize={10}
                     tickLine={false}
                     axisLine={false}
                     width={25}
+                    label={{ value: '1-10', angle: -90, position: 'insideLeft', fill: '#22d3ee', fontSize: 9, offset: 10 }}
                   />
+                  {/* Right Y-axis for objective metrics (variable scale) */}
+                  {metricConfigs.some(m => m.type === 'objective') && (
+                    <YAxis 
+                      yAxisId="right"
+                      orientation="right"
+                      domain={['auto', 'auto']} 
+                      stroke="#ec4899" 
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      width={35}
+                      label={{ value: 'HRV/%', angle: 90, position: 'insideRight', fill: '#ec4899', fontSize: 9, offset: 10 }}
+                    />
+                  )}
                   <Tooltip content={<CustomTooltip />} />
-                  {chartMetricNames.map((metricName, index) => (
+                  {metricConfigs.map((metric) => (
                     <Line
-                      key={metricName}
+                      key={metric.key}
                       type="monotone"
-                      dataKey={metricName}
-                      stroke={metricColors[index % metricColors.length]}
-                      strokeWidth={2}
-                      dot={false}
-                      name={metricName}
+                      dataKey={metric.key}
+                      yAxisId={metric.yAxisId}
+                      stroke={metric.color}
+                      strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2.5 : 1}
+                      strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.25}
+                      dot={highlightedMetric === metric.key}
+                      activeDot={{ r: 4, strokeWidth: 2 }}
+                      name={metric.name}
+                      connectNulls
                     />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
             
-            {/* Legend */}
+            {/* Interactive Legend */}
             <div className="mt-4 pt-3 border-t border-white/10">
-              <div className="flex flex-wrap gap-3">
-                {chartMetricNames.map((metricName, index) => (
-                  <div key={metricName} className="flex items-center gap-1.5">
-                    <div 
-                      className="w-3 h-0.5 rounded-full"
-                      style={{ backgroundColor: metricColors[index % metricColors.length] }}
-                    />
-                    <span className="text-xs text-white/70">{metricName}</span>
-                  </div>
+              <div className="flex flex-wrap gap-2">
+                {metricConfigs.map((metric) => (
+                  <button
+                    key={metric.key}
+                    onClick={() => handleMetricClick(metric.key)}
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
+                      highlightedMetric === null || highlightedMetric === metric.key
+                        ? 'opacity-100'
+                        : 'opacity-40'
+                    } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
+                    style={{ 
+                      backgroundColor: `${metric.color}20`,
+                      color: metric.color,
+                    }}
+                    data-testid={`button-metric-${metric.key}`}
+                  >
+                    {metric.type === 'objective' ? (
+                      metric.key === 'hrv' ? <Heart className="w-3 h-3" /> : <Moon className="w-3 h-3" />
+                    ) : null}
+                    <span>{metric.name}</span>
+                    {metric.unit && <span className="opacity-60">{metric.unit}</span>}
+                  </button>
                 ))}
               </div>
+              <p className="text-[10px] text-white/40 mt-2">
+                Tap a metric to highlight • Left axis: subjective • Right axis: objective
+              </p>
             </div>
+          </Card>
+        )}
+
+        {/* AI Analysis Section */}
+        {aiAnalysis && (aiAnalysis.improved.length > 0 || aiAnalysis.noChange.length > 0 || aiAnalysis.declined.length > 0) && (
+          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                <Brain className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-medium">AI Analysis</h3>
+                <p className="text-xs text-white/60">Early trend detection</p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              {/* Improved Metrics */}
+              {aiAnalysis.improved.length > 0 && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="w-4 h-4 text-green-400" />
+                    <span className="text-sm font-medium text-green-400">Improved</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {aiAnalysis.improved.map((item) => (
+                      <div key={item.name} className="flex items-center gap-1.5">
+                        <span className="text-sm text-white/80">{item.name}</span>
+                        <span className="text-xs text-green-400">+{item.change.toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No Change Metrics */}
+              {aiAnalysis.noChange.length > 0 && (
+                <div className="p-3 rounded-lg bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Minus className="w-4 h-4 text-white/60" />
+                    <span className="text-sm font-medium text-white/60">No Change</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {aiAnalysis.noChange.map((item) => (
+                      <span key={item.name} className="text-sm text-white/60">{item.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Declined Metrics */}
+              {aiAnalysis.declined.length > 0 && (
+                <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingDown className="w-4 h-4 text-orange-400" />
+                    <span className="text-sm font-medium text-orange-400">Declined</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {aiAnalysis.declined.map((item) => (
+                      <div key={item.name} className="flex items-center gap-1.5">
+                        <span className="text-sm text-white/80">{item.name}</span>
+                        <span className="text-xs text-orange-400">{item.change.toFixed(0)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p className="text-[10px] text-white/40 mt-3">
+              Analysis based on first half vs. second half comparison. More data = more accurate.
+            </p>
           </Card>
         )}
 

@@ -334,4 +334,21 @@ router.get('/experiments/:id/results', async (req, res) => {
   }
 });
 
+// Get objective HealthKit metrics for experiment date range
+router.get('/experiments/:id/objective-metrics', async (req, res) => {
+  try {
+    const userId = (req as any).user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const { id } = req.params;
+    const metrics = await n1ExperimentService.getObjectiveMetrics(id, userId);
+    res.json({ metrics });
+  } catch (error: any) {
+    logger.error('Failed to get objective metrics', { error: error.message });
+    res.status(500).json({ error: 'Failed to get objective metrics' });
+  }
+});
+
 export default router;
