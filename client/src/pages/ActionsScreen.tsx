@@ -200,7 +200,7 @@ export default function ActionsScreen() {
   const tabOptions = [
     { value: 'reports' as TabFilter, label: 'Reports' },
     { value: 'interventions' as TabFilter, label: 'Interventions' },
-    { value: 'assessments' as TabFilter, label: 'Assessments' },
+    { value: 'assessments' as TabFilter, label: 'Supplements' },
   ];
 
   const getHeaderText = () => {
@@ -210,7 +210,7 @@ export default function ActionsScreen() {
       case 'interventions':
         return { title: 'Interventions', subtitle: `${activeItems.length} active intervention${activeItems.length !== 1 ? 's' : ''}` };
       case 'assessments':
-        return { title: 'N-of-1 Assessments', subtitle: `${activeAssessments.length} active assessment${activeAssessments.length !== 1 ? 's' : ''}` };
+        return { title: 'Supplements', subtitle: `${activeAssessments.length} active assessment${activeAssessments.length !== 1 ? 's' : ''}` };
     }
   };
 
