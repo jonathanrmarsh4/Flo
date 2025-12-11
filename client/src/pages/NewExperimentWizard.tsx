@@ -104,7 +104,7 @@ export default function NewExperimentWizard() {
   // Create experiment mutation
   const createExperimentMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('POST', '/api/n1/experiments', {
+      const response = await apiRequest('POST', '/api/n1/experiments', {
         supplementTypeId: config.supplementTypeId,
         productName: config.product.name,
         productBrand: config.product.brand,
@@ -120,6 +120,7 @@ export default function NewExperimentWizard() {
         primaryIntent: config.intent,
         experimentDays: config.experimentDays,
       });
+      return response.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/n1/experiments'] });
