@@ -8786,29 +8786,90 @@ Important: This is for educational purposes. Include a brief note that users sho
       
       logger.info(`[Environmental] Fetching today's data for user ${userId}, date ${today}`);
       
-      const { getCachedWeather, getLatestLocation, saveWeatherCache } = await import('./services/supabaseHealthStorage');
+      const { getCachedWeather, getLatestLocation, saveWeatherCache, getHealthId } = await import('./services/supabaseHealthStorage');
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const supabase = getSupabaseClient();
       
+      // Step 1: Check weather_daily_cache for today (real-time cache)
       let cache = await getCachedWeather(userId, today);
-      logger.info(`[Environmental] Cache lookup result: ${cache ? 'found' : 'not found'}`);
+      if (cache) {
+        logger.info(`[Environmental] Found today's cache for user ${userId}`);
+        const aqData = cache.air_quality_data as any;
+        const flattenedAirQuality = aqData ? {
+          aqi: aqData.aqi,
+          aqiLabel: aqData.aqiLabel,
+          pm25: aqData.components?.pm2_5 ?? aqData.pm25 ?? 0,
+          pm10: aqData.components?.pm10 ?? aqData.pm10 ?? 0,
+          o3: aqData.components?.o3 ?? aqData.o3 ?? 0,
+          no2: aqData.components?.no2 ?? aqData.no2 ?? 0,
+          co: aqData.components?.co ?? aqData.co ?? 0,
+          so2: aqData.components?.so2 ?? aqData.so2 ?? 0,
+        } : null;
+        return res.json({
+          date: cache.date,
+          weather: cache.weather_data,
+          airQuality: flattenedAirQuality,
+          location: { lat: cache.latitude, lon: cache.longitude },
+          fetchedAt: cache.fetched_at,
+        });
+      }
       
-      // Track if user has location for better error messaging
+      // Step 2: Check environmental_data (backfill data) for recent days
+      const healthId = await getHealthId(userId);
+      if (healthId) {
+        // Look for data from today or up to 3 days ago (weather doesn't change dramatically)
+        const { data: envData } = await supabase
+          .from('environmental_data')
+          .select('*')
+          .eq('health_id', healthId)
+          .gte('local_date', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+          .order('local_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (envData) {
+          logger.info(`[Environmental] Using backfill data from ${envData.local_date} for user ${userId}`);
+          return res.json({
+            date: envData.local_date,
+            weather: {
+              temperature: envData.temperature_c,
+              humidity: envData.humidity_pct,
+              description: envData.weather_condition,
+            },
+            airQuality: {
+              aqi: envData.avg_aqi || envData.aqi,
+              pm25: envData.avg_pm25 || 0,
+              pm10: envData.avg_pm10 || 0,
+              o3: envData.avg_o3 || 0,
+              no2: envData.avg_no2 || 0,
+              co: envData.avg_co || 0,
+              so2: envData.avg_so2 || 0,
+            },
+            location: { lat: envData.latitude, lon: envData.longitude },
+            fetchedAt: envData.created_at || envData.local_date,
+            isBackfillData: true,
+          });
+        }
+      }
+      
+      // Step 3: Only fetch from API if no cached data and quota allows (one call per user per day max)
       let hasLocation = false;
       let quotaExhausted = false;
       
-      if (!cache && process.env.OPENWEATHER_API_KEY) {
+      if (process.env.OPENWEATHER_API_KEY) {
         const location = await getLatestLocation(userId);
         hasLocation = !!location;
-        logger.info(`[Environmental] Location lookup result: ${location ? `found (${location.latitude?.toFixed(4)}, ${location.longitude?.toFixed(4)})` : 'not found'}`);
+        
         if (location) {
           try {
             const { getCurrentWeatherWithQuotaGuard, getQuotaStatus } = await import('./services/environmentalBackfillService');
             
-            // Check quota status before attempting fetch
             const quotaStatus = await getQuotaStatus();
             if (quotaStatus.quotaExhausted) {
-              logger.warn(`[Environmental] Daily quota exhausted (${quotaStatus.callsUsed}/${quotaStatus.callsUsed + quotaStatus.remaining})`);
+              logger.warn(`[Environmental] Daily quota exhausted - no cache available for user ${userId}`);
               quotaExhausted = true;
             } else {
+              logger.info(`[Environmental] No cache found, fetching live data for user ${userId}`);
               const envData = await getCurrentWeatherWithQuotaGuard(location.latitude, location.longitude);
               
               if (envData) {
@@ -8819,15 +8880,33 @@ Important: This is for educational purposes. Include a brief note that users sho
                   envData.weather,
                   envData.airQuality
                 );
+                
+                const aqData = cache.air_quality_data as any;
+                const flattenedAirQuality = aqData ? {
+                  aqi: aqData.aqi,
+                  aqiLabel: aqData.aqiLabel,
+                  pm25: aqData.components?.pm2_5 ?? aqData.pm25 ?? 0,
+                  pm10: aqData.components?.pm10 ?? aqData.pm10 ?? 0,
+                  o3: aqData.components?.o3 ?? aqData.o3 ?? 0,
+                  no2: aqData.components?.no2 ?? aqData.no2 ?? 0,
+                  co: aqData.components?.co ?? aqData.co ?? 0,
+                  so2: aqData.components?.so2 ?? aqData.so2 ?? 0,
+                } : null;
+                return res.json({
+                  date: cache.date,
+                  weather: cache.weather_data,
+                  airQuality: flattenedAirQuality,
+                  location: { lat: cache.latitude, lon: cache.longitude },
+                  fetchedAt: cache.fetched_at,
+                });
               } else {
-                // getCurrentWeatherWithQuotaGuard returned null - quota exhausted during fetch
                 quotaExhausted = true;
               }
             }
           } catch (weatherError: any) {
             const errorMsg = weatherError?.message || String(weatherError);
             if (errorMsg.includes('QUOTA_RPC_UNAVAILABLE') || errorMsg.includes('QUOTA_INCREMENT_FAILED')) {
-              logger.error(`[Environmental] CRITICAL: Quota RPC unavailable - deploy increment_weather_api_quota to Supabase`);
+              logger.error(`[Environmental] CRITICAL: Quota RPC unavailable`);
             } else {
               logger.error(`[Environmental] Failed to fetch weather data:`, weatherError);
             }
@@ -8835,40 +8914,17 @@ Important: This is for educational purposes. Include a brief note that users sho
         }
       }
       
-      if (!cache) {
-        // Return different reasons so frontend can show appropriate message
-        if (!hasLocation) {
-          logger.warn(`[Environmental] No location data for user ${userId}`);
-          return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
-        } else if (quotaExhausted) {
-          logger.warn(`[Environmental] Quota exhausted for user ${userId} - weather unavailable`);
-          return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "quota_exhausted" });
-        } else {
-          logger.warn(`[Environmental] Weather fetch failed for user ${userId}`);
-          return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "api_error" });
-        }
+      // No data available from any source
+      if (!hasLocation) {
+        logger.warn(`[Environmental] No location data for user ${userId}`);
+        return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
+      } else if (quotaExhausted) {
+        logger.warn(`[Environmental] Quota exhausted, no cache for user ${userId}`);
+        return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "quota_exhausted" });
+      } else {
+        logger.warn(`[Environmental] Weather fetch failed for user ${userId}`);
+        return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "api_error" });
       }
-      
-      // Flatten air quality data for frontend consumption
-      const aqData = cache.air_quality_data as any;
-      const flattenedAirQuality = aqData ? {
-        aqi: aqData.aqi,
-        aqiLabel: aqData.aqiLabel,
-        pm25: aqData.components?.pm2_5 ?? aqData.pm25 ?? 0,
-        pm10: aqData.components?.pm10 ?? aqData.pm10 ?? 0,
-        o3: aqData.components?.o3 ?? aqData.o3 ?? 0,
-        no2: aqData.components?.no2 ?? aqData.no2 ?? 0,
-        co: aqData.components?.co ?? aqData.co ?? 0,
-        so2: aqData.components?.so2 ?? aqData.so2 ?? 0,
-      } : null;
-      
-      res.json({
-        date: cache.date,
-        weather: cache.weather_data,
-        airQuality: flattenedAirQuality,
-        location: { lat: cache.latitude, lon: cache.longitude },
-        fetchedAt: cache.fetched_at,
-      });
     } catch (error: any) {
       logger.error(`[Environmental] Error fetching today's data:`, error);
       res.status(500).json({ error: error.message || "Failed to fetch environmental data" });
