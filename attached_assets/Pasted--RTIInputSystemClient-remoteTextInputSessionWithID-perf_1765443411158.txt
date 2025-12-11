@@ -1,0 +1,25 @@
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+⚡️  [log] - [BarcodeScanner] handleCameraScan called
+⚡️  [log] - [BarcodeScanner] isCameraAvailable: true
+⚡️  [log] - [BarcodeScanner] isScannerSupported: false
+⚡️  [log] - [BarcodeScanner] Starting scan (bypassing isSupported check)...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"} message: "BarcodeScanner" plugin is not implemented on ios
+⚡️  [error] - [BarcodeScanner] Scan failed: {"code":"UNIMPLEMENTED"}
+⚡️  [error] - [BarcodeScanner] Scan error: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  Can only perform input operation for an active session. sessionID = BA9E783E-83A7-437B-A49F-87A3424475F8
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  Can only perform input operation for an active session. sessionID = BA9E783E-83A7-437B-A49F-87A3424475F8
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }
+Reporter disconnected. { function=sendMessage, reporterID=277540786667522 }

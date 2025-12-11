@@ -13,9 +13,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Note: AVAudioSession is NOT configured on launch - it's configured on-demand 
         // by NativeMicrophonePlugin when voice chat starts, to avoid affecting other audio features.
         
-        // CRITICAL: Force linker to retain third-party plugin classes when loading from remote URL
-        PluginRetainer.retainPlugins()
-        
         // CRITICAL: Pre-warm the keyboard system on first launch to prevent 15s freeze
         // This triggers iOS to initialize keyboard caches before user interaction
         preWarmKeyboard()
@@ -32,9 +29,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
+                    bridgeVC.bridge?.registerPluginInstance(BarcodeScannerBridge())
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
                     print("✅ NativeMicrophonePlugin registered manually")
+                    print("✅ BarcodeScannerBridge registered manually")
                 }
                 // Fallback: direct CAPBridgeViewController
                 else if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
@@ -43,9 +42,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
+                    bridgeVC.bridge?.registerPluginInstance(BarcodeScannerBridge())
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
                     print("✅ NativeMicrophonePlugin registered manually")
+                    print("✅ BarcodeScannerBridge registered manually")
                 }
             }
         }
