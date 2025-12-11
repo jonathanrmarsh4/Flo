@@ -1,6 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { BarcodeScanner, BarcodeFormat } from '@capacitor-mlkit/barcode-scanning';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface ScanResult {
   barcode: string;
@@ -18,37 +17,51 @@ interface BarcodeScannerHook {
 export function useBarcodeScanner(): BarcodeScannerHook {
   const isNative = Capacitor.isNativePlatform();
   const [isSupported, setIsSupported] = useState(false);
+  const scannerModuleRef = useRef<any>(null);
   
-  // Check if MLKit scanner is supported on this device
   useEffect(() => {
-    const checkSupport = async () => {
+    const loadAndCheckSupport = async () => {
       if (!isNative) {
-        console.log('[BarcodeScanner] Not native platform, skipping support check');
+        console.log('[BarcodeScanner] Not native platform, skipping');
         setIsSupported(false);
         return;
       }
       
       try {
-        console.log('[BarcodeScanner] Checking if MLKit scanner is supported...');
-        const { supported } = await BarcodeScanner.isSupported();
+        console.log('[BarcodeScanner] Dynamically importing MLKit module...');
+        const module = await import('@capacitor-mlkit/barcode-scanning');
+        scannerModuleRef.current = module;
+        console.log('[BarcodeScanner] Module loaded successfully');
+        
+        const { supported } = await module.BarcodeScanner.isSupported();
         console.log('[BarcodeScanner] isSupported result:', supported);
         setIsSupported(supported);
       } catch (error) {
-        console.error('[BarcodeScanner] Error checking support:', error);
+        console.error('[BarcodeScanner] Error loading/checking support:', error);
         setIsSupported(false);
       }
     };
     
-    checkSupport();
+    loadAndCheckSupport();
   }, [isNative]);
   
   console.log('[BarcodeScanner] Hook state - isNative:', isNative, 'isSupported:', isSupported, 'platform:', Capacitor.getPlatform());
+
+  const getScanner = async () => {
+    if (scannerModuleRef.current) {
+      return scannerModuleRef.current;
+    }
+    const module = await import('@capacitor-mlkit/barcode-scanning');
+    scannerModuleRef.current = module;
+    return module;
+  };
 
   const checkPermissions = async (): Promise<boolean> => {
     if (!isNative) return false;
     
     try {
       console.log('[BarcodeScanner] Checking permissions...');
+      const { BarcodeScanner } = await getScanner();
       const { camera } = await BarcodeScanner.checkPermissions();
       console.log('[BarcodeScanner] Permission status:', camera);
       return camera === 'granted';
@@ -63,6 +76,7 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     
     try {
       console.log('[BarcodeScanner] Requesting permissions...');
+      const { BarcodeScanner } = await getScanner();
       const { camera } = await BarcodeScanner.requestPermissions();
       console.log('[BarcodeScanner] Permission request result:', camera);
       return camera === 'granted';
@@ -81,14 +95,16 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     }
 
     try {
-      console.log('[BarcodeScanner] Checking/requesting permissions...');
-      const hasPermission = await checkPermissions();
-      console.log('[BarcodeScanner] Has permission:', hasPermission);
+      const { BarcodeScanner, BarcodeFormat } = await getScanner();
       
-      if (!hasPermission) {
-        const granted = await requestPermissions();
-        console.log('[BarcodeScanner] Permission granted after request:', granted);
-        if (!granted) {
+      console.log('[BarcodeScanner] Checking/requesting permissions...');
+      const { camera } = await BarcodeScanner.checkPermissions();
+      console.log('[BarcodeScanner] Has permission:', camera);
+      
+      if (camera !== 'granted') {
+        const result = await BarcodeScanner.requestPermissions();
+        console.log('[BarcodeScanner] Permission granted after request:', result.camera);
+        if (result.camera !== 'granted') {
           console.log('[BarcodeScanner] Camera permission denied');
           return null;
         }
