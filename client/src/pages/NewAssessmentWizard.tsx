@@ -593,9 +593,9 @@ export default function NewAssessmentWizard() {
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-3">
                 <Settings className="w-8 h-8 text-cyan-400" />
               </div>
-              <h2 className="text-xl text-white font-semibold">Experiment Setup</h2>
+              <h2 className="text-xl text-white font-semibold">Assessment Setup</h2>
               <p className="text-sm text-white/60 mt-1">
-                Configure your dosage and experiment duration
+                Configure your dosage and assessment duration
               </p>
             </div>
 
@@ -805,12 +805,14 @@ export default function NewAssessmentWizard() {
               </div>
             </Card>
 
-            <Card className="p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
+            <Card className="p-4 bg-cyan-500/10 border-cyan-500/30">
               <div className="flex items-start gap-3">
-                <BarChart3 className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="w-5 h-5 text-cyan-400" />
+                </div>
                 <div>
-                  <h4 className="text-white font-medium">How We Calculate Results</h4>
-                  <p className="text-sm text-white/60 mt-1">
+                  <h4 className="text-cyan-400 font-medium">How We Calculate Results</h4>
+                  <p className="text-sm text-white/70 mt-1">
                     We use Cohen's d effect size: (Average During - Average Before) / Standard Deviation.
                     A score above 0.8 indicates strong evidence, 0.2-0.8 is moderate, below 0.2 suggests no effect.
                   </p>
