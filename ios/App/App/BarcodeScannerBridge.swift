@@ -16,7 +16,7 @@ public class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDele
         call.resolve(["supported": isAvailable])
     }
     
-    @objc func checkPermissions(_ call: CAPPluginCall) {
+    @objc func checkCameraPermission(_ call: CAPPluginCall) {
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         let permission: String
         switch status {
@@ -32,7 +32,7 @@ public class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDele
         call.resolve(["camera": permission])
     }
     
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc func requestCameraPermission(_ call: CAPPluginCall) {
         AVCaptureDevice.requestAccess(for: .video) { granted in
             DispatchQueue.main.async {
                 call.resolve(["camera": granted ? "granted" : "denied"])

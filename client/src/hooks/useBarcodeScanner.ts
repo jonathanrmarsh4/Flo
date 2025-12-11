@@ -16,8 +16,8 @@ interface BarcodeScannerHook {
 
 interface BarcodeScannerPlugin {
   isSupported(): Promise<{ supported: boolean }>;
-  checkPermissions(): Promise<{ camera: string }>;
-  requestPermissions(): Promise<{ camera: string }>;
+  checkCameraPermission(): Promise<{ camera: string }>;
+  requestCameraPermission(): Promise<{ camera: string }>;
   scan(options: { formats: string[] }): Promise<{ barcodes: Array<{ rawValue: string; format: string }> }>;
 }
 
@@ -82,7 +82,7 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     try {
       console.log('[BarcodeScanner] Checking permissions...');
       const scanner = getScanner();
-      const { camera } = await scanner.checkPermissions();
+      const { camera } = await scanner.checkCameraPermission();
       console.log('[BarcodeScanner] Permission status:', camera);
       return camera === 'granted';
     } catch (error) {
@@ -97,7 +97,7 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     try {
       console.log('[BarcodeScanner] Requesting permissions...');
       const scanner = getScanner();
-      const { camera } = await scanner.requestPermissions();
+      const { camera } = await scanner.requestCameraPermission();
       console.log('[BarcodeScanner] Permission request result:', camera);
       return camera === 'granted';
     } catch (error) {
@@ -118,11 +118,11 @@ export function useBarcodeScanner(): BarcodeScannerHook {
       const scanner = getScanner();
       
       console.log('[BarcodeScanner] Checking/requesting permissions...');
-      const { camera } = await scanner.checkPermissions();
+      const { camera } = await scanner.checkCameraPermission();
       console.log('[BarcodeScanner] Has permission:', camera);
       
       if (camera !== 'granted') {
-        const result = await scanner.requestPermissions();
+        const result = await scanner.requestCameraPermission();
         console.log('[BarcodeScanner] Permission granted after request:', result.camera);
         if (result.camera !== 'granted') {
           console.log('[BarcodeScanner] Camera permission denied');
