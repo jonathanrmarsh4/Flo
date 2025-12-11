@@ -1,0 +1,1546 @@
+// Hard-coded supplement database for N-of-1 experiments
+// In production, this would be fetched from an API with barcode scanning
+
+export interface SupplementProduct {
+  id: string;
+  name: string;
+  brand: string;
+  strength: string;
+  amountPerServe: string;
+  recommendedDosage: string;
+  imageUrl?: string;
+  category: 'sleep' | 'energy' | 'cognitive' | 'recovery' | 'metabolic' | 'mood';
+  barcode?: string;
+}
+
+export interface SupplementConfiguration {
+  supplementId: string;
+  primaryIntent: string[];
+  objectiveMetrics: {
+    metric: string;
+    source: string; // e.g., "Oura Ring", "Apple HealthKit", "Dexcom CGM"
+    baselineDuration: number; // days
+    expectedOnset: number; // days
+    successCriteria: string;
+    minimumEffect: number; // percentage change
+  }[];
+  subjectiveMetrics: {
+    metric: string;
+    scale: string; // e.g., "0-10", "1-5"
+    dailyCheckIn: boolean; // Ask in daily check-in?
+    baselineDuration: number;
+    expectedOnset: number;
+    successCriteria: string;
+    minimumEffect: number;
+  }[];
+  recommendedDuration: number; // days
+  contextualNoiseFilters: string[];
+  washoutPeriod?: number; // days
+}
+
+// Supplement Product Database
+export const SUPPLEMENT_DATABASE: SupplementProduct[] = [
+  {
+    id: 'mag-glycinate-001',
+    name: 'Magnesium Glycinate',
+    brand: 'Thorne',
+    strength: '200mg elemental magnesium',
+    amountPerServe: '2 capsules',
+    recommendedDosage: '2 capsules before bed',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
+    category: 'sleep',
+    barcode: '693749123456'
+  },
+  {
+    id: 'vitamin-d3-001',
+    name: 'Vitamin D3',
+    brand: 'Nordic Naturals',
+    strength: '5000 IU',
+    amountPerServe: '1 softgel',
+    recommendedDosage: '1 softgel daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1550572017-4814c6c0e084?w=400',
+    category: 'metabolic',
+    barcode: '768990123456'
+  },
+  {
+    id: 'omega-3-001',
+    name: 'Omega-3 Fish Oil',
+    brand: 'Nordic Naturals',
+    strength: '1000mg EPA + 500mg DHA',
+    amountPerServe: '2 softgels',
+    recommendedDosage: '2 softgels daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=400',
+    category: 'recovery',
+    barcode: '768990234567'
+  },
+  {
+    id: 'l-theanine-001',
+    name: 'L-Theanine',
+    brand: 'Pure Encapsulations',
+    strength: '200mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1-2 capsules, morning or afternoon',
+    imageUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400',
+    category: 'cognitive',
+    barcode: '766298123456'
+  },
+  {
+    id: 'ashwagandha-001',
+    name: 'Ashwagandha KSM-66',
+    brand: 'Nootropics Depot',
+    strength: '300mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1-2 capsules daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=400',
+    category: 'mood',
+    barcode: '850012345678'
+  },
+  {
+    id: 'rhodiola-001',
+    name: 'Rhodiola Rosea',
+    brand: 'Gaia Herbs',
+    strength: '200mg (3% rosavins)',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule in morning',
+    imageUrl: 'https://images.unsplash.com/photo-1599932443329-dffbb1458a8e?w=400',
+    category: 'energy',
+    barcode: '751063123456'
+  },
+  {
+    id: 'coq10-001',
+    name: 'CoQ10 Ubiquinol',
+    brand: 'Jarrow Formulas',
+    strength: '100mg',
+    amountPerServe: '1 softgel',
+    recommendedDosage: '1-2 softgels daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1550572017-4814c6c0e084?w=400',
+    category: 'energy',
+    barcode: '790011234567'
+  },
+  {
+    id: 'curcumin-001',
+    name: 'Curcumin Phytosome',
+    brand: 'Thorne',
+    strength: '500mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule 1-2x daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=400',
+    category: 'recovery',
+    barcode: '693749234567'
+  },
+  {
+    id: 'berberine-001',
+    name: 'Berberine HCl',
+    brand: 'Thorne',
+    strength: '500mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule 2-3x daily with meals',
+    imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400',
+    category: 'metabolic',
+    barcode: '693749345678'
+  },
+  {
+    id: 'nmn-001',
+    name: 'NMN',
+    brand: 'ProHealth Longevity',
+    strength: '250mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1-2 capsules in morning',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
+    category: 'energy',
+    barcode: '855780123456'
+  },
+  {
+    id: 'creatine-001',
+    name: 'Creatine Monohydrate',
+    brand: 'Optimum Nutrition',
+    strength: '5g per serving',
+    amountPerServe: '1 scoop (5g)',
+    recommendedDosage: '1 scoop daily, any time',
+    imageUrl: 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=400',
+    category: 'recovery',
+    barcode: '748927123456'
+  },
+  {
+    id: 'alpha-gpc-001',
+    name: 'Alpha-GPC',
+    brand: 'Nootropics Depot',
+    strength: '300mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1-2 capsules in morning',
+    imageUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400',
+    category: 'cognitive',
+    barcode: '850012456789'
+  },
+  {
+    id: 'lions-mane-001',
+    name: "Lion's Mane",
+    brand: 'Host Defense',
+    strength: '500mg (8:1 extract)',
+    amountPerServe: '2 capsules',
+    recommendedDosage: '2 capsules daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=400',
+    category: 'cognitive',
+    barcode: '822078123456'
+  },
+  {
+    id: 'glycine-001',
+    name: 'Glycine',
+    brand: 'BulkSupplements',
+    strength: '3g per serving',
+    amountPerServe: '1 scoop (3g)',
+    recommendedDosage: '1 scoop before bed',
+    imageUrl: 'https://images.unsplash.com/photo-1550572017-4814c6c0e084?w=400',
+    category: 'sleep',
+    barcode: '813349123456'
+  },
+  {
+    id: 'melatonin-001',
+    name: 'Melatonin',
+    brand: 'Life Extension',
+    strength: '0.3mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule 30min before bed',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
+    category: 'sleep',
+    barcode: '737870123456'
+  },
+  {
+    id: 'bacopa-001',
+    name: 'Bacopa Monnieri',
+    brand: 'Pure Encapsulations',
+    strength: '200mg (50% bacosides)',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule 2x daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=400',
+    category: 'cognitive',
+    barcode: '766298234567'
+  },
+  {
+    id: 'zinc-001',
+    name: 'Zinc Picolinate',
+    brand: 'Thorne',
+    strength: '30mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1550572017-4814c6c0e084?w=400',
+    category: 'recovery',
+    barcode: '693749456789'
+  },
+  {
+    id: 'probiotics-001',
+    name: 'Probiotic 50B',
+    brand: 'Garden of Life',
+    strength: '50 billion CFU',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule daily, preferably on empty stomach',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400',
+    category: 'metabolic',
+    barcode: '658010123456'
+  },
+  {
+    id: 'resveratrol-001',
+    name: 'Resveratrol',
+    brand: 'Life Extension',
+    strength: '100mg trans-resveratrol',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule daily with food',
+    imageUrl: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=400',
+    category: 'metabolic',
+    barcode: '737870234567'
+  },
+  {
+    id: 'gaba-001',
+    name: 'GABA',
+    brand: 'Pure Encapsulations',
+    strength: '700mg',
+    amountPerServe: '1 capsule',
+    recommendedDosage: '1 capsule before bed or as needed',
+    imageUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=400',
+    category: 'mood',
+    barcode: '766298345678'
+  }
+];
+
+// Configuration Matrix for 20 Common Supplements
+export const SUPPLEMENT_CONFIGURATIONS: Record<string, SupplementConfiguration> = {
+  'mag-glycinate-001': {
+    supplementId: 'mag-glycinate-001',
+    primaryIntent: ['Improve Sleep Quality', 'Reduce Stress', 'Enhance Recovery'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+5-10% increase from baseline',
+        minimumEffect: 5
+      },
+      {
+        metric: 'Deep Sleep %',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+3-5% increase from baseline',
+        minimumEffect: 3
+      },
+      {
+        metric: 'Sleep Duration',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 2,
+        successCriteria: '+15-30min increase',
+        minimumEffect: 5
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 5,
+        successCriteria: '-2-4 bpm decrease',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Sleep Quality',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 2,
+        successCriteria: '+1.5-2.5 point increase (0-10 scale)',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Stress Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 4,
+        successCriteria: '-1-2 point decrease',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Muscle Soreness',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 5,
+        successCriteria: '-1-1.5 point decrease',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 30,
+    contextualNoiseFilters: [
+      'Filter out nights with alcohol consumption',
+      'Exclude days with >2hr timezone shift',
+      'Exclude nights with <6hr sleep opportunity'
+    ],
+    washoutPeriod: 3
+  },
+  
+  'vitamin-d3-001': {
+    supplementId: 'vitamin-d3-001',
+    primaryIntent: ['Boost Immunity', 'Improve Mood', 'Enhance Bone Health'],
+    objectiveMetrics: [
+      {
+        metric: 'Vitamin D Levels',
+        source: 'Blood Test',
+        baselineDuration: 0, // Baseline from blood test
+        expectedOnset: 28,
+        successCriteria: 'Reach 50-80 ng/mL',
+        minimumEffect: 30
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+3-7% increase',
+        minimumEffect: 3
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '-1-3 bpm',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Mood',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Track sun exposure (confounding variable)',
+      'Monitor seasonal changes',
+      'Note concurrent vitamin supplementation'
+    ],
+    washoutPeriod: 14
+  },
+
+  'omega-3-001': {
+    supplementId: 'omega-3-001',
+    primaryIntent: ['Reduce Inflammation', 'Support Heart Health', 'Enhance Recovery'],
+    objectiveMetrics: [
+      {
+        metric: 'hs-CRP',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 42,
+        successCriteria: '-20-40% reduction',
+        minimumEffect: 20
+      },
+      {
+        metric: 'Triglycerides',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 28,
+        successCriteria: '-15-25% reduction',
+        minimumEffect: 15
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '+4-8% increase',
+        minimumEffect: 4
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '-2-4 bpm',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Joint Pain',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '-1.5-2.5 point decrease',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 35,
+        successCriteria: '+0.8-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Track fish consumption (dietary omega-3)',
+      'Monitor training intensity changes',
+      'Note concurrent anti-inflammatory supplements'
+    ],
+    washoutPeriod: 14
+  },
+
+  'l-theanine-001': {
+    supplementId: 'l-theanine-001',
+    primaryIntent: ['Improve Focus', 'Reduce Anxiety', 'Enhance Calmness'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 1, // Acute effects
+        successCriteria: '+3-6% increase',
+        minimumEffect: 3
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '-1-3 bpm',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Focus',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1, // Within 30-60 min
+        successCriteria: '+1.5-2.5 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Anxiety',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '-1.5-2.5 point decrease',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Calmness',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1.5-2 point increase',
+        minimumEffect: 15
+      }
+    ],
+    recommendedDuration: 21,
+    contextualNoiseFilters: [
+      'Track caffeine intake (synergistic effect)',
+      'Note timing relative to stressful events',
+      'Monitor sleep quality (affects baseline anxiety)'
+    ],
+    washoutPeriod: 2
+  },
+
+  'ashwagandha-001': {
+    supplementId: 'ashwagandha-001',
+    primaryIntent: ['Reduce Stress', 'Improve Sleep', 'Lower Cortisol'],
+    objectiveMetrics: [
+      {
+        metric: 'Cortisol (AM)',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 14,
+        successCriteria: '-10-20% reduction',
+        minimumEffect: 10
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '+5-10% increase',
+        minimumEffect: 5
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '-2-5 bpm',
+        minimumEffect: 2
+      },
+      {
+        metric: 'Sleep Duration',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '+10-25min',
+        minimumEffect: 5
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Stress Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '-2-3 point decrease',
+        minimumEffect: 20
+      },
+      {
+        metric: 'Anxiety',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 10,
+        successCriteria: '-1.5-2.5 point decrease',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Sleep Quality',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 45,
+    contextualNoiseFilters: [
+      'Track major life stressors',
+      'Monitor work schedule changes',
+      'Note meditation/breathing practice'
+    ],
+    washoutPeriod: 7
+  },
+
+  'rhodiola-001': {
+    supplementId: 'rhodiola-001',
+    primaryIntent: ['Boost Energy', 'Reduce Fatigue', 'Enhance Mental Performance'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+4-8% increase',
+        minimumEffect: 4
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 5,
+        successCriteria: '-1-3 bpm',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 2,
+        successCriteria: '+1.5-2.5 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Focus',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Stress Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 5,
+        successCriteria: '-1-1.5 point decrease',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 30,
+    contextualNoiseFilters: [
+      'Track sleep quality (affects energy baseline)',
+      'Monitor caffeine intake',
+      'Note physical training load'
+    ],
+    washoutPeriod: 3
+  },
+
+  'coq10-001': {
+    supplementId: 'coq10-001',
+    primaryIntent: ['Boost Energy', 'Support Heart Health', 'Reduce Fatigue'],
+    objectiveMetrics: [
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '-2-4 bpm',
+        minimumEffect: 2
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '+4-7% increase',
+        minimumEffect: 4
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Monitor statin use (depletes CoQ10)',
+      'Track exercise intensity',
+      'Note concurrent antioxidant supplements'
+    ],
+    washoutPeriod: 10
+  },
+
+  'curcumin-001': {
+    supplementId: 'curcumin-001',
+    primaryIntent: ['Reduce Inflammation', 'Decrease Joint Pain', 'Enhance Recovery'],
+    objectiveMetrics: [
+      {
+        metric: 'hs-CRP',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 21,
+        successCriteria: '-15-30% reduction',
+        minimumEffect: 15
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+3-6% increase',
+        minimumEffect: 3
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Joint Pain',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '-1.5-3 point decrease',
+        minimumEffect: 20
+      },
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Muscle Soreness',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 10,
+        successCriteria: '-1-2 point decrease',
+        minimumEffect: 12
+      }
+    ],
+    recommendedDuration: 45,
+    contextualNoiseFilters: [
+      'Track training volume and intensity',
+      'Note NSAIDs or other anti-inflammatories',
+      'Monitor injury status'
+    ],
+    washoutPeriod: 7
+  },
+
+  'berberine-001': {
+    supplementId: 'berberine-001',
+    primaryIntent: ['Improve Blood Sugar', 'Support Metabolic Health', 'Reduce Glucose Spikes'],
+    objectiveMetrics: [
+      {
+        metric: 'Average Glucose',
+        source: 'Continuous Glucose Monitor (CGM)',
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '-5-10 mg/dL reduction',
+        minimumEffect: 5
+      },
+      {
+        metric: 'Glucose Variability',
+        source: 'Continuous Glucose Monitor (CGM)',
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '-10-20% reduction',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Time in Range',
+        source: 'Continuous Glucose Monitor (CGM)',
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '+5-10% improvement',
+        minimumEffect: 5
+      },
+      {
+        metric: 'Fasting Glucose',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 14,
+        successCriteria: '-5-15 mg/dL',
+        minimumEffect: 5
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 10,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Appetite',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: 'Better regulation (qualitative)',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Track carbohydrate intake consistency',
+      'Monitor meal timing',
+      'Note exercise timing relative to meals',
+      'Exclude days with unusual stress or illness'
+    ],
+    washoutPeriod: 7
+  },
+
+  'nmn-001': {
+    supplementId: 'nmn-001',
+    primaryIntent: ['Boost NAD+ Levels', 'Enhance Energy', 'Support Longevity'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+5-10% increase',
+        minimumEffect: 5
+      },
+      {
+        metric: 'VO2 Max',
+        source: 'Fitness Tracker',
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '+2-5% increase',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '+1.5-2.5 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 10,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Monitor sleep quality (affects energy)',
+      'Track exercise consistency',
+      'Note concurrent NAD+ boosters'
+    ],
+    washoutPeriod: 10
+  },
+
+  'creatine-001': {
+    supplementId: 'creatine-001',
+    primaryIntent: ['Increase Strength', 'Enhance Muscle Mass', 'Improve Cognitive Function'],
+    objectiveMetrics: [
+      {
+        metric: 'Weight',
+        source: 'Scale',
+        baselineDuration: 7,
+        expectedOnset: 7,
+        successCriteria: '+1-3 lbs (water retention + muscle)',
+        minimumEffect: 2
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+2-5% increase',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 10,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+0.8-1.5 point increase',
+        minimumEffect: 8
+      }
+    ],
+    recommendedDuration: 45,
+    contextualNoiseFilters: [
+      'Track resistance training frequency',
+      'Monitor protein intake',
+      'Note hydration levels (affects weight)'
+    ],
+    washoutPeriod: 14
+  },
+
+  'alpha-gpc-001': {
+    supplementId: 'alpha-gpc-001',
+    primaryIntent: ['Enhance Focus', 'Improve Memory', 'Support Cognitive Performance'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+3-5% increase',
+        minimumEffect: 3
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Focus',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1.5-2.5 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 2,
+        successCriteria: '+1.5-2 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Alertness',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      }
+    ],
+    recommendedDuration: 30,
+    contextualNoiseFilters: [
+      'Track caffeine intake',
+      'Monitor sleep quality',
+      'Note mentally demanding tasks'
+    ],
+    washoutPeriod: 3
+  },
+
+  'lions-mane-001': {
+    supplementId: 'lions-mane-001',
+    primaryIntent: ['Enhance Cognitive Function', 'Support Nerve Health', 'Improve Focus'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+3-6% increase',
+        minimumEffect: 3
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Focus',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Mood',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+0.8-1.5 point increase',
+        minimumEffect: 8
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Monitor sleep consistency',
+      'Track stress levels',
+      'Note concurrent nootropics'
+    ],
+    washoutPeriod: 7
+  },
+
+  'glycine-001': {
+    supplementId: 'glycine-001',
+    primaryIntent: ['Improve Sleep Quality', 'Enhance Recovery', 'Reduce Body Temperature'],
+    objectiveMetrics: [
+      {
+        metric: 'Sleep Duration',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+10-20min',
+        minimumEffect: 5
+      },
+      {
+        metric: 'Deep Sleep %',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+2-4% increase',
+        minimumEffect: 2
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 5,
+        successCriteria: '+3-6% increase',
+        minimumEffect: 3
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Sleep Quality',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1.5-2 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 30,
+    contextualNoiseFilters: [
+      'Filter nights with alcohol',
+      'Exclude late caffeine intake',
+      'Note bedroom temperature changes'
+    ],
+    washoutPeriod: 2
+  },
+
+  'melatonin-001': {
+    supplementId: 'melatonin-001',
+    primaryIntent: ['Improve Sleep Onset', 'Regulate Circadian Rhythm', 'Reduce Sleep Latency'],
+    objectiveMetrics: [
+      {
+        metric: 'Sleep Duration',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+15-30min',
+        minimumEffect: 8
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+2-5% increase',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Sleep Quality',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 3,
+        successCriteria: '+1-1.5 point increase (next day)',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 21,
+    contextualNoiseFilters: [
+      'Track consistency of bedtime',
+      'Monitor light exposure in evening',
+      'Note travel/timezone changes'
+    ],
+    washoutPeriod: 2
+  },
+
+  'bacopa-001': {
+    supplementId: 'bacopa-001',
+    primaryIntent: ['Enhance Memory', 'Reduce Anxiety', 'Improve Cognitive Function'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+3-6% increase',
+        minimumEffect: 3
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '-1-3 bpm',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Mental Clarity',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Anxiety',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '-1-2 point decrease',
+        minimumEffect: 12
+      },
+      {
+        metric: 'Focus',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Monitor sleep quality',
+      'Track stress levels',
+      'Note concurrent cognitive enhancers'
+    ],
+    washoutPeriod: 14
+  },
+
+  'zinc-001': {
+    supplementId: 'zinc-001',
+    primaryIntent: ['Support Immunity', 'Enhance Recovery', 'Improve Testosterone'],
+    objectiveMetrics: [
+      {
+        metric: 'Zinc Levels',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 30,
+        successCriteria: 'Reach 80-120 μg/dL',
+        minimumEffect: 20
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+2-5% increase',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+0.8-1.5 point increase',
+        minimumEffect: 8
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Monitor training load',
+      'Track illness occurrences',
+      'Note copper intake (zinc-copper balance)'
+    ],
+    washoutPeriod: 14
+  },
+
+  'probiotics-001': {
+    supplementId: 'probiotics-001',
+    primaryIntent: ['Support Gut Health', 'Improve Digestion', 'Enhance Immunity'],
+    objectiveMetrics: [
+      {
+        metric: 'hs-CRP',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 28,
+        successCriteria: '-10-20% reduction',
+        minimumEffect: 10
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+3-7% increase',
+        minimumEffect: 3
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Digestion',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 7,
+        successCriteria: '+1.5-2.5 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 14,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Mood',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+0.8-1.5 point increase',
+        minimumEffect: 8
+      }
+    ],
+    recommendedDuration: 60,
+    contextualNoiseFilters: [
+      'Track dietary changes (fiber, prebiotics)',
+      'Monitor antibiotic use',
+      'Note probiotic-rich food intake'
+    ],
+    washoutPeriod: 14
+  },
+
+  'resveratrol-001': {
+    supplementId: 'resveratrol-001',
+    primaryIntent: ['Support Longevity', 'Reduce Inflammation', 'Enhance Cardiovascular Health'],
+    objectiveMetrics: [
+      {
+        metric: 'hs-CRP',
+        source: 'Blood Test',
+        baselineDuration: 0,
+        expectedOnset: 42,
+        successCriteria: '-15-25% reduction',
+        minimumEffect: 15
+      },
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '+4-8% increase',
+        minimumEffect: 4
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 14,
+        expectedOnset: 35,
+        successCriteria: '-2-4 bpm',
+        minimumEffect: 2
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Energy Level',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 21,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      },
+      {
+        metric: 'Recovery',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 14,
+        expectedOnset: 28,
+        successCriteria: '+1-1.5 point increase',
+        minimumEffect: 10
+      }
+    ],
+    recommendedDuration: 90,
+    contextualNoiseFilters: [
+      'Monitor red wine consumption (dietary resveratrol)',
+      'Track concurrent antioxidants',
+      'Note exercise consistency'
+    ],
+    washoutPeriod: 14
+  },
+
+  'gaba-001': {
+    supplementId: 'gaba-001',
+    primaryIntent: ['Reduce Anxiety', 'Improve Sleep', 'Promote Relaxation'],
+    objectiveMetrics: [
+      {
+        metric: 'HRV',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+3-6% increase',
+        minimumEffect: 3
+      },
+      {
+        metric: 'Resting Heart Rate',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '-2-4 bpm',
+        minimumEffect: 2
+      },
+      {
+        metric: 'Sleep Duration',
+        source: 'Oura Ring',
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+10-20min',
+        minimumEffect: 5
+      }
+    ],
+    subjectiveMetrics: [
+      {
+        metric: 'Anxiety',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '-2-3 point decrease',
+        minimumEffect: 20
+      },
+      {
+        metric: 'Calmness',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1.5-2.5 point increase',
+        minimumEffect: 15
+      },
+      {
+        metric: 'Sleep Quality',
+        scale: '0-10',
+        dailyCheckIn: true,
+        baselineDuration: 7,
+        expectedOnset: 1,
+        successCriteria: '+1-2 point increase',
+        minimumEffect: 12
+      }
+    ],
+    recommendedDuration: 30,
+    contextualNoiseFilters: [
+      'Track stressful events',
+      'Monitor caffeine intake',
+      'Note alcohol consumption'
+    ],
+    washoutPeriod: 2
+  }
+};
+
+// Primary Intents for Initial Selection
+export const PRIMARY_INTENTS = [
+  {
+    id: 'sleep',
+    label: 'Improve Sleep Quality',
+    icon: '🌙',
+    description: 'Enhance sleep duration, quality, and recovery',
+    relatedSupplements: ['mag-glycinate-001', 'glycine-001', 'melatonin-001', 'ashwagandha-001', 'gaba-001']
+  },
+  {
+    id: 'energy',
+    label: 'Boost Energy & Vitality',
+    icon: '⚡',
+    description: 'Increase energy levels and reduce fatigue',
+    relatedSupplements: ['rhodiola-001', 'coq10-001', 'nmn-001', 'vitamin-d3-001']
+  },
+  {
+    id: 'cognitive',
+    label: 'Enhance Cognitive Function',
+    icon: '🧠',
+    description: 'Improve focus, memory, and mental clarity',
+    relatedSupplements: ['l-theanine-001', 'alpha-gpc-001', 'lions-mane-001', 'bacopa-001']
+  },
+  {
+    id: 'stress',
+    label: 'Reduce Stress & Anxiety',
+    icon: '🧘',
+    description: 'Lower cortisol and promote calmness',
+    relatedSupplements: ['ashwagandha-001', 'l-theanine-001', 'rhodiola-001', 'gaba-001']
+  },
+  {
+    id: 'recovery',
+    label: 'Enhance Recovery & Reduce Inflammation',
+    icon: '💪',
+    description: 'Speed up recovery and reduce inflammation',
+    relatedSupplements: ['omega-3-001', 'curcumin-001', 'creatine-001', 'zinc-001']
+  },
+  {
+    id: 'metabolic',
+    label: 'Optimize Metabolic Health',
+    icon: '📊',
+    description: 'Improve blood sugar, metabolism, and gut health',
+    relatedSupplements: ['berberine-001', 'probiotics-001', 'resveratrol-001', 'vitamin-d3-001']
+  }
+];

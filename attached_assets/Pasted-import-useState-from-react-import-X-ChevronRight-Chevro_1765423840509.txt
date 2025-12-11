@@ -1,0 +1,873 @@
+import { useState } from 'react';
+import { X, ChevronRight, ChevronLeft, Sparkles, Target, Calendar, TrendingUp, CheckCircle, AlertCircle, Search, ScanBarcode, Package, Info } from 'lucide-react';
+import { 
+  SUPPLEMENT_DATABASE, 
+  SUPPLEMENT_CONFIGURATIONS, 
+  PRIMARY_INTENTS,
+  SupplementProduct,
+  SupplementConfiguration 
+} from './supplementDatabase';
+
+interface N1ExperimentWizardProps {
+  isDark: boolean;
+  onClose: () => void;
+  onComplete?: (experimentConfig: any) => void;
+}
+
+type WizardStep = 'intent' | 'supplement' | 'configuration' | 'baseline' | 'review';
+
+export function N1ExperimentWizard({ isDark, onClose, onComplete }: N1ExperimentWizardProps) {
+  const [currentStep, setCurrentStep] = useState<WizardStep>('intent');
+  const [selectedIntent, setSelectedIntent] = useState<string | null>(null);
+  const [selectedSupplement, setSelectedSupplement] = useState<SupplementProduct | null>(null);
+  const [configuration, setConfiguration] = useState<SupplementConfiguration | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [customDuration, setCustomDuration] = useState<number | null>(null);
+  const [selectedObjectiveMetrics, setSelectedObjectiveMetrics] = useState<string[]>([]);
+  const [selectedSubjectiveMetrics, setSelectedSubjectiveMetrics] = useState<string[]>([]);
+
+  // Filter supplements based on intent or search
+  const getFilteredSupplements = (): SupplementProduct[] => {
+    let filtered = SUPPLEMENT_DATABASE;
+
+    // Filter by intent if selected
+    if (selectedIntent) {
+      const intent = PRIMARY_INTENTS.find(i => i.id === selectedIntent);
+      if (intent) {
+        filtered = filtered.filter(s => intent.relatedSupplements.includes(s.id));
+      }
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(s => 
+        s.name.toLowerCase().includes(query) ||
+        s.brand.toLowerCase().includes(query) ||
+        s.category.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  };
+
+  const handleSupplementSelect = (supplement: SupplementProduct) => {
+    setSelectedSupplement(supplement);
+    const config = SUPPLEMENT_CONFIGURATIONS[supplement.id];
+    if (config) {
+      setConfiguration(config);
+      // Auto-select all metrics
+      setSelectedObjectiveMetrics(config.objectiveMetrics.map(m => m.metric));
+      setSelectedSubjectiveMetrics(config.subjectiveMetrics.map(m => m.metric));
+    }
+  };
+
+  const handleComplete = () => {
+    if (!selectedSupplement || !configuration) return;
+
+    const experimentConfig = {
+      supplement: selectedSupplement,
+      configuration,
+      duration: customDuration || configuration.recommendedDuration,
+      objectiveMetrics: configuration.objectiveMetrics.filter(m => 
+        selectedObjectiveMetrics.includes(m.metric)
+      ),
+      subjectiveMetrics: configuration.subjectiveMetrics.filter(m => 
+        selectedSubjectiveMetrics.includes(m.metric)
+      ),
+      startDate: new Date().toISOString(),
+    };
+
+    onComplete?.(experimentConfig);
+    onClose();
+  };
+
+  const getMaxBaselineDuration = (): number => {
+    if (!configuration) return 0;
+    const allMetrics = [
+      ...configuration.objectiveMetrics,
+      ...configuration.subjectiveMetrics
+    ];
+    return Math.max(...allMetrics.map(m => m.baselineDuration));
+  };
+
+  const getStepNumber = (step: WizardStep): number => {
+    const steps: WizardStep[] = ['intent', 'supplement', 'configuration', 'baseline', 'review'];
+    return steps.indexOf(step) + 1;
+  };
+
+  return (
+    <div className={`fixed inset-0 z-50 overflow-y-auto ${
+      isDark 
+        ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
+        : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
+    }`}>
+      {/* Header */}
+      <header className={`sticky top-0 z-10 backdrop-blur-xl border-b transition-colors ${
+        isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+      }`}>
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+              }`}
+            >
+              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </button>
+            <div className="text-center">
+              <h1 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                N-of-1 Experiment
+              </h1>
+              <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                Step {getStepNumber(currentStep)} of 5
+              </p>
+            </div>
+            <div className="w-9" /> {/* Spacer */}
+          </div>
+
+          {/* Progress Bar */}
+          <div className={`mt-3 h-1 rounded-full overflow-hidden ${
+            isDark ? 'bg-white/10' : 'bg-black/10'
+          }`}>
+            <div 
+              className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
+              style={{ width: `${(getStepNumber(currentStep) / 5) * 100}%` }}
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <main className="px-4 py-6 pb-24 max-w-4xl mx-auto">
+        {/* Step 1: Intent Selection */}
+        {currentStep === 'intent' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="text-center mb-8">
+              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 ${
+                isDark ? 'bg-gradient-to-br from-cyan-500/20 to-blue-500/20' : 'bg-gradient-to-br from-cyan-100 to-blue-100'
+              }`}>
+                <Target className={`w-8 h-8 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+              </div>
+              <h2 className={`text-2xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                What would you like to improve?
+              </h2>
+              <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                Select your primary goal to get personalized supplement recommendations
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {PRIMARY_INTENTS.map((intent) => (
+                <button
+                  key={intent.id}
+                  onClick={() => {
+                    setSelectedIntent(intent.id);
+                    setCurrentStep('supplement');
+                  }}
+                  className={`backdrop-blur-xl rounded-xl border p-5 text-left transition-all ${
+                    selectedIntent === intent.id
+                      ? isDark
+                        ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/50'
+                        : 'bg-gradient-to-r from-cyan-100 to-blue-100 border-cyan-400'
+                      : isDark
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-black/10 hover:bg-white/80'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="text-3xl">{intent.icon}</div>
+                    <div className="flex-1">
+                      <h3 className={`text-base mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {intent.label}
+                      </h3>
+                      <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                        {intent.description}
+                      </p>
+                    </div>
+                    <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setCurrentStep('supplement')}
+              className={`w-full p-4 rounded-xl border transition-all ${
+                isDark 
+                  ? 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70' 
+                  : 'bg-white/60 border-black/10 hover:bg-white/80 text-gray-600'
+              }`}
+            >
+              Skip - Browse all supplements
+            </button>
+          </div>
+        )}
+
+        {/* Step 2: Supplement Selection */}
+        {currentStep === 'supplement' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => setCurrentStep('intent')}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+              >
+                <ChevronLeft className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </button>
+              <div>
+                <h2 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Select Your Supplement
+                </h2>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  {selectedIntent 
+                    ? PRIMARY_INTENTS.find(i => i.id === selectedIntent)?.label 
+                    : 'All supplements'}
+                </p>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className={`backdrop-blur-xl rounded-xl border p-3 flex items-center gap-3 ${
+              isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+            }`}>
+              <Search className={`w-5 h-5 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+              <input
+                type="text"
+                placeholder="Search supplements..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`flex-1 bg-transparent outline-none ${
+                  isDark ? 'text-white placeholder-white/40' : 'text-gray-900 placeholder-gray-400'
+                }`}
+              />
+            </div>
+
+            {/* Barcode Scanner Placeholder */}
+            <button
+              className={`w-full backdrop-blur-xl rounded-xl border p-4 transition-all flex items-center justify-center gap-3 ${
+                isDark 
+                  ? 'bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 hover:from-purple-500/20 hover:to-pink-500/20' 
+                  : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-300 hover:from-purple-100 hover:to-pink-100'
+              }`}
+              onClick={() => alert('Barcode scanning will be available soon! This will auto-detect your supplement and load its configuration.')}
+            >
+              <ScanBarcode className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+              <span className={isDark ? 'text-white' : 'text-gray-900'}>
+                Scan Barcode (Coming Soon)
+              </span>
+            </button>
+
+            {/* Supplement List */}
+            <div className="space-y-3">
+              <p className={`text-xs uppercase tracking-wide ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                {getFilteredSupplements().length} supplements
+              </p>
+              {getFilteredSupplements().map((supplement) => (
+                <button
+                  key={supplement.id}
+                  onClick={() => {
+                    handleSupplementSelect(supplement);
+                    setCurrentStep('configuration');
+                  }}
+                  className={`w-full backdrop-blur-xl rounded-xl border p-4 text-left transition-all ${
+                    selectedSupplement?.id === supplement.id
+                      ? isDark
+                        ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/50'
+                        : 'bg-gradient-to-r from-cyan-100 to-blue-100 border-cyan-400'
+                      : isDark
+                        ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                        : 'bg-white/60 border-black/10 hover:bg-white/80'
+                  }`}
+                >
+                  <div className="flex gap-4">
+                    {/* Product Image */}
+                    <div className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 ${
+                      isDark ? 'bg-white/10' : 'bg-gray-200'
+                    }`}>
+                      {supplement.imageUrl ? (
+                        <img 
+                          src={supplement.imageUrl} 
+                          alt={supplement.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Package className={`w-8 h-8 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Product Details */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className={`text-base mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {supplement.name}
+                      </h3>
+                      <p className={`text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                        {supplement.brand} • {supplement.strength}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          isDark ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {supplement.recommendedDosage}
+                        </span>
+                      </div>
+                    </div>
+
+                    <ChevronRight className={`w-5 h-5 flex-shrink-0 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Smart Configuration */}
+        {currentStep === 'configuration' && configuration && selectedSupplement && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => setCurrentStep('supplement')}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+              >
+                <ChevronLeft className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </button>
+              <div>
+                <h2 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Experiment Configuration
+                </h2>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Auto-configured for {selectedSupplement.name}
+                </p>
+              </div>
+            </div>
+
+            {/* AI Configuration Notice */}
+            <div className={`backdrop-blur-xl rounded-xl border p-4 ${
+              isDark 
+                ? 'bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/20' 
+                : 'bg-gradient-to-br from-cyan-50 to-blue-50 border-cyan-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                <div className={`p-2 rounded-lg ${isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                  <Sparkles className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`text-sm mb-1 ${isDark ? 'text-cyan-300' : 'text-cyan-900'}`}>
+                    Smart Configuration Active
+                  </h3>
+                  <p className={`text-xs ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                    We've automatically configured tracking metrics, baseline duration, and success criteria based on scientific literature for {selectedSupplement.name}.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Primary Intent */}
+            <div>
+              <label className={`text-sm mb-2 block ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                Primary Goals
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {configuration.primaryIntent.map((intent) => (
+                  <span 
+                    key={intent}
+                    className={`px-3 py-1.5 rounded-full text-sm ${
+                      isDark ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-purple-100 text-purple-900 border border-purple-300'
+                    }`}
+                  >
+                    {intent}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Duration */}
+            <div>
+              <label className={`text-sm mb-2 block ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                Experiment Duration
+              </label>
+              <div className={`backdrop-blur-xl rounded-xl border p-4 ${
+                isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+              }`}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className={isDark ? 'text-white' : 'text-gray-900'}>
+                    {customDuration || configuration.recommendedDuration} days
+                  </span>
+                  <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    Recommended: {configuration.recommendedDuration} days
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="14"
+                  max="90"
+                  step="7"
+                  value={customDuration || configuration.recommendedDuration}
+                  onChange={(e) => setCustomDuration(parseInt(e.target.value))}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs mt-2">
+                  <span className={isDark ? 'text-white/40' : 'text-gray-500'}>14 days</span>
+                  <span className={isDark ? 'text-white/40' : 'text-gray-500'}>90 days</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Objective Metrics */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                  Objective Metrics ({selectedObjectiveMetrics.length})
+                </label>
+                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Auto-collected from devices
+                </span>
+              </div>
+              <div className="space-y-2">
+                {configuration.objectiveMetrics.map((metric) => (
+                  <label
+                    key={metric.metric}
+                    className={`backdrop-blur-xl rounded-xl border p-4 flex items-start gap-3 cursor-pointer transition-all ${
+                      selectedObjectiveMetrics.includes(metric.metric)
+                        ? isDark
+                          ? 'bg-cyan-500/10 border-cyan-500/30'
+                          : 'bg-cyan-50 border-cyan-300'
+                        : isDark
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                          : 'bg-white/60 border-black/10 hover:bg-white/80'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedObjectiveMetrics.includes(metric.metric)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedObjectiveMetrics([...selectedObjectiveMetrics, metric.metric]);
+                        } else {
+                          setSelectedObjectiveMetrics(selectedObjectiveMetrics.filter(m => m !== metric.metric));
+                        }
+                      }}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {metric.metric}
+                        </h4>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          isDark ? 'bg-green-500/20 text-green-300' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {metric.source}
+                        </span>
+                      </div>
+                      <div className={`text-xs space-y-0.5 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                        <p>• Baseline: {metric.baselineDuration} days</p>
+                        <p>• Expected onset: {metric.expectedOnset} days</p>
+                        <p>• Success: {metric.successCriteria}</p>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Subjective Metrics */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                  Subjective Metrics ({selectedSubjectiveMetrics.length})
+                </label>
+                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Daily self-reports
+                </span>
+              </div>
+              <div className="space-y-2">
+                {configuration.subjectiveMetrics.map((metric) => (
+                  <label
+                    key={metric.metric}
+                    className={`backdrop-blur-xl rounded-xl border p-4 flex items-start gap-3 cursor-pointer transition-all ${
+                      selectedSubjectiveMetrics.includes(metric.metric)
+                        ? isDark
+                          ? 'bg-purple-500/10 border-purple-500/30'
+                          : 'bg-purple-50 border-purple-300'
+                        : isDark
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10'
+                          : 'bg-white/60 border-black/10 hover:bg-white/80'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedSubjectiveMetrics.includes(metric.metric)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSubjectiveMetrics([...selectedSubjectiveMetrics, metric.metric]);
+                        } else {
+                          setSelectedSubjectiveMetrics(selectedSubjectiveMetrics.filter(m => m !== metric.metric));
+                        }
+                      }}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <h4 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {metric.metric}
+                        </h4>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          isDark ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {metric.scale}
+                        </span>
+                      </div>
+                      <div className={`text-xs space-y-0.5 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                        <p>• Baseline: {metric.baselineDuration} days</p>
+                        <p>• Expected onset: {metric.expectedOnset} days</p>
+                        <p>• Success: {metric.successCriteria}</p>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Continue Button */}
+            <button
+              onClick={() => setCurrentStep('baseline')}
+              disabled={selectedObjectiveMetrics.length === 0 && selectedSubjectiveMetrics.length === 0}
+              className={`w-full backdrop-blur-xl rounded-xl border p-4 transition-all flex items-center justify-center gap-2 ${
+                selectedObjectiveMetrics.length === 0 && selectedSubjectiveMetrics.length === 0
+                  ? isDark
+                    ? 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed'
+                    : 'bg-white/60 border-black/10 text-gray-400 cursor-not-allowed'
+                  : isDark
+                    ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/30 hover:from-cyan-500/30 hover:to-blue-500/30 text-white'
+                    : 'bg-gradient-to-r from-cyan-100 to-blue-100 border-cyan-300 hover:from-cyan-200 hover:to-blue-200 text-gray-900'
+              }`}
+            >
+              Continue to Baseline
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {/* Step 4: Baseline Validation */}
+        {currentStep === 'baseline' && configuration && selectedSupplement && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => setCurrentStep('configuration')}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+              >
+                <ChevronLeft className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </button>
+              <div>
+                <h2 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Baseline Period
+                </h2>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Understanding your baseline data
+                </p>
+              </div>
+            </div>
+
+            {/* Baseline Explanation */}
+            <div className={`backdrop-blur-xl rounded-xl border p-5 ${
+              isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+            }`}>
+              <div className="flex items-start gap-3 mb-4">
+                <div className={`p-2 rounded-lg ${isDark ? 'bg-blue-500/20' : 'bg-blue-100'}`}>
+                  <Info className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`text-sm mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Why do we need a baseline?
+                  </h3>
+                  <p className={`text-xs leading-relaxed ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    Before starting {selectedSupplement.name}, we need to establish your normal values for each metric. This allows us to accurately measure the supplement's effect by comparing your data during supplementation against your personal baseline.
+                  </p>
+                </div>
+              </div>
+
+              <div className={`p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                    Baseline Duration Required
+                  </span>
+                  <span className={`text-lg ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                    {getMaxBaselineDuration()} days
+                  </span>
+                </div>
+                <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Based on your selected metrics
+                </p>
+              </div>
+            </div>
+
+            {/* Retroactive Baseline Option */}
+            <div className={`backdrop-blur-xl rounded-xl border p-5 ${
+              isDark 
+                ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20' 
+                : 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                <CheckCircle className={`w-5 h-5 mt-0.5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                <div className="flex-1">
+                  <h3 className={`text-sm mb-2 ${isDark ? 'text-green-300' : 'text-green-900'}`}>
+                    Great news! We found existing data
+                  </h3>
+                  <p className={`text-xs leading-relaxed mb-3 ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                    {/* Placeholder: Database check for historical data */}
+                    We've detected {getMaxBaselineDuration()}+ days of historical data for your selected metrics from your connected devices. You can start your experiment immediately!
+                  </p>
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-white/50'}`}>
+                    <div className="text-xs space-y-1">
+                      <p className={isDark ? 'text-white/70' : 'text-gray-600'}>
+                        <span className={isDark ? 'text-white' : 'text-gray-900'}>• HRV:</span> 47 days of data available
+                      </p>
+                      <p className={isDark ? 'text-white/70' : 'text-gray-600'}>
+                        <span className={isDark ? 'text-white' : 'text-gray-900'}>• Sleep Duration:</span> 52 days of data available
+                      </p>
+                      <p className={isDark ? 'text-white/70' : 'text-gray-600'}>
+                        <span className={isDark ? 'text-white' : 'text-gray-900'}>• Resting HR:</span> 45 days of data available
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contextual Noise Filters */}
+            <div>
+              <h3 className={`text-sm mb-3 ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                Data Quality Filters
+              </h3>
+              <div className={`backdrop-blur-xl rounded-xl border p-4 ${
+                isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+              }`}>
+                <p className={`text-xs mb-3 ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                  To ensure accurate results, we'll automatically filter out data from:
+                </p>
+                <div className="space-y-2">
+                  {configuration.contextualNoiseFilters.map((filter, index) => (
+                    <div key={index} className="flex items-start gap-2">
+                      <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                      <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                        {filter}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Continue Button */}
+            <button
+              onClick={() => setCurrentStep('review')}
+              className={`w-full backdrop-blur-xl rounded-xl border p-4 transition-all flex items-center justify-center gap-2 ${
+                isDark
+                  ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-cyan-500/30 hover:from-cyan-500/30 hover:to-blue-500/30 text-white'
+                  : 'bg-gradient-to-r from-cyan-100 to-blue-100 border-cyan-300 hover:from-cyan-200 hover:to-blue-200 text-gray-900'
+              }`}
+            >
+              Continue to Review
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {/* Step 5: Review & Start */}
+        {currentStep === 'review' && configuration && selectedSupplement && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex items-center gap-3 mb-6">
+              <button
+                onClick={() => setCurrentStep('baseline')}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+                }`}
+              >
+                <ChevronLeft className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+              </button>
+              <div>
+                <h2 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Review & Start
+                </h2>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Confirm your experiment details
+                </p>
+              </div>
+            </div>
+
+            {/* Supplement Summary */}
+            <div className={`backdrop-blur-xl rounded-xl border p-5 ${
+              isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+            }`}>
+              <div className="flex gap-4 mb-4">
+                <div className={`w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 ${
+                  isDark ? 'bg-white/10' : 'bg-gray-200'
+                }`}>
+                  {selectedSupplement.imageUrl ? (
+                    <img 
+                      src={selectedSupplement.imageUrl} 
+                      alt={selectedSupplement.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className={`w-10 h-10 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className={`text-lg mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {selectedSupplement.name}
+                  </h3>
+                  <p className={`text-sm mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    {selectedSupplement.brand}
+                  </p>
+                  <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    {selectedSupplement.strength} • {selectedSupplement.amountPerServe}
+                  </p>
+                </div>
+              </div>
+              <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-500/10' : 'bg-purple-50'}`}>
+                <p className={`text-xs ${isDark ? 'text-purple-300' : 'text-purple-900'}`}>
+                  <span className="opacity-70">Dosage:</span> {selectedSupplement.recommendedDosage}
+                </p>
+              </div>
+            </div>
+
+            {/* Experiment Details */}
+            <div className={`backdrop-blur-xl rounded-xl border overflow-hidden ${
+              isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+            }`}>
+              <div className="p-4 border-b border-current border-opacity-10">
+                <h3 className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                  Experiment Timeline
+                </h3>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    Duration
+                  </span>
+                  <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {customDuration || configuration.recommendedDuration} days
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    Start Date
+                  </span>
+                  <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                    Expected End Date
+                  </span>
+                  <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {new Date(Date.now() + (customDuration || configuration.recommendedDuration) * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Metrics Summary */}
+            <div className={`backdrop-blur-xl rounded-xl border overflow-hidden ${
+              isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+            }`}>
+              <div className="p-4 border-b border-current border-opacity-10">
+                <h3 className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                  Tracking Metrics
+                </h3>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <p className={`text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    Objective ({selectedObjectiveMetrics.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedObjectiveMetrics.map((metric) => (
+                      <span 
+                        key={metric}
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          isDark ? 'bg-cyan-500/20 text-cyan-300' : 'bg-cyan-100 text-cyan-900'
+                        }`}
+                      >
+                        {metric}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className={`text-xs mb-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                    Subjective ({selectedSubjectiveMetrics.length})
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedSubjectiveMetrics.map((metric) => (
+                      <span 
+                        key={metric}
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          isDark ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-900'
+                        }`}
+                      >
+                        {metric}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Success Criteria */}
+            <div className={`backdrop-blur-xl rounded-xl border p-5 ${
+              isDark 
+                ? 'bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/20' 
+                : 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                <TrendingUp className={`w-5 h-5 mt-0.5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                <div className="flex-1">
+                  <h3 className={`text-sm mb-2 ${isDark ? 'text-green-300' : 'text-green-900'}`}>
+                    Success Criteria
+                  </h3>
+                  <p className={`text-xs ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                    We'll analyze statistical significance using effect size calculations. Results will be available after {Math.max(...configuration.objectiveMetrics.map(m => m.expectedOnset), ...configuration.subjectiveMetrics.map(m => m.expectedOnset))} days (expected onset).
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Start Button */}
+            <button
+              onClick={handleComplete}
+              className={`w-full backdrop-blur-xl rounded-xl border p-5 transition-all ${
+                isDark
+                  ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/30'
+                  : 'bg-gradient-to-r from-green-100 to-emerald-100 border-green-300 hover:from-green-200 hover:to-emerald-200'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-3">
+                <CheckCircle className={`w-6 h-6 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                <span className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Start Experiment
+                </span>
+              </div>
+              <p className={`text-xs mt-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                You'll receive daily check-in reminders
+              </p>
+            </button>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
