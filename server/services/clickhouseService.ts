@@ -982,7 +982,26 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, behavior attribution, morning briefing, and adaptive thresholds)');
+    // User Metric Suppressions - Temporary suppressions for metrics with data quality issues
+    // When user reports sensor/Apple data errors, suppress that metric for a period
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.user_metric_suppressions (
+          suppression_id String,
+          health_id String,
+          metric_type LowCardinality(String),
+          reason String,
+          suppression_type LowCardinality(String) DEFAULT 'data_quality',
+          created_at DateTime64(3) DEFAULT now64(3),
+          expires_at DateTime64(3)
+        )
+        ENGINE = ReplacingMergeTree(created_at)
+        ORDER BY (health_id, metric_type, suppression_id)
+        TTL expires_at + INTERVAL 30 DAY
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, behavior attribution, morning briefing, adaptive thresholds, and metric suppressions)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

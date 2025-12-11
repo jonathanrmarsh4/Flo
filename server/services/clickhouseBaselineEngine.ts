@@ -899,6 +899,12 @@ export class ClickHouseBaselineEngine {
     if (!await this.ensureInitialized()) return [];
 
     try {
+      // Get active suppressions - metrics the user has flagged as having data quality issues
+      const suppressedMetrics = await this.getActiveSuppressions(healthId);
+      if (suppressedMetrics.size > 0) {
+        logger.debug(`[ClickHouseML] Active suppressions for ${healthId}: ${Array.from(suppressedMetrics).join(', ')}`);
+      }
+
       const baselines = await this.calculateBaselines(healthId, windowDays);
       const baselineMap = new Map(baselines.map(b => [b.metricType, b]));
 
@@ -931,6 +937,11 @@ export class ClickHouseBaselineEngine {
       };
 
       for (const metric of recentMetrics) {
+        // Skip metrics that user has suppressed due to data quality issues
+        if (suppressedMetrics.has(metric.metric_type)) {
+          logger.debug(`[ClickHouseML] Skipping suppressed metric ${metric.metric_type} for ${healthId}`);
+          continue;
+        }
         const baseline = baselineMap.get(metric.metric_type);
         if (!baseline || baseline.sampleCount < 3) continue;
 
@@ -1957,6 +1968,21 @@ export class ClickHouseBaselineEngine {
         themes.push('medication');
       }
       
+      // Data quality / sensor error detection - for false positives from Apple/device issues
+      const dataQualityKeywords = [
+        'apple', 'watch', 'sensor', 'bug', 'glitch', 'error', 'data issue', 'data problem',
+        'impossible', 'incorrect', 'wrong data', 'bad data', 'sync issue', 'sync problem',
+        'duplicate', 'missing', 'gap', 'not accurate', 'inaccurate data', 'false', 
+        'false positive', 'device', 'not wearing', 'took off', 'charged', 'charging'
+      ];
+      if (dataQualityKeywords.some(kw => lowerText.includes(kw))) {
+        themes.push('data_quality');
+        // Create a metric suppression when data quality issue is reported
+        if (metricType) {
+          await this.createMetricSuppression(healthId, metricType, feedbackText, 7);
+        }
+      }
+      
       // Sentiment detection (simple)
       let sentiment = 'neutral';
       const positiveWords = ['good', 'great', 'better', 'improved', 'helpful', 'accurate', 'right', 'yes'];
@@ -2028,6 +2054,57 @@ export class ClickHouseBaselineEngine {
       const defaults = METRIC_THRESHOLDS[metricType as keyof typeof METRIC_THRESHOLDS] || 
                        { zScoreThreshold: 2.0, percentageThreshold: 20 };
       return { ...defaults, isPersonalized: false };
+    }
+  }
+
+  /**
+   * Creates a temporary metric suppression when user reports data quality issues.
+   * Suppresses the metric from anomaly detection for the specified number of days.
+   */
+  private async createMetricSuppression(
+    healthId: string,
+    metricType: string,
+    reason: string,
+    durationDays: number = 7
+  ): Promise<void> {
+    try {
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + durationDays);
+      
+      const suppressionId = `supp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      await clickhouse.insert('user_metric_suppressions', [{
+        suppression_id: suppressionId,
+        health_id: healthId,
+        metric_type: metricType,
+        reason: reason.substring(0, 500), // Limit text length
+        suppression_type: 'data_quality',
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+      }]);
+      
+      logger.info(`[ClickHouseML] Created ${durationDays}-day suppression for ${healthId}/${metricType} due to data quality feedback`);
+    } catch (error) {
+      logger.error('[ClickHouseML] Error creating metric suppression:', error);
+    }
+  }
+
+  /**
+   * Gets active suppressions for a health ID to skip during anomaly detection.
+   */
+  private async getActiveSuppressions(healthId: string): Promise<Set<string>> {
+    try {
+      const result = await clickhouse.query<{ metric_type: string }>(`
+        SELECT DISTINCT metric_type
+        FROM flo_health.user_metric_suppressions FINAL
+        WHERE health_id = {healthId:String}
+          AND expires_at > now()
+      `, { healthId });
+      
+      return new Set(result.map(r => r.metric_type));
+    } catch (error) {
+      logger.error('[ClickHouseML] Error getting active suppressions:', error);
+      return new Set();
     }
   }
 
