@@ -106,12 +106,42 @@ async function deliverQueuedReminders() {
   }
 }
 
+async function getActiveSupplementExperiments(healthId: string): Promise<{ id: string; product_name: string }[]> {
+  const supabase = getSupabaseClient();
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data: experiments } = await supabase
+    .from('n1_experiments')
+    .select('id, product_name')
+    .eq('health_id', healthId)
+    .in('status', ['active', 'baseline']);
+  
+  if (!experiments || experiments.length === 0) {
+    return [];
+  }
+  
+  const experimentsNeedingCheckin: { id: string; product_name: string }[] = [];
+  
+  for (const exp of experiments) {
+    const { data: checkins } = await supabase
+      .from('n1_daily_checkins')
+      .select('id')
+      .eq('experiment_id', exp.id)
+      .eq('checkin_date', today)
+      .limit(1);
+    
+    if (!checkins || checkins.length === 0) {
+      experimentsNeedingCheckin.push(exp);
+    }
+  }
+  
+  return experimentsNeedingCheckin;
+}
+
 async function processThreePMSurveyNotifications() {
   try {
     const now = new Date();
     
-    // Use users.timezone (same as morning briefing) for consistency
-    // Fall back to reminderTimezone only if user explicitly set a different reminder timezone
     const activeUsers = await db
       .select({
         id: users.id,
@@ -132,11 +162,10 @@ async function processThreePMSurveyNotifications() {
     }
 
     const supabase = getSupabaseClient();
-    const eligibleUsers: typeof activeUsers = [];
+    const eligibleUsers: (typeof activeUsers[0] & { healthId: string; activeSupplements: { id: string; product_name: string }[] })[] = [];
     
     for (const user of activeUsers) {
       try {
-        // Prefer reminderTimezone if explicitly set, otherwise use general timezone
         const timezone = user.reminderTimezone || user.timezone || 'UTC';
         const userNow = new TZDate(now, timezone);
         const userHour = userNow.getHours();
@@ -163,7 +192,12 @@ async function processThreePMSurveyNotifications() {
             .limit(1);
 
           if (!existingSurvey || existingSurvey.length === 0) {
-            eligibleUsers.push(user);
+            const activeSupplements = await getActiveSupplementExperiments(healthIdResult.data.health_id);
+            eligibleUsers.push({ 
+              ...user, 
+              healthId: healthIdResult.data.health_id,
+              activeSupplements,
+            });
           }
         }
       } catch (error) {
@@ -179,20 +213,31 @@ async function processThreePMSurveyNotifications() {
 
     for (const user of eligibleUsers) {
       try {
+        let title = '3PM Check-In';
+        let body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Quick 30-second wellbeing check - how are you feeling?`;
+        
+        if (user.activeSupplements.length > 0) {
+          const supplementNames = user.activeSupplements.map(s => s.product_name).join(', ');
+          title = 'Daily Check-In';
+          body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Time to log your wellbeing + track your ${supplementNames} progress.`;
+        }
+        
         const result = await apnsService.sendToUser(
           user.id,
           {
-            title: '3PM Check-In',
-            body: `${user.firstName ? `Hey ${user.firstName}! ` : ''}Quick 30-second wellbeing check - how are you feeling?`,
+            title,
+            body,
             data: {
               type: 'survey_3pm',
               deepLink: 'flo://survey/3pm',
+              hasSupplementCheckins: user.activeSupplements.length > 0,
+              supplementCount: user.activeSupplements.length,
             }
           }
         );
 
         if (result.success && result.devicesReached && result.devicesReached > 0) {
-          logger.info(`[3PMSurvey] Sent notification to ${user.firstName || user.id}`);
+          logger.info(`[3PMSurvey] Sent notification to ${user.firstName || user.id} (${user.activeSupplements.length} supplements)`);
         }
       } catch (error) {
         logger.warn(`[3PMSurvey] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
@@ -265,19 +310,42 @@ export async function triggerManualSurveyNotification(userId: string) {
       return { success: false, error: 'User not found' };
     }
 
+    const supabase = getSupabaseClient();
+    const healthIdResult = await supabase
+      .from('user_profiles')
+      .select('health_id')
+      .eq('user_id', userId)
+      .single();
+
+    let activeSupplements: { id: string; product_name: string }[] = [];
+    if (healthIdResult.data?.health_id) {
+      activeSupplements = await getActiveSupplementExperiments(healthIdResult.data.health_id);
+    }
+
+    let title = '3PM Check-In';
+    let body = `${user[0].firstName ? `Hey ${user[0].firstName}! ` : ''}Quick 30-second wellbeing check - how are you feeling?`;
+    
+    if (activeSupplements.length > 0) {
+      const supplementNames = activeSupplements.map(s => s.product_name).join(', ');
+      title = 'Daily Check-In';
+      body = `${user[0].firstName ? `Hey ${user[0].firstName}! ` : ''}Time to log your wellbeing + track your ${supplementNames} progress.`;
+    }
+
     const result = await apnsService.sendToUser(
       userId,
       {
-        title: '3PM Check-In',
-        body: `${user[0].firstName ? `Hey ${user[0].firstName}! ` : ''}Quick 30-second wellbeing check - how are you feeling?`,
+        title,
+        body,
         data: {
           type: 'survey_3pm',
           deepLink: 'flo://survey/3pm',
+          hasSupplementCheckins: activeSupplements.length > 0,
+          supplementCount: activeSupplements.length,
         }
       }
     );
 
-    logger.info(`[3PMSurvey] Manual notification sent to user ${userId}:`, result);
+    logger.info(`[3PMSurvey] Manual notification sent to user ${userId} (${activeSupplements.length} supplements):`, result);
     return result;
   } catch (error) {
     logger.error(`[3PMSurvey] Manual notification failed for user ${userId}`, { error: error instanceof Error ? error.message : String(error) });
