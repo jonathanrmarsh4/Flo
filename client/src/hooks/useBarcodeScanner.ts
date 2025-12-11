@@ -29,7 +29,9 @@ export function useBarcodeScanner(): BarcodeScannerHook {
       
       try {
         console.log('[BarcodeScanner] Dynamically importing MLKit module...');
-        const module = await import('@capacitor-mlkit/barcode-scanning');
+        // @vite-ignore tells Vite to not try to bundle this module
+        const modulePath = '@capacitor-mlkit/barcode-scanning';
+        const module = await import(/* @vite-ignore */ modulePath);
         scannerModuleRef.current = module;
         console.log('[BarcodeScanner] Module loaded successfully');
         
@@ -51,7 +53,8 @@ export function useBarcodeScanner(): BarcodeScannerHook {
     if (scannerModuleRef.current) {
       return scannerModuleRef.current;
     }
-    const module = await import('@capacitor-mlkit/barcode-scanning');
+    const modulePath = '@capacitor-mlkit/barcode-scanning';
+    const module = await import(/* @vite-ignore */ modulePath);
     scannerModuleRef.current = module;
     return module;
   };
