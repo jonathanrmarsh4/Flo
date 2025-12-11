@@ -367,9 +367,10 @@ function getClientSecret(provider: IntegrationProvider): string {
 }
 
 function getRedirectUri(provider: IntegrationProvider): string {
-  const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : process.env.PRODUCTION_URL || 'http://localhost:5000';
+  // Production URL takes priority for OAuth (must match Oura portal config)
+  const baseUrl = process.env.PRODUCTION_URL 
+    || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+    || 'http://localhost:5000';
   return `${baseUrl}/api/integrations/${provider}/callback`;
 }
 
