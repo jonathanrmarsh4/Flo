@@ -366,7 +366,7 @@ export default function NewAssessmentWizard() {
       </header>
 
       {/* Content */}
-      <main className="overflow-y-auto px-4 py-6" style={{ height: 'calc(100vh - 180px)' }}>
+      <main className="overflow-y-auto px-4 pt-6 pb-24" style={{ height: 'calc(100vh - 120px)' }}>
         {/* Step 1: Intent Selection */}
         {currentStep === 'intent' && (
           <div className="space-y-4">
