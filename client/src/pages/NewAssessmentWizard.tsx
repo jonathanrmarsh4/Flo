@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useBarcodeScanner } from "@/hooks/useBarcodeScanner";
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -20,6 +21,7 @@ import {
   BarChart3,
   Search,
   Scan,
+  Camera,
   AlertCircle,
   CheckCircle,
   Clock,
@@ -104,6 +106,7 @@ const STEPS: { id: WizardStep; label: string; icon: typeof Target }[] = [
 export default function NewAssessmentWizard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { isAvailable: isCameraAvailable, scanBarcode } = useBarcodeScanner();
   const [currentStep, setCurrentStep] = useState<WizardStep>('intent');
   const [config, setConfig] = useState<AssessmentConfig>({
     intent: '',
@@ -118,8 +121,9 @@ export default function NewAssessmentWizard() {
   const [productSearch, setProductSearch] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [showBarcodeInput, setShowBarcodeInput] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
-  // Barcode lookup mutation
+  // Barcode lookup mutation - uses variables parameter in onSuccess to avoid closure issues
   const barcodeLookupMutation = useMutation({
     mutationFn: async (barcode: string) => {
       const response = await fetch(`/api/n1/dsld/barcode/${encodeURIComponent(barcode)}`);
@@ -129,7 +133,7 @@ export default function NewAssessmentWizard() {
       }
       return response.json() as Promise<BarcodeLookupResponse>;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, scannedBarcode) => {
       // Determine dosage from ingredient or fall back to defaults
       // Use getDefaultDosage for universal fallback to ensure we always have valid dosage values
       const fallbackDefaults = getDefaultDosage(data.detectedSupplementType || '');
@@ -157,6 +161,7 @@ export default function NewAssessmentWizard() {
         : null;
 
       // Full state reset with new values - replaces all relevant fields
+      // Use scannedBarcode from mutation variables to avoid closure issues with camera scans
       setConfig(prev => ({
         ...prev,
         // Reset supplement selection if detected type changed
@@ -165,7 +170,7 @@ export default function NewAssessmentWizard() {
         product: {
           name: data.product.productName,
           brand: data.product.brandName,
-          barcode: data.product.upc || barcodeInput,
+          barcode: data.product.upc || scannedBarcode,
           servingSize: data.product.servingSize,
           dsldId: data.product.id,
           strength: data.primaryIngredient 
@@ -202,6 +207,31 @@ export default function NewAssessmentWizard() {
   const handleBarcodeScan = () => {
     if (barcodeInput.trim()) {
       barcodeLookupMutation.mutate(barcodeInput.trim());
+    }
+  };
+
+  const handleCameraScan = async () => {
+    if (!isCameraAvailable) {
+      setShowBarcodeInput(true);
+      return;
+    }
+
+    setIsScanning(true);
+    try {
+      const result = await scanBarcode();
+      if (result?.barcode) {
+        setBarcodeInput(result.barcode);
+        barcodeLookupMutation.mutate(result.barcode);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Scanner Error",
+        description: error.message || "Failed to scan barcode. Try manual entry.",
+        variant: "destructive",
+      });
+      setShowBarcodeInput(true);
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -456,22 +486,42 @@ export default function NewAssessmentWizard() {
 
             {/* Barcode Scanner */}
             {!showBarcodeInput ? (
-              <Card 
-                className="p-4 bg-white/5 border-white/10 cursor-pointer hover:bg-white/10 transition-all"
-                onClick={() => setShowBarcodeInput(true)}
-                data-testid="button-scan-barcode"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                    <Scan className="w-5 h-5 text-cyan-400" />
+              <div className="space-y-3">
+                {/* Camera Scan - Primary Option */}
+                <Card 
+                  className="p-4 bg-white/5 border-white/10 cursor-pointer hover:bg-white/10 transition-all"
+                  onClick={handleCameraScan}
+                  data-testid="button-camera-scan"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                      {isScanning || barcodeLookupMutation.isPending ? (
+                        <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                      ) : (
+                        <Camera className="w-5 h-5 text-cyan-400" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white font-medium">
+                        {isScanning ? 'Opening Camera...' : barcodeLookupMutation.isPending ? 'Looking up...' : 'Scan Barcode'}
+                      </p>
+                      <p className="text-xs text-white/60">
+                        {isCameraAvailable ? 'Use camera to scan product barcode' : 'Camera not available on web'}
+                      </p>
+                    </div>
+                    <Scan className="w-5 h-5 text-white/40" />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-white font-medium">Scan Barcode</p>
-                    <p className="text-xs text-white/60">Look up product from NIH database</p>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-white/40" />
-                </div>
-              </Card>
+                </Card>
+
+                {/* Manual Entry - Secondary Option */}
+                <button
+                  onClick={() => setShowBarcodeInput(true)}
+                  className="w-full text-center text-sm text-white/50 hover:text-white/70 transition-colors py-2"
+                  data-testid="button-manual-entry"
+                >
+                  Or enter barcode manually
+                </button>
+              </div>
             ) : (
               <Card className="p-4 bg-white/5 border-cyan-400 border-2">
                 <div className="flex items-center gap-3 mb-3">
@@ -525,6 +575,21 @@ export default function NewAssessmentWizard() {
                     <Loader2 className="w-3 h-3 animate-spin" />
                     Looking up product...
                   </p>
+                )}
+
+                {/* Quick switch to camera */}
+                {isCameraAvailable && (
+                  <button
+                    onClick={() => {
+                      setShowBarcodeInput(false);
+                      handleCameraScan();
+                    }}
+                    className="w-full text-center text-sm text-cyan-400 hover:text-cyan-300 transition-colors pt-3 mt-2 border-t border-white/10"
+                    data-testid="button-switch-to-camera"
+                  >
+                    <Camera className="w-4 h-4 inline mr-1" />
+                    Use camera instead
+                  </button>
                 )}
               </Card>
             )}
