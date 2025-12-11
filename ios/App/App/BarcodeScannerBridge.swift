@@ -4,7 +4,15 @@ import AVFoundation
 import UIKit
 
 @objc(BarcodeScanner)
-public class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDelegate {
+public class BarcodeScannerBridge: CAPPlugin, CAPBridgedPlugin, AVCaptureMetadataOutputObjectsDelegate {
+    public let identifier = "BarcodeScanner"
+    public let jsName = "BarcodeScanner"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "checkCameraPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestCameraPermission", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)
+    ]
     
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
