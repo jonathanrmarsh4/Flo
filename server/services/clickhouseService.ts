@@ -915,7 +915,74 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, behavior attribution, and morning briefing)');
+    // User Learned Thresholds - Personalized anomaly detection thresholds based on feedback
+    // Adjusts sensitivity per metric based on confirmed vs false positive feedback
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.user_learned_thresholds (
+          health_id String,
+          metric_type LowCardinality(String),
+          z_score_threshold Float64,
+          percentage_threshold Float64,
+          false_positive_count UInt32 DEFAULT 0,
+          confirmed_count UInt32 DEFAULT 0,
+          last_feedback_at DateTime64(3) DEFAULT now64(3),
+          threshold_adjustment_factor Float64 DEFAULT 1.0,
+          notes Nullable(String),
+          updated_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(updated_at)
+        ORDER BY (health_id, metric_type)
+        TTL updated_at + INTERVAL 5 YEAR
+      `,
+    });
+
+    // User Feedback Analysis - Stores analyzed free-text feedback for ML context
+    // Extracts themes and patterns from user-provided feedback text
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.user_feedback_analysis (
+          feedback_id String,
+          health_id String,
+          feedback_source LowCardinality(String),
+          original_text String,
+          extracted_themes Array(String),
+          sentiment LowCardinality(String),
+          actionable_insight Nullable(String),
+          related_metrics Array(String),
+          created_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = MergeTree()
+        PARTITION BY toYYYYMM(created_at)
+        ORDER BY (health_id, created_at, feedback_id)
+        TTL created_at + INTERVAL 3 YEAR
+      `,
+    });
+
+    // Survey-Outcome Correlations - Links 3PM survey scores to preceding behavior patterns
+    // Enables ML to learn what behaviors predict good/bad subjective outcomes
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.survey_outcome_correlations (
+          correlation_id String,
+          health_id String,
+          survey_date Date,
+          survey_outcome LowCardinality(String),
+          outcome_value Float64,
+          correlated_behaviors String,
+          correlation_strength Float64,
+          sample_size UInt32,
+          discovery_date DateTime64(3) DEFAULT now64(3),
+          is_actionable UInt8 DEFAULT 1,
+          user_notified UInt8 DEFAULT 0
+        )
+        ENGINE = ReplacingMergeTree(discovery_date)
+        ORDER BY (health_id, survey_date, correlation_id)
+        TTL survey_date + INTERVAL 3 YEAR
+      `,
+    });
+
+    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, behavior attribution, morning briefing, and adaptive thresholds)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

@@ -33,6 +33,12 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **ML Architecture Refactor:** Consolidating 4 baseline calculation systems into a single ClickHouse source of truth, with shadow comparisons during migration.
 - **Long-Horizon Correlation Engine:** Discovers statistically significant behavior-outcome correlations over months using Mann-Whitney U test, including subjective survey data.
 - **ML Causality Engine (Hybrid ML+AI Architecture):** Identifies causes for health metric changes by analyzing behavior patterns. It uses ClickHouse for baselines, `BehaviorAttributionEngine` to sync factors, ML to rank causes, and Gemini to format narratives. Includes `findHistoricalPatternMatches()`, `findPositivePatterns()`, `generateSmartInsight()`, and admin-tunable ML sensitivity settings.
+- **ML Feedback Loop (Adaptive Learning):** Complete feedback loop where user feedback trains the ML system:
+  - **Personalized Thresholds** (`user_learned_thresholds` table): False positives increase Z-score/percentage thresholds by 10%, confirmed anomalies maintain confidence. Uses `updatePersonalizedThreshold()` and `getPersonalizedThreshold()`.
+  - **Free Text Analysis** (`user_feedback_analysis` table): Extracts themes (stress, illness, travel, alcohol, exercise, sleep, nutrition, medication) and sentiment from user feedback via `analyzeFreeTextFeedback()`.
+  - **Survey-Outcome Training** (`survey_outcome_correlations` table): `trainOnSurveyOutcomes()` correlates 3PM survey scores (energy/clarity/mood) with previous day's behaviors; significant correlations (>15% difference) stored for `getSurveyInsights()` recommendations.
+  - **Non-blocking Scheduler Integration:** Survey training runs via `setImmediate()` fire-and-forget pattern to avoid blocking insight generation.
+  - **Graceful Degradation:** Explicit warnings when ClickHouse unavailable; FINAL keyword ensures deduplicated query results.
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
 - **HealthKit Sample Deduplication:** Server-side fingerprint-based deduplication.
 - **Morning Briefing System:** Personalized AI-generated daily briefings using 90-day baseline Z-score deviations from ClickHouse ML engine.

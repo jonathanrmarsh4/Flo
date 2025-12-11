@@ -1,5 +1,5 @@
 import { getSupabaseClient } from './supabaseClient';
-import { getClickHouseClient, insert as clickhouseInsert } from './clickhouseService';
+import { getClickHouseClient, insert as clickhouseInsert, query as clickhouseQuery } from './clickhouseService';
 import { createLogger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -376,4 +376,182 @@ export async function getSurveyContextForOracle(healthId: string, daysBack: numb
   }
   
   return context;
+}
+
+/**
+ * Trains ML model on survey-outcome correlations.
+ * Analyzes what behaviors from the previous day predict good/bad survey scores.
+ * This is the KEY feedback loop that makes subjective surveys inform ML predictions.
+ */
+export async function trainOnSurveyOutcomes(healthId: string): Promise<{
+  correlationsFound: number;
+  sampleSize: number;
+}> {
+  const ch = getClickHouseClient();
+  if (!ch) {
+    logger.warn('[Survey-ML] ClickHouse unavailable - skipping survey-outcome training');
+    return { correlationsFound: 0, sampleSize: 0 };
+  }
+
+  try {
+    // Get survey data joined with preceding day's behavior factors
+    const correlationData = await clickhouseQuery<{
+      behavior_key: string;
+      behavior_category: string;
+      high_energy_avg: number | null;
+      low_energy_avg: number | null;
+      high_clarity_avg: number | null;
+      low_clarity_avg: number | null;
+      high_mood_avg: number | null;
+      low_mood_avg: number | null;
+      sample_count: number;
+    }>(`
+      WITH survey_with_behavior AS (
+        SELECT 
+          s.local_date as survey_date,
+          s.energy,
+          s.clarity,
+          s.mood,
+          s.composite_score,
+          b.factor_key,
+          b.factor_category,
+          b.numeric_value
+        FROM flo_health.subjective_surveys s
+        INNER JOIN flo_health.daily_behavior_factors b
+          ON s.health_id = b.health_id
+          AND b.local_date = addDays(s.local_date, -1)  -- Previous day's behavior
+        WHERE s.health_id = {healthId:String}
+          AND b.numeric_value IS NOT NULL
+      )
+      SELECT
+        factor_key as behavior_key,
+        factor_category as behavior_category,
+        avgIf(numeric_value, energy >= 7) as high_energy_avg,
+        avgIf(numeric_value, energy <= 4) as low_energy_avg,
+        avgIf(numeric_value, clarity >= 7) as high_clarity_avg,
+        avgIf(numeric_value, clarity <= 4) as low_clarity_avg,
+        avgIf(numeric_value, mood >= 7) as high_mood_avg,
+        avgIf(numeric_value, mood <= 4) as low_mood_avg,
+        count() as sample_count
+      FROM survey_with_behavior
+      GROUP BY factor_key, factor_category
+      HAVING sample_count >= 5
+    `, { healthId });
+
+    let correlationsFound = 0;
+    // Use today's date - ReplacingMergeTree with FINAL keyword handles dedup
+    // Multiple runs on same day create rows with same key, FINAL query dedupes
+    // Different days create new rows which is correct behavior (tracks evolving correlations)
+    const today = new Date().toISOString().split('T')[0];
+
+    for (const row of correlationData) {
+      // Check for significant differences between high and low outcome groups
+      const outcomes = [
+        { type: 'energy', highAvg: row.high_energy_avg, lowAvg: row.low_energy_avg },
+        { type: 'clarity', highAvg: row.high_clarity_avg, lowAvg: row.low_clarity_avg },
+        { type: 'mood', highAvg: row.high_mood_avg, lowAvg: row.low_mood_avg },
+      ];
+
+      for (const outcome of outcomes) {
+        if (outcome.highAvg !== null && outcome.lowAvg !== null) {
+          const diff = Math.abs(outcome.highAvg - outcome.lowAvg);
+          const avgValue = (outcome.highAvg + outcome.lowAvg) / 2;
+          const diffPct = avgValue > 0 ? (diff / avgValue) * 100 : 0;
+
+          // Significant if difference is >15% of average
+          if (diffPct >= 15) {
+            const direction = outcome.highAvg > outcome.lowAvg ? 'higher_is_better' : 'lower_is_better';
+            // Use stable ID so ReplacingMergeTree handles dedup (updates same correlation over time)
+            const correlationId = `${healthId.substring(0, 8)}_${row.behavior_key}_${outcome.type}`;
+
+            await clickhouseInsert('survey_outcome_correlations', [{
+              correlation_id: correlationId,
+              health_id: healthId,
+              survey_date: today,  // Real date for proper TTL; FINAL handles same-day dedup
+              survey_outcome: outcome.type,
+              outcome_value: diffPct,
+              correlated_behaviors: JSON.stringify({
+                behavior: row.behavior_key,
+                category: row.behavior_category,
+                direction,
+                highAvg: outcome.highAvg,
+                lowAvg: outcome.lowAvg,
+              }),
+              correlation_strength: diffPct / 100,
+              sample_size: row.sample_count,
+              is_actionable: 1,
+              user_notified: 0,
+            }]);
+
+            correlationsFound++;
+            logger.info(`[Survey-ML] Found correlation: ${row.behavior_key} -> ${outcome.type} (${direction}, ${diffPct.toFixed(1)}% difference)`);
+          }
+        }
+      }
+    }
+
+    logger.info(`[Survey-ML] Trained on ${correlationData.length} behaviors, found ${correlationsFound} significant correlations for ${healthId}`);
+    return { correlationsFound, sampleSize: correlationData.length };
+  } catch (error) {
+    logger.error('[Survey-ML] Error training on survey outcomes:', error);
+    return { correlationsFound: 0, sampleSize: 0 };
+  }
+}
+
+/**
+ * Gets actionable insights from survey-outcome correlations for a user.
+ * Returns behaviors that historically predict better subjective outcomes.
+ */
+export async function getSurveyInsights(healthId: string): Promise<{
+  insights: Array<{
+    behavior: string;
+    outcome: string;
+    recommendation: string;
+    strength: number;
+  }>;
+}> {
+  const ch = getClickHouseClient();
+  if (!ch) {
+    logger.warn('[Survey-ML] ClickHouse unavailable - returning empty survey insights');
+    return { insights: [] };
+  }
+
+  try {
+    const correlations = await clickhouseQuery<{
+      correlated_behaviors: string;
+      survey_outcome: string;
+      correlation_strength: number;
+      sample_size: number;
+    }>(`
+      SELECT correlated_behaviors, survey_outcome, correlation_strength, sample_size
+      FROM flo_health.survey_outcome_correlations FINAL
+      WHERE health_id = {healthId:String}
+        AND is_actionable = 1
+        AND sample_size >= 10
+      ORDER BY correlation_strength DESC
+      LIMIT 10
+    `, { healthId });
+
+    const insights = correlations.map(c => {
+      const behavior = JSON.parse(c.correlated_behaviors);
+      const outcomeLabel = c.survey_outcome === 'energy' ? 'energy levels' : 
+                          c.survey_outcome === 'clarity' ? 'mental clarity' : 'mood';
+      
+      const recommendation = behavior.direction === 'higher_is_better'
+        ? `More ${behavior.behavior.replace(/_/g, ' ')} tends to improve your ${outcomeLabel}`
+        : `Less ${behavior.behavior.replace(/_/g, ' ')} tends to improve your ${outcomeLabel}`;
+
+      return {
+        behavior: behavior.behavior,
+        outcome: c.survey_outcome,
+        recommendation,
+        strength: c.correlation_strength,
+      };
+    });
+
+    return { insights };
+  } catch (error) {
+    logger.error('[Survey-ML] Error getting survey insights:', error);
+    return { insights: [] };
+  }
 }

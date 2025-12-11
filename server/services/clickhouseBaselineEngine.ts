@@ -934,8 +934,20 @@ export class ClickHouseBaselineEngine {
         const baseline = baselineMap.get(metric.metric_type);
         if (!baseline || baseline.sampleCount < 3) continue;
 
-        // Use explicit threshold if defined, otherwise use default (allowing ALL metrics to trigger)
-        const threshold = METRIC_THRESHOLDS[metric.metric_type] || DEFAULT_THRESHOLD;
+        // Use personalized thresholds if available, then explicit defaults, then global default
+        const defaultThreshold = METRIC_THRESHOLDS[metric.metric_type] || DEFAULT_THRESHOLD;
+        const personalizedThreshold = await this.getPersonalizedThreshold(healthId, metric.metric_type);
+        
+        // Use personalized if available, otherwise use defaults
+        const threshold = {
+          ...defaultThreshold,
+          zScoreThreshold: personalizedThreshold.isPersonalized 
+            ? personalizedThreshold.zScoreThreshold 
+            : defaultThreshold.zScoreThreshold,
+          percentageThreshold: personalizedThreshold.isPersonalized 
+            ? personalizedThreshold.percentageThreshold 
+            : defaultThreshold.percentageThreshold,
+        };
 
         const deviation = metric.current_value - baseline.meanValue;
         const deviationPct = (deviation / baseline.meanValue) * 100;
@@ -1804,6 +1816,13 @@ export class ClickHouseBaselineEngine {
     try {
       const outcome = wasConfirmed ? 'confirmed' : 'false_positive';
 
+      // Get the metric type from the anomaly for threshold adjustment
+      const anomalyInfo = await clickhouse.query<{ metric_type: string }>(`
+        SELECT metric_type FROM flo_health.detected_anomalies
+        WHERE anomaly_id = {anomalyId:String} AND health_id = {healthId:String}
+        LIMIT 1
+      `, { anomalyId, healthId });
+
       await clickhouse.command(`
         ALTER TABLE flo_health.detected_anomalies
         UPDATE 
@@ -1815,10 +1834,200 @@ export class ClickHouseBaselineEngine {
       `);
 
       await this.updateMLTrainingData(healthId, anomalyId, wasConfirmed);
+      
+      // Update personalized thresholds based on feedback
+      if (anomalyInfo.length > 0) {
+        await this.updatePersonalizedThreshold(healthId, anomalyInfo[0].metric_type, wasConfirmed);
+      }
+      
+      // Analyze and store free text feedback if provided
+      if (feedbackText && feedbackText.trim().length > 0) {
+        await this.analyzeFreeTextFeedback(healthId, anomalyId, feedbackText, anomalyInfo[0]?.metric_type);
+      }
 
       logger.info(`[ClickHouseML] Recorded feedback for anomaly ${anomalyId}:`, { wasConfirmed, userFeeling });
     } catch (error) {
       logger.error('[ClickHouseML] Error recording feedback:', error);
+    }
+  }
+
+  /**
+   * Updates personalized anomaly detection thresholds based on user feedback.
+   * False positives increase threshold (less sensitive), confirmed anomalies keep threshold.
+   */
+  async updatePersonalizedThreshold(
+    healthId: string,
+    metricType: string,
+    wasConfirmed: boolean
+  ): Promise<void> {
+    try {
+      // Get current threshold or use defaults
+      const existing = await clickhouse.query<{
+        z_score_threshold: number;
+        percentage_threshold: number;
+        false_positive_count: number;
+        confirmed_count: number;
+        threshold_adjustment_factor: number;
+      }>(`
+        SELECT z_score_threshold, percentage_threshold, false_positive_count, confirmed_count, threshold_adjustment_factor
+        FROM flo_health.user_learned_thresholds FINAL
+        WHERE health_id = {healthId:String} AND metric_type = {metricType:String}
+        LIMIT 1
+      `, { healthId, metricType });
+
+      const defaults = METRIC_THRESHOLDS[metricType as keyof typeof METRIC_THRESHOLDS] || 
+                       { zScoreThreshold: 2.0, percentageThreshold: 20 };
+      
+      let zScore = existing[0]?.z_score_threshold ?? defaults.zScoreThreshold;
+      let pctThreshold = existing[0]?.percentage_threshold ?? defaults.percentageThreshold;
+      let fpCount = existing[0]?.false_positive_count ?? 0;
+      let confirmedCount = existing[0]?.confirmed_count ?? 0;
+      let adjustmentFactor = existing[0]?.threshold_adjustment_factor ?? 1.0;
+
+      if (wasConfirmed) {
+        confirmedCount++;
+        // Slightly decrease adjustment factor when confirmed (more confidence in current threshold)
+        adjustmentFactor = Math.max(0.8, adjustmentFactor - 0.02);
+      } else {
+        fpCount++;
+        // Increase threshold by 10% for false positives (less sensitive)
+        adjustmentFactor = Math.min(2.0, adjustmentFactor + 0.1);
+        zScore = defaults.zScoreThreshold * adjustmentFactor;
+        pctThreshold = defaults.percentageThreshold * adjustmentFactor;
+      }
+
+      // Upsert the learned threshold
+      await clickhouse.insert('user_learned_thresholds', [{
+        health_id: healthId,
+        metric_type: metricType,
+        z_score_threshold: zScore,
+        percentage_threshold: pctThreshold,
+        false_positive_count: fpCount,
+        confirmed_count: confirmedCount,
+        threshold_adjustment_factor: adjustmentFactor,
+        last_feedback_at: new Date().toISOString(),
+        notes: `Last: ${wasConfirmed ? 'confirmed' : 'false_positive'}`,
+        updated_at: new Date().toISOString(),
+      }]);
+
+      logger.info(`[ClickHouseML] Updated threshold for ${healthId}/${metricType}: factor=${adjustmentFactor.toFixed(2)}, fp=${fpCount}, confirmed=${confirmedCount}`);
+    } catch (error) {
+      logger.error('[ClickHouseML] Error updating personalized threshold:', error);
+    }
+  }
+
+  /**
+   * Analyzes free text feedback to extract themes and actionable insights.
+   * Stores analysis for use in future AI context and ML training.
+   */
+  private async analyzeFreeTextFeedback(
+    healthId: string,
+    anomalyId: string,
+    feedbackText: string,
+    metricType?: string
+  ): Promise<void> {
+    try {
+      // Extract themes from feedback using simple keyword analysis
+      const lowerText = feedbackText.toLowerCase();
+      const themes: string[] = [];
+      
+      // Theme detection
+      if (lowerText.includes('stress') || lowerText.includes('anxious') || lowerText.includes('worried')) {
+        themes.push('stress');
+      }
+      if (lowerText.includes('sick') || lowerText.includes('ill') || lowerText.includes('cold') || lowerText.includes('flu')) {
+        themes.push('illness');
+      }
+      if (lowerText.includes('travel') || lowerText.includes('jet lag') || lowerText.includes('timezone')) {
+        themes.push('travel');
+      }
+      if (lowerText.includes('alcohol') || lowerText.includes('drink') || lowerText.includes('wine') || lowerText.includes('beer')) {
+        themes.push('alcohol');
+      }
+      if (lowerText.includes('exercise') || lowerText.includes('workout') || lowerText.includes('training') || lowerText.includes('gym')) {
+        themes.push('exercise');
+      }
+      if (lowerText.includes('sleep') || lowerText.includes('insomnia') || lowerText.includes('tired') || lowerText.includes('fatigue')) {
+        themes.push('sleep_issue');
+      }
+      if (lowerText.includes('meal') || lowerText.includes('food') || lowerText.includes('ate') || lowerText.includes('dinner') || lowerText.includes('lunch')) {
+        themes.push('nutrition');
+      }
+      if (lowerText.includes('medication') || lowerText.includes('medicine') || lowerText.includes('supplement')) {
+        themes.push('medication');
+      }
+      
+      // Sentiment detection (simple)
+      let sentiment = 'neutral';
+      const positiveWords = ['good', 'great', 'better', 'improved', 'helpful', 'accurate', 'right', 'yes'];
+      const negativeWords = ['bad', 'wrong', 'inaccurate', 'not', 'didn\'t', 'false', 'annoying', 'stop'];
+      
+      const positiveCount = positiveWords.filter(w => lowerText.includes(w)).length;
+      const negativeCount = negativeWords.filter(w => lowerText.includes(w)).length;
+      
+      if (positiveCount > negativeCount) sentiment = 'positive';
+      else if (negativeCount > positiveCount) sentiment = 'negative';
+
+      // Store the analysis
+      const feedbackId = `fb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await clickhouse.insert('user_feedback_analysis', [{
+        feedback_id: feedbackId,
+        health_id: healthId,
+        feedback_source: 'anomaly_response',
+        original_text: feedbackText,
+        extracted_themes: themes,
+        sentiment: sentiment,
+        actionable_insight: themes.length > 0 ? `User mentioned: ${themes.join(', ')}` : null,
+        related_metrics: metricType ? [metricType] : [],
+        created_at: new Date().toISOString(),
+      }]);
+
+      logger.info(`[ClickHouseML] Analyzed feedback for ${healthId}: themes=${themes.join(',')}, sentiment=${sentiment}`);
+    } catch (error) {
+      logger.error('[ClickHouseML] Error analyzing free text feedback:', error);
+    }
+  }
+
+  /**
+   * Gets personalized threshold for a metric, falling back to defaults if not learned yet.
+   */
+  async getPersonalizedThreshold(
+    healthId: string,
+    metricType: string
+  ): Promise<{ zScoreThreshold: number; percentageThreshold: number; isPersonalized: boolean }> {
+    try {
+      const result = await clickhouse.query<{
+        z_score_threshold: number;
+        percentage_threshold: number;
+      }>(`
+        SELECT z_score_threshold, percentage_threshold
+        FROM flo_health.user_learned_thresholds FINAL
+        WHERE health_id = {healthId:String} AND metric_type = {metricType:String}
+        LIMIT 1
+      `, { healthId, metricType });
+
+      if (result.length > 0) {
+        return {
+          zScoreThreshold: result[0].z_score_threshold,
+          percentageThreshold: result[0].percentage_threshold,
+          isPersonalized: true,
+        };
+      }
+
+      // Fall back to defaults
+      const defaults = METRIC_THRESHOLDS[metricType as keyof typeof METRIC_THRESHOLDS] || 
+                       { zScoreThreshold: 2.0, percentageThreshold: 20 };
+      
+      return {
+        zScoreThreshold: defaults.zScoreThreshold,
+        percentageThreshold: defaults.percentageThreshold,
+        isPersonalized: false,
+      };
+    } catch (error) {
+      logger.error('[ClickHouseML] Error getting personalized threshold:', error);
+      const defaults = METRIC_THRESHOLDS[metricType as keyof typeof METRIC_THRESHOLDS] || 
+                       { zScoreThreshold: 2.0, percentageThreshold: 20 };
+      return { ...defaults, isPersonalized: false };
     }
   }
 

@@ -19,6 +19,7 @@ import { logger } from '../logger';
 import { formatInTimeZone, format } from 'date-fns-tz';
 import { generateDailyInsights } from './insightsEngineV2';
 import * as healthRouter from './healthStorageRouter';
+import { trainOnSurveyOutcomes } from './subjectiveSurveyService';
 
 let cronTask: ReturnType<typeof cron.schedule> | null = null;
 const runningGenerations = new Set<string>(); // Track running insight generations for idempotency
@@ -165,6 +166,25 @@ async function processInsightsGeneration(catchUpMode: boolean = false) {
           logger.info(`[InsightsV2Scheduler] Successfully generated ${insights.length} insights for user ${userId}`);
         } else {
           logger.info(`[InsightsV2Scheduler] No new insights generated for user ${userId} (may have already run today)`);
+        }
+        
+        // Train ML on survey-outcome correlations (runs daily per user, non-blocking)
+        // This analyzes what behaviors predict good/bad subjective survey scores
+        // Fire-and-forget pattern: don't block insight generation
+        if (user.healthId) {
+          const healthIdCopy = user.healthId;
+          const userIdCopy = userId;
+          setImmediate(() => {
+            trainOnSurveyOutcomes(healthIdCopy)
+              .then((result) => {
+                if (result.correlationsFound > 0) {
+                  logger.info(`[InsightsV2Scheduler] Survey ML: Found ${result.correlationsFound} behavior-outcome correlations for ${userIdCopy}`);
+                }
+              })
+              .catch((err: any) => {
+                logger.warn(`[InsightsV2Scheduler] Survey ML training skipped for ${userIdCopy}:`, err?.message);
+              });
+          });
         }
       } catch (error: any) {
         logger.error(`[InsightsV2Scheduler] Error generating insights for user ${userId}:`, error);
