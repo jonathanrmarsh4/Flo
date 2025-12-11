@@ -38,7 +38,7 @@ export function BottomNav({ isDark, onAddClick }: BottomNavProps) {
     },
     {
       id: 'actions',
-      label: 'Actions',
+      label: 'Interventions',
       icon: Target,
       path: '/actions',
     },
