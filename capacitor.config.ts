@@ -21,8 +21,7 @@ const config: CapacitorConfig = {
         'SocialLoginPlugin',
         'HealthPlugin',
         'SecureStoragePlugin',
-        'HealthSyncPlugin',
-        'BarcodeScannerPlugin'
+        'HealthSyncPlugin'
       ]
     }
   }
