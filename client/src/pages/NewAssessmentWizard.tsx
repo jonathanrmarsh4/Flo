@@ -106,7 +106,7 @@ const STEPS: { id: WizardStep; label: string; icon: typeof Target }[] = [
 export default function NewAssessmentWizard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { isAvailable: isCameraAvailable, scanBarcode } = useBarcodeScanner();
+  const { isAvailable: isCameraAvailable, isSupported: isScannerSupported, scanBarcode } = useBarcodeScanner();
   const [currentStep, setCurrentStep] = useState<WizardStep>('intent');
   const [config, setConfig] = useState<AssessmentConfig>({
     intent: '',
@@ -211,19 +211,40 @@ export default function NewAssessmentWizard() {
   };
 
   const handleCameraScan = async () => {
+    console.log('[BarcodeScanner] handleCameraScan called');
+    console.log('[BarcodeScanner] isCameraAvailable:', isCameraAvailable);
+    console.log('[BarcodeScanner] isScannerSupported:', isScannerSupported);
+    
     if (!isCameraAvailable) {
+      console.log('[BarcodeScanner] Camera not available (not native platform), showing manual input');
+      setShowBarcodeInput(true);
+      return;
+    }
+
+    if (!isScannerSupported) {
+      console.log('[BarcodeScanner] Scanner not supported on this device, showing manual input');
+      toast({
+        title: "Scanner Not Available",
+        description: "Barcode scanner is not supported on this device. Please enter barcode manually.",
+        variant: "destructive",
+      });
       setShowBarcodeInput(true);
       return;
     }
 
     setIsScanning(true);
+    console.log('[BarcodeScanner] Starting scan...');
     try {
       const result = await scanBarcode();
+      console.log('[BarcodeScanner] Scan result:', result);
       if (result?.barcode) {
         setBarcodeInput(result.barcode);
         barcodeLookupMutation.mutate(result.barcode);
+      } else {
+        console.log('[BarcodeScanner] No barcode in result, user may have cancelled');
       }
     } catch (error: any) {
+      console.error('[BarcodeScanner] Scan error:', error);
       toast({
         title: "Scanner Error",
         description: error.message || "Failed to scan barcode. Try manual entry.",
@@ -506,7 +527,11 @@ export default function NewAssessmentWizard() {
                         {isScanning ? 'Opening Camera...' : barcodeLookupMutation.isPending ? 'Looking up...' : 'Scan Barcode'}
                       </p>
                       <p className="text-xs text-white/60">
-                        {isCameraAvailable ? 'Use camera to scan product barcode' : 'Camera not available on web'}
+                        {!isCameraAvailable 
+                          ? 'Camera not available on web' 
+                          : isScannerSupported 
+                            ? 'Use camera to scan product barcode' 
+                            : 'Checking scanner availability...'}
                       </p>
                     </div>
                     <Scan className="w-5 h-5 text-white/40" />
