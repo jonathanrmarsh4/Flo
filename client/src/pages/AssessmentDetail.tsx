@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { SUPPLEMENT_CONFIGURATIONS, type SupplementTypeConfig } from "@shared/supplementConfig";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 interface ExperimentData {
   experiment: {
@@ -278,6 +278,19 @@ export default function AssessmentDetail() {
     return configs;
   }, [checkins, objectiveMetrics]);
 
+  // Helper to calculate rolling average (trendline)
+  const calculateTrendline = useCallback((data: number[], windowSize: number = 3): number[] => {
+    if (data.length === 0) return [];
+    const result: number[] = [];
+    for (let i = 0; i < data.length; i++) {
+      const start = Math.max(0, i - windowSize + 1);
+      const window = data.slice(start, i + 1);
+      const avg = window.reduce((a, b) => a + b, 0) / window.length;
+      result.push(avg);
+    }
+    return result;
+  }, []);
+
   // Generate enhanced chart data merging subjective and objective metrics
   const chartData = useMemo(() => {
     if (!checkins.length && !objectiveMetrics.length) return [];
@@ -313,7 +326,7 @@ export default function AssessmentDetail() {
     });
     
     // Sort by date and add display formatting
-    const sortedData = Array.from(dateMap.entries())
+    const sortedData: Record<string, any>[] = Array.from(dateMap.entries())
       .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
       .map(([dateKey, data], index) => {
         const date = new Date(dateKey);
@@ -324,8 +337,83 @@ export default function AssessmentDetail() {
         };
       });
     
+    // Calculate trendlines for subjective and objective metrics
+    if (sortedData.length > 1) {
+      // Get subjective metric keys
+      const subjectiveKeys = metricConfigs.filter(m => m.type === 'subjective').map(m => m.key);
+      const objectiveKeys = metricConfigs.filter(m => m.type === 'objective').map(m => m.key);
+      
+      // Calculate average subjective trendline (normalized 0-10)
+      if (subjectiveKeys.length > 0) {
+        const subjectiveAvgs = sortedData.map(d => {
+          const values = subjectiveKeys.map(k => d[k]).filter((v): v is number => v !== undefined);
+          return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+        });
+        const validSubjective = subjectiveAvgs.filter((v): v is number => v !== null);
+        const subjectiveTrend = calculateTrendline(validSubjective);
+        let trendIdx = 0;
+        sortedData.forEach((d, i) => {
+          if (subjectiveAvgs[i] !== null) {
+            d.subjectiveTrendline = subjectiveTrend[trendIdx++];
+          }
+        });
+      }
+      
+      // Calculate objective trendline using HRV as primary metric (most common objective)
+      if (objectiveKeys.length > 0) {
+        // Use HRV values directly for trendline (primary objective metric)
+        const hrvValues = sortedData.map(d => d.hrv !== undefined ? d.hrv : null);
+        const validHrv = hrvValues.filter((v): v is number => v !== null);
+        if (validHrv.length > 0) {
+          const objectiveTrend = calculateTrendline(validHrv);
+          let trendIdx = 0;
+          sortedData.forEach((d, i) => {
+            if (hrvValues[i] !== null) {
+              d.objectiveTrendline = objectiveTrend[trendIdx++];
+            }
+          });
+        }
+      }
+    }
+    
     return sortedData;
-  }, [checkins, objectiveMetrics]);
+  }, [checkins, objectiveMetrics, metricConfigs, calculateTrendline]);
+  
+  // Calculate baseline averages for reference lines
+  const baselineAverages = useMemo(() => {
+    if (chartData.length < 2) return null;
+    
+    const subjectiveKeys = metricConfigs.filter(m => m.type === 'subjective').map(m => m.key);
+    const objectiveKeys = metricConfigs.filter(m => m.type === 'objective').map(m => m.key);
+    
+    // Use first 7 days (or available data) as baseline
+    const baselineWindow = chartData.slice(0, Math.min(7, Math.floor(chartData.length / 2)));
+    
+    // Calculate subjective baseline (0-10 scale)
+    let subjectiveBaseline: number | null = null;
+    if (subjectiveKeys.length > 0 && baselineWindow.length > 0) {
+      const allValues: number[] = [];
+      baselineWindow.forEach(d => {
+        subjectiveKeys.forEach(k => {
+          if (d[k] !== undefined) allValues.push(d[k] as number);
+        });
+      });
+      if (allValues.length > 0) {
+        subjectiveBaseline = allValues.reduce((a, b) => a + b, 0) / allValues.length;
+      }
+    }
+    
+    // Calculate objective baseline (use HRV as primary)
+    let objectiveBaseline: number | null = null;
+    if (objectiveKeys.length > 0 && baselineWindow.length > 0) {
+      const hrvValues = baselineWindow.map(d => d.hrv).filter((v): v is number => v !== undefined);
+      if (hrvValues.length > 0) {
+        objectiveBaseline = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
+      }
+    }
+    
+    return { subjectiveBaseline, objectiveBaseline };
+  }, [chartData, metricConfigs]);
 
   // Calculate AI analysis trends for the metrics
   const aiAnalysis = useMemo(() => {
@@ -558,11 +646,11 @@ export default function AssessmentDetail() {
               </div>
             ) : (
               <>
-                <div className="h-56">
+                <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                       <XAxis 
-                        dataKey="date" 
+                        dataKey="day" 
                         stroke="#ffffff40" 
                         fontSize={10}
                         tickLine={false}
@@ -590,10 +678,66 @@ export default function AssessmentDetail() {
                           tickLine={false}
                           axisLine={false}
                           width={35}
-                          label={{ value: 'HRV/%', angle: 90, position: 'insideRight', fill: '#ec4899', fontSize: 9, offset: 10 }}
+                          label={{ value: 'Objective', angle: 90, position: 'insideRight', fill: '#ec4899', fontSize: 9, offset: 10 }}
                         />
                       )}
                       <Tooltip content={<CustomTooltip />} />
+                      
+                      {/* Subjective baseline reference line */}
+                      {baselineAverages?.subjectiveBaseline && (
+                        <ReferenceLine 
+                          yAxisId="left"
+                          y={baselineAverages.subjectiveBaseline} 
+                          stroke="#22d3ee" 
+                          strokeDasharray="4 4" 
+                          strokeOpacity={0.4}
+                        />
+                      )}
+                      
+                      {/* Objective baseline reference line */}
+                      {baselineAverages?.objectiveBaseline && (
+                        <ReferenceLine 
+                          yAxisId="right"
+                          y={baselineAverages.objectiveBaseline} 
+                          stroke="#ec4899" 
+                          strokeDasharray="4 4" 
+                          strokeOpacity={0.4}
+                        />
+                      )}
+                      
+                      {/* Subjective trendline (rolling average) */}
+                      {chartData.some(d => d.subjectiveTrendline !== undefined) && (
+                        <Line
+                          type="monotone"
+                          dataKey="subjectiveTrendline"
+                          yAxisId="left"
+                          stroke="#22d3ee"
+                          strokeWidth={3}
+                          strokeOpacity={0.3}
+                          dot={false}
+                          name="Subjective Trend"
+                          connectNulls
+                          legendType="none"
+                        />
+                      )}
+                      
+                      {/* Objective trendline (rolling average) */}
+                      {chartData.some(d => d.objectiveTrendline !== undefined) && (
+                        <Line
+                          type="monotone"
+                          dataKey="objectiveTrendline"
+                          yAxisId="right"
+                          stroke="#ec4899"
+                          strokeWidth={3}
+                          strokeOpacity={0.3}
+                          dot={false}
+                          name="Objective Trend"
+                          connectNulls
+                          legendType="none"
+                        />
+                      )}
+                      
+                      {/* Individual metric lines */}
                       {metricConfigs.map((metric) => (
                         <Line
                           key={metric.key}
@@ -601,10 +745,10 @@ export default function AssessmentDetail() {
                           dataKey={metric.key}
                           yAxisId={metric.yAxisId}
                           stroke={metric.color}
-                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2.5 : 1}
+                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2 : 1}
                           strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.25}
-                          dot={true}
-                          activeDot={{ r: 4, strokeWidth: 2 }}
+                          dot={{ r: 3, fill: metric.color }}
+                          activeDot={{ r: 5, strokeWidth: 2 }}
                           name={metric.name}
                           connectNulls
                         />
@@ -613,36 +757,69 @@ export default function AssessmentDetail() {
                   </ResponsiveContainer>
                 </div>
                 
-                {/* Interactive Legend */}
+                {/* Interactive Legend - Grouped by Type */}
                 <div className="mt-4 pt-3 border-t border-white/10">
-                  <div className="flex flex-wrap gap-2">
-                    {metricConfigs.map((metric) => (
-                      <button
-                        key={metric.key}
-                        onClick={() => handleMetricClick(metric.key)}
-                        className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
-                          highlightedMetric === null || highlightedMetric === metric.key
-                            ? 'opacity-100'
-                            : 'opacity-40'
-                        } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
-                        style={{ 
-                          backgroundColor: `${metric.color}20`,
-                          color: metric.color,
-                        }}
-                        data-testid={`button-metric-${metric.key}`}
-                      >
-                        {metric.type === 'objective' ? (
-                          metric.key === 'hrv' ? <Heart className="w-3 h-3" /> : <Moon className="w-3 h-3" />
-                        ) : null}
-                        <span>{metric.name}</span>
-                        {metric.unit && <span className="opacity-60">{metric.unit}</span>}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-white/40 mt-2">
-                    {chartData.length === 1 
-                      ? 'First data point recorded • More points will appear with each check-in'
-                      : 'Tap a metric to highlight • Left axis: subjective • Right axis: objective'}
+                  <p className="text-[10px] text-white/50 mb-2">Click any metric below to focus on it and see success target projection</p>
+                  
+                  {/* Subjective Metrics */}
+                  {metricConfigs.filter(m => m.type === 'subjective').length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-[10px] text-white/40 uppercase tracking-wider">Subjective:</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {metricConfigs.filter(m => m.type === 'subjective').map((metric) => (
+                          <button
+                            key={metric.key}
+                            onClick={() => handleMetricClick(metric.key)}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
+                              highlightedMetric === null || highlightedMetric === metric.key
+                                ? 'opacity-100'
+                                : 'opacity-40'
+                            } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
+                            style={{ 
+                              backgroundColor: `${metric.color}20`,
+                              color: metric.color,
+                            }}
+                            data-testid={`button-metric-${metric.key}`}
+                          >
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: metric.color }} />
+                            <span>{metric.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Objective Metrics */}
+                  {metricConfigs.filter(m => m.type === 'objective').length > 0 && (
+                    <div>
+                      <span className="text-[10px] text-white/40 uppercase tracking-wider">Objective:</span>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {metricConfigs.filter(m => m.type === 'objective').map((metric) => (
+                          <button
+                            key={metric.key}
+                            onClick={() => handleMetricClick(metric.key)}
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
+                              highlightedMetric === null || highlightedMetric === metric.key
+                                ? 'opacity-100'
+                                : 'opacity-40'
+                            } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
+                            style={{ 
+                              backgroundColor: `${metric.color}20`,
+                              color: metric.color,
+                            }}
+                            data-testid={`button-metric-${metric.key}`}
+                          >
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: metric.color }} />
+                            <span>{metric.name}</span>
+                            {metric.unit && <span className="opacity-60">({metric.unit})</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <p className="text-[10px] text-white/30 mt-3">
+                    Dashed lines show baseline average • Left axis: subjective • Right axis: objective
                   </p>
                 </div>
               </>
