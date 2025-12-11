@@ -23,9 +23,34 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
 import { SUPPLEMENT_CONFIGURATIONS, PRIMARY_INTENTS, getSupplementsByIntent, type SupplementTypeConfig } from "@shared/supplementConfig";
+
+// DSLD API response types
+interface DSLDProduct {
+  id: string;
+  productName: string;
+  brandName: string;
+  servingSize?: string;
+  upc?: string;
+  ingredients: Array<{
+    ingredientName: string;
+    amount?: number;
+    unit?: string;
+  }>;
+}
+
+interface BarcodeLookupResponse {
+  product: DSLDProduct;
+  detectedSupplementType: string | null;
+  primaryIngredient: {
+    ingredientName: string;
+    amount?: number;
+    unit?: string;
+  } | null;
+}
 
 // Default dosage recommendations for supplements
 const DEFAULT_DOSAGES: Record<string, { amount: number; unit: string; frequency: string; timing: string }> = {
@@ -91,6 +116,71 @@ export default function NewAssessmentWizard() {
     assessmentDays: 30,
   });
   const [productSearch, setProductSearch] = useState('');
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [showBarcodeInput, setShowBarcodeInput] = useState(false);
+
+  // Barcode lookup mutation
+  const barcodeLookupMutation = useMutation({
+    mutationFn: async (barcode: string) => {
+      const response = await fetch(`/api/n1/dsld/barcode/${encodeURIComponent(barcode)}`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Product not found' }));
+        throw new Error(error.error || 'Product not found');
+      }
+      return response.json() as Promise<BarcodeLookupResponse>;
+    },
+    onSuccess: (data) => {
+      // Auto-populate product fields
+      setConfig(prev => ({
+        ...prev,
+        product: {
+          name: data.product.productName,
+          brand: data.product.brandName,
+          barcode: data.product.upc || barcodeInput,
+          servingSize: data.product.servingSize,
+          dsldId: data.product.id,
+          strength: data.primaryIngredient 
+            ? `${data.primaryIngredient.amount || ''}${data.primaryIngredient.unit || ''}`
+            : undefined,
+        },
+        // Auto-set dosage if we have ingredient info
+        ...(data.primaryIngredient?.amount && {
+          dosageAmount: data.primaryIngredient.amount,
+          dosageUnit: data.primaryIngredient.unit || 'mg',
+        }),
+      }));
+
+      // If a supplement type was detected and matches our list, auto-select it
+      if (data.detectedSupplementType && SUPPLEMENT_CONFIGURATIONS[data.detectedSupplementType]) {
+        const detectedSupp = SUPPLEMENT_CONFIGURATIONS[data.detectedSupplementType];
+        setConfig(prev => ({
+          ...prev,
+          supplementTypeId: data.detectedSupplementType!,
+          assessmentDays: detectedSupp.recommendedDuration,
+        }));
+      }
+
+      toast({
+        title: "Product Found",
+        description: `${data.product.productName} by ${data.product.brandName}`,
+      });
+      setShowBarcodeInput(false);
+      setBarcodeInput('');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Product Not Found",
+        description: error.message || "Could not find this product in our database. Please enter details manually.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBarcodeScan = () => {
+    if (barcodeInput.trim()) {
+      barcodeLookupMutation.mutate(barcodeInput.trim());
+    }
+  };
 
   // Validate baseline data when supplement is selected
   const { data: baselineValidation, isLoading: isValidatingBaseline } = useQuery<{
@@ -341,18 +431,90 @@ export default function NewAssessmentWizard() {
               </p>
             </div>
 
-            {/* Barcode Scanner Button (placeholder) */}
-            <Card className="p-4 bg-white/5 border-white/10 border-dashed">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                  <Scan className="w-5 h-5 text-white/60" />
+            {/* Barcode Scanner */}
+            {!showBarcodeInput ? (
+              <Card 
+                className="p-4 bg-white/5 border-white/10 cursor-pointer hover:bg-white/10 transition-all"
+                onClick={() => setShowBarcodeInput(true)}
+                data-testid="button-scan-barcode"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                    <Scan className="w-5 h-5 text-cyan-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-medium">Scan Barcode</p>
+                    <p className="text-xs text-white/60">Look up product from NIH database</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-white/40" />
                 </div>
-                <div className="flex-1">
-                  <p className="text-white/60 text-sm">Barcode scanning coming soon</p>
-                  <p className="text-xs text-white/40">Enter product details manually below</p>
+              </Card>
+            ) : (
+              <Card className="p-4 bg-white/5 border-cyan-400 border-2">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                    <Scan className="w-5 h-5 text-cyan-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-medium">Enter Barcode (UPC)</p>
+                    <p className="text-xs text-white/60">Found on product packaging</p>
+                  </div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowBarcodeInput(false);
+                      setBarcodeInput('');
+                    }}
+                    className="text-white/60 hover:text-white"
+                    data-testid="button-cancel-scan"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </Button>
                 </div>
-              </div>
-            </Card>
+                
+                <div className="flex gap-2">
+                  <Input
+                    value={barcodeInput}
+                    onChange={(e) => setBarcodeInput(e.target.value)}
+                    placeholder="e.g., 012345678901"
+                    className="flex-1 bg-white/5 border-white/20 text-white placeholder:text-white/30"
+                    onKeyDown={(e) => e.key === 'Enter' && handleBarcodeScan()}
+                    autoFocus
+                    data-testid="input-barcode"
+                  />
+                  <Button
+                    onClick={handleBarcodeScan}
+                    disabled={!barcodeInput.trim() || barcodeLookupMutation.isPending}
+                    className="bg-cyan-500 hover:bg-cyan-600"
+                    data-testid="button-lookup-barcode"
+                  >
+                    {barcodeLookupMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+                
+                {barcodeLookupMutation.isPending && (
+                  <p className="text-xs text-cyan-400 mt-2 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Looking up product...
+                  </p>
+                )}
+              </Card>
+            )}
+            
+            {/* Product found indicator */}
+            {config.product.dsldId && (
+              <Card className="p-3 bg-green-500/10 border-green-500/30">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-green-400">Product imported from NIH database</span>
+                </div>
+              </Card>
+            )}
 
             {/* Manual Entry */}
             <div className="space-y-4 mt-4">
