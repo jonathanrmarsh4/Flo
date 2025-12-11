@@ -4,15 +4,17 @@ import AVFoundation
 import UIKit
 
 @objc(BarcodeScannerBridge)
-public class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDelegate, CAPBridgedPlugin {
-    public let identifier = "BarcodeScannerBridge"
-    public let jsName = "BarcodeScanner"
-    public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)
-    ]
+class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDelegate {
+    override var identifier: String { "BarcodeScannerBridge" }
+    override var jsName: String { "BarcodeScanner" }
+    override var pluginMethods: [CAPPluginMethod] {
+        [
+            CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise),
+            CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
+            CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
+            CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)
+        ]
+    }
     
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -96,7 +98,7 @@ public class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDele
         }
     }
     
-    public func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         guard let metadataObject = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let stringValue = metadataObject.stringValue else {
             return
