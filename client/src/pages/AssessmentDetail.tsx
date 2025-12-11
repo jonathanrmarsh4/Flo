@@ -23,7 +23,9 @@ import {
   MessageSquare,
   BarChart3,
   X,
-  Activity
+  Activity,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { SUPPLEMENT_CONFIGURATIONS, type SupplementTypeConfig } from "@shared/supplementConfig";
 import { FloBottomNav } from "@/components/FloBottomNav";
@@ -86,6 +88,7 @@ export default function AssessmentDetail() {
   const [showCheckinForm, setShowCheckinForm] = useState(false);
   const [checkinRatings, setCheckinRatings] = useState<Record<string, number>>({});
   const [checkinNotes, setCheckinNotes] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch assessment details
   const { data: experimentData, isLoading } = useQuery<ExperimentData>({
@@ -165,6 +168,31 @@ export default function AssessmentDetail() {
       toast({
         title: "Error",
         description: error.message || "Failed to update status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete/Cancel assessment mutation
+  const deleteAssessmentMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('PATCH', `/api/n1/experiments/${id}/status`, { status: 'cancelled' });
+    },
+    onSuccess: () => {
+      // Invalidate both list and detail queries to prevent stale cache
+      queryClient.invalidateQueries({ queryKey: ['/api/n1/experiments'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/n1/experiments', id] });
+      setShowDeleteConfirm(false);
+      toast({
+        title: "Assessment Deleted",
+        description: "The assessment has been cancelled and removed.",
+      });
+      setLocation('/actions');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete assessment",
         variant: "destructive",
       });
     },
@@ -406,6 +434,44 @@ export default function AssessmentDetail() {
           </Card>
         )}
 
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <Card className="p-6 bg-slate-900 border-white/20 max-w-sm w-full">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-medium">Delete Assessment?</h3>
+                  <p className="text-sm text-white/60">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-white/70 text-sm mb-6">
+                Are you sure you want to delete this assessment? All progress and check-in data will be lost.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  data-testid="button-cancel-delete"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 bg-red-500 hover:bg-red-600"
+                  onClick={() => deleteAssessmentMutation.mutate()}
+                  disabled={deleteAssessmentMutation.isPending}
+                  data-testid="button-confirm-delete"
+                >
+                  {deleteAssessmentMutation.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* Action Buttons */}
         {experiment.status === 'pending' && (
           <Card className="p-4 bg-white/5 border-white/10 mb-4">
@@ -418,14 +484,80 @@ export default function AssessmentDetail() {
                 <p className="text-sm text-white/70">Begin your assessment when you're ready</p>
               </div>
             </div>
-            <Button
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
-              onClick={() => startAssessmentMutation.mutate()}
-              disabled={startAssessmentMutation.isPending}
-              data-testid="button-start-assessment"
-            >
-              {startAssessmentMutation.isPending ? 'Starting...' : 'Start Assessment'}
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-500"
+                onClick={() => startAssessmentMutation.mutate()}
+                disabled={startAssessmentMutation.isPending}
+                data-testid="button-start-assessment"
+              >
+                {startAssessmentMutation.isPending ? 'Starting...' : 'Start Assessment'}
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                onClick={() => setShowDeleteConfirm(true)}
+                data-testid="button-delete-pending"
+              >
+                <Trash2 className="w-5 h-5" />
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Assessment Controls (for active/paused assessments) */}
+        {(experiment.status === 'active' || experiment.status === 'paused') && (
+          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                  <FlaskConical className="w-5 h-5 text-white/60" />
+                </div>
+                <div>
+                  <h3 className="text-white font-medium">Assessment Controls</h3>
+                  <p className="text-xs text-white/60">Manage your assessment</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {experiment.status === 'active' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
+                    onClick={() => updateStatusMutation.mutate('paused')}
+                    disabled={updateStatusMutation.isPending}
+                    data-testid="button-pause-assessment"
+                  >
+                    <Pause className="w-4 h-4 mr-1" />
+                    Pause
+                  </Button>
+                )}
+                {experiment.status === 'paused' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-green-400 hover:text-green-300 hover:bg-green-500/10"
+                    onClick={() => updateStatusMutation.mutate('active')}
+                    disabled={updateStatusMutation.isPending}
+                    data-testid="button-resume-assessment"
+                  >
+                    <Play className="w-4 h-4 mr-1" />
+                    Resume
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  data-testid="button-delete-active"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            </div>
           </Card>
         )}
 
