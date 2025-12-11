@@ -1,0 +1,34 @@
+⚡️  [log] - [BarcodeScanner] handleCameraScan called
+⚡️  [log] - [BarcodeScanner] isCameraAvailable: true
+⚡️  [log] - [BarcodeScanner] isScannerSupported: false
+⚡️  [log] - [BarcodeScanner] Starting scan (bypassing isSupported check)...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Checking permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [error] - [BarcodeScanner] Permission check failed: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Has permission: false
+⚡️  [log] - [BarcodeScanner] Requesting permissions...
+⚡️  [error] - [BarcodeScanner] Permission request failed: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Permission granted after request: false
+⚡️  [log] - [BarcodeScanner] Camera permission denied
+⚡️  [log] - [BarcodeScanner] Scan result: null
+⚡️  [log] - [BarcodeScanner] No barcode in result, user may have cancelled
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] handleCameraScan called
+⚡️  [log] - [BarcodeScanner] isCameraAvailable: true
+⚡️  [log] - [BarcodeScanner] isScannerSupported: false
+⚡️  [log] - [BarcodeScanner] Starting scan (bypassing isSupported check)...
+⚡️  [log] - [BarcodeScanner] scanBarcode called, isNative: true
+⚡️  [log] - [BarcodeScanner] Checking/requesting permissions...
+⚡️  [log] - [BarcodeScanner] Checking permissions...
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [error] - [BarcodeScanner] Permission check failed: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Has permission: false
+⚡️  [log] - [BarcodeScanner] Requesting permissions...
+⚡️  [error] - [BarcodeScanner] Permission request failed: {"code":"UNIMPLEMENTED"}
+⚡️  [log] - [BarcodeScanner] Permission granted after request: false
+⚡️  [log] - [BarcodeScanner] Camera permission denied
+⚡️  [log] - [BarcodeScanner] Scan result: null
+⚡️  [log] - [BarcodeScanner] No barcode in result, user may have cancelled
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
