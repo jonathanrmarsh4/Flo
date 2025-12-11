@@ -36,8 +36,8 @@ import AdminDashboard from "@/pages/admin-dashboard";
 import BillingPage from "@/pages/billing";
 import ShortcutsPage from "@/pages/shortcuts";
 import SleepLogger from "@/pages/SleepLogger";
-import NewExperimentWizard from "@/pages/NewExperimentWizard";
-import ExperimentDetail from "@/pages/ExperimentDetail";
+import NewAssessmentWizard from "@/pages/NewAssessmentWizard";
+import AssessmentDetail from "@/pages/AssessmentDetail";
 
 const ONBOARDING_COMPLETED_KEY = 'flo_onboarding_completed';
 
@@ -288,8 +288,8 @@ function Router() {
           <Route path="/healthkit" component={HealthKitPage} />
           <Route path="/flomentum" component={FlomentumScreen} />
           <Route path="/sleep-logger" component={SleepLogger} />
-          <Route path="/experiments/new" component={NewExperimentWizard} />
-          <Route path="/experiments/:id" component={ExperimentDetail} />
+          <Route path="/assessments/new" component={NewAssessmentWizard} />
+          <Route path="/assessments/:id" component={AssessmentDetail} />
           <Route path="/admin" component={AdminDashboard} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/admin/users" component={AdminUsers} />
