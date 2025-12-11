@@ -2,6 +2,7 @@ import { Moon, TrendingUp, TrendingDown, Minus, Sunrise, Sunset, Lightbulb, Plus
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { DataSourceBadge } from '@/components/DataSourceBadge';
 
 interface HealthKitSleepData {
   nightflo_score: number;
@@ -408,6 +409,7 @@ function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog }: { is
           <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sleep-title">
             Flō Sleep Index
           </h3>
+          <DataSourceBadge source="healthkit" size="sm" />
         </div>
         <div className={`px-2.5 py-1 rounded-full text-xs ${colors.badgeBg} ${colors.badgeText}`} data-testid="badge-sleep-label">
           {data.score_label}

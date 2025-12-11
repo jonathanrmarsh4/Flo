@@ -2,6 +2,7 @@ import { Zap, Heart, Moon, TrendingUp, Activity, AlertCircle, Clock } from 'luci
 import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { DataSourceBadge } from '@/components/DataSourceBadge';
 
 interface ReadinessTileProps {
   isDark: boolean;
@@ -166,6 +167,7 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
           <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
             Daily Readiness
           </h3>
+          <DataSourceBadge source="healthkit" size="sm" />
         </div>
         {isCalibrating && (
           <div className={`flex items-center gap-1 text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>

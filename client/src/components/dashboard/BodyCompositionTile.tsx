@@ -2,6 +2,7 @@ import { Activity, GripVertical } from 'lucide-react';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BodyCompositionDetailScreen } from './BodyCompositionDetailScreen';
+import { DataSourceBadge } from '@/components/DataSourceBadge';
 
 interface BodyCompositionData {
   body_composition_score: number | null;
@@ -99,6 +100,7 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
             <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
               Body Composition
             </h3>
+            <DataSourceBadge source="healthkit" size="sm" />
           </div>
           <GripVertical className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-300'}`} data-testid="drag-handle-body-composition" />
         </div>

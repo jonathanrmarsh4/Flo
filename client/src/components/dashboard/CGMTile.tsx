@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { format, formatDistanceToNow } from 'date-fns';
+import { DataSourceBadge } from '@/components/DataSourceBadge';
 
 interface CGMTileProps {
   isDark: boolean;
@@ -245,6 +246,7 @@ export function CGMTile({ isDark }: CGMTileProps) {
           <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
             Continuous Glucose
           </h3>
+          <DataSourceBadge source="dexcom" size="sm" />
         </div>
         <div className="flex items-center gap-2">
           {status.isSandbox && (

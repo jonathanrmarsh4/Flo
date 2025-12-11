@@ -1,5 +1,6 @@
 import { Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { DataSourceBadge } from '@/components/DataSourceBadge';
 
 interface HeartMetabolicTileProps {
   isDark: boolean;
@@ -58,6 +59,7 @@ export function HeartMetabolicTile({
         <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
           Heart & Metabolic
         </h3>
+        <DataSourceBadge source="healthkit" size="sm" />
       </div>
 
       {hasData ? (
