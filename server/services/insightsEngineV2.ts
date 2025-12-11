@@ -22,20 +22,13 @@ import { getUserContext, generateContextualInsight, type UserContext, type Basel
 import { detectDataChanges, generateRAGInsights, type RAGInsight } from './ragInsightGenerator';
 import { writeBatchInsightsToBrain } from './brainService';
 import { clickhouseBaselineEngine, type MetricsAnalysisResult } from './clickhouseBaselineEngine';
-import { toInsightEngineFormat, logDiscrepancyEvent } from './baselineComparisonLogger';
 
 // ============================================================================
-// ML Architecture Refactor - Step 1: ClickHouse as Source of Truth
+// ML Architecture - ClickHouse is the Single Source of Truth (Stage 3 Complete)
 // ============================================================================
 // 
-// Feature flag to enable ClickHouse unified analysis alongside shadow math.
-// When enabled, we log comparisons between ClickHouse and shadow math results.
-// Once validated (Step 2), shadow math can be removed (Step 3).
-//
-// IMPORTANT: Default to FALSE for safe rollout. Enable via admin endpoint or
-// environment variable to validate ClickHouse results match shadow math.
-// Shadow math continues to be used for actual insight generation until Step 3.
-const USE_CLICKHOUSE_SOURCE_OF_TRUTH = process.env.USE_CLICKHOUSE_ML_SOURCE === 'true';
+// ClickHouse baseline engine is now the sole source of truth for all ML
+// baseline calculations. Shadow math has been removed as of Stage 3 migration.
 
 // ============================================================================
 // Shared Interface for Insight Candidates
@@ -1170,43 +1163,24 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
     const dataChanges = detectDataChanges(healthData.biomarkers, healthData.dailyMetrics);
     logger.info(`[InsightsEngineV2] Found ${dataChanges.length} significant changes`);
     
-    // Step 3b: ML Architecture Refactor - Get ClickHouse unified analysis (source of truth)
+    // Step 3b: Get ClickHouse unified analysis (single source of truth - Stage 3)
     let clickhouseAnalysis: MetricsAnalysisResult | null = null;
-    if (USE_CLICKHOUSE_SOURCE_OF_TRUTH) {
-      try {
-        const healthId = await healthRouter.getHealthId(userId);
-        if (healthId) {
-          logger.info('[InsightsEngineV2] Fetching ClickHouse unified analysis (source of truth)');
-          clickhouseAnalysis = await clickhouseBaselineEngine.getMetricsForAnalysis(healthId, {
-            windowDays: 90,
-            lookbackHours: 48,
-          });
-          
-          logger.info(
-            `[InsightsEngineV2] ClickHouse analysis: ${clickhouseAnalysis.metrics.length} metrics, ` +
-            `${clickhouseAnalysis.anomalies.length} anomalies, ${clickhouseAnalysis.patterns.length} patterns`
-          );
-          
-          // Compare ClickHouse anomalies with shadow math detected changes
-          if (clickhouseAnalysis.anomalies.length > 0 || dataChanges.length > 0) {
-            const chMetrics = new Set(clickhouseAnalysis.anomalies.map(a => a.metric));
-            const shadowMetrics = new Set(dataChanges.map(c => c.metric));
-            
-            const onlyInClickHouse = Array.from(chMetrics).filter(m => !shadowMetrics.has(m));
-            const onlyInShadow = Array.from(shadowMetrics).filter(m => !chMetrics.has(m));
-            
-            if (onlyInClickHouse.length > 0 || onlyInShadow.length > 0) {
-              logger.warn(
-                `[InsightsEngineV2] BASELINE DISCREPANCY - ` +
-                `ClickHouse-only: [${onlyInClickHouse.join(', ')}], ` +
-                `Shadow-only: [${onlyInShadow.join(', ')}]`
-              );
-            }
-          }
-        }
-      } catch (error: any) {
-        logger.warn(`[InsightsEngineV2] ClickHouse analysis unavailable: ${error?.message || error}`);
+    try {
+      const healthId = await healthRouter.getHealthId(userId);
+      if (healthId) {
+        logger.info('[InsightsEngineV2] Fetching ClickHouse unified analysis (source of truth)');
+        clickhouseAnalysis = await clickhouseBaselineEngine.getMetricsForAnalysis(healthId, {
+          windowDays: 90,
+          lookbackHours: 48,
+        });
+        
+        logger.info(
+          `[InsightsEngineV2] ClickHouse analysis: ${clickhouseAnalysis.metrics.length} metrics, ` +
+          `${clickhouseAnalysis.anomalies.length} anomalies, ${clickhouseAnalysis.patterns.length} patterns`
+        );
       }
+    } catch (error: any) {
+      logger.warn(`[InsightsEngineV2] ClickHouse analysis unavailable: ${error?.message || error}`);
     }
     
     // Step 4: Fetch user context for AI
