@@ -328,12 +328,12 @@ export default function AssessmentDetail() {
               <div className="mt-4">
                 <p className="text-xs uppercase tracking-wide mb-2 text-white/50">Tracking For</p>
                 <div className="flex flex-wrap gap-2">
-                  {supplementConfig.targetedMetrics.slice(0, 4).map(metric => (
+                  {supplementConfig.subjectiveMetrics.slice(0, 4).map((m) => (
                     <span 
-                      key={metric}
+                      key={m.metric}
                       className="px-3 py-1 rounded-full text-xs bg-purple-500/10 text-purple-300 border border-purple-500/30"
                     >
-                      {metric}
+                      {m.metric}
                     </span>
                   ))}
                 </div>
@@ -408,18 +408,18 @@ export default function AssessmentDetail() {
 
         {/* Action Buttons */}
         {experiment.status === 'pending' && (
-          <Card className="p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border-cyan-500/30 mb-4">
-            <div className="flex items-center gap-3">
+          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+            <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
                 <FlaskConical className="w-6 h-6 text-cyan-400" />
               </div>
               <div className="flex-1">
                 <h3 className="text-white font-medium">Ready to Start</h3>
-                <p className="text-xs text-white/60">Begin your assessment when you're ready</p>
+                <p className="text-sm text-white/70">Begin your assessment when you're ready</p>
               </div>
             </div>
             <Button
-              className="w-full mt-4 bg-gradient-to-r from-cyan-500 to-blue-500"
+              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500"
               onClick={() => startAssessmentMutation.mutate()}
               disabled={startAssessmentMutation.isPending}
               data-testid="button-start-assessment"
