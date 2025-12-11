@@ -30,7 +30,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Medical Data Processing:** Medical Document Ingestion using GPT-4o for summarization and semantic search, and Lab Unit Display Toggle.
 - **Machine Learning Models:** CGM, Biomarker, and HealthKit Pattern Learners train baselines.
 - **ClickHouse ML Correlation Engine:** High-performance analytics for anomaly detection, predictive insights, and long-term pattern recognition, with full history sync and 90-day baseline + Z-score anomaly detection.
-- **ML Architecture Refactor:** Consolidating 4 baseline calculation systems into a single ClickHouse source of truth, with shadow comparisons during migration.
+- **ML Architecture Refactor (Stage 3 Complete):** ClickHouse is now the single source of truth for all baseline calculations and anomaly detection. Shadow comparison systems removed (baselineComparisonLogger.ts, supabaseBaselineEngine.ts deleted). Legacy baselineCalculator.ts retained only for readinessEngine daily scores (future migration target).
 - **Long-Horizon Correlation Engine:** Discovers statistically significant behavior-outcome correlations over months using Mann-Whitney U test, including subjective survey data.
 - **ML Causality Engine (Hybrid ML+AI Architecture):** Identifies causes for health metric changes by analyzing behavior patterns. It uses ClickHouse for baselines, `BehaviorAttributionEngine` to sync factors, ML to rank causes, and Gemini to format narratives. Includes `findHistoricalPatternMatches()`, `findPositivePatterns()`, `generateSmartInsight()`, and admin-tunable ML sensitivity settings.
 - **ML Feedback Loop (Adaptive Learning):** Complete feedback loop where user feedback trains the ML system:
