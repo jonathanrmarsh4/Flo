@@ -16658,6 +16658,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
   registerAdminRoutes(app);
   
+  // N-of-1 Experiment routes
+  const n1ExperimentsRouter = await import('./routes/n1Experiments');
+  app.use('/api/n1', n1ExperimentsRouter.default);
+  
   // Mobile auth routes (Apple, Google, Email/Password)
   app.use(mobileAuthRouter);
   

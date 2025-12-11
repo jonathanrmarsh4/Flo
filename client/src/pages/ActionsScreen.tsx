@@ -8,41 +8,141 @@ import { ActionCard } from "@/components/ActionCard";
 import { ReportTile } from "@/components/ReportTile";
 import { OverdueLabWorkTile } from "@/components/OverdueLabWorkTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
-import { FloLogo } from "@/components/FloLogo";
 import { usePlan } from "@/hooks/usePlan";
-import { ListChecks, Filter, Sparkles } from "lucide-react";
+import { ListChecks, Filter, Sparkles, Plus, FlaskConical, Play, Pause, CheckCircle, Clock, X } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { SUPPLEMENT_CONFIGURATIONS } from "@shared/supplementConfig";
 
-type CategoryFilter = 'reports' | 'all' | 'sleep_quality' | 'activity_sleep' | 'biomarkers' | 'recovery_hrv' | 'nutrition';
+type TabFilter = 'reports' | 'interventions' | 'experiments';
+
+interface N1Experiment {
+  id: string;
+  supplement_type_id: string;
+  product_name: string;
+  product_brand?: string;
+  product_image_url?: string;
+  primary_intent: string;
+  status: 'pending' | 'baseline' | 'active' | 'washout' | 'completed' | 'paused' | 'cancelled';
+  baseline_days: number;
+  experiment_days: number;
+  created_at: string;
+  experiment_start_date?: string;
+  experiment_end_date?: string;
+}
+
+function ExperimentCard({ experiment, onClick }: { experiment: N1Experiment; onClick: () => void }) {
+  const supplementConfig = SUPPLEMENT_CONFIGURATIONS[experiment.supplement_type_id];
+  
+  const getStatusInfo = () => {
+    switch (experiment.status) {
+      case 'pending':
+        return { label: 'Ready to Start', color: 'bg-yellow-500/20 text-yellow-400', icon: Clock };
+      case 'baseline':
+        return { label: 'Collecting Baseline', color: 'bg-blue-500/20 text-blue-400', icon: Clock };
+      case 'active':
+        return { label: 'Active', color: 'bg-green-500/20 text-green-400', icon: Play };
+      case 'paused':
+        return { label: 'Paused', color: 'bg-orange-500/20 text-orange-400', icon: Pause };
+      case 'completed':
+        return { label: 'Completed', color: 'bg-cyan-500/20 text-cyan-400', icon: CheckCircle };
+      case 'cancelled':
+        return { label: 'Cancelled', color: 'bg-red-500/20 text-red-400', icon: X };
+      default:
+        return { label: experiment.status, color: 'bg-white/20 text-white', icon: Clock };
+    }
+  };
+  
+  const statusInfo = getStatusInfo();
+  const StatusIcon = statusInfo.icon;
+  
+  // Calculate progress
+  let progress = 0;
+  if (experiment.status === 'active' && experiment.experiment_start_date) {
+    const startDate = new Date(experiment.experiment_start_date);
+    const now = new Date();
+    const daysPassed = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    progress = Math.min(100, Math.round((daysPassed / experiment.experiment_days) * 100));
+  } else if (experiment.status === 'completed') {
+    progress = 100;
+  }
+  
+  return (
+    <Card 
+      className="p-4 bg-white/5 border-white/10 hover:bg-white/10 transition-colors cursor-pointer"
+      onClick={onClick}
+      data-testid={`experiment-card-${experiment.id}`}
+    >
+      <div className="flex items-start gap-3">
+        {experiment.product_image_url ? (
+          <img 
+            src={experiment.product_image_url} 
+            alt={experiment.product_name}
+            className="w-12 h-12 rounded-lg object-cover bg-white/10"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
+            <FlaskConical className="w-6 h-6 text-cyan-400" />
+          </div>
+        )}
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="text-white font-medium truncate">{experiment.product_name}</h3>
+          </div>
+          
+          {experiment.product_brand && (
+            <p className="text-xs text-white/50 mb-2">{experiment.product_brand}</p>
+          )}
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`${statusInfo.color} border-0 text-xs`}>
+              <StatusIcon className="w-3 h-3 mr-1" />
+              {statusInfo.label}
+            </Badge>
+            
+            {supplementConfig && (
+              <Badge className="bg-white/10 text-white/60 border-0 text-xs">
+                {supplementConfig.category}
+              </Badge>
+            )}
+          </div>
+          
+          {experiment.status === 'active' && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-white/50 mb-1">
+                <span>Day {Math.floor(progress * experiment.experiment_days / 100) + 1} of {experiment.experiment_days}</span>
+                <span>{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-1.5 bg-white/10" />
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export default function ActionsScreen() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>('all');
-  
-  // Reports view shows different content than action items
-  const isReportsView = selectedCategory === 'reports';
+  const [selectedTab, setSelectedTab] = useState<TabFilter>('interventions');
   
   // Check user's plan for premium features
   const { data: planData } = usePlan();
   const isFreePlan = planData?.plan?.id === 'free';
 
   // Fetch all action plan items
-  const { data: actionPlanData, isLoading } = useQuery<{ items: ActionPlanItem[] }>({
+  const { data: actionPlanData, isLoading: isLoadingActions } = useQuery<{ items: ActionPlanItem[] }>({
     queryKey: ['/api/action-plan'],
   });
-
-  // Log data when it changes
-  if (actionPlanData?.items) {
-    console.log('[ActionsScreen] Action plan items loaded:', actionPlanData.items.map(item => ({
-      id: item.id,
-      title: item.snapshotTitle,
-      targetBiomarker: item.targetBiomarker,
-      currentValue: item.currentValue,
-      targetValue: item.targetValue,
-      unit: item.unit,
-    })));
-  }
+  
+  // Fetch N-of-1 experiments
+  const { data: experimentsData, isLoading: isLoadingExperiments } = useQuery<{ experiments: N1Experiment[] }>({
+    queryKey: ['/api/n1/experiments'],
+  });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -92,60 +192,71 @@ export default function ActionsScreen() {
     updateStatusMutation.mutate({ id, status: 'dismissed' });
   };
 
-  const handleRemove = (id: string) => {
-    removeItemMutation.mutate(id);
-  };
-
   const allItems = actionPlanData?.items || [];
   const activeItems = allItems.filter(item => item.status === 'active');
-  
-  // Filter active items by category
-  const filteredItems = selectedCategory === 'all'
-    ? activeItems
-    : activeItems.filter(item => item.category === selectedCategory);
+  const experiments = experimentsData?.experiments || [];
+  const activeExperiments = experiments.filter(e => ['pending', 'baseline', 'active', 'paused'].includes(e.status));
 
-  const categoryFilterOptions = [
-    { value: 'reports' as CategoryFilter, label: 'Reports' },
-    { value: 'all' as CategoryFilter, label: 'All' },
-    { value: 'sleep_quality' as CategoryFilter, label: 'Sleep' },
-    { value: 'activity_sleep' as CategoryFilter, label: 'Activity' },
-    { value: 'biomarkers' as CategoryFilter, label: 'Biomarkers' },
-    { value: 'recovery_hrv' as CategoryFilter, label: 'Recovery' },
-    { value: 'nutrition' as CategoryFilter, label: 'Nutrition' },
+  const tabOptions = [
+    { value: 'reports' as TabFilter, label: 'Reports' },
+    { value: 'interventions' as TabFilter, label: 'Interventions' },
+    { value: 'experiments' as TabFilter, label: 'Experiments' },
   ];
+
+  const getHeaderText = () => {
+    switch (selectedTab) {
+      case 'reports':
+        return { title: 'Reports', subtitle: 'Health reports and summaries' };
+      case 'interventions':
+        return { title: 'Interventions', subtitle: `${activeItems.length} active intervention${activeItems.length !== 1 ? 's' : ''}` };
+      case 'experiments':
+        return { title: 'N-of-1 Experiments', subtitle: `${activeExperiments.length} active experiment${activeExperiments.length !== 1 ? 's' : ''}` };
+    }
+  };
+
+  const headerText = getHeaderText();
 
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      {/* Header - matches Activity screen layout */}
+      {/* Header */}
       <header className="sticky top-0 z-50 backdrop-blur-xl border-b bg-white/5 border-white/10" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-xl text-white" data-testid="heading-actions">
-              {isReportsView ? 'Reports' : 'Interventions'}
+              {headerText.title}
             </h1>
             <p className="text-xs text-white/50">
-              {isReportsView 
-                ? 'Health reports and summaries'
-                : `${activeItems.length} active intervention${activeItems.length !== 1 ? 's' : ''}`
-              }
+              {headerText.subtitle}
             </p>
           </div>
+          
+          {/* New Experiment Button - only show on experiments tab */}
+          {selectedTab === 'experiments' && (
+            <Button
+              size="icon"
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+              onClick={() => setLocation('/experiments/new')}
+              data-testid="button-new-experiment"
+            >
+              <Plus className="w-5 h-5" />
+            </Button>
+          )}
         </div>
 
-        {/* Category Filter Pills */}
+        {/* Tab Pills */}
         <div className="px-4 pb-2">
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
             <Filter className="w-4 h-4 text-white/40 flex-shrink-0" />
-            {categoryFilterOptions.map((option) => (
+            {tabOptions.map((option) => (
               <button
                 key={option.value}
-                onClick={() => setSelectedCategory(option.value)}
+                onClick={() => setSelectedTab(option.value)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                  selectedCategory === option.value
+                  selectedTab === option.value
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg'
                     : 'bg-white/10 text-white/70 hover:bg-white/20'
                 }`}
-                data-testid={`filter-${option.value}`}
+                data-testid={`tab-${option.value}`}
               >
                 {option.label}
               </button>
@@ -156,19 +267,17 @@ export default function ActionsScreen() {
 
       {/* Content Area */}
       <main className="overflow-y-auto px-4 py-6 pb-32" style={{ height: 'calc(100vh - 140px)' }}>
-        {isReportsView ? (
+        {selectedTab === 'reports' && (
           /* Reports View */
           <div className="flex flex-col gap-4">
-            {/* Health Summary Report */}
             <ReportTile />
-            
-            {/* Placeholder for future: 90-Day Baseline Report */}
-            {/* <BaselineReportTile /> */}
           </div>
-        ) : (
-          /* Action Plan View */
+        )}
+
+        {selectedTab === 'interventions' && (
+          /* Interventions View */
           <>
-            {/* Lab Work Overdue Tile - Collapsible, starts collapsed */}
+            {/* Lab Work Overdue Tile */}
             <div className="mb-4">
               <OverdueLabWorkTile />
             </div>
@@ -186,7 +295,7 @@ export default function ActionsScreen() {
                   <div className="flex-1">
                     <h3 className="text-white font-semibold mb-1">Unlock AI-Powered Actions</h3>
                     <p className="text-white/70 text-sm leading-relaxed">
-                      Upgrade to Flō Premium to get personalized AI insights and actionable recommendations based on your health data.
+                      Upgrade to Flo Premium to get personalized AI insights and actionable recommendations based on your health data.
                     </p>
                     <Button
                       variant="outline"
@@ -204,30 +313,26 @@ export default function ActionsScreen() {
             )}
 
             {/* Action Items List */}
-            {isLoading ? (
+            {isLoadingActions ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
               </div>
-            ) : filteredItems.length === 0 ? (
+            ) : activeItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
                 <ListChecks className="w-16 h-16 text-white/20" />
                 <div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">
-                    {selectedCategory === 'all' ? 'No Active Actions' : `No ${categoryFilterOptions.find(o => o.value === selectedCategory)?.label} Actions`}
-                  </h3>
+                  <h3 className="text-lg font-semibold mb-2 text-white">No Active Actions</h3>
                   <p className="text-sm text-white/60 mb-4">
-                    {selectedCategory === 'all'
-                      ? (isFreePlan 
-                          ? 'Upgrade to Premium to unlock personalized AI insights and actions tailored to your health data.'
-                          : 'Add insights from your AI Insights to start tracking your health goals.')
-                      : 'Try selecting a different category to see more actions.'
+                    {isFreePlan 
+                      ? 'Upgrade to Premium to unlock personalized AI insights and actions tailored to your health data.'
+                      : 'Add insights from your AI Insights to start tracking your health goals.'
                     }
                   </p>
                 </div>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                {filteredItems.map((item) => (
+                {activeItems.map((item) => (
                   <ActionCard
                     key={item.id}
                     item={item}
@@ -235,6 +340,65 @@ export default function ActionsScreen() {
                     onDismiss={handleDismiss}
                   />
                 ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {selectedTab === 'experiments' && (
+          /* Experiments View */
+          <>
+            {isLoadingExperiments ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+              </div>
+            ) : experiments.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center gap-4 py-12">
+                <FlaskConical className="w-16 h-16 text-white/20" />
+                <div>
+                  <h3 className="text-lg font-semibold mb-2 text-white">No Experiments Yet</h3>
+                  <p className="text-sm text-white/60 mb-4 max-w-xs">
+                    Start your first N-of-1 experiment to scientifically test if a supplement works for YOUR body.
+                  </p>
+                  <Button
+                    className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
+                    onClick={() => setLocation('/experiments/new')}
+                    data-testid="button-start-first-experiment"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Start Your First Experiment
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {/* Active Experiments */}
+                {activeExperiments.length > 0 && (
+                  <>
+                    <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider">Active</h2>
+                    {activeExperiments.map((experiment) => (
+                      <ExperimentCard
+                        key={experiment.id}
+                        experiment={experiment}
+                        onClick={() => setLocation(`/experiments/${experiment.id}`)}
+                      />
+                    ))}
+                  </>
+                )}
+                
+                {/* Completed Experiments */}
+                {experiments.filter(e => e.status === 'completed').length > 0 && (
+                  <>
+                    <h2 className="text-sm font-medium text-white/60 uppercase tracking-wider mt-4">Completed</h2>
+                    {experiments.filter(e => e.status === 'completed').map((experiment) => (
+                      <ExperimentCard
+                        key={experiment.id}
+                        experiment={experiment}
+                        onClick={() => setLocation(`/experiments/${experiment.id}`)}
+                      />
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </>
