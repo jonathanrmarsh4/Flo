@@ -2,6 +2,7 @@ import UIKit
 import Capacitor
 import WebKit
 import AVFoundation
+import CapacitorMlkitBarcodeScanning
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -29,9 +30,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
+                    bridgeVC.bridge?.registerPluginType(BarcodeScannerPlugin.self)
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
                     print("✅ NativeMicrophonePlugin registered manually")
+                    print("✅ BarcodeScannerPlugin registered manually")
                 }
                 // Fallback: direct CAPBridgeViewController
                 else if let bridgeVC = window.rootViewController as? CAPBridgeViewController {
@@ -40,9 +43,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                     bridgeVC.bridge?.registerPluginInstance(HealthSyncPlugin())
                     bridgeVC.bridge?.registerPluginInstance(WebViewCachePlugin())
                     bridgeVC.bridge?.registerPluginInstance(NativeMicrophonePlugin())
+                    bridgeVC.bridge?.registerPluginType(BarcodeScannerPlugin.self)
                     print("✅ HealthSyncPlugin registered manually")
                     print("✅ WebViewCachePlugin registered manually")
                     print("✅ NativeMicrophonePlugin registered manually")
+                    print("✅ BarcodeScannerPlugin registered manually")
                 }
             }
         }
