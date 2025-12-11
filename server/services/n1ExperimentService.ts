@@ -15,6 +15,9 @@ import {
 // Initialize ClickHouse baseline engine instance
 const clickhouseEngine = new ClickHouseBaselineEngine();
 
+// Initialize Supabase client for health data storage
+const supabase = getSupabaseClient();
+
 const logger = createLogger('N1ExperimentService');
 
 // Type definitions
