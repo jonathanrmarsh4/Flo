@@ -221,19 +221,9 @@ export default function NewAssessmentWizard() {
       return;
     }
 
-    if (!isScannerSupported) {
-      console.log('[BarcodeScanner] Scanner not supported on this device, showing manual input');
-      toast({
-        title: "Scanner Not Available",
-        description: "Barcode scanner is not supported on this device. Please enter barcode manually.",
-        variant: "destructive",
-      });
-      setShowBarcodeInput(true);
-      return;
-    }
-
+    // Skip isSupported check - try scanning directly since the plugin might work even if isSupported returns false
     setIsScanning(true);
-    console.log('[BarcodeScanner] Starting scan...');
+    console.log('[BarcodeScanner] Starting scan (bypassing isSupported check)...');
     try {
       const result = await scanBarcode();
       console.log('[BarcodeScanner] Scan result:', result);
