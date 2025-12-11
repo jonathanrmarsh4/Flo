@@ -198,6 +198,42 @@ export default function AssessmentDetail() {
     },
   });
 
+  // Get checkins from query data (need to access before useMemo)
+  const checkins = checkinsData?.checkins || [];
+
+  // Generate chart data from check-ins - MUST be before any early returns
+  const chartData = useMemo(() => {
+    if (!checkins.length) return [];
+    
+    // Sort checkins by date
+    const sortedCheckins = [...checkins].sort((a, b) => 
+      new Date(a.checkin_date).getTime() - new Date(b.checkin_date).getTime()
+    );
+    
+    return sortedCheckins.map((checkin, index) => {
+      const date = new Date(checkin.checkin_date);
+      const dataPoint: Record<string, any> = {
+        day: index + 1,
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      };
+      
+      // Add each rating to the data point
+      if (checkin.ratings) {
+        Object.entries(checkin.ratings).forEach(([key, value]) => {
+          dataPoint[key] = value;
+        });
+      }
+      
+      return dataPoint;
+    });
+  }, [checkins]);
+
+  // Get metric names from check-in ratings for chart legend - MUST be before any early returns
+  const chartMetricNames = useMemo(() => {
+    if (!checkins.length || !checkins[0]?.ratings) return [];
+    return Object.keys(checkins[0].ratings);
+  }, [checkins]);
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
@@ -232,7 +268,6 @@ export default function AssessmentDetail() {
 
   const { experiment, metrics } = experimentData;
   const supplementConfig = SUPPLEMENT_CONFIGURATIONS[experiment.supplement_type_id];
-  const checkins = checkinsData?.checkins || [];
 
   const getStatusInfo = () => {
     switch (experiment.status) {
@@ -270,39 +305,6 @@ export default function AssessmentDetail() {
   }
 
   const subjectiveMetrics = metrics.filter(m => m.metric_type === 'subjective');
-
-  // Generate chart data from check-ins
-  const chartData = useMemo(() => {
-    if (!checkins.length) return [];
-    
-    // Sort checkins by date
-    const sortedCheckins = [...checkins].sort((a, b) => 
-      new Date(a.checkin_date).getTime() - new Date(b.checkin_date).getTime()
-    );
-    
-    return sortedCheckins.map((checkin, index) => {
-      const date = new Date(checkin.checkin_date);
-      const dataPoint: Record<string, any> = {
-        day: index + 1,
-        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      };
-      
-      // Add each rating to the data point
-      if (checkin.ratings) {
-        Object.entries(checkin.ratings).forEach(([key, value]) => {
-          dataPoint[key] = value;
-        });
-      }
-      
-      return dataPoint;
-    });
-  }, [checkins]);
-
-  // Get metric names from check-in ratings for chart legend
-  const chartMetricNames = useMemo(() => {
-    if (!checkins.length || !checkins[0]?.ratings) return [];
-    return Object.keys(checkins[0].ratings);
-  }, [checkins]);
 
   // Line colors for different metrics
   const metricColors = ['#22d3ee', '#a855f7', '#22c55e', '#f97316', '#ec4899'];
