@@ -231,17 +231,24 @@ export default function AssessmentDetail() {
   const checkins = checkinsData?.checkins || [];
   const objectiveMetrics = objectiveData?.metrics || [];
 
+  // Helper to format metric key to display name
+  const formatMetricName = (key: string): string => {
+    return key
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
   // Define all metric configurations for the chart
   const metricConfigs = useMemo((): MetricConfig[] => {
     const configs: MetricConfig[] = [];
     
-    // Add subjective metrics from check-ins
+    // Add subjective metrics from check-ins - use distinct colors
     if (checkins.length && checkins[0]?.ratings) {
-      const subjectiveColors = ['#22d3ee', '#a855f7', '#22c55e', '#f97316'];
+      const subjectiveColors = ['#22d3ee', '#f97316', '#22c55e', '#a855f7', '#eab308', '#14b8a6'];
       Object.keys(checkins[0].ratings).forEach((key, index) => {
         configs.push({
           key,
-          name: key,
+          name: formatMetricName(key),
           color: subjectiveColors[index % subjectiveColors.length],
           type: 'subjective',
           yAxisId: 'left',
@@ -683,14 +690,21 @@ export default function AssessmentDetail() {
                       )}
                       <Tooltip content={<CustomTooltip />} />
                       
-                      {/* Subjective baseline reference line */}
+                      {/* Subjective baseline reference line - horizontal dashed line */}
                       {baselineAverages?.subjectiveBaseline && (
                         <ReferenceLine 
                           yAxisId="left"
                           y={baselineAverages.subjectiveBaseline} 
-                          stroke="#22d3ee" 
-                          strokeDasharray="4 4" 
-                          strokeOpacity={0.4}
+                          stroke="#ffffff" 
+                          strokeDasharray="8 4" 
+                          strokeOpacity={0.5}
+                          strokeWidth={2}
+                          label={{ 
+                            value: `Baseline: ${baselineAverages.subjectiveBaseline.toFixed(1)}`, 
+                            position: 'left',
+                            fill: '#ffffff80',
+                            fontSize: 9
+                          }}
                         />
                       )}
                       
@@ -700,22 +714,23 @@ export default function AssessmentDetail() {
                           yAxisId="right"
                           y={baselineAverages.objectiveBaseline} 
                           stroke="#ec4899" 
-                          strokeDasharray="4 4" 
-                          strokeOpacity={0.4}
+                          strokeDasharray="8 4" 
+                          strokeOpacity={0.6}
+                          strokeWidth={2}
                         />
                       )}
                       
-                      {/* Subjective trendline (rolling average) */}
+                      {/* Subjective trendline (rolling average) - thicker and more visible */}
                       {chartData.some(d => d.subjectiveTrendline !== undefined) && (
                         <Line
                           type="monotone"
                           dataKey="subjectiveTrendline"
                           yAxisId="left"
-                          stroke="#22d3ee"
-                          strokeWidth={3}
-                          strokeOpacity={0.3}
+                          stroke="#ffffff"
+                          strokeWidth={4}
+                          strokeOpacity={0.2}
                           dot={false}
-                          name="Subjective Trend"
+                          name="Trend (Rolling Avg)"
                           connectNulls
                           legendType="none"
                         />
@@ -728,8 +743,8 @@ export default function AssessmentDetail() {
                           dataKey="objectiveTrendline"
                           yAxisId="right"
                           stroke="#ec4899"
-                          strokeWidth={3}
-                          strokeOpacity={0.3}
+                          strokeWidth={4}
+                          strokeOpacity={0.25}
                           dot={false}
                           name="Objective Trend"
                           connectNulls
