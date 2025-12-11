@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { getSupabaseClient } from './supabaseClient';
 import { getHealthId } from './supabaseHealthStorage';
 import { ClickHouseBaselineEngine } from './clickhouseBaselineEngine';
 import { createLogger } from '../utils/logger';
@@ -554,7 +554,9 @@ class N1ExperimentService {
           const experimentData = experimentMap.get(metric.clickhouse_metric);
 
           if (baseline && experimentData && baseline.stdDev && baseline.stdDev > 0) {
-            // Calculate Effect Size: (Avg_Phase_B - Avg_Phase_A) / Std_Dev_Phase_A
+            // Calculate Cohen's d Effect Size: (Avg_Phase_B - Avg_Phase_A) / Std_Dev_Phase_A
+            // This measures how many standard deviations the experiment mean differs from baseline
+            // Thresholds: >0.8 = Strong Evidence, 0.2-0.8 = Moderate, <0.2 = No Effect
             const effectSize = (experimentData.mean - baseline.mean) / baseline.stdDev;
             const verdict = calculateVerdict(effectSize);
 
@@ -602,6 +604,8 @@ class N1ExperimentService {
         const activeMean = activeValues.reduce((a, b) => a + b, 0) / activeValues.length;
 
         if (baselineStd > 0) {
+          // Cohen's d Effect Size for subjective metrics from daily check-ins
+          // Formula: (Avg_Active_Phase - Avg_Baseline_Phase) / Std_Dev_Baseline
           const effectSize = (activeMean - baselineMean) / baselineStd;
           const verdict = calculateVerdict(effectSize);
 
