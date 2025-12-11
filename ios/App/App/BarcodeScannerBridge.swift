@@ -4,7 +4,15 @@ import AVFoundation
 import UIKit
 
 @objc(BarcodeScanner)
-class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDelegate {
+public class BarcodeScannerBridge: CAPPlugin, CAPBridgedPlugin, AVCaptureMetadataOutputObjectsDelegate {
+    public let identifier = "BarcodeScanner"
+    public let jsName = "BarcodeScanner"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "isSupported", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "checkPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestPermissions", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise)
+    ]
     
     private var captureSession: AVCaptureSession?
     private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -88,7 +96,7 @@ class BarcodeScannerBridge: CAPPlugin, AVCaptureMetadataOutputObjectsDelegate {
         }
     }
     
-    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+    public func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
         guard let metadataObject = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
               let stringValue = metadataObject.stringValue else {
             return
