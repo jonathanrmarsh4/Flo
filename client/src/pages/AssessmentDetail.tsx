@@ -238,13 +238,17 @@ export default function AssessmentDetail() {
       .replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
-  // Define all metric configurations for the chart
+  // Define all metric configurations for the chart - matching reference design colors
   const metricConfigs = useMemo((): MetricConfig[] => {
     const configs: MetricConfig[] = [];
     
-    // Add subjective metrics from check-ins - use distinct colors
+    // Subjective colors: purple, cyan, green (matching reference)
+    const subjectiveColors = ['#a855f7', '#22d3ee', '#22c55e', '#f97316', '#eab308', '#14b8a6'];
+    // Objective colors: pink/magenta, orange (matching reference)
+    const objectiveColors = ['#ec4899', '#f97316', '#6366f1', '#14b8a6'];
+    
+    // Add subjective metrics from check-ins
     if (checkins.length && checkins[0]?.ratings) {
-      const subjectiveColors = ['#22d3ee', '#f97316', '#22c55e', '#a855f7', '#eab308', '#14b8a6'];
       Object.keys(checkins[0].ratings).forEach((key, index) => {
         configs.push({
           key,
@@ -257,14 +261,16 @@ export default function AssessmentDetail() {
       });
     }
     
-    // Add objective metrics if we have data
+    // Add ALL available objective metrics
     if (objectiveMetrics.length > 0) {
       const sample = objectiveMetrics[0];
+      let objIndex = 0;
+      
       if (sample.hrv !== undefined) {
         configs.push({
           key: 'hrv',
           name: 'HRV',
-          color: '#ec4899',
+          color: objectiveColors[objIndex++ % objectiveColors.length],
           type: 'objective',
           yAxisId: 'right',
           unit: 'ms',
@@ -274,7 +280,27 @@ export default function AssessmentDetail() {
         configs.push({
           key: 'deepSleepPct',
           name: 'Deep Sleep',
-          color: '#6366f1',
+          color: objectiveColors[objIndex++ % objectiveColors.length],
+          type: 'objective',
+          yAxisId: 'right',
+          unit: '%',
+        });
+      }
+      if (sample.restingHeartRate !== undefined) {
+        configs.push({
+          key: 'restingHeartRate',
+          name: 'Resting HR',
+          color: objectiveColors[objIndex++ % objectiveColors.length],
+          type: 'objective',
+          yAxisId: 'right',
+          unit: 'bpm',
+        });
+      }
+      if (sample.sleepEfficiency !== undefined) {
+        configs.push({
+          key: 'sleepEfficiency',
+          name: 'Sleep Efficiency',
+          color: objectiveColors[objIndex++ % objectiveColors.length],
           type: 'objective',
           yAxisId: 'right',
           unit: '%',
@@ -653,7 +679,7 @@ export default function AssessmentDetail() {
               </div>
             ) : (
               <>
-                <div className="h-64">
+                <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                       <XAxis 
@@ -690,69 +716,7 @@ export default function AssessmentDetail() {
                       )}
                       <Tooltip content={<CustomTooltip />} />
                       
-                      {/* Subjective baseline reference line - horizontal dashed line */}
-                      {baselineAverages?.subjectiveBaseline && (
-                        <ReferenceLine 
-                          yAxisId="left"
-                          y={baselineAverages.subjectiveBaseline} 
-                          stroke="#ffffff" 
-                          strokeDasharray="8 4" 
-                          strokeOpacity={0.5}
-                          strokeWidth={2}
-                          label={{ 
-                            value: `Baseline: ${baselineAverages.subjectiveBaseline.toFixed(1)}`, 
-                            position: 'left',
-                            fill: '#ffffff80',
-                            fontSize: 9
-                          }}
-                        />
-                      )}
-                      
-                      {/* Objective baseline reference line */}
-                      {baselineAverages?.objectiveBaseline && (
-                        <ReferenceLine 
-                          yAxisId="right"
-                          y={baselineAverages.objectiveBaseline} 
-                          stroke="#ec4899" 
-                          strokeDasharray="8 4" 
-                          strokeOpacity={0.6}
-                          strokeWidth={2}
-                        />
-                      )}
-                      
-                      {/* Subjective trendline (rolling average) - thicker and more visible */}
-                      {chartData.some(d => d.subjectiveTrendline !== undefined) && (
-                        <Line
-                          type="monotone"
-                          dataKey="subjectiveTrendline"
-                          yAxisId="left"
-                          stroke="#ffffff"
-                          strokeWidth={4}
-                          strokeOpacity={0.2}
-                          dot={false}
-                          name="Trend (Rolling Avg)"
-                          connectNulls
-                          legendType="none"
-                        />
-                      )}
-                      
-                      {/* Objective trendline (rolling average) */}
-                      {chartData.some(d => d.objectiveTrendline !== undefined) && (
-                        <Line
-                          type="monotone"
-                          dataKey="objectiveTrendline"
-                          yAxisId="right"
-                          stroke="#ec4899"
-                          strokeWidth={4}
-                          strokeOpacity={0.25}
-                          dot={false}
-                          name="Objective Trend"
-                          connectNulls
-                          legendType="none"
-                        />
-                      )}
-                      
-                      {/* Individual metric lines */}
+                      {/* All metric lines - each metric gets its own colored line */}
                       {metricConfigs.map((metric) => (
                         <Line
                           key={metric.key}
@@ -760,10 +724,10 @@ export default function AssessmentDetail() {
                           dataKey={metric.key}
                           yAxisId={metric.yAxisId}
                           stroke={metric.color}
-                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2 : 1}
-                          strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.25}
-                          dot={{ r: 3, fill: metric.color }}
-                          activeDot={{ r: 5, strokeWidth: 2 }}
+                          strokeWidth={highlightedMetric === null || highlightedMetric === metric.key ? 2.5 : 1.5}
+                          strokeOpacity={highlightedMetric === null || highlightedMetric === metric.key ? 1 : 0.3}
+                          dot={false}
+                          activeDot={{ r: 4, strokeWidth: 2, fill: metric.color }}
                           name={metric.name}
                           connectNulls
                         />
@@ -772,70 +736,54 @@ export default function AssessmentDetail() {
                   </ResponsiveContainer>
                 </div>
                 
-                {/* Interactive Legend - Grouped by Type */}
-                <div className="mt-4 pt-3 border-t border-white/10">
-                  <p className="text-[10px] text-white/50 mb-2">Click any metric below to focus on it and see success target projection</p>
+                {/* Legend - matching reference design format */}
+                <div className="mt-4 pt-3 border-t border-white/10 space-y-2">
+                  <p className="text-[10px] text-white/50 mb-3">Click any metric below to focus on it and see success target projection</p>
                   
-                  {/* Subjective Metrics */}
+                  {/* Subjective Metrics Row */}
                   {metricConfigs.filter(m => m.type === 'subjective').length > 0 && (
-                    <div className="mb-2">
-                      <span className="text-[10px] text-white/40 uppercase tracking-wider">Subjective:</span>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {metricConfigs.filter(m => m.type === 'subjective').map((metric) => (
-                          <button
-                            key={metric.key}
-                            onClick={() => handleMetricClick(metric.key)}
-                            className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
-                              highlightedMetric === null || highlightedMetric === metric.key
-                                ? 'opacity-100'
-                                : 'opacity-40'
-                            } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
-                            style={{ 
-                              backgroundColor: `${metric.color}20`,
-                              color: metric.color,
-                            }}
-                            data-testid={`button-metric-${metric.key}`}
-                          >
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: metric.color }} />
-                            <span>{metric.name}</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs text-white/60 font-medium">Subjective:</span>
+                      {metricConfigs.filter(m => m.type === 'subjective').map((metric) => (
+                        <button
+                          key={metric.key}
+                          onClick={() => handleMetricClick(metric.key)}
+                          className={`flex items-center gap-1.5 text-xs transition-all ${
+                            highlightedMetric === null || highlightedMetric === metric.key
+                              ? 'opacity-100'
+                              : 'opacity-40'
+                          }`}
+                          data-testid={`button-metric-${metric.key}`}
+                        >
+                          <div className="w-4 h-0.5" style={{ backgroundColor: metric.color }} />
+                          <span style={{ color: metric.color }}>{metric.name}</span>
+                        </button>
+                      ))}
                     </div>
                   )}
                   
-                  {/* Objective Metrics */}
+                  {/* Objective Metrics Row */}
                   {metricConfigs.filter(m => m.type === 'objective').length > 0 && (
-                    <div>
-                      <span className="text-[10px] text-white/40 uppercase tracking-wider">Objective:</span>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {metricConfigs.filter(m => m.type === 'objective').map((metric) => (
-                          <button
-                            key={metric.key}
-                            onClick={() => handleMetricClick(metric.key)}
-                            className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs transition-all ${
-                              highlightedMetric === null || highlightedMetric === metric.key
-                                ? 'opacity-100'
-                                : 'opacity-40'
-                            } ${highlightedMetric === metric.key ? 'ring-1 ring-white/30' : ''}`}
-                            style={{ 
-                              backgroundColor: `${metric.color}20`,
-                              color: metric.color,
-                            }}
-                            data-testid={`button-metric-${metric.key}`}
-                          >
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: metric.color }} />
-                            <span>{metric.name}</span>
-                            {metric.unit && <span className="opacity-60">({metric.unit})</span>}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs text-white/60 font-medium">Objective:</span>
+                      {metricConfigs.filter(m => m.type === 'objective').map((metric) => (
+                        <button
+                          key={metric.key}
+                          onClick={() => handleMetricClick(metric.key)}
+                          className={`flex items-center gap-1.5 text-xs transition-all ${
+                            highlightedMetric === null || highlightedMetric === metric.key
+                              ? 'opacity-100'
+                              : 'opacity-40'
+                          }`}
+                          data-testid={`button-metric-${metric.key}`}
+                        >
+                          <div className="w-4 h-0.5" style={{ backgroundColor: metric.color }} />
+                          <span style={{ color: metric.color }}>{metric.name}</span>
+                          {metric.unit && <span style={{ color: metric.color }} className="opacity-70">({metric.unit})</span>}
+                        </button>
+                      ))}
                     </div>
                   )}
-                  
-                  <p className="text-[10px] text-white/30 mt-3">
-                    Dashed lines show baseline average • Left axis: subjective • Right axis: objective
-                  </p>
                 </div>
               </>
             )}
