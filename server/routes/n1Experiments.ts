@@ -9,7 +9,56 @@ import { z } from 'zod';
 const logger = createLogger('N1ExperimentRoutes');
 const router = Router();
 
-// Apply authentication to all routes
+// ========== PUBLIC ROUTES (no auth required) ==========
+
+// Search DSLD products (public - accessing NIH database)
+router.get('/dsld/search', async (req, res) => {
+  try {
+    const query = req.query.q as string;
+    const limit = parseInt(req.query.limit as string) || 20;
+    
+    if (!query || query.length < 2) {
+      return res.json({ products: [], totalCount: 0 });
+    }
+    
+    const results = await dsldService.searchProducts(query, limit);
+    res.json(results);
+  } catch (error: any) {
+    logger.error('DSLD search failed', { error: error.message });
+    res.status(500).json({ error: 'Failed to search products' });
+  }
+});
+
+// Lookup DSLD product by barcode (public - accessing NIH database)
+router.get('/dsld/barcode/:barcode', async (req, res) => {
+  try {
+    const { barcode } = req.params;
+    logger.info(`Public barcode lookup: ${barcode}`);
+    const product = await dsldService.lookupByBarcode(barcode);
+    
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    
+    // Detect which supplement type this product matches
+    const supplementType = dsldService.detectSupplementType(product);
+    const primaryIngredient = supplementType 
+      ? dsldService.getPrimaryIngredient(product, supplementType)
+      : null;
+    
+    res.json({ 
+      product,
+      detectedSupplementType: supplementType,
+      primaryIngredient,
+    });
+  } catch (error: any) {
+    logger.error('DSLD barcode lookup failed', { error: error.message });
+    res.status(500).json({ error: 'Failed to lookup product' });
+  }
+});
+
+// ========== AUTHENTICATED ROUTES ==========
+// Apply authentication to remaining routes
 router.use(isAuthenticated);
 
 // Get supplement configuration data
@@ -34,51 +83,6 @@ router.get('/supplements/by-intent/:intentId', async (req, res) => {
   } catch (error: any) {
     logger.error('Failed to get supplements by intent', { error: error.message });
     res.status(500).json({ error: 'Failed to get supplements' });
-  }
-});
-
-// Search DSLD products
-router.get('/dsld/search', async (req, res) => {
-  try {
-    const query = req.query.q as string;
-    const limit = parseInt(req.query.limit as string) || 20;
-    
-    if (!query || query.length < 2) {
-      return res.json({ products: [], totalCount: 0 });
-    }
-    
-    const results = await dsldService.searchProducts(query, limit);
-    res.json(results);
-  } catch (error: any) {
-    logger.error('DSLD search failed', { error: error.message });
-    res.status(500).json({ error: 'Failed to search products' });
-  }
-});
-
-// Lookup DSLD product by barcode
-router.get('/dsld/barcode/:barcode', async (req, res) => {
-  try {
-    const { barcode } = req.params;
-    const product = await dsldService.lookupByBarcode(barcode);
-    
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    
-    // Detect which supplement type this product matches
-    const supplementType = dsldService.detectSupplementType(product);
-    const primaryIngredient = supplementType 
-      ? dsldService.getPrimaryIngredient(product, supplementType)
-      : null;
-    
-    res.json({ 
-      product,
-      detectedSupplementType: supplementType,
-      primaryIngredient,
-    });
-  } catch (error: any) {
-    logger.error('DSLD barcode lookup failed', { error: error.message });
-    res.status(500).json({ error: 'Failed to lookup product' });
   }
 });
 
