@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,12 @@ import {
   Calendar,
   MessageSquare,
   BarChart3,
-  X
+  X,
+  Activity
 } from "lucide-react";
 import { SUPPLEMENT_CONFIGURATIONS, type SupplementTypeConfig } from "@shared/supplementConfig";
 import { FloBottomNav } from "@/components/FloBottomNav";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ExperimentData {
   experiment: {
@@ -225,6 +227,59 @@ export default function AssessmentDetail() {
 
   const subjectiveMetrics = metrics.filter(m => m.metric_type === 'subjective');
 
+  // Generate chart data from check-ins
+  const chartData = useMemo(() => {
+    if (!checkins.length) return [];
+    
+    // Sort checkins by date
+    const sortedCheckins = [...checkins].sort((a, b) => 
+      new Date(a.checkin_date).getTime() - new Date(b.checkin_date).getTime()
+    );
+    
+    return sortedCheckins.map((checkin, index) => {
+      const date = new Date(checkin.checkin_date);
+      const dataPoint: Record<string, any> = {
+        day: index + 1,
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      };
+      
+      // Add each rating to the data point
+      if (checkin.ratings) {
+        Object.entries(checkin.ratings).forEach(([key, value]) => {
+          dataPoint[key] = value;
+        });
+      }
+      
+      return dataPoint;
+    });
+  }, [checkins]);
+
+  // Get metric names from check-in ratings for chart legend
+  const chartMetricNames = useMemo(() => {
+    if (!checkins.length || !checkins[0]?.ratings) return [];
+    return Object.keys(checkins[0].ratings);
+  }, [checkins]);
+
+  // Line colors for different metrics
+  const metricColors = ['#22d3ee', '#a855f7', '#22c55e', '#f97316', '#ec4899'];
+
+  // Custom tooltip for the chart
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="backdrop-blur-xl rounded-lg border p-3 shadow-lg bg-slate-900/95 border-white/20">
+          <p className="text-xs mb-2 text-white/60">{payload[0]?.payload?.date}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm text-white">
+              <span className="font-medium" style={{ color: entry.color }}>{entry.name}:</span> {entry.value?.toFixed(1)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
       {/* Header */}
@@ -267,6 +322,87 @@ export default function AssessmentDetail() {
             <p className="text-xs text-white/50 mt-2">
               {experiment.experiment_days - daysElapsed} days remaining
             </p>
+            
+            {/* Tracking For badges */}
+            {supplementConfig && (
+              <div className="mt-4">
+                <p className="text-xs uppercase tracking-wide mb-2 text-white/50">Tracking For</p>
+                <div className="flex flex-wrap gap-2">
+                  {supplementConfig.targetedMetrics.slice(0, 4).map(metric => (
+                    <span 
+                      key={metric}
+                      className="px-3 py-1 rounded-full text-xs bg-purple-500/10 text-purple-300 border border-purple-500/30"
+                    >
+                      {metric}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Metrics Trend Chart */}
+        {(experiment.status === 'active' || experiment.status === 'completed') && chartData.length > 1 && (
+          <Card className="p-4 bg-white/5 border-white/10 mb-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <Activity className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-medium">Metrics Trend</h3>
+                <p className="text-xs text-white/60">Your progress over time</p>
+              </div>
+            </div>
+            
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <XAxis 
+                    dataKey="day" 
+                    stroke="#ffffff40" 
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis 
+                    domain={[0, 10]} 
+                    stroke="#ffffff40" 
+                    fontSize={10}
+                    tickLine={false}
+                    axisLine={false}
+                    width={25}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  {chartMetricNames.map((metricName, index) => (
+                    <Line
+                      key={metricName}
+                      type="monotone"
+                      dataKey={metricName}
+                      stroke={metricColors[index % metricColors.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      name={metricName}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Legend */}
+            <div className="mt-4 pt-3 border-t border-white/10">
+              <div className="flex flex-wrap gap-3">
+                {chartMetricNames.map((metricName, index) => (
+                  <div key={metricName} className="flex items-center gap-1.5">
+                    <div 
+                      className="w-3 h-0.5 rounded-full"
+                      style={{ backgroundColor: metricColors[index % metricColors.length] }}
+                    />
+                    <span className="text-xs text-white/70">{metricName}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </Card>
         )}
 
