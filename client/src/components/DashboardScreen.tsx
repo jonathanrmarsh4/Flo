@@ -449,17 +449,14 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
       <header className={`sticky top-0 z-40 backdrop-blur-xl border-b transition-colors pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
-        <div className="px-4 py-3">
+        <div className="px-3 py-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FloLogo size={32} />
+            <div className="flex items-center gap-2">
+              <FloLogo size={28} />
               <div>
-                <h1 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <h1 className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   Dashboard
                 </h1>
-                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                  Your health at a glance
-                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -545,7 +542,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
       <AirQualityTile isDark={isDark} />
 
       {/* Dashboard Content */}
-      <main className="px-4 py-6 space-y-4 max-w-2xl mx-auto">
+      <main className="px-4 py-4 pb-28 space-y-4 max-w-2xl mx-auto">
         {isLoading ? (
           <div className="text-center py-12">
             <div className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
