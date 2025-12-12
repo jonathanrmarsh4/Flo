@@ -34,7 +34,8 @@ import { SUPPLEMENT_CONFIGURATIONS, type SupplementTypeConfig } from "@shared/su
 import { FloBottomNav } from "@/components/FloBottomNav";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 import { WhyButton } from "@/components/WhyButton";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
+import { VoiceChatScreen } from "@/components/VoiceChatScreen";
 
 interface ExperimentData {
   experiment: {
@@ -105,6 +106,8 @@ export default function AssessmentDetail() {
   const [checkinNotes, setCheckinNotes] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showWhyModal, setShowWhyModal] = useState(false);
+  const [showVoiceChat, setShowVoiceChat] = useState(false);
+  const [voiceChatContext, setVoiceChatContext] = useState<string | undefined>(undefined);
   
   // Why explanation mutation - proper react-query pattern
   const explainMutation = useMutation({
@@ -1306,13 +1309,41 @@ export default function AssessmentDetail() {
                 <p className="text-white/60 text-center py-8">No explanation available</p>
               )}
             </div>
-            <div className="p-4 border-t border-white/10">
+            <div className="p-4 border-t border-white/10 space-y-3">
+              {/* Discuss with Flō Button */}
+              {explainMutation.data && (
+                <Button
+                  onClick={() => {
+                    const context = `I'm reviewing my ${experimentData?.experiment?.product_name || 'supplement'} experiment. Here's the AI analysis of my progress: ${explainMutation.data?.substring(0, 500)}${(explainMutation.data?.length || 0) > 500 ? '...' : ''} I'd like to discuss this further and understand what it means for my health.`;
+                    setVoiceChatContext(context);
+                    setShowVoiceChat(true);
+                    handleCloseWhyModal();
+                  }}
+                  className="w-full bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 hover:from-blue-600 hover:via-cyan-600 hover:to-teal-600 text-white font-medium py-3 rounded-xl"
+                  data-testid="button-discuss-with-flo"
+                >
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Discuss with Flō
+                </Button>
+              )}
               <p className="text-xs text-white/40 text-center">
                 This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions.
               </p>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Flō Voice Chat */}
+      {showVoiceChat && (
+        <VoiceChatScreen
+          isDark={true}
+          onClose={() => {
+            setShowVoiceChat(false);
+            setVoiceChatContext(undefined);
+          }}
+          initialContext={voiceChatContext}
+        />
       )}
 
       {/* Bottom Navigation */}
