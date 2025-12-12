@@ -334,9 +334,27 @@ export async function getRolling7DayInsight(userId: string, userTimezone?: strin
       )
       .orderBy(flomentumDaily.date);
 
+    // Even if no data, we'll return 7 days of zero scores so UI can render
     if (dailyScores.length === 0) {
-      logger.warn('No daily scores found for rolling 7 days', { userId });
-      return null;
+      logger.warn('No daily scores found for rolling 7 days, returning empty structure', { userId });
+      const emptyDays = [];
+      for (let i = 0; i < 7; i++) {
+        const targetDateStr = addDaysToDateString(startDateStr, i);
+        emptyDays.push({
+          date: targetDateStr,
+          label: getWeekdayLabel(targetDateStr),
+          score: 0,
+          zone: 'MAINTAINING',
+        });
+      }
+      return {
+        weekStartDate: startDateStr,
+        averageScore: 0,
+        dailyScores: emptyDays,
+        whatHelped: [],
+        whatHeldBack: [],
+        focusNextWeek: "Start tracking your movement and sleep to see your Flōmentum score.",
+      };
     }
 
     // Calculate average score
