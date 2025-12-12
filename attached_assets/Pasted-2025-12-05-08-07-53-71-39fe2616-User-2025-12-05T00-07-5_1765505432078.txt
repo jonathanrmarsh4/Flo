@@ -1,0 +1,137 @@
+2025-12-05 08:07:53.71
+39fe2616
+User
+[2025-12-05T00:07:53.718Z] [INFO] Calculating sleep baselines {"userId":"50718264-56af-4020-8e54-2d441d37617f"}
+2025-12-05 08:07:53.81
+39fe2616
+User
+[2025-12-05T00:07:53.809Z] [INFO] Insufficient sleep data for baselines {"userId":"50718264-56af-4020-8e54-2d441d37617f","nights":0,"required":5}
+2025-12-05 08:07:54.51
+39fe2616
+User
+[2025-12-05T00:07:54.514Z] [INFO] [HealthKit] Ingesting daily metrics for user 50718264-56af-4020-8e54-2d441d37617f, date 2025-11-29
+2025-12-05 08:07:54.51
+39fe2616
+User
+[2025-12-05T00:07:54.515Z] [INFO] [SupabaseHealth] upsertDailyMetrics called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-11-29
+2025-12-05 08:08:00.02
+39fe2616
+User
+[2025-12-05T00:08:00.026Z] [INFO] Calculating sleep baselines {"userId":"50718264-56af-4020-8e54-2d441d37617f"}
+2025-12-05 08:08:00.09
+39fe2616
+User
+[2025-12-05T00:08:00.096Z] [INFO] Insufficient sleep data for baselines {"userId":"50718264-56af-4020-8e54-2d441d37617f","nights":0,"required":5}
+2025-12-05 08:08:02.78
+39fe2616
+User
+[2025-12-05T00:08:02.784Z] [INFO] [SupabaseHealth] upsertDailyMetrics called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-11-29
+2025-12-05 08:08:02.78
+39fe2616
+User
+[2025-12-05T00:08:02.784Z] [INFO] [HealthKit] Ingesting daily metrics for user 50718264-56af-4020-8e54-2d441d37617f, date 2025-11-29
+2025-12-05 08:08:04.94
+39fe2616
+User
+[2025-12-05T00:08:04.945Z] [INFO] [HealthKit] Workout batch upload: 3 workouts from user 50718264-56af-4020-8e54-2d441d37617f
+2025-12-05 08:22:54.94
+508fa9e2
+User
+12:22:54 AM [express] GET /api/auth/user 200 in 77ms :: {"id":"50718264-56af-4020-8e54-2d441d37617f",…
+2025-12-05 08:22:55.87
+508fa9e2
+User
+[2025-12-05T00:22:55.872Z] [INFO] Calculating sleep baselines {"userId":"50718264-56af-4020-8e54-2d441d37617f"}
+2025-12-05 08:22:55.94
+508fa9e2
+User
+[2025-12-05T00:22:55.948Z] [INFO] Insufficient sleep data for baselines {"userId":"50718264-56af-4020-8e54-2d441d37617f","nights":0,"required":5}
+2025-12-05 08:22:58.29
+508fa9e2
+User
+[2025-12-05T00:22:58.296Z] [INFO] [HealthKit] Ingesting daily metrics for user 50718264-56af-4020-8e54-2d441d37617f, date 2025-12-03
+2025-12-05 08:22:58.29
+508fa9e2
+User
+[2025-12-05T00:22:58.297Z] [INFO] [SupabaseHealth] upsertDailyMetrics called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-03
+2025-12-05 08:22:59.18
+508fa9e2
+User
+[2025-12-05T00:22:59.181Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-03, score: 44
+2025-12-05 08:22:59.20
+508fa9e2
+User
+[2025-12-05T00:22:59.201Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-11-28, score: 46
+2025-12-05 08:22:59.22
+508fa9e2
+User
+[2025-12-05T00:22:59.227Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-11-29, score: 46
+2025-12-05 08:22:59.28
+508fa9e2
+User
+[2025-12-05T00:22:59.289Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-04, score: 69
+2025-12-05 08:22:59.29
+508fa9e2
+User
+[2025-12-05T00:22:59.296Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-02, score: 72
+2025-12-05 08:22:59.30
+508fa9e2
+User
+[2025-12-05T00:22:59.306Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-05, score: 44
+2025-12-05 08:22:59.34
+508fa9e2
+User
+[2025-12-05T00:22:59.342Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-11-30, score: 42
+2025-12-05 08:22:59.45
+508fa9e2
+User
+[2025-12-05T00:22:59.450Z] [INFO] [SupabaseHealth] upsertFlomentumDaily called for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-01, score: 56
+2025-12-05 08:22:59.45
+508fa9e2
+User
+[2025-12-05T00:22:59.457Z] [INFO] [SupabaseHealth] Successfully upserted flomentum for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-11-28
+2025-12-05 08:22:59.45
+508fa9e2
+User
+[2025-12-05T00:22:59.457Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Flomentum score written to Supabase for 50718264-56af-4020-8e54-2d441d37617f, 2025-11-28
+2025-12-05 08:22:59.45
+508fa9e2
+User
+[2025-12-05T00:22:59.457Z] [INFO] [Flōmentum] Score calculated for 50718264-56af-4020-8e54-2d441d37617f, 2025-11-28: 46 (DRAINING)
+2025-12-05 08:22:59.48
+508fa9e2
+User
+[2025-12-05T00:22:59.485Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Flomentum score written to Supabase for 50718264-56af-4020-8e54-2d441d37617f, 2025-11-29
+2025-12-05 08:22:59.48
+508fa9e2
+User
+[2025-12-05T00:22:59.485Z] [INFO] [SupabaseHealth] Successfully upserted flomentum for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-11-29
+2025-12-05 08:22:59.48
+508fa9e2
+User
+[2025-12-05T00:22:59.485Z] [INFO] [Flōmentum] Score calculated for 50718264-56af-4020-8e54-2d441d37617f, 2025-11-29: 46 (DRAINING)
+2025-12-05 08:22:59.48
+508fa9e2
+User
+[2025-12-05T00:22:59.488Z] [INFO] [Flōmentum] Score calculated for 50718264-56af-4020-8e54-2d441d37617f, 2025-12-03: 44 (DRAINING)
+2025-12-05 08:22:59.48
+508fa9e2
+User
+[2025-12-05T00:22:59.488Z] [INFO] [SupabaseHealth] Successfully upserted flomentum for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-03
+2025-12-05 08:22:59.48
+508fa9e2
+User
+[2025-12-05T00:22:59.488Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Flomentum score written to Supabase for 50718264-56af-4020-8e54-2d441d37617f, 2025-12-03
+2025-12-05 08:22:59.53
+508fa9e2
+User
+[2025-12-05T00:22:59.535Z] [INFO] [SupabaseHealth] Successfully upserted flomentum for user 50718264-56af-4020-8e54-2d441d37617f, date: 2025-12-04
+2025-12-05 08:22:59.53
+508fa9e2
+User
+[2025-12-05T00:22:59.535Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Flomentum score written to Supabase for 50718264-56af-4020-8e54-2d441d37617f, 2025-12-04
+2025-12-05 08:22:59.53
+508fa9e2
+User
+[2025-12-05T00:22:59.536Z] [INFO] [Flōmentum] Score calculated for 50718264-56af-4020-8e54-2d441d37617f, 2025-12-04: 69 (MAINTAINING)
+
