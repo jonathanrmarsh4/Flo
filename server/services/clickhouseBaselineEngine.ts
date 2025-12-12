@@ -651,12 +651,15 @@ export class ClickHouseBaselineEngine {
         // Wrist temperature
         wrist_temp_baseline_c: 'wrist_temperature_baseline',
         wrist_temp_deviation_c: 'wrist_temperature_deviation',
-        // Sleep metrics
-        deep_sleep_hours: 'deep_sleep',
-        rem_sleep_hours: 'rem_sleep',
-        core_sleep_hours: 'core_sleep',
+        // Sleep metrics from user_daily_metrics (hours-based summary)
+        // NOTE: Detailed sleep metrics come from sleep_nights table (minutes-based, more accurate)
+        // We intentionally EXCLUDE time_in_bed_hours here to avoid unit mismatch with time_in_bed_min from sleep_nights
+        // The sleep_nights table syncs deep_sleep, rem_sleep, core_sleep, time_in_bed in MINUTES
+        deep_sleep_hours: 'deep_sleep_hours',  // Keep as hours to distinguish from minutes
+        rem_sleep_hours: 'rem_sleep_hours',    // Keep as hours to distinguish from minutes
+        core_sleep_hours: 'core_sleep_hours',  // Keep as hours to distinguish from minutes
         sleep_awakenings: 'sleep_awakenings',
-        time_in_bed_hours: 'time_in_bed',
+        // time_in_bed_hours: EXCLUDED - use time_in_bed from sleep_nights (in minutes) instead
         sleep_latency_min: 'sleep_latency',
         // Body composition
         body_fat_pct: 'body_fat',
@@ -767,6 +770,9 @@ export class ClickHouseBaselineEngine {
           continue;
         }
         
+        // Use actual source from database (oura, healthkit, etc.) or default to healthkit_sleep
+        const nightSource = night.source || 'healthkit_sleep';
+        
         for (const [dbField, metricType] of Object.entries(sleepMappings)) {
           const rawValue = night[dbField];
           // Handle both numeric and string values (Supabase may return decimal strings)
@@ -781,7 +787,7 @@ export class ClickHouseBaselineEngine {
             value: numValue,
             recorded_at: recordedAt,
             local_date: sleepDateStr,
-            source: 'healthkit_sleep',
+            source: nightSource,
           });
         }
       }

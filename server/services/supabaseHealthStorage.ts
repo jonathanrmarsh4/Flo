@@ -1502,14 +1502,40 @@ export async function upsertSleepNight(userId: string, sleep: Omit<SleepNight, '
     .eq('sleep_date', sleep.sleep_date)
     .maybeSingle();
   
+  // SOURCE PRIORITY: Oura > HealthKit > manual
+  // If existing data is from Oura and new data is from HealthKit, skip overwriting non-null fields
+  const existingSource = existing?.source;
+  const newSource = sleep.source;
+  const isOuraProtected = existingSource === 'oura' && newSource === 'healthkit';
+  
   // Merge: only update fields that have non-null/non-undefined values in the new data
   // Preserve existing values for fields that are null/undefined in the new data
+  // If Oura-protected, only fill in gaps (null fields) - don't overwrite
   const mergedSleep: Record<string, any> = { ...existing };
+  
+  // Fields that should always come from the original source (sleep timing, stages, metrics)
+  const coreFields = [
+    'total_sleep_min', 'time_in_bed_min', 'sleep_latency_min', 'sleep_efficiency_pct',
+    'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min', 'waso_min', 'num_awakenings',
+    'deep_pct', 'rem_pct', 'core_pct', 'fragmentation_index',
+    'hrv_ms', 'resting_hr_bpm', 'respiratory_rate', 'wrist_temperature', 'oxygen_saturation',
+    'bedtime_local', 'waketime_local', 'mid_sleep_time_local'
+  ];
   
   for (const [key, value] of Object.entries(sleep)) {
     if (value !== null && value !== undefined) {
+      // If Oura-protected and this is a core field with existing data, skip
+      if (isOuraProtected && coreFields.includes(key) && existing?.[key] !== null && existing?.[key] !== undefined) {
+        logger.debug(`[SupabaseHealth] Preserving Oura ${key}: ${existing[key]} (skipping HealthKit: ${value})`);
+        continue;
+      }
       mergedSleep[key] = value;
     }
+  }
+  
+  // If Oura-protected, keep the source as 'oura'
+  if (isOuraProtected) {
+    mergedSleep.source = 'oura';
   }
   
   // Always set these fields
