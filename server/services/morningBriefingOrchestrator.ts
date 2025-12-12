@@ -7,7 +7,7 @@ import { computeDailyReadiness } from './readinessEngine';
 
 const supabase = getSupabaseClient();
 import { db } from '../db';
-import { users, notificationLogs } from '@shared/schema';
+import { users, notificationLogs, userDailyReadiness } from '@shared/schema';
 import { eq, isNotNull, and } from 'drizzle-orm';
 import { 
   AIRequestPayload, 
@@ -125,24 +125,41 @@ export async function aggregateDailyInsights(healthId: string, eventDate: string
     logger.debug(`[MorningBriefing] Using default sleep values for ${healthId}`);
   }
   
-  // Use readinessEngine as single source of truth for readiness score
-  // This ensures consistency with dashboard and includes recovery adjustments + calibrated baselines
-  // Clear any ClickHouse-derived readiness first to ensure readinessEngine takes priority
+  // Use stored readiness score as single source of truth (calibrated score from dashboard)
+  // First check userDailyReadiness table for existing stored score, then fall back to computation
   if (userId) {
     const originalReadiness = today.readiness_score;
-    today.readiness_score = null; // Reset to ensure we use readinessEngine or fallback
+    today.readiness_score = null; // Reset to ensure we use stored/computed value
     
     try {
-      const readinessResult = await computeDailyReadiness(userId, eventDate);
-      // Explicit null check to handle valid 0 scores (severely depleted users)
-      if (readinessResult && typeof readinessResult.readinessScore === 'number') {
-        today.readiness_score = readinessResult.readinessScore;
-        logger.debug(`[MorningBriefing] Using readinessEngine score ${today.readiness_score} for ${healthId} (was: ${originalReadiness})`);
+      // Step 1: Check for stored readiness score (already calibrated from dashboard)
+      const storedReadiness = await db
+        .select({ readinessScore: userDailyReadiness.readinessScore })
+        .from(userDailyReadiness)
+        .where(
+          and(
+            eq(userDailyReadiness.userId, userId),
+            eq(userDailyReadiness.date, eventDate)
+          )
+        )
+        .limit(1);
+      
+      if (storedReadiness.length > 0 && typeof storedReadiness[0].readinessScore === 'number') {
+        today.readiness_score = storedReadiness[0].readinessScore;
+        logger.info(`[MorningBriefing] Using stored calibrated readiness ${today.readiness_score} for ${healthId} (was: ${originalReadiness})`);
       } else {
-        logger.debug(`[MorningBriefing] readinessEngine returned null for ${healthId}, will use fallback`);
+        // Step 2: Fall back to computing readiness (if no stored value)
+        logger.debug(`[MorningBriefing] No stored readiness for ${eventDate}, computing...`);
+        const readinessResult = await computeDailyReadiness(userId, eventDate);
+        if (readinessResult && typeof readinessResult.readinessScore === 'number') {
+          today.readiness_score = readinessResult.readinessScore;
+          logger.debug(`[MorningBriefing] Using computed readiness ${today.readiness_score} for ${healthId}`);
+        } else {
+          logger.debug(`[MorningBriefing] readinessEngine returned null for ${healthId}, will use fallback`);
+        }
       }
     } catch (err) {
-      logger.warn(`[MorningBriefing] Failed to get readiness from engine for ${userId}: ${err instanceof Error ? err.message : String(err)}`);
+      logger.warn(`[MorningBriefing] Failed to get readiness for ${userId}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   
