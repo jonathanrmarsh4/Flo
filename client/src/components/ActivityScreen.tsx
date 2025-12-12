@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -312,8 +313,8 @@ function ActivityDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: (
 
   const maxSteps = Math.max(...weekData.map(d => d.steps), 1);
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center">
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -543,6 +544,8 @@ function ActivityDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: (
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 function ActivityTabContent({ isDark }: { isDark: boolean }) {
@@ -1521,8 +1524,8 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
     d.workouts.reduce((sum, w) => sum + w.duration, 0)
   ), 1);
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center">
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -1957,6 +1960,8 @@ function WorkoutDetailsModal({ isDark, onClose }: { isDark: boolean; onClose: ()
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
 
 interface MacrosWeekViewProps {
@@ -2076,8 +2081,8 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
 
   const maxCalories = Math.max(...weekData.map(d => d.calories), 1);
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center">
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -2530,4 +2535,6 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
