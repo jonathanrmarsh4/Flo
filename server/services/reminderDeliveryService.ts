@@ -9,6 +9,7 @@ import { TZDate } from '@date-fns/tz';
 
 let deliveryCronTask: ReturnType<typeof cron.schedule> | null = null;
 let surveyCronTask: ReturnType<typeof cron.schedule> | null = null;
+let experimentReminderCronTask: ReturnType<typeof cron.schedule> | null = null;
 
 interface QueuedReminder {
   id: string;
@@ -136,6 +137,112 @@ async function getActiveSupplementExperiments(healthId: string): Promise<{ id: s
   }
   
   return experimentsNeedingCheckin;
+}
+
+/**
+ * Evening Experiment Check-in Reminder (8PM local time)
+ * Sends reminder to users with active experiments who haven't completed today's check-in
+ */
+async function processEveningExperimentReminders() {
+  try {
+    const now = new Date();
+    
+    const activeUsers = await db
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        timezone: users.timezone,
+        reminderTimezone: users.reminderTimezone,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.status, 'active'),
+          isNotNull(users.timezone)
+        )
+      );
+
+    if (activeUsers.length === 0) {
+      return;
+    }
+
+    const supabase = getSupabaseClient();
+    const eligibleUsers: (typeof activeUsers[0] & { healthId: string; experiments: { id: string; product_name: string }[] })[] = [];
+    
+    for (const user of activeUsers) {
+      try {
+        const timezone = user.timezone || (user.reminderTimezone !== 'UTC' ? user.reminderTimezone : null) || 'UTC';
+        const userNow = new TZDate(now, timezone);
+        const userHour = userNow.getHours();
+        const userMinute = userNow.getMinutes();
+        
+        // Check if it's 8PM local time (20:00 - 20:04)
+        if (userHour === 20 && userMinute >= 0 && userMinute < 5) {
+          const healthIdResult = await supabase
+            .from('user_profiles')
+            .select('health_id')
+            .eq('user_id', user.id)
+            .single();
+
+          if (healthIdResult.error || !healthIdResult.data) {
+            continue;
+          }
+
+          // Check for experiments needing check-in
+          const experimentsNeedingCheckin = await getActiveSupplementExperiments(healthIdResult.data.health_id);
+          
+          if (experimentsNeedingCheckin.length > 0) {
+            eligibleUsers.push({ 
+              ...user, 
+              healthId: healthIdResult.data.health_id,
+              experiments: experimentsNeedingCheckin,
+            });
+          }
+        }
+      } catch (error) {
+        logger.warn(`[ExperimentReminder] Error checking user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
+    if (eligibleUsers.length === 0) {
+      return;
+    }
+
+    logger.info(`[ExperimentReminder] Sending evening experiment reminders to ${eligibleUsers.length} users`);
+
+    for (const user of eligibleUsers) {
+      try {
+        const experimentCount = user.experiments.length;
+        const supplementNames = user.experiments.map(e => e.product_name).slice(0, 2).join(', ');
+        const suffix = experimentCount > 2 ? ` +${experimentCount - 2} more` : '';
+        
+        const title = 'Log Your Supplement Check-in';
+        const body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Don't forget to log how you're feeling with ${supplementNames}${suffix} today.`;
+        
+        const result = await apnsService.sendToUser(
+          user.id,
+          {
+            title,
+            body,
+            data: {
+              type: 'experiment_checkin',
+              deepLink: `flo://experiments/${user.experiments[0].id}`,
+              experimentId: user.experiments[0].id,
+              experimentCount,
+            }
+          }
+        );
+
+        if (result.success && result.devicesReached && result.devicesReached > 0) {
+          logger.info(`[ExperimentReminder] Sent evening reminder to ${user.firstName || user.id} for ${experimentCount} experiment(s)`);
+        }
+      } catch (error) {
+        logger.warn(`[ExperimentReminder] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+  } catch (error) {
+    logger.error('[ExperimentReminder] Fatal error in evening reminder job', { error: error instanceof Error ? error.message : String(error) });
+  }
 }
 
 async function processThreePMSurveyNotifications() {
@@ -275,8 +382,16 @@ export function initializeReminderDeliveryService() {
     timezone: 'UTC',
   });
 
+  // Evening experiment reminder (runs every 5 minutes to catch 8PM in each timezone)
+  experimentReminderCronTask = cron.schedule('*/5 * * * *', async () => {
+    await processEveningExperimentReminders();
+  }, {
+    timezone: 'UTC',
+  });
+
   logger.info('[ReminderDelivery] Reminder delivery service initialized (checks every minute)');
   logger.info('[3PMSurvey] 3PM survey notification service initialized (checks every 5 minutes)');
+  logger.info('[ExperimentReminder] Evening experiment reminder initialized (checks every 5 minutes at 8PM local)');
 }
 
 export function stopReminderDeliveryService() {
@@ -289,6 +404,11 @@ export function stopReminderDeliveryService() {
     surveyCronTask.stop();
     surveyCronTask = null;
     logger.info('[3PMSurvey] Survey notification service stopped');
+  }
+  if (experimentReminderCronTask) {
+    experimentReminderCronTask.stop();
+    experimentReminderCronTask = null;
+    logger.info('[ExperimentReminder] Experiment reminder service stopped');
   }
 }
 
