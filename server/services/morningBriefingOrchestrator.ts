@@ -220,33 +220,85 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
   };
 
   try {
-    const sql = `
+    // First, try to compute fresh baselines directly from health_metrics (source of truth)
+    // This bypasses the metric_baselines table which may have stale or mismatched window data
+    const liveBaselinesQuery = `
       SELECT
         metric_type,
-        mean_value,
-        std_dev
-      FROM flo_health.metric_baselines
+        avg(value) as mean_value,
+        stddevPop(value) as std_dev,
+        count() as sample_count
+      FROM flo_health.health_metrics FINAL
       WHERE health_id = {healthId:String}
-        AND window_days = 90
-        AND baseline_date = (
-          SELECT max(baseline_date) 
-          FROM flo_health.metric_baselines 
-          WHERE health_id = {healthId:String} AND window_days = 90
-        )
+        AND recorded_at >= now() - INTERVAL 90 DAY
+      GROUP BY metric_type
+      HAVING count() >= 3
     `;
 
-    const rows = await clickhouse.query<{
+    let rows = await clickhouse.query<{
       metric_type: string;
       mean_value: number;
       std_dev: number;
-    }>(sql, { healthId });
+      sample_count: number;
+    }>(liveBaselinesQuery, { healthId });
+
+    // If no 90-day data, try 30-day window
+    if (rows.length === 0) {
+      logger.debug(`[MorningBriefing] No 90-day baselines for ${healthId}, trying 30-day window`);
+      const thirtyDayQuery = `
+        SELECT
+          metric_type,
+          avg(value) as mean_value,
+          stddevPop(value) as std_dev,
+          count() as sample_count
+        FROM flo_health.health_metrics FINAL
+        WHERE health_id = {healthId:String}
+          AND recorded_at >= now() - INTERVAL 30 DAY
+        GROUP BY metric_type
+        HAVING count() >= 3
+      `;
+      rows = await clickhouse.query<{
+        metric_type: string;
+        mean_value: number;
+        std_dev: number;
+        sample_count: number;
+      }>(thirtyDayQuery, { healthId });
+    }
+
+    // If still no data, try 7-day window as last resort
+    if (rows.length === 0) {
+      logger.debug(`[MorningBriefing] No 30-day baselines for ${healthId}, trying 7-day window`);
+      const sevenDayQuery = `
+        SELECT
+          metric_type,
+          avg(value) as mean_value,
+          stddevPop(value) as std_dev,
+          count() as sample_count
+        FROM flo_health.health_metrics FINAL
+        WHERE health_id = {healthId:String}
+          AND recorded_at >= now() - INTERVAL 7 DAY
+        GROUP BY metric_type
+        HAVING count() >= 2
+      `;
+      rows = await clickhouse.query<{
+        metric_type: string;
+        mean_value: number;
+        std_dev: number;
+        sample_count: number;
+      }>(sevenDayQuery, { healthId });
+    }
 
     if (rows.length === 0) {
-      logger.debug(`[MorningBriefing] No baselines for ${healthId}, using population defaults`);
+      logger.debug(`[MorningBriefing] No ClickHouse baselines for ${healthId}, using population defaults`);
       return defaults;
     }
 
     const metricsMap = new Map(rows.map(r => [r.metric_type, r]));
+    
+    // Log found baselines for debugging
+    const foundMetrics = Array.from(metricsMap.keys()).join(', ');
+    const hrvBaseline = metricsMap.get('hrv');
+    logger.info(`[MorningBriefing] Found baselines for ${healthId}: ${foundMetrics}. HRV: mean=${hrvBaseline?.mean_value?.toFixed(1)}, std=${hrvBaseline?.std_dev?.toFixed(1)}, n=${hrvBaseline?.sample_count}`);
 
     return {
       hrv_mean: metricsMap.get('hrv')?.mean_value ?? defaults.hrv_mean,
