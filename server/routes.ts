@@ -6119,6 +6119,41 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Debug endpoint to view suppressed topics for a user (for anti-repetition debugging)
+  app.get("/api/admin/user/:userId/suppressions", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const { getSuppressedTopics, getSuppressedTopicsContext } = await import('./services/userMemoryService');
+      const [suppressions, contextString] = await Promise.all([
+        getSuppressedTopics(userId),
+        getSuppressedTopicsContext(userId)
+      ]);
+      
+      logger.info('[Admin] Viewed user suppressions', { 
+        adminId: req.user?.claims?.sub, 
+        targetUserId: userId, 
+        count: suppressions.length 
+      });
+      
+      res.json({
+        userId,
+        count: suppressions.length,
+        suppressions: suppressions.map(s => ({
+          id: s.id,
+          topic: s.memory?.extracted?.topic || s.memory?.raw,
+          reason: s.memory?.extracted?.reason,
+          raw: s.memory?.raw,
+          createdAt: s.occurred_at,
+        })),
+        contextString: contextString || '(no suppressions)',
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Error viewing user suppressions:', error);
+      res.status(500).json({ error: error.message || "Failed to get suppressions" });
+    }
+  });
+
   // Debug endpoint to see raw nutrition samples for a user on a date (for diagnosing duplicate issues)
   app.get("/api/admin/nutrition/debug/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
@@ -14204,6 +14239,13 @@ ${fullContext}`;
       // Fire-and-forget: store Flo's response in chat history
       saveChatMessage(userId, 'flo', finalResponse).catch(err => {
         logger.error('[FloOracle] Failed to store Flo response:', err);
+      });
+      
+      // IMMEDIATE suppression detection - don't wait for GPT extraction
+      import('./services/userMemoryService').then(({ detectAndStoreSuppression }) => {
+        detectAndStoreSuppression(userId, message.trim()).catch(err => {
+          logger.error('[FloOracle] Failed to detect/store suppression:', err);
+        });
       });
       
       // Fire-and-forget: extract and store conversational memories (goals, moods, symptoms, life context)

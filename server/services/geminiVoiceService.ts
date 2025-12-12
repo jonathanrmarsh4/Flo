@@ -6,7 +6,7 @@
 
 import { geminiLiveClient, GeminiLiveConfig, LiveSessionCallbacks } from './geminiLiveClient';
 import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getRecentChatHistory, getUserMemoriesContext } from './floOracleContextBuilder';
-import { getSuppressedTopicsContext } from './userMemoryService';
+import { getSuppressedTopicsContext, detectAndStoreSuppression } from './userMemoryService';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
 import { couldContainLifeEvent, extractLifeEvents, couldContainBiomarkerFollowup, extractBiomarkerFollowup } from './lifeEventParser';
 import { parseConversationalIntent } from './conversationalIntentParser';
@@ -486,6 +486,12 @@ Start the conversation warmly, using their name if you have it.`;
     // Add user text to transcript (accumulate for session-end processing)
     state.transcript.push(`[User]: ${text}`);
     state.fullUserTranscript += (state.fullUserTranscript ? ' ' : '') + text;
+    
+    // IMMEDIATE suppression detection - don't wait for end of session
+    // This ensures topic suppression takes effect immediately
+    detectAndStoreSuppression(state.userId, text).catch(err => {
+      logger.error('[GeminiVoice] Failed to detect/store suppression:', err);
+    });
     
     // Life events are processed at session end to avoid duplicates
     // and to capture the full AI context

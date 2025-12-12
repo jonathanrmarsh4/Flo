@@ -314,7 +314,17 @@ export async function getSuppressedTopicsContext(userId: string): Promise<string
   try {
     const suppressions = await getSuppressedTopics(userId);
     
-    if (!suppressions.length) return '';
+    // Log whether we found suppressions - critical for debugging anti-repetition
+    logger.info('[UserMemory] getSuppressedTopicsContext called', { 
+      userId, 
+      suppressionCount: suppressions.length,
+      hasSuppressions: suppressions.length > 0
+    });
+    
+    if (!suppressions.length) {
+      logger.info('[UserMemory] No suppressed topics found for user', { userId });
+      return '';
+    }
     
     const lines = suppressions.map(row => {
       const m = row.memory;
@@ -323,9 +333,85 @@ export async function getSuppressedTopicsContext(userId: string): Promise<string
       return `- ${topic} (${reason})`;
     });
     
+    // Log exactly what we're suppressing
+    logger.info('[UserMemory] Suppressed topics being added to context', { 
+      userId, 
+      topics: lines,
+      count: lines.length 
+    });
+    
     return `\n\n🚫 SUPPRESSED TOPICS - DO NOT MENTION THESE:\n${lines.join('\n')}\n[User has explicitly asked you to NOT bring up these topics unless they ask first]`;
   } catch (error) {
     logger.error('[UserMemory] Error building suppressed topics context:', error);
     return '';
   }
+}
+
+/**
+ * Directly detect and store a topic suppression from user text
+ * This is a backup mechanism that runs immediately (not waiting for GPT extraction)
+ */
+export async function detectAndStoreSuppression(userId: string, userText: string): Promise<boolean> {
+  const lowerText = userText.toLowerCase();
+  
+  // Patterns that indicate user wants to suppress a topic
+  const suppressionPatterns = [
+    /don'?t\s+(mention|bring up|talk about|discuss|remind me about)\s+(.+?)(?:\s+again|\s+anymore|$)/i,
+    /stop\s+(mentioning|bringing up|talking about|discussing)\s+(.+?)(?:\s+again|\s+anymore|$)/i,
+    /i\s+(don'?t\s+want\s+to\s+hear\s+about|know\s+about)\s+(.+?)(?:\s+again|\s+anymore|$)/i,
+    /(?:i'?m\s+)?(?:already\s+)?(?:seeing\s+a\s+doctor|have\s+an\s+appointment)\s+(?:about|for)\s+(.+)/i,
+    /(?:that'?s?|it'?s?)\s+under\s+control[\s,]+(?:no\s+need\s+to\s+mention|don'?t\s+bring\s+up)\s+(.+)/i,
+    /please?\s+(?:stop|don'?t)\s+(?:mentioning|bringing up)\s+(.+)/i,
+  ];
+  
+  for (const pattern of suppressionPatterns) {
+    const match = userText.match(pattern);
+    if (match) {
+      // Extract the topic from the match
+      const topic = match[match.length - 1]?.trim() || match[1]?.trim();
+      
+      if (topic && topic.length > 2 && topic.length < 100) {
+        logger.info('[UserMemory] Direct suppression detected!', { 
+          userId, 
+          topic, 
+          matchedPattern: pattern.source,
+          originalText: userText.substring(0, 100)
+        });
+        
+        try {
+          // Check for duplicate - don't store if same topic already suppressed
+          const existingSuppressions = await getSuppressedTopics(userId);
+          const normalizedTopic = topic.toLowerCase().trim();
+          const alreadyExists = existingSuppressions.some(s => {
+            const existingTopic = (s.memory?.extracted?.topic || s.memory?.raw || '').toLowerCase().trim();
+            return existingTopic === normalizedTopic || existingTopic.includes(normalizedTopic) || normalizedTopic.includes(existingTopic);
+          });
+          
+          if (alreadyExists) {
+            logger.info('[UserMemory] Suppression already exists, skipping duplicate', { userId, topic });
+            return true; // Still return true - topic IS suppressed
+          }
+          
+          const memory: MemoryPayload = {
+            type: 'topic_suppression',
+            raw: userText.substring(0, 500),
+            extracted: {
+              topic: topic,
+              reason: 'user explicitly requested',
+              detectedAt: new Date().toISOString(),
+            },
+            importance: 'high',
+          };
+          
+          await storeMemory(userId, memory);
+          logger.info('[UserMemory] Suppression stored successfully', { userId, topic });
+          return true;
+        } catch (error) {
+          logger.error('[UserMemory] Failed to store suppression:', error);
+        }
+      }
+    }
+  }
+  
+  return false;
 }
