@@ -211,17 +211,25 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       
       // Use DataView for proper byte-order handling
       const dataView = new DataView(bytes.buffer, bytes.byteOffset, byteLength);
-      const floatSamples = new Float32Array(numSamples);
+      let floatSamples = new Float32Array(numSamples);
       for (let i = 0; i < numSamples; i++) {
         // Read as little-endian 16-bit signed integer
         const sample = dataView.getInt16(i * 2, true);
         floatSamples[i] = sample / 32768.0;
       }
       
-      // Create audio buffer at the ACTUAL AudioContext sample rate
-      // iOS Safari uses device native rate (48kHz), so we must create buffer at that rate
-      // and let the browser handle the playback correctly
-      const audioBuffer = ctx.createBuffer(1, floatSamples.length, 24000);
+      // iOS Safari ignores AudioContext sampleRate parameter and uses device native rate (~48kHz)
+      // We must resample the 24kHz Gemini audio to match the actual context rate
+      const GEMINI_SAMPLE_RATE = 24000;
+      const actualSampleRate = ctx.sampleRate;
+      
+      if (actualSampleRate !== GEMINI_SAMPLE_RATE) {
+        console.log('[GeminiLive] Resampling from', GEMINI_SAMPLE_RATE, 'to', actualSampleRate);
+        floatSamples = resampleAudio(floatSamples, GEMINI_SAMPLE_RATE, actualSampleRate);
+      }
+      
+      // Create buffer at the ACTUAL AudioContext sample rate
+      const audioBuffer = ctx.createBuffer(1, floatSamples.length, actualSampleRate);
       audioBuffer.copyToChannel(floatSamples, 0);
 
       // Queue the buffer and start playback if not already playing
