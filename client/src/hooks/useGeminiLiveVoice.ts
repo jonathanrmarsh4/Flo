@@ -90,6 +90,9 @@ function uint8ToBase64(uint8: Uint8Array): string {
 }
 
 export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
+  // Debug: log hook initialization with timestamp to verify code loading
+  console.log('[GeminiLive] HOOK INITIALIZED - v3 ' + new Date().toISOString());
+  
   const [state, setState] = useState<GeminiLiveState>({
     isConnected: false,
     isListening: false,
