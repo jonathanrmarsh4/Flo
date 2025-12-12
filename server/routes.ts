@@ -7958,6 +7958,25 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Cleanup test reminder data (admin only)
+  app.post("/api/admin/cleanup-test-reminders", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { cleanupTestReminders } = await import("./services/reminderDeliveryService");
+      const result = await cleanupTestReminders();
+      
+      logger.info(`[Admin] Test reminders cleanup: ${result.deleted} reminders deleted`);
+      res.json({ 
+        success: true, 
+        message: `Deleted ${result.deleted} test reminders`,
+        deleted: result.deleted,
+        testIds: result.testIds
+      });
+    } catch (error: any) {
+      logger.error('Error cleaning up test reminders:', error);
+      res.status(500).json({ error: "Failed to cleanup test reminders", message: error.message });
+    }
+  });
+
   // Clear Flō Oracle context cache (admin only, for debugging)
   app.post("/api/admin/clear-oracle-cache", isAuthenticated, requireAdmin, async (req: any, res) => {
     try {
@@ -8124,6 +8143,32 @@ Important: This is for educational purposes. Include a brief note that users sho
       });
     } catch (error: any) {
       logger.error('[CLI] Test push error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Cleanup test reminders (CLI-compatible)
+  app.post("/api/cli/cleanup-test-reminders", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { cleanupTestReminders } = await import("./services/reminderDeliveryService");
+      const result = await cleanupTestReminders();
+      
+      logger.info(`[CLI] Test reminders cleanup: ${result.deleted} reminders deleted`);
+      res.json({ 
+        success: true, 
+        message: `Deleted ${result.deleted} test reminders`,
+        deleted: result.deleted,
+        testIds: result.testIds
+      });
+    } catch (error: any) {
+      logger.error('[CLI] Test reminders cleanup error:', error);
       res.status(500).json({ error: error.message });
     }
   });

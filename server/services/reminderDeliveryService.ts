@@ -295,6 +295,56 @@ export async function triggerManualDelivery() {
   await deliverQueuedReminders();
 }
 
+/**
+ * Clean up test reminders from development/testing
+ * Removes undelivered reminders for known test user IDs
+ */
+export async function cleanupTestReminders(): Promise<{ deleted: number; testIds: string[] }> {
+  const supabase = getSupabaseClient();
+  
+  // Known test health_ids from logs
+  const testHealthIds = [
+    'test-persist-v2',
+    'backend-test-final',
+    'e2e-upload-test',
+    'upload-fix-test',
+    'quick-test-v2',
+    'pdf-test-v3',
+    'final-test',
+    'test-user-upload-history',
+    'success-test',
+    'test-user-123',
+    'test_user_calcium_exp',
+    't3QGZd',
+    'e2e-winner',
+    '444abc7b-fa12-47ef-8085-bd7c40d27420',
+    'test-user-comprehensive-report-123',
+    'K8aFip',
+  ];
+  
+  try {
+    // Delete reminders for test users
+    const { data, error } = await supabase
+      .from('daily_reminders')
+      .delete()
+      .in('user_id', testHealthIds)
+      .select('id');
+    
+    if (error) {
+      logger.error('[ReminderDelivery] Failed to cleanup test reminders:', error);
+      throw error;
+    }
+    
+    const deletedCount = data?.length || 0;
+    logger.info(`[ReminderDelivery] Cleaned up ${deletedCount} test reminders for ${testHealthIds.length} test user IDs`);
+    
+    return { deleted: deletedCount, testIds: testHealthIds };
+  } catch (error) {
+    logger.error('[ReminderDelivery] Error during test cleanup:', error);
+    throw error;
+  }
+}
+
 export async function triggerManualSurveyNotification(userId: string) {
   try {
     const user = await db
