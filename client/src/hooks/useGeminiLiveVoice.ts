@@ -218,26 +218,21 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       
       // Use DataView for proper byte-order handling
       const dataView = new DataView(bytes.buffer, bytes.byteOffset, byteLength);
-      let floatSamples = new Float32Array(numSamples);
+      const floatSamples = new Float32Array(numSamples);
       for (let i = 0; i < numSamples; i++) {
         // Read as little-endian 16-bit signed integer
         const sample = dataView.getInt16(i * 2, true);
         floatSamples[i] = sample / 32768.0;
       }
       
-      // iOS Safari ignores AudioContext sampleRate parameter and uses device native rate (~48kHz)
-      // We must resample the 24kHz Gemini audio to match the actual context rate
+      // Create buffer at the SOURCE sample rate (24kHz from Gemini)
+      // The Web Audio API will automatically resample when playing back
+      // at the AudioContext's native rate
       const GEMINI_SAMPLE_RATE = 24000;
-      const actualSampleRate = ctx.sampleRate;
-      
-      if (actualSampleRate !== GEMINI_SAMPLE_RATE) {
-        console.log('[GeminiLive] Resampling from', GEMINI_SAMPLE_RATE, 'to', actualSampleRate);
-        floatSamples = resampleAudio(floatSamples, GEMINI_SAMPLE_RATE, actualSampleRate);
-      }
-      
-      // Create buffer at the ACTUAL AudioContext sample rate
-      const audioBuffer = ctx.createBuffer(1, floatSamples.length, actualSampleRate);
+      const audioBuffer = ctx.createBuffer(1, floatSamples.length, GEMINI_SAMPLE_RATE);
       audioBuffer.copyToChannel(floatSamples, 0);
+      
+      console.log('[GeminiLive] Buffer created at', GEMINI_SAMPLE_RATE, 'Hz, context at', ctx.sampleRate, 'Hz');
 
       // Queue the buffer and start playback if not already playing
       audioQueueRef.current.push(audioBuffer);
@@ -250,7 +245,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     } catch (error) {
       console.error('[GeminiLive] Failed to decode audio:', error);
     }
-  }, [playNextAudio, resampleAudio]);
+  }, [playNextAudio]);
 
   // Connect to WebSocket
   const connect = useCallback(async () => {
