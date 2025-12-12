@@ -15829,11 +15829,14 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   });
 
   // POST /api/briefing/generate - Manually trigger briefing generation (for testing)
+  // Pass { force: true } in body to delete and regenerate existing briefing
   app.post("/api/briefing/generate", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
+    
+    const force = req.body?.force === true;
 
     try {
       const healthId = await healthRouter.getHealthId(userId);
@@ -15844,7 +15847,13 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       const { formatInTimeZone } = await import('date-fns-tz');
       const today = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
       
-      const { morningBriefingOrchestrator } = await import('./services/morningBriefingOrchestrator');
+      const { morningBriefingOrchestrator, deleteTodaysBriefing } = await import('./services/morningBriefingOrchestrator');
+      
+      // If force flag, delete existing briefing first so we can regenerate with correct readiness
+      if (force) {
+        await deleteTodaysBriefing(userId, today);
+        logger.info(`[MorningBriefing] Deleted existing briefing for ${userId} on ${today} (force regenerate)`);
+      }
       
       // Get user profile from Supabase
       const profile = await supabaseHealthStorage.getProfile(userId);
