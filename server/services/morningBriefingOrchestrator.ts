@@ -360,7 +360,7 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
       deep_sleep_minutes: sleepData?.deep_sleep_min ?? null,
       rem_sleep_minutes: sleepData?.rem_sleep_min ?? null,
       sleep_efficiency: sleepData?.sleep_efficiency_pct ?? null,
-      steps: dailyMetrics?.steps_raw_sum ?? dailyMetrics?.steps_normalized ?? null,
+      steps: dailyMetrics?.steps_raw_sum ?? null,
       active_energy: dailyMetrics?.active_energy_kcal ?? null,
       workout_minutes: dailyMetrics?.exercise_minutes ?? null,
       readiness_score: null, // Calculated by aggregateDailyInsights using readinessEngine
