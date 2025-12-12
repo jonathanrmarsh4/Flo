@@ -15,9 +15,21 @@ let tokenFetchPromise: Promise<string | null> | null = null;
 let tokenCacheTime: number = 0;
 const TOKEN_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes - token expiry is 7 days
 
-// Eagerly load the plugin on native platforms to avoid freeze on first interaction
+// Check if we're in an iOS/Android WebView with native plugins available
+// isNativePlatform() returns false when frontend is served from web URL (get-flo.com)
+// but native plugins may still be available via the Capacitor bridge
+function hasSecureStorageCapability(): boolean {
+  // Check if Capacitor bridge is available (works even when isNativePlatform returns false)
+  if (typeof window !== 'undefined' && (window as any).Capacitor?.isPluginAvailable) {
+    return (window as any).Capacitor.isPluginAvailable('SecureStoragePlugin');
+  }
+  // Fallback to platform check
+  return Capacitor.isNativePlatform();
+}
+
+// Eagerly load the plugin if native capabilities are available
 // CRITICAL: Store the promise so getAuthToken() can await it instead of re-importing
-if (Capacitor.isNativePlatform()) {
+if (hasSecureStorageCapability() || Capacitor.isNativePlatform()) {
   secureStorageLoadPromise = import('capacitor-secure-storage-plugin').then(module => {
     SecureStoragePluginInstance = module.SecureStoragePlugin;
     console.log('[QueryClient] SecureStoragePlugin pre-loaded');
@@ -72,7 +84,10 @@ async function fetchTokenFromSecureStorage(): Promise<string | null> {
 // Before: 10 parallel queries = 10 native bridge calls = 200-500ms freeze
 // After: 10 parallel queries = 1 native bridge call = 20-50ms
 export async function getAuthToken(): Promise<string | null> {
-  if (Capacitor.isNativePlatform()) {
+  // Use capability check instead of platform check - works when frontend is served from web URL
+  const hasSecureStorage = hasSecureStorageCapability();
+  
+  if (hasSecureStorage) {
     const now = Date.now();
     
     // Return cached token if still valid
@@ -92,12 +107,31 @@ export async function getAuthToken(): Promise<string | null> {
       if (token) {
         cachedAuthToken = token;
         tokenCacheTime = Date.now();
+        return token;
+      }
+      // SecureStorage returned null - check localStorage as fallback
+      // (token may have been stored there if SecureStorage wasn't available during login)
+      const localToken = localStorage.getItem('auth_token');
+      if (localToken) {
+        cachedAuthToken = localToken;
+        tokenCacheTime = Date.now();
+        console.log('[AuthToken] Found token in localStorage fallback');
+        return localToken;
       }
       tokenFetchPromise = null; // Clear the promise once resolved
-      return token;
+      return null;
     }).catch(error => {
+      // SecureStorage failed - check localStorage as fallback
+      console.log('[AuthToken] SecureStorage error, checking localStorage:', error);
+      const localToken = localStorage.getItem('auth_token');
+      if (localToken) {
+        cachedAuthToken = localToken;
+        tokenCacheTime = Date.now();
+        tokenFetchPromise = null;
+        return localToken;
+      }
       tokenFetchPromise = null; // Clear on error so next call can retry
-      throw error;
+      return null;
     });
     
     return tokenFetchPromise;
