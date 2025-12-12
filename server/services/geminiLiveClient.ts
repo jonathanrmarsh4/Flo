@@ -258,12 +258,20 @@ class GeminiLiveClient {
         callbacks.onTranscript(userText, false);
       }
 
-      // Handle model's text response if present in serverContent
+      // Handle model's response (text and/or audio) in modelTurn.parts
       if (message.serverContent?.modelTurn?.parts) {
         for (const part of message.serverContent.modelTurn.parts) {
+          // Handle text response
           if (part.text) {
-            // This is the model's text response
             callbacks.onModelText(part.text);
+          }
+          
+          // Handle audio response from native-audio model
+          // Audio comes in part.inlineData with mimeType 'audio/pcm;rate=24000'
+          const inlineData = (part as any).inlineData;
+          if (inlineData?.data && inlineData?.mimeType?.includes('audio')) {
+            const audioBuffer = Buffer.from(inlineData.data, 'base64');
+            callbacks.onAudioChunk(audioBuffer);
           }
         }
       }

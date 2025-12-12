@@ -1,0 +1,51 @@
+
+
+⚡️  [log] - [VoiceChat] Starting Gemini Live conversation...
+⚡️  [log] - [GeminiLive] WebSocket connected
+⚡️  [log] - [GeminiLive] Session started: voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765524920335
+⚡️  [log] - [VoiceChat] Connected to Gemini Live
+⚡️  [warn] - [GeminiLive] Wake lock not available: {}
+🎤 Media capture permission requested - type: WKMediaCaptureType(rawValue: 1)
+✅ Granting microphone permission
+⚡️  [log] - [GeminiLive] Device sample rate: 48000
+⚡️  [log] - [GeminiLive] Started listening - capturing and resampling to 16kHz
+⚡️  [log] - [GeminiLive] Model response: **Addressing Health Concerns**
+
+Okay, Jon, I'm rea
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [GeminiLive] Turn complete
+⚡️  [log] - [VoiceChat] Transcript:  High fly. Final: false
+⚡️  [log] - [GeminiLive] Model response: **Initiating a Response**
+
+I've crafted a warm gre
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [GeminiLive] Turn complete
+⚡️  [log] - [VoiceChat] Ending conversation...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] WebSocket closed: 1005 
+⚡️  [log] - [VoiceChat] Disconnected from Gemini Live
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+⚡️  To Native ->  Preferences set 52927638
+⚡️  TO JS undefined
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 52927639
+⚡️  TO JS {"value":"1765524958581"}
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  To Native ->  Preferences get 52927640
+⚡️  TO JS {"value":"1765522510303"}
+⚡️  To Native ->  Preferences get 52927641
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
+Snapshotting a view (0x11ea35800, UIKeyboardImpl) that has not been rendered at least once requires afterScreenUpdates:YES.
+⚡️  To Native ->  Preferences set 52927642
+⚡️  TO JS undefined
+⚡️  To Native ->  Preferences set 52927643
+⚡️  TO JS undefined
+WebContent[71446] 0x400000164004150 - [sessionID=1] WebProcess::markAllLayersVolatile: Failed
