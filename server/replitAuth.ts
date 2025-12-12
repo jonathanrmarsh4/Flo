@@ -182,6 +182,17 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // First, check for JWT token in Authorization header (mobile authentication)
   const authHeader = req.headers.authorization;
+  
+  // DEBUG: Log auth header presence for troubleshooting iOS 401 issues
+  if (req.path.includes('/tiles/why')) {
+    logger.info('[AuthDebug] Why endpoint auth check', {
+      path: req.path,
+      hasAuthHeader: !!authHeader,
+      authHeaderPrefix: authHeader?.substring(0, 15),
+      hasSession: !!req.isAuthenticated?.(),
+    });
+  }
+  
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     
