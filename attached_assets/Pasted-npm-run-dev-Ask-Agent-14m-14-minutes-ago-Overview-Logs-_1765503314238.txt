@@ -1,0 +1,199 @@
+npm run dev
+
+Ask Agent…
+14m
+ • 
+14 minutes ago
+
+
+
+Overview
+
+Logs
+
+Analytics
+
+Resources
+
+Domains
+
+Manage
+
+
+
+Errors only
+
+Date
+Time
+Deployment
+Source
+Log
+2025-12-12 09:33:06.52
+56861eb8
+User
+[2025-12-12T01:33:06.528Z] [WARN] [APNs] No active device tokens found for user test-persist-v2
+2025-12-12 09:33:11.14
+56861eb8
+User
+[2025-12-12T01:33:11.141Z] [WARN] [APNs] No active device tokens found for user backend-test-final
+2025-12-12 09:33:11.41
+56861eb8
+User
+[2025-12-12T01:33:11.412Z] [WARN] [ReminderDelivery] No user_profile found for health_id e2e-upload-test, using as-is
+2025-12-12 09:33:11.44
+56861eb8
+User
+[2025-12-12T01:33:11.446Z] [WARN] [APNs] No active device tokens found for user e2e-upload-test
+2025-12-12 09:33:11.44
+56861eb8
+User
+[2025-12-12T01:33:11.446Z] [WARN] [ReminderDelivery] No devices reached for user e2e-upload-test {"error":"No active devices"}
+2025-12-12 09:33:11.69
+56861eb8
+User
+[2025-12-12T01:33:11.698Z] [WARN] [ReminderDelivery] No user_profile found for health_id upload-fix-test, using as-is
+2025-12-12 09:33:11.73
+56861eb8
+User
+[2025-12-12T01:33:11.732Z] [WARN] [APNs] No active device tokens found for user upload-fix-test
+2025-12-12 09:33:11.73
+56861eb8
+User
+[2025-12-12T01:33:11.732Z] [WARN] [ReminderDelivery] No devices reached for user upload-fix-test {"error":"No active devices"}
+2025-12-12 09:33:11.97
+56861eb8
+User
+[2025-12-12T01:33:11.979Z] [WARN] [ReminderDelivery] No user_profile found for health_id quick-test-v2, using as-is
+2025-12-12 09:33:12.01
+56861eb8
+User
+[2025-12-12T01:33:12.014Z] [WARN] [APNs] No active device tokens found for user quick-test-v2
+2025-12-12 09:33:12.01
+56861eb8
+User
+[2025-12-12T01:33:12.014Z] [WARN] [ReminderDelivery] No devices reached for user quick-test-v2 {"error":"No active devices"}
+2025-12-12 09:33:12.26
+56861eb8
+User
+[2025-12-12T01:33:12.267Z] [WARN] [ReminderDelivery] No user_profile found for health_id pdf-test-v3, using as-is
+2025-12-12 09:33:12.32
+56861eb8
+User
+[2025-12-12T01:33:12.324Z] [WARN] [ReminderDelivery] No devices reached for user pdf-test-v3 {"error":"No active devices"}
+2025-12-12 09:33:12.32
+56861eb8
+User
+[2025-12-12T01:33:12.324Z] [WARN] [APNs] No active device tokens found for user pdf-test-v3
+2025-12-12 09:33:12.59
+56861eb8
+User
+[2025-12-12T01:33:12.590Z] [WARN] [ReminderDelivery] No user_profile found for health_id final-test, using as-is
+2025-12-12 09:33:12.62
+56861eb8
+User
+[2025-12-12T01:33:12.625Z] [WARN] [ReminderDelivery] No devices reached for user final-test {"error":"No active devices"}
+2025-12-12 09:33:12.62
+56861eb8
+User
+[2025-12-12T01:33:12.625Z] [WARN] [APNs] No active device tokens found for user final-test
+2025-12-12 09:33:12.88
+56861eb8
+User
+[2025-12-12T01:33:12.885Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-upload-history, using as-is
+2025-12-12 09:33:12.92
+56861eb8
+User
+[2025-12-12T01:33:12.920Z] [WARN] [ReminderDelivery] No devices reached for user test-user-upload-history {"error":"No active devices"}
+2025-12-12 09:33:12.92
+56861eb8
+User
+[2025-12-12T01:33:12.920Z] [WARN] [APNs] No active device tokens found for user test-user-upload-history
+2025-12-12 09:33:13.18
+56861eb8
+User
+[2025-12-12T01:33:13.183Z] [WARN] [ReminderDelivery] No user_profile found for health_id success-test, using as-is
+2025-12-12 09:33:13.21
+56861eb8
+User
+[2025-12-12T01:33:13.218Z] [WARN] [APNs] No active device tokens found for user success-test
+
+2025-12-12 09:33:13.21
+56861eb8
+User
+[2025-12-12T01:33:13.218Z] [WARN] [ReminderDelivery] No devices reached for user success-test {"error":"No active devices"}
+2025-12-12 09:33:13.46
+56861eb8
+User
+[2025-12-12T01:33:13.468Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-123, using as-is
+2025-12-12 09:33:13.50
+56861eb8
+User
+[2025-12-12T01:33:13.503Z] [WARN] [ReminderDelivery] No devices reached for user test-user-123 {"error":"No active devices"}
+2025-12-12 09:33:13.50
+56861eb8
+User
+[2025-12-12T01:33:13.503Z] [WARN] [APNs] No active device tokens found for user test-user-123
+2025-12-12 09:33:13.85
+56861eb8
+User
+[2025-12-12T01:33:13.850Z] [WARN] [ReminderDelivery] No user_profile found for health_id test_user_calcium_exp, using as-is
+2025-12-12 09:33:13.88
+56861eb8
+User
+[2025-12-12T01:33:13.883Z] [WARN] [APNs] No active device tokens found for user test_user_calcium_exp
+2025-12-12 09:33:13.88
+56861eb8
+User
+[2025-12-12T01:33:13.884Z] [WARN] [ReminderDelivery] No devices reached for user test_user_calcium_exp {"error":"No active devices"}
+2025-12-12 09:33:14.15
+56861eb8
+User
+[2025-12-12T01:33:14.151Z] [WARN] [ReminderDelivery] No user_profile found for health_id t3QGZd, using as-is
+2025-12-12 09:33:14.18
+56861eb8
+User
+[2025-12-12T01:33:14.186Z] [WARN] [ReminderDelivery] No devices reached for user t3QGZd {"error":"No active devices"}
+2025-12-12 09:33:14.18
+56861eb8
+User
+[2025-12-12T01:33:14.186Z] [WARN] [APNs] No active device tokens found for user t3QGZd
+2025-12-12 09:33:14.44
+56861eb8
+User
+[2025-12-12T01:33:14.447Z] [WARN] [ReminderDelivery] No user_profile found for health_id e2e-winner, using as-is
+2025-12-12 09:33:14.48
+56861eb8
+User
+[2025-12-12T01:33:14.482Z] [WARN] [APNs] No active device tokens found for user e2e-winner
+2025-12-12 09:33:14.48
+56861eb8
+User
+[2025-12-12T01:33:14.482Z] [WARN] [ReminderDelivery] No devices reached for user e2e-winner {"error":"No active devices"}
+2025-12-12 09:33:14.74
+56861eb8
+User
+[2025-12-12T01:33:14.741Z] [WARN] [ReminderDelivery] No user_profile found for health_id 444abc7b-fa12-47ef-8085-bd7c40d27420, using as-is
+2025-12-12 09:33:14.77
+56861eb8
+User
+[2025-12-12T01:33:14.776Z] [WARN] [ReminderDelivery] No devices reached for user 444abc7b-fa12-47ef-8085-bd7c40d27420 {"error":"No active devices"}
+2025-12-12 09:33:14.77
+56861eb8
+User
+[2025-12-12T01:33:14.775Z] [WARN] [APNs] No active device tokens found for user 444abc7b-fa12-47ef-8085-bd7c40d27420
+2025-12-12 09:33:15.02
+56861eb8
+User
+[2025-12-12T01:33:15.022Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-comprehensive-report-123, using as-is
+2025-12-12 09:33:15.05
+56861eb8
+User
+[2025-12-12T01:33:15.056Z] [WARN] [ReminderDelivery] No devices reached for user test-user-comprehensive-report-123 {"error":"No active devices"}
+2025-12-12 09:33:15.05
+56861eb8
+User
+[2025-12-12T01:33:15.056Z] [WARN] [APNs] No active device tokens found for user test-user-comprehensive-report-123
+2025-12-12 09:33:15.30
+56861eb8
+User
+[2025-12-12T01:33:15.304Z] [WARN] [ReminderDelivery] No user_profile found for health_id K8aFip, using as-is
