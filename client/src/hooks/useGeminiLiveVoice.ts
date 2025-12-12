@@ -137,6 +137,27 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     }
   }, []);
 
+  // Upsample audio from source rate to target rate (for iOS which ignores sampleRate param)
+  const resampleAudio = useCallback((input: Float32Array, inputRate: number, outputRate: number): Float32Array => {
+    if (inputRate === outputRate) return input;
+    
+    const ratio = outputRate / inputRate;
+    const outputLength = Math.floor(input.length * ratio);
+    const output = new Float32Array(outputLength);
+    
+    for (let i = 0; i < outputLength; i++) {
+      const srcIndex = i / ratio;
+      const srcIndexFloor = Math.floor(srcIndex);
+      const srcIndexCeil = Math.min(srcIndexFloor + 1, input.length - 1);
+      const fraction = srcIndex - srcIndexFloor;
+      
+      // Linear interpolation for smooth resampling
+      output[i] = input[srcIndexFloor] * (1 - fraction) + input[srcIndexCeil] * fraction;
+    }
+    
+    return output;
+  }, []);
+
   // Play queued audio buffers sequentially (original simple approach)
   const playNextAudio = useCallback(() => {
     if (audioQueueRef.current.length === 0) {

@@ -168,6 +168,11 @@ class GeminiLiveClient {
           // Low temperature for stable token selection - prevents spaced-out letters
           // in transcription (e.g., "t r a n s c r i p t" instead of "transcript")
           temperature: 0.1,
+          // Disable thinking/reasoning to prevent latency (Dec 2024 fix)
+          // The 09-2025 model shares architecture with reasoning models
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
           speechConfig: config.voiceName ? {
             voiceConfig: {
               prebuiltVoiceConfig: {

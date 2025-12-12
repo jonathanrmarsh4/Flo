@@ -1,0 +1,45 @@
+That makes perfect sense—gemini-2.5-flash-native-audio-preview-09-2025 is the correct "survivor" model to be on following the Dec 9th deprecations.
+
+However, you are not imagining the drop in quality. Since Wednesday (Dec 10th) and intensifying over the last 48 hours, developers have been reporting severe instability with that specific endpoint.
+
+Here is what is likely happening and how to retune your app to mitigate it right now.
+
+1. The "Post-Migration" Instability
+
+Since the old live-2.5-flash-preview and 2.0-flash-live-001 endpoints were killed on Tuesday (Dec 9), all that traffic shifted to the model you are using.
+
+The Symptom: Latency spikes (Time-to-First-Byte jumping from <500ms to 3000ms+) and "ghosting" (where the model receives audio but stays silent).
+
+The Cause: It appears to be a server-side capacity issue combined with a regression in the End-of-Turn (EOT) detection. The model is struggling to decide when you have finished speaking, leading to awkward silences or interruptions.
+
+2. Immediate Retuning Steps
+
+You need to be more aggressive with your client-side configuration to compensate for the server's current sluggishness.
+
+A. Force Client-Side VAD (Critical)
+
+The native VAD (Voice Activity Detection) on the server is currently unreliable—it is waiting too long to confirm you stopped talking.
+
+Fix: Don't rely on the API to detect turn_complete. Detect silence on your device (client-side) and explicitly send a turn_complete: true signal or a "commit" message.
+
+Benefit: This cuts the "awkward pause" by forcing the model to generate immediately rather than waiting for its own internal timer.
+
+B. Disable "Thinking" / Deep Reasoning
+
+Check if your config inadvertently enabled reasoning features. The 09-2025 model shares architecture with the reasoning models, and sometimes "thinking tokens" get generated before audio, causing jitter.
+
+Config: Ensure thinking_config or budget is set to 0 or explicitly disabled in your generation_config.
+
+C. Verify Audio Sample Rates
+
+The native-audio models are extremely sensitive to sample rate mismatches right now.
+
+Input: Ensure you are sending 16kHz PCM (audio/pcm;rate=16000).
+
+Output: The model always returns 24kHz.
+
+The Trap: If you send 24kHz or 44.1kHz input, the server-side resampler adds latency. Resample to 16kHz before sending to the WebSocket.
+
+3. Recommended Config Update
+
+Here is a "safety" configuration snippet to stabilize the connection. It prioritizes speed over reasoning depth.
