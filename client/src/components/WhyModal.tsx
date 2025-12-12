@@ -1,5 +1,6 @@
 import { X, Sparkles, MessageCircle, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface WhyInsightResponse {
   tileType: string;
@@ -59,7 +60,7 @@ export function WhyModal({
   const aiExplanation = data?.explanation || '';
   const keyInsights = data?.keyInsights || [];
 
-  return (
+  const modalContent = (
     <>
       {/* Full Screen Dimmed Backdrop */}
       <div 
@@ -266,4 +267,7 @@ export function WhyModal({
       </div>
     </>
   );
+
+  // Render modal at document body level using portal
+  return createPortal(modalContent, document.body);
 }
