@@ -8273,6 +8273,228 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Search for user in Supabase by name or email (CLI-compatible)
+  app.get("/api/cli/search-user", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { name, recent } = req.query;
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const supabase = getSupabaseClient();
+      
+      if (recent === 'true') {
+        // Find users with recent biomarker uploads (last 7 days)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        const { data: recentSessions, error } = await supabase
+          .from('biomarker_test_sessions')
+          .select('health_id, test_date, source, created_at')
+          .gte('created_at', sevenDaysAgo.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(20);
+        
+        if (error) {
+          return res.status(500).json({ error: error.message });
+        }
+        
+        // Get profiles for these health_ids
+        const healthIds = [...new Set(recentSessions?.map(s => s.health_id) || [])];
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('health_id, user_id, name, created_at')
+          .in('health_id', healthIds);
+        
+        const profileMap = new Map((profiles || []).map(p => [p.health_id, p]));
+        
+        const results = recentSessions?.map(s => ({
+          healthId: s.health_id,
+          testDate: s.test_date,
+          source: s.source,
+          uploadedAt: s.created_at,
+          profile: profileMap.get(s.health_id) || null,
+        }));
+        
+        return res.json({
+          type: 'recent_uploads',
+          count: results?.length || 0,
+          results,
+        });
+      }
+      
+      if (name) {
+        // Search user_profiles by name (case-insensitive)
+        const { data: profiles, error } = await supabase
+          .from('user_profiles')
+          .select('health_id, user_id, name, created_at')
+          .ilike('name', `%${name}%`)
+          .limit(10);
+        
+        if (error) {
+          return res.status(500).json({ error: error.message });
+        }
+        
+        return res.json({
+          type: 'name_search',
+          query: name,
+          count: profiles?.length || 0,
+          profiles,
+        });
+      }
+      
+      return res.json({
+        error: "Provide either ?name=<search> or ?recent=true",
+        examples: [
+          "/api/cli/search-user?name=John",
+          "/api/cli/search-user?recent=true",
+        ],
+      });
+    } catch (error: any) {
+      logger.error('[CLI] User search error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Investigate user biomarker data (CLI-compatible) - queries Supabase directly
+  app.get("/api/cli/user-biomarkers/:userId", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId } = req.params;
+      const { getSupabaseClient } = await import('./services/supabaseClient');
+      const supabase = getSupabaseClient();
+      
+      // First, check user_profiles to find the health_id
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('health_id, name, created_at')
+        .eq('user_id', userId)
+        .single();
+      
+      if (profileError && profileError.code !== 'PGRST116') {
+        logger.error('[CLI] Error fetching user profile:', profileError);
+      }
+      
+      const healthId = profile?.health_id;
+      
+      // Also check if health_id matches the userId directly (some users have userId = health_id)
+      let effectiveHealthId = healthId;
+      
+      if (!healthId) {
+        // Try using userId as health_id directly
+        const { data: directSessions } = await supabase
+          .from('biomarker_test_sessions')
+          .select('id, health_id')
+          .eq('health_id', userId)
+          .limit(1);
+        
+        if (directSessions && directSessions.length > 0) {
+          effectiveHealthId = userId;
+          logger.info(`[CLI] No profile found, but sessions exist with health_id = userId`);
+        } else {
+          return res.json({
+            userId,
+            healthId: null,
+            error: "No health_id found for this user in Supabase user_profiles",
+            hint: "User may not have completed onboarding or health_id not linked. Try searching by email or check user_profiles table.",
+          });
+        }
+      }
+      
+      // Fetch biomarker sessions directly from Supabase
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('biomarker_test_sessions')
+        .select('*')
+        .eq('health_id', effectiveHealthId)
+        .order('test_date', { ascending: false });
+      
+      if (sessionsError) {
+        logger.error('[CLI] Error fetching biomarker sessions:', sessionsError);
+        return res.status(500).json({ error: sessionsError.message });
+      }
+      
+      // For each session, fetch its measurements
+      const sessionsWithMeasurements = await Promise.all(
+        (sessions || []).map(async (session: any) => {
+          const { data: measurements, error: measurementsError } = await supabase
+            .from('biomarker_measurements')
+            .select('*')
+            .eq('session_id', session.id);
+          
+          if (measurementsError) {
+            logger.error(`[CLI] Error fetching measurements for session ${session.id}:`, measurementsError);
+            return { ...session, measurementCount: 0, measurements: [], error: measurementsError.message };
+          }
+          
+          return {
+            id: session.id,
+            testDate: session.test_date,
+            source: session.source,
+            createdAt: session.created_at,
+            measurementCount: measurements?.length || 0,
+            measurements: (measurements || []).map((m: any) => ({
+              biomarkerId: m.biomarker_id,
+              valueRaw: m.value_raw,
+              unitRaw: m.unit_raw,
+              valueCanonical: m.value_canonical,
+              unitCanonical: m.unit_canonical,
+            })),
+          };
+        })
+      );
+
+      // Count total unique biomarkers and measurements
+      const allMeasurements = sessionsWithMeasurements.flatMap(s => s.measurements);
+      const uniqueBiomarkerIds = new Set(allMeasurements.map(m => m.biomarkerId));
+      
+      logger.info(`[CLI] Biomarker investigation for user ${userId} (health_id: ${effectiveHealthId}): ${sessions?.length || 0} sessions, ${allMeasurements.length} total measurements, ${uniqueBiomarkerIds.size} unique biomarkers`);
+      
+      // Check which biomarker IDs exist in the catalog
+      const catalogBiomarkerIds = await db
+        .select({ id: biomarkers.id, name: biomarkers.name })
+        .from(biomarkers);
+      
+      const catalogIdSet = new Set(catalogBiomarkerIds.map(b => b.id));
+      const catalogIdToName = new Map(catalogBiomarkerIds.map(b => [b.id, b.name]));
+      
+      // Categorize measurements
+      const matchedMeasurements = allMeasurements.filter(m => catalogIdSet.has(m.biomarkerId));
+      const unmatchedMeasurements = allMeasurements.filter(m => !catalogIdSet.has(m.biomarkerId));
+      
+      res.json({
+        userId,
+        healthId: effectiveHealthId,
+        profileName: profile?.name,
+        sessionCount: sessions?.length || 0,
+        totalMeasurements: allMeasurements.length,
+        uniqueBiomarkers: uniqueBiomarkerIds.size,
+        sessions: sessionsWithMeasurements,
+        catalogAnalysis: {
+          catalogSize: catalogBiomarkerIds.length,
+          matchedMeasurements: matchedMeasurements.length,
+          unmatchedMeasurements: unmatchedMeasurements.length,
+          unmatchedBiomarkerIds: [...new Set(unmatchedMeasurements.map(m => m.biomarkerId))],
+          hint: unmatchedMeasurements.length > 0 
+            ? "These biomarker IDs exist in measurements but NOT in the catalog - they will be hidden in the UI"
+            : "All measurements have matching catalog entries",
+        },
+      });
+    } catch (error: any) {
+      logger.error('[CLI] Biomarker investigation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // CLI: Trigger correlation analysis for a user (for testing causal analysis)
   app.post("/api/cli/correlation-analysis/:userId", async (req: any, res) => {
     try {
