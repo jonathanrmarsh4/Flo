@@ -54,9 +54,15 @@ async function fetchTokenFromSecureStorage(): Promise<string | null> {
     }
     
     const { value } = await SecureStoragePluginInstance.get({ key: 'auth_token' });
+    if (value) {
+      console.log('[AuthToken] Successfully retrieved token from secure storage');
+    } else {
+      console.log('[AuthToken] Token key exists but value is empty/null');
+    }
     return value;
-  } catch (error) {
+  } catch (error: any) {
     // Token not found or error reading secure storage
+    console.log('[AuthToken] Failed to get token from secure storage:', error?.message || error);
     return null;
   }
 }
@@ -81,8 +87,12 @@ export async function getAuthToken(): Promise<string | null> {
     
     // Start a new fetch and store the promise for deduplication
     tokenFetchPromise = fetchTokenFromSecureStorage().then(token => {
-      cachedAuthToken = token;
-      tokenCacheTime = Date.now();
+      // BUGFIX: Only cache valid tokens, not null - otherwise we cache "no token" for 5 minutes
+      // which causes 401 errors even after the user logs in
+      if (token) {
+        cachedAuthToken = token;
+        tokenCacheTime = Date.now();
+      }
       tokenFetchPromise = null; // Clear the promise once resolved
       return token;
     }).catch(error => {
