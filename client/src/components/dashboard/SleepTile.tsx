@@ -18,6 +18,7 @@ interface HealthKitSleepData {
   bedtime_local: string;
   waketime_local: string;
   headline_insight: string;
+  source?: 'healthkit' | 'oura' | 'manual'; // Data source indicator
 }
 
 interface ManualSleepEntry {
@@ -412,7 +413,7 @@ function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog, onWhyC
           <h3 className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-sleep-title">
             Flō Sleep Index
           </h3>
-          <DataSourceBadge source="healthkit" size="sm" />
+          <DataSourceBadge source={data.source || 'healthkit'} size="sm" />
         </div>
         <div className="flex items-center gap-2">
           <div className={`px-2.5 py-1 rounded-full text-xs ${colors.badgeBg} ${colors.badgeText}`} data-testid="badge-sleep-label">

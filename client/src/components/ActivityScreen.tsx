@@ -5,6 +5,7 @@ import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell,
 import { Button } from '@/components/ui/button';
 import { BottomNav } from './BottomNav';
 import { CGMScreen } from './CGMScreen';
+import { DataSourceBadge } from '@/components/DataSourceBadge';
 
 interface ActivityScreenProps {
   isDark: boolean;
@@ -609,6 +610,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <div className="flex items-center gap-2">
             <Footprints className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
             <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Today's Activity</h3>
+            <DataSourceBadge source="healthkit" size="sm" />
           </div>
           <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>
@@ -688,6 +690,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <div className="flex items-center gap-2">
             <Dumbbell className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
             <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Workouts</h3>
+            <DataSourceBadge source="healthkit" size="sm" />
           </div>
           <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>
@@ -736,6 +739,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <div className="flex items-center gap-2">
             <Heart className={`w-5 h-5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
             <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Cardio Fitness</h3>
+            <DataSourceBadge source="healthkit" size="sm" />
           </div>
           <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>
@@ -791,6 +795,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <div className="flex items-center gap-2">
             <Battery className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
             <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Recovery & Strain</h3>
+            <DataSourceBadge source="healthkit" size="sm" />
           </div>
           <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>
@@ -870,6 +875,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
           <div className="flex items-center gap-2">
             <Waves className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
             <h3 className={isDark ? 'text-white' : 'text-gray-900'}>Movement Quality</h3>
+            <DataSourceBadge source="healthkit" size="sm" />
           </div>
           <ChevronRight className={`w-5 h-5 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
         </div>

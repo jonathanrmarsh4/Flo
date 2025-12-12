@@ -12050,6 +12050,7 @@ Important: This is for educational purposes. Include a brief note that users sho
           bedtime_local: night.bedtimeLocal || 'N/A',
           waketime_local: night.waketimeLocal || 'N/A',
           headline_insight: subscore.headlineInsight || 'Sleep data available',
+          source: night.source || 'healthkit', // Data source: oura, healthkit, or manual
         });
       }
 
@@ -12153,6 +12154,7 @@ Important: This is for educational purposes. Include a brief note that users sho
         bedtime_local: night.bedtimeLocal || 'N/A',
         waketime_local: night.waketimeLocal || 'N/A',
         headline_insight: headlineInsight,
+        source: night.source || 'healthkit', // Data source: oura, healthkit, or manual
       });
     } catch (error: any) {
       logger.error("[Sleep] Error getting today's sleep score:", error);
