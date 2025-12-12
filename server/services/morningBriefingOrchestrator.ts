@@ -350,6 +350,9 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
       .eq('local_date', eventDate)
       .maybeSingle();
 
+    // DEBUG: Log raw values to diagnose steps issue
+    logger.info(`[MorningBriefing] fetchTodayMetrics for ${healthId}, date=${eventDate}: steps_raw_sum=${dailyMetrics?.steps_raw_sum}, steps_normalized=${dailyMetrics?.steps_normalized}`);
+
     // Note: readiness_score is now handled exclusively by aggregateDailyInsights via readinessEngine
     // This ensures consistency with the dashboard and prevents duplicate/conflicting calculations
 
