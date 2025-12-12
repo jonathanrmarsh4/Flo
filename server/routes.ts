@@ -9119,11 +9119,17 @@ Important: This is for educational purposes. Include a brief note that users sho
         }
       }
       
-      // Step 3: Only fetch from API if no cached data and quota allows (one call per user per day max)
+      // Step 3: Only fetch from API if no cached data, quota allows, AND user is premium/admin
+      // Free users only get cached/backfill data to conserve API quota
       let hasLocation = false;
       let quotaExhausted = false;
+      let isPremiumUser = false;
       
-      if (process.env.OPENWEATHER_API_KEY) {
+      // Check user's subscription tier
+      const user = await db.select({ role: users.role }).from(users).where(eq(users.id, userId)).limit(1);
+      isPremiumUser = user.length > 0 && (user[0].role === 'premium' || user[0].role === 'admin');
+      
+      if (process.env.OPENWEATHER_API_KEY && isPremiumUser) {
         const location = await getLatestLocation(userId);
         hasLocation = !!location;
         
@@ -9182,7 +9188,11 @@ Important: This is for educational purposes. Include a brief note that users sho
       }
       
       // No data available from any source
-      if (!hasLocation) {
+      if (!isPremiumUser) {
+        // Free users don't get live weather API calls - only cached/backfill data
+        logger.info(`[Environmental] No cached data for free user ${userId} - live fetch requires premium`);
+        return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
+      } else if (!hasLocation) {
         logger.warn(`[Environmental] No location data for user ${userId}`);
         return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
       } else if (quotaExhausted) {

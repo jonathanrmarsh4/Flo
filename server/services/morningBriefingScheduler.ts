@@ -13,7 +13,7 @@
 import cron from 'node-cron';
 import { db } from '../db';
 import { users } from '@shared/schema';
-import { eq, and, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull, or, inArray } from 'drizzle-orm';
 import { logger } from '../logger';
 import { formatInTimeZone, format } from 'date-fns-tz';
 import { generateBriefingForUser, getTodaysBriefing } from './morningBriefingOrchestrator';
@@ -70,24 +70,28 @@ async function processBriefingGeneration(catchUpMode: boolean = false) {
   try {
     const now = new Date();
     
-    // Get all active users with timezone and healthId
+    // Get all active PREMIUM/ADMIN users with timezone and healthId
+    // Free users don't get morning briefings to conserve API quota
     const allUsers = await db
       .select({
         id: users.id,
         firstName: users.firstName,
         timezone: users.timezone,
         healthId: users.healthId,
+        role: users.role,
       })
       .from(users)
       .where(
         and(
           eq(users.status, 'active'),
           isNotNull(users.timezone),
-          isNotNull(users.healthId)
+          isNotNull(users.healthId),
+          // Only premium and admin users get morning briefings (conserves OpenWeather API quota)
+          inArray(users.role, ['premium', 'admin'])
         )
       );
     
-    logger.info(`[MorningBriefingScheduler] Found ${allUsers.length} active users with timezone and healthId`);
+    logger.info(`[MorningBriefingScheduler] Found ${allUsers.length} active premium/admin users with timezone and healthId`);
     
     // Find users who need briefings
     const eligibleUsers: typeof allUsers = [];
