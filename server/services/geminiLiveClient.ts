@@ -267,9 +267,13 @@ class GeminiLiveClient {
           }
           
           // Handle audio response from native-audio model
-          // Audio comes in part.inlineData with mimeType 'audio/pcm;rate=24000'
+          // Audio comes in part.inlineData with mimeType like 'audio/pcm;rate=24000'
           const inlineData = (part as any).inlineData;
           if (inlineData?.data && inlineData?.mimeType?.includes('audio')) {
+            logger.debug('[GeminiLive] Audio chunk received', { 
+              mimeType: inlineData.mimeType,
+              dataLength: inlineData.data.length 
+            });
             const audioBuffer = Buffer.from(inlineData.data, 'base64');
             callbacks.onAudioChunk(audioBuffer);
           }

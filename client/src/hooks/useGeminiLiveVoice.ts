@@ -226,11 +226,18 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      // Gemini outputs 24kHz 16-bit PCM
-      const samples = new Int16Array(bytes.buffer);
-      const floatSamples = new Float32Array(samples.length);
-      for (let i = 0; i < samples.length; i++) {
-        floatSamples[i] = samples[i] / 32768.0;
+      // Gemini outputs 24kHz 16-bit PCM (little-endian)
+      // Ensure we have an even number of bytes for 16-bit samples
+      const byteLength = bytes.length - (bytes.length % 2);
+      const numSamples = byteLength / 2;
+      
+      // Use DataView for proper byte-order handling
+      const dataView = new DataView(bytes.buffer, bytes.byteOffset, byteLength);
+      const floatSamples = new Float32Array(numSamples);
+      for (let i = 0; i < numSamples; i++) {
+        // Read as little-endian 16-bit signed integer
+        const sample = dataView.getInt16(i * 2, true);
+        floatSamples[i] = sample / 32768.0;
       }
 
       // Clear any pending flush timeout since we got new audio
