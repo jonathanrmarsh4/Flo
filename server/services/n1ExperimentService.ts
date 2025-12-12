@@ -815,12 +815,23 @@ class N1ExperimentService {
     }
 
     // Fetch sleep nights which contain HRV and deep sleep data
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+    
+    logger.info(`[N1Experiment] Fetching objective metrics for ${experimentId}`, {
+      healthId: experiment.health_id,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      experimentStartDate: experiment.experiment_start_date,
+      baselineStartDate: experiment.baseline_start_date,
+    });
+    
     const { data: sleepNights, error } = await supabase
       .from('sleep_nights')
       .select('sleep_date, hrv_ms, deep_pct, resting_hr_bpm, sleep_efficiency_pct')
       .eq('health_id', experiment.health_id)
-      .gte('sleep_date', startDate.toISOString().split('T')[0])
-      .lte('sleep_date', endDate.toISOString().split('T')[0])
+      .gte('sleep_date', startDateStr)
+      .lte('sleep_date', endDateStr)
       .order('sleep_date', { ascending: true });
 
     if (error) {
@@ -829,8 +840,13 @@ class N1ExperimentService {
     }
 
     if (!sleepNights) {
+      logger.warn(`[N1Experiment] No sleep nights returned for ${experimentId}`);
       return [];
     }
+    
+    logger.info(`[N1Experiment] Found ${sleepNights.length} sleep nights for ${experimentId}`, {
+      dates: sleepNights.map(n => n.sleep_date),
+    });
 
     // Transform to a simple format for the frontend
     return sleepNights.map(night => ({
@@ -884,7 +900,7 @@ class N1ExperimentService {
     const { getIntentCompatibility, PRIMARY_INTENTS, EXPERIMENT_COMPATIBILITY_MATRIX } = await import('../../shared/supplementConfig');
     
     const activeExperiments = await this.getActiveExperimentsWithProducts(userId);
-    const activeIntents = [...new Set(activeExperiments.map(e => e.intent))];
+    const activeIntents = Array.from(new Set(activeExperiments.map(e => e.intent)));
     
     // Build blocked intents with product-specific reasons
     const blocked: Map<string, { reason: string; blockedBy?: string }> = new Map();

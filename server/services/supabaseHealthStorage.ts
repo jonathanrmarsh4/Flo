@@ -1493,13 +1493,32 @@ export interface SleepNight {
 export async function upsertSleepNight(userId: string, sleep: Omit<SleepNight, 'health_id'>): Promise<SleepNight> {
   const healthId = await getHealthId(userId);
   
+  // MERGE STRATEGY: Fetch existing record first to preserve non-null values
+  // This prevents data loss when syncs have partial data (e.g., sync without HRV shouldn't erase existing HRV)
+  const { data: existing } = await supabase
+    .from('sleep_nights')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('sleep_date', sleep.sleep_date)
+    .maybeSingle();
+  
+  // Merge: only update fields that have non-null/non-undefined values in the new data
+  // Preserve existing values for fields that are null/undefined in the new data
+  const mergedSleep: Record<string, any> = { ...existing };
+  
+  for (const [key, value] of Object.entries(sleep)) {
+    if (value !== null && value !== undefined) {
+      mergedSleep[key] = value;
+    }
+  }
+  
+  // Always set these fields
+  mergedSleep.health_id = healthId;
+  mergedSleep.updated_at = new Date().toISOString();
+  
   const { data, error } = await supabase
     .from('sleep_nights')
-    .upsert({
-      ...sleep,
-      health_id: healthId,
-      updated_at: new Date().toISOString(),
-    }, {
+    .upsert(mergedSleep, {
       onConflict: 'health_id,sleep_date',
     })
     .select()

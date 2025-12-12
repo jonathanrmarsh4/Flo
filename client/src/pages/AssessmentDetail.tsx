@@ -387,7 +387,9 @@ export default function AssessmentDetail() {
     const result: Record<string, any>[] = [];
     
     sortedDays.forEach(([dateKey, data], index) => {
-      const date = new Date(dateKey);
+      // Parse date as local (not UTC) by appending T12:00:00 to avoid timezone shift
+      // Without this, "2024-12-11" becomes midnight UTC which is Dec 10 in PST
+      const date = new Date(dateKey + 'T12:00:00');
       const isAfterStart = startDateStr && dateKey >= startDateStr;
       
       // Calculate Z-score for each available metric
