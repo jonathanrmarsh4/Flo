@@ -129,6 +129,109 @@ export async function sendPasswordResetEmail(email: string, resetToken: string):
   }
 }
 
+export async function sendLoginVerificationEmail(
+  email: string,
+  token: string,
+  deviceInfo?: string,
+  ipAddress?: string
+): Promise<boolean> {
+  try {
+    const { client, fromEmail } = await getResendClient();
+    
+    const verifyLink = `https://get-flo.com/verify-login?token=${token}`;
+    const deviceDisplay = deviceInfo || 'Unknown device';
+    const locationDisplay = ipAddress || 'Unknown location';
+    
+    const { data, error } = await client.emails.send({
+      from: fromEmail || 'Flo <noreply@nuvitaelabs.com>',
+      to: email,
+      replyTo: 'support@nuvitaelabs.com',
+      subject: 'Verify Your Login - Flo',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="margin: 0; padding: 0; background-color: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" style="max-width: 480px; width: 100%; border-collapse: collapse;">
+                  <!-- Logo -->
+                  <tr>
+                    <td align="center" style="padding-bottom: 32px;">
+                      <img src="https://get-flo.com/favicon.png" alt="Flo" width="60" height="60" style="display: block; border-radius: 16px;" />
+                      <h1 style="margin: 16px 0 0 0; color: #ffffff; font-size: 28px; font-weight: 300;">Flo</h1>
+                    </td>
+                  </tr>
+                  
+                  <!-- Card -->
+                  <tr>
+                    <td style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 32px;">
+                      <h2 style="margin: 0 0 16px 0; color: #ffffff; font-size: 22px; font-weight: 500; text-align: center;">
+                        Verify Your Login
+                      </h2>
+                      <p style="margin: 0 0 16px 0; color: rgba(255, 255, 255, 0.7); font-size: 15px; line-height: 1.6; text-align: center;">
+                        A login attempt was made to your Flo account. If this was you, click the button below to verify.
+                      </p>
+                      
+                      <!-- Device info -->
+                      <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                        <p style="margin: 0 0 8px 0; color: rgba(255, 255, 255, 0.5); font-size: 12px; text-transform: uppercase;">Login Details</p>
+                        <p style="margin: 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">Device: ${deviceDisplay}</p>
+                        <p style="margin: 4px 0 0 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">IP: ${locationDisplay}</p>
+                      </div>
+                      
+                      <!-- Button -->
+                      <table role="presentation" style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                          <td align="center">
+                            <a href="${verifyLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #14b8a6, #06b6d4, #3b82f6); color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 500; border-radius: 12px;">
+                              Verify Login
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                      
+                      <p style="margin: 24px 0 0 0; color: rgba(255, 255, 255, 0.5); font-size: 13px; text-align: center;">
+                        This link expires in 10 minutes. If you didn't attempt to log in, please ignore this email and consider changing your password.
+                      </p>
+                    </td>
+                  </tr>
+                  
+                  <!-- Footer -->
+                  <tr>
+                    <td align="center" style="padding-top: 32px;">
+                      <p style="margin: 0; color: rgba(255, 255, 255, 0.4); font-size: 12px;">
+                        &copy; ${new Date().getFullYear()} Flo Health. All rights reserved.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+      `,
+      text: `Verify Your Flo Login\n\nA login attempt was made to your Flo account.\n\nDevice: ${deviceDisplay}\nIP: ${locationDisplay}\n\nIf this was you, click the link below to verify:\n${verifyLink}\n\nThis link expires in 10 minutes. If you didn't attempt to log in, please ignore this email and consider changing your password.\n\n&copy; ${new Date().getFullYear()} Flo Health. All rights reserved.`
+    });
+
+    if (error) {
+      logger.error('Failed to send login verification email', { error, email });
+      return false;
+    }
+
+    logger.info('Login verification email sent successfully', { email, messageId: data?.id });
+    return true;
+  } catch (error) {
+    logger.error('Error sending login verification email', { error, email });
+    return false;
+  }
+}
+
 export async function sendWelcomeEmail(email: string, firstName?: string): Promise<boolean> {
   try {
     const { client, fromEmail } = await getResendClient();

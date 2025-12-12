@@ -1202,10 +1202,26 @@ export const userSettings = pgTable("user_settings", {
   stepsTarget: integer("steps_target").notNull().default(7000),
   sleepTargetMinutes: integer("sleep_target_minutes").notNull().default(480),
   flomentumEnabled: boolean("flomentum_enabled").notNull().default(true),
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("idx_user_settings_user").on(table.userId),
+]);
+
+// Login verification tokens for email magic link 2FA
+export const loginVerifications = pgTable("login_verifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: varchar("token").notNull().unique(), // Secure random token
+  deviceInfo: text("device_info"), // Device/browser info for context
+  ipAddress: text("ip_address"), // IP address of login attempt
+  expiresAt: timestamp("expires_at").notNull(), // 10 minute expiry
+  verifiedAt: timestamp("verified_at"), // When user clicked the link
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_login_verifications_user").on(table.userId),
+  index("idx_login_verifications_token").on(table.token),
 ]);
 
 // Health daily metrics aggregated from HealthKit
@@ -2182,6 +2198,15 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
 
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UserSettings = typeof userSettings.$inferSelect;
+
+// Login verification schemas and types
+export const insertLoginVerificationSchema = createInsertSchema(loginVerifications).omit({
+  id: true,
+  createdAt: true,
+  verifiedAt: true,
+});
+export type InsertLoginVerification = z.infer<typeof insertLoginVerificationSchema>;
+export type LoginVerification = typeof loginVerifications.$inferSelect;
 
 export const insertHealthDailyMetricsSchema = createInsertSchema(healthDailyMetrics).omit({
   id: true,

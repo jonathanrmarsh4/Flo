@@ -73,8 +73,10 @@ import {
   type ActionPlanItem,
   type InsertActionPlanItem,
   passkeyCredentials,
+  loginVerifications,
   type PasskeyCredential,
   type InsertPasskeyCredential,
+  type LoginVerification,
   type HealthkitSample,
   type InsertHealthkitSample,
   type SleepNight,
@@ -202,6 +204,13 @@ export interface IStorage {
   getAllPasskeys(): Promise<PasskeyCredential[]>;
   updatePasskeyCounter(credentialId: string, counter: number): Promise<void>;
   deletePasskey(id: string, userId: string): Promise<boolean>;
+  
+  // Login verification operations (2FA magic link)
+  createLoginVerification(userId: string, token: string, deviceInfo: string | null, ipAddress: string | null, expiresAt: Date): Promise<{ id: string }>;
+  getLoginVerificationByToken(token: string): Promise<{ id: string; userId: string; token: string; deviceInfo: string | null; ipAddress: string | null; expiresAt: Date; verifiedAt: Date | null; createdAt: Date | null } | undefined>;
+  markLoginVerificationUsed(id: string): Promise<void>;
+  getUserTwoFactorEnabled(userId: string): Promise<boolean>;
+  setUserTwoFactorEnabled(userId: string, enabled: boolean): Promise<void>;
   
   // Biomarker operations
   getBiomarkers(): Promise<Biomarker[]>;
