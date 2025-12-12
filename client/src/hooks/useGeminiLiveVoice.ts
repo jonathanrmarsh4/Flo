@@ -160,9 +160,11 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
   // Play queued audio buffers sequentially (original simple approach)
   const playNextAudio = useCallback(() => {
+    console.log('[GeminiLive] playNextAudio called, queue size:', audioQueueRef.current.length);
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       setState(prev => ({ ...prev, isSpeaking: false }));
+      console.log('[GeminiLive] Queue empty, stopping playback');
       return;
     }
 
@@ -171,8 +173,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
     const buffer = audioQueueRef.current.shift()!;
     const ctx = playbackContextRef.current;
-    if (!ctx) return;
+    if (!ctx) {
+      console.error('[GeminiLive] No AudioContext for playback');
+      return;
+    }
 
+    console.log('[GeminiLive] Playing buffer, duration:', buffer.duration.toFixed(3), 'sampleRate:', buffer.sampleRate);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
@@ -183,6 +189,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   // Decode and queue incoming audio (24kHz PCM from Gemini)
   // Using simple queue-based sequential playback (original approach that worked)
   const handleAudioData = useCallback(async (base64Audio: string) => {
+    console.log('[GeminiLive] handleAudioData called, data length:', base64Audio.length);
     try {
       // Initialize playback context if needed
       // Note: iOS Safari ignores sampleRate parameter and uses device's native rate
@@ -234,14 +241,16 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
       // Queue the buffer and start playback if not already playing
       audioQueueRef.current.push(audioBuffer);
+      console.log('[GeminiLive] Buffer queued, queue size:', audioQueueRef.current.length, 'isPlaying:', isPlayingRef.current);
 
       if (!isPlayingRef.current) {
+        console.log('[GeminiLive] Starting playback');
         playNextAudio();
       }
     } catch (error) {
       console.error('[GeminiLive] Failed to decode audio:', error);
     }
-  }, [playNextAudio]);
+  }, [playNextAudio, resampleAudio]);
 
   // Connect to WebSocket
   const connect = useCallback(async () => {
