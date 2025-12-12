@@ -147,7 +147,8 @@ export default function ActionsScreen() {
   // Fetch experiment compatibility info
   const { data: compatibilityData, isError: compatibilityError } = useQuery<{
     activeIntents: string[];
-    blockedIntents: { intentId: string; reason: string }[];
+    activeExperiments: { intent: string; productName: string }[];
+    blockedIntents: { intentId: string; reason: string; blockedBy?: string }[];
     allowedIntents: string[];
   }>({
     queryKey: ['/api/n1/experiments/compatibility'],

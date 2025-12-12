@@ -842,20 +842,24 @@ class N1ExperimentService {
     }));
   }
 
-  // Get active experiment intents for a user (for compatibility checking)
+  // Get active experiments with product info for compatibility checking
   // Throws on database errors to prevent silently allowing conflicting experiments
-  async getActiveExperimentIntents(userId: string): Promise<string[]> {
+  async getActiveExperimentsWithProducts(userId: string): Promise<{
+    intent: string;
+    productName: string;
+    supplementTypeId: string;
+  }[]> {
     const healthId = await getHealthId(userId);
     
-    // Get all active/baseline experiments (not completed, cancelled, or paused)
+    // Get all active/baseline experiments with product names
     const { data: experiments, error } = await supabase
       .from('n1_experiments')
-      .select('primary_intent, status')
+      .select('primary_intent, product_name, supplement_type_id, status')
       .eq('health_id', healthId)
       .in('status', ['pending', 'baseline', 'active']);
     
     if (error) {
-      logger.error('Failed to get active experiment intents', { error: error.message });
+      logger.error('Failed to get active experiments', { error: error.message });
       throw new Error(`Failed to check active experiments: ${error.message}`);
     }
     
@@ -863,29 +867,67 @@ class N1ExperimentService {
       return [];
     }
     
-    // Extract unique primary intents
-    const intents = [...new Set(experiments.map(e => e.primary_intent))];
-    logger.debug(`[N1Experiment] User ${userId} has ${intents.length} active experiment intents: ${intents.join(', ')}`);
-    
-    return intents;
+    return experiments.map(e => ({
+      intent: e.primary_intent,
+      productName: e.product_name,
+      supplementTypeId: e.supplement_type_id,
+    }));
   }
 
-  // Check experiment compatibility for a user
+  // Check experiment compatibility for a user with detailed blocking info
   async checkExperimentCompatibility(userId: string): Promise<{
     activeIntents: string[];
-    blockedIntents: { intentId: string; reason: string }[];
+    activeExperiments: { intent: string; productName: string }[];
+    blockedIntents: { intentId: string; reason: string; blockedBy?: string }[];
     allowedIntents: string[];
   }> {
-    const { getBlockedIntents, getAllowedIntents } = await import('../../shared/supplementConfig');
+    const { getIntentCompatibility, PRIMARY_INTENTS, EXPERIMENT_COMPATIBILITY_MATRIX } = await import('../../shared/supplementConfig');
     
-    const activeIntents = await this.getActiveExperimentIntents(userId);
-    const blockedIntents = getBlockedIntents(activeIntents);
-    const allowedIntents = getAllowedIntents(activeIntents);
+    const activeExperiments = await this.getActiveExperimentsWithProducts(userId);
+    const activeIntents = [...new Set(activeExperiments.map(e => e.intent))];
+    
+    // Build blocked intents with product-specific reasons
+    const blocked: Map<string, { reason: string; blockedBy?: string }> = new Map();
+    
+    for (const activeExp of activeExperiments) {
+      const compatibility = getIntentCompatibility(activeExp.intent);
+      if (!compatibility) continue;
+      
+      // Block the same intent (can't run duplicate experiments)
+      if (!blocked.has(activeExp.intent)) {
+        blocked.set(activeExp.intent, { 
+          reason: `You already have an active experiment: ${activeExp.productName}`,
+          blockedBy: activeExp.productName
+        });
+      }
+      
+      // Block conflicting intents
+      for (const conflictId of compatibility.cannotAddIntents) {
+        if (!blocked.has(conflictId)) {
+          const conflictLabel = EXPERIMENT_COMPATIBILITY_MATRIX.find((c: any) => c.intentId === conflictId)?.label || conflictId;
+          blocked.set(conflictId, { 
+            reason: `Conflicts with your ${activeExp.productName} experiment (${compatibility.label}) - ${compatibility.conflictReason}`,
+            blockedBy: activeExp.productName
+          });
+        }
+      }
+    }
+    
+    const blockedIntents = Array.from(blocked.entries()).map(([intentId, data]) => ({ 
+      intentId, 
+      reason: data.reason,
+      blockedBy: data.blockedBy
+    }));
+    
+    // Calculate allowed intents (anything not blocked)
+    const blockedSet = new Set(blockedIntents.map(b => b.intentId));
+    const allowedIntents = PRIMARY_INTENTS.map((i: any) => i.id).filter((id: string) => !blockedSet.has(id));
     
     logger.info(`[N1Experiment] Compatibility check for ${userId}: ${activeIntents.length} active, ${blockedIntents.length} blocked, ${allowedIntents.length} allowed`);
     
     return {
       activeIntents,
+      activeExperiments: activeExperiments.map(e => ({ intent: e.intent, productName: e.productName })),
       blockedIntents,
       allowedIntents,
     };

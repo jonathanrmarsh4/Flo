@@ -251,7 +251,8 @@ export default function NewAssessmentWizard() {
   // Fetch experiment compatibility - which intents are blocked by active experiments
   const { data: compatibilityData, isError: compatibilityError, isLoading: compatibilityLoading } = useQuery<{
     activeIntents: string[];
-    blockedIntents: { intentId: string; reason: string }[];
+    activeExperiments: { intent: string; productName: string }[];
+    blockedIntents: { intentId: string; reason: string; blockedBy?: string }[];
     allowedIntents: string[];
   }>({
     queryKey: ['/api/n1/experiments/compatibility'],
