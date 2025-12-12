@@ -5,7 +5,7 @@ import { logger } from '../logger';
 import { db } from '../db';
 import { users } from '@shared/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
-import { TZDate } from '@date-fns/tz';
+import { formatInTimeZone } from 'date-fns-tz';
 
 let deliveryCronTask: ReturnType<typeof cron.schedule> | null = null;
 let surveyCronTask: ReturnType<typeof cron.schedule> | null = null;
@@ -172,9 +172,9 @@ async function processEveningExperimentReminders() {
     for (const user of activeUsers) {
       try {
         const timezone = user.timezone || (user.reminderTimezone !== 'UTC' ? user.reminderTimezone : null) || 'UTC';
-        const userNow = new TZDate(now, timezone);
-        const userHour = userNow.getHours();
-        const userMinute = userNow.getMinutes();
+        // Use formatInTimeZone for reliable timezone conversion
+        const userHour = parseInt(formatInTimeZone(now, timezone, 'HH'), 10);
+        const userMinute = parseInt(formatInTimeZone(now, timezone, 'mm'), 10);
         
         // Check if it's 8PM local time (20:00 - 20:04)
         if (userHour === 20 && userMinute >= 0 && userMinute < 5) {
@@ -248,6 +248,10 @@ async function processEveningExperimentReminders() {
 async function processThreePMSurveyNotifications() {
   try {
     const now = new Date();
+    const nowUTC = now.toISOString();
+    
+    // Log at debug level for every run to track timing
+    logger.debug(`[3PMSurvey] Checking at ${nowUTC}`);
     
     const activeUsers = await db
       .select({
@@ -271,17 +275,33 @@ async function processThreePMSurveyNotifications() {
     const supabase = getSupabaseClient();
     const eligibleUsers: (typeof activeUsers[0] & { healthId: string; activeSupplements: { id: string; product_name: string }[] })[] = [];
     
+    // Group users by timezone for logging
+    const timezoneGroups = new Map<string, { count: number; localTime: string }>();
+    
     for (const user of activeUsers) {
       try {
         // Use user.timezone (from device auto-sync) as primary source
         // Only use reminderTimezone if explicitly set (not the default 'UTC')
         const timezone = user.timezone || (user.reminderTimezone !== 'UTC' ? user.reminderTimezone : null) || 'UTC';
-        const userNow = new TZDate(now, timezone);
-        const userHour = userNow.getHours();
-        const userMinute = userNow.getMinutes();
+        // Use formatInTimeZone for reliable timezone conversion (same as insightsSchedulerV2)
+        const userHour = parseInt(formatInTimeZone(now, timezone, 'HH'), 10);
+        const userMinute = parseInt(formatInTimeZone(now, timezone, 'mm'), 10);
+        const userToday = formatInTimeZone(now, timezone, 'yyyy-MM-dd');
+        
+        // Track timezone info for debugging
+        const localTimeStr = `${userHour.toString().padStart(2, '0')}:${userMinute.toString().padStart(2, '0')}`;
+        if (!timezoneGroups.has(timezone)) {
+          timezoneGroups.set(timezone, { count: 0, localTime: localTimeStr });
+        }
+        timezoneGroups.get(timezone)!.count++;
+        
+        // Detailed logging for Australia/Perth user to debug timezone issue
+        if (timezone === 'Australia/Perth') {
+          const is3pm = userHour === 15 && userMinute >= 0 && userMinute < 5;
+          logger.info(`[3PMSurvey] Perth user ${user.firstName || user.id}: UTC=${now.toISOString()}, Local=${localTimeStr}, Hour=${userHour}, Min=${userMinute}, Is3PM=${is3pm}, LocalDate=${userToday}`);
+        }
         
         if (userHour === 15 && userMinute >= 0 && userMinute < 5) {
-          const userToday = userNow.toISOString().split('T')[0];
           
           const healthIdResult = await supabase
             .from('user_profiles')
@@ -314,11 +334,20 @@ async function processThreePMSurveyNotifications() {
       }
     }
 
+    // Log timezone summary for debugging (only when there are interesting users like non-LA timezones)
+    const nonDefaultTimezones = Array.from(timezoneGroups.entries())
+      .filter(([tz]) => tz !== 'America/Los_Angeles' && tz !== 'UTC')
+      .map(([tz, info]) => `${tz}: ${info.localTime} (${info.count} users)`);
+    
+    if (nonDefaultTimezones.length > 0) {
+      logger.info(`[3PMSurvey] Non-default timezone check: ${nonDefaultTimezones.join(', ')} | UTC: ${nowUTC}`);
+    }
+    
     if (eligibleUsers.length === 0) {
       return;
     }
 
-    logger.info(`[3PMSurvey] Sending 3PM survey notifications to ${eligibleUsers.length} users`);
+    logger.info(`[3PMSurvey] Sending 3PM survey notifications to ${eligibleUsers.length} users (timezones: ${Array.from(new Set(eligibleUsers.map(u => u.timezone))).join(', ')})`);
 
     for (const user of eligibleUsers) {
       try {
