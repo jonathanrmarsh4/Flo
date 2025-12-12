@@ -371,4 +371,127 @@ router.get('/experiments/:id/objective-metrics', async (req, res) => {
   }
 });
 
+// Generate AI explanation for experiment progress (Why button)
+router.post('/experiments/:id/explain', async (req, res) => {
+  try {
+    const userId = (req as any).user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const { id } = req.params;
+    
+    // Get experiment details
+    const experimentData = await n1ExperimentService.getExperiment(id, userId);
+    if (!experimentData) {
+      return res.status(404).json({ error: 'Experiment not found' });
+    }
+    
+    // Get check-ins for progress data (limit to last 14 days to prevent token overflow)
+    const allCheckins = await n1ExperimentService.getExperimentCheckins(id, userId);
+    const checkins = allCheckins.slice(-14);
+    
+    // Get objective metrics (limit to last 14 days)
+    const allObjectiveMetrics = await n1ExperimentService.getObjectiveMetrics(id, userId);
+    const objectiveMetrics = allObjectiveMetrics.slice(-14);
+    
+    // Get supplement config
+    const supplementConfig = getSupplementConfig(experimentData.experiment.supplement_type_id);
+    
+    // Calculate days elapsed
+    const daysElapsed = experimentData.experiment.experiment_start_date 
+      ? Math.floor((Date.now() - new Date(experimentData.experiment.experiment_start_date).getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+    
+    // Build context for AI
+    const context = {
+      supplementName: supplementConfig?.name || experimentData.experiment.product_name,
+      productName: experimentData.experiment.product_name,
+      productBrand: experimentData.experiment.product_brand,
+      primaryIntent: experimentData.experiment.primary_intent.replace(/_/g, ' '),
+      dosage: `${experimentData.experiment.dosage_amount}${experimentData.experiment.dosage_unit}`,
+      frequency: experimentData.experiment.dosage_frequency,
+      timing: experimentData.experiment.dosage_timing,
+      status: experimentData.experiment.status,
+      daysElapsed,
+      totalDays: experimentData.experiment.experiment_days,
+      baselineDays: experimentData.experiment.baseline_days,
+      checkinsCount: allCheckins.length,
+      trackedMetrics: experimentData.metrics.map((m: { metric_name: string }) => m.metric_name),
+      recommendedDuration: supplementConfig?.recommendedDuration || 28,
+    };
+    
+    // Generate explanation using Gemini with timeout
+    const { GoogleGenAI } = await import('@google/genai');
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GOOGLE_AI_API_KEY not configured');
+    }
+    const genAI = new GoogleGenAI({ apiKey });
+    
+    // Format check-in data (cap notes to 50 chars to reduce tokens)
+    const checkinSummary = checkins.slice(-7).map((c: any) => {
+      const notesTruncated = c.notes ? c.notes.slice(0, 50) + (c.notes.length > 50 ? '...' : '') : '';
+      return `- ${c.checkin_date} (${c.phase}): ${Object.entries(c.ratings).map(([k, v]) => `${k}: ${v}/5`).join(', ')}${notesTruncated ? ` - "${notesTruncated}"` : ''}`;
+    }).join('\n') || 'No check-ins recorded yet';
+    
+    // Format objective metrics
+    const metricsSummary = objectiveMetrics.slice(-7).map((m: any) => 
+      `- ${m.date}: HRV ${m.hrv || 'N/A'}ms, RHR ${m.restingHeartRate || 'N/A'}bpm, Deep Sleep ${m.deepSleepPct || 'N/A'}%`
+    ).join('\n') || 'No biometric data available';
+    
+    const prompt = `You are a health data analyst helping a user understand their supplement experiment progress. Be encouraging but honest about what the data shows.
+
+EXPERIMENT CONTEXT:
+- Supplement: ${context.supplementName} (${context.productName}${context.productBrand ? ` by ${context.productBrand}` : ''})
+- Goal: ${context.primaryIntent}
+- Dosage: ${context.dosage} ${context.frequency}${context.timing ? ` (${context.timing})` : ''}
+- Status: ${context.status}
+- Progress: Day ${context.daysElapsed} of ${context.totalDays} (${context.baselineDays} baseline days)
+- Check-ins completed: ${context.checkinsCount}
+- Tracking: ${context.trackedMetrics.join(', ')}
+- Recommended duration for this supplement: ${context.recommendedDuration} days
+
+RECENT CHECK-IN DATA (last 7 days):
+${checkinSummary}
+
+OBJECTIVE BIOMETRIC DATA (last 7 days):
+${metricsSummary}
+
+Write a 2-3 paragraph explanation that:
+1. Summarizes what the chart is showing (deviations from baseline)
+2. Interprets whether the supplement appears to be having an effect based on the data
+3. Provides context on what to expect (is it too early to tell? typical onset time?)
+4. Offers encouragement and next steps
+
+Keep it conversational, data-driven, and honest. If there isn't enough data yet, say so clearly.`;
+
+    // Add timeout wrapper for Gemini call (30 second timeout)
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Gemini request timed out')), 30000)
+    );
+    
+    const geminiPromise = genAI.models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: prompt,
+      config: {
+        maxOutputTokens: 500,
+        temperature: 0.7,
+      },
+    });
+    
+    const response = await Promise.race([geminiPromise, timeoutPromise]);
+    const explanation = response.text || 'Unable to generate explanation at this time.';
+    
+    logger.info('Generated experiment explanation', { experimentId: id, userId });
+    res.json({ explanation });
+  } catch (error: any) {
+    logger.error('Failed to generate experiment explanation', { error: error.message });
+    
+    // Provide fallback message on failure
+    const fallbackMessage = 'We were unable to generate an analysis at this time. Your experiment is collecting data - check back later for AI-powered insights about your progress.';
+    res.status(200).json({ explanation: fallbackMessage });
+  }
+});
+
 export default router;

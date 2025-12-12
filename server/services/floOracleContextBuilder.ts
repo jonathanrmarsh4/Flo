@@ -2271,3 +2271,91 @@ function formatTimeAgo(date: Date): string {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 }
+
+/**
+ * Get user's active N-of-1 supplement experiments
+ * Returns context about what supplements the user is testing, their goals, and current progress
+ */
+export async function getActiveSupplementExperiments(userId: string): Promise<string> {
+  try {
+    const { n1ExperimentService } = await import('./n1ExperimentService');
+    const { getSupplementConfig } = await import('../../shared/supplementConfig');
+    const { getHealthId } = await import('./supabaseHealthStorage');
+    
+    const healthId = await getHealthId(userId);
+    if (!healthId) {
+      return '';
+    }
+    
+    const experiments = await n1ExperimentService.getUserExperiments(userId);
+    
+    const activeExperiments = experiments.filter(exp => 
+      ['baseline', 'active', 'pending'].includes(exp.status)
+    );
+    
+    const recentCompletedExperiments = experiments
+      .filter(exp => exp.status === 'completed')
+      .slice(0, 3);
+    
+    if (activeExperiments.length === 0 && recentCompletedExperiments.length === 0) {
+      return '';
+    }
+    
+    const lines: string[] = [
+      '',
+      'SUPPLEMENT EXPERIMENTS (N-of-1 personal assessments the user is running):',
+    ];
+    
+    for (const exp of activeExperiments) {
+      const supplementConfig = getSupplementConfig(exp.supplement_type_id);
+      const supplementName = supplementConfig?.name || exp.product_name;
+      
+      const daysElapsed = exp.experiment_start_date 
+        ? Math.floor((Date.now() - new Date(exp.experiment_start_date).getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+      
+      const totalDays = exp.experiment_days;
+      const progress = totalDays > 0 ? Math.min(Math.round((daysElapsed / totalDays) * 100), 100) : 0;
+      
+      let statusDescription = '';
+      if (exp.status === 'pending') {
+        statusDescription = 'about to start';
+      } else if (exp.status === 'baseline') {
+        statusDescription = `collecting baseline data (day ${daysElapsed} of ${exp.baseline_days})`;
+      } else if (exp.status === 'active') {
+        statusDescription = `actively taking supplement (day ${daysElapsed} of ${totalDays}, ${progress}% complete)`;
+      }
+      
+      lines.push(`• **${supplementName}** (${exp.product_name}${exp.product_brand ? ` by ${exp.product_brand}` : ''})`);
+      lines.push(`  - Goal: ${exp.primary_intent.replace(/_/g, ' ')}`);
+      lines.push(`  - Dosage: ${exp.dosage_amount}${exp.dosage_unit} ${exp.dosage_frequency}${exp.dosage_timing ? ` (${exp.dosage_timing})` : ''}`);
+      lines.push(`  - Status: ${statusDescription}`);
+      
+      if (supplementConfig?.subjectiveMetrics?.length) {
+        const trackingMetrics = supplementConfig.subjectiveMetrics.slice(0, 4).map(m => m.metric).join(', ');
+        lines.push(`  - Tracking: ${trackingMetrics}`);
+      }
+    }
+    
+    if (recentCompletedExperiments.length > 0) {
+      lines.push('');
+      lines.push('Recently Completed Experiments:');
+      
+      for (const exp of recentCompletedExperiments) {
+        const supplementConfig = getSupplementConfig(exp.supplement_type_id);
+        const supplementName = supplementConfig?.name || exp.product_name;
+        const completedDate = exp.completed_at 
+          ? new Date(exp.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          : 'recently';
+        
+        lines.push(`• ${supplementName}: Completed ${completedDate} - Goal was ${exp.primary_intent.replace(/_/g, ' ')}`);
+      }
+    }
+    
+    logger.info(`[FloOracle] Retrieved ${activeExperiments.length} active and ${recentCompletedExperiments.length} completed experiments for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving supplement experiments:', error);
+    return '';
+  }
+}

@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { logger } from '../logger';
 import { grokClient, GrokChatMessage } from './grokClient';
-import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents } from './floOracleContextBuilder';
+import { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getActiveSupplementExperiments } from './floOracleContextBuilder';
 import { storage } from '../storage';
 import { processAndPersistBrainUpdates } from './brainUpdateParser';
 import { getHybridInsights, formatInsightsForChat } from './brainService';
@@ -41,6 +41,14 @@ ACTION PLAN AWARENESS:
 - Celebrate progress and offer encouragement on their journey
 - Suggest adjustments to action items based on their latest metrics
 
+SUPPLEMENT EXPERIMENT AWARENESS:
+- The user may be running N-of-1 supplement experiments to test effectiveness
+- Reference their active experiments and track how they're progressing
+- Connect wearable/biometric data to their supplement goals (e.g., "Your HRV has improved 15% since starting magnesium")
+- Discuss whether supplements appear to be working based on their tracked metrics
+- Provide context on typical timeframes for supplement effects
+- Ask about their subjective experience with the supplement
+
 SAFETY GUARDRAILS:
 - Never prescribe specific medications or dosages
 - Always encourage consulting healthcare providers for medical decisions
@@ -69,11 +77,12 @@ class VoiceOrchestrator {
     let session = activeSessions.get(userId);
     
     if (!session) {
-      const [healthContext, actionPlanContext, insightsContext, lifeEventsContext, brainInsights, user] = await Promise.all([
+      const [healthContext, actionPlanContext, insightsContext, lifeEventsContext, supplementExperimentsContext, brainInsights, user] = await Promise.all([
         buildUserHealthContext(userId),
         getActiveActionPlanItems(userId),
         getRelevantInsights(userId),
         getRecentLifeEvents(userId),
+        getActiveSupplementExperiments(userId),
         getHybridInsights(userId, 'health medical reports specialist documents', { recentLimit: 15, semanticLimit: 10 })
           .catch(err => {
             logger.error('[VoiceOrchestrator] Failed to retrieve brain insights:', err);
@@ -92,6 +101,7 @@ class VoiceOrchestrator {
         actionPlanContext,
         insightsContext,
         lifeEventsContext,
+        supplementExperimentsContext,
         brainContext ? `\n[BRAIN MEMORY - Medical Documents & Learned Insights]\n${brainContext}` : '',
       ].filter(Boolean).join('\n');
       

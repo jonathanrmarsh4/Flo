@@ -33,6 +33,8 @@ import {
 import { SUPPLEMENT_CONFIGURATIONS, type SupplementTypeConfig } from "@shared/supplementConfig";
 import { FloBottomNav } from "@/components/FloBottomNav";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { WhyButton } from "@/components/WhyButton";
+import { Loader2 } from "lucide-react";
 
 interface ExperimentData {
   experiment: {
@@ -102,6 +104,30 @@ export default function AssessmentDetail() {
   const [checkinRatings, setCheckinRatings] = useState<Record<string, number>>({});
   const [checkinNotes, setCheckinNotes] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showWhyModal, setShowWhyModal] = useState(false);
+  
+  // Why explanation mutation - proper react-query pattern
+  const explainMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', `/api/n1/experiments/${id}/explain`);
+      const data = await response.json();
+      return data.explanation as string;
+    },
+    onError: () => {
+      // Error state handled by mutation.error
+    }
+  });
+  
+  // Reset explanation when modal closes or experiment id changes
+  useEffect(() => {
+    explainMutation.reset();
+  }, [id]);
+  
+  const handleCloseWhyModal = () => {
+    setShowWhyModal(false);
+    // Reset after a short delay to allow modal animation to complete
+    setTimeout(() => explainMutation.reset(), 300);
+  };
   
   // FROZEN BASELINE: Once computed, baseline stats are persisted and never recomputed
   // Keyed by BOTH experiment ID and start date to prevent cross-experiment leakage
@@ -657,18 +683,32 @@ export default function AssessmentDetail() {
         {/* Z-SCORE DEVIATION PLOT (Control Chart) */}
         {(experiment.status === 'baseline' || experiment.status === 'active' || experiment.status === 'completed') && (
           <Card className="p-4 bg-white/5 border-white/10 mb-4">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <Activity className="w-5 h-5 text-purple-400" />
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                  <Activity className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-white font-medium">{supplementConfig?.name || 'Supplement'} Impact</h3>
+                  <p className="text-xs text-white/60">
+                    {experiment.status === 'baseline' 
+                      ? 'Collecting baseline data before supplement starts' 
+                      : 'Deviation from your normal (Up = Better)'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-white font-medium">{supplementConfig?.name || 'Supplement'} Impact</h3>
-                <p className="text-xs text-white/60">
-                  {experiment.status === 'baseline' 
-                    ? 'Collecting baseline data before supplement starts' 
-                    : 'Deviation from your normal (Up = Better)'}
-                </p>
-              </div>
+              {chartData.length > 0 && (
+                <WhyButton 
+                  isDark={true} 
+                  onClick={() => {
+                    setShowWhyModal(true);
+                    // Only fetch if we don't already have data
+                    if (!explainMutation.data && !explainMutation.isPending) {
+                      explainMutation.mutate();
+                    }
+                  }}
+                />
+              )}
             </div>
             
             {chartData.length === 0 ? (
@@ -1213,6 +1253,67 @@ export default function AssessmentDetail() {
           </Card>
         )}
       </main>
+
+      {/* Why Explanation Modal */}
+      {showWhyModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleCloseWhyModal}
+          />
+          <div className="relative w-full max-w-md bg-slate-900 rounded-2xl shadow-2xl border border-white/10 max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-slate-900 border-b border-white/10 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                  <Brain className="w-4 h-4 text-purple-400" />
+                </div>
+                <h3 className="text-white font-medium">Understanding Your Progress</h3>
+              </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={handleCloseWhyModal}
+                className="text-white/70 hover:text-white hover:bg-white/10"
+                data-testid="button-close-why-modal"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="p-4">
+              {explainMutation.isPending ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-400 mb-4" />
+                  <p className="text-white/60 text-sm">Analyzing your experiment data...</p>
+                </div>
+              ) : explainMutation.isError ? (
+                <div className="text-center py-8">
+                  <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-3" />
+                  <p className="text-white/70">Unable to generate explanation at this time.</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => explainMutation.mutate()}
+                    className="mt-3 text-purple-400 hover:text-purple-300"
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              ) : explainMutation.data ? (
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <p className="text-white/80 leading-relaxed whitespace-pre-wrap">{explainMutation.data}</p>
+                </div>
+              ) : (
+                <p className="text-white/60 text-center py-8">No explanation available</p>
+              )}
+            </div>
+            <div className="p-4 border-t border-white/10">
+              <p className="text-xs text-white/40 text-center">
+                This is educational information, not medical advice. Always consult your healthcare provider for diagnosis and treatment decisions.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation */}
       <FloBottomNav />
