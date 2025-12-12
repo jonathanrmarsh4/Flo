@@ -13411,33 +13411,27 @@ Important: This is for educational purposes. Include a brief note that users sho
         return res.status(404).json({ error: "Flōmentum not enabled" });
       }
 
-      // Get this week's start date (Monday)
-      const { getMondayOfWeek } = await import("./services/flomentumWeeklyAggregator");
-      const weekStartDate = getMondayOfWeek(new Date());
+      // Use rolling 7-day aggregation computed on-demand
+      // This ensures users always see fresh data instead of waiting for Monday cron
+      const { getRolling7DayInsight } = await import("./services/flomentumWeeklyAggregator");
+      
+      // Get user's timezone from their most recent daily metrics
+      const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
+      const userTimezone = recentMetrics.length > 0 ? recentMetrics[0]?.timezone : 'UTC';
+      
+      const rollingInsight = await getRolling7DayInsight(userId, userTimezone || 'UTC');
 
-      // Get weekly insight
-      const [weeklyData] = await db
-        .select()
-        .from(flomentumWeekly)
-        .where(
-          and(
-            eq(flomentumWeekly.userId, userId),
-            eq(flomentumWeekly.weekStartDate, weekStartDate)
-          )
-        )
-        .limit(1);
-
-      if (!weeklyData) {
+      if (!rollingInsight) {
         return res.json(null);
       }
 
       res.json({
-        weekStartDate: weeklyData.weekStartDate,
-        averageScore: weeklyData.averageScore,
-        dailyScores: weeklyData.dailyScores,
-        whatHelped: weeklyData.whatHelped,
-        whatHeldBack: weeklyData.whatHeldBack,
-        focusNextWeek: weeklyData.focusNextWeek,
+        weekStartDate: rollingInsight.weekStartDate,
+        averageScore: rollingInsight.averageScore,
+        dailyScores: rollingInsight.dailyScores,
+        whatHelped: rollingInsight.whatHelped,
+        whatHeldBack: rollingInsight.whatHeldBack,
+        focusNextWeek: rollingInsight.focusNextWeek,
       });
     } catch (error) {
       logger.error('Error fetching Flōmentum weekly:', error);

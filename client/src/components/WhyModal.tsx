@@ -167,7 +167,7 @@ export function WhyModal({
                       ? 'from-teal-500 via-cyan-500 to-blue-500 shadow-teal-500/30' 
                       : 'from-teal-400 via-cyan-400 to-blue-400 shadow-teal-400/20'
                   }`}>
-                    <span className="text-2xl">🌊</span>
+                    <Sparkles className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
                     <div className={`text-sm mb-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
@@ -238,7 +238,7 @@ export function WhyModal({
 
           {/* Footer with Flō Chat Button - show when not loading */}
           {!isLoading && (
-            <div className={`p-8 pt-6 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+            <div className={`p-8 pt-6 pb-[calc(2rem+env(safe-area-inset-bottom))] border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
               <button
                 onClick={() => {
                   onFloChat();
