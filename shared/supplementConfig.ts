@@ -1485,3 +1485,109 @@ export function getVerdictMessage(verdict: string, supplementName: string, prima
       return `Experiment complete. Review your detailed results.`;
   }
 }
+
+// ==================== EXPERIMENT COMPATIBILITY MATRIX ====================
+// Defines which experiment intents can run concurrently
+// This prevents users from running conflicting experiments that would invalidate results
+
+export interface IntentCompatibility {
+  intentId: string;
+  label: string;
+  canAddIntents: string[];
+  cannotAddIntents: string[];
+  conflictReason: string;
+}
+
+// Compatibility matrix based on overlapping metrics and biological systems
+// When an experiment is active, certain other experiments would share metrics or confound results
+export const EXPERIMENT_COMPATIBILITY_MATRIX: IntentCompatibility[] = [
+  {
+    intentId: 'sleep_recovery',
+    label: 'Sleep & Recovery',
+    canAddIntents: ['recovery_inflammation', 'metabolic'],
+    cannotAddIntents: ['stress_mood', 'energy_vitality', 'cognitive'],
+    conflictReason: 'Sleep experiments track HRV, RHR, and deep sleep - metrics shared with stress, energy, and cognitive experiments',
+  },
+  {
+    intentId: 'energy_vitality',
+    label: 'Energy & Vitality',
+    canAddIntents: ['recovery_inflammation', 'metabolic'],
+    cannotAddIntents: ['cognitive', 'stress_mood', 'sleep_recovery'],
+    conflictReason: 'Energy experiments track HRV, activity, and fatigue - metrics shared with brain, stress, and sleep experiments',
+  },
+  {
+    intentId: 'stress_mood',
+    label: 'Stress & Mood',
+    canAddIntents: ['recovery_inflammation', 'metabolic'],
+    cannotAddIntents: ['sleep_recovery', 'cognitive', 'energy_vitality'],
+    conflictReason: 'Stress/mood experiments track HRV, sleep quality, and subjective wellbeing - overlaps with sleep, cognitive, and energy',
+  },
+  {
+    intentId: 'cognitive',
+    label: 'Brain & Focus',
+    canAddIntents: ['recovery_inflammation', 'metabolic'],
+    cannotAddIntents: ['energy_vitality', 'stress_mood', 'sleep_recovery'],
+    conflictReason: 'Cognitive experiments track focus, mental clarity, and HRV - overlaps with energy, stress, and sleep experiments',
+  },
+  {
+    intentId: 'recovery_inflammation',
+    label: 'Joints & Recovery',
+    canAddIntents: ['sleep_recovery', 'stress_mood', 'cognitive'],
+    cannotAddIntents: [],
+    conflictReason: 'Joint/inflammation experiments are mostly compatible as they track distinct physical markers',
+  },
+  {
+    intentId: 'metabolic',
+    label: 'Gut Health & Metabolic',
+    canAddIntents: ['sleep_recovery', 'cognitive', 'energy_vitality', 'stress_mood', 'recovery_inflammation'],
+    cannotAddIntents: [],
+    conflictReason: 'Gut health experiments track distinct digestive metrics and are generally safe to combine',
+  },
+];
+
+// Helper function to get compatibility for an intent
+export function getIntentCompatibility(intentId: string): IntentCompatibility | undefined {
+  return EXPERIMENT_COMPATIBILITY_MATRIX.find(c => c.intentId === intentId);
+}
+
+// Check if two intents are compatible
+export function areIntentsCompatible(activeIntentId: string, newIntentId: string): boolean {
+  if (activeIntentId === newIntentId) return false; // Can't run same intent twice
+  
+  const activeCompatibility = getIntentCompatibility(activeIntentId);
+  if (!activeCompatibility) return true; // Unknown intent, allow by default
+  
+  // Check if new intent is in the blocked list
+  return !activeCompatibility.cannotAddIntents.includes(newIntentId);
+}
+
+// Get all blocked intents given a list of active experiment intents
+export function getBlockedIntents(activeIntentIds: string[]): { intentId: string; reason: string }[] {
+  const blocked: Map<string, string> = new Map();
+  
+  for (const activeId of activeIntentIds) {
+    const compatibility = getIntentCompatibility(activeId);
+    if (!compatibility) continue;
+    
+    // Block the same intent (can't run duplicate experiments)
+    if (!blocked.has(activeId)) {
+      blocked.set(activeId, `You already have an active ${compatibility.label} experiment`);
+    }
+    
+    // Block conflicting intents
+    for (const conflictId of compatibility.cannotAddIntents) {
+      if (!blocked.has(conflictId)) {
+        const conflictLabel = EXPERIMENT_COMPATIBILITY_MATRIX.find(c => c.intentId === conflictId)?.label || conflictId;
+        blocked.set(conflictId, `Conflicts with your active ${compatibility.label} experiment - ${compatibility.conflictReason}`);
+      }
+    }
+  }
+  
+  return Array.from(blocked.entries()).map(([intentId, reason]) => ({ intentId, reason }));
+}
+
+// Get allowed intents given a list of active experiment intents
+export function getAllowedIntents(activeIntentIds: string[]): string[] {
+  const blocked = new Set(getBlockedIntents(activeIntentIds).map(b => b.intentId));
+  return PRIMARY_INTENTS.map(i => i.id).filter(id => !blocked.has(id));
+}

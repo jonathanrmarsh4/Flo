@@ -9,7 +9,7 @@ import { ReportTile } from "@/components/ReportTile";
 import { OverdueLabWorkTile } from "@/components/OverdueLabWorkTile";
 import { FloBottomNav } from "@/components/FloBottomNav";
 import { usePlan } from "@/hooks/usePlan";
-import { ListChecks, Filter, Sparkles, Plus, FlaskConical, Play, Pause, CheckCircle, Clock, X } from "lucide-react";
+import { ListChecks, Filter, Sparkles, Plus, FlaskConical, Play, Pause, CheckCircle, Clock, X, AlertCircle } from "lucide-react";
 import type { ActionPlanItem } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +142,17 @@ export default function ActionsScreen() {
   // Fetch N-of-1 assessments
   const { data: assessmentsData, isLoading: isLoadingAssessments } = useQuery<{ experiments: N1Assessment[] }>({
     queryKey: ['/api/n1/experiments'],
+  });
+
+  // Fetch experiment compatibility info
+  const { data: compatibilityData, isError: compatibilityError } = useQuery<{
+    activeIntents: string[];
+    blockedIntents: { intentId: string; reason: string }[];
+    allowedIntents: string[];
+  }>({
+    queryKey: ['/api/n1/experiments/compatibility'],
+    enabled: selectedTab === 'assessments',
+    retry: 2,
   });
 
   const updateStatusMutation = useMutation({
@@ -348,6 +359,40 @@ export default function ActionsScreen() {
         {selectedTab === 'assessments' && (
           /* Assessments View */
           <>
+            {/* Compatibility Notice - show when there are blocked intents or error */}
+            {compatibilityError ? (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-red-300 mb-1">
+                      Compatibility Check Unavailable
+                    </h4>
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      Unable to verify experiment conflicts. New assessments are temporarily blocked. Please try again later.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : compatibilityData?.blockedIntents && compatibilityData.blockedIntents.length > 0 && (
+              <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-amber-300 mb-1">
+                      Experiment Conflict Prevention
+                    </h4>
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      {compatibilityData.blockedIntents.length === 1 
+                        ? '1 health goal is temporarily blocked'
+                        : `${compatibilityData.blockedIntents.length} health goals are temporarily blocked`
+                      } while your current assessment is active. This ensures accurate results by preventing overlapping effects.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {isLoadingAssessments ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>

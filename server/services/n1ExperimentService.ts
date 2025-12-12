@@ -841,6 +841,55 @@ class N1ExperimentService {
       sleepEfficiency: night.sleep_efficiency_pct ?? undefined,
     }));
   }
+
+  // Get active experiment intents for a user (for compatibility checking)
+  // Throws on database errors to prevent silently allowing conflicting experiments
+  async getActiveExperimentIntents(userId: string): Promise<string[]> {
+    const healthId = await getHealthId(userId);
+    
+    // Get all active/baseline experiments (not completed, cancelled, or paused)
+    const { data: experiments, error } = await supabase
+      .from('n1_experiments')
+      .select('primary_intent, status')
+      .eq('health_id', healthId)
+      .in('status', ['pending', 'baseline', 'active']);
+    
+    if (error) {
+      logger.error('Failed to get active experiment intents', { error: error.message });
+      throw new Error(`Failed to check active experiments: ${error.message}`);
+    }
+    
+    if (!experiments || experiments.length === 0) {
+      return [];
+    }
+    
+    // Extract unique primary intents
+    const intents = [...new Set(experiments.map(e => e.primary_intent))];
+    logger.debug(`[N1Experiment] User ${userId} has ${intents.length} active experiment intents: ${intents.join(', ')}`);
+    
+    return intents;
+  }
+
+  // Check experiment compatibility for a user
+  async checkExperimentCompatibility(userId: string): Promise<{
+    activeIntents: string[];
+    blockedIntents: { intentId: string; reason: string }[];
+    allowedIntents: string[];
+  }> {
+    const { getBlockedIntents, getAllowedIntents } = await import('../../shared/supplementConfig');
+    
+    const activeIntents = await this.getActiveExperimentIntents(userId);
+    const blockedIntents = getBlockedIntents(activeIntents);
+    const allowedIntents = getAllowedIntents(activeIntents);
+    
+    logger.info(`[N1Experiment] Compatibility check for ${userId}: ${activeIntents.length} active, ${blockedIntents.length} blocked, ${allowedIntents.length} allowed`);
+    
+    return {
+      activeIntents,
+      blockedIntents,
+      allowedIntents,
+    };
+  }
 }
 
 export const n1ExperimentService = new N1ExperimentService();

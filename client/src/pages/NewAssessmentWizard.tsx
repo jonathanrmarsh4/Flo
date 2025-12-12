@@ -29,6 +29,8 @@ import {
   Loader2
 } from "lucide-react";
 import { SUPPLEMENT_CONFIGURATIONS, PRIMARY_INTENTS, getSupplementsByIntent, type SupplementTypeConfig } from "@shared/supplementConfig";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Ban } from "lucide-react";
 
 // DSLD API response types
 interface DSLDProduct {
@@ -246,6 +248,24 @@ export default function NewAssessmentWizard() {
     }
   };
 
+  // Fetch experiment compatibility - which intents are blocked by active experiments
+  const { data: compatibilityData, isError: compatibilityError, isLoading: compatibilityLoading } = useQuery<{
+    activeIntents: string[];
+    blockedIntents: { intentId: string; reason: string }[];
+    allowedIntents: string[];
+  }>({
+    queryKey: ['/api/n1/experiments/compatibility'],
+    retry: 2,
+  });
+
+  // Create a map of blocked intents for easy lookup
+  const blockedIntentsMap = new Map(
+    compatibilityData?.blockedIntents?.map(b => [b.intentId, b.reason]) || []
+  );
+
+  // If compatibility check failed, block ALL intents to be safe
+  const safetyBlock = compatibilityError;
+
   // Validate baseline data when supplement is selected
   const { data: baselineValidation, isLoading: isValidatingBaseline } = useQuery<{
     hasEnoughData: boolean;
@@ -380,36 +400,96 @@ export default function NewAssessmentWizard() {
               </p>
             </div>
             
+            {/* Show error banner if compatibility check failed */}
+            {compatibilityError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                <div className="flex items-center gap-2">
+                  <Ban className="w-4 h-4 text-red-400" />
+                  <p className="text-sm text-red-300">
+                    Unable to check experiment conflicts. Please try again later.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {compatibilityLoading && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                <span className="ml-2 text-sm text-white/60">Checking active experiments...</span>
+              </div>
+            )}
+
             <div className="grid gap-3">
-              {PRIMARY_INTENTS.map((intent) => (
-                <Card
-                  key={intent.id}
-                  className={`p-4 cursor-pointer transition-all ${
-                    config.intent === intent.id
-                      ? 'bg-white/10 border-cyan-400 border-2'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10'
-                  }`}
-                  onClick={() => setConfig({ ...config, intent: intent.id, supplementTypeId: '' })}
-                  data-testid={`intent-${intent.id}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      config.intent === intent.id 
-                        ? 'bg-cyan-500/30' 
-                        : 'bg-white/10'
-                    }`}>
-                      <Zap className={`w-5 h-5 ${config.intent === intent.id ? 'text-cyan-400' : 'text-white/60'}`} />
+              {PRIMARY_INTENTS.map((intent) => {
+                const isBlocked = safetyBlock || blockedIntentsMap.has(intent.id);
+                const blockReason = safetyBlock 
+                  ? 'Unable to verify experiment compatibility - please try again later'
+                  : blockedIntentsMap.get(intent.id);
+                
+                const cardContent = (
+                  <Card
+                    key={intent.id}
+                    className={`p-4 transition-all ${
+                      isBlocked 
+                        ? 'bg-white/5 border-white/5 opacity-50 cursor-not-allowed'
+                        : config.intent === intent.id
+                          ? 'bg-white/10 border-cyan-400 border-2 cursor-pointer'
+                          : 'bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer'
+                    }`}
+                    onClick={() => !isBlocked && setConfig({ ...config, intent: intent.id, supplementTypeId: '' })}
+                    data-testid={`intent-${intent.id}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        isBlocked
+                          ? 'bg-red-500/10'
+                          : config.intent === intent.id 
+                            ? 'bg-cyan-500/30' 
+                            : 'bg-white/10'
+                      }`}>
+                        {isBlocked ? (
+                          <Ban className="w-5 h-5 text-red-400/60" />
+                        ) : (
+                          <Zap className={`w-5 h-5 ${config.intent === intent.id ? 'text-cyan-400' : 'text-white/60'}`} />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className={`font-medium ${isBlocked ? 'text-white/50' : 'text-white'}`}>{intent.label}</h3>
+                        <p className={`text-xs ${
+                          isBlocked 
+                            ? 'text-white/30'
+                            : config.intent === intent.id 
+                              ? 'text-white/70' 
+                              : 'text-white/50'
+                        }`}>{intent.description}</p>
+                        {isBlocked && (
+                          <p className="text-xs text-red-400/70 mt-1">Blocked by active experiment</p>
+                        )}
+                      </div>
+                      {config.intent === intent.id && !isBlocked && (
+                        <Check className="w-5 h-5 text-cyan-400" />
+                      )}
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-white font-medium">{intent.label}</h3>
-                      <p className={`text-xs ${config.intent === intent.id ? 'text-white/70' : 'text-white/50'}`}>{intent.description}</p>
-                    </div>
-                    {config.intent === intent.id && (
-                      <Check className="w-5 h-5 text-cyan-400" />
-                    )}
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+                
+                if (isBlocked && blockReason) {
+                  return (
+                    <TooltipProvider key={intent.id}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {cardContent}
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                          <p className="text-sm">{blockReason}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                }
+                
+                return cardContent;
+              })}
             </div>
           </div>
         )}

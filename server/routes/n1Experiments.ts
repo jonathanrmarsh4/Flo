@@ -103,6 +103,22 @@ router.get('/baseline/validate/:supplementTypeId', async (req, res) => {
   }
 });
 
+// Check experiment compatibility - returns which intents are allowed/blocked based on active experiments
+router.get('/experiments/compatibility', async (req, res) => {
+  try {
+    const userId = (req as any).user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const compatibility = await n1ExperimentService.checkExperimentCompatibility(userId);
+    res.json(compatibility);
+  } catch (error: any) {
+    logger.error('Compatibility check failed', { error: error.message });
+    res.status(500).json({ error: 'Failed to check experiment compatibility' });
+  }
+});
+
 // Create experiment schema
 const createExperimentSchema = z.object({
   supplementTypeId: z.string(),
