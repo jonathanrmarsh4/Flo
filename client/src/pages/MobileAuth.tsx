@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest, queryClient } from '@/lib/queryClient';
+import { apiRequest, queryClient, setCachedAuthToken, clearCachedAuthToken } from '@/lib/queryClient';
 import { emailRegisterSchema, emailLoginSchema, passwordResetRequestSchema } from '@shared/schema';
 import { logger } from '@/lib/logger';
 
@@ -121,9 +121,13 @@ export default function MobileAuth() {
               key: 'auth_token',
               value: data.token,
             });
+            // Also update in-memory cache
+            setCachedAuthToken(data.token);
             logger.info('Apple Sign-In: Token stored securely');
+            console.log('[AppleSignIn] Token stored in SecureStorage and cache updated');
           } catch (error) {
             logger.error('Apple Sign-In: Failed to store token securely', error);
+            console.error('[AppleSignIn] Failed to store token:', error);
           }
         }
         
@@ -205,9 +209,13 @@ export default function MobileAuth() {
             key: 'auth_token',
             value: data.token,
           });
+          // Also update in-memory cache to avoid stale null cache
+          setCachedAuthToken(data.token);
           logger.info('Passkey login: Token stored securely');
+          console.log('[Passkey] Token stored in SecureStorage and cache updated');
         } catch (error) {
           logger.error('Passkey login: Failed to store token securely', error);
+          console.error('[Passkey] Failed to store token:', error);
         }
       }
       
@@ -258,8 +266,12 @@ export default function MobileAuth() {
               key: 'auth_token',
               value: responseData.token,
             });
+            // Also update in-memory cache
+            setCachedAuthToken(responseData.token);
+            console.log('[EmailLogin] Token stored in SecureStorage and cache updated');
           } catch (error) {
             logger.error('Login: Failed to store token securely', error);
+            console.error('[EmailLogin] Failed to store token:', error);
           }
         }
         
@@ -320,8 +332,12 @@ export default function MobileAuth() {
               key: 'auth_token',
               value: responseData.token,
             });
+            // Also update in-memory cache
+            setCachedAuthToken(responseData.token);
+            console.log('[Register] Token stored in SecureStorage and cache updated');
           } catch (error) {
             logger.error('Register: Failed to store token securely', error);
+            console.error('[Register] Failed to store token:', error);
           }
         }
         

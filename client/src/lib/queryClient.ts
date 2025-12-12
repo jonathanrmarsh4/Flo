@@ -117,6 +117,15 @@ export function clearCachedAuthToken(): void {
   cachedAuthToken = null;
   tokenCacheTime = 0;
   tokenFetchPromise = null;
+  console.log('[AuthToken] Cache cleared');
+}
+
+// Update the cached token directly (call after successful login to avoid stale cache)
+export function setCachedAuthToken(token: string): void {
+  cachedAuthToken = token;
+  tokenCacheTime = Date.now();
+  tokenFetchPromise = null;
+  console.log('[AuthToken] Cache updated with new token');
 }
 
 // Create authorization headers with JWT token for mobile
