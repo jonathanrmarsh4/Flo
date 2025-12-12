@@ -435,8 +435,8 @@ export async function generateWhyInsight(
       contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
       config: {
         systemInstruction: systemPrompt,
-        temperature: 0.7,
-        maxOutputTokens: 1500,
+        temperature: 0.5,
+        maxOutputTokens: 3000,
         responseMimeType: 'application/json',
       },
     });
@@ -457,7 +457,29 @@ export async function generateWhyInsight(
       });
     }
     
-    const parsed = JSON.parse(responseText);
+    // Try to parse JSON, with fallback extraction if truncated
+    let parsed: { explanation?: string; keyInsights?: string[] };
+    try {
+      parsed = JSON.parse(responseText);
+    } catch (parseError) {
+      // If JSON is truncated, try to extract what we can
+      logger.warn(`[WhyInsight] JSON parse failed, attempting fallback extraction`, { responseText: responseText.substring(0, 500) });
+      
+      // Try to extract explanation (using [\s\S] instead of . with s flag for cross-line matching)
+      const explanationMatch = responseText.match(/"explanation"\s*:\s*"((?:[^"\\]|\\[\s\S])*)(?:"|$)/);
+      const keyInsightsMatch = responseText.match(/"keyInsights"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+      
+      parsed = {
+        explanation: explanationMatch ? explanationMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : undefined,
+        keyInsights: keyInsightsMatch ? 
+          keyInsightsMatch[1].split(/",\s*"/).map(s => s.replace(/^"?|"?$/g, '').replace(/\\n/g, '\n').replace(/\\"/g, '"')).filter(s => s.length > 10) : 
+          [],
+      };
+      
+      if (!parsed.explanation) {
+        throw parseError; // Re-throw if we couldn't extract anything useful
+      }
+    }
     
     logger.info(`[WhyInsight] Generated insight for ${tileType}`, {
       userId,
