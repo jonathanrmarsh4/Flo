@@ -166,7 +166,9 @@ async function processThreePMSurveyNotifications() {
     
     for (const user of activeUsers) {
       try {
-        const timezone = user.reminderTimezone || user.timezone || 'UTC';
+        // Use user.timezone (from device auto-sync) as primary source
+        // Only use reminderTimezone if explicitly set (not the default 'UTC')
+        const timezone = user.timezone || (user.reminderTimezone !== 'UTC' ? user.reminderTimezone : null) || 'UTC';
         const userNow = new TZDate(now, timezone);
         const userHour = userNow.getHours();
         const userMinute = userNow.getMinutes();
