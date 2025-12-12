@@ -53,8 +53,9 @@ export const DATA_SOURCE_CAPABILITIES: Record<DataSource, string[]> = {
   oura: [
     'hrv', 'resting_heart_rate', 'sleep_duration', 'deep_sleep', 'rem_sleep',
     'light_sleep', 'sleep_efficiency', 'sleep_latency', 'sleep_awakenings',
-    'temperature_deviation', 'respiratory_rate', 'readiness_score',
-    'activity_score', 'sleep_score',
+    'temperature_deviation', 'wrist_temperature', 'respiratory_rate', 
+    'oxygen_saturation', // Oura Gen3+ supports SpO2
+    'readiness_score', 'activity_score', 'sleep_score',
   ],
   dexcom: [
     'blood_glucose', 'glucose_trend', 'time_in_range',
@@ -65,27 +66,50 @@ export const DATA_SOURCE_CAPABILITIES: Record<DataSource, string[]> = {
 };
 
 // Metrics where Oura typically provides higher quality data than HealthKit
+// Oura excels at: sleep staging, overnight biometrics, temperature
 export const OURA_PREFERRED_METRICS: string[] = [
+  // Sleep metrics - Oura has superior sleep staging algorithms
   'sleep_duration',
   'deep_sleep',
   'rem_sleep', 
+  'core_sleep',
+  'light_sleep',
   'sleep_efficiency',
   'sleep_latency',
   'sleep_awakenings',
-  'temperature_deviation',
-  'hrv', // Oura measures HRV throughout the night, more samples
+  'time_in_bed',
+  // Overnight biometrics - Oura measures throughout sleep, not on-demand
+  'hrv', // Oura measures HRV throughout the night with many samples
+  'resting_heart_rate', // Oura's overnight RHR is more accurate than daytime samples
   'respiratory_rate',
+  'oxygen_saturation', // Oura measures SpO2 continuously during sleep (unlike Apple Watch on-demand)
+  // Temperature - Oura's skin temperature during sleep is more consistent
+  'temperature_deviation',
+  'wrist_temperature',
 ];
 
-// Metrics where HealthKit is typically preferred
+// Metrics where HealthKit/Apple Watch is typically preferred
+// Apple Watch excels at: active workouts, daytime activity, body composition
 export const HEALTHKIT_PREFERRED_METRICS: string[] = [
+  // Activity & Movement - Apple Watch is always on during day
   'steps',
   'active_energy',
+  'basal_energy',
+  'distance',
+  'flights_climbed',
+  'stand_hours',
+  // Workout metrics - Apple Watch has superior workout tracking with GPS, heart rate zones
   'exercise',
-  'walking_heart_rate',
+  'workout_duration',
+  'workout_calories',
+  'workout_heart_rate',
+  'walking_heart_rate', // Only walking HR, not resting - Oura preferred for overnight resting HR
   'vo2_max',
+  // Body composition - typically entered via scales synced to HealthKit
   'weight',
   'body_fat',
+  'lean_mass',
+  'bmi',
 ];
 
 /**
