@@ -84,12 +84,30 @@ export async function processSleepSamples(
 
 /**
  * Prioritize Apple first-party sources over third-party apps
- * IMPORTANT: Include all valid segments to prevent data loss for third-party devices (e.g., Oura)
+ * CRITICAL FIX: Filter out Oura-sourced samples to prevent double-counting
+ * 
+ * When Oura syncs its data to Apple Health, HealthKit returns samples from BOTH
+ * the Apple Watch AND Oura. If we sum all segments, we get doubled sleep values.
+ * Oura data should come directly from Oura sync, not via HealthKit.
  */
 function prioritizeSources(segments: SleepSegment[]): SleepSegment[] {
-  // Always return all segments - HealthKit provides deduplicated samples
-  // Users with third-party devices (Oura, Whoop) need their data preserved
-  return segments;
+  // Filter out Oura-sourced samples to prevent double-counting
+  // Oura data should come from direct Oura sync, not duplicated through HealthKit
+  const ouraSourcePatterns = ['oura', 'ouraring', 'com.ouraring'];
+  
+  const filtered = segments.filter(s => {
+    const sourceLower = s.source.toLowerCase();
+    return !ouraSourcePatterns.some(pattern => sourceLower.includes(pattern));
+  });
+  
+  // Log what we filtered for debugging
+  const ouraCount = segments.length - filtered.length;
+  if (ouraCount > 0) {
+    console.log(`[SleepProcessor] Filtered out ${ouraCount} Oura-sourced samples to prevent double-counting`);
+  }
+  
+  // If all segments were Oura-sourced, return empty (Oura sync will handle it directly)
+  return filtered;
 }
 
 /**
