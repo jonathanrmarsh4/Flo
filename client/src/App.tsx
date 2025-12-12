@@ -13,6 +13,7 @@ import { useEffect, useState, useRef } from 'react';
 import { initializeNotifications } from "@/lib/notifications";
 import { initializeStripeNative } from "@/lib/stripe-native";
 import { OnboardingScreen } from "@/components/OnboardingScreen";
+import { TokenMismatchHandler } from "@/components/TokenMismatchHandler";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import MobileAuth from "@/pages/MobileAuth";
@@ -308,6 +309,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
+        <TokenMismatchHandler />
         {isNative ? (
           <WouterRouter hook={useHashLocation}>
             <Router />

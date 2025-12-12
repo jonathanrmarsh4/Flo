@@ -2,6 +2,41 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { Capacitor } from '@capacitor/core';
 import { logger } from './logger';
 
+// Custom event for token mismatch detection (localStorage has token but SecureStorage is empty)
+// This helps users know when they need to re-authenticate to fix auth sync issues
+export const TOKEN_MISMATCH_EVENT = 'flo-token-mismatch';
+
+// Dispatch token mismatch event with debouncing to avoid spam
+let tokenMismatchTimeout: ReturnType<typeof setTimeout> | null = null;
+let lastMismatchTime = 0;
+const MISMATCH_DEBOUNCE_MS = 30000; // Only show once per 30 seconds
+
+function dispatchTokenMismatchEvent(copySucceeded: boolean) {
+  // Guard: Only dispatch events in browser environment (not Node/server)
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  const now = Date.now();
+  if (now - lastMismatchTime < MISMATCH_DEBOUNCE_MS) {
+    return; // Debounce - don't spam the user
+  }
+  
+  lastMismatchTime = now;
+  
+  if (tokenMismatchTimeout) {
+    clearTimeout(tokenMismatchTimeout);
+  }
+  
+  // Dispatch after a short delay to batch multiple detections
+  tokenMismatchTimeout = setTimeout(() => {
+    console.log('[AuthToken] Dispatching token mismatch event, copySucceeded:', copySucceeded);
+    window.dispatchEvent(new CustomEvent(TOKEN_MISMATCH_EVENT, { 
+      detail: { copySucceeded } 
+    }));
+  }, 500);
+}
+
 // Pre-load SecureStoragePlugin at module level to avoid JIT freeze on first API call
 // This is imported statically but only used on native platforms
 let SecureStoragePluginInstance: any = null;
@@ -101,7 +136,7 @@ export async function getAuthToken(): Promise<string | null> {
     }
     
     // Start a new fetch and store the promise for deduplication
-    tokenFetchPromise = fetchTokenFromSecureStorage().then(token => {
+    tokenFetchPromise = fetchTokenFromSecureStorage().then(async token => {
       // BUGFIX: Only cache valid tokens, not null - otherwise we cache "no token" for 5 minutes
       // which causes 401 errors even after the user logs in
       if (token) {
@@ -115,18 +150,23 @@ export async function getAuthToken(): Promise<string | null> {
       if (localToken) {
         cachedAuthToken = localToken;
         tokenCacheTime = Date.now();
-        console.log('[AuthToken] Found token in localStorage fallback');
+        console.log('[AuthToken] Found token in localStorage fallback - TOKEN MISMATCH DETECTED');
         
         // CRITICAL: Copy token to SecureStorage so native iOS plugins (HealthKit) can access it
         // Native Swift code cannot read localStorage - it needs the token in SecureStorage
+        let copySucceeded = false;
         try {
           if (SecureStoragePluginInstance) {
-            SecureStoragePluginInstance.set({ key: 'auth_token', value: localToken });
+            await SecureStoragePluginInstance.set({ key: 'auth_token', value: localToken });
             console.log('[AuthToken] Copied localStorage token to SecureStorage for native plugins');
+            copySucceeded = true;
           }
         } catch (copyError) {
           console.warn('[AuthToken] Failed to copy token to SecureStorage:', copyError);
         }
+        
+        // Notify the UI about the token mismatch so user can be prompted to re-authenticate
+        dispatchTokenMismatchEvent(copySucceeded);
         
         return localToken;
       }
@@ -134,7 +174,7 @@ export async function getAuthToken(): Promise<string | null> {
       return null;
     }).catch(async error => {
       // SecureStorage failed - check localStorage as fallback
-      console.log('[AuthToken] SecureStorage error, checking localStorage:', error);
+      console.log('[AuthToken] SecureStorage error, checking localStorage - TOKEN MISMATCH DETECTED:', error);
       const localToken = localStorage.getItem('auth_token');
       if (localToken) {
         cachedAuthToken = localToken;
@@ -142,13 +182,18 @@ export async function getAuthToken(): Promise<string | null> {
         tokenFetchPromise = null;
         
         // CRITICAL: Copy token to SecureStorage so native iOS plugins (HealthKit) can access it
+        let copySucceeded = false;
         try {
           const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
           await SecureStoragePlugin.set({ key: 'auth_token', value: localToken });
           console.log('[AuthToken] Copied localStorage token to SecureStorage for native plugins');
+          copySucceeded = true;
         } catch (copyError) {
           console.warn('[AuthToken] Failed to copy token to SecureStorage:', copyError);
         }
+        
+        // Notify the UI about the token mismatch so user can be prompted to re-authenticate
+        dispatchTokenMismatchEvent(copySucceeded);
         
         return localToken;
       }
