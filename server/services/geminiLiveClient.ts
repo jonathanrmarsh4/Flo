@@ -241,10 +241,18 @@ class GeminiLiveClient {
    */
   private processMessage(message: LiveServerMessage, callbacks: LiveSessionCallbacks): void {
     try {
-      // Handle audio data (base64 encoded in message.data)
+      // NOTE: Audio can come from two sources in Gemini responses:
+      // 1. message.data (legacy/text-to-speech models)
+      // 2. serverContent.modelTurn.parts[].inlineData (native-audio models)
+      // We only use the inlineData path for native-audio model to avoid duplicates
+      
+      // Skip message.data audio - native-audio model uses inlineData path only
+      // This prevents duplicate audio playback if both are present
       if (message.data) {
-        const audioBuffer = Buffer.from(message.data, 'base64');
-        callbacks.onAudioChunk(audioBuffer);
+        logger.debug('[GeminiLive] message.data present (legacy path - skipping for native-audio)', { 
+          dataLength: (message.data as string).length 
+        });
+        // Don't process message.data - let inlineData handle it
       }
 
       // Handle input audio transcription (user's speech as text)
