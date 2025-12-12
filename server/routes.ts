@@ -13662,6 +13662,12 @@ Important: This is for educational purposes. Include a brief note that users sho
         prevDate = date;
       }
       
+      // Cap streak to days since Flo launched (prevent impossible streaks from backfilled data)
+      const FLO_LAUNCH_DATE = new Date('2025-10-01'); // Flo public launch date
+      const daysSinceLaunch = Math.floor((Date.now() - FLO_LAUNCH_DATE.getTime()) / (1000 * 60 * 60 * 24));
+      const maxPossibleStreak = Math.max(1, daysSinceLaunch);
+      currentStreak = Math.min(currentStreak, maxPossibleStreak);
+      
       // Get longest streak from user's historical max
       const [prevEngagement] = await db
         .select({ longestStreak: userDailyEngagement.longestStreak })
@@ -13670,7 +13676,11 @@ Important: This is for educational purposes. Include a brief note that users sho
         .orderBy(sql`${userDailyEngagement.date} DESC`)
         .limit(1);
       
-      const longestStreak = Math.max(currentStreak, prevEngagement?.longestStreak || 1);
+      // Cap longest streak to max possible as well (fix historical impossible values)
+      const longestStreak = Math.min(
+        Math.max(currentStreak, prevEngagement?.longestStreak || 1),
+        maxPossibleStreak
+      );
       
       // Calculate XP: streak * daily score
       const totalXP = currentStreak * dailyScore.score;
