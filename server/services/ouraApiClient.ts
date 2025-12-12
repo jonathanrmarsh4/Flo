@@ -275,14 +275,30 @@ export function convertSleepPeriodToFloFormat(
   const tzMatch = period.bedtime_start.match(/([+-]\d{2}:\d{2})$/);
   const timezone = tzMatch ? `UTC${tzMatch[1]}` : 'UTC';
   
+  // DEBUG: Log raw Oura values to diagnose sleep calculation issues
+  const totalSleepMin = period.total_sleep_duration ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.total_sleep_duration) : null;
+  const timeInBedMin = period.time_in_bed ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.time_in_bed) : null;
+  
+  console.log(`[OuraAPI] Converting sleep period for ${period.day}:`, {
+    sessionId: period.id,
+    type: period.type,
+    bedtimeStart: period.bedtime_start,
+    bedtimeEnd: period.bedtime_end,
+    raw_total_sleep_duration_sec: period.total_sleep_duration,
+    raw_time_in_bed_sec: period.time_in_bed,
+    converted_totalSleepMin: totalSleepMin,
+    converted_timeInBedMin: timeInBedMin,
+    efficiency: period.efficiency,
+  });
+  
   return {
     sleepDate: period.day,
     timezone,
     nightStart: bedtimeStart,
     finalWake: bedtimeEnd,
     sleepOnset: bedtimeStart, // Oura doesn't provide exact onset, use bedtime
-    timeInBedMin: period.time_in_bed ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.time_in_bed) : null,
-    totalSleepMin: period.total_sleep_duration ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.total_sleep_duration) : null,
+    timeInBedMin,
+    totalSleepMin,
     sleepEfficiencyPct: period.efficiency ?? null,
     sleepLatencyMin: period.latency ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.latency) : null,
     wasoMin: period.awake_time ? OURA_UNIT_CONVERSIONS.sleepDurationSecToMin(period.awake_time) : null,

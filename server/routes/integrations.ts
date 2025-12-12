@@ -230,6 +230,8 @@ router.post('/:provider/sync', isAuthenticated, async (req: Request, res: Respon
             resting_hr_bpm: night.restingHrBpm,
             hrv_ms: night.hrvMs,
             respiratory_rate: night.respiratoryRate,
+            source: 'oura',
+            oura_session_id: night.ouraSessionId,
           });
         } catch (err) {
           console.error('[IntegrationsAPI] Failed to store sleep night:', err);

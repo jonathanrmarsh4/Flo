@@ -276,6 +276,8 @@ export async function upsertSleepNight(userId: string, sleep: any) {
       respiratory_rate: sleep.respiratoryRate ?? null,
       wrist_temperature: sleep.wristTemperature ?? null,
       oxygen_saturation: sleep.oxygenSaturation ?? null,
+      source: sleep.source ?? null,  // Pass source for merge logic (Oura > HealthKit priority)
+      oura_session_id: sleep.ouraSessionId ?? null,  // Pass Oura session ID if present
     };
     
     const result = await supabaseHealth.upsertSleepNight(userId, sleepSnakeCase);

@@ -10338,6 +10338,7 @@ Important: This is for educational purposes. Include a brief note that users sho
         respiratoryRate: null,
         wristTemperature: null,
         oxygenSaturation: null,
+        source: 'healthkit',  // Mark source for proper merge logic (Oura data won't be overwritten)
       });
 
       logger.info(`[Sleep] Saved sleep night from raw samples: ${userId}, ${sleepDate}`);
