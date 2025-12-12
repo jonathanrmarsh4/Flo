@@ -113,8 +113,8 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const scheduledEndTimeRef = useRef<number>(0);
   
   // Pre-buffer settings - wait for enough audio before starting playback
-  // Reduced to 100ms for lower latency while maintaining smooth playback
-  const PRE_BUFFER_SAMPLES = 24000 * 0.1; // 100ms of audio at 24kHz
+  // Reduced to 50ms for lower latency - prioritize responsiveness
+  const PRE_BUFFER_SAMPLES = 24000 * 0.05; // 50ms of audio at 24kHz = 1200 samples
   const pendingSamplesRef = useRef<Float32Array[]>([]);
   const totalPendingSamplesRef = useRef(0);
   const hasStartedPlaybackRef = useRef(false);
@@ -356,6 +356,10 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
             case 'turn_complete':
               // Model finished its turn - signal to flush accumulated text
               console.log('[GeminiLive] Turn complete');
+              // Reset pre-buffering state for next response
+              hasStartedPlaybackRef.current = false;
+              pendingSamplesRef.current = [];
+              totalPendingSamplesRef.current = 0;
               options.onTurnComplete?.();
               break;
 
