@@ -342,9 +342,10 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
       .maybeSingle();
 
     // Fetch daily metrics (may not exist)
+    // IMPORTANT: Use steps_raw_sum for actual step count, not steps_normalized (which is a 0-1 score)
     const { data: dailyMetrics } = await supabase
       .from('user_daily_metrics')
-      .select('steps_normalized, active_energy_kcal, exercise_minutes, hrv_ms, resting_hr_bpm')
+      .select('steps_normalized, steps_raw_sum, active_energy_kcal, exercise_minutes, hrv_ms, resting_hr_bpm')
       .eq('health_id', healthId)
       .eq('local_date', eventDate)
       .maybeSingle();
@@ -359,7 +360,7 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
       deep_sleep_minutes: sleepData?.deep_sleep_min ?? null,
       rem_sleep_minutes: sleepData?.rem_sleep_min ?? null,
       sleep_efficiency: sleepData?.sleep_efficiency_pct ?? null,
-      steps: dailyMetrics?.steps_normalized ?? null,
+      steps: dailyMetrics?.steps_raw_sum ?? dailyMetrics?.steps_normalized ?? null,
       active_energy: dailyMetrics?.active_energy_kcal ?? null,
       workout_minutes: dailyMetrics?.exercise_minutes ?? null,
       readiness_score: null, // Calculated by aggregateDailyInsights using readinessEngine
