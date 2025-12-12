@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { PDFParse } from "pdf-parse";
 import { trackOpenAICompletion } from './aiUsageTracker';
+import { logger } from '../utils/logger';
 
 function getOpenAIClient(): OpenAI {
   if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY) {

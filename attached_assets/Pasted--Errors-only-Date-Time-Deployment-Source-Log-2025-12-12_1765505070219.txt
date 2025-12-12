@@ -1,0 +1,194 @@
+
+
+Errors only
+
+Date
+Time
+Deployment
+Source
+Log
+2025-12-12 07:25:56.71
+56861eb8
+User
+[2025-12-11T23:25:56.709Z] [INFO] [Flōmentum] Score calculated for 50718264-56af-4020-8e54-2d441d37617f, 2025-06-07: 44 (DRAINING)
+2025-12-12 07:27:37.57
+56861eb8
+User
+[2025-12-11T23:27:37.576Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:37.57
+56861eb8
+User
+[2025-12-11T23:27:37.578Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:37.62
+56861eb8
+User
+[2025-12-11T23:27:37.621Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:37.74
+56861eb8
+User
+[2025-12-11T23:27:37.747Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:37.76
+56861eb8
+User
+[2025-12-11T23:27:37.765Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:38.02
+56861eb8
+User
+[2025-12-11T23:27:38.028Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:38.02
+56861eb8
+User
+[2025-12-11T23:27:38.029Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:38.39
+56861eb8
+User
+[2025-12-11T23:27:38.390Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:41.68
+56861eb8
+User
+[2025-12-11T23:27:41.680Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:41.78
+56861eb8
+User
+[2025-12-11T23:27:41.788Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:41.81
+56861eb8
+User
+[2025-12-11T23:27:41.816Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:41.95
+56861eb8
+User
+[2025-12-11T23:27:41.959Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:41.96
+56861eb8
+User
+[2025-12-11T23:27:41.961Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:41.97
+56861eb8
+User
+[2025-12-11T23:27:41.976Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+
+2025-12-12 07:27:41.98
+56861eb8
+User
+[2025-12-11T23:27:41.987Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.11
+56861eb8
+User
+[2025-12-11T23:27:42.110Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.13
+56861eb8
+User
+[2025-12-11T23:27:42.138Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.13
+56861eb8
+User
+[2025-12-11T23:27:42.139Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.14
+56861eb8
+User
+[2025-12-11T23:27:42.140Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.22
+56861eb8
+User
+[2025-12-11T23:27:42.228Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.25
+56861eb8
+User
+[2025-12-11T23:27:42.250Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.41
+56861eb8
+User
+[2025-12-11T23:27:42.413Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.42
+56861eb8
+User
+[2025-12-11T23:27:42.429Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.43
+56861eb8
+User
+[2025-12-11T23:27:42.434Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.43
+56861eb8
+User
+[2025-12-11T23:27:42.435Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.54
+56861eb8
+User
+[2025-12-11T23:27:42.546Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.60
+56861eb8
+User
+[2025-12-11T23:27:42.600Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.60
+56861eb8
+User
+[2025-12-11T23:27:42.601Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.60
+56861eb8
+User
+[2025-12-11T23:27:42.602Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.66
+56861eb8
+User
+[2025-12-11T23:27:42.662Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.68
+56861eb8
+User
+[2025-12-11T23:27:42.688Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.84
+56861eb8
+User
+[2025-12-11T23:27:42.845Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.88
+56861eb8
+User
+[2025-12-11T23:27:42.886Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.88
+56861eb8
+User
+[2025-12-11T23:27:42.888Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:42.98
+56861eb8
+User
+[2025-12-11T23:27:42.980Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:43.05
+56861eb8
+User
+[2025-12-11T23:27:43.056Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:43.06
+56861eb8
+User
+[2025-12-11T23:27:43.062Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:43.12
+56861eb8
+User
+[2025-12-11T23:27:43.124Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:43.27
+56861eb8
+User
+[2025-12-11T23:27:43.276Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:43.34
+56861eb8
+User
+[2025-12-11T23:27:43.340Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:47.02
+56861eb8
+User
+[2025-12-11T23:27:47.020Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:47.02
+56861eb8
+User
+[2025-12-11T23:27:47.026Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:47.02
+56861eb8
+User
+[2025-12-11T23:27:47.027Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:47.06
+56861eb8
+User
+[2025-12-11T23:27:47.068Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
+2025-12-12 07:27:47.21
+56861eb8
+User
+[2025-12-11T23:27:47.212Z] [INFO] [ClickHouseML] Auto-synced 111 metrics for 50718264-56af-4020-8e54-2d441d37617f after HealthKit ingestion
