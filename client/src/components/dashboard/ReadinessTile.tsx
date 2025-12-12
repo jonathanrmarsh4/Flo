@@ -3,9 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { DataSourceBadge } from '@/components/DataSourceBadge';
+import { WhyButton } from '../WhyButton';
 
 interface ReadinessTileProps {
   isDark: boolean;
+  onWhyClick?: () => void;
 }
 
 interface ReadinessData {
@@ -34,7 +36,7 @@ interface ReadinessData {
   timestamp?: string;
 }
 
-export function ReadinessTile({ isDark }: ReadinessTileProps) {
+export function ReadinessTile({ isDark, onWhyClick }: ReadinessTileProps) {
   const { data: readinessData, isLoading, error } = useQuery<ReadinessData>({
     queryKey: ['/api/readiness/today'],
     // PERFORMANCE FIX: Cache data to reduce cold-start fetch load
@@ -169,12 +171,15 @@ export function ReadinessTile({ isDark }: ReadinessTileProps) {
           </h3>
           <DataSourceBadge source="healthkit" size="sm" />
         </div>
-        {isCalibrating && (
-          <div className={`flex items-center gap-1 text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-            <AlertCircle className="w-3 h-3" />
-            <span>Calibrating</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {isCalibrating && (
+            <div className={`flex items-center gap-1 text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              <AlertCircle className="w-3 h-3" />
+              <span>Calibrating</span>
+            </div>
+          )}
+          {onWhyClick && <WhyButton onClick={onWhyClick} isDark={isDark} />}
+        </div>
       </div>
 
       {/* Main Score Display */}

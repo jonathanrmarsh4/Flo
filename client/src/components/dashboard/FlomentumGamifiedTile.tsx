@@ -2,10 +2,12 @@ import { Flame, Check, Sparkles, Moon, Footprints, Timer, Eye, CheckSquare, Mess
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { apiRequest } from '@/lib/queryClient';
+import { WhyButton } from '../WhyButton';
 
 interface FlomentumGamifiedTileProps {
   isDark: boolean;
   onClick?: () => void;
+  onWhyClick?: () => void;
 }
 
 interface GamificationData {
@@ -44,7 +46,7 @@ interface FlomentumData {
   gamification: GamificationData | null;
 }
 
-export function FlomentumGamifiedTile({ isDark, onClick }: FlomentumGamifiedTileProps) {
+export function FlomentumGamifiedTile({ isDark, onClick, onWhyClick }: FlomentumGamifiedTileProps) {
   const queryClient = useQueryClient();
   
   const { data: flomentumData, isLoading, error } = useQuery<FlomentumData>({
@@ -173,20 +175,28 @@ export function FlomentumGamifiedTile({ isDark, onClick }: FlomentumGamifiedTile
             Flōmentum
           </h3>
         </div>
-        {hasGamification && (
-          <Badge 
-            variant="outline" 
-            className={`text-xs px-2 py-0.5 ${
-              isDark 
-                ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-amber-500/30' 
-                : 'bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border-amber-300'
-            }`}
-            data-testid="badge-level"
-          >
-            <Sparkles className="w-3 h-3 mr-1" />
-            Level {gamification.level}
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {hasGamification && (
+            <Badge 
+              variant="outline" 
+              className={`text-xs px-2 py-0.5 ${
+                isDark 
+                  ? 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border-amber-500/30' 
+                  : 'bg-gradient-to-r from-amber-100 to-orange-100 text-amber-700 border-amber-300'
+              }`}
+              data-testid="badge-level"
+            >
+              <Sparkles className="w-3 h-3 mr-1" />
+              Level {gamification.level}
+            </Badge>
+          )}
+          {onWhyClick && (
+            <WhyButton 
+              onClick={onWhyClick} 
+              isDark={isDark} 
+            />
+          )}
+        </div>
       </div>
 
       {/* Main Score Area */}

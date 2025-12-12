@@ -1,4 +1,5 @@
 import { TrendingDown, TrendingUp, Calendar, Sparkles } from 'lucide-react';
+import { WhyButton } from '../WhyButton';
 
 interface FloOverviewTileProps {
   isDark: boolean;
@@ -12,6 +13,7 @@ interface FloOverviewTileProps {
   inflammation?: number | null;
   lastCheckin?: string | null;
   missingMetrics?: string[];
+  onWhyClick?: () => void;
 }
 
 export function FloOverviewTile({
@@ -26,6 +28,7 @@ export function FloOverviewTile({
   inflammation,
   lastCheckin,
   missingMetrics,
+  onWhyClick,
 }: FloOverviewTileProps) {
   const hasMissingMetrics = missingMetrics && missingMetrics.length > 0;
   const canCalculateBioAge = bioAge !== null && bioAge !== undefined && !hasMissingMetrics;
@@ -64,11 +67,14 @@ export function FloOverviewTile({
             FLŌ OVERVIEW
           </h3>
         </div>
-        {scoreBadge && (
-          <span className={`text-xs px-3 py-1 rounded-full ${scoreBadge.color}`}>
-            {scoreBadge.label}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {scoreBadge && (
+            <span className={`text-xs px-3 py-1 rounded-full ${scoreBadge.color}`}>
+              {scoreBadge.label}
+            </span>
+          )}
+          {onWhyClick && <WhyButton onClick={onWhyClick} isDark={isDark} />}
+        </div>
       </div>
 
       {/* Biological Age Section */}

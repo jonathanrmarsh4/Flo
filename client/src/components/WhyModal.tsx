@@ -1,37 +1,63 @@
-import { X, Sparkles, MessageCircle, ChevronRight } from 'lucide-react';
+import { X, Sparkles, MessageCircle, ChevronRight, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
+export interface WhyInsightResponse {
+  tileType: string;
+  score: number | string | null;
+  explanation: string;
+  keyInsights: string[];
+  generatedAt: string;
+}
+
 interface WhyModalProps {
+  isOpen: boolean;
   isDark: boolean;
   onClose: () => void;
   onFloChat: () => void;
-  title: string;
-  overallScore?: number | string;
-  aiExplanation: string;
-  keyInsights?: string[];
-  tileType?: string;
+  tileType: string;
+  isLoading?: boolean;
+  data?: WhyInsightResponse | null;
+  error?: string | null;
 }
 
+const TILE_TITLES: Record<string, string> = {
+  flo_overview: "Understanding Your Flō Overview",
+  flomentum: "Understanding Your Flōmentum Score",
+  sleep_index: "Understanding Your Sleep Index",
+  daily_readiness: "Understanding Your Readiness Score",
+};
+
 export function WhyModal({ 
+  isOpen,
   isDark, 
   onClose, 
   onFloChat,
-  title, 
-  overallScore,
-  aiExplanation,
-  keyInsights = [],
-  tileType = 'Score'
+  tileType,
+  isLoading = false,
+  data,
+  error,
 }: WhyModalProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    setTimeout(() => setIsVisible(true), 50);
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => setIsVisible(true), 50);
+    } else {
+      setIsVisible(false);
+    }
     
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, []);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const title = TILE_TITLES[tileType] || "Understanding Your Score";
+  const overallScore = data?.score;
+  const aiExplanation = data?.explanation || '';
+  const keyInsights = data?.keyInsights || [];
 
   return (
     <>
@@ -110,105 +136,132 @@ export function WhyModal({
 
           {/* AI-Generated Explanation */}
           <div className="p-8 space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 350px)' }}>
-            {/* Flō Avatar Badge */}
-            <div className="flex items-start gap-4">
-              <div className={`flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg ${
-                isDark 
-                  ? 'from-teal-500 via-cyan-500 to-blue-500 shadow-teal-500/30' 
-                  : 'from-teal-400 via-cyan-400 to-blue-400 shadow-teal-400/20'
-              }`}>
-                <span className="text-2xl">🌊</span>
-              </div>
-              <div className="flex-1">
-                <div className={`text-sm mb-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
-                  Flō's Insight
-                </div>
-                <div className={`text-[15px] leading-relaxed ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
-                  {aiExplanation}
-                </div>
-              </div>
-            </div>
-
-            {/* Key Insights Section */}
-            {keyInsights.length > 0 && (
-              <div className={`rounded-3xl border p-6 ${
-                isDark 
-                  ? 'bg-white/5 border-white/10' 
-                  : 'bg-white/60 border-black/5'
-              }`}>
-                <h3 className={`text-sm uppercase tracking-wider mb-4 flex items-center gap-2 ${
-                  isDark ? 'text-white/50' : 'text-gray-500'
-                }`}>
-                  <span className="text-base">✨</span>
-                  Key Factors
-                </h3>
-                <div className="space-y-3">
-                  {keyInsights.map((insight, index) => (
-                    <div 
-                      key={index}
-                      className={`flex items-start gap-3 transition-all duration-300`}
-                      style={{ transitionDelay: `${index * 100}ms` }}
-                    >
-                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                        isDark 
-                          ? 'bg-teal-500/20 text-teal-400' 
-                          : 'bg-teal-100 text-teal-700'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      <p className={`text-sm leading-relaxed pt-0.5 ${
-                        isDark ? 'text-white/80' : 'text-gray-700'
-                      }`}>
-                        {insight}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+            {/* Loading State */}
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className={`w-10 h-10 animate-spin mb-4 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Analyzing your health data...
+                </p>
               </div>
             )}
 
-            {/* Contextual Tip */}
-            <div className={`rounded-2xl p-5 border-l-4 ${
-              isDark 
-                ? 'bg-blue-500/10 border-blue-400' 
-                : 'bg-blue-50 border-blue-500'
-            }`}>
-              <div className={`text-xs uppercase tracking-wider mb-2 ${
-                isDark ? 'text-blue-400' : 'text-blue-600'
+            {/* Error State */}
+            {error && !isLoading && (
+              <div className={`rounded-2xl p-6 border ${
+                isDark ? 'bg-red-500/10 border-red-500/30' : 'bg-red-50 border-red-200'
               }`}>
-                💡 Quick Tip
+                <p className={`text-sm ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                  {error}
+                </p>
               </div>
-              <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
-                Want to understand more about what's driving your scores? Ask Flō below for personalized recommendations and deeper insights.
+            )}
+
+            {/* Content (only show when loaded) */}
+            {!isLoading && !error && data && (
+              <>
+                {/* Flō Avatar Badge */}
+                <div className="flex items-start gap-4">
+                  <div className={`flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg ${
+                    isDark 
+                      ? 'from-teal-500 via-cyan-500 to-blue-500 shadow-teal-500/30' 
+                      : 'from-teal-400 via-cyan-400 to-blue-400 shadow-teal-400/20'
+                  }`}>
+                    <span className="text-2xl">🌊</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className={`text-sm mb-2 ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>
+                      Flō's Insight
+                    </div>
+                    <div className={`text-[15px] leading-relaxed ${isDark ? 'text-white/90' : 'text-gray-800'}`}>
+                      {aiExplanation}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Key Insights Section */}
+                {keyInsights.length > 0 && (
+                  <div className={`rounded-3xl border p-6 ${
+                    isDark 
+                      ? 'bg-white/5 border-white/10' 
+                      : 'bg-white/60 border-black/5'
+                  }`}>
+                    <h3 className={`text-sm uppercase tracking-wider mb-4 flex items-center gap-2 ${
+                      isDark ? 'text-white/50' : 'text-gray-500'
+                    }`}>
+                      <span className="text-base">✨</span>
+                      Key Factors
+                    </h3>
+                    <div className="space-y-3">
+                      {keyInsights.map((insight, index) => (
+                        <div 
+                          key={index}
+                          className={`flex items-start gap-3 transition-all duration-300`}
+                          style={{ transitionDelay: `${index * 100}ms` }}
+                        >
+                          <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                            isDark 
+                              ? 'bg-teal-500/20 text-teal-400' 
+                              : 'bg-teal-100 text-teal-700'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <p className={`text-sm leading-relaxed pt-0.5 ${
+                            isDark ? 'text-white/80' : 'text-gray-700'
+                          }`}>
+                            {insight}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Contextual Tip */}
+                <div className={`rounded-2xl p-5 border-l-4 ${
+                  isDark 
+                    ? 'bg-blue-500/10 border-blue-400' 
+                    : 'bg-blue-50 border-blue-500'
+                }`}>
+                  <div className={`text-xs uppercase tracking-wider mb-2 ${
+                    isDark ? 'text-blue-400' : 'text-blue-600'
+                  }`}>
+                    💡 Quick Tip
+                  </div>
+                  <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                    Want to understand more about what's driving your scores? Ask Flō below for personalized recommendations and deeper insights.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer with Flō Chat Button - show when not loading */}
+          {!isLoading && (
+            <div className={`p-8 pt-6 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
+              <button
+                onClick={() => {
+                  onFloChat();
+                }}
+                className={`w-full py-5 rounded-[20px] font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl ${
+                  isDark
+                    ? 'bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 text-white shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/50'
+                    : 'bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 text-white shadow-blue-400/30 hover:shadow-2xl hover:shadow-blue-400/40'
+                }`}
+                data-testid="button-ask-flo-details"
+              >
+                <div className="flex items-center justify-center gap-3">
+                  <MessageCircle className="w-5 h-5" />
+                  <span className="text-base">{error ? 'Talk to Flō Instead' : 'Ask Flō for More Details'}</span>
+                  <ChevronRight className="w-5 h-5" />
+                </div>
+              </button>
+
+              <p className={`text-center text-xs mt-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                {error ? 'Get help from Flō directly' : 'Get personalized insights, recommendations, and action steps'}
               </p>
             </div>
-          </div>
-
-          {/* Footer with Flō Chat Button */}
-          <div className={`p-8 pt-6 border-t ${isDark ? 'border-white/10' : 'border-black/5'}`}>
-            <button
-              onClick={() => {
-                onClose();
-                onFloChat();
-              }}
-              className={`w-full py-5 rounded-[20px] font-medium transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-xl ${
-                isDark
-                  ? 'bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-500 text-white shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/50'
-                  : 'bg-gradient-to-r from-blue-400 via-cyan-400 to-teal-400 text-white shadow-blue-400/30 hover:shadow-2xl hover:shadow-blue-400/40'
-              }`}
-              data-testid="button-ask-flo-details"
-            >
-              <div className="flex items-center justify-center gap-3">
-                <MessageCircle className="w-5 h-5" />
-                <span className="text-base">Ask Flō for More Details</span>
-                <ChevronRight className="w-5 h-5" />
-              </div>
-            </button>
-
-            <p className={`text-center text-xs mt-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-              Get personalized insights, recommendations, and action steps
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </>

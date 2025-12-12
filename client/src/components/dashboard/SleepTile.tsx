@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { DataSourceBadge } from '@/components/DataSourceBadge';
+import { WhyButton } from '../WhyButton';
 
 interface HealthKitSleepData {
   nightflo_score: number;
@@ -37,9 +38,10 @@ interface ManualSleepEntry {
 interface SleepTileProps {
   isDark: boolean;
   data?: HealthKitSleepData;
+  onWhyClick?: () => void;
 }
 
-export function SleepTile({ isDark, data }: SleepTileProps) {
+export function SleepTile({ isDark, data, onWhyClick }: SleepTileProps) {
   const [, setLocation] = useLocation();
   
   const { data: manualEntries } = useQuery<ManualSleepEntry[]>({
@@ -68,6 +70,7 @@ export function SleepTile({ isDark, data }: SleepTileProps) {
         data={data!} 
         onOpenDetail={() => setLocation('/sleep-logger')}
         onManualLog={() => setLocation('/sleep-logger')}
+        onWhyClick={onWhyClick}
       />
     );
   }
@@ -348,7 +351,7 @@ function ManualSleepDisplay({ isDark, entry, onEdit }: { isDark: boolean; entry:
   );
 }
 
-function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog }: { isDark: boolean; data: HealthKitSleepData; onOpenDetail: () => void; onManualLog: () => void }) {
+function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog, onWhyClick }: { isDark: boolean; data: HealthKitSleepData; onOpenDetail: () => void; onManualLog: () => void; onWhyClick?: () => void }) {
   const getScoreColors = () => {
     if (data.nightflo_score >= 80) {
       return {
@@ -411,8 +414,11 @@ function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog }: { is
           </h3>
           <DataSourceBadge source="healthkit" size="sm" />
         </div>
-        <div className={`px-2.5 py-1 rounded-full text-xs ${colors.badgeBg} ${colors.badgeText}`} data-testid="badge-sleep-label">
-          {data.score_label}
+        <div className="flex items-center gap-2">
+          <div className={`px-2.5 py-1 rounded-full text-xs ${colors.badgeBg} ${colors.badgeText}`} data-testid="badge-sleep-label">
+            {data.score_label}
+          </div>
+          {onWhyClick && <WhyButton onClick={onWhyClick} isDark={isDark} />}
         </div>
       </div>
 

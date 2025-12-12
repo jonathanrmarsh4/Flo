@@ -16012,6 +16012,37 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   }
 
   // ===============================
+  // TILE "WHY" INSIGHT API
+  // ===============================
+
+  // POST /api/tiles/why/:tileType - Generate AI insight explaining why a score is what it is
+  app.post("/api/tiles/why/:tileType", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { tileType } = req.params;
+      const validTileTypes = ['flo_overview', 'flomentum', 'sleep_index', 'daily_readiness'];
+      
+      if (!validTileTypes.includes(tileType)) {
+        return res.status(400).json({ 
+          error: `Invalid tile type. Must be one of: ${validTileTypes.join(', ')}` 
+        });
+      }
+
+      const { generateWhyInsight } = await import('./services/whyInsightGenerator');
+      const insight = await generateWhyInsight(userId, tileType as any);
+
+      res.json(insight);
+    } catch (error: any) {
+      logger.error('[WhyInsight] Generation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ===============================
   // DEXCOM CGM INTEGRATION API
   // ===============================
 

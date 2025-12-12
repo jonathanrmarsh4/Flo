@@ -11,6 +11,7 @@ import { AIInsightsTile } from './AIInsightsTile';
 import { FloLogo } from './FloLogo';
 import { ThreePMSurveyModal } from './ThreePMSurveyModal';
 import { FeedbackSurveyModal } from './FeedbackSurveyModal';
+import { WhyModal, type WhyInsightResponse } from './WhyModal';
 import { Settings, Brain, TrendingUp, Shield, Sun, Moon, LogOut, GripVertical, Bell, ClipboardCheck, MessageCircle, AlertTriangle, ThermometerSnowflake, HeartPulse } from 'lucide-react';
 import { NotificationsScreen } from './NotificationsScreen';
 import { useQuery } from '@tanstack/react-query';
@@ -170,6 +171,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   const [currentFeedback, setCurrentFeedback] = useState<PendingFeedbackAlert | null>(null);
   const [paywallModalId, setPaywallModalId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [whyModalData, setWhyModalData] = useState<{ isOpen: boolean; tileType: string | null; isLoading: boolean; data: WhyInsightResponse | null; error: string | null }>({ isOpen: false, tileType: null, isLoading: false, data: null, error: null });
   const { user } = useAuth();
   const { tileOrder, reorderTiles} = useTileOrder();
   
@@ -226,6 +228,40 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
     setShowFeedbackModal(false);
     setCurrentFeedback(null);
     queryClient.invalidateQueries({ queryKey: ['/api/anomaly-alerts/pending'] });
+  };
+
+  const handleWhyClick = async (tileType: 'flo_overview' | 'flomentum' | 'sleep_index' | 'daily_readiness') => {
+    setWhyModalData({ isOpen: true, tileType, isLoading: true, data: null, error: null });
+    try {
+      const response = await fetch(`/api/tiles/why/${tileType}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to generate insight');
+      }
+      const data: WhyInsightResponse = await response.json();
+      setWhyModalData(prev => ({ ...prev, isLoading: false, data }));
+    } catch (err: any) {
+      setWhyModalData(prev => ({ ...prev, isLoading: false, error: err.message || 'Failed to load insight' }));
+    }
+  };
+
+  const handleWhyTalkToFlo = () => {
+    if (onTalkToFlo) {
+      const context = JSON.stringify({
+        type: 'why_insight',
+        tileType: whyModalData.tileType,
+        insight: whyModalData.data,
+        error: whyModalData.error,
+      });
+      onTalkToFlo(context);
+      setWhyModalData({ isOpen: false, tileType: null, isLoading: false, data: null, error: null });
+    }
+  };
+
+  const handleWhyModalClose = () => {
+    setWhyModalData({ isOpen: false, tileType: null, isLoading: false, data: null, error: null });
   };
   
   const canAccessInsights = planData?.features?.insights?.allowAiGeneratedInsightCards ?? true;
@@ -346,7 +382,8 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
                     if (!isDragging) {
                       setLocation('/flomentum');
                     }
-                  }} 
+                  }}
+                  onWhyClick={() => handleWhyClick('flomentum')}
                 />
               ) : (
                 <UpgradePremiumTile
@@ -364,14 +401,14 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
         case 'readiness':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <ReadinessTile isDark={isDark} />
+              <ReadinessTile isDark={isDark} onWhyClick={() => handleWhyClick('daily_readiness')} />
             </SortableItem>
           );
 
         case 'sleep':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <SleepTile isDark={isDark} data={sleepData} />
+              <SleepTile isDark={isDark} data={sleepData} onWhyClick={() => handleWhyClick('sleep_index')} />
             </SortableItem>
           );
 
@@ -620,6 +657,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
               inflammation={dashboardData?.componentScores?.inflammation}
               lastCheckin={dashboardData?.lastUpdated}
               missingMetrics={bioAgeData?.missingBiomarkers}
+              onWhyClick={() => handleWhyClick('flo_overview')}
             />
 
             {/* Sortable Tiles */}
@@ -693,6 +731,18 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           }}
         />
       )}
+
+      {/* Why Insight Modal */}
+      <WhyModal
+        isOpen={whyModalData.isOpen}
+        onClose={handleWhyModalClose}
+        isDark={isDark}
+        tileType={whyModalData.tileType || 'flo_overview'}
+        isLoading={whyModalData.isLoading}
+        data={whyModalData.data}
+        error={whyModalData.error}
+        onFloChat={handleWhyTalkToFlo}
+      />
     </div>
   );
 }
