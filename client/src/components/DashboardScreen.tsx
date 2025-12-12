@@ -23,7 +23,7 @@ import { PaywallModal } from './PaywallModal';
 import { usePlan, usePaywallModals } from '@/hooks/usePlan';
 import { useAuth } from '@/hooks/useAuth';
 import { Capacitor } from '@capacitor/core';
-import { queryClient } from '@/lib/queryClient';
+import { queryClient, apiRequest } from '@/lib/queryClient';
 import { logger } from '@/lib/logger';
 import {
   DndContext,
@@ -233,10 +233,8 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
   const handleWhyClick = async (tileType: 'flo_overview' | 'flomentum' | 'sleep_index' | 'daily_readiness') => {
     setWhyModalData({ isOpen: true, tileType, isLoading: true, data: null, error: null });
     try {
-      const response = await fetch(`/api/tiles/why/${tileType}`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      // Use apiRequest which handles auth headers automatically (same pattern as biomarker insights)
+      const response = await apiRequest('POST', `/api/tiles/why/${tileType}`);
       if (!response.ok) {
         throw new Error('Failed to generate insight');
       }
