@@ -113,8 +113,8 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const scheduledEndTimeRef = useRef<number>(0);
   
   // Pre-buffer settings - wait for enough audio before starting playback
-  // Reduced to 50ms for lower latency - prioritize responsiveness
-  const PRE_BUFFER_SAMPLES = 24000 * 0.05; // 50ms of audio at 24kHz = 1200 samples
+  // 50ms buffer for low latency - threshold is calculated dynamically based on actual sample rate
+  const PRE_BUFFER_MS = 50; // 50ms of audio
   const pendingSamplesRef = useRef<Float32Array[]>([]);
   const totalPendingSamplesRef = useRef(0);
   const hasStartedPlaybackRef = useRef(false);
@@ -148,11 +148,14 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   }, []);
 
   // Schedule audio for gapless playback
+  // Samples are already resampled to match ctx.sampleRate
   const scheduleAudio = useCallback((samples: Float32Array) => {
     const ctx = playbackContextRef.current;
     if (!ctx || samples.length === 0) return;
 
-    const audioBuffer = ctx.createBuffer(1, samples.length, 24000);
+    // Use the actual AudioContext sample rate (iOS Safari uses device native rate ~48kHz)
+    const sampleRate = ctx.sampleRate;
+    const audioBuffer = ctx.createBuffer(1, samples.length, sampleRate);
     audioBuffer.copyToChannel(samples, 0);
 
     const source = ctx.createBufferSource();
@@ -160,7 +163,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     source.connect(ctx.destination);
 
     const now = ctx.currentTime;
-    const bufferDuration = samples.length / 24000;
+    const bufferDuration = samples.length / sampleRate;
 
     // Schedule seamlessly after the last scheduled audio
     if (scheduledEndTimeRef.current <= now) {
@@ -205,15 +208,39 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     setState(prev => ({ ...prev, isSpeaking: true }));
   }, [scheduleAudio]);
 
+  // Upsample audio from source rate to target rate (for iOS which ignores sampleRate param)
+  const upsample = useCallback((input: Float32Array, inputRate: number, outputRate: number): Float32Array => {
+    if (inputRate === outputRate) return input;
+    
+    const ratio = outputRate / inputRate;
+    const outputLength = Math.floor(input.length * ratio);
+    const output = new Float32Array(outputLength);
+    
+    for (let i = 0; i < outputLength; i++) {
+      const srcIndex = i / ratio;
+      const srcIndexFloor = Math.floor(srcIndex);
+      const srcIndexCeil = Math.min(srcIndexFloor + 1, input.length - 1);
+      const fraction = srcIndex - srcIndexFloor;
+      
+      // Linear interpolation
+      output[i] = input[srcIndexFloor] * (1 - fraction) + input[srcIndexCeil] * fraction;
+    }
+    
+    return output;
+  }, []);
+
   // Decode and queue incoming audio (24kHz PCM from Gemini)
   const handleAudioData = useCallback(async (base64Audio: string) => {
     try {
-      // Initialize playback context if needed (separate from capture)
+      // Initialize playback context if needed
+      // Note: iOS Safari ignores sampleRate parameter and uses device's native rate
       if (!playbackContextRef.current) {
         playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+        console.log('[GeminiLive] AudioContext created with actual sampleRate:', playbackContextRef.current.sampleRate);
       }
 
       const ctx = playbackContextRef.current;
+      const actualSampleRate = ctx.sampleRate;
       
       // Resume context if suspended (autoplay policy)
       if (ctx.state === 'suspended') {
@@ -233,11 +260,17 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       
       // Use DataView for proper byte-order handling
       const dataView = new DataView(bytes.buffer, bytes.byteOffset, byteLength);
-      const floatSamples = new Float32Array(numSamples);
+      let floatSamples = new Float32Array(numSamples);
       for (let i = 0; i < numSamples; i++) {
         // Read as little-endian 16-bit signed integer
         const sample = dataView.getInt16(i * 2, true);
         floatSamples[i] = sample / 32768.0;
+      }
+      
+      // If AudioContext sample rate differs from Gemini's 24kHz, resample
+      const GEMINI_SAMPLE_RATE = 24000;
+      if (actualSampleRate !== GEMINI_SAMPLE_RATE) {
+        floatSamples = upsample(floatSamples, GEMINI_SAMPLE_RATE, actualSampleRate);
       }
 
       // Clear any pending flush timeout since we got new audio
@@ -246,12 +279,15 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
         flushTimeoutRef.current = null;
       }
 
+      // Calculate pre-buffer threshold based on actual sample rate (50ms of audio)
+      const preBufferSamples = Math.floor(actualSampleRate * PRE_BUFFER_MS / 1000);
+
       // Pre-buffer: collect audio until we have enough, then start playing
       if (!hasStartedPlaybackRef.current) {
         pendingSamplesRef.current.push(floatSamples);
         totalPendingSamplesRef.current += floatSamples.length;
         
-        if (totalPendingSamplesRef.current >= PRE_BUFFER_SAMPLES) {
+        if (totalPendingSamplesRef.current >= preBufferSamples) {
           hasStartedPlaybackRef.current = true;
           flushPendingAudio();
         }
