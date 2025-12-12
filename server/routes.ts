@@ -8530,6 +8530,111 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // CLI: ClickHouse data coverage check (uses API key auth)
+  app.get("/api/cli/clickhouse/coverage/:userId", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId } = req.params;
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const coverage = await clickhouseBaselineEngine.getDataCoverageSummary(healthId);
+      
+      res.json({ 
+        userId,
+        healthId, 
+        coverage,
+        summary: {
+          totalRecords: Object.values(coverage).reduce((acc: number, c: any) => acc + c.count, 0),
+          dataSources: Object.fromEntries(
+            Object.entries(coverage).map(([key, val]: [string, any]) => [key, val.count > 0])
+          ),
+        }
+      });
+    } catch (error: any) {
+      logger.error('[CLI] ClickHouse coverage error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // CLI: Full history backfill from Supabase to ClickHouse (uses API key auth)
+  app.post("/api/cli/clickhouse/backfill/:userId", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId } = req.params;
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      
+      logger.info(`[CLI] Starting FULL HISTORY backfill for ${userId} (healthId: ${healthId})`);
+      
+      const summary = await clickhouseBaselineEngine.syncFullHistory(healthId);
+      
+      logger.info(`[CLI] FULL HISTORY backfill complete for ${userId}`, summary);
+      
+      res.json({ 
+        success: true,
+        message: `Full history synced for user ${userId}`,
+        userId,
+        healthId,
+        ...summary
+      });
+    } catch (error: any) {
+      logger.error('[CLI] ClickHouse backfill error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // CLI: Recalculate baselines after backfill (uses API key auth)
+  app.post("/api/cli/clickhouse/recalculate-baselines/:userId", async (req: any, res) => {
+    try {
+      const apiKey = req.headers['x-admin-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      if (!expectedKey || apiKey !== expectedKey) {
+        return res.status(401).json({ error: "Unauthorized - invalid API key" });
+      }
+
+      const { userId } = req.params;
+      const windowDays = parseInt(req.body.windowDays || '28');
+      
+      const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      
+      logger.info(`[CLI] Recalculating baselines for ${userId} (window: ${windowDays} days)`);
+      
+      const baselines = await clickhouseBaselineEngine.calculateBaselines(healthId, windowDays);
+      
+      res.json({ 
+        success: true,
+        userId,
+        healthId,
+        windowDays,
+        baselinesCalculated: baselines.length,
+        baselines: baselines.slice(0, 10), // First 10 for preview
+      });
+    } catch (error: any) {
+      logger.error('[CLI] Baseline recalculation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // CLI: Trigger correlation analysis for a user (for testing causal analysis)
   app.post("/api/cli/correlation-analysis/:userId", async (req: any, res) => {
     try {
