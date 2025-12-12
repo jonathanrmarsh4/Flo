@@ -113,22 +113,25 @@ export default function MobileAuth() {
         // CRITICAL: Clear ALL cached data from any previous user session
         queryClient.clear();
         
-        // Store JWT token in secure encrypted storage (always native for Apple Sign-In)
+        // CRITICAL: Store JWT token - ALWAYS use localStorage for iOS WebView reliability
         if (data.token) {
+          console.log('[AppleSignIn] Received token, storing...');
+          localStorage.setItem('auth_token', data.token);
+          setCachedAuthToken(data.token);
+          console.log('[AppleSignIn] Token stored in localStorage and cache updated');
+          
           try {
             const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
             await SecureStoragePlugin.set({
               key: 'auth_token',
               value: data.token,
             });
-            // Also update in-memory cache
-            setCachedAuthToken(data.token);
-            logger.info('Apple Sign-In: Token stored securely');
-            console.log('[AppleSignIn] Token stored in SecureStorage and cache updated');
+            console.log('[AppleSignIn] Also stored in SecureStorage');
           } catch (error) {
-            logger.error('Apple Sign-In: Failed to store token securely', error);
-            console.error('[AppleSignIn] Failed to store token:', error);
+            console.log('[AppleSignIn] SecureStorage not available:', error);
           }
+        } else {
+          console.error('[AppleSignIn] No token received from server!');
         }
         
         toast({
@@ -201,25 +204,29 @@ export default function MobileAuth() {
       // Clear previous session data
       queryClient.clear();
       
-      // Store JWT token securely - try SecureStorage first (works in iOS WebView), fall back to localStorage
+      // CRITICAL: Store JWT token - ALWAYS use localStorage for iOS WebView reliability
+      // SecureStorage has issues when frontend is loaded from web URL
       if (data.token) {
+        console.log('[Passkey] Received token, storing...');
+        // Always store in localStorage first (guaranteed to work)
+        localStorage.setItem('auth_token', data.token);
+        // Update in-memory cache
+        setCachedAuthToken(data.token);
+        console.log('[Passkey] Token stored in localStorage and cache updated');
+        
+        // Also try SecureStorage as backup (may or may not work depending on environment)
         try {
           const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
           await SecureStoragePlugin.set({
             key: 'auth_token',
             value: data.token,
           });
-          // Also update in-memory cache to avoid stale null cache
-          setCachedAuthToken(data.token);
-          logger.info('Passkey login: Token stored in SecureStorage');
-          console.log('[Passkey] Token stored in SecureStorage and cache updated');
+          console.log('[Passkey] Also stored in SecureStorage');
         } catch (error) {
-          // SecureStorage not available - fall back to localStorage
-          console.log('[Passkey] SecureStorage not available, using localStorage:', error);
-          localStorage.setItem('auth_token', data.token);
-          setCachedAuthToken(data.token);
-          logger.info('Passkey login: Token stored in localStorage (fallback)');
+          console.log('[Passkey] SecureStorage not available (expected for web):', error);
         }
+      } else {
+        console.error('[Passkey] No token received from server!');
       }
       
       toast({
@@ -261,23 +268,25 @@ export default function MobileAuth() {
         // CRITICAL: Clear ALL cached data from any previous user session
         queryClient.clear();
         
-        // Store JWT token - try SecureStorage first (works in iOS WebView), fall back to localStorage
+        // CRITICAL: Store JWT token - ALWAYS use localStorage for iOS WebView reliability
         if (responseData.token) {
+          console.log('[EmailLogin] Received token, storing...');
+          localStorage.setItem('auth_token', responseData.token);
+          setCachedAuthToken(responseData.token);
+          console.log('[EmailLogin] Token stored in localStorage and cache updated');
+          
           try {
             const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
             await SecureStoragePlugin.set({
               key: 'auth_token',
               value: responseData.token,
             });
-            // Also update in-memory cache
-            setCachedAuthToken(responseData.token);
-            console.log('[EmailLogin] Token stored in SecureStorage and cache updated');
+            console.log('[EmailLogin] Also stored in SecureStorage');
           } catch (error) {
-            // SecureStorage not available - fall back to localStorage
-            console.log('[EmailLogin] SecureStorage not available, using localStorage:', error);
-            localStorage.setItem('auth_token', responseData.token);
-            setCachedAuthToken(responseData.token);
+            console.log('[EmailLogin] SecureStorage not available:', error);
           }
+        } else {
+          console.error('[EmailLogin] No token received from server!');
         }
         
         toast({
@@ -329,22 +338,22 @@ export default function MobileAuth() {
         // CRITICAL: Clear ALL cached data from any previous user session
         queryClient.clear();
         
-        // Store JWT token - try SecureStorage first (works in iOS WebView), fall back to localStorage
+        // CRITICAL: Store JWT token - ALWAYS use localStorage for iOS WebView reliability
         if (responseData.token) {
+          console.log('[Register] Received token, storing...');
+          localStorage.setItem('auth_token', responseData.token);
+          setCachedAuthToken(responseData.token);
+          console.log('[Register] Token stored in localStorage and cache updated');
+          
           try {
             const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
             await SecureStoragePlugin.set({
               key: 'auth_token',
               value: responseData.token,
             });
-            // Also update in-memory cache
-            setCachedAuthToken(responseData.token);
-            console.log('[Register] Token stored in SecureStorage and cache updated');
+            console.log('[Register] Also stored in SecureStorage');
           } catch (error) {
-            // SecureStorage not available - fall back to localStorage
-            console.log('[Register] SecureStorage not available, using localStorage:', error);
-            localStorage.setItem('auth_token', responseData.token);
-            setCachedAuthToken(responseData.token);
+            console.log('[Register] SecureStorage not available:', error);
           }
         }
         
