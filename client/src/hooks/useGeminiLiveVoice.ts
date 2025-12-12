@@ -187,14 +187,13 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   }, []);
 
   // Decode and queue incoming audio (24kHz PCM from Gemini)
-  // Using simple queue-based sequential playback (original approach that worked)
+  // Use OfflineAudioContext for high-quality resampling to avoid iOS Safari artifacts
   const handleAudioData = useCallback(async (base64Audio: string) => {
-    console.log('[GeminiLive] handleAudioData called, data length:', base64Audio.length);
     try {
       // Initialize playback context if needed
       // Note: iOS Safari ignores sampleRate parameter and uses device's native rate
       if (!playbackContextRef.current) {
-        playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+        playbackContextRef.current = new AudioContext();
         console.log('[GeminiLive] AudioContext created with actual sampleRate:', playbackContextRef.current.sampleRate);
       }
 
@@ -212,34 +211,47 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       }
 
       // Gemini outputs 24kHz 16-bit PCM (little-endian)
-      // Ensure we have an even number of bytes for 16-bit samples
       const byteLength = bytes.length - (bytes.length % 2);
       const numSamples = byteLength / 2;
       
-      // Use DataView for proper byte-order handling
       const dataView = new DataView(bytes.buffer, bytes.byteOffset, byteLength);
       const floatSamples = new Float32Array(numSamples);
       for (let i = 0; i < numSamples; i++) {
-        // Read as little-endian 16-bit signed integer
         const sample = dataView.getInt16(i * 2, true);
         floatSamples[i] = sample / 32768.0;
       }
       
-      // Create buffer at the SOURCE sample rate (24kHz from Gemini)
-      // The Web Audio API will automatically resample when playing back
-      // at the AudioContext's native rate
       const GEMINI_SAMPLE_RATE = 24000;
-      const audioBuffer = ctx.createBuffer(1, floatSamples.length, GEMINI_SAMPLE_RATE);
-      audioBuffer.copyToChannel(floatSamples, 0);
+      const targetSampleRate = ctx.sampleRate;
       
-      console.log('[GeminiLive] Buffer created at', GEMINI_SAMPLE_RATE, 'Hz, context at', ctx.sampleRate, 'Hz');
-
-      // Queue the buffer and start playback if not already playing
-      audioQueueRef.current.push(audioBuffer);
-      console.log('[GeminiLive] Buffer queued, queue size:', audioQueueRef.current.length, 'isPlaying:', isPlayingRef.current);
+      // Use OfflineAudioContext for high-quality resampling
+      // This does the resampling ONCE properly, avoiding per-chunk artifacts on iOS Safari
+      if (targetSampleRate !== GEMINI_SAMPLE_RATE) {
+        const ratio = targetSampleRate / GEMINI_SAMPLE_RATE;
+        const outputLength = Math.ceil(numSamples * ratio);
+        
+        // Create offline context at target rate for proper resampling
+        const offlineCtx = new OfflineAudioContext(1, outputLength, targetSampleRate);
+        const sourceBuffer = offlineCtx.createBuffer(1, numSamples, GEMINI_SAMPLE_RATE);
+        sourceBuffer.copyToChannel(floatSamples, 0);
+        
+        const source = offlineCtx.createBufferSource();
+        source.buffer = sourceBuffer;
+        source.connect(offlineCtx.destination);
+        source.start();
+        
+        const renderedBuffer = await offlineCtx.startRendering();
+        
+        // Queue the properly resampled buffer
+        audioQueueRef.current.push(renderedBuffer);
+      } else {
+        // No resampling needed
+        const audioBuffer = ctx.createBuffer(1, floatSamples.length, GEMINI_SAMPLE_RATE);
+        audioBuffer.copyToChannel(floatSamples, 0);
+        audioQueueRef.current.push(audioBuffer);
+      }
 
       if (!isPlayingRef.current) {
-        console.log('[GeminiLive] Starting playback');
         playNextAudio();
       }
     } catch (error) {
