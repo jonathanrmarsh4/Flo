@@ -116,11 +116,23 @@ export async function getAuthToken(): Promise<string | null> {
         cachedAuthToken = localToken;
         tokenCacheTime = Date.now();
         console.log('[AuthToken] Found token in localStorage fallback');
+        
+        // CRITICAL: Copy token to SecureStorage so native iOS plugins (HealthKit) can access it
+        // Native Swift code cannot read localStorage - it needs the token in SecureStorage
+        try {
+          if (SecureStoragePluginInstance) {
+            SecureStoragePluginInstance.set({ key: 'auth_token', value: localToken });
+            console.log('[AuthToken] Copied localStorage token to SecureStorage for native plugins');
+          }
+        } catch (copyError) {
+          console.warn('[AuthToken] Failed to copy token to SecureStorage:', copyError);
+        }
+        
         return localToken;
       }
       tokenFetchPromise = null; // Clear the promise once resolved
       return null;
-    }).catch(error => {
+    }).catch(async error => {
       // SecureStorage failed - check localStorage as fallback
       console.log('[AuthToken] SecureStorage error, checking localStorage:', error);
       const localToken = localStorage.getItem('auth_token');
@@ -128,6 +140,16 @@ export async function getAuthToken(): Promise<string | null> {
         cachedAuthToken = localToken;
         tokenCacheTime = Date.now();
         tokenFetchPromise = null;
+        
+        // CRITICAL: Copy token to SecureStorage so native iOS plugins (HealthKit) can access it
+        try {
+          const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+          await SecureStoragePlugin.set({ key: 'auth_token', value: localToken });
+          console.log('[AuthToken] Copied localStorage token to SecureStorage for native plugins');
+        } catch (copyError) {
+          console.warn('[AuthToken] Failed to copy token to SecureStorage:', copyError);
+        }
+        
         return localToken;
       }
       tokenFetchPromise = null; // Clear on error so next call can retry
