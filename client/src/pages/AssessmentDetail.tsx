@@ -222,7 +222,7 @@ export default function AssessmentDetail() {
         title: "Assessment Deleted",
         description: "The assessment has been cancelled and removed.",
       });
-      setLocation('/actions');
+      setLocation('/actions?tab=assessments');
     },
     onError: (error: any) => {
       toast({
@@ -498,7 +498,7 @@ export default function AssessmentDetail() {
         <Button
           variant="outline"
           className="border-white/20 text-white"
-          onClick={() => setLocation('/actions')}
+          onClick={() => setLocation('/actions?tab=assessments')}
         >
           Go Back
         </Button>
@@ -601,7 +601,7 @@ export default function AssessmentDetail() {
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => setLocation('/actions')}
+              onClick={() => setLocation('/actions?tab=assessments')}
               className="text-white/70 hover:text-white hover:bg-white/10"
               data-testid="button-back"
             >

@@ -128,7 +128,20 @@ function AssessmentCard({ assessment, onClick }: { assessment: N1Assessment; onC
 export default function ActionsScreen() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [selectedTab, setSelectedTab] = useState<TabFilter>('interventions');
+  
+  // Read tab from URL params (e.g., /actions?tab=assessments)
+  const getInitialTab = (): TabFilter => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam === 'reports' || tabParam === 'interventions' || tabParam === 'assessments') {
+        return tabParam;
+      }
+    }
+    return 'interventions';
+  };
+  
+  const [selectedTab, setSelectedTab] = useState<TabFilter>(getInitialTab);
   
   // Check user's plan for premium features
   const { data: planData } = usePlan();
