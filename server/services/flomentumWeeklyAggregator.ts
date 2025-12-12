@@ -2,6 +2,7 @@ import { db } from "../db";
 import { flomentumDaily, flomentumWeekly, userSettings as userSettingsTable } from "@shared/schema";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { logger } from "../logger";
+import { getFlomentumDaily } from "./healthStorageRouter";
 
 export interface WeeklyInsight {
   avgScore: number;
@@ -321,18 +322,14 @@ export async function getRolling7DayInsight(userId: string, userTimezone?: strin
 
     logger.info('Computing rolling 7-day Flōmentum insight', { userId, startDateStr, endDate, tz });
 
-    // Get all daily scores for the last 7 days
-    const dailyScores = await db
-      .select()
-      .from(flomentumDaily)
-      .where(
-        and(
-          eq(flomentumDaily.userId, userId),
-          gte(flomentumDaily.date, startDateStr),
-          lte(flomentumDaily.date, endDate)
-        )
-      )
-      .orderBy(flomentumDaily.date);
+    // Get all daily scores for the last 7 days via healthStorageRouter (queries Supabase first)
+    const startDateObj = new Date(startDateStr + 'T00:00:00Z');
+    const allRecentScores = await getFlomentumDaily(userId, { startDate: startDateObj, limit: 30 });
+    
+    // Filter to just the 7-day window
+    const dailyScores = allRecentScores.filter(s => s.date >= startDateStr && s.date <= endDate);
+    
+    logger.info('Found daily scores from Supabase', { userId, count: dailyScores.length, startDateStr, endDate });
 
     // Even if no data, we'll return 7 days of zero scores so UI can render
     if (dailyScores.length === 0) {
