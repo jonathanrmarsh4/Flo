@@ -300,7 +300,9 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
     const foundMetrics = Array.from(metricsMap.keys()).join(', ');
     const hrvBaseline = metricsMap.get('hrv_ms');
     const deepSleepBaseline = metricsMap.get('deep_sleep_min');
-    logger.info(`[MorningBriefing] Found baselines for ${healthId}: ${foundMetrics}. HRV: mean=${hrvBaseline?.mean_value?.toFixed(1)}, std=${hrvBaseline?.std_dev?.toFixed(1)}, n=${hrvBaseline?.sample_count}. DeepSleep: mean=${deepSleepBaseline?.mean_value?.toFixed(1)}`);
+    const stepsBaseline = metricsMap.get('steps');
+    const activeEnergyBaseline = metricsMap.get('active_energy');
+    logger.info(`[MorningBriefing] Found baselines for ${healthId}: ${foundMetrics}. HRV: mean=${hrvBaseline?.mean_value?.toFixed(1)}, std=${hrvBaseline?.std_dev?.toFixed(1)}, n=${hrvBaseline?.sample_count}. DeepSleep: mean=${deepSleepBaseline?.mean_value?.toFixed(1)}. Steps: mean=${stepsBaseline?.mean_value?.toFixed(0)}, n=${stepsBaseline?.sample_count}. ActiveEnergy: mean=${activeEnergyBaseline?.mean_value?.toFixed(0)}, n=${activeEnergyBaseline?.sample_count}`);
 
     // IMPORTANT: Metric type names must match what's stored in ClickHouse:
     // - hrv_ms (not hrv)

@@ -624,7 +624,8 @@ export class ClickHouseBaselineEngine {
         // Core HealthKit metrics - use canonical names with unit suffixes
         hrv_ms: 'hrv_ms',
         resting_hr_bpm: 'resting_heart_rate_bpm',
-        steps_normalized: 'steps',
+        // IMPORTANT: Use steps_raw_sum (actual step count) NOT steps_normalized (which is a 0-1 score)
+        steps_raw_sum: 'steps',
         active_energy_kcal: 'active_energy',
         sleep_hours: 'sleep_duration_min', // Note: value needs *60 conversion, handled in sync
         exercise_minutes: 'exercise_minutes',
