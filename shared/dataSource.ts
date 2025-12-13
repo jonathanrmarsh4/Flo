@@ -217,6 +217,38 @@ export interface UserIntegrationSettings {
 }
 
 /**
+ * Oura data source categories for UI display
+ * Groups metrics by type for clear visualization of what Oura provides
+ */
+export const OURA_DATA_CATEGORIES = {
+  sleep: {
+    label: 'Sleep',
+    icon: 'Moon',
+    metrics: ['sleep_duration', 'deep_sleep', 'rem_sleep', 'light_sleep', 'sleep_efficiency', 'sleep_latency', 'sleep_awakenings'],
+  },
+  recovery: {
+    label: 'Recovery',
+    icon: 'Heart',
+    metrics: ['hrv', 'resting_heart_rate', 'readiness_score', 'sleep_score'],
+  },
+  stress: {
+    label: 'Stress & Resilience',
+    icon: 'Activity',
+    metrics: ['stress_high', 'recovery_high', 'resilience_level', 'resilience_sleep_recovery', 'resilience_daytime_recovery'],
+  },
+  biometrics: {
+    label: 'Biometrics',
+    icon: 'Thermometer',
+    metrics: ['temperature_deviation', 'respiratory_rate', 'spo2_average', 'breathing_disturbance_index'],
+  },
+  chronotype: {
+    label: 'Chronotype',
+    icon: 'Clock',
+    metrics: ['optimal_bedtime_start', 'optimal_bedtime_end'],
+  },
+} as const;
+
+/**
  * Available integrations configuration
  */
 export const AVAILABLE_INTEGRATIONS = [
@@ -227,6 +259,8 @@ export const AVAILABLE_INTEGRATIONS = [
     icon: 'Circle',
     color: 'cyan',
     capabilities: DATA_SOURCE_CAPABILITIES.oura,
+    dataCategories: OURA_DATA_CATEGORIES,
+    smartFilteringNote: 'When connected, Oura data takes priority for sleep & recovery metrics. Activity data continues from Apple Watch.',
     oauthUrl: 'https://cloud.ouraring.com/oauth/authorize',
     tokenUrl: 'https://api.ouraring.com/oauth/token',
     apiBaseUrl: 'https://api.ouraring.com/v2',

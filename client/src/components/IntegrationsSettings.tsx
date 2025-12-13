@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Circle, Activity, Heart, ChevronRight, Loader2, Link2, Unlink, Check, AlertCircle, RefreshCw } from 'lucide-react';
+import { Circle, Activity, Heart, ChevronRight, Loader2, Link2, Unlink, Check, AlertCircle, RefreshCw, Moon, Thermometer, Clock, Zap } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
@@ -293,31 +293,73 @@ export function IntegrationsSettings({ isDark }: IntegrationsSettingsProps) {
                   </div>
                 </div>
                 
-                {/* Capabilities preview */}
+                {/* Capabilities preview with categorized data sources */}
                 {isConnected && (
                   <div className="mt-3 pt-3 border-t border-dashed border-white/10">
+                    {/* Smart filtering note for Oura */}
+                    {'smartFilteringNote' in config && config.smartFilteringNote && (
+                      <div className={`flex items-start gap-2 mb-3 p-2 rounded-lg ${
+                        isDark ? 'bg-cyan-500/10' : 'bg-cyan-50'
+                      }`}>
+                        <Zap className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                        <p className={`text-xs ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                          {config.smartFilteringNote}
+                        </p>
+                      </div>
+                    )}
+                    
                     <p className={`text-xs mb-2 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-                      Syncing:
+                      Data Sources:
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {config.capabilities.slice(0, 5).map((cap) => (
-                        <span
-                          key={cap}
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            isDark ? 'bg-white/10 text-white/70' : 'bg-gray-100 text-gray-600'
-                          }`}
-                        >
-                          {cap.replace(/_/g, ' ')}
-                        </span>
-                      ))}
-                      {config.capabilities.length > 5 && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          isDark ? 'bg-white/10 text-white/50' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          +{config.capabilities.length - 5} more
-                        </span>
-                      )}
-                    </div>
+                    
+                    {/* Categorized display for Oura */}
+                    {'dataCategories' in config && config.dataCategories ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(config.dataCategories).map(([key, category]) => {
+                          const CategoryIcon = key === 'sleep' ? Moon 
+                            : key === 'recovery' ? Heart 
+                            : key === 'stress' ? Activity 
+                            : key === 'biometrics' ? Thermometer 
+                            : Clock;
+                          return (
+                            <div 
+                              key={key}
+                              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${
+                                isDark ? 'bg-white/5' : 'bg-gray-50'
+                              }`}
+                            >
+                              <CategoryIcon className={`w-3 h-3 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                              <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
+                                {(category as { label: string }).label}
+                              </span>
+                              <span className={`text-xs ml-auto ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                                {(category as { metrics: string[] }).metrics.length}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {config.capabilities.slice(0, 5).map((cap) => (
+                          <span
+                            key={cap}
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              isDark ? 'bg-white/10 text-white/70' : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {cap.replace(/_/g, ' ')}
+                          </span>
+                        ))}
+                        {config.capabilities.length > 5 && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            isDark ? 'bg-white/10 text-white/50' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            +{config.capabilities.length - 5} more
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
