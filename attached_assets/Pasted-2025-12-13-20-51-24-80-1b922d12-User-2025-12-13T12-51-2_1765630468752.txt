@@ -1,0 +1,141 @@
+2025-12-13 20:51:24.80
+1b922d12
+User
+[2025-12-13T12:51:24.801Z] [INFO] [GeminiVoice] Starting session {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765630284801"}
+2025-12-13 20:51:24.84
+1b922d12
+User
+[2025-12-13T12:51:24.839Z] [INFO] [GeminiVoice] User voice preference {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","voicePreference":"Amanda","geminiVoiceName":"Zephyr","timezone":"Australia/Perth","timezoneSource":"profile"}
+2025-12-13 20:51:25.60
+1b922d12
+User
+[2025-12-13T12:51:25.600Z] [INFO] [GeminiLive] Connecting to Gemini Live API... {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765630284801","model":"gemini-2.5-flash-native-audio-preview-09-2025"}
+2025-12-13 20:51:25.60
+1b922d12
+User
+[2025-12-13T12:51:25.600Z] [WARN] [GeminiVoice] Health context truncated {"originalLength":18836,"truncatedTo":8000}
+2025-12-13 20:51:25.60
+1b922d12
+User
+[2025-12-13T12:51:25.599Z] [INFO] [GeminiVoice] Context fetch completed {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","durationMs":760}
+2025-12-13 20:51:25.60
+1b922d12
+User
+[2025-12-13T12:51:25.600Z] [INFO] [GeminiVoice] Built full health context with brain memory, chat history, and memories {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","contextLength":8039,"hasActionPlan":true,"brainInsightsCount":8,"hasChatHistory":true,"hasMemories":false,"memoriesLength":0}
+2025-12-13 20:51:25.60
+1b922d12
+User
+[2025-12-13T12:51:25.600Z] [INFO] [GeminiVoice] System instruction built {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","instructionLength":12663}
+2025-12-13 20:51:25.60
+1b922d12
+User
+[2025-12-13T12:51:25.600Z] [INFO] [GeminiLive] Creating new session {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765630284801","voiceName":"Zephyr"}
+2025-12-13 20:51:25.61
+1b922d12
+User
+[2025-12-13T12:51:25.618Z] [INFO] [GeminiLive] Session opened {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765630284801"}
+2025-12-13 20:51:25.61
+1b922d12
+User
+[2025-12-13T12:51:25.619Z] [INFO] [GeminiLive] Session connected and ready {"sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765630284801","hasSession":true,"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78"}
+2025-12-13 20:51:25.62
+1b922d12
+User
+[2025-12-13T12:51:25.619Z] [INFO] [GeminiLive WS] Session started {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","sessionId":"voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765630284801"}
+2025-12-13 20:51:27.84
+1b922d12
+User
+[2025-12-13T12:51:27.840Z] [WARN] [GeminiVoice] Context fetch timed out, using fallback
+2025-12-13 20:51:27.84
+1b922d12
+User
+[2025-12-13T12:51:27.840Z] [WARN] [GeminiVoice] Context fetch timed out, using fallback
+2025-12-13 20:51:27.84
+1b922d12
+User
+[2025-12-13T12:51:27.840Z] [WARN] [GeminiVoice] Context fetch timed out, using fallback
+2025-12-13 20:51:29.46
+1b922d12
+User
+[2025-12-13T12:51:29.463Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.46
+1b922d12
+User
+[2025-12-13T12:51:29.463Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.46
+1b922d12
+User
+[2025-12-13T12:51:29.463Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.46
+1b922d12
+User
+[2025-12-13T12:51:29.463Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.46
+1b922d12
+User
+[2025-12-13T12:51:29.464Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.524Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.524Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.524Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.523Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.525Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.525Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.525Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.525Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.526Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.52
+1b922d12
+User
+[2025-12-13T12:51:29.526Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.57
+1b922d12
+User
+[2025-12-13T12:51:29.571Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.57
+1b922d12
+User
+[2025-12-13T12:51:29.571Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.57
+1b922d12
+User
+[2025-12-13T12:51:29.571Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.57
+1b922d12
+User
+[2025-12-13T12:51:29.572Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+2025-12-13 20:51:29.57
+1b922d12
+User
+[2025-12-13T12:51:29.572Z] [INFO] [GeminiLive] Audio chunk received {"mimeType":"audio/pcm;rate=24000","dataLength":2560}
+2025-12-13 20:51:29.57
+1b922d12
+User
+[2025-12-13T12:51:29.572Z] [INFO] [GeminiLive] Processed modelTurn parts {"totalParts":1,"textParts":0,"audioParts":1}
+

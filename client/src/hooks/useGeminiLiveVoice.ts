@@ -90,8 +90,12 @@ function uint8ToBase64(uint8: Uint8Array): string {
 }
 
 export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
-  // Debug: log hook initialization with timestamp to verify code loading
-  console.log('[GeminiLive] HOOK INITIALIZED - v3 ' + new Date().toISOString());
+  // Track if hook has been initialized (prevents excessive logging on re-renders)
+  const initializedRef = useRef(false);
+  if (!initializedRef.current) {
+    initializedRef.current = true;
+    console.log('[GeminiLive] HOOK INITIALIZED - v4 ' + new Date().toISOString());
+  }
   
   const [state, setState] = useState<GeminiLiveState>({
     isConnected: false,
@@ -107,11 +111,20 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const playbackContextRef = useRef<AudioContext | null>(null);
   const captureContextRef = useRef<AudioContext | null>(null);
   
+  // Use Float32Array queue for batching small audio chunks
+  const pendingAudioRef = useRef<Float32Array[]>([]);
   const audioQueueRef = useRef<AudioBuffer[]>([]);
   const isPlayingRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  
+  // Scheduled playback timing for gapless audio
+  const nextPlayTimeRef = useRef<number>(0);
+  const batchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Minimum batch size in samples (target ~200ms of audio at 24kHz = 4800 samples)
+  const MIN_BATCH_SAMPLES = 4800;
 
   // Wake lock management - keeps screen awake during voice chat
   const acquireWakeLock = useCallback(async () => {
@@ -163,84 +176,137 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
   // Track current playback for timeout fallback
   const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Flush pending audio samples into a single buffer for playback
+  const flushPendingAudio = useCallback(() => {
+    if (pendingAudioRef.current.length === 0) return null;
+    
+    const ctx = playbackContextRef.current;
+    if (!ctx) return null;
+    
+    // Calculate total samples
+    let totalSamples = 0;
+    for (const chunk of pendingAudioRef.current) {
+      totalSamples += chunk.length;
+    }
+    
+    if (totalSamples === 0) return null;
+    
+    // Merge all chunks into one Float32Array
+    const merged = new Float32Array(totalSamples);
+    let offset = 0;
+    for (const chunk of pendingAudioRef.current) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    
+    // Clear pending queue
+    pendingAudioRef.current = [];
+    
+    // Create AudioBuffer (Gemini outputs 24kHz)
+    const GEMINI_SAMPLE_RATE = 24000;
+    const audioBuffer = ctx.createBuffer(1, merged.length, GEMINI_SAMPLE_RATE);
+    audioBuffer.copyToChannel(merged, 0);
+    
+    return audioBuffer;
+  }, []);
 
-  // Play queued audio buffers sequentially
+  // Play queued audio buffers using scheduled playback for gapless audio
   const playNextAudio = useCallback(async () => {
-    console.log('[GeminiLive] playNextAudio called, queue size:', audioQueueRef.current.length);
-    
-    // Clear any pending timeout from previous playback
-    if (playbackTimeoutRef.current) {
-      clearTimeout(playbackTimeoutRef.current);
-      playbackTimeoutRef.current = null;
-    }
-    
-    if (audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false;
-      setState(prev => ({ ...prev, isSpeaking: false }));
-      console.log('[GeminiLive] Queue empty, stopping playback');
-      return;
-    }
-
-    isPlayingRef.current = true;
-    setState(prev => ({ ...prev, isSpeaking: true }));
-
-    const buffer = audioQueueRef.current.shift()!;
     const ctx = playbackContextRef.current;
     if (!ctx) {
       console.error('[GeminiLive] No AudioContext for playback');
       return;
     }
-
-    // CRITICAL: Resume context if suspended (Safari often suspends during playback)
+    
+    // Resume context if suspended (Safari often suspends during playback)
     if (ctx.state === 'suspended') {
       console.log('[GeminiLive] Resuming suspended AudioContext before playback');
       try {
         await ctx.resume();
       } catch (e) {
         console.error('[GeminiLive] Failed to resume AudioContext:', e);
+        return;
       }
     }
+    
+    // Check if we have enough pending audio to flush
+    let pendingSamples = 0;
+    for (const chunk of pendingAudioRef.current) {
+      pendingSamples += chunk.length;
+    }
+    
+    // Flush pending audio if we have enough samples
+    if (pendingSamples >= MIN_BATCH_SAMPLES) {
+      const buffer = flushPendingAudio();
+      if (buffer) {
+        audioQueueRef.current.push(buffer);
+      }
+    }
+    
+    if (audioQueueRef.current.length === 0) {
+      // No complete buffers ready - check again shortly if we have pending samples
+      if (pendingSamples > 0) {
+        if (batchTimeoutRef.current) clearTimeout(batchTimeoutRef.current);
+        batchTimeoutRef.current = setTimeout(() => {
+          const buffer = flushPendingAudio();
+          if (buffer) {
+            audioQueueRef.current.push(buffer);
+            playNextAudio();
+          }
+        }, 100); // Flush remaining after 100ms
+      } else {
+        isPlayingRef.current = false;
+        setState(prev => ({ ...prev, isSpeaking: false }));
+      }
+      return;
+    }
 
-    console.log('[GeminiLive] Playing buffer, duration:', buffer.duration.toFixed(3), 'context state:', ctx.state);
+    isPlayingRef.current = true;
+    setState(prev => ({ ...prev, isSpeaking: true }));
+
+    // Schedule multiple buffers at once for truly gapless playback
+    const currentTime = ctx.currentTime;
+    let scheduleTime = Math.max(currentTime, nextPlayTimeRef.current);
     
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(ctx.destination);
-    
-    // Track if onended fired
-    let endedFired = false;
-    
-    source.onended = () => {
-      endedFired = true;
-      if (playbackTimeoutRef.current) {
-        clearTimeout(playbackTimeoutRef.current);
-        playbackTimeoutRef.current = null;
+    // Schedule up to 3 buffers ahead for smooth playback
+    const maxSchedule = Math.min(3, audioQueueRef.current.length);
+    for (let i = 0; i < maxSchedule; i++) {
+      const buffer = audioQueueRef.current.shift()!;
+      
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(scheduleTime);
+      
+      scheduleTime += buffer.duration;
+      
+      // Only log the first buffer to reduce noise
+      if (i === 0) {
+        console.log('[GeminiLive] Scheduled', maxSchedule, 'buffers, first duration:', buffer.duration.toFixed(3), 'queue remaining:', audioQueueRef.current.length);
       }
-      playNextAudio();
-    };
+    }
     
-    source.start();
+    nextPlayTimeRef.current = scheduleTime;
     
-    // SAFARI FIX: Set timeout fallback in case onended doesn't fire
-    // Add 500ms buffer to expected duration for processing delays
-    const timeoutMs = (buffer.duration * 1000) + 500;
+    // Schedule next batch before current playback ends
+    const timeUntilDone = (scheduleTime - currentTime) * 1000;
+    if (playbackTimeoutRef.current) clearTimeout(playbackTimeoutRef.current);
     playbackTimeoutRef.current = setTimeout(() => {
-      if (!endedFired) {
-        console.warn('[GeminiLive] Playback timeout - onended did not fire, forcing next');
-        playNextAudio();
-      }
-    }, timeoutMs);
-  }, []);
+      playNextAudio();
+    }, Math.max(50, timeUntilDone - 200)); // Check 200ms before end
+  }, [flushPendingAudio]);
 
   // Decode and queue incoming audio (24kHz PCM from Gemini)
-  // Use OfflineAudioContext for high-quality resampling to avoid iOS Safari artifacts
+  // Batches small chunks together for smooth playback
   const handleAudioData = useCallback(async (base64Audio: string) => {
     try {
-      // Initialize playback context if needed
-      // Note: iOS Safari ignores sampleRate parameter and uses device's native rate
+      // Initialize playback context if needed (24kHz to match Gemini output)
       if (!playbackContextRef.current) {
-        playbackContextRef.current = new AudioContext();
+        // Request 24kHz but iOS may give us device rate - we'll handle resampling in batches
+        playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
         console.log('[GeminiLive] AudioContext created with actual sampleRate:', playbackContextRef.current.sampleRate);
+        nextPlayTimeRef.current = 0; // Reset scheduled time
       }
 
       const ctx = playbackContextRef.current;
@@ -267,38 +333,26 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
         floatSamples[i] = sample / 32768.0;
       }
       
-      const GEMINI_SAMPLE_RATE = 24000;
-      const targetSampleRate = ctx.sampleRate;
+      // Add to pending queue (batching small chunks)
+      pendingAudioRef.current.push(floatSamples);
       
-      // Use OfflineAudioContext for high-quality resampling
-      // This does the resampling ONCE properly, avoiding per-chunk artifacts on iOS Safari
-      if (targetSampleRate !== GEMINI_SAMPLE_RATE) {
-        const ratio = targetSampleRate / GEMINI_SAMPLE_RATE;
-        const outputLength = Math.ceil(numSamples * ratio);
-        
-        // Create offline context at target rate for proper resampling
-        const offlineCtx = new OfflineAudioContext(1, outputLength, targetSampleRate);
-        const sourceBuffer = offlineCtx.createBuffer(1, numSamples, GEMINI_SAMPLE_RATE);
-        sourceBuffer.copyToChannel(floatSamples, 0);
-        
-        const source = offlineCtx.createBufferSource();
-        source.buffer = sourceBuffer;
-        source.connect(offlineCtx.destination);
-        source.start();
-        
-        const renderedBuffer = await offlineCtx.startRendering();
-        
-        // Queue the properly resampled buffer
-        audioQueueRef.current.push(renderedBuffer);
-      } else {
-        // No resampling needed
-        const audioBuffer = ctx.createBuffer(1, floatSamples.length, GEMINI_SAMPLE_RATE);
-        audioBuffer.copyToChannel(floatSamples, 0);
-        audioQueueRef.current.push(audioBuffer);
+      // Check if we have enough samples to flush (target ~200ms batches)
+      let pendingSamples = 0;
+      for (const chunk of pendingAudioRef.current) {
+        pendingSamples += chunk.length;
       }
-
-      if (!isPlayingRef.current) {
+      
+      // Start playback if not already running
+      if (!isPlayingRef.current && pendingSamples >= MIN_BATCH_SAMPLES) {
         playNextAudio();
+      } else if (!isPlayingRef.current && pendingSamples > 0) {
+        // Schedule a delayed flush for smoother startup
+        if (batchTimeoutRef.current) clearTimeout(batchTimeoutRef.current);
+        batchTimeoutRef.current = setTimeout(() => {
+          if (!isPlayingRef.current) {
+            playNextAudio();
+          }
+        }, 150);
       }
     } catch (error) {
       console.error('[GeminiLive] Failed to decode audio:', error);
@@ -550,10 +604,14 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     // Release wake lock immediately
     releaseWakeLock();
     
-    // Clear playback timeout
+    // Clear all timeouts
     if (playbackTimeoutRef.current) {
       clearTimeout(playbackTimeoutRef.current);
       playbackTimeoutRef.current = null;
+    }
+    if (batchTimeoutRef.current) {
+      clearTimeout(batchTimeoutRef.current);
+      batchTimeoutRef.current = null;
     }
     
     stopListening();
@@ -572,8 +630,10 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     }
 
     // Reset all audio state
+    pendingAudioRef.current = [];
     audioQueueRef.current = [];
     isPlayingRef.current = false;
+    nextPlayTimeRef.current = 0;
 
     // Close playback context
     if (playbackContextRef.current) {
