@@ -4612,10 +4612,16 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       for (const [dataType, sample] of latestByType) {
         const mapping = hkMetricMap[dataType];
         if (mapping) {
-          // Only skip if the existing metric has actual data (non-null value)
+          // Only skip if the existing metric has actual data (not null and not "No data")
           if (mapping.skipIfExists) {
             const existingMetric = existingMetricsMap.get(mapping.skipIfExists);
-            if (existingMetric && existingMetric.value != null) continue;
+            const hasRealData = existingMetric && existingMetric.value != null && existingMetric.value !== 'No data';
+            if (hasRealData) continue;
+            // If existing metric has no data, remove it so we can replace with HealthKit data
+            if (existingMetric && (existingMetric.value === null || existingMetric.value === 'No data')) {
+              const idx = metrics.findIndex(m => m.name === mapping.skipIfExists);
+              if (idx !== -1) metrics.splice(idx, 1);
+            }
           }
 
           let sourceDisplay = 'Apple Watch';
