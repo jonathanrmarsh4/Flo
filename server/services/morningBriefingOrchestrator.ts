@@ -298,17 +298,28 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
     
     // Log found baselines for debugging
     const foundMetrics = Array.from(metricsMap.keys()).join(', ');
-    const hrvBaseline = metricsMap.get('hrv');
-    logger.info(`[MorningBriefing] Found baselines for ${healthId}: ${foundMetrics}. HRV: mean=${hrvBaseline?.mean_value?.toFixed(1)}, std=${hrvBaseline?.std_dev?.toFixed(1)}, n=${hrvBaseline?.sample_count}`);
+    const hrvBaseline = metricsMap.get('hrv_ms');
+    const deepSleepBaseline = metricsMap.get('deep_sleep_min');
+    logger.info(`[MorningBriefing] Found baselines for ${healthId}: ${foundMetrics}. HRV: mean=${hrvBaseline?.mean_value?.toFixed(1)}, std=${hrvBaseline?.std_dev?.toFixed(1)}, n=${hrvBaseline?.sample_count}. DeepSleep: mean=${deepSleepBaseline?.mean_value?.toFixed(1)}`);
 
+    // IMPORTANT: Metric type names must match what's stored in ClickHouse:
+    // - hrv_ms (not hrv)
+    // - resting_heart_rate_bpm (not resting_heart_rate)  
+    // - sleep_duration_min (not sleep_duration) - stored in minutes, convert to hours
+    // - deep_sleep_min (not deep_sleep)
+    // - steps (correct)
+    // - active_energy (correct)
+    const sleepDurationMin = metricsMap.get('sleep_duration_min')?.mean_value;
+    const sleepDurationStdMin = metricsMap.get('sleep_duration_min')?.std_dev;
+    
     return {
-      hrv_mean: metricsMap.get('hrv')?.mean_value ?? defaults.hrv_mean,
-      hrv_std: metricsMap.get('hrv')?.std_dev ?? defaults.hrv_std,
-      rhr_mean: metricsMap.get('resting_heart_rate')?.mean_value ?? defaults.rhr_mean,
-      rhr_std: metricsMap.get('resting_heart_rate')?.std_dev ?? defaults.rhr_std,
-      sleep_duration_mean: metricsMap.get('sleep_duration')?.mean_value ?? defaults.sleep_duration_mean,
-      sleep_duration_std: metricsMap.get('sleep_duration')?.std_dev ?? defaults.sleep_duration_std,
-      deep_sleep_mean: metricsMap.get('deep_sleep')?.mean_value ?? defaults.deep_sleep_mean,
+      hrv_mean: metricsMap.get('hrv_ms')?.mean_value ?? defaults.hrv_mean,
+      hrv_std: metricsMap.get('hrv_ms')?.std_dev ?? defaults.hrv_std,
+      rhr_mean: metricsMap.get('resting_heart_rate_bpm')?.mean_value ?? defaults.rhr_mean,
+      rhr_std: metricsMap.get('resting_heart_rate_bpm')?.std_dev ?? defaults.rhr_std,
+      sleep_duration_mean: sleepDurationMin ? sleepDurationMin / 60 : defaults.sleep_duration_mean, // Convert min to hours
+      sleep_duration_std: sleepDurationStdMin ? sleepDurationStdMin / 60 : defaults.sleep_duration_std, // Convert min to hours
+      deep_sleep_mean: metricsMap.get('deep_sleep_min')?.mean_value ?? defaults.deep_sleep_mean,
       steps_mean: metricsMap.get('steps')?.mean_value ?? defaults.steps_mean,
       active_energy_mean: metricsMap.get('active_energy')?.mean_value ?? defaults.active_energy_mean,
     };
