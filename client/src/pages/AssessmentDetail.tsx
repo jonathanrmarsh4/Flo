@@ -432,6 +432,16 @@ export default function AssessmentDetail() {
         return ((value - baseline.mean) / baseline.stdDev) * polarity;
       };
       
+      // For subjective ratings without baseline, normalize raw values (1-10 scale) to Z-score-like range
+      // Maps: 1-10 → -2.0 to +2.0, where 5.5 (midpoint) = 0
+      const normalizeSubjectiveRating = (value: number | undefined, key: string) => {
+        if (value === undefined) return null;
+        const polarity = METRIC_POLARITIES[key as keyof typeof METRIC_POLARITIES] || 1;
+        // For stress_level (inverted polarity), higher rating = worse, so we flip
+        // Normalize: (value - 5.5) / 2.25 gives roughly -2 to +2 range
+        return ((value - 5.5) / 2.25) * polarity;
+      };
+      
       // Calculate objective composite Z-score
       const objectiveZScores: number[] = [];
       objectiveKeys.forEach(key => {
@@ -442,11 +452,22 @@ export default function AssessmentDetail() {
         ? objectiveZScores.reduce((a, b) => a + b, 0) / objectiveZScores.length
         : undefined;
       
-      // Calculate subjective composite Z-score
+      // Calculate subjective composite Z-score (or normalized values if no baseline)
+      // Per-metric: use Z-score if that metric has baseline, otherwise fallback to normalization
       const subjectiveZScores: number[] = [];
+      
       subjectiveKeys.forEach(key => {
-        const z = calculateZScore(data[key], key, subjectiveBaselines);
-        if (z !== null) subjectiveZScores.push(z);
+        const hasBaseline = subjectiveBaselines[key] !== null;
+        if (hasBaseline) {
+          // Use Z-score when this specific metric has baseline data
+          const z = calculateZScore(data[key], key, subjectiveBaselines);
+          if (z !== null) subjectiveZScores.push(z);
+        } else {
+          // Fallback: normalize raw values for this metric when its baseline unavailable
+          // This ensures "How You Feel" line shows even without historical data
+          const normalized = normalizeSubjectiveRating(data[key], key);
+          if (normalized !== null) subjectiveZScores.push(normalized);
+        }
       });
       const subjectiveComposite = subjectiveZScores.length > 0
         ? subjectiveZScores.reduce((a, b) => a + b, 0) / subjectiveZScores.length

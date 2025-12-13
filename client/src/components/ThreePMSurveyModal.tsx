@@ -88,8 +88,11 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
 
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   
+  // Use stable key structure for proper cache invalidation
+  const needingCheckinKey = `/api/n1/experiments/needing-checkin?timezone=${encodeURIComponent(userTimezone)}`;
+  
   const { data: experimentsData } = useQuery<{ experiments: ActiveExperiment[] }>({
-    queryKey: ['/api/n1/experiments/needing-checkin'],
+    queryKey: [needingCheckinKey],
     enabled: isOpen,
   });
   
@@ -139,7 +142,13 @@ export function ThreePMSurveyModal({ isOpen, onClose, isDark, onComplete }: Thre
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['/api/n1/experiments', variables.experimentId, 'checkins'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/n1/experiments/needing-checkin'] });
+      // Invalidate using prefix match to catch all timezone variants
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0];
+          return typeof key === 'string' && key.startsWith('/api/n1/experiments/needing-checkin');
+        }
+      });
     },
     onError: (error: any) => {
       toast({

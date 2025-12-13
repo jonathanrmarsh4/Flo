@@ -737,7 +737,7 @@ class N1ExperimentService {
   }
 
   // Get experiments requiring daily check-in
-  async getExperimentsNeedingCheckin(userId: string): Promise<N1Experiment[]> {
+  async getExperimentsNeedingCheckin(userId: string, timezone?: string): Promise<N1Experiment[]> {
     const healthId = await getHealthId(userId);
     if (!healthId) {
       return [];
@@ -754,8 +754,38 @@ class N1ExperimentService {
       return [];
     }
 
+    // Calculate "today" in user's timezone (or UTC if not provided)
+    // checkin_date is stored as a DATE type (YYYY-MM-DD), so we just need the correct local date
+    let today: string;
+    if (timezone) {
+      try {
+        // Use Intl.DateTimeFormat to get the date in user's timezone
+        // en-CA locale uses YYYY-MM-DD format which matches our DB schema
+        const formatter = new Intl.DateTimeFormat('en-CA', { 
+          timeZone: timezone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        });
+        today = formatter.format(new Date()); // Returns YYYY-MM-DD format
+      } catch (e) {
+        // Invalid timezone, fall back to UTC
+        logger.warn('Invalid timezone provided, using UTC', { timezone, error: e });
+        today = new Date().toISOString().split('T')[0];
+      }
+    } else {
+      today = new Date().toISOString().split('T')[0];
+    }
+    
+    logger.info(`[N1Experiment] Checking experiments needing checkin`, { 
+      userId, 
+      timezone: timezone || 'UTC', 
+      today,
+      experimentCount: experiments.length 
+    });
+
     // Check which ones don't have a check-in today
-    const today = new Date().toISOString().split('T')[0];
+    // checkin_date is stored as DATE type (not timestamp), so direct string comparison works
     const experimentsNeedingCheckin: N1Experiment[] = [];
 
     for (const experiment of experiments) {

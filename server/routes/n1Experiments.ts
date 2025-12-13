@@ -188,7 +188,9 @@ router.get('/experiments/needing-checkin', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    const experiments = await n1ExperimentService.getExperimentsNeedingCheckin(userId);
+    // Accept timezone query param to determine user's local "today"
+    const timezone = req.query.timezone as string | undefined;
+    const experiments = await n1ExperimentService.getExperimentsNeedingCheckin(userId, timezone);
     res.json({ experiments });
   } catch (error: any) {
     logger.error('Failed to get experiments needing checkin', { error: error.message });
