@@ -79,12 +79,12 @@ export function UserDataScreen({ isDark, onClose }: UserDataScreenProps) {
   };
 
   return (
-    <div className={`fixed inset-0 z-50 overflow-hidden ${
+    <div className={`fixed inset-0 z-50 flex flex-col ${
       isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
         : 'bg-gradient-to-br from-blue-50 via-teal-50 to-cyan-50'
     }`}>
-      <div className={`sticky top-0 z-50 backdrop-blur-xl border-b pt-[env(safe-area-inset-top)] ${
+      <div className={`flex-shrink-0 backdrop-blur-xl border-b pt-[env(safe-area-inset-top)] ${
         isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
       }`}>
         <div className="px-4 py-4">
@@ -113,7 +113,7 @@ export function UserDataScreen({ isDark, onClose }: UserDataScreenProps) {
         </div>
       </div>
 
-      <div className="h-full overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
         <div className="max-w-2xl mx-auto px-4 py-6">
           <p className={`text-sm mb-6 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
             Latest values from your connected devices and data sources.
