@@ -624,8 +624,9 @@ export class ClickHouseBaselineEngine {
         // Core HealthKit metrics - use canonical names with unit suffixes
         hrv_ms: 'hrv_ms',
         resting_hr_bpm: 'resting_heart_rate_bpm',
-        // IMPORTANT: Use steps_raw_sum (actual step count) NOT steps_normalized (which is a 0-1 score)
-        steps_raw_sum: 'steps',
+        // Steps: Use steps_normalized (deduplicated step count with Watch > iPhone priority)
+        // steps_raw_sum is often NULL because iOS primarily sends steps_normalized
+        steps_normalized: 'steps',
         active_energy_kcal: 'active_energy',
         sleep_hours: 'sleep_duration_min', // Note: value needs *60 conversion, handled in sync
         exercise_minutes: 'exercise_minutes',
@@ -662,12 +663,46 @@ export class ClickHouseBaselineEngine {
         mindfulness_minutes: 'mindfulness_minutes',
       };
 
+      // First, get existing records for this health_id in the date range to avoid duplicates
+      const existingDates = new Set<string>();
+      if (daysBack !== null) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+        
+        try {
+          const existingQuery = `
+            SELECT DISTINCT local_date, metric_type 
+            FROM health_metrics 
+            WHERE health_id = {healthId:String} 
+            AND local_date >= {startDate:String}
+          `;
+          const existingResult = await clickhouse.query(existingQuery, {
+            healthId,
+            startDate: startDateStr,
+          });
+          
+          for (const record of existingResult) {
+            existingDates.add(`${record.local_date}:${record.metric_type}`);
+          }
+          logger.debug(`[ClickHouseML] Found ${existingDates.size} existing metric-date combinations`);
+        } catch (err) {
+          logger.warn('[ClickHouseML] Could not check existing records, proceeding with insert:', err);
+        }
+      }
+
       const rows: any[] = [];
 
       for (const row of metrics) {
         for (const [dbField, metricType] of Object.entries(metricMappings)) {
           const value = row[dbField];
           if (value !== null && value !== undefined && !isNaN(value)) {
+            // Skip if this metric-date combination already exists in ClickHouse
+            const key = `${row.local_date}:${metricType}`;
+            if (existingDates.has(key)) {
+              continue;
+            }
+            
             rows.push({
               health_id: healthId,
               metric_type: metricType,
@@ -682,7 +717,9 @@ export class ClickHouseBaselineEngine {
 
       if (rows.length > 0) {
         await clickhouse.insert('health_metrics', rows);
-        logger.info(`[ClickHouseML] Synced ${rows.length} metrics for ${healthId}`);
+        logger.info(`[ClickHouseML] Synced ${rows.length} NEW metrics for ${healthId} (skipped ${existingDates.size} existing)`);
+      } else {
+        logger.debug(`[ClickHouseML] No new metrics to sync for ${healthId} (all ${existingDates.size} already exist)`);
       }
 
       // Also sync detailed sleep components from sleep_nights table
