@@ -22,12 +22,12 @@ import { differenceInDays } from 'date-fns';
  * These are primarily from HealthKit and life event logging
  */
 export const FAST_MOVING_METRICS = new Set([
-  // HealthKit - Sleep
-  'sleep_total_minutes',
-  'sleep_deep_minutes',
-  'sleep_rem_minutes',
+  // HealthKit - Sleep (canonical ClickHouse names)
+  'sleep_duration_min',
+  'deep_sleep_min',
+  'rem_sleep_min',
   'sleep_awakenings',
-  'sleep_latency_minutes',
+  'sleep_latency_min',
   
   // HealthKit - Activity
   'steps',
@@ -35,21 +35,19 @@ export const FAST_MOVING_METRICS = new Set([
   'exercise_minutes',
   'stand_hours',
   'flights_climbed',
-  'distance_walking_running',
-  'distance_cycling',
+  'distance_km',
   
-  // HealthKit - Heart
-  'resting_hr',
-  'hrv_sdnn_ms',
-  'hrv_rmssd_ms',
+  // HealthKit - Heart (canonical ClickHouse names)
+  'resting_heart_rate_bpm',
+  'hrv_ms',
   'vo2_max',
   
   // HealthKit - Body
-  'weight_lbs',
+  'weight_kg',
   'body_fat_pct',
   
-  // HealthKit - Respiratory
-  'respiratory_rate',
+  // HealthKit - Respiratory (canonical ClickHouse name)
+  'respiratory_rate_bpm',
   
   // Life Events
   'stress_events',

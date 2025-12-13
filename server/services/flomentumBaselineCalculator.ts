@@ -47,7 +47,7 @@ export async function calculateFlomentumBaselines(
     if (restingHrValues.length >= MIN_SAMPLES) {
       const avg = restingHrValues.reduce((a, b) => a + b, 0) / restingHrValues.length;
       result.restingHrBaseline = avg;
-      await persistBaseline(userId, 'resting_hr', avg, restingHrValues.length);
+      await persistBaseline(userId, 'resting_heart_rate_bpm', avg, restingHrValues.length);
     } else {
       result.restingHrBaseline = 60;
       logger.debug(`Insufficient resting HR data for Flōmentum baseline`, {
@@ -60,7 +60,7 @@ export async function calculateFlomentumBaselines(
     if (hrvValues.length >= MIN_SAMPLES) {
       const avg = hrvValues.reduce((a, b) => a + b, 0) / hrvValues.length;
       result.hrvBaseline = avg;
-      await persistBaseline(userId, 'hrv_sdnn_ms', avg, hrvValues.length);
+      await persistBaseline(userId, 'hrv_ms', avg, hrvValues.length);
     } else {
       result.hrvBaseline = 50;
       logger.debug(`Insufficient HRV data for Flōmentum baseline`, {
@@ -73,7 +73,7 @@ export async function calculateFlomentumBaselines(
     if (respRateValues.length >= MIN_SAMPLES) {
       const avg = respRateValues.reduce((a, b) => a + b, 0) / respRateValues.length;
       result.respRateBaseline = avg;
-      await persistBaseline(userId, 'respiratory_rate', avg, respRateValues.length);
+      await persistBaseline(userId, 'respiratory_rate_bpm', avg, respRateValues.length);
     } else {
       result.respRateBaseline = 16;
       logger.debug(`Insufficient respiratory rate data for Flōmentum baseline`, {
@@ -137,11 +137,11 @@ export async function getFlomentumBaselines(userId: string): Promise<FlomentumBa
   };
 
   for (const baseline of baselines) {
-    if (baseline.metricKey === 'resting_hr') {
+    if (baseline.metricKey === 'resting_heart_rate_bpm') {
       result.restingHrBaseline = baseline.baseline;
-    } else if (baseline.metricKey === 'hrv_sdnn_ms') {
+    } else if (baseline.metricKey === 'hrv_ms') {
       result.hrvBaseline = baseline.baseline;
-    } else if (baseline.metricKey === 'respiratory_rate') {
+    } else if (baseline.metricKey === 'respiratory_rate_bpm') {
       result.respRateBaseline = baseline.baseline;
     }
   }

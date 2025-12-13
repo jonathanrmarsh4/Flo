@@ -30,7 +30,7 @@ import { EvidenceBackedRelationship, PubMedReference } from './evidenceHierarchy
 const hpaAxisPathways: EvidenceBackedRelationship[] = [
   {
     independent: "stress_events",
-    dependent: "hrv_sdnn_ms",
+    dependent: "hrv_ms",
     direction: "negative",
     tier: "2",
     mechanism: "Chronic stress activates HPA axis → elevated cortisol → reduced parasympathetic tone → lower HRV",
@@ -59,8 +59,8 @@ const hpaAxisPathways: EvidenceBackedRelationship[] = [
     timingDependent: true, // Acute vs. chronic stress show different patterns
   },
   {
-    independent: "hrv_sdnn_ms",
-    dependent: "sleep_total_minutes",
+    independent: "hrv_ms",
+    dependent: "sleep_duration_min",
     direction: "positive",
     tier: "2",
     mechanism: "Higher HRV indicates better autonomic balance → easier sleep onset → longer sleep duration",
@@ -80,8 +80,8 @@ const hpaAxisPathways: EvidenceBackedRelationship[] = [
     timingDependent: false,
   },
   {
-    independent: "sleep_total_minutes",
-    dependent: "resting_hr",
+    independent: "sleep_duration_min",
+    dependent: "resting_heart_rate_bpm",
     direction: "negative",
     tier: "1",
     mechanism: "Adequate sleep → improved parasympathetic recovery → lower resting heart rate",
@@ -147,7 +147,7 @@ const insulinGlucosePathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "glucose",
-    dependent: "sleep_deep_minutes",
+    dependent: "deep_sleep_min",
     direction: "negative",
     tier: "2",
     mechanism: "Elevated glucose → increased cortisol awakening → sleep fragmentation → reduced deep sleep",
@@ -182,7 +182,7 @@ const insulinGlucosePathways: EvidenceBackedRelationship[] = [
  */
 const inflammatoryPathways: EvidenceBackedRelationship[] = [
   {
-    independent: "sleep_total_minutes",
+    independent: "sleep_duration_min",
     dependent: "hs_crp",
     direction: "negative",
     tier: "1",
@@ -225,7 +225,7 @@ const inflammatoryPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "hs_crp",
-    dependent: "resting_hr",
+    dependent: "resting_heart_rate_bpm",
     direction: "positive",
     tier: "2",
     mechanism: "Systemic inflammation → sympathetic activation → increased resting heart rate",
@@ -338,7 +338,7 @@ const androgenPathways: EvidenceBackedRelationship[] = [
 const recoveryPathways: EvidenceBackedRelationship[] = [
   {
     independent: "sauna_events",
-    dependent: "resting_hr",
+    dependent: "resting_heart_rate_bpm",
     direction: "negative",
     tier: "2",
     mechanism: "Heat exposure → HSP70 upregulation → improved cardiovascular efficiency → lower resting heart rate",
@@ -359,7 +359,7 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "sauna_events",
-    dependent: "sleep_deep_minutes",
+    dependent: "deep_sleep_min",
     direction: "positive",
     tier: "3",
     mechanism: "Heat stress → body temperature drop post-sauna → enhanced slow-wave sleep via thermoregulatory effects",
@@ -380,7 +380,7 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "ice_bath_events",
-    dependent: "resting_hr",
+    dependent: "resting_heart_rate_bpm",
     direction: "negative",
     tier: "3",
     mechanism: "Cold exposure → improved cardiovascular efficiency → reduced resting heart rate",
@@ -400,7 +400,7 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "ice_bath_events",
-    dependent: "sleep_deep_minutes",
+    dependent: "deep_sleep_min",
     direction: "positive",
     tier: "3",
     mechanism: "Cold exposure → adenosine accumulation → increased sleep pressure → deeper slow-wave sleep",
@@ -425,8 +425,8 @@ const recoveryPathways: EvidenceBackedRelationship[] = [
 
 const respiratoryPathways: EvidenceBackedRelationship[] = [
   {
-    independent: "respiratory_rate",
-    dependent: "sleep_total_minutes",
+    independent: "respiratory_rate_bpm",
+    dependent: "sleep_duration_min",
     direction: "negative",
     tier: "2",
     mechanism: "Elevated respiratory rate → increased sympathetic activity → sleep fragmentation → reduced sleep duration",
@@ -446,7 +446,7 @@ const respiratoryPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "oxygen_saturation_avg",
-    dependent: "sleep_total_minutes",
+    dependent: "sleep_duration_min",
     direction: "positive",
     tier: "2",
     mechanism: "Higher oxygen saturation → better tissue oxygenation → improved sleep quality → longer sleep duration",
@@ -493,7 +493,7 @@ const respiratoryPathways: EvidenceBackedRelationship[] = [
 const activityMetabolicPathways: EvidenceBackedRelationship[] = [
   {
     independent: "exercise_minutes",
-    dependent: "hrv_sdnn_ms",
+    dependent: "hrv_ms",
     direction: "positive",
     tier: "1",
     mechanism: "Regular exercise → improved cardiovascular fitness → enhanced vagal tone → higher HRV",
@@ -533,7 +533,7 @@ const activityMetabolicPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "distance_meters",
-    dependent: "sleep_total_minutes",
+    dependent: "sleep_duration_min",
     direction: "positive",
     tier: "2",
     mechanism: "Increased daily movement → higher adenosine accumulation → greater sleep pressure → longer sleep",
@@ -560,7 +560,7 @@ const activityMetabolicPathways: EvidenceBackedRelationship[] = [
 const bodyCompositionPathways: EvidenceBackedRelationship[] = [
   {
     independent: "body_fat_pct",
-    dependent: "resting_hr",
+    dependent: "resting_heart_rate_bpm",
     direction: "positive",
     tier: "1",
     mechanism: "Higher body fat → systemic inflammation → elevated sympathetic tone → higher resting HR",
@@ -580,7 +580,7 @@ const bodyCompositionPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "waist_circumference_cm",
-    dependent: "resting_hr",
+    dependent: "resting_heart_rate_bpm",
     direction: "positive",
     tier: "1",
     mechanism: "Increased visceral fat → metabolic dysfunction → elevated sympathetic tone → higher resting HR",
@@ -620,7 +620,7 @@ const bodyCompositionPathways: EvidenceBackedRelationship[] = [
   },
   {
     independent: "weight_kg",
-    dependent: "sleep_total_minutes",
+    dependent: "sleep_duration_min",
     direction: "negative",
     tier: "2",
     mechanism: "Excess weight → sleep apnea risk → sleep fragmentation → reduced sleep duration",
@@ -667,7 +667,7 @@ const bodyCompositionPathways: EvidenceBackedRelationship[] = [
 const thermoregulationPathways: EvidenceBackedRelationship[] = [
   {
     independent: "body_temp_deviation_c",
-    dependent: "sleep_total_minutes",
+    dependent: "sleep_duration_min",
     direction: "negative",
     tier: "2",
     mechanism: "Elevated body temperature → impaired thermoregulation → difficulty initiating sleep → reduced duration",
@@ -714,7 +714,7 @@ const thermoregulationPathways: EvidenceBackedRelationship[] = [
 const additionalActivitySleepPathways: EvidenceBackedRelationship[] = [
   {
     independent: "steps",
-    dependent: "sleep_total_minutes",
+    dependent: "sleep_duration_min",
     direction: "positive",
     tier: "2",
     mechanism: "Daily step count → energy expenditure → sleep pressure accumulation → improved sleep consolidation",

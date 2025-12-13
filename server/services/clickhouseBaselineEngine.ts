@@ -631,23 +631,24 @@ export class ClickHouseBaselineEngine {
       }
 
       // Comprehensive mapping of ALL health metrics from user_daily_metrics
+      // IMPORTANT: Use canonical ClickHouse metric type names (with units suffix)
       const metricMappings: Record<string, string> = {
-        // Core HealthKit metrics
-        hrv_ms: 'hrv',
-        resting_hr_bpm: 'resting_heart_rate',
+        // Core HealthKit metrics - use canonical names with unit suffixes
+        hrv_ms: 'hrv_ms',
+        resting_hr_bpm: 'resting_heart_rate_bpm',
         steps_normalized: 'steps',
         active_energy_kcal: 'active_energy',
-        sleep_hours: 'sleep_duration',
-        exercise_minutes: 'exercise',
-        weight_kg: 'weight',
+        sleep_hours: 'sleep_duration_min', // Note: value needs *60 conversion, handled in sync
+        exercise_minutes: 'exercise_minutes',
+        weight_kg: 'weight_kg',
         bmi: 'bmi',
         // Extended vital signs
-        walking_hr_avg_bpm: 'walking_heart_rate',
-        oxygen_saturation_pct: 'oxygen_saturation',
-        respiratory_rate_bpm: 'respiratory_rate',
-        body_temp_celsius: 'body_temperature',
+        walking_hr_avg_bpm: 'walking_heart_rate_bpm',
+        oxygen_saturation_pct: 'oxygen_saturation_pct',
+        respiratory_rate_bpm: 'respiratory_rate_bpm',
+        body_temp_celsius: 'body_temperature_c',
         basal_energy_kcal: 'basal_energy',
-        dietary_water_ml: 'water_intake',
+        dietary_water_ml: 'water_intake_ml',
         // Wrist temperature
         wrist_temp_baseline_c: 'wrist_temperature_baseline',
         wrist_temp_deviation_c: 'wrist_temperature_deviation',
@@ -660,16 +661,16 @@ export class ClickHouseBaselineEngine {
         core_sleep_hours: 'core_sleep_hours',  // Keep as hours to distinguish from minutes
         sleep_awakenings: 'sleep_awakenings',
         // time_in_bed_hours: EXCLUDED - use time_in_bed from sleep_nights (in minutes) instead
-        sleep_latency_min: 'sleep_latency',
+        sleep_latency_min: 'sleep_latency_min',
         // Body composition
-        body_fat_pct: 'body_fat',
-        lean_mass_kg: 'lean_mass',
+        body_fat_pct: 'body_fat_pct',
+        lean_mass_kg: 'lean_mass_kg',
         // Activity metrics
         stand_hours: 'stand_hours',
         flights_climbed: 'flights_climbed',
-        distance_km: 'distance',
+        distance_km: 'distance_km',
         // Mindfulness
-        mindfulness_minutes: 'mindfulness',
+        mindfulness_minutes: 'mindfulness_minutes',
       };
 
       const rows: any[] = [];
@@ -1034,15 +1035,15 @@ export class ClickHouseBaselineEngine {
 
     const metricTypes = anomalies.map(a => a.metricType);
 
-    const illnessIndicators = ['wrist_temperature_deviation', 'respiratory_rate', 'resting_heart_rate', 'hrv', 'oxygen_saturation'];
+    const illnessIndicators = ['wrist_temperature_deviation', 'respiratory_rate_bpm', 'resting_heart_rate_bpm', 'hrv_ms', 'oxygen_saturation_pct'];
     const illnessMatches = metricTypes.filter(m => illnessIndicators.includes(m));
 
     if (illnessMatches.length >= 2) {
       const tempAnomaly = anomalies.find(a => a.metricType === 'wrist_temperature_deviation' && a.direction === 'above');
-      const respAnomaly = anomalies.find(a => a.metricType === 'respiratory_rate' && a.direction === 'above');
-      const rhrAnomaly = anomalies.find(a => a.metricType === 'resting_heart_rate' && a.direction === 'above');
-      const hrvAnomaly = anomalies.find(a => a.metricType === 'hrv' && a.direction === 'below');
-      const o2Anomaly = anomalies.find(a => a.metricType === 'oxygen_saturation' && a.direction === 'below');
+      const respAnomaly = anomalies.find(a => a.metricType === 'respiratory_rate_bpm' && a.direction === 'above');
+      const rhrAnomaly = anomalies.find(a => a.metricType === 'resting_heart_rate_bpm' && a.direction === 'above');
+      const hrvAnomaly = anomalies.find(a => a.metricType === 'hrv_ms' && a.direction === 'below');
+      const o2Anomaly = anomalies.find(a => a.metricType === 'oxygen_saturation_pct' && a.direction === 'below');
 
       const patternMatches = [tempAnomaly, respAnomaly, rhrAnomaly, hrvAnomaly, o2Anomaly].filter(Boolean);
 
@@ -1067,12 +1068,12 @@ export class ClickHouseBaselineEngine {
       }
     }
 
-    const recoveryIndicators = ['hrv', 'resting_heart_rate', 'sleep_duration', 'deep_sleep'];
+    const recoveryIndicators = ['hrv_ms', 'resting_heart_rate_bpm', 'sleep_duration_min', 'deep_sleep_min'];
     const recoveryMatches = metricTypes.filter(m => recoveryIndicators.includes(m));
 
     if (recoveryMatches.length >= 2) {
-      const hrvLow = anomalies.find(a => a.metricType === 'hrv' && a.direction === 'below');
-      const sleepLow = anomalies.find(a => ['sleep_duration', 'deep_sleep'].includes(a.metricType) && a.direction === 'below');
+      const hrvLow = anomalies.find(a => a.metricType === 'hrv_ms' && a.direction === 'below');
+      const sleepLow = anomalies.find(a => ['sleep_duration_min', 'deep_sleep_min'].includes(a.metricType) && a.direction === 'below');
 
       if (hrvLow && sleepLow) {
         const patternFingerprint = 'recovery_deficit';
@@ -1095,7 +1096,7 @@ export class ClickHouseBaselineEngine {
     
     if (glucoseAnomalies.length > 0) {
       const glucoseAnomaly = glucoseAnomalies[0];
-      const hrvAnomaly = anomalies.find(a => a.metricType === 'hrv');
+      const hrvAnomaly = anomalies.find(a => a.metricType === 'hrv_ms');
       
       if (hrvAnomaly) {
         const patternFingerprint = glucoseAnomaly.direction === 'below' 
@@ -1104,11 +1105,11 @@ export class ClickHouseBaselineEngine {
         
         const relatedMetrics = {
           glucose: { value: glucoseAnomaly.currentValue, deviation: glucoseAnomaly.deviationPct },
-          hrv: { value: hrvAnomaly.currentValue, deviation: hrvAnomaly.deviationPct },
+          hrv_ms: { value: hrvAnomaly.currentValue, deviation: hrvAnomaly.deviationPct },
         };
 
         return anomalies.map(a => {
-          if (a.metricType === glucoseAnomaly.metricType || a.metricType === 'hrv') {
+          if (a.metricType === glucoseAnomaly.metricType || a.metricType === 'hrv_ms') {
             return {
               ...a,
               patternFingerprint,
@@ -1121,7 +1122,7 @@ export class ClickHouseBaselineEngine {
         });
       }
 
-      const sleepAnomaly = anomalies.find(a => ['sleep_duration', 'deep_sleep', 'sleep_efficiency'].includes(a.metricType));
+      const sleepAnomaly = anomalies.find(a => ['sleep_duration_min', 'deep_sleep_min', 'sleep_efficiency_pct'].includes(a.metricType));
       
       if (sleepAnomaly) {
         const patternFingerprint = 'glucose_sleep_correlation';
@@ -1138,7 +1139,7 @@ export class ClickHouseBaselineEngine {
         });
       }
 
-      const activityAnomaly = anomalies.find(a => ['steps', 'active_energy', 'exercise_minutes'].includes(a.metricType));
+      const activityAnomaly = anomalies.find(a => ['steps', 'active_energy', 'exercise_minutes', 'workout_minutes'].includes(a.metricType));
       
       if (activityAnomaly) {
         const patternFingerprint = 'glucose_activity_correlation';
@@ -1459,11 +1460,11 @@ export class ClickHouseBaselineEngine {
    */
   private getMetricHalfLife(metricType: string): number {
     const wearableMetrics = [
-      'steps', 'active_energy', 'heart_rate', 'resting_heart_rate', 'hrv',
-      'sleep_duration', 'deep_sleep', 'rem_sleep', 'sleep_duration_min',
-      'respiratory_rate', 'oxygen_saturation', 'wrist_temperature_deviation',
+      'steps', 'active_energy', 'heart_rate', 'resting_heart_rate_bpm', 'hrv_ms',
+      'sleep_duration_min', 'deep_sleep_min', 'rem_sleep_min',
+      'respiratory_rate_bpm', 'oxygen_saturation_pct', 'wrist_temperature_deviation',
       'distance_walking_running', 'exercise_time', 'stand_time', 'stand_hours',
-      'flights_climbed', 'basal_energy_burned', 'walking_heart_rate_avg',
+      'flights_climbed', 'basal_energy_burned', 'walking_heart_rate_bpm',
       'mindful_minutes', 'walking_speed', 'walking_step_length',
       'walking_double_support_percentage', 'walking_asymmetry_percentage',
       'stair_ascent_speed', 'stair_descent_speed', 'six_minute_walk_test_distance'
@@ -1497,17 +1498,16 @@ export class ClickHouseBaselineEngine {
     if (severity === 'normal') return null;
     
     const metricLabels: Record<string, string> = {
-      'hrv': 'Heart rate variability',
-      'resting_heart_rate': 'Resting heart rate',
-      'sleep_duration': 'Sleep duration',
+      'hrv_ms': 'Heart rate variability',
+      'resting_heart_rate_bpm': 'Resting heart rate',
       'sleep_duration_min': 'Sleep duration',
-      'deep_sleep': 'Deep sleep',
-      'rem_sleep': 'REM sleep',
+      'deep_sleep_min': 'Deep sleep',
+      'rem_sleep_min': 'REM sleep',
       'steps': 'Daily steps',
       'active_energy': 'Active calories',
       'wrist_temperature_deviation': 'Wrist temperature',
-      'respiratory_rate': 'Breathing rate',
-      'oxygen_saturation': 'Blood oxygen',
+      'respiratory_rate_bpm': 'Breathing rate',
+      'oxygen_saturation_pct': 'Blood oxygen',
     };
     
     const label = metricLabels[metricType] || metricType.replace(/_/g, ' ');
@@ -1533,14 +1533,14 @@ export class ClickHouseBaselineEngine {
     const metricNames = anomalyMetrics.map(m => m.metric);
     
     // Illness precursor pattern
-    const illnessIndicators = ['wrist_temperature_deviation', 'respiratory_rate', 'resting_heart_rate', 'hrv', 'oxygen_saturation'];
+    const illnessIndicators = ['wrist_temperature_deviation', 'respiratory_rate_bpm', 'resting_heart_rate_bpm', 'hrv_ms', 'oxygen_saturation_pct'];
     const illnessMatches = anomalyMetrics.filter(m => 
       illnessIndicators.includes(m.metric) &&
       ((m.metric === 'wrist_temperature_deviation' && m.deviation.direction === 'above') ||
-       (m.metric === 'respiratory_rate' && m.deviation.direction === 'above') ||
-       (m.metric === 'resting_heart_rate' && m.deviation.direction === 'above') ||
-       (m.metric === 'hrv' && m.deviation.direction === 'below') ||
-       (m.metric === 'oxygen_saturation' && m.deviation.direction === 'below'))
+       (m.metric === 'respiratory_rate_bpm' && m.deviation.direction === 'above') ||
+       (m.metric === 'resting_heart_rate_bpm' && m.deviation.direction === 'above') ||
+       (m.metric === 'hrv_ms' && m.deviation.direction === 'below') ||
+       (m.metric === 'oxygen_saturation_pct' && m.deviation.direction === 'below'))
     );
     
     if (illnessMatches.length >= 2) {
@@ -1554,9 +1554,9 @@ export class ClickHouseBaselineEngine {
     }
     
     // Recovery deficit pattern
-    const hrvLow = anomalyMetrics.find(m => m.metric === 'hrv' && m.deviation.direction === 'below');
+    const hrvLow = anomalyMetrics.find(m => m.metric === 'hrv_ms' && m.deviation.direction === 'below');
     const sleepLow = anomalyMetrics.find(m => 
-      ['sleep_duration', 'deep_sleep', 'sleep_duration_min'].includes(m.metric) && 
+      ['sleep_duration_min', 'deep_sleep_min'].includes(m.metric) && 
       m.deviation.direction === 'below'
     );
     
@@ -1573,7 +1573,7 @@ export class ClickHouseBaselineEngine {
     // Glucose-HRV correlation
     const glucoseMetrics = ['glucose', 'cgm_glucose', 'cgm_hypo', 'cgm_hyper'];
     const glucoseAnomaly = anomalyMetrics.find(m => glucoseMetrics.includes(m.metric));
-    const hrvAnomaly = anomalyMetrics.find(m => m.metric === 'hrv');
+    const hrvAnomaly = anomalyMetrics.find(m => m.metric === 'hrv_ms');
     
     if (glucoseAnomaly && hrvAnomaly) {
       const patternType = glucoseAnomaly.deviation.direction === 'below' 
@@ -1582,18 +1582,18 @@ export class ClickHouseBaselineEngine {
       patterns.push({
         patternType,
         confidence: 0.85,
-        involvedMetrics: [glucoseAnomaly.metric, 'hrv'],
+        involvedMetrics: [glucoseAnomaly.metric, 'hrv_ms'],
         description: `Glucose dysregulation affecting HRV. ${glucoseAnomaly.deviation.direction === 'below' ? 'Low blood sugar' : 'High blood sugar'} correlates with heart rate variability changes.`,
       });
     }
     
     // Activity-sleep pattern
     const activityHigh = anomalyMetrics.find(m => 
-      ['steps', 'active_energy', 'exercise'].includes(m.metric) && 
+      ['steps', 'active_energy', 'exercise_minutes'].includes(m.metric) && 
       m.deviation.direction === 'above'
     );
     const sleepQualityLow = anomalyMetrics.find(m => 
-      ['deep_sleep', 'rem_sleep', 'sleep_efficiency'].includes(m.metric) && 
+      ['deep_sleep_min', 'rem_sleep_min', 'sleep_efficiency_pct'].includes(m.metric) && 
       m.deviation.direction === 'below'
     );
     
@@ -2401,7 +2401,7 @@ export class ClickHouseBaselineEngine {
           },
           {
             anomalyId: randomUUID(),
-            metricType: 'respiratory_rate',
+            metricType: 'respiratory_rate_bpm',
             currentValue: 18,
             baselineValue: 15,
             deviationPct: 20,
@@ -2419,7 +2419,7 @@ export class ClickHouseBaselineEngine {
         anomalies = [
           {
             anomalyId: randomUUID(),
-            metricType: 'hrv',
+            metricType: 'hrv_ms',
             currentValue: 35,
             baselineValue: 55,
             deviationPct: -36,
@@ -2428,14 +2428,14 @@ export class ClickHouseBaselineEngine {
             severity: 'high',
             patternFingerprint: 'recovery_deficit',
             relatedMetrics: {
-              hrv: { value: 35, deviation: -36 },
-              deep_sleep: { value: 30, deviation: -40 },
+              hrv_ms: { value: 35, deviation: -36 },
+              deep_sleep_min: { value: 30, deviation: -40 },
             },
             modelConfidence: 0.82,
           },
           {
             anomalyId: randomUUID(),
-            metricType: 'deep_sleep',
+            metricType: 'deep_sleep_min',
             currentValue: 30,
             baselineValue: 50,
             deviationPct: -40,
@@ -2454,7 +2454,7 @@ export class ClickHouseBaselineEngine {
         anomalies = [
           {
             anomalyId: randomUUID(),
-            metricType: 'resting_heart_rate',
+            metricType: 'resting_heart_rate_bpm',
             currentValue: 72,
             baselineValue: 60,
             deviationPct: 20,
