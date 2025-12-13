@@ -593,8 +593,8 @@ export default function AssessmentDetail() {
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0]?.payload;
-      const formatZScore = (value: number | undefined) => {
-        if (value === undefined) return 'N/A';
+      const formatZScore = (value: number | null | undefined) => {
+        if (value === undefined || value === null) return 'N/A';
         const sign = value >= 0 ? '+' : '';
         return `${sign}${value.toFixed(2)} σ`;
       };
@@ -602,7 +602,7 @@ export default function AssessmentDetail() {
       return (
         <div className="backdrop-blur-xl rounded-lg border p-3 shadow-lg bg-slate-900/95 border-white/20">
           <p className="text-xs mb-2 text-white/60">{data?.date}</p>
-          {data?.objectiveComposite !== undefined && (
+          {data?.objectiveComposite != null && (
             <p className="text-sm">
               <span className="font-medium text-[#00E5FF]">Biometrics:</span>{' '}
               <span className={data.objectiveComposite >= 0 ? 'text-green-400' : 'text-orange-400'}>
@@ -610,7 +610,7 @@ export default function AssessmentDetail() {
               </span>
             </p>
           )}
-          {data?.subjectiveComposite !== undefined && (
+          {data?.subjectiveComposite != null && (
             <p className="text-sm">
               <span className="font-medium text-[#FF9100]">How You Feel:</span>{' '}
               <span className={data.subjectiveComposite >= 0 ? 'text-green-400' : 'text-orange-400'}>
