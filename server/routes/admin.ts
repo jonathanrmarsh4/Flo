@@ -902,6 +902,60 @@ export function registerAdminRoutes(app: Express) {
 
   /**
    * ============================================================================
+   * CLICKHOUSE FULL HISTORY SYNC BY HEALTH_ID
+   * ============================================================================
+   * 
+   * Same as above but accepts health_id directly (for production use when you
+   * have health_ids but not user_ids in Neon).
+   */
+  app.post('/api/admin/ml/full-sync-by-health-id/:healthId', async (req: any, res) => {
+    try {
+      // Check for CLI key auth first
+      const cliKey = req.headers['x-admin-cli-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      const isCliAuth = cliKey && expectedKey && cliKey === expectedKey;
+      
+      // If not CLI auth, require session-based admin auth
+      if (!isCliAuth) {
+        if (!req.user?.claims?.sub) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || user.role !== 'admin') {
+          return res.status(403).json({ message: "Forbidden - Admin access required" });
+        }
+      }
+      
+      const { healthId } = req.params;
+      
+      if (!healthId || healthId.length < 10) {
+        return res.status(400).json({ error: "Invalid health_id" });
+      }
+
+      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
+
+      logger.info(`[Admin] Starting full ClickHouse sync for health_id: ${healthId}`);
+      
+      // Run comprehensive sync with null daysBack to get full history
+      const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
+      
+      logger.info(`[Admin] Full sync complete for health_id ${healthId}:`, syncResult);
+      
+      res.json({
+        success: true,
+        healthId,
+        syncResult,
+        message: `Synced ${syncResult.total} total records to ClickHouse`,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Full sync by health_id failed:', error);
+      res.status(500).json({ error: error.message || "Failed to run full sync" });
+    }
+  });
+
+  /**
+   * ============================================================================
    * DATA PARITY REPORT - ClickHouse vs Supabase Comparison
    * ============================================================================
    * 
