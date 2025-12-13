@@ -1,4 +1,4 @@
-import { ChevronLeft, Database, RefreshCw, Watch, Activity, Moon, Heart, Loader2 } from 'lucide-react';
+import { ChevronLeft, Database, RefreshCw, Watch, Activity, Moon, Heart, Loader2, Thermometer, Droplets, Brain, Wind, Footprints, Scale, Apple, Zap } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -36,11 +36,15 @@ const categoryIcons: Record<string, typeof Moon> = {
   'Recovery': Heart,
   'Heart': Heart,
   'Activity': Activity,
-  'Fitness': Activity,
-  'Body': Activity,
-  'Respiratory': Activity,
-  'Glucose': Activity,
-  'Stress': Activity,
+  'Fitness': Zap,
+  'Body': Scale,
+  'Mobility': Footprints,
+  'Respiratory': Wind,
+  'Vitals': Thermometer,
+  'Glucose': Droplets,
+  'Nutrition': Apple,
+  'Mindfulness': Brain,
+  'Stress': Brain,
 };
 
 export function UserDataScreen({ isDark, onClose }: UserDataScreenProps) {

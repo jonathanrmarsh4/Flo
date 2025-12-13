@@ -4383,7 +4383,8 @@ export interface UserDataMetric {
 
 /**
  * Get latest metric values with sources for User Data display
- * Aggregates data from healthkit_samples, sleep_nights, cgm_readings, and oura tables
+ * Aggregates data from healthkit_samples, sleep_nights, user_daily_metrics, cgm_readings, and oura tables
+ * Now returns ALL available metrics across all categories
  */
 export async function getLatestMetricsWithSources(userId: string): Promise<UserDataMetric[]> {
   const healthId = await getHealthId(userId);
@@ -4392,10 +4393,10 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   try {
-    // 1. Sleep data (from sleep_nights - includes Oura/HealthKit/manual)
+    // 1. Sleep data (from sleep_nights - includes ALL sleep metrics from Oura/HealthKit/manual)
     const { data: sleepData } = await supabase
       .from('sleep_nights')
-      .select('sleep_date, total_sleep_min, deep_sleep_min, rem_sleep_min, hrv_ms, resting_hr_bpm, source, updated_at')
+      .select('*')
       .eq('health_id', healthId)
       .order('sleep_date', { ascending: false })
       .limit(1);
@@ -4403,8 +4404,10 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
     if (sleepData?.[0]) {
       const sleep = sleepData[0];
       const sourceDisplay = sleep.source === 'oura' ? 'Oura Ring' : sleep.source === 'healthkit' ? 'Apple Watch' : 'Manual';
+      const lastUpdated = sleep.updated_at || sleep.sleep_date;
       
-      if (sleep.total_sleep_min) {
+      // Total Sleep
+      if (sleep.total_sleep_min != null) {
         const hours = Math.floor(sleep.total_sleep_min / 60);
         const mins = Math.round(sleep.total_sleep_min % 60);
         metrics.push({
@@ -4414,10 +4417,25 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
           value: `${hours}h ${mins}m`,
           unit: '',
           source: sourceDisplay,
-          lastUpdated: sleep.updated_at || sleep.sleep_date,
+          lastUpdated,
         });
       }
-      if (sleep.deep_sleep_min) {
+      // Time in Bed
+      if (sleep.time_in_bed_min != null) {
+        const hours = Math.floor(sleep.time_in_bed_min / 60);
+        const mins = Math.round(sleep.time_in_bed_min % 60);
+        metrics.push({
+          category: 'Sleep',
+          name: 'time_in_bed',
+          displayName: 'Time in Bed',
+          value: `${hours}h ${mins}m`,
+          unit: '',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Deep Sleep
+      if (sleep.deep_sleep_min != null) {
         metrics.push({
           category: 'Sleep',
           name: 'deep_sleep',
@@ -4425,10 +4443,11 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
           value: Math.round(sleep.deep_sleep_min),
           unit: 'min',
           source: sourceDisplay,
-          lastUpdated: sleep.updated_at || sleep.sleep_date,
+          lastUpdated,
         });
       }
-      if (sleep.rem_sleep_min) {
+      // REM Sleep
+      if (sleep.rem_sleep_min != null) {
         metrics.push({
           category: 'Sleep',
           name: 'rem_sleep',
@@ -4436,21 +4455,143 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
           value: Math.round(sleep.rem_sleep_min),
           unit: 'min',
           source: sourceDisplay,
-          lastUpdated: sleep.updated_at || sleep.sleep_date,
+          lastUpdated,
         });
       }
-      if (sleep.hrv_ms) {
+      // Core/Light Sleep
+      if (sleep.core_sleep_min != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'core_sleep',
+          displayName: 'Core/Light Sleep',
+          value: Math.round(sleep.core_sleep_min),
+          unit: 'min',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Sleep Efficiency
+      if (sleep.sleep_efficiency_pct != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'sleep_efficiency',
+          displayName: 'Sleep Efficiency',
+          value: Math.round(sleep.sleep_efficiency_pct),
+          unit: '%',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Sleep Latency
+      if (sleep.sleep_latency_min != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'sleep_latency',
+          displayName: 'Sleep Latency',
+          value: Math.round(sleep.sleep_latency_min),
+          unit: 'min',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // WASO (Wake After Sleep Onset)
+      if (sleep.waso_min != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'waso',
+          displayName: 'Wake Time (WASO)',
+          value: Math.round(sleep.waso_min),
+          unit: 'min',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Number of Awakenings
+      if (sleep.num_awakenings != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'num_awakenings',
+          displayName: 'Awakenings',
+          value: sleep.num_awakenings,
+          unit: '',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Fragmentation Index
+      if (sleep.fragmentation_index != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'fragmentation',
+          displayName: 'Fragmentation Index',
+          value: Math.round(sleep.fragmentation_index * 10) / 10,
+          unit: '',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Deep Sleep %
+      if (sleep.deep_pct != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'deep_pct',
+          displayName: 'Deep Sleep %',
+          value: Math.round(sleep.deep_pct),
+          unit: '%',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // REM Sleep %
+      if (sleep.rem_pct != null) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'rem_pct',
+          displayName: 'REM Sleep %',
+          value: Math.round(sleep.rem_pct),
+          unit: '%',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Bedtime
+      if (sleep.bedtime_local) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'bedtime',
+          displayName: 'Bedtime',
+          value: sleep.bedtime_local,
+          unit: '',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Wake Time
+      if (sleep.waketime_local) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'waketime',
+          displayName: 'Wake Time',
+          value: sleep.waketime_local,
+          unit: '',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // HRV from sleep
+      if (sleep.hrv_ms != null) {
         metrics.push({
           category: 'Recovery',
           name: 'hrv',
-          displayName: 'HRV',
+          displayName: 'HRV (Sleep)',
           value: Math.round(sleep.hrv_ms),
           unit: 'ms',
           source: sourceDisplay,
-          lastUpdated: sleep.updated_at || sleep.sleep_date,
+          lastUpdated,
         });
       }
-      if (sleep.resting_hr_bpm) {
+      // Resting HR from sleep
+      if (sleep.resting_hr_bpm != null) {
         metrics.push({
           category: 'Heart',
           name: 'resting_hr',
@@ -4458,12 +4599,292 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
           value: Math.round(sleep.resting_hr_bpm),
           unit: 'bpm',
           source: sourceDisplay,
-          lastUpdated: sleep.updated_at || sleep.sleep_date,
+          lastUpdated,
+        });
+      }
+      // Respiratory Rate from sleep
+      if (sleep.respiratory_rate != null) {
+        metrics.push({
+          category: 'Respiratory',
+          name: 'respiratory_rate_sleep',
+          displayName: 'Respiratory Rate (Sleep)',
+          value: Math.round(sleep.respiratory_rate * 10) / 10,
+          unit: 'bpm',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Wrist Temperature from sleep
+      if (sleep.wrist_temperature != null) {
+        metrics.push({
+          category: 'Vitals',
+          name: 'wrist_temp',
+          displayName: 'Wrist Temperature',
+          value: Math.round(sleep.wrist_temperature * 100) / 100,
+          unit: '°C',
+          source: sourceDisplay,
+          lastUpdated,
+        });
+      }
+      // Oxygen Saturation from sleep
+      if (sleep.oxygen_saturation != null) {
+        metrics.push({
+          category: 'Respiratory',
+          name: 'oxygen_saturation_sleep',
+          displayName: 'Blood Oxygen (Sleep)',
+          value: Math.round(sleep.oxygen_saturation * 10) / 10,
+          unit: '%',
+          source: sourceDisplay,
+          lastUpdated,
         });
       }
     }
 
-    // 2. HealthKit samples (steps, active energy, etc.)
+    // 2. Daily Metrics (from user_daily_metrics - includes activity, body composition, etc.)
+    const { data: dailyData } = await supabase
+      .from('user_daily_metrics')
+      .select('*')
+      .eq('health_id', healthId)
+      .order('local_date', { ascending: false })
+      .limit(1);
+
+    if (dailyData?.[0]) {
+      const daily = dailyData[0];
+      const lastUpdated = daily.updated_at || daily.local_date;
+      
+      // Steps
+      if (daily.steps_normalized != null) {
+        metrics.push({
+          category: 'Activity',
+          name: 'steps_daily',
+          displayName: 'Steps',
+          value: Math.round(daily.steps_normalized).toLocaleString(),
+          unit: '',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Active Energy
+      if (daily.active_energy_kcal != null) {
+        metrics.push({
+          category: 'Activity',
+          name: 'active_energy_daily',
+          displayName: 'Active Energy',
+          value: Math.round(daily.active_energy_kcal),
+          unit: 'kcal',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Basal Energy
+      if (daily.basal_energy_kcal != null) {
+        metrics.push({
+          category: 'Activity',
+          name: 'basal_energy',
+          displayName: 'Basal Energy',
+          value: Math.round(daily.basal_energy_kcal),
+          unit: 'kcal',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Exercise Minutes
+      if (daily.exercise_minutes != null) {
+        metrics.push({
+          category: 'Activity',
+          name: 'exercise_min',
+          displayName: 'Exercise Minutes',
+          value: Math.round(daily.exercise_minutes),
+          unit: 'min',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Stand Hours
+      if (daily.stand_hours != null) {
+        metrics.push({
+          category: 'Activity',
+          name: 'stand_hours',
+          displayName: 'Stand Hours',
+          value: daily.stand_hours,
+          unit: 'hrs',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Flights Climbed
+      if (daily.flights_climbed != null) {
+        metrics.push({
+          category: 'Activity',
+          name: 'flights_climbed',
+          displayName: 'Flights Climbed',
+          value: daily.flights_climbed,
+          unit: '',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Distance
+      if (daily.distance_meters != null) {
+        const km = Math.round(daily.distance_meters / 100) / 10;
+        metrics.push({
+          category: 'Activity',
+          name: 'distance_daily',
+          displayName: 'Distance',
+          value: km,
+          unit: 'km',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Weight
+      if (daily.weight_kg != null) {
+        metrics.push({
+          category: 'Body',
+          name: 'weight',
+          displayName: 'Weight',
+          value: Math.round(daily.weight_kg * 10) / 10,
+          unit: 'kg',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // BMI
+      if (daily.bmi != null) {
+        metrics.push({
+          category: 'Body',
+          name: 'bmi',
+          displayName: 'BMI',
+          value: Math.round(daily.bmi * 10) / 10,
+          unit: '',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Body Fat %
+      if (daily.body_fat_pct != null) {
+        metrics.push({
+          category: 'Body',
+          name: 'body_fat',
+          displayName: 'Body Fat',
+          value: Math.round(daily.body_fat_pct * 10) / 10,
+          unit: '%',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Lean Body Mass
+      if (daily.lean_body_mass_kg != null) {
+        metrics.push({
+          category: 'Body',
+          name: 'lean_mass',
+          displayName: 'Lean Body Mass',
+          value: Math.round(daily.lean_body_mass_kg * 10) / 10,
+          unit: 'kg',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Waist Circumference
+      if (daily.waist_circumference_cm != null) {
+        metrics.push({
+          category: 'Body',
+          name: 'waist_circ',
+          displayName: 'Waist Circumference',
+          value: Math.round(daily.waist_circumference_cm * 10) / 10,
+          unit: 'cm',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // VO2 Max
+      if (daily.vo2_max != null) {
+        metrics.push({
+          category: 'Fitness',
+          name: 'vo2_max_daily',
+          displayName: 'VO2 Max',
+          value: Math.round(daily.vo2_max * 10) / 10,
+          unit: 'mL/kg/min',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Walking HR Average
+      if (daily.walking_hr_avg_bpm != null) {
+        metrics.push({
+          category: 'Heart',
+          name: 'walking_hr',
+          displayName: 'Walking Heart Rate',
+          value: Math.round(daily.walking_hr_avg_bpm),
+          unit: 'bpm',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Respiratory Rate
+      if (daily.respiratory_rate_bpm != null) {
+        metrics.push({
+          category: 'Respiratory',
+          name: 'respiratory_rate_daily',
+          displayName: 'Respiratory Rate',
+          value: Math.round(daily.respiratory_rate_bpm * 10) / 10,
+          unit: 'bpm',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Oxygen Saturation
+      if (daily.oxygen_saturation_pct != null) {
+        metrics.push({
+          category: 'Respiratory',
+          name: 'oxygen_sat_daily',
+          displayName: 'Blood Oxygen',
+          value: Math.round(daily.oxygen_saturation_pct),
+          unit: '%',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Body Temperature
+      if (daily.body_temp_celsius != null) {
+        metrics.push({
+          category: 'Vitals',
+          name: 'body_temp',
+          displayName: 'Body Temperature',
+          value: Math.round(daily.body_temp_celsius * 10) / 10,
+          unit: '°C',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Dietary Water
+      if (daily.dietary_water_ml != null) {
+        const liters = Math.round(daily.dietary_water_ml / 100) / 10;
+        metrics.push({
+          category: 'Nutrition',
+          name: 'water_intake',
+          displayName: 'Water Intake',
+          value: liters,
+          unit: 'L',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+      // Blood Pressure
+      if (daily.systolic_bp != null && daily.diastolic_bp != null) {
+        metrics.push({
+          category: 'Vitals',
+          name: 'blood_pressure',
+          displayName: 'Blood Pressure',
+          value: `${Math.round(daily.systolic_bp)}/${Math.round(daily.diastolic_bp)}`,
+          unit: 'mmHg',
+          source: 'Apple Watch',
+          lastUpdated,
+        });
+      }
+    }
+
+    // 3. HealthKit samples (for additional/granular metrics not in daily aggregates)
     const { data: hkSamples } = await supabase
       .from('healthkit_samples')
       .select('data_type, value, unit, source_name, device_name, start_date, created_at')
@@ -4472,7 +4893,6 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       .order('start_date', { ascending: false });
 
     if (hkSamples && hkSamples.length > 0) {
-      // Group by data_type and get latest of each
       const latestByType = new Map<string, typeof hkSamples[0]>();
       for (const sample of hkSamples) {
         if (!latestByType.has(sample.data_type)) {
@@ -4480,38 +4900,89 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
         }
       }
 
-      const hkMetricMap: Record<string, { category: string; displayName: string; unit: string }> = {
-        'stepCount': { category: 'Activity', displayName: 'Steps', unit: 'steps' },
-        'HKQuantityTypeIdentifierStepCount': { category: 'Activity', displayName: 'Steps', unit: 'steps' },
-        'activeEnergyBurned': { category: 'Activity', displayName: 'Active Energy', unit: 'kcal' },
-        'HKQuantityTypeIdentifierActiveEnergyBurned': { category: 'Activity', displayName: 'Active Energy', unit: 'kcal' },
-        'distanceWalkingRunning': { category: 'Activity', displayName: 'Distance', unit: 'km' },
-        'HKQuantityTypeIdentifierDistanceWalkingRunning': { category: 'Activity', displayName: 'Distance', unit: 'km' },
-        'heartRate': { category: 'Heart', displayName: 'Heart Rate', unit: 'bpm' },
-        'HKQuantityTypeIdentifierHeartRate': { category: 'Heart', displayName: 'Heart Rate', unit: 'bpm' },
-        'heartRateVariabilitySDNN': { category: 'Recovery', displayName: 'HRV (SDNN)', unit: 'ms' },
-        'HKQuantityTypeIdentifierHeartRateVariabilitySDNN': { category: 'Recovery', displayName: 'HRV (SDNN)', unit: 'ms' },
-        'restingHeartRate': { category: 'Heart', displayName: 'Resting HR', unit: 'bpm' },
-        'HKQuantityTypeIdentifierRestingHeartRate': { category: 'Heart', displayName: 'Resting HR', unit: 'bpm' },
-        'vo2Max': { category: 'Fitness', displayName: 'VO2 Max', unit: 'mL/kg/min' },
-        'HKQuantityTypeIdentifierVO2Max': { category: 'Fitness', displayName: 'VO2 Max', unit: 'mL/kg/min' },
-        'bodyMass': { category: 'Body', displayName: 'Weight', unit: 'kg' },
-        'HKQuantityTypeIdentifierBodyMass': { category: 'Body', displayName: 'Weight', unit: 'kg' },
-        'bodyFatPercentage': { category: 'Body', displayName: 'Body Fat', unit: '%' },
-        'HKQuantityTypeIdentifierBodyFatPercentage': { category: 'Body', displayName: 'Body Fat', unit: '%' },
-        'oxygenSaturation': { category: 'Respiratory', displayName: 'Blood Oxygen', unit: '%' },
-        'HKQuantityTypeIdentifierOxygenSaturation': { category: 'Respiratory', displayName: 'Blood Oxygen', unit: '%' },
-        'respiratoryRate': { category: 'Respiratory', displayName: 'Respiratory Rate', unit: 'bpm' },
-        'HKQuantityTypeIdentifierRespiratoryRate': { category: 'Respiratory', displayName: 'Respiratory Rate', unit: 'bpm' },
+      const hkMetricMap: Record<string, { category: string; displayName: string; unit: string; skipIfExists?: string }> = {
+        'stepCount': { category: 'Activity', displayName: 'Steps (Sample)', unit: 'steps', skipIfExists: 'steps_daily' },
+        'HKQuantityTypeIdentifierStepCount': { category: 'Activity', displayName: 'Steps (Sample)', unit: 'steps', skipIfExists: 'steps_daily' },
+        'activeEnergyBurned': { category: 'Activity', displayName: 'Active Energy (Sample)', unit: 'kcal', skipIfExists: 'active_energy_daily' },
+        'HKQuantityTypeIdentifierActiveEnergyBurned': { category: 'Activity', displayName: 'Active Energy (Sample)', unit: 'kcal', skipIfExists: 'active_energy_daily' },
+        'basalEnergyBurned': { category: 'Activity', displayName: 'Basal Energy (Sample)', unit: 'kcal', skipIfExists: 'basal_energy' },
+        'HKQuantityTypeIdentifierBasalEnergyBurned': { category: 'Activity', displayName: 'Basal Energy (Sample)', unit: 'kcal', skipIfExists: 'basal_energy' },
+        'distanceWalkingRunning': { category: 'Activity', displayName: 'Distance (Sample)', unit: 'km', skipIfExists: 'distance_daily' },
+        'HKQuantityTypeIdentifierDistanceWalkingRunning': { category: 'Activity', displayName: 'Distance (Sample)', unit: 'km', skipIfExists: 'distance_daily' },
+        'flightsClimbed': { category: 'Activity', displayName: 'Flights (Sample)', unit: '', skipIfExists: 'flights_climbed' },
+        'HKQuantityTypeIdentifierFlightsClimbed': { category: 'Activity', displayName: 'Flights (Sample)', unit: '', skipIfExists: 'flights_climbed' },
+        'heartRate': { category: 'Heart', displayName: 'Heart Rate (Latest)', unit: 'bpm' },
+        'HKQuantityTypeIdentifierHeartRate': { category: 'Heart', displayName: 'Heart Rate (Latest)', unit: 'bpm' },
+        'heartRateVariabilitySDNN': { category: 'Recovery', displayName: 'HRV (Latest)', unit: 'ms', skipIfExists: 'hrv' },
+        'HKQuantityTypeIdentifierHeartRateVariabilitySDNN': { category: 'Recovery', displayName: 'HRV (Latest)', unit: 'ms', skipIfExists: 'hrv' },
+        'restingHeartRate': { category: 'Heart', displayName: 'Resting HR (Latest)', unit: 'bpm', skipIfExists: 'resting_hr' },
+        'HKQuantityTypeIdentifierRestingHeartRate': { category: 'Heart', displayName: 'Resting HR (Latest)', unit: 'bpm', skipIfExists: 'resting_hr' },
+        'walkingHeartRateAverage': { category: 'Heart', displayName: 'Walking HR (Latest)', unit: 'bpm', skipIfExists: 'walking_hr' },
+        'HKQuantityTypeIdentifierWalkingHeartRateAverage': { category: 'Heart', displayName: 'Walking HR (Latest)', unit: 'bpm', skipIfExists: 'walking_hr' },
+        'vo2Max': { category: 'Fitness', displayName: 'VO2 Max (Latest)', unit: 'mL/kg/min', skipIfExists: 'vo2_max_daily' },
+        'HKQuantityTypeIdentifierVO2Max': { category: 'Fitness', displayName: 'VO2 Max (Latest)', unit: 'mL/kg/min', skipIfExists: 'vo2_max_daily' },
+        'bodyMass': { category: 'Body', displayName: 'Weight (Latest)', unit: 'kg', skipIfExists: 'weight' },
+        'HKQuantityTypeIdentifierBodyMass': { category: 'Body', displayName: 'Weight (Latest)', unit: 'kg', skipIfExists: 'weight' },
+        'bodyFatPercentage': { category: 'Body', displayName: 'Body Fat (Latest)', unit: '%', skipIfExists: 'body_fat' },
+        'HKQuantityTypeIdentifierBodyFatPercentage': { category: 'Body', displayName: 'Body Fat (Latest)', unit: '%', skipIfExists: 'body_fat' },
+        'leanBodyMass': { category: 'Body', displayName: 'Lean Mass (Latest)', unit: 'kg', skipIfExists: 'lean_mass' },
+        'HKQuantityTypeIdentifierLeanBodyMass': { category: 'Body', displayName: 'Lean Mass (Latest)', unit: 'kg', skipIfExists: 'lean_mass' },
+        'height': { category: 'Body', displayName: 'Height', unit: 'cm' },
+        'HKQuantityTypeIdentifierHeight': { category: 'Body', displayName: 'Height', unit: 'cm' },
+        'oxygenSaturation': { category: 'Respiratory', displayName: 'Blood Oxygen (Latest)', unit: '%', skipIfExists: 'oxygen_sat_daily' },
+        'HKQuantityTypeIdentifierOxygenSaturation': { category: 'Respiratory', displayName: 'Blood Oxygen (Latest)', unit: '%', skipIfExists: 'oxygen_sat_daily' },
+        'respiratoryRate': { category: 'Respiratory', displayName: 'Respiratory Rate (Latest)', unit: 'bpm', skipIfExists: 'respiratory_rate_daily' },
+        'HKQuantityTypeIdentifierRespiratoryRate': { category: 'Respiratory', displayName: 'Respiratory Rate (Latest)', unit: 'bpm', skipIfExists: 'respiratory_rate_daily' },
+        'bodyTemperature': { category: 'Vitals', displayName: 'Body Temp (Latest)', unit: '°C', skipIfExists: 'body_temp' },
+        'HKQuantityTypeIdentifierBodyTemperature': { category: 'Vitals', displayName: 'Body Temp (Latest)', unit: '°C', skipIfExists: 'body_temp' },
+        'walkingSpeed': { category: 'Mobility', displayName: 'Walking Speed', unit: 'm/s' },
+        'HKQuantityTypeIdentifierWalkingSpeed': { category: 'Mobility', displayName: 'Walking Speed', unit: 'm/s' },
+        'walkingStepLength': { category: 'Mobility', displayName: 'Step Length', unit: 'cm' },
+        'HKQuantityTypeIdentifierWalkingStepLength': { category: 'Mobility', displayName: 'Step Length', unit: 'cm' },
+        'walkingDoubleSupportPercentage': { category: 'Mobility', displayName: 'Double Support', unit: '%' },
+        'HKQuantityTypeIdentifierWalkingDoubleSupportPercentage': { category: 'Mobility', displayName: 'Double Support', unit: '%' },
+        'walkingAsymmetryPercentage': { category: 'Mobility', displayName: 'Walking Asymmetry', unit: '%' },
+        'HKQuantityTypeIdentifierWalkingAsymmetryPercentage': { category: 'Mobility', displayName: 'Walking Asymmetry', unit: '%' },
+        'sixMinuteWalkTestDistance': { category: 'Mobility', displayName: '6-Min Walk Distance', unit: 'm' },
+        'HKQuantityTypeIdentifierSixMinuteWalkTestDistance': { category: 'Mobility', displayName: '6-Min Walk Distance', unit: 'm' },
+        'stairAscentSpeed': { category: 'Mobility', displayName: 'Stair Ascent Speed', unit: 'm/s' },
+        'HKQuantityTypeIdentifierStairAscentSpeed': { category: 'Mobility', displayName: 'Stair Ascent Speed', unit: 'm/s' },
+        'stairDescentSpeed': { category: 'Mobility', displayName: 'Stair Descent Speed', unit: 'm/s' },
+        'HKQuantityTypeIdentifierStairDescentSpeed': { category: 'Mobility', displayName: 'Stair Descent Speed', unit: 'm/s' },
+        'mindfulSession': { category: 'Mindfulness', displayName: 'Mindful Minutes', unit: 'min' },
+        'HKCategoryTypeIdentifierMindfulSession': { category: 'Mindfulness', displayName: 'Mindful Minutes', unit: 'min' },
+        'dietaryWater': { category: 'Nutrition', displayName: 'Water (Sample)', unit: 'L', skipIfExists: 'water_intake' },
+        'HKQuantityTypeIdentifierDietaryWater': { category: 'Nutrition', displayName: 'Water (Sample)', unit: 'L', skipIfExists: 'water_intake' },
+        'dietaryEnergyConsumed': { category: 'Nutrition', displayName: 'Calories Consumed', unit: 'kcal' },
+        'HKQuantityTypeIdentifierDietaryEnergyConsumed': { category: 'Nutrition', displayName: 'Calories Consumed', unit: 'kcal' },
+        'dietaryProtein': { category: 'Nutrition', displayName: 'Protein', unit: 'g' },
+        'HKQuantityTypeIdentifierDietaryProtein': { category: 'Nutrition', displayName: 'Protein', unit: 'g' },
+        'dietaryCarbohydrates': { category: 'Nutrition', displayName: 'Carbohydrates', unit: 'g' },
+        'HKQuantityTypeIdentifierDietaryCarbohydrates': { category: 'Nutrition', displayName: 'Carbohydrates', unit: 'g' },
+        'dietaryFatTotal': { category: 'Nutrition', displayName: 'Total Fat', unit: 'g' },
+        'HKQuantityTypeIdentifierDietaryFatTotal': { category: 'Nutrition', displayName: 'Total Fat', unit: 'g' },
+        'dietaryFiber': { category: 'Nutrition', displayName: 'Fiber', unit: 'g' },
+        'HKQuantityTypeIdentifierDietaryFiber': { category: 'Nutrition', displayName: 'Fiber', unit: 'g' },
+        'dietarySugar': { category: 'Nutrition', displayName: 'Sugar', unit: 'g' },
+        'HKQuantityTypeIdentifierDietarySugar': { category: 'Nutrition', displayName: 'Sugar', unit: 'g' },
+        'dietarySodium': { category: 'Nutrition', displayName: 'Sodium', unit: 'mg' },
+        'HKQuantityTypeIdentifierDietarySodium': { category: 'Nutrition', displayName: 'Sodium', unit: 'mg' },
+        'dietaryCaffeine': { category: 'Nutrition', displayName: 'Caffeine', unit: 'mg' },
+        'HKQuantityTypeIdentifierDietaryCaffeine': { category: 'Nutrition', displayName: 'Caffeine', unit: 'mg' },
+        'bloodPressureSystolic': { category: 'Vitals', displayName: 'Systolic BP', unit: 'mmHg' },
+        'HKQuantityTypeIdentifierBloodPressureSystolic': { category: 'Vitals', displayName: 'Systolic BP', unit: 'mmHg' },
+        'bloodPressureDiastolic': { category: 'Vitals', displayName: 'Diastolic BP', unit: 'mmHg' },
+        'HKQuantityTypeIdentifierBloodPressureDiastolic': { category: 'Vitals', displayName: 'Diastolic BP', unit: 'mmHg' },
+        'bloodGlucose': { category: 'Glucose', displayName: 'Blood Glucose', unit: 'mg/dL' },
+        'HKQuantityTypeIdentifierBloodGlucose': { category: 'Glucose', displayName: 'Blood Glucose', unit: 'mg/dL' },
       };
 
+      const existingNames = new Set(metrics.map(m => m.name));
+      
       for (const [dataType, sample] of latestByType) {
         const mapping = hkMetricMap[dataType];
         if (mapping) {
-          // Skip if we already have this metric from sleep_nights (e.g., HRV, resting HR)
-          const existingNames = metrics.map(m => m.name);
-          if (mapping.displayName === 'HRV' && existingNames.includes('hrv')) continue;
-          if (mapping.displayName === 'Resting HR' && existingNames.includes('resting_hr')) continue;
+          if (mapping.skipIfExists && existingNames.has(mapping.skipIfExists)) continue;
 
           let sourceDisplay = 'Apple Watch';
           if (sample.source_name?.toLowerCase().includes('oura')) {
@@ -4521,12 +4992,16 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
           }
 
           let value = sample.value;
-          // Convert distance from m to km
-          if (dataType.includes('distance') && value > 100) {
-            value = Math.round(value / 100) / 10; // to km with 1 decimal
+          if (dataType.toLowerCase().includes('distance') && value > 100) {
+            value = Math.round(value / 100) / 10;
           }
-          // Convert oxygen saturation from decimal to percentage
-          if (dataType.includes('oxygen') && value <= 1) {
+          if (dataType.toLowerCase().includes('oxygen') && value <= 1) {
+            value = Math.round(value * 100);
+          }
+          if (dataType.toLowerCase().includes('water') && value > 100) {
+            value = Math.round(value / 100) / 10;
+          }
+          if (dataType.toLowerCase().includes('steplength') && value < 1) {
             value = Math.round(value * 100);
           }
 
@@ -4543,7 +5018,7 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       }
     }
 
-    // 3. CGM readings (Dexcom)
+    // 4. CGM readings (Dexcom)
     const { data: cgmData } = await supabase
       .from('cgm_readings')
       .select('glucose_value, glucose_unit, recorded_at, source')
@@ -4553,21 +5028,24 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
 
     if (cgmData?.[0]) {
       const cgm = cgmData[0];
-      metrics.push({
-        category: 'Glucose',
-        name: 'blood_glucose',
-        displayName: 'Blood Glucose',
-        value: cgm.glucose_value,
-        unit: cgm.glucose_unit || 'mg/dL',
-        source: 'Dexcom',
-        lastUpdated: cgm.recorded_at,
-      });
+      const existingGlucose = metrics.find(m => m.name === 'blood_glucose' || m.category === 'Glucose');
+      if (!existingGlucose) {
+        metrics.push({
+          category: 'Glucose',
+          name: 'blood_glucose',
+          displayName: 'Blood Glucose (CGM)',
+          value: cgm.glucose_value,
+          unit: cgm.glucose_unit || 'mg/dL',
+          source: 'Dexcom',
+          lastUpdated: cgm.recorded_at,
+        });
+      }
     }
 
-    // 4. Oura stress/resilience (if available)
+    // 5. Oura stress/resilience
     const { data: stressData } = await supabase
       .from('oura_daily_stress')
-      .select('day, stress_high, recovery_high, updated_at')
+      .select('day, stress_high, recovery_high, day_summary, updated_at')
       .eq('health_id', healthId)
       .order('day', { ascending: false })
       .limit(1);
@@ -4596,9 +5074,20 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
           lastUpdated: stress.updated_at || stress.day,
         });
       }
+      if (stress.day_summary) {
+        metrics.push({
+          category: 'Stress',
+          name: 'stress_summary',
+          displayName: 'Stress Summary',
+          value: stress.day_summary,
+          unit: '',
+          source: 'Oura Ring',
+          lastUpdated: stress.updated_at || stress.day,
+        });
+      }
     }
 
-    // 5. Oura resilience
+    // 6. Oura resilience
     const { data: resilienceData } = await supabase
       .from('oura_daily_resilience')
       .select('day, level, updated_at')
@@ -4618,12 +5107,97 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       });
     }
 
+    // 7. Oura readiness
+    const { data: readinessData } = await supabase
+      .from('oura_daily_readiness')
+      .select('day, score, temperature_deviation, updated_at')
+      .eq('health_id', healthId)
+      .order('day', { ascending: false })
+      .limit(1);
+
+    if (readinessData?.[0]) {
+      const readiness = readinessData[0];
+      if (readiness.score != null) {
+        metrics.push({
+          category: 'Recovery',
+          name: 'readiness_score',
+          displayName: 'Readiness Score',
+          value: readiness.score,
+          unit: '',
+          source: 'Oura Ring',
+          lastUpdated: readiness.updated_at || readiness.day,
+        });
+      }
+      if (readiness.temperature_deviation != null) {
+        metrics.push({
+          category: 'Vitals',
+          name: 'temp_deviation',
+          displayName: 'Temperature Deviation',
+          value: Math.round(readiness.temperature_deviation * 100) / 100,
+          unit: '°C',
+          source: 'Oura Ring',
+          lastUpdated: readiness.updated_at || readiness.day,
+        });
+      }
+    }
+
+    // 8. Oura activity
+    const { data: activityData } = await supabase
+      .from('oura_daily_activity')
+      .select('day, score, steps, active_calories, total_calories, equivalent_walking_distance, updated_at')
+      .eq('health_id', healthId)
+      .order('day', { ascending: false })
+      .limit(1);
+
+    if (activityData?.[0]) {
+      const activity = activityData[0];
+      if (activity.score != null) {
+        metrics.push({
+          category: 'Activity',
+          name: 'activity_score',
+          displayName: 'Activity Score',
+          value: activity.score,
+          unit: '',
+          source: 'Oura Ring',
+          lastUpdated: activity.updated_at || activity.day,
+        });
+      }
+      const existingSteps = metrics.find(m => m.name === 'steps_daily');
+      if (!existingSteps && activity.steps) {
+        metrics.push({
+          category: 'Activity',
+          name: 'steps_oura',
+          displayName: 'Steps (Oura)',
+          value: activity.steps.toLocaleString(),
+          unit: '',
+          source: 'Oura Ring',
+          lastUpdated: activity.updated_at || activity.day,
+        });
+      }
+      if (activity.active_calories) {
+        const existingActiveEnergy = metrics.find(m => m.name === 'active_energy_daily');
+        if (!existingActiveEnergy) {
+          metrics.push({
+            category: 'Activity',
+            name: 'active_cal_oura',
+            displayName: 'Active Calories (Oura)',
+            value: activity.active_calories,
+            unit: 'kcal',
+            source: 'Oura Ring',
+            lastUpdated: activity.updated_at || activity.day,
+          });
+        }
+      }
+    }
+
     // Sort by category then name
-    const categoryOrder = ['Sleep', 'Recovery', 'Heart', 'Activity', 'Fitness', 'Body', 'Respiratory', 'Glucose', 'Stress'];
+    const categoryOrder = ['Sleep', 'Recovery', 'Heart', 'Activity', 'Fitness', 'Body', 'Mobility', 'Respiratory', 'Vitals', 'Glucose', 'Nutrition', 'Mindfulness', 'Stress'];
     metrics.sort((a, b) => {
       const catA = categoryOrder.indexOf(a.category);
       const catB = categoryOrder.indexOf(b.category);
-      if (catA !== catB) return catA - catB;
+      const catAIndex = catA === -1 ? categoryOrder.length : catA;
+      const catBIndex = catB === -1 ? categoryOrder.length : catB;
+      if (catAIndex !== catBIndex) return catAIndex - catBIndex;
       return a.displayName.localeCompare(b.displayName);
     });
 
