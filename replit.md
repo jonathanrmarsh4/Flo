@@ -43,7 +43,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Environmental Data Integration:** Correlates OpenWeather data with health metrics.
 - **HealthKit Sample Deduplication:** Server-side fingerprint-based deduplication.
 - **Sleep Data Merge Strategy:** `upsertSleepNight` uses merge-on-conflict strategy to prevent data loss when partial HealthKit syncs occur - only non-null values from new syncs overwrite existing values, preserving HRV and other biometric data from previous syncs.
-- **Morning Briefing System:** Personalized AI-generated daily briefings using 90-day baseline Z-score deviations from ClickHouse ML engine.
+- **Morning Briefing System:** Personalized AI-generated daily briefings using 90-day baseline Z-score deviations from ClickHouse ML engine. Activity metrics (steps, active_energy, workout_minutes) are fetched from yesterday's data for accurate morning briefings, while sleep metrics use today's data (last night's sleep).
 - **Dexcom CGM Integration:** Direct OAuth2 integration with Dexcom API for continuous glucose monitoring, automatic 5-minute data sync, and real-time glucose dashboard tile.
 - **Apple Push Notifications (APNs):** Configurable via Admin Dashboard, configuration stored in Neon database.
 

@@ -105,12 +105,13 @@ export async function getEligibleUsers(): Promise<EligibleUser[]> {
 
 // ==================== DAILY INSIGHTS AGGREGATION ====================
 
-export async function aggregateDailyInsights(healthId: string, eventDate: string, userId?: string): Promise<DailyUserInsight> {
+export async function aggregateDailyInsights(healthId: string, eventDate: string, userId?: string, timezone?: string): Promise<DailyUserInsight> {
   // Fetch baselines (always returns defaults if no data)
   const baselines = await fetchBaselines(healthId);
   
   // Fetch today's metrics (always returns object, values may be null)
-  let today = await fetchTodayMetrics(healthId, eventDate);
+  // Pass timezone to correctly fetch yesterday's activity metrics
+  let today = await fetchTodayMetrics(healthId, eventDate, timezone);
   
   // Apply sensible defaults when data is completely missing
   // This allows briefing generation even in data-sparse environments
@@ -317,7 +318,7 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
   }
 }
 
-async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<TodayMetrics> {
+async function fetchTodayMetrics(healthId: string, eventDate: string, timezone?: string): Promise<TodayMetrics> {
   // Default values when data is missing
   const defaults: TodayMetrics = {
     hrv: null,
@@ -333,7 +334,26 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
   };
 
   try {
-    // Fetch sleep data (may not exist)
+    // Calculate yesterday's date in the user's timezone for activity metrics
+    // Morning briefings talk about "yesterday's" activity, but "today's" sleep (which ended this morning)
+    let yesterdayDate = eventDate;
+    if (timezone) {
+      const { subDays, parseISO } = await import('date-fns');
+      const { formatInTimeZone } = await import('date-fns-tz');
+      // Parse eventDate and subtract 1 day, then format back to YYYY-MM-DD in user's timezone
+      const eventDateObj = parseISO(eventDate);
+      const yesterdayObj = subDays(eventDateObj, 1);
+      yesterdayDate = formatInTimeZone(yesterdayObj, timezone, 'yyyy-MM-dd');
+    } else {
+      // Fallback: simple date arithmetic if no timezone
+      const eventDateObj = new Date(eventDate);
+      eventDateObj.setDate(eventDateObj.getDate() - 1);
+      yesterdayDate = eventDateObj.toISOString().split('T')[0];
+    }
+
+    logger.info(`[MorningBriefing] fetchTodayMetrics: sleepDate=${eventDate} (today), activityDate=${yesterdayDate} (yesterday)`);
+
+    // Fetch sleep data for TODAY (last night's sleep ends today)
     const { data: sleepData } = await supabase
       .from('sleep_nights')
       .select('total_sleep_min, deep_sleep_min, rem_sleep_min, sleep_efficiency_pct, hrv_ms, resting_hr_bpm')
@@ -341,28 +361,31 @@ async function fetchTodayMetrics(healthId: string, eventDate: string): Promise<T
       .eq('sleep_date', eventDate)
       .maybeSingle();
 
-    // Fetch daily metrics (may not exist)
+    // Fetch activity metrics for YESTERDAY (completed full day of activity)
     // IMPORTANT: Use steps_raw_sum for actual step count, not steps_normalized (which is a 0-1 score)
     const { data: dailyMetrics } = await supabase
       .from('user_daily_metrics')
       .select('steps_normalized, steps_raw_sum, active_energy_kcal, exercise_minutes, hrv_ms, resting_hr_bpm')
       .eq('health_id', healthId)
-      .eq('local_date', eventDate)
+      .eq('local_date', yesterdayDate)
       .maybeSingle();
 
-    // DEBUG: Log raw values to diagnose steps issue
-    logger.info(`[MorningBriefing] fetchTodayMetrics for ${healthId}, date=${eventDate}: steps_raw_sum=${dailyMetrics?.steps_raw_sum}, steps_normalized=${dailyMetrics?.steps_normalized}`);
+    // DEBUG: Log raw values to diagnose steps/active_energy issues
+    logger.info(`[MorningBriefing] fetchTodayMetrics for ${healthId}: activity from ${yesterdayDate}: steps_raw_sum=${dailyMetrics?.steps_raw_sum}, active_energy_kcal=${dailyMetrics?.active_energy_kcal}`);
 
     // Note: readiness_score is now handled exclusively by aggregateDailyInsights via readinessEngine
     // This ensures consistency with the dashboard and prevents duplicate/conflicting calculations
 
     return {
+      // HRV and RHR from sleep data (today) with fallback to activity data (yesterday) if needed
       hrv: sleepData?.hrv_ms ?? dailyMetrics?.hrv_ms ?? null,
       rhr: sleepData?.resting_hr_bpm ?? dailyMetrics?.resting_hr_bpm ?? null,
+      // Sleep metrics from today (last night's sleep)
       sleep_hours: sleepData?.total_sleep_min ? sleepData.total_sleep_min / 60 : null,
       deep_sleep_minutes: sleepData?.deep_sleep_min ?? null,
       rem_sleep_minutes: sleepData?.rem_sleep_min ?? null,
       sleep_efficiency: sleepData?.sleep_efficiency_pct ?? null,
+      // Activity metrics from yesterday (completed full day)
       steps: dailyMetrics?.steps_raw_sum ?? null,
       active_energy: dailyMetrics?.active_energy_kcal ?? null,
       workout_minutes: dailyMetrics?.exercise_minutes ?? null,
@@ -1327,6 +1350,10 @@ export async function generateBriefingForUser(
   try {
     const healthId = await getHealthId(userId);
     
+    // Get user's timezone for correct date calculations
+    const userResult = await db.select({ timezone: users.timezone }).from(users).where(eq(users.id, userId)).limit(1);
+    const userTimezone = userResult[0]?.timezone || 'UTC';
+    
     // Check if briefing already exists for today (deduplication)
     const existingSql = `
       SELECT briefing_id 
@@ -1346,8 +1373,8 @@ export async function generateBriefingForUser(
     }
 
     // Aggregate insights (always returns data with defaults)
-    // Pass userId to enable readinessEngine lookup (single source of truth for readiness score)
-    const insights = await aggregateDailyInsights(healthId, eventDate, userId);
+    // Pass userId for readinessEngine lookup and timezone for correct yesterday/today date split
+    const insights = await aggregateDailyInsights(healthId, eventDate, userId, userTimezone);
 
     // Fetch user profile for personalization (use maybeSingle to tolerate missing profile)
     const [{ data: profile }, neonUser] = await Promise.all([
