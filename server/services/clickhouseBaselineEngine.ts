@@ -17,13 +17,13 @@ const METRIC_THRESHOLDS: Record<string, {
   direction: 'both' | 'high' | 'low';
   severity: { moderate: number; high: number };
 }> = {
-  hrv: {
+  hrv_ms: {
     zScoreThreshold: 1.5,
     percentageThreshold: 15,
     direction: 'both',
     severity: { moderate: 15, high: 25 },
   },
-  resting_heart_rate: {
+  resting_heart_rate_bpm: {
     zScoreThreshold: 1.5,
     percentageThreshold: 8,
     direction: 'both',
@@ -35,13 +35,13 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'high',
     severity: { moderate: 0.3, high: 0.5 },
   },
-  respiratory_rate: {
+  respiratory_rate_bpm: {
     zScoreThreshold: 1.5,
     percentageThreshold: 10,
     direction: 'high',
     severity: { moderate: 10, high: 20 },
   },
-  oxygen_saturation: {
+  oxygen_saturation_pct: {
     zScoreThreshold: 1.5,
     percentageThreshold: 2,
     direction: 'low',
@@ -59,31 +59,31 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'both',
     severity: { moderate: 30, high: 50 },
   },
-  sleep_duration: {
+  sleep_duration_min: {
     zScoreThreshold: 1.5,
     percentageThreshold: 15,
     direction: 'both',
     severity: { moderate: 15, high: 25 },
   },
-  deep_sleep: {
+  deep_sleep_min: {
     zScoreThreshold: 1.5,
     percentageThreshold: 20,
-    direction: 'both',  // Changed to 'both' - detect BOTH low AND high deep sleep (high = opportunity to learn what worked!)
+    direction: 'both',
     severity: { moderate: 20, high: 35 },
   },
-  rem_sleep: {
+  rem_sleep_min: {
     zScoreThreshold: 1.5,
     percentageThreshold: 20,
-    direction: 'both',  // Changed to 'both' - detect BOTH low AND high REM sleep
+    direction: 'both',
     severity: { moderate: 20, high: 35 },
   },
-  core_sleep: {
+  core_sleep_min: {
     zScoreThreshold: 2.0,
     percentageThreshold: 25,
     direction: 'both',
     severity: { moderate: 25, high: 40 },
   },
-  sleep_efficiency: {
+  sleep_efficiency_pct: {
     zScoreThreshold: 1.5,
     percentageThreshold: 10,
     direction: 'low',
@@ -94,12 +94,6 @@ const METRIC_THRESHOLDS: Record<string, {
     percentageThreshold: 30,
     direction: 'high',
     severity: { moderate: 30, high: 50 },
-  },
-  sleep_duration_min: {
-    zScoreThreshold: 1.5,
-    percentageThreshold: 15,
-    direction: 'both',
-    severity: { moderate: 15, high: 25 },
   },
   deep_sleep_pct: {
     zScoreThreshold: 1.5,
@@ -180,17 +174,11 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'both',
     severity: { moderate: 40, high: 60 },
   },
-  distance_walking_running: {
+  distance_km: {
     zScoreThreshold: 1.5,
     percentageThreshold: 30,
     direction: 'both',
     severity: { moderate: 30, high: 50 },
-  },
-  distance_cycling: {
-    zScoreThreshold: 2.0,
-    percentageThreshold: 40,
-    direction: 'both',
-    severity: { moderate: 40, high: 60 },
   },
   basal_energy: {
     zScoreThreshold: 1.5,
@@ -205,19 +193,19 @@ const METRIC_THRESHOLDS: Record<string, {
     severity: { moderate: 10, high: 20 },
   },
   // ========== BODY COMPOSITION ==========
-  weight: {
+  weight_kg: {
     zScoreThreshold: 1.5,
     percentageThreshold: 3,
     direction: 'both',
     severity: { moderate: 3, high: 5 },
   },
-  body_fat_percentage: {
+  body_fat_pct: {
     zScoreThreshold: 1.5,
     percentageThreshold: 10,
     direction: 'both',
     severity: { moderate: 10, high: 20 },
   },
-  lean_body_mass: {
+  lean_mass_kg: {
     zScoreThreshold: 1.5,
     percentageThreshold: 5,
     direction: 'both',
@@ -742,21 +730,22 @@ export class ClickHouseBaselineEngine {
 
       // Map sleep_nights fields to ClickHouse metric types
       // NOTE: Supabase returns snake_case field names directly from the table
+      // IMPORTANT: Values must be canonical ClickHouse metric types (see server/services/metrics/constants.ts)
       const sleepMappings: Record<string, string> = {
-        'deep_sleep_min': 'deep_sleep',           // Deep sleep in minutes
-        'rem_sleep_min': 'rem_sleep',             // REM sleep in minutes  
-        'core_sleep_min': 'core_sleep',           // Light/Core sleep in minutes
-        'total_sleep_min': 'sleep_duration_min',  // Total sleep in minutes (more granular than hours)
-        'sleep_efficiency_pct': 'sleep_efficiency', // Sleep efficiency percentage
-        'num_awakenings': 'sleep_awakenings',     // Number of awakenings
+        'deep_sleep_min': 'deep_sleep_min',           // Deep sleep in minutes
+        'rem_sleep_min': 'rem_sleep_min',             // REM sleep in minutes  
+        'core_sleep_min': 'core_sleep_min',           // Light/Core sleep in minutes
+        'total_sleep_min': 'sleep_duration_min',      // Total sleep in minutes
+        'sleep_efficiency_pct': 'sleep_efficiency_pct', // Sleep efficiency percentage
+        'num_awakenings': 'sleep_awakenings',         // Number of awakenings
         'fragmentation_index': 'sleep_fragmentation', // Sleep fragmentation index
-        'waso_min': 'waso',                       // Wake after sleep onset
-        'sleep_latency_min': 'sleep_latency',     // Time to fall asleep
-        'hrv_ms': 'sleep_hrv',                    // HRV during sleep
-        'deep_pct': 'deep_sleep_pct',             // Deep sleep percentage
-        'rem_pct': 'rem_sleep_pct',               // REM sleep percentage
-        'core_pct': 'core_sleep_pct',             // Core sleep percentage
-        'time_in_bed_min': 'time_in_bed',         // Time in bed
+        'waso_min': 'waso_min',                       // Wake after sleep onset
+        'sleep_latency_min': 'sleep_latency_min',     // Time to fall asleep
+        'hrv_ms': 'sleep_hrv_ms',                     // HRV during sleep
+        'deep_pct': 'deep_sleep_pct',                 // Deep sleep percentage
+        'rem_pct': 'rem_sleep_pct',                   // REM sleep percentage
+        'core_pct': 'core_sleep_pct',                 // Core sleep percentage
+        'time_in_bed_min': 'time_in_bed_min',         // Time in bed
       };
 
       const rows: any[] = [];
@@ -2395,7 +2384,7 @@ export class ClickHouseBaselineEngine {
             patternFingerprint: 'illness_precursor',
             relatedMetrics: {
               wrist_temperature_deviation: { value: 0.6, deviation: 500 },
-              respiratory_rate: { value: 18, deviation: 20 },
+              respiratory_rate_bpm: { value: 18, deviation: 20 },
             },
             modelConfidence: 0.85,
           },

@@ -892,19 +892,19 @@ export class ClickHouseCorrelationEngine {
       } else if (metrics['wrist_temperature_deviation'] && metrics['wrist_temperature_deviation'] > 0.3) {
         questionText = `Your wrist temperature was elevated by ${metrics['wrist_temperature_deviation'].toFixed(1)}°C last night. How are you feeling today on a scale from 1-10?`;
         priority = 8;
-      } else if (metrics['resting_heart_rate'] && metrics['respiratory_rate']) {
+      } else if (metrics['resting_heart_rate_bpm'] && metrics['respiratory_rate_bpm']) {
         questionText = 'Your resting heart rate and respiratory rate were both elevated. Are you feeling under the weather today?';
         questionType = 'yes_no';
         priority = 7;
-      } else if (metrics['hrv']) {
-        const hrvDeviation = metrics['hrv'];
+      } else if (metrics['hrv_ms']) {
+        const hrvDeviation = metrics['hrv_ms'];
         if (hrvDeviation < -15) {
           questionText = 'Your HRV was significantly lower than usual. Have you been experiencing more stress lately?';
           questionType = 'yes_no';
           priority = 6;
         }
-      } else if (metrics['sleep_duration']) {
-        const sleepDev = metrics['sleep_duration'];
+      } else if (metrics['sleep_duration_min']) {
+        const sleepDev = metrics['sleep_duration_min'];
         if (sleepDev < -20) {
           questionText = 'You got less sleep than usual last night. Was there something that kept you up?';
           questionType = 'free_text';

@@ -759,13 +759,13 @@ class CorrelationInsightService {
             patternFingerprint: 'illness_precursor',
             relatedMetrics: {
               wrist_temperature_deviation: { value: 0.6, deviation: 500 },
-              respiratory_rate: { value: 18, deviation: 20 },
+              respiratory_rate_bpm: { value: 18, deviation: 20 },
             },
             modelConfidence: 0.85,
           },
           {
             anomalyId: randomUUID(),
-            metricType: 'respiratory_rate',
+            metricType: 'respiratory_rate_bpm',
             currentValue: 18,
             baselineValue: 15,
             deviationPct: 20,
@@ -778,7 +778,7 @@ class CorrelationInsightService {
           },
           {
             anomalyId: randomUUID(),
-            metricType: 'resting_heart_rate',
+            metricType: 'resting_heart_rate_bpm',
             currentValue: 68,
             baselineValue: 58,
             deviationPct: 17,
@@ -796,7 +796,7 @@ class CorrelationInsightService {
         anomalies = [
           {
             anomalyId: randomUUID(),
-            metricType: 'hrv',
+            metricType: 'hrv_ms',
             currentValue: 35,
             baselineValue: 55,
             deviationPct: -36,
@@ -805,14 +805,14 @@ class CorrelationInsightService {
             severity: 'high',
             patternFingerprint: 'recovery_deficit',
             relatedMetrics: {
-              hrv: { value: 35, deviation: -36 },
-              deep_sleep: { value: 30, deviation: -40 },
+              hrv_ms: { value: 35, deviation: -36 },
+              deep_sleep_min: { value: 30, deviation: -40 },
             },
             modelConfidence: 0.80,
           },
           {
             anomalyId: randomUUID(),
-            metricType: 'deep_sleep',
+            metricType: 'deep_sleep_min',
             currentValue: 30,
             baselineValue: 50,
             deviationPct: -40,
@@ -831,7 +831,7 @@ class CorrelationInsightService {
         anomalies = [
           {
             anomalyId: randomUUID(),
-            metricType: 'resting_heart_rate',
+            metricType: 'resting_heart_rate_bpm',
             currentValue: 72,
             baselineValue: 60,
             deviationPct: 20,
