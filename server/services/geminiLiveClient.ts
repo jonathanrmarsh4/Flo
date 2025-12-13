@@ -189,6 +189,25 @@ class GeminiLiveClient {
         },
         // Enable input audio transcription to get user speech as text
         inputAudioTranscription: {},
+        // VAD (Voice Activity Detection) configuration to reduce false triggers
+        // This prevents the AI from picking up its own voice from speakers
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            disabled: false,
+            // LOW sensitivity = requires stronger signal to start detecting speech
+            // This helps ignore quieter sounds like speaker feedback
+            startOfSpeechSensitivity: 'LOW',
+            // LOW sensitivity = requires longer/clearer silence to end turn
+            // This prevents premature turn endings during natural pauses
+            endOfSpeechSensitivity: 'LOW',
+            // Add 300ms buffer before speech detection starts
+            // Helps filter out brief audio artifacts from speakers
+            prefixPaddingMs: 300,
+            // Require 1.5 seconds of silence before ending user turn
+            // Prevents the AI voice from triggering a new turn
+            silenceDurationMs: 1500,
+          },
+        },
       },
     };
 
