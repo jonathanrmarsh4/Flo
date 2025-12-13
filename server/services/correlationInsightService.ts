@@ -8,9 +8,11 @@ import { users, pendingCorrelationFeedback, answeredFeedbackPatterns } from '@sh
 import { eq, and, lt, gt, or } from 'drizzle-orm';
 import { logger } from '../utils/logger';
 import { randomUUID } from 'crypto';
+import { getMLSettings } from './behaviorAttributionEngine';
 
 const FEEDBACK_EXPIRY_HOURS = 48;
-const PATTERN_COOLDOWN_HOURS = 24;
+// Note: Pattern cooldown now uses admin-configurable alertCooldownHours from getMLSettings()
+const DEFAULT_PATTERN_COOLDOWN_HOURS = 24;
 
 export interface CorrelationInsight {
   insightId: string;
@@ -55,12 +57,16 @@ class CorrelationInsightService {
 
     logger.info(`[CorrelationInsight] Starting full analysis for user ${userId}`);
 
+    // Get admin-configured cooldown setting
+    const mlSettings = await getMLSettings();
+    const alertCooldownHours = mlSettings.alertCooldownHours;
+
     // Bypass rate limit for scheduled analysis jobs
     const anomalies = await clickhouseBaselineEngine.detectAnomalies(healthId, { bypassRateLimit: true });
     logger.info(`[CorrelationInsight] Detected ${anomalies.length} anomalies`);
 
-    const recentlyAnswered = await this.getRecentlyAnsweredPatterns(userId);
-    logger.info(`[CorrelationInsight] User has ${recentlyAnswered.size} recently answered patterns`);
+    const recentlyAnswered = await this.getRecentlyAnsweredPatterns(userId, alertCooldownHours);
+    logger.info(`[CorrelationInsight] User has ${recentlyAnswered.size} recently answered patterns (cooldown: ${alertCooldownHours}h)`);
 
     let feedbackQuestions: GeneratedQuestion[] = [];
     if (anomalies.length > 0) {
@@ -73,7 +79,7 @@ class CorrelationInsightService {
         const isRecentlyAnswered = metric && recentlyAnswered.has(metric);
         
         if (isRecentlyAnswered) {
-          logger.info(`[CorrelationInsight] Filtering out question with metric "${metric}" - already answered within ${PATTERN_COOLDOWN_HOURS}h`);
+          logger.info(`[CorrelationInsight] Filtering out question with metric "${metric}" - already answered within ${alertCooldownHours}h`);
         }
         return !isRecentlyAnswered;
       });
@@ -587,8 +593,11 @@ class CorrelationInsightService {
     }
   }
 
-  async getRecentlyAnsweredPatterns(userId: string): Promise<Set<string>> {
-    const cooldownThreshold = new Date(Date.now() - PATTERN_COOLDOWN_HOURS * 60 * 60 * 1000);
+  async getRecentlyAnsweredPatterns(userId: string, cooldownHours?: number): Promise<Set<string>> {
+    // Use provided cooldown or fetch from admin settings, with defensive fallback
+    const settingsCooldown = cooldownHours ?? (await getMLSettings()).alertCooldownHours;
+    const effectiveCooldown = (settingsCooldown && settingsCooldown > 0) ? settingsCooldown : DEFAULT_PATTERN_COOLDOWN_HOURS;
+    const cooldownThreshold = new Date(Date.now() - effectiveCooldown * 60 * 60 * 1000);
     
     const rows = await db.select({
       triggerPattern: answeredFeedbackPatterns.triggerPattern,
@@ -608,12 +617,17 @@ class CorrelationInsightService {
       }
     }
     
-    logger.debug(`[CorrelationInsight] Found ${patterns.size} recently answered patterns for user ${userId}`);
+    logger.debug(`[CorrelationInsight] Found ${patterns.size} recently answered patterns for user ${userId} (cooldown: ${effectiveCooldown}h)`);
     return patterns;
   }
 
   async cleanupOldAnsweredPatterns(): Promise<number> {
-    const threshold = new Date(Date.now() - PATTERN_COOLDOWN_HOURS * 60 * 60 * 1000);
+    // Use admin-configured cooldown for cleanup threshold, with defensive fallback
+    const mlSettings = await getMLSettings();
+    const cooldownHours = (mlSettings.alertCooldownHours && mlSettings.alertCooldownHours > 0) 
+      ? mlSettings.alertCooldownHours 
+      : DEFAULT_PATTERN_COOLDOWN_HOURS;
+    const threshold = new Date(Date.now() - cooldownHours * 60 * 60 * 1000);
     const result = await db.delete(answeredFeedbackPatterns)
       .where(lt(answeredFeedbackPatterns.answeredAt, threshold))
       .returning({ id: answeredFeedbackPatterns.id });
