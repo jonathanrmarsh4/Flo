@@ -223,13 +223,15 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
   try {
     // First, try to compute fresh baselines directly from health_metrics (source of truth)
     // This bypasses the metric_baselines table which may have stale or mismatched window data
+    // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
+    // Duplicates are handled by the aggregation (GROUP BY) itself
     const liveBaselinesQuery = `
       SELECT
         metric_type,
         avg(value) as mean_value,
         stddevPop(value) as std_dev,
         count() as sample_count
-      FROM flo_health.health_metrics FINAL
+      FROM flo_health.health_metrics
       WHERE health_id = {healthId:String}
         AND recorded_at >= now() - INTERVAL 90 DAY
       GROUP BY metric_type
@@ -252,7 +254,7 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
           avg(value) as mean_value,
           stddevPop(value) as std_dev,
           count() as sample_count
-        FROM flo_health.health_metrics FINAL
+        FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND recorded_at >= now() - INTERVAL 30 DAY
         GROUP BY metric_type
@@ -275,7 +277,7 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
           avg(value) as mean_value,
           stddevPop(value) as std_dev,
           count() as sample_count
-        FROM flo_health.health_metrics FINAL
+        FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND recorded_at >= now() - INTERVAL 7 DAY
         GROUP BY metric_type
