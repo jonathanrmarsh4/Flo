@@ -9871,6 +9871,20 @@ Important: This is for educational purposes. Include a brief note that users sho
         normalization_version: 'norm_v1',
       };
       
+      // OURA DUPLICATE DETECTION: Log warning if Oura sources detected in activity metrics
+      // This helps identify when iOS is sending combined Apple Watch + Oura activity data
+      const stepsSources = metrics.stepsSources || '';
+      const ouraSourcePatterns = ['oura', 'ouraring', 'com.ouraring'];
+      const hasOuraActivitySource = ouraSourcePatterns.some(pattern => 
+        stepsSources.toLowerCase().includes(pattern)
+      );
+      
+      if (hasOuraActivitySource) {
+        logger.warn(`[HealthKit] ⚠️ OURA SOURCE DETECTED in activity metrics for ${userId} on ${metrics.localDate}. ` +
+          `steps_sources: "${stepsSources}". ` +
+          `This may indicate combined Apple Watch + Oura data. iOS should filter Oura sources for activity metrics.`);
+      }
+      
       console.log('📤 [SUPABASE] Writing daily metrics to Supabase:', JSON.stringify(supabaseMetrics, null, 2));
       await upsertSupabaseDailyMetrics(userId, supabaseMetrics);
       logger.info(`[HealthKit] Stored daily metrics in Supabase for ${userId}, ${metrics.localDate}`);
