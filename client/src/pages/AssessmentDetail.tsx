@@ -879,7 +879,7 @@ export default function AssessmentDetail() {
                     {aiAnalysis.improved.map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5">
                         <span className="text-sm text-white/80">{item.name}</span>
-                        <span className="text-xs text-green-400">+{item.change.toFixed(0)}%</span>
+                        <span className="text-xs text-green-400">+{(item.change ?? 0).toFixed(0)}%</span>
                       </div>
                     ))}
                   </div>
@@ -912,7 +912,7 @@ export default function AssessmentDetail() {
                     {aiAnalysis.declined.map((item) => (
                       <div key={item.name} className="flex items-center gap-1.5">
                         <span className="text-sm text-white/80">{item.name}</span>
-                        <span className="text-xs text-orange-400">{item.change.toFixed(0)}%</span>
+                        <span className="text-xs text-orange-400">{(item.change ?? 0).toFixed(0)}%</span>
                       </div>
                     ))}
                   </div>
@@ -1180,7 +1180,7 @@ export default function AssessmentDetail() {
                 </span>
               </div>
               <p className="text-sm text-white/60 mt-2">
-                Effect Size: {resultsData.results.overall_effect_size.toFixed(2)} | 
+                Effect Size: {(resultsData.results.overall_effect_size ?? 0).toFixed(2)} | 
                 Confidence: {Math.round((resultsData.results.confidence_level || 0.7) * 100)}%
               </p>
             </div>
@@ -1195,7 +1195,7 @@ export default function AssessmentDetail() {
                       metric.verdict === 'strong_evidence' ? 'text-green-400' :
                       metric.verdict === 'moderate_evidence' ? 'text-yellow-400' : 'text-white/60'
                     }`}>
-                      {metric.effect_size > 0 ? '+' : ''}{metric.effect_size.toFixed(2)}
+                      {(metric.effect_size ?? 0) > 0 ? '+' : ''}{(metric.effect_size ?? 0).toFixed(2)}
                     </span>
                   </div>
                 </div>
