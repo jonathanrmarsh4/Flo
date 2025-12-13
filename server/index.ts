@@ -11,6 +11,7 @@ import { startFollowUpScheduler } from "./services/followUpScheduler";
 import { clickhouseOrchestrator } from "./services/clickhouseOrchestrator";
 import { startMorningBriefingScheduler } from "./services/morningBriefingScheduler";
 import { startCGMSyncScheduler } from "./services/cgmSyncScheduler";
+import { startOuraSyncScheduler } from "./services/ouraSyncScheduler";
 
 const app = express();
 
@@ -175,6 +176,9 @@ app.use((req, res, next) => {
       
       // Start the CGM sync scheduler (every 5 minutes for connected Dexcom users)
       startCGMSyncScheduler();
+      
+      // Start the Oura sync scheduler (hourly for connected Oura users)
+      startOuraSyncScheduler();
     }, 5000);
   });
 })();

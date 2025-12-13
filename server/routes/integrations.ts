@@ -183,12 +183,16 @@ router.post('/:provider/sync', isAuthenticated, async (req: Request, res: Respon
     const userId = user?.id;
     const { provider } = req.params;
     
+    console.log(`[IntegrationsAPI] Manual sync triggered for provider: ${provider}, userId: ${userId}`);
+    
     if (!userId) {
+      console.log('[IntegrationsAPI] Sync rejected - no userId');
       return res.status(401).json({ error: 'Unauthorized' });
     }
     
     // Get healthId from Supabase mapping
     const healthId = await getHealthId(userId);
+    console.log(`[IntegrationsAPI] Got healthId: ${healthId} for userId: ${userId}`);
     
     if (provider !== 'oura' && provider !== 'dexcom') {
       return res.status(400).json({ error: 'Invalid provider' });
@@ -196,21 +200,28 @@ router.post('/:provider/sync', isAuthenticated, async (req: Request, res: Respon
     
     // Check if integration exists and is connected
     const integration = await integrationsService.getUserIntegration(userId, provider as 'oura' | 'dexcom');
+    console.log(`[IntegrationsAPI] Integration status: ${integration?.status}, tokenExpiry: ${integration?.tokenExpiresAt}`);
     
     if (!integration || integration.status === 'not_connected') {
+      console.log(`[IntegrationsAPI] Integration not connected for ${provider}`);
       return res.status(400).json({ error: 'Integration not connected' });
     }
     
     if (provider === 'oura') {
+      console.log(`[IntegrationsAPI] Starting Oura sync for user ${userId}...`);
       // Sync Oura data
       const result = await ouraApiClient.syncOuraData(userId, healthId, 7);
       
       if (!result.success) {
+        console.log(`[IntegrationsAPI] Oura sync failed: ${result.error}`);
         return res.status(500).json({ error: result.error || 'Sync failed' });
       }
       
+      console.log(`[IntegrationsAPI] Oura API returned ${result.sleepNights.length} sleep nights`);
+      
       // Store sleep nights in Supabase
       for (const night of result.sleepNights) {
+        console.log(`[IntegrationsAPI] Storing sleep night for date: ${night.sleepDate}, totalSleep: ${night.totalSleepMin}min`);
         try {
           await upsertSleepNight(userId, {
             sleep_date: night.sleepDate,
