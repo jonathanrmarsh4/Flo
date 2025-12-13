@@ -4606,12 +4606,17 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
         'HKQuantityTypeIdentifierBloodGlucose': { category: 'Glucose', displayName: 'Blood Glucose', unit: 'mg/dL' },
       };
 
-      const existingNames = new Set(metrics.map(m => m.name));
+      // Create a map of existing metrics with their values for skipIfExists logic
+      const existingMetricsMap = new Map(metrics.map(m => [m.name, m]));
       
       for (const [dataType, sample] of latestByType) {
         const mapping = hkMetricMap[dataType];
         if (mapping) {
-          if (mapping.skipIfExists && existingNames.has(mapping.skipIfExists)) continue;
+          // Only skip if the existing metric has actual data (non-null value)
+          if (mapping.skipIfExists) {
+            const existingMetric = existingMetricsMap.get(mapping.skipIfExists);
+            if (existingMetric && existingMetric.value != null) continue;
+          }
 
           let sourceDisplay = 'Apple Watch';
           if (sample.source_name?.toLowerCase().includes('oura')) {
