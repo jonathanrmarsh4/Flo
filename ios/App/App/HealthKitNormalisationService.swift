@@ -1572,7 +1572,6 @@ public class HealthKitNormalisationService {
             
             for source in sources {
                 let bundleId = source.bundleIdentifier
-                sourceIds.append(bundleId)
                 
                 if let sum = statistics.sumQuantity(for: source) {
                     let steps = Int(sum.doubleValue(for: .count()))
@@ -1581,8 +1580,12 @@ public class HealthKitNormalisationService {
                     if self.isOuraSourceByBundleId(bundleId) {
                         ouraFilteredSources.append((bundleId, steps))
                         print("[Steps] 🚫 Oura source FILTERED: \(bundleId): \(steps) steps (excluded)")
+                        // Do NOT add to sourceIds - these are filtered out
                         continue
                     }
+                    
+                    // Only add non-Oura sources to the sourceIds metadata
+                    sourceIds.append(bundleId)
                     
                     if bundleId.contains("watchOS") || bundleId.contains("Watch") {
                         watchSources.append((bundleId, steps))
