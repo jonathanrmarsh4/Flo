@@ -459,8 +459,10 @@ export default function AssessmentDetail() {
           day: result.length + 1, // Day number relative to experiment start
           dateKey,
           date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          objectiveComposite: objectiveComposite !== undefined ? Math.max(-3, Math.min(3, objectiveComposite)) : undefined,
-          subjectiveComposite: subjectiveComposite !== undefined ? Math.max(-3, Math.min(3, subjectiveComposite)) : undefined,
+          // IMPORTANT: Use null instead of undefined for missing values
+          // Recharts connectNulls only works with null, not undefined
+          objectiveComposite: objectiveComposite !== undefined ? Math.max(-3, Math.min(3, objectiveComposite)) : null,
+          subjectiveComposite: subjectiveComposite !== undefined ? Math.max(-3, Math.min(3, subjectiveComposite)) : null,
           isStartDate: dateKey === startDateStr,
           isAfterStart,
         });
@@ -481,7 +483,8 @@ export default function AssessmentDetail() {
     };
     
     // Analyze objective composite (Biometrics)
-    const objectiveValues = chartData.map(d => d.objectiveComposite).filter((v): v is number => v !== undefined);
+    // Filter out both null and undefined (null is used for missing chart values)
+    const objectiveValues = chartData.map(d => d.objectiveComposite).filter((v): v is number => v !== undefined && v !== null);
     if (objectiveValues.length >= 3) {
       const recentAvg = objectiveValues.slice(-3).reduce((a, b) => a + b, 0) / 3;
       // Positive Z-score = improvement (above baseline)
@@ -495,7 +498,8 @@ export default function AssessmentDetail() {
     }
     
     // Analyze subjective composite (How You Feel)
-    const subjectiveValues = chartData.map(d => d.subjectiveComposite).filter((v): v is number => v !== undefined);
+    // Filter out both null and undefined (null is used for missing chart values)
+    const subjectiveValues = chartData.map(d => d.subjectiveComposite).filter((v): v is number => v !== undefined && v !== null);
     if (subjectiveValues.length >= 3) {
       const recentAvg = subjectiveValues.slice(-3).reduce((a, b) => a + b, 0) / 3;
       if (recentAvg > 0.5) {
@@ -788,7 +792,7 @@ export default function AssessmentDetail() {
                       <Tooltip content={<CustomTooltip />} />
                       
                       {/* Objective Composite Line - Cyan Solid */}
-                      {chartData.some(d => d.objectiveComposite !== undefined) && (
+                      {chartData.some(d => d.objectiveComposite !== null && d.objectiveComposite !== undefined) && (
                         <Line
                           type="monotone"
                           dataKey="objectiveComposite"
@@ -802,7 +806,7 @@ export default function AssessmentDetail() {
                       )}
                       
                       {/* Subjective Composite Line - Orange Dashed */}
-                      {chartData.some(d => d.subjectiveComposite !== undefined) && (
+                      {chartData.some(d => d.subjectiveComposite !== null && d.subjectiveComposite !== undefined) && (
                         <Line
                           type="monotone"
                           dataKey="subjectiveComposite"
