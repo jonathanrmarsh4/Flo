@@ -1,6 +1,7 @@
 import { clickhouse, isClickHouseEnabled, initializeClickHouse } from './clickhouseService';
 import { getHealthId } from './supabaseHealthStorage';
 import { correlationEngine } from './clickhouseCorrelationEngine';
+import { getMLSettings } from './behaviorAttributionEngine';
 import { createLogger } from '../utils/logger';
 import { randomUUID } from 'crypto';
 
@@ -1019,9 +1020,13 @@ export class ClickHouseBaselineEngine {
 
       const anomalies: AnomalyResult[] = [];
 
+      // Fetch admin-configured ML sensitivity settings
+      const mlSettings = await getMLSettings();
+      
       // Default threshold for any metric not explicitly defined - opens up the system to ALL metrics
+      // Uses admin-configured anomalyZScoreThreshold from ML Sensitivity Settings
       const DEFAULT_THRESHOLD = {
-        zScoreThreshold: 1.5,
+        zScoreThreshold: mlSettings.anomalyZScoreThreshold,
         percentageThreshold: 25,
         direction: 'both' as const,
         severity: { moderate: 25, high: 40 },
@@ -1041,11 +1046,15 @@ export class ClickHouseBaselineEngine {
         const personalizedThreshold = await this.getPersonalizedThreshold(healthId, metric.metric_type);
         
         // Use personalized if available, otherwise use defaults
+        // IMPORTANT: Apply admin threshold as a MINIMUM - ensures admin sensitivity setting affects ALL metrics
+        // Use Math.max so metric-specific thresholds can be MORE sensitive (lower) if needed
+        const baseZScoreThreshold = personalizedThreshold.isPersonalized 
+          ? personalizedThreshold.zScoreThreshold 
+          : defaultThreshold.zScoreThreshold;
+        
         const threshold = {
           ...defaultThreshold,
-          zScoreThreshold: personalizedThreshold.isPersonalized 
-            ? personalizedThreshold.zScoreThreshold 
-            : defaultThreshold.zScoreThreshold,
+          zScoreThreshold: Math.max(mlSettings.anomalyZScoreThreshold, baseZScoreThreshold),
           percentageThreshold: personalizedThreshold.isPersonalized 
             ? personalizedThreshold.percentageThreshold 
             : defaultThreshold.percentageThreshold,
@@ -1080,7 +1089,8 @@ export class ClickHouseBaselineEngine {
         }
 
         const historicalAccuracy = await this.getPatternAccuracy(healthId, null);
-        const modelConfidence = Math.min(0.95, 0.5 + (historicalAccuracy * 0.4));
+        // Use admin-configured minimum confidence threshold, scale up based on historical accuracy
+        const modelConfidence = Math.min(0.95, mlSettings.anomalyMinConfidence + (historicalAccuracy * 0.4));
 
         anomalies.push({
           anomalyId: randomUUID(),
@@ -1094,20 +1104,24 @@ export class ClickHouseBaselineEngine {
           patternFingerprint: null,
           relatedMetrics: null,
           modelConfidence,
+          detectedAt: new Date().toISOString(),
         });
       }
 
       const patternedAnomalies = this.detectMultiMetricPatterns(anomalies);
+      
+      // Filter anomalies by admin-configured minimum confidence threshold
+      const filteredAnomalies = patternedAnomalies.filter(a => a.modelConfidence >= mlSettings.anomalyMinConfidence);
 
-      if (patternedAnomalies.length > 0) {
-        await this.storeAnomalies(healthId, patternedAnomalies);
+      if (filteredAnomalies.length > 0) {
+        await this.storeAnomalies(healthId, filteredAnomalies);
         
         // Generate AI feedback questions based on detected anomalies
-        await this.triggerFeedbackQuestions(healthId, patternedAnomalies);
+        await this.triggerFeedbackQuestions(healthId, filteredAnomalies);
       }
 
-      logger.info(`[ClickHouseML] Detected ${patternedAnomalies.length} anomalies for ${healthId}`);
-      return patternedAnomalies;
+      logger.info(`[ClickHouseML] Detected ${filteredAnomalies.length} anomalies for ${healthId} (${patternedAnomalies.length - filteredAnomalies.length} filtered by confidence threshold)`);
+      return filteredAnomalies;
     } catch (error) {
       logger.error('[ClickHouseML] Anomaly detection error:', error);
       return [];
@@ -1871,6 +1885,13 @@ export class ClickHouseBaselineEngine {
 
   private async triggerFeedbackQuestions(healthId: string, anomalies: AnomalyResult[]): Promise<void> {
     try {
+      // Check if proactive alerts are enabled in admin settings
+      const mlSettings = await getMLSettings();
+      if (!mlSettings.enableProactiveAlerts) {
+        logger.debug(`[ClickHouseML] Proactive alerts disabled, skipping feedback questions for ${healthId}`);
+        return;
+      }
+      
       // Only generate questions for moderate or high severity anomalies
       const significantAnomalies = anomalies.filter(a => a.severity === 'moderate' || a.severity === 'high');
       if (significantAnomalies.length === 0) return;
