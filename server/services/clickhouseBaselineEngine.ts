@@ -1877,8 +1877,9 @@ export class ClickHouseBaselineEngine {
         threshold_adjustment_factor: number;
       }>(`
         SELECT z_score_threshold, percentage_threshold, false_positive_count, confirmed_count, threshold_adjustment_factor
-        FROM flo_health.user_learned_thresholds FINAL
+        FROM flo_health.user_learned_thresholds
         WHERE health_id = {healthId:String} AND metric_type = {metricType:String}
+        ORDER BY updated_at DESC
         LIMIT 1
       `, { healthId, metricType });
 
@@ -2023,8 +2024,9 @@ export class ClickHouseBaselineEngine {
         percentage_threshold: number;
       }>(`
         SELECT z_score_threshold, percentage_threshold
-        FROM flo_health.user_learned_thresholds FINAL
+        FROM flo_health.user_learned_thresholds
         WHERE health_id = {healthId:String} AND metric_type = {metricType:String}
+        ORDER BY updated_at DESC
         LIMIT 1
       `, { healthId, metricType });
 
@@ -2090,9 +2092,10 @@ export class ClickHouseBaselineEngine {
    */
   private async getActiveSuppressions(healthId: string): Promise<Set<string>> {
     try {
+      // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
       const result = await clickhouse.query<{ metric_type: string }>(`
         SELECT DISTINCT metric_type
-        FROM flo_health.user_metric_suppressions FINAL
+        FROM flo_health.user_metric_suppressions
         WHERE health_id = {healthId:String}
           AND expires_at > now()
       `, { healthId });

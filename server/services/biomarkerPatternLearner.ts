@@ -285,10 +285,10 @@ export class BiomarkerPatternLearner {
     biomarkerCount: number;
     totalBaselines: number;
   }> {
+    // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
     const sql = `
       SELECT *
       FROM flo_health.biomarker_learned_baselines
-      FINAL
       ORDER BY biomarker_name, stratification_type
     `;
 
@@ -454,6 +454,7 @@ export class BiomarkerPatternLearner {
     trainedAt: string | null;
   }> {
     try {
+      // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
       const countSql = `
         SELECT 
           stratification_type,
@@ -462,7 +463,6 @@ export class BiomarkerPatternLearner {
           max(trained_at) as last_trained,
           any(data_source) as source
         FROM flo_health.biomarker_learned_baselines
-        FINAL
         GROUP BY stratification_type
       `;
 

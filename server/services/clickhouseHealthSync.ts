@@ -214,9 +214,10 @@ export async function queryMetricsBySource(
   }
   
   try {
+    // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
     const results = await clickhouse.query<{ value: number; recorded_at: string; local_date: string }>(
       `SELECT value, recorded_at, local_date
-       FROM flo_health.health_metrics FINAL
+       FROM flo_health.health_metrics
        WHERE health_id = {healthId:String}
          AND metric_type = {metricType:String}
          AND source = {source:String}
@@ -244,9 +245,10 @@ export async function getAvailableSourcesForMetric(
   }
   
   try {
+    // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
     const results = await clickhouse.query<{ source: string }>(
       `SELECT DISTINCT source
-       FROM flo_health.health_metrics FINAL
+       FROM flo_health.health_metrics
        WHERE health_id = {healthId:String}
          AND metric_type = {metricType:String}
          AND local_date >= today() - {daysBack:UInt32}`,

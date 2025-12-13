@@ -517,6 +517,7 @@ export async function getSurveyInsights(healthId: string): Promise<{
   }
 
   try {
+    // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
     const correlations = await clickhouseQuery<{
       correlated_behaviors: string;
       survey_outcome: string;
@@ -524,7 +525,7 @@ export async function getSurveyInsights(healthId: string): Promise<{
       sample_size: number;
     }>(`
       SELECT correlated_behaviors, survey_outcome, correlation_strength, sample_size
-      FROM flo_health.survey_outcome_correlations FINAL
+      FROM flo_health.survey_outcome_correlations
       WHERE health_id = {healthId:String}
         AND is_actionable = 1
         AND sample_size >= 10

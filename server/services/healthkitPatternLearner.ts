@@ -226,10 +226,10 @@ export class HealthKitPatternLearner {
     metricCount: number;
     totalBaselines: number;
   }> {
+    // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
     const sql = `
       SELECT *
       FROM flo_health.healthkit_learned_baselines
-      FINAL
       ORDER BY metric_type, stratification_type
     `;
 
@@ -407,6 +407,7 @@ export class HealthKitPatternLearner {
     trainedAt: string | null;
   }> {
     try {
+      // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
       const countSql = `
         SELECT 
           stratification_type,
@@ -415,7 +416,6 @@ export class HealthKitPatternLearner {
           max(trained_at) as last_trained,
           any(data_source) as source
         FROM flo_health.healthkit_learned_baselines
-        FINAL
         GROUP BY stratification_type
       `;
 
