@@ -11,6 +11,56 @@ let deliveryCronTask: ReturnType<typeof cron.schedule> | null = null;
 let surveyCronTask: ReturnType<typeof cron.schedule> | null = null;
 let experimentReminderCronTask: ReturnType<typeof cron.schedule> | null = null;
 
+// Durable notification tracking using Supabase to survive restarts and work across instances
+// Uses the notification_sends table with columns: health_id, local_date, notification_type, sent_at
+
+async function wasNotificationSentToday(localDate: string, healthId: string, type: '3pm_survey' | 'experiment_reminder'): Promise<boolean> {
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('notification_sends')
+      .select('id')
+      .eq('health_id', healthId)
+      .eq('local_date', localDate)
+      .eq('notification_type', type)
+      .limit(1);
+    
+    if (error) {
+      // If table doesn't exist, log and allow notification (fail-open)
+      logger.warn(`[NotificationTracker] Error checking notification status, allowing send: ${error.message}`);
+      return false;
+    }
+    
+    return data && data.length > 0;
+  } catch (error) {
+    logger.warn(`[NotificationTracker] Exception checking notification status, allowing send`, { error: error instanceof Error ? error.message : String(error) });
+    return false;
+  }
+}
+
+async function markNotificationSent(localDate: string, healthId: string, type: '3pm_survey' | 'experiment_reminder'): Promise<void> {
+  try {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from('notification_sends')
+      .upsert({
+        health_id: healthId,
+        local_date: localDate,
+        notification_type: type,
+        sent_at: new Date().toISOString(),
+      }, {
+        onConflict: 'health_id,local_date,notification_type',
+        ignoreDuplicates: true,
+      });
+    
+    if (error) {
+      logger.warn(`[NotificationTracker] Error recording notification send: ${error.message}`);
+    }
+  } catch (error) {
+    logger.warn(`[NotificationTracker] Exception recording notification send`, { error: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 interface QueuedReminder {
   id: string;
   user_id: string;
@@ -167,7 +217,7 @@ async function processEveningExperimentReminders() {
     }
 
     const supabase = getSupabaseClient();
-    const eligibleUsers: (typeof activeUsers[0] & { healthId: string; experiments: { id: string; product_name: string }[] })[] = [];
+    const eligibleUsers: (typeof activeUsers[0] & { healthId: string; experiments: { id: string; product_name: string }[]; isCatchUp: boolean })[] = [];
     
     for (const user of activeUsers) {
       try {
@@ -175,9 +225,16 @@ async function processEveningExperimentReminders() {
         // Use formatInTimeZone for reliable timezone conversion
         const userHour = parseInt(formatInTimeZone(now, timezone, 'HH'), 10);
         const userMinute = parseInt(formatInTimeZone(now, timezone, 'mm'), 10);
+        const userToday = formatInTimeZone(now, timezone, 'yyyy-MM-dd');
         
-        // Check if it's 8PM local time (20:00 - 20:04)
-        if (userHour === 20 && userMinute >= 0 && userMinute < 5) {
+        // Determine notification eligibility:
+        // - Primary window: 20:00-20:15 (widened from 5 to 15 minutes for scheduler reliability)
+        // - Catch-up window: 20:15-22:00 (sends if notification wasn't sent yet today, inclusive of 22:00)
+        const inPrimaryWindow = userHour === 20 && userMinute >= 0 && userMinute < 15;
+        const inCatchUpWindow = (userHour === 20 && userMinute >= 15) || userHour === 21 || (userHour === 22 && userMinute === 0);
+        const isEligibleTimeWindow = inPrimaryWindow || inCatchUpWindow;
+        
+        if (isEligibleTimeWindow) {
           const healthIdResult = await supabase
             .from('user_profiles')
             .select('health_id')
@@ -185,6 +242,11 @@ async function processEveningExperimentReminders() {
             .single();
 
           if (healthIdResult.error || !healthIdResult.data) {
+            continue;
+          }
+
+          // Skip if notification was already sent today (prevents duplicates during catch-up window)
+          if (await wasNotificationSentToday(userToday, healthIdResult.data.health_id, 'experiment_reminder')) {
             continue;
           }
 
@@ -196,6 +258,7 @@ async function processEveningExperimentReminders() {
               ...user, 
               healthId: healthIdResult.data.health_id,
               experiments: experimentsNeedingCheckin,
+              isCatchUp: inCatchUpWindow && !inPrimaryWindow,
             });
           }
         }
@@ -208,10 +271,14 @@ async function processEveningExperimentReminders() {
       return;
     }
 
-    logger.info(`[ExperimentReminder] Sending evening experiment reminders to ${eligibleUsers.length} users`);
+    const scheduledCount = eligibleUsers.filter(u => !u.isCatchUp).length;
+    const catchUpCount = eligibleUsers.filter(u => u.isCatchUp).length;
+    logger.info(`[ExperimentReminder] Sending evening experiment reminders to ${eligibleUsers.length} users (${scheduledCount} scheduled, ${catchUpCount} catch-up)`);
 
     for (const user of eligibleUsers) {
       try {
+        const timezone = user.timezone || 'UTC';
+        const userToday = formatInTimeZone(now, timezone, 'yyyy-MM-dd');
         const experimentCount = user.experiments.length;
         const supplementNames = user.experiments.map(e => e.product_name).slice(0, 2).join(', ');
         const suffix = experimentCount > 2 ? ` +${experimentCount - 2} more` : '';
@@ -234,7 +301,10 @@ async function processEveningExperimentReminders() {
         );
 
         if (result.success && result.devicesReached && result.devicesReached > 0) {
-          logger.info(`[ExperimentReminder] Sent evening reminder to ${user.firstName || user.id} for ${experimentCount} experiment(s)`);
+          // Mark notification as sent to prevent duplicates during catch-up window
+          markNotificationSent(userToday, user.healthId, 'experiment_reminder');
+          const sendType = user.isCatchUp ? 'CATCH-UP' : 'SCHEDULED';
+          logger.info(`[ExperimentReminder] ${sendType} reminder sent to ${user.firstName || user.id} for ${experimentCount} experiment(s)`);
         }
       } catch (error) {
         logger.warn(`[ExperimentReminder] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
@@ -273,7 +343,7 @@ async function processThreePMSurveyNotifications() {
     }
 
     const supabase = getSupabaseClient();
-    const eligibleUsers: (typeof activeUsers[0] & { healthId: string; activeSupplements: { id: string; product_name: string }[] })[] = [];
+    const eligibleUsers: (typeof activeUsers[0] & { healthId: string; activeSupplements: { id: string; product_name: string }[]; isCatchUp: boolean })[] = [];
     
     // Group users by timezone for logging
     const timezoneGroups = new Map<string, { count: number; localTime: string }>();
@@ -295,14 +365,19 @@ async function processThreePMSurveyNotifications() {
         }
         timezoneGroups.get(timezone)!.count++;
         
+        // Determine notification eligibility:
+        // - Primary window: 15:00-15:15 (widened from 5 to 15 minutes for scheduler reliability)
+        // - Catch-up window: 15:15-18:00 (sends if notification wasn't sent yet today)
+        const inPrimaryWindow = userHour === 15 && userMinute >= 0 && userMinute < 15;
+        const inCatchUpWindow = (userHour === 15 && userMinute >= 15) || (userHour > 15 && userHour < 18);
+        const isEligibleTimeWindow = inPrimaryWindow || inCatchUpWindow;
+        
         // Detailed logging for Australia/Perth user to debug timezone issue
         if (timezone === 'Australia/Perth') {
-          const is3pm = userHour === 15 && userMinute >= 0 && userMinute < 5;
-          logger.info(`[3PMSurvey] Perth user ${user.firstName || user.id}: UTC=${now.toISOString()}, Local=${localTimeStr}, Hour=${userHour}, Min=${userMinute}, Is3PM=${is3pm}, LocalDate=${userToday}`);
+          logger.info(`[3PMSurvey] Perth user ${user.firstName || user.id}: UTC=${now.toISOString()}, Local=${localTimeStr}, Hour=${userHour}, Min=${userMinute}, Primary=${inPrimaryWindow}, CatchUp=${inCatchUpWindow}, LocalDate=${userToday}`);
         }
         
-        if (userHour === 15 && userMinute >= 0 && userMinute < 5) {
-          
+        if (isEligibleTimeWindow) {
           const healthIdResult = await supabase
             .from('user_profiles')
             .select('health_id')
@@ -313,6 +388,12 @@ async function processThreePMSurveyNotifications() {
             continue;
           }
 
+          // Skip if notification was already sent today (prevents duplicates during catch-up window)
+          if (await wasNotificationSentToday(userToday, healthIdResult.data.health_id, '3pm_survey')) {
+            continue;
+          }
+
+          // Skip if survey was already completed today
           const { data: existingSurvey } = await supabase
             .from('daily_subjective_surveys')
             .select('id')
@@ -326,6 +407,7 @@ async function processThreePMSurveyNotifications() {
               ...user, 
               healthId: healthIdResult.data.health_id,
               activeSupplements,
+              isCatchUp: inCatchUpWindow && !inPrimaryWindow,
             });
           }
         }
@@ -347,10 +429,13 @@ async function processThreePMSurveyNotifications() {
       return;
     }
 
-    logger.info(`[3PMSurvey] Sending 3PM survey notifications to ${eligibleUsers.length} users (timezones: ${Array.from(new Set(eligibleUsers.map(u => u.timezone))).join(', ')})`);
+    const scheduledCount = eligibleUsers.filter(u => !u.isCatchUp).length;
+    const catchUpCount = eligibleUsers.filter(u => u.isCatchUp).length;
+    logger.info(`[3PMSurvey] Sending 3PM survey notifications to ${eligibleUsers.length} users (${scheduledCount} scheduled, ${catchUpCount} catch-up) | Timezones: ${Array.from(new Set(eligibleUsers.map(u => u.timezone))).join(', ')}`);
 
     for (const user of eligibleUsers) {
       try {
+        const userToday = formatInTimeZone(now, user.timezone || 'UTC', 'yyyy-MM-dd');
         let title = '3PM Check-In';
         let body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Quick 30-second wellbeing check - how are you feeling?`;
         
@@ -375,7 +460,10 @@ async function processThreePMSurveyNotifications() {
         );
 
         if (result.success && result.devicesReached && result.devicesReached > 0) {
-          logger.info(`[3PMSurvey] Sent notification to ${user.firstName || user.id} (${user.activeSupplements.length} supplements)`);
+          // Mark notification as sent to prevent duplicates during catch-up window
+          markNotificationSent(userToday, user.healthId, '3pm_survey');
+          const sendType = user.isCatchUp ? 'CATCH-UP' : 'SCHEDULED';
+          logger.info(`[3PMSurvey] ${sendType} notification sent to ${user.firstName || user.id} (${user.activeSupplements.length} supplements, ${user.timezone})`);
         }
       } catch (error) {
         logger.warn(`[3PMSurvey] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
