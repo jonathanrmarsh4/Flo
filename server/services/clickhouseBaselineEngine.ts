@@ -2177,9 +2177,9 @@ export class ClickHouseBaselineEngine {
         sleep_avg: number | null;
       }>(`
         SELECT
-          avgIf(value, metric_type = 'hrv') as hrv_avg,
-          avgIf(value, metric_type = 'resting_heart_rate') as rhr_avg,
-          avgIf(value, metric_type = 'sleep_duration') as sleep_avg
+          avgIf(value, metric_type = 'hrv_ms') as hrv_avg,
+          avgIf(value, metric_type = 'resting_heart_rate_bpm') as rhr_avg,
+          avgIf(value, metric_type = 'sleep_duration_min') as sleep_avg
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND local_date = {detectedDate:String}

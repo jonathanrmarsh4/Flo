@@ -450,9 +450,9 @@ export function detectAnomalyClusters(
   const clusters: AnomalyCluster[] = [];
   
   // Pattern 1: Stress spike (HRV ↓, RHR ↑, Sleep ↓)
-  const hrvDown = deviations.find(d => d.metric === 'hrv_sdnn_ms' && d.direction === 'decrease');
-  const rhrUp = deviations.find(d => d.metric === 'resting_hr' && d.direction === 'increase');
-  const sleepDown = deviations.find(d => d.metric === 'sleep_total_minutes' && d.direction === 'decrease');
+  const hrvDown = deviations.find(d => d.metric === 'hrv_ms' && d.direction === 'decrease');
+  const rhrUp = deviations.find(d => d.metric === 'resting_heart_rate_bpm' && d.direction === 'increase');
+  const sleepDown = deviations.find(d => d.metric === 'sleep_duration_min' && d.direction === 'decrease');
   
   if (hrvDown && rhrUp && sleepDown) {
     clusters.push({
@@ -465,7 +465,7 @@ export function detectAnomalyClusters(
   }
   
   // Pattern 2: Recovery decline (Deep sleep ↓, HRV ↓, Energy ↓)
-  const deepSleepDown = deviations.find(d => d.metric === 'sleep_deep_minutes' && d.direction === 'decrease');
+  const deepSleepDown = deviations.find(d => d.metric === 'deep_sleep_min' && d.direction === 'decrease');
   const energyDown = deviations.find(d => d.metric === 'active_energy' && d.direction === 'decrease');
   
   if (deepSleepDown && hrvDown && energyDown) {

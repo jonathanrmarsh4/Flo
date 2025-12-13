@@ -344,7 +344,7 @@ export class ClickHouseCorrelationEngine {
           avg(value) as avg_sleep_hours
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
-          AND metric_type = 'sleep_duration'
+          AND metric_type = 'sleep_duration_min'
           AND local_date >= {startDate:Date}
           AND local_date <= {endDate:Date}
         GROUP BY week_start
@@ -439,16 +439,16 @@ export class ClickHouseCorrelationEngine {
       const sql = `
         SELECT 
           toStartOfWeek(local_date) as week_start,
-          avgIf(value, metric_type = 'hrv') as avg_hrv,
-          avgIf(value, metric_type = 'resting_heart_rate') as avg_rhr,
-          avgIf(value, metric_type = 'sleep_duration') as avg_sleep,
-          avgIf(value, metric_type = 'deep_sleep') as avg_deep_sleep,
-          avgIf(value, metric_type = 'rem_sleep') as avg_rem_sleep,
+          avgIf(value, metric_type = 'hrv_ms') as avg_hrv,
+          avgIf(value, metric_type = 'resting_heart_rate_bpm') as avg_rhr,
+          avgIf(value, metric_type = 'sleep_duration_min') as avg_sleep,
+          avgIf(value, metric_type = 'deep_sleep_min') as avg_deep_sleep,
+          avgIf(value, metric_type = 'rem_sleep_min') as avg_rem_sleep,
           avgIf(value, metric_type = 'steps') as avg_steps,
           avgIf(value, metric_type = 'active_energy') as avg_active_energy,
           avgIf(value, metric_type = 'wrist_temperature_deviation') as avg_wrist_temp,
-          avgIf(value, metric_type = 'respiratory_rate') as avg_resp_rate,
-          avgIf(value, metric_type = 'oxygen_saturation') as avg_o2
+          avgIf(value, metric_type = 'respiratory_rate_bpm') as avg_resp_rate,
+          avgIf(value, metric_type = 'oxygen_saturation_pct') as avg_o2
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND local_date >= {startDate:Date}
