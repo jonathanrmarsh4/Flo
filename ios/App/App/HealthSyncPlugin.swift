@@ -233,28 +233,33 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
         
         let normalizationService = HealthKitNormalisationService()
         
-        normalizationService.syncDateRange(from: startDate, to: endDate) { success, sampleCount, error in
-            if let error = error {
-                print("❌ [HealthSyncPlugin] Historical backfill failed: \(error.localizedDescription)")
-            } else if success {
-                print("✅ [HealthSyncPlugin] Historical backfill complete! Synced \(sampleCount) samples over \(daysSinceStart) days")
-            } else {
-                print("⚠️ [HealthSyncPlugin] Historical backfill completed but returned false")
+        // Check Oura API status before syncing to enable conditional HealthKit filtering
+        checkOuraApiStatus { isOuraConnected in
+            normalizationService.setOuraApiConnectionStatus(isOuraConnected)
+            
+            normalizationService.syncDateRange(from: startDate, to: endDate) { success, sampleCount, error in
+                if let error = error {
+                    print("❌ [HealthSyncPlugin] Historical backfill failed: \(error.localizedDescription)")
+                } else if success {
+                    print("✅ [HealthSyncPlugin] Historical backfill complete! Synced \(sampleCount) samples over \(daysSinceStart) days")
+                } else {
+                    print("⚠️ [HealthSyncPlugin] Historical backfill completed but returned false")
+                }
+                
+                self.syncCountLock.lock()
+                self.activeSyncCount -= 1
+                let remaining = self.activeSyncCount
+                self.syncCountLock.unlock()
+                
+                print("📊 [HealthSyncPlugin] Backfill sync #\(syncId) completed, \(remaining) active syncs remaining")
+                
+                if remaining == 0 {
+                    print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
+                    UserDefaults.standard.removeObject(forKey: "jwt_token")
+                }
+                
+                completion(sampleCount)
             }
-            
-            self.syncCountLock.lock()
-            self.activeSyncCount -= 1
-            let remaining = self.activeSyncCount
-            self.syncCountLock.unlock()
-            
-            print("📊 [HealthSyncPlugin] Backfill sync #\(syncId) completed, \(remaining) active syncs remaining")
-            
-            if remaining == 0 {
-                print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
-                UserDefaults.standard.removeObject(forKey: "jwt_token")
-            }
-            
-            completion(sampleCount)
         }
     }
     
@@ -353,35 +358,84 @@ public class HealthSyncPlugin: CAPPlugin, CAPBridgedPlugin {
     
     private func performSync(days: Int, syncId: Int) {
         let normalizationService = HealthKitNormalisationService()
-        normalizationService.syncLastNDays(days: days) { success, error in
-            if let error = error {
-                print("❌ [HealthSyncPlugin] Background sync failed: \(error.localizedDescription)")
-            } else if success {
-                print("✅ [HealthSyncPlugin] Successfully synced \(days) days in background!")
-                
-                normalizationService.syncWorkouts(days: days) { workoutSuccess, workoutError in
-                    if let workoutError = workoutError {
-                        print("⚠️ [HealthSyncPlugin] Workout sync error: \(workoutError.localizedDescription)")
-                    } else if workoutSuccess {
-                        print("💪 [HealthSyncPlugin] Also synced workouts successfully!")
+        
+        // Check Oura API status before syncing to enable conditional HealthKit filtering
+        checkOuraApiStatus { isOuraConnected in
+            normalizationService.setOuraApiConnectionStatus(isOuraConnected)
+            
+            normalizationService.syncLastNDays(days: days) { success, error in
+                if let error = error {
+                    print("❌ [HealthSyncPlugin] Background sync failed: \(error.localizedDescription)")
+                } else if success {
+                    print("✅ [HealthSyncPlugin] Successfully synced \(days) days in background!")
+                    
+                    normalizationService.syncWorkouts(days: days) { workoutSuccess, workoutError in
+                        if let workoutError = workoutError {
+                            print("⚠️ [HealthSyncPlugin] Workout sync error: \(workoutError.localizedDescription)")
+                        } else if workoutSuccess {
+                            print("💪 [HealthSyncPlugin] Also synced workouts successfully!")
+                        }
                     }
+                } else {
+                    print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
                 }
-            } else {
-                print("⚠️ [HealthSyncPlugin] Background sync completed but returned false")
-            }
-            
-            self.syncCountLock.lock()
-            self.activeSyncCount -= 1
-            let remaining = self.activeSyncCount
-            self.syncCountLock.unlock()
-            
-            print("📊 [HealthSyncPlugin] Sync #\(syncId) completed, \(remaining) active syncs remaining")
-            
-            if remaining == 0 {
-                print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
-                UserDefaults.standard.removeObject(forKey: "jwt_token")
+                
+                self.syncCountLock.lock()
+                self.activeSyncCount -= 1
+                let remaining = self.activeSyncCount
+                self.syncCountLock.unlock()
+                
+                print("📊 [HealthSyncPlugin] Sync #\(syncId) completed, \(remaining) active syncs remaining")
+                
+                if remaining == 0 {
+                    print("🧹 [HealthSyncPlugin] All syncs complete, clearing auth token")
+                    UserDefaults.standard.removeObject(forKey: "jwt_token")
+                }
             }
         }
+    }
+    
+    private func checkOuraApiStatus(completion: @escaping (Bool) -> Void) {
+        guard let token = UserDefaults.standard.string(forKey: "jwt_token"),
+              let url = URL(string: "https://get-flo.com/api/integrations/oura/status") else {
+            print("⚠️ [HealthSyncPlugin] No token or invalid URL, assuming Oura not connected")
+            completion(false)
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 5.0 // Quick timeout - don't block sync
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("⚠️ [HealthSyncPlugin] Oura status check failed: \(error.localizedDescription)")
+                completion(false)
+                return
+            }
+            
+            guard let data = data else {
+                print("⚠️ [HealthSyncPlugin] No data from Oura status endpoint")
+                completion(false)
+                return
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let isConnected = json["connected"] as? Bool {
+                    print("🔗 [HealthSyncPlugin] Oura API status: \(isConnected ? "CONNECTED" : "NOT CONNECTED")")
+                    completion(isConnected)
+                } else {
+                    print("⚠️ [HealthSyncPlugin] Could not parse Oura status response")
+                    completion(false)
+                }
+            } catch {
+                print("❌ [HealthSyncPlugin] Oura status JSON parsing error: \(error.localizedDescription)")
+                completion(false)
+            }
+        }.resume()
     }
     
     private func waitForHealthKitAuth(maxAttempts: Int, completion: @escaping (Bool) -> Void) {

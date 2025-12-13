@@ -106,6 +106,56 @@ export interface OuraHeartRate {
   timestamp: string;
 }
 
+// New Oura API types for extended metrics
+export interface OuraDailyStress {
+  id: string;
+  day: string; // YYYY-MM-DD
+  stress_high?: number; // seconds spent in high stress
+  recovery_high?: number; // seconds spent in high recovery
+  day_summary?: 'restored' | 'normal' | 'stressful' | null;
+}
+
+export interface OuraDailyResilience {
+  id: string;
+  day: string; // YYYY-MM-DD
+  level?: 'limited' | 'adequate' | 'solid' | 'strong' | 'exceptional' | null;
+  contributors?: {
+    sleep_recovery?: number;
+    daytime_recovery?: number;
+    stress?: number;
+  };
+}
+
+export interface OuraDailySpO2 {
+  id: string;
+  day: string; // YYYY-MM-DD
+  spo2_percentage?: {
+    average?: number;
+  };
+  breathing_disturbance_index?: number;
+}
+
+export interface OuraSleepTime {
+  id: string;
+  day: string; // YYYY-MM-DD
+  optimal_bedtime?: {
+    day_tz?: number;
+    end_offset?: number;
+    start_offset?: number;
+  };
+  recommendation?: 'improve_efficiency' | 'earlier_bedtime' | 'later_bedtime' | 'follow_optimal_bedtime' | null;
+  status?: 'not_enough_nights' | 'not_enough_recent_data' | 'low_sleep_mode_on' | 'found_optimal' | null;
+}
+
+export interface OuraPersonalInfo {
+  id: string;
+  age?: number;
+  weight?: number;
+  height?: number;
+  biological_sex?: 'male' | 'female' | 'other';
+  email?: string;
+}
+
 // Flō internal sleep format
 export interface FloSleepNight {
   sleepDate: string;
@@ -125,8 +175,22 @@ export interface FloSleepNight {
   restingHrBpm: number | null;
   hrvMs: number | null;
   respiratoryRate: number | null;
+  skinTempDeviation: number | null;
+  skinTempTrendDeviation: number | null;
   source: 'oura';
   ouraSessionId: string;
+}
+
+// Extended sync result with new metrics
+export interface OuraExtendedSyncResult {
+  success: boolean;
+  sleepNights: FloSleepNight[];
+  stress: OuraDailyStress[];
+  resilience: OuraDailyResilience[];
+  spo2: OuraDailySpO2[];
+  sleepTime: OuraSleepTime[];
+  error?: string;
+  isAuthError?: boolean;
 }
 
 // Custom error class for API authentication errors
@@ -259,6 +323,111 @@ export async function fetchHeartRate(
   return response.data;
 }
 
+// ============================================================================
+// NEW OURA API ENDPOINTS - Extended Metrics
+// ============================================================================
+
+/**
+ * Fetch daily stress data
+ * Tracks daytime stress and recovery patterns
+ */
+export async function fetchDailyStress(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<OuraDailyStress[]> {
+  const response = await ouraFetch<OuraDailyStress>(
+    userId,
+    '/usercollection/daily_stress',
+    { start_date: startDate, end_date: endDate }
+  );
+  
+  return response.data;
+}
+
+/**
+ * Fetch daily resilience data
+ * Measures ability to cope with stress based on sleep, recovery, and activity
+ */
+export async function fetchDailyResilience(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<OuraDailyResilience[]> {
+  const response = await ouraFetch<OuraDailyResilience>(
+    userId,
+    '/usercollection/daily_resilience',
+    { start_date: startDate, end_date: endDate }
+  );
+  
+  return response.data;
+}
+
+/**
+ * Fetch daily SpO2 (blood oxygen) data
+ * Only available for Gen 3 Oura Ring users
+ */
+export async function fetchDailySpO2(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<OuraDailySpO2[]> {
+  const response = await ouraFetch<OuraDailySpO2>(
+    userId,
+    '/usercollection/daily_spo2',
+    { start_date: startDate, end_date: endDate }
+  );
+  
+  return response.data;
+}
+
+/**
+ * Fetch sleep time recommendations
+ * Optimal bedtime windows calculated from sleep patterns
+ */
+export async function fetchSleepTime(
+  userId: string,
+  startDate: string,
+  endDate: string
+): Promise<OuraSleepTime[]> {
+  const response = await ouraFetch<OuraSleepTime>(
+    userId,
+    '/usercollection/sleep_time',
+    { start_date: startDate, end_date: endDate }
+  );
+  
+  return response.data;
+}
+
+/**
+ * Fetch personal info (age, weight, height, biological sex)
+ */
+export async function fetchPersonalInfo(userId: string): Promise<OuraPersonalInfo | null> {
+  try {
+    const accessToken = await getValidAccessToken(userId, 'oura');
+    if (!accessToken) {
+      return null;
+    }
+    
+    const response = await fetch(`${OURA_API_BASE}/usercollection/personal_info`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error(`[OuraAPI] Personal info request failed: ${response.status}`);
+      return null;
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('[OuraAPI] Failed to fetch personal info:', error);
+    return null;
+  }
+}
+
 /**
  * Convert Oura sleep period to Flō sleep night format
  */
@@ -309,6 +478,8 @@ export function convertSleepPeriodToFloFormat(
     restingHrBpm: period.lowest_heart_rate ?? null,
     hrvMs: period.average_hrv ?? null,
     respiratoryRate: period.average_breath ?? null,
+    skinTempDeviation: readiness?.temperature_deviation ?? null,
+    skinTempTrendDeviation: readiness?.temperature_trend_deviation ?? null,
     source: 'oura',
     ouraSessionId: period.id,
   };

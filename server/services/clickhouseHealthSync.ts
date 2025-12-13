@@ -7,7 +7,23 @@
 
 import { clickhouse } from './clickhouseService';
 import type { DataSource } from '@shared/dataSource';
-import type { FloSleepNight } from './ouraApiClient';
+import type { FloSleepNight, OuraDailyStress, OuraDailyResilience, OuraDailySpO2 } from './ouraApiClient';
+
+// Resilience level to numeric score mapping for ML analysis
+const RESILIENCE_LEVEL_SCORES: Record<string, number> = {
+  'limited': 1,
+  'adequate': 2,
+  'solid': 3,
+  'strong': 4,
+  'exceptional': 5,
+};
+
+// Stress day summary to numeric score mapping
+const STRESS_SUMMARY_SCORES: Record<string, number> = {
+  'stressful': 1,
+  'normal': 2,
+  'restored': 3,
+};
 
 interface HealthMetricRow {
   health_id: string;
@@ -156,6 +172,29 @@ export async function syncSleepMetricsToClickHouse(
     });
   }
   
+  // Skin temperature metrics (Oura-specific)
+  if (sleepNight.skinTempDeviation !== null && sleepNight.skinTempDeviation !== undefined) {
+    rows.push({
+      health_id: healthId,
+      metric_type: 'skin_temp_deviation_c',
+      value: sleepNight.skinTempDeviation,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  }
+  
+  if (sleepNight.skinTempTrendDeviation !== null && sleepNight.skinTempTrendDeviation !== undefined) {
+    rows.push({
+      health_id: healthId,
+      metric_type: 'skin_temp_trend_deviation_c',
+      value: sleepNight.skinTempTrendDeviation,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  }
+  
   if (rows.length > 0) {
     try {
       await clickhouse.insert('health_metrics', rows as unknown as Record<string, unknown>[]);
@@ -258,5 +297,236 @@ export async function getAvailableSourcesForMetric(
   } catch (error) {
     console.error('[ClickHouseHealthSync] Failed to get sources:', error);
     return [];
+  }
+}
+
+// ============================================================================
+// OURA EXTENDED METRICS SYNC
+// ============================================================================
+
+/**
+ * Sync Oura daily stress metrics to ClickHouse
+ * Converts stress levels and recovery time to numeric values for ML analysis
+ */
+export async function syncOuraStressToClickHouse(
+  healthId: string,
+  stressData: OuraDailyStress[]
+): Promise<void> {
+  if (!clickhouse.isEnabled() || stressData.length === 0) {
+    return;
+  }
+  
+  const rows: HealthMetricRow[] = [];
+  const source: DataSource = 'oura';
+  
+  for (const stress of stressData) {
+    const recordedAt = `${stress.day}T12:00:00Z`; // Daily metrics recorded at noon
+    
+    // High stress seconds
+    if (stress.stress_high !== null && stress.stress_high !== undefined) {
+      rows.push({
+        health_id: healthId,
+        metric_type: 'stress_high_seconds',
+        value: stress.stress_high,
+        recorded_at: recordedAt,
+        local_date: stress.day,
+        source,
+      });
+    }
+    
+    // High recovery seconds
+    if (stress.recovery_high !== null && stress.recovery_high !== undefined) {
+      rows.push({
+        health_id: healthId,
+        metric_type: 'recovery_high_seconds',
+        value: stress.recovery_high,
+        recorded_at: recordedAt,
+        local_date: stress.day,
+        source,
+      });
+    }
+    
+    // Day summary as numeric score (1=stressful, 2=normal, 3=restored)
+    if (stress.day_summary && STRESS_SUMMARY_SCORES[stress.day_summary]) {
+      rows.push({
+        health_id: healthId,
+        metric_type: 'stress_day_summary_score',
+        value: STRESS_SUMMARY_SCORES[stress.day_summary],
+        recorded_at: recordedAt,
+        local_date: stress.day,
+        source,
+      });
+    }
+  }
+  
+  if (rows.length > 0) {
+    try {
+      await clickhouse.insert('health_metrics', rows as unknown as Record<string, unknown>[]);
+      console.log(`[ClickHouseHealthSync] Synced ${rows.length} Oura stress metrics`);
+    } catch (error) {
+      console.error('[ClickHouseHealthSync] Failed to sync Oura stress:', error);
+    }
+  }
+}
+
+/**
+ * Sync Oura daily resilience metrics to ClickHouse
+ * Converts resilience levels and contributors to numeric values for ML analysis
+ */
+export async function syncOuraResilienceToClickHouse(
+  healthId: string,
+  resilienceData: OuraDailyResilience[]
+): Promise<void> {
+  if (!clickhouse.isEnabled() || resilienceData.length === 0) {
+    return;
+  }
+  
+  const rows: HealthMetricRow[] = [];
+  const source: DataSource = 'oura';
+  
+  for (const resilience of resilienceData) {
+    const recordedAt = `${resilience.day}T12:00:00Z`;
+    
+    // Overall resilience level as numeric score (1-5)
+    if (resilience.level && RESILIENCE_LEVEL_SCORES[resilience.level]) {
+      rows.push({
+        health_id: healthId,
+        metric_type: 'resilience_level_score',
+        value: RESILIENCE_LEVEL_SCORES[resilience.level],
+        recorded_at: recordedAt,
+        local_date: resilience.day,
+        source,
+      });
+    }
+    
+    // Individual contributors
+    if (resilience.contributors) {
+      if (resilience.contributors.sleep_recovery !== null && resilience.contributors.sleep_recovery !== undefined) {
+        rows.push({
+          health_id: healthId,
+          metric_type: 'resilience_sleep_recovery',
+          value: resilience.contributors.sleep_recovery,
+          recorded_at: recordedAt,
+          local_date: resilience.day,
+          source,
+        });
+      }
+      
+      if (resilience.contributors.daytime_recovery !== null && resilience.contributors.daytime_recovery !== undefined) {
+        rows.push({
+          health_id: healthId,
+          metric_type: 'resilience_daytime_recovery',
+          value: resilience.contributors.daytime_recovery,
+          recorded_at: recordedAt,
+          local_date: resilience.day,
+          source,
+        });
+      }
+      
+      if (resilience.contributors.stress !== null && resilience.contributors.stress !== undefined) {
+        rows.push({
+          health_id: healthId,
+          metric_type: 'resilience_stress_contributor',
+          value: resilience.contributors.stress,
+          recorded_at: recordedAt,
+          local_date: resilience.day,
+          source,
+        });
+      }
+    }
+  }
+  
+  if (rows.length > 0) {
+    try {
+      await clickhouse.insert('health_metrics', rows as unknown as Record<string, unknown>[]);
+      console.log(`[ClickHouseHealthSync] Synced ${rows.length} Oura resilience metrics`);
+    } catch (error) {
+      console.error('[ClickHouseHealthSync] Failed to sync Oura resilience:', error);
+    }
+  }
+}
+
+/**
+ * Sync Oura SpO2 (blood oxygen) metrics to ClickHouse
+ * Only available for Gen 3+ Oura Ring users
+ */
+export async function syncOuraSpO2ToClickHouse(
+  healthId: string,
+  spo2Data: OuraDailySpO2[]
+): Promise<void> {
+  if (!clickhouse.isEnabled() || spo2Data.length === 0) {
+    return;
+  }
+  
+  const rows: HealthMetricRow[] = [];
+  const source: DataSource = 'oura';
+  
+  for (const spo2 of spo2Data) {
+    const recordedAt = `${spo2.day}T12:00:00Z`;
+    
+    // Average SpO2 percentage
+    if (spo2.spo2_percentage?.average !== null && spo2.spo2_percentage?.average !== undefined) {
+      rows.push({
+        health_id: healthId,
+        metric_type: 'spo2_average_pct',
+        value: spo2.spo2_percentage.average,
+        recorded_at: recordedAt,
+        local_date: spo2.day,
+        source,
+      });
+    }
+    
+    // Breathing disturbance index
+    if (spo2.breathing_disturbance_index !== null && spo2.breathing_disturbance_index !== undefined) {
+      rows.push({
+        health_id: healthId,
+        metric_type: 'breathing_disturbance_index',
+        value: spo2.breathing_disturbance_index,
+        recorded_at: recordedAt,
+        local_date: spo2.day,
+        source,
+      });
+    }
+  }
+  
+  if (rows.length > 0) {
+    try {
+      await clickhouse.insert('health_metrics', rows as unknown as Record<string, unknown>[]);
+      console.log(`[ClickHouseHealthSync] Synced ${rows.length} Oura SpO2 metrics`);
+    } catch (error) {
+      console.error('[ClickHouseHealthSync] Failed to sync Oura SpO2:', error);
+    }
+  }
+}
+
+/**
+ * Sync all extended Oura metrics to ClickHouse
+ * Convenience function that syncs stress, resilience, and SpO2 in parallel
+ */
+export async function syncOuraExtendedMetricsToClickHouse(
+  healthId: string,
+  data: {
+    stress?: OuraDailyStress[];
+    resilience?: OuraDailyResilience[];
+    spo2?: OuraDailySpO2[];
+  }
+): Promise<void> {
+  const syncTasks: Promise<void>[] = [];
+  
+  if (data.stress && data.stress.length > 0) {
+    syncTasks.push(syncOuraStressToClickHouse(healthId, data.stress));
+  }
+  
+  if (data.resilience && data.resilience.length > 0) {
+    syncTasks.push(syncOuraResilienceToClickHouse(healthId, data.resilience));
+  }
+  
+  if (data.spo2 && data.spo2.length > 0) {
+    syncTasks.push(syncOuraSpO2ToClickHouse(healthId, data.spo2));
+  }
+  
+  if (syncTasks.length > 0) {
+    await Promise.all(syncTasks);
+    console.log(`[ClickHouseHealthSync] Completed sync of ${syncTasks.length} Oura extended metric types`);
   }
 }

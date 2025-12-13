@@ -56,6 +56,12 @@ export const DATA_SOURCE_CAPABILITIES: Record<DataSource, string[]> = {
     'temperature_deviation', 'wrist_temperature', 'respiratory_rate', 
     'oxygen_saturation', // Oura Gen3+ supports SpO2
     'readiness_score', 'activity_score', 'sleep_score',
+    // Extended Oura metrics (added for ML/AI insights)
+    'stress_high', 'recovery_high', 'stress_day_summary',
+    'resilience_level', 'resilience_sleep_recovery', 'resilience_daytime_recovery',
+    'spo2_average', 'breathing_disturbance_index',
+    'skin_temp_deviation', 'skin_temp_trend_deviation',
+    'optimal_bedtime_start', 'optimal_bedtime_end',
   ],
   dexcom: [
     'blood_glucose', 'glucose_trend', 'time_in_range',
@@ -86,6 +92,22 @@ export const OURA_PREFERRED_METRICS: string[] = [
   // Temperature - Oura's skin temperature during sleep is more consistent
   'temperature_deviation',
   'wrist_temperature',
+  'skin_temp_deviation', // Oura skin temperature deviation from baseline
+  'skin_temp_trend_deviation', // Oura skin temperature trend
+  // Stress & Recovery - Oura exclusive metrics (no HealthKit equivalent)
+  'stress_high',
+  'recovery_high',
+  'stress_day_summary',
+  // Resilience - Oura exclusive metrics (no HealthKit equivalent)
+  'resilience_level',
+  'resilience_sleep_recovery',
+  'resilience_daytime_recovery',
+  // SpO2 & Breathing - Oura continuous overnight measurements
+  'spo2_average',
+  'breathing_disturbance_index',
+  // Chronotype/Sleep Time - Oura exclusive
+  'optimal_bedtime_start',
+  'optimal_bedtime_end',
 ];
 
 // Metrics where HealthKit/Apple Watch is typically preferred

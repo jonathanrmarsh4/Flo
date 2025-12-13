@@ -14,13 +14,32 @@ public class HealthKitNormalisationService {
     
     // MARK: - Oura Source Filtering
     
+    /// Whether Oura is connected via OAuth API integration
+    /// When true, Oura data from HealthKit is filtered to prevent double-counting
+    /// When false, Oura data from HealthKit is preserved (user may only have Oura via HealthKit)
+    private var isOuraConnectedViaAPI: Bool = false
+    
+    /// Update Oura connection status - called from sync coordinator
+    /// @param connected Whether Oura is connected via direct API
+    public func setOuraApiConnectionStatus(_ connected: Bool) {
+        isOuraConnectedViaAPI = connected
+        print("[Normalisation] Oura API connection status updated: \(connected ? "connected" : "not connected")")
+        print("[Normalisation] Oura HealthKit filtering: \(connected ? "ENABLED" : "DISABLED")")
+    }
+    
     /// Oura source patterns to filter from activity metrics
     /// Oura Ring syncs step/activity data to HealthKit which can cause double-counting
     /// when user also has Apple Watch
     private let ouraSourcePatterns = ["oura", "ouraring", "com.ouraring"]
     
     /// Check if a source identifier or name matches Oura patterns
+    /// Only returns true if Oura is connected via API (conditional filtering)
     private func isOuraSource(_ sample: HKSample) -> Bool {
+        // Only filter Oura if we have better Oura data via direct API
+        guard isOuraConnectedViaAPI else {
+            return false
+        }
+        
         let sourceId = sample.sourceRevision.source.bundleIdentifier.lowercased()
         let sourceName = sample.sourceRevision.source.name.lowercased()
         
@@ -33,7 +52,13 @@ public class HealthKitNormalisationService {
     }
     
     /// Check if a source bundle identifier matches Oura patterns
+    /// Only returns true if Oura is connected via API (conditional filtering)
     private func isOuraSourceByBundleId(_ bundleId: String) -> Bool {
+        // Only filter Oura if we have better Oura data via direct API
+        guard isOuraConnectedViaAPI else {
+            return false
+        }
+        
         let lowerId = bundleId.lowercased()
         for pattern in ouraSourcePatterns {
             if lowerId.contains(pattern) {
