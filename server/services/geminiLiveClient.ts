@@ -275,7 +275,13 @@ class GeminiLiveClient {
 
       // Handle model's response (text and/or audio) in modelTurn.parts
       if (message.serverContent?.modelTurn?.parts) {
-        for (const part of message.serverContent.modelTurn.parts) {
+        const parts = message.serverContent.modelTurn.parts;
+        logger.debug('[GeminiLive] Processing modelTurn with parts', { 
+          partsCount: parts.length,
+          partKeys: parts.map((p: any) => Object.keys(p)).flat()
+        });
+        
+        for (const part of parts) {
           // Handle text response
           if (part.text) {
             callbacks.onModelText(part.text);
@@ -284,6 +290,13 @@ class GeminiLiveClient {
           // Handle audio response from native-audio model
           // Audio comes in part.inlineData with mimeType like 'audio/pcm;rate=24000'
           const inlineData = (part as any).inlineData;
+          if (inlineData) {
+            logger.debug('[GeminiLive] Found inlineData in part', { 
+              mimeType: inlineData.mimeType,
+              hasData: !!inlineData.data,
+              dataLength: inlineData.data?.length || 0
+            });
+          }
           if (inlineData?.data && inlineData?.mimeType?.includes('audio')) {
             logger.debug('[GeminiLive] Audio chunk received', { 
               mimeType: inlineData.mimeType,
