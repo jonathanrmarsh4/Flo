@@ -4688,18 +4688,26 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
           }
 
           let value = sample.value;
+          let unit = mapping.unit;
+          
+          // Unit conversions for various metric types
           if (dataType.toLowerCase().includes('distance') && value > 100) {
-            value = Math.round(value / 100) / 10;
+            value = Math.round(value / 100) / 10; // m -> km
           }
           if (dataType.toLowerCase().includes('oxygen') && value <= 1) {
-            value = Math.round(value * 100);
+            value = Math.round(value * 100); // decimal -> %
           }
           if (dataType.toLowerCase().includes('water') && value > 100) {
-            value = Math.round(value / 100) / 10;
+            value = Math.round(value / 100) / 10; // mL -> L
           }
           if (dataType.toLowerCase().includes('steplength') && value < 1) {
-            value = Math.round(value * 100);
+            value = Math.round(value * 100); // m -> cm
           }
+          // Vitamin unit conversions - HealthKit stores in base units
+          // Vitamin A: stored as mcg RAE, display as mcg
+          // Vitamin D: stored as mcg, display as mcg
+          // Vitamin B12: stored as mcg, display as mcg
+          // Most minerals stored in mg or mcg as appropriate
 
           metrics.push({
             category: mapping.category,
