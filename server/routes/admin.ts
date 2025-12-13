@@ -847,9 +847,29 @@ export function registerAdminRoutes(app: Express) {
    * Triggers a full history sync from Supabase to ClickHouse for a specific user.
    * Use this when a user has no ClickHouse data and baselines are falling back to
    * population defaults. This syncs ALL historical data instead of just the last day.
+   * 
+   * Supports both session-based admin auth and CLI key auth (X-Admin-CLI-Key header).
    */
-  app.post('/api/admin/ml/full-sync/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/ml/full-sync/:userId', async (req: any, res) => {
     try {
+      // Check for CLI key auth first
+      const cliKey = req.headers['x-admin-cli-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      const isCliAuth = cliKey && expectedKey && cliKey === expectedKey;
+      
+      // If not CLI auth, require session-based admin auth
+      if (!isCliAuth) {
+        // Check session auth
+        if (!req.user?.claims?.sub) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        const user = await storage.getUser(req.user.claims.sub);
+        if (!user || user.role !== 'admin') {
+          return res.status(403).json({ message: "Forbidden - Admin access required" });
+        }
+      }
+      
       const { userId } = req.params;
       
       const { getHealthId } = await import('../services/supabaseHealthStorage');
