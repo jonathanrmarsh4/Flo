@@ -4665,7 +4665,7 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       // Create a map of existing metrics with their values for skipIfExists logic
       const existingMetricsMap = new Map(metrics.map(m => [m.name, m]));
       
-      for (const [dataType, sample] of latestByType) {
+      for (const [dataType, sample] of Array.from(latestByType.entries())) {
         const mapping = hkMetricMap[dataType];
         if (mapping) {
           // Only skip if the existing metric has actual data (not null and not "No data")
