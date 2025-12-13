@@ -109,7 +109,6 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   
   const audioQueueRef = useRef<AudioBuffer[]>([]);
   const isPlayingRef = useRef(false);
-  const nextPlayTimeRef = useRef<number>(0);
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -162,13 +161,11 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     return output;
   }, []);
 
-  // Play queued audio buffers with precise timing to prevent gaps/crackle
-  // Uses scheduled playback to ensure seamless audio stitching
+  // Play queued audio buffers sequentially
   const playNextAudio = useCallback(() => {
     console.log('[GeminiLive] playNextAudio called, queue size:', audioQueueRef.current.length);
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
-      nextPlayTimeRef.current = 0; // Reset for next playback session
       setState(prev => ({ ...prev, isSpeaking: false }));
       console.log('[GeminiLive] Queue empty, stopping playback');
       return;
@@ -184,26 +181,13 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       return;
     }
 
-    // Schedule playback with precise timing to prevent gaps
-    // Use a small lookahead (10ms) to ensure smooth scheduling
-    const currentTime = ctx.currentTime;
-    const lookahead = 0.01; // 10ms lookahead for scheduling
-    
-    // Start time: either continue from last buffer or start fresh
-    const startTime = Math.max(currentTime + lookahead, nextPlayTimeRef.current);
-    
-    // Schedule next buffer with a tiny overlap (2ms) to prevent pops between chunks
-    const overlap = 0.002;
-    nextPlayTimeRef.current = startTime + buffer.duration - overlap;
-
-    console.log('[GeminiLive] Playing buffer, duration:', buffer.duration.toFixed(3), 
-                'startTime:', startTime.toFixed(3), 'currentTime:', currentTime.toFixed(3));
+    console.log('[GeminiLive] Playing buffer, duration:', buffer.duration.toFixed(3));
     
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
     source.onended = playNextAudio;
-    source.start(startTime); // Schedule at precise time instead of immediate start
+    source.start(); // Start immediately
   }, []);
 
   // Decode and queue incoming audio (24kHz PCM from Gemini)
@@ -542,7 +526,6 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     // Reset all audio state
     audioQueueRef.current = [];
     isPlayingRef.current = false;
-    nextPlayTimeRef.current = 0;
 
     // Close playback context
     if (playbackContextRef.current) {
