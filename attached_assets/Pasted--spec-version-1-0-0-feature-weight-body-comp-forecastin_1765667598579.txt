@@ -1,0 +1,1173 @@
+{
+"spec_version": "1.0.0",
+"feature": "weight_body_comp_forecasting_engine",
+"owner": "Flo",
+"time": {
+"storage_timezone": "UTC",
+"user_timezone_source": "device_or_profile",
+"display_timezone": "user_timezone",
+"local_day_bucketing": {
+"method": "derive_local_date_key",
+"definition": "local_date_key = formatDateTime(toTimeZone(timestamp_utc, user_timezone), '%F')",
+"note": "Charts, daily features, and model inputs use local_date_key; raw events remain timestamp_utc."
+}
+},
+"architecture": {
+"high_level": [
+"Raw events ingestion (HealthKit/Nutrition/CGM/etc.) -> ClickHouse raw tables",
+"Domain daily rollups (weight, activity, sleep, nutrition, cgm) -> ClickHouse daily tables",
+"Daily snapshot join (all domains) -> ClickHouse daily_features table (ReplacingMergeTree)",
+"Forecast worker (service) reads daily_features + goal -> generates forecast band + ETA + confidence + drivers + simulator results -> writes to ClickHouse forecast tables",
+"API serves tile + module data from ClickHouse (and Supabase for goal if you keep it there)"
+],
+"compute_modes": {
+"near_realtime": "Event-driven recompute for a user when new weigh-in / goal change occurs (fast path).",
+"batch": "Hourly job to catch up stragglers + daily job to validate completeness."
+},
+"services": {
+"forecast_worker": {
+"purpose": "Generate weight forecast band + ETA + confidence + drivers + simulator outputs per user.",
+"runtime": "Node.js or Python (recommended Python for numeric stability); stateless; idempotent writes.",
+"inputs": [
+"ClickHouse: daily_features (last 120 days)",
+"Goal (Supabase or ClickHouse goal table)",
+"Latest body comp (optional)",
+"User timezone + units"
+],
+"outputs": [
+"ClickHouse: forecast_summary",
+"ClickHouse: forecast_series",
+"ClickHouse: forecast_drivers",
+"ClickHouse: simulator_results",
+"ClickHouse: model_state (personalization parameters)"
+]
+}
+}
+},
+"clickhouse": {
+"database": "flo_ml",
+"settings": {
+"allow_experimental_analyzer": true,
+"use_object_storage_if_configured": true
+},
+"tables": [
+{
+"name": "raw_weight_events",
+"engine": "MergeTree",
+"order_by": ["user_id", "timestamp_utc"],
+"partition_by": "toYYYYMM(timestamp_utc)",
+"primary_key": ["user_id", "timestamp_utc"],
+"ttl": "timestamp_utc + INTERVAL 5 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "event_id", "type": "String" },
+{ "name": "timestamp_utc", "type": "DateTime64(3, 'UTC')" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "weight_kg", "type": "Float32" },
+{ "name": "source_type", "type": "LowCardinality(String)" },
+{ "name": "source_device_name", "type": "Nullable(String)" },
+{ "name": "imported", "type": "UInt8" },
+{ "name": "editable", "type": "UInt8" },
+{ "name": "created_at_utc", "type": "DateTime64(3, 'UTC')" }
+],
+"notes": [
+"source_type in {APPLE_HEALTH, MANUAL}",
+"imported entries are read-only (editable=0)."
+]
+},
+{
+"name": "raw_body_comp_events",
+"engine": "MergeTree",
+"order_by": ["user_id", "timestamp_utc"],
+"partition_by": "toYYYYMM(timestamp_utc)",
+"primary_key": ["user_id", "timestamp_utc"],
+"ttl": "timestamp_utc + INTERVAL 5 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "event_id", "type": "String" },
+{ "name": "timestamp_utc", "type": "DateTime64(3, 'UTC')" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "body_fat_pct", "type": "Nullable(Float32)" },
+{ "name": "lean_mass_kg", "type": "Nullable(Float32)" },
+{ "name": "source_type", "type": "LowCardinality(String)" },
+{ "name": "source_device_name", "type": "Nullable(String)" },
+{ "name": "estimated", "type": "UInt8" },
+{ "name": "imported", "type": "UInt8" },
+{ "name": "editable", "type": "UInt8" },
+{ "name": "created_at_utc", "type": "DateTime64(3, 'UTC')" }
+]
+},
+{
+"name": "raw_activity_daily",
+"engine": "MergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"ttl": "local_date_key + INTERVAL 5 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "steps", "type": "Nullable(UInt32)" },
+{ "name": "active_energy_kcal", "type": "Nullable(Float32)" },
+{ "name": "workout_minutes", "type": "Nullable(UInt32)" },
+{ "name": "strength_sessions", "type": "Nullable(UInt8)" },
+{ "name": "created_at_utc", "type": "DateTime64(3, 'UTC')" }
+],
+"notes": [
+"This is a daily aggregate from HealthKit; if you store workouts raw, you can compute this via jobs below."
+]
+},
+{
+"name": "raw_sleep_daily",
+"engine": "MergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"ttl": "local_date_key + INTERVAL 5 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "sleep_duration_min", "type": "Nullable(UInt32)" },
+{ "name": "sleep_score", "type": "Nullable(Float32)" },
+{ "name": "created_at_utc", "type": "DateTime64(3, 'UTC')" }
+]
+},
+{
+"name": "raw_cardio_daily",
+"engine": "MergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"ttl": "local_date_key + INTERVAL 5 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "rhr", "type": "Nullable(Float32)" },
+{ "name": "hrv", "type": "Nullable(Float32)" },
+{ "name": "created_at_utc", "type": "DateTime64(3, 'UTC')" }
+]
+},
+{
+"name": "raw_nutrition_daily",
+"engine": "MergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"ttl": "local_date_key + INTERVAL 5 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "calories_kcal", "type": "Nullable(Float32)" },
+{ "name": "protein_g", "type": "Nullable(Float32)" },
+{ "name": "carbs_g", "type": "Nullable(Float32)" },
+{ "name": "fat_g", "type": "Nullable(Float32)" },
+{ "name": "nutrition_coverage_pct", "type": "Nullable(Float32)" },
+{ "name": "created_at_utc", "type": "DateTime64(3, 'UTC')" }
+],
+"notes": [
+"nutrition_coverage_pct can be estimated: proportion of day with any logged food events / expected meals, or simply 0/50/100 by heuristics."
+]
+},
+{
+"name": "raw_cgm_daily",
+"engine": "MergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"ttl": "local_date_key + INTERVAL 5 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "mean_glucose_mgdl", "type": "Nullable(Float32)" },
+{ "name": "tir_pct", "type": "Nullable(Float32)" },
+{ "name": "glucose_cv_pct", "type": "Nullable(Float32)" },
+{ "name": "late_spike_flag", "type": "Nullable(UInt8)" },
+{ "name": "cgm_coverage_pct", "type": "Nullable(Float32)" },
+{ "name": "created_at_utc", "type": "DateTime64(3, 'UTC')" }
+]
+},
+{
+"name": "daily_weight_features",
+"engine": "ReplacingMergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"version_column": "version_utc",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "weight_daily_kg", "type": "Nullable(Float32)" },
+{ "name": "weight_daily_source", "type": "LowCardinality(String)" },
+{ "name": "weight_daily_timestamp_utc", "type": "Nullable(DateTime64(3, 'UTC'))" },
+{ "name": "weight_daily_is_morning", "type": "Nullable(UInt8)" },
+{ "name": "weight_daily_median_kg", "type": "Nullable(Float32)" },
+{ "name": "weight_daily_min_kg", "type": "Nullable(Float32)" },
+{ "name": "weight_daily_max_kg", "type": "Nullable(Float32)" },
+{ "name": "version_utc", "type": "DateTime64(3, 'UTC')" }
+]
+},
+{
+"name": "daily_features",
+"engine": "ReplacingMergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"version_column": "version_utc",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "user_timezone", "type": "String" },
+{ "name": "weight_kg", "type": "Nullable(Float32)" },
+{ "name": "weight_trend_kg", "type": "Nullable(Float32)" },
+{ "name": "weight_trend_slope_kg_per_day", "type": "Nullable(Float32)" },
+{ "name": "water_volatility_score", "type": "Nullable(Float32)" },
+{ "name": "steps", "type": "Nullable(UInt32)" },
+{ "name": "active_energy_kcal", "type": "Nullable(Float32)" },
+{ "name": "workout_minutes", "type": "Nullable(UInt32)" },
+{ "name": "strength_sessions", "type": "Nullable(UInt8)" },
+{ "name": "sleep_duration_min", "type": "Nullable(UInt32)" },
+{ "name": "sleep_score", "type": "Nullable(Float32)" },
+{ "name": "rhr", "type": "Nullable(Float32)" },
+{ "name": "hrv", "type": "Nullable(Float32)" },
+{ "name": "calories_kcal", "type": "Nullable(Float32)" },
+{ "name": "protein_g", "type": "Nullable(Float32)" },
+{ "name": "carbs_g", "type": "Nullable(Float32)" },
+{ "name": "fat_g", "type": "Nullable(Float32)" },
+{ "name": "nutrition_coverage_pct", "type": "Nullable(Float32)" },
+{ "name": "mean_glucose_mgdl", "type": "Nullable(Float32)" },
+{ "name": "tir_pct", "type": "Nullable(Float32)" },
+{ "name": "glucose_cv_pct", "type": "Nullable(Float32)" },
+{ "name": "late_spike_flag", "type": "Nullable(UInt8)" },
+{ "name": "cgm_coverage_pct", "type": "Nullable(Float32)" },
+{ "name": "body_fat_pct", "type": "Nullable(Float32)" },
+{ "name": "lean_mass_kg", "type": "Nullable(Float32)" },
+{ "name": "body_comp_is_estimated", "type": "Nullable(UInt8)" },
+{ "name": "data_quality_weighins_per_week_14d", "type": "Nullable(Float32)" },
+{ "name": "data_quality_staleness_days", "type": "Nullable(UInt16)" },
+{ "name": "data_quality_nutrition_days_14d", "type": "Nullable(UInt8)" },
+{ "name": "data_quality_cgm_days_14d", "type": "Nullable(UInt8)" },
+{ "name": "version_utc", "type": "DateTime64(3, 'UTC')" }
+],
+"notes": [
+"This is the single-row-per-day snapshot the forecast worker consumes."
+]
+},
+{
+"name": "model_state",
+"engine": "ReplacingMergeTree",
+"order_by": ["user_id"],
+"primary_key": ["user_id"],
+"version_column": "version_utc",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "k_user_response", "type": "Float32" },
+{ "name": "energy_balance_effective_kcal_per_day", "type": "Float32" },
+{ "name": "water_noise_sigma", "type": "Float32" },
+{ "name": "baseline_weight_trend_slope", "type": "Float32" },
+{ "name": "last_trained_local_date_key", "type": "Date" },
+{ "name": "version_utc", "type": "DateTime64(3, 'UTC')" }
+],
+"defaults": {
+"k_user_response": 1.0,
+"energy_balance_effective_kcal_per_day": 0.0,
+"water_noise_sigma": 0.35,
+"baseline_weight_trend_slope": 0.0
+}
+},
+{
+"name": "forecast_summary",
+"engine": "ReplacingMergeTree",
+"order_by": ["user_id"],
+"primary_key": ["user_id"],
+"version_column": "version_utc",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "generated_at_utc", "type": "DateTime64(3, 'UTC')" },
+{ "name": "horizon_days", "type": "UInt16" },
+{ "name": "confidence_level", "type": "LowCardinality(String)" },
+{ "name": "status_chip", "type": "LowCardinality(String)" },
+{ "name": "current_weight_kg", "type": "Nullable(Float32)" },
+{ "name": "delta_vs_7d_avg_kg", "type": "Nullable(Float32)" },
+{ "name": "goal_target_weight_kg", "type": "Nullable(Float32)" },
+{ "name": "goal_target_date_local", "type": "Nullable(Date)" },
+{ "name": "progress_percent", "type": "Nullable(Float32)" },
+{ "name": "forecast_weight_low_kg_at_horizon", "type": "Nullable(Float32)" },
+{ "name": "forecast_weight_high_kg_at_horizon", "type": "Nullable(Float32)" },
+{ "name": "eta_weeks", "type": "Nullable(Float32)" },
+{ "name": "eta_uncertainty_weeks", "type": "Nullable(Float32)" },
+{ "name": "source_label", "type": "Nullable(String)" },
+{ "name": "last_sync_relative", "type": "Nullable(String)" },
+{ "name": "staleness_days", "type": "Nullable(UInt16)" },
+{ "name": "version_utc", "type": "DateTime64(3, 'UTC')" }
+]
+},
+{
+"name": "forecast_series",
+"engine": "MergeTree",
+"order_by": ["user_id", "local_date_key"],
+"partition_by": "toYYYYMM(local_date_key)",
+"primary_key": ["user_id", "local_date_key"],
+"ttl": "local_date_key + INTERVAL 2 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "generated_at_utc", "type": "DateTime64(3, 'UTC')" },
+{ "name": "local_date_key", "type": "Date" },
+{ "name": "weight_mid_kg", "type": "Nullable(Float32)" },
+{ "name": "weight_low_kg", "type": "Nullable(Float32)" },
+{ "name": "weight_high_kg", "type": "Nullable(Float32)" },
+{ "name": "confidence_level", "type": "LowCardinality(String)" }
+],
+"notes": [
+"Write a full 6-week (or configured horizon) band so the UI chart can render instantly."
+]
+},
+{
+"name": "forecast_drivers",
+"engine": "MergeTree",
+"order_by": ["user_id", "generated_at_utc", "rank"],
+"partition_by": "toYYYYMM(generated_at_utc)",
+"primary_key": ["user_id", "generated_at_utc", "rank"],
+"ttl": "generated_at_utc + INTERVAL 2 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "generated_at_utc", "type": "DateTime64(3, 'UTC')" },
+{ "name": "rank", "type": "UInt8" },
+{ "name": "driver_id", "type": "LowCardinality(String)" },
+{ "name": "title", "type": "String" },
+{ "name": "subtitle", "type": "Nullable(String)" },
+{ "name": "confidence_level", "type": "LowCardinality(String)" },
+{ "name": "deeplink", "type": "String" }
+]
+},
+{
+"name": "simulator_results",
+"engine": "MergeTree",
+"order_by": ["user_id", "generated_at_utc", "lever_id"],
+"partition_by": "toYYYYMM(generated_at_utc)",
+"primary_key": ["user_id", "generated_at_utc", "lever_id"],
+"ttl": "generated_at_utc + INTERVAL 2 YEAR",
+"columns": [
+{ "name": "user_id", "type": "String" },
+{ "name": "generated_at_utc", "type": "DateTime64(3, 'UTC')" },
+{ "name": "lever_id", "type": "LowCardinality(String)" },
+{ "name": "lever_title", "type": "String" },
+{ "name": "effort", "type": "LowCardinality(String)" },
+{ "name": "forecast_low_kg_at_horizon", "type": "Nullable(Float32)" },
+{ "name": "forecast_high_kg_at_horizon", "type": "Nullable(Float32)" },
+{ "name": "eta_weeks", "type": "Nullable(Float32)" },
+{ "name": "confidence_level", "type": "LowCardinality(String)" }
+]
+},
+{
+"name": "recompute_queue",
+"engine": "MergeTree",
+"order_by": ["queued_at_utc"],
+"primary_key": ["queued_at_utc"],
+"partition_by": "toYYYYMM(queued_at_utc)",
+"ttl": "queued_at_utc + INTERVAL 14 DAY",
+"columns": [
+{ "name": "event_id", "type": "String" },
+{ "name": "user_id", "type": "String" },
+{ "name": "reason", "type": "LowCardinality(String)" },
+{ "name": "priority", "type": "UInt8" },
+{ "name": "queued_at_utc", "type": "DateTime64(3, 'UTC')" },
+{ "name": "requested_local_date_key_optional", "type": "Nullable(Date)" }
+],
+"notes": [
+"This is a simple queue table the forecast_worker polls. If you already use a queue (SQS/Redis), you can replace this."
+]
+}
+],
+"views_and_helpers": [
+{
+"name": "vw_latest_weight_per_user",
+"sql": "CREATE OR REPLACE VIEW flo_ml.vw_latest_weight_per_user AS SELECT user_id, argMax(weight_kg, timestamp_utc) AS weight_kg, max(timestamp_utc) AS timestamp_utc FROM flo_ml.raw_weight_events GROUP BY user_id;"
+}
+]
+},
+"clickhouse_jobs": {
+"execution_note": "ClickHouse does not natively schedule jobs. These 'jobs' are definitions executed by an orchestrator (cron, Cloud Scheduler, Airflow, GitHub Actions, etc.) using clickhouse-client or HTTP interface.",
+"jobs": [
+{
+"id": "job_010_build_daily_weight_features",
+"schedule": "hourly",
+"purpose": "Derive one representative weight per user per local day + daily stats for smoothing.",
+"inputs": ["flo_ml.raw_weight_events"],
+"outputs": ["flo_ml.daily_weight_features"],
+"sql": [
+"INSERT INTO flo_ml.daily_weight_features",
+"WITH",
+" now64() AS v_utc",
+" (timestamp_utc) AS ts_utc,",
+" toTimeZone(timestamp_utc, user_timezone) AS ts_local,",
+" toDate(ts_local) AS d_local,",
+" (toHour(ts_local) >= 4 AND toHour(ts_local) <= 10) AS is_morning",
+"SELECT",
+" user_id,",
+" d_local AS local_date_key,",
+" any(user_timezone) AS user_timezone,",
+" if(",
+" countIf(is_morning) > 0,",
+" argMinIf(weight_kg, ts_utc, is_morning),",
+" quantileExact(0.5)(weight_kg)",
+" ) AS weight_daily_kg,",
+" if(",
+" countIf(is_morning) > 0,",
+" 'MORNING_PREFERRED',",
+" 'MEDIAN_FALLBACK'",
+" ) AS weight_daily_source,",
+" if(",
+" countIf(is_morning) > 0,",
+" argMinIf(ts_utc, ts_utc, is_morning),",
+" argMax(ts_utc, ts_utc)",
+" ) AS weight_daily_timestamp_utc,",
+" if(countIf(is_morning) > 0, 1, 0) AS weight_daily_is_morning,",
+" quantileExact(0.5)(weight_kg) AS weight_daily_median_kg,",
+" min(weight_kg) AS weight_daily_min_kg,",
+" max(weight_kg) AS weight_daily_max_kg,",
+" v_utc AS version_utc",
+"FROM (",
+" SELECT user_id, event_id, timestamp_utc, user_timezone, weight_kg",
+" FROM flo_ml.raw_weight_events",
+" WHERE timestamp_utc >= now() - INTERVAL 120 DAY",
+")",
+"GROUP BY user_id, d_local;"
+],
+"idempotency": {
+"strategy": "ReplacingMergeTree version_utc",
+"notes": "This job can be rerun; latest version per (user_id, local_date_key) wins."
+}
+},
+{
+"id": "job_020_build_daily_features_snapshot",
+"schedule": "hourly",
+"purpose": "Join daily rollups into a single daily_features snapshot table (the model input).",
+"inputs": [
+"flo_ml.daily_weight_features",
+"flo_ml.raw_activity_daily",
+"flo_ml.raw_sleep_daily",
+"flo_ml.raw_cardio_daily",
+"flo_ml.raw_nutrition_daily",
+"flo_ml.raw_cgm_daily",
+"flo_ml.raw_body_comp_events"
+],
+"outputs": ["flo_ml.daily_features"],
+"sql": [
+"INSERT INTO flo_ml.daily_features",
+"WITH",
+" now64() AS v_utc,",
+" w AS (SELECT user_id, local_date_key, any(user_timezone) AS user_timezone, any(weight_daily_kg) AS weight_kg, any(weight_daily_timestamp_utc) AS weight_daily_timestamp_utc FROM flo_ml.daily_weight_features FINAL WHERE local_date_key >= today() - 120),",
+" a AS (SELECT user_id, local_date_key, any(steps) AS steps, any(active_energy_kcal) AS active_energy_kcal, any(workout_minutes) AS workout_minutes, any(strength_sessions) AS strength_sessions FROM flo_ml.raw_activity_daily WHERE local_date_key >= today() - 120),",
+" s AS (SELECT user_id, local_date_key, any(sleep_duration_min) AS sleep_duration_min, any(sleep_score) AS sleep_score FROM flo_ml.raw_sleep_daily WHERE local_date_key >= today() - 120),",
+" c AS (SELECT user_id, local_date_key, any(rhr) AS rhr, any(hrv) AS hrv FROM flo_ml.raw_cardio_daily WHERE local_date_key >= today() - 120),",
+" n AS (SELECT user_id, local_date_key, any(calories_kcal) AS calories_kcal, any(protein_g) AS protein_g, any(carbs_g) AS carbs_g, any(fat_g) AS fat_g, any(nutrition_coverage_pct) AS nutrition_coverage_pct FROM flo_ml.raw_nutrition_daily WHERE local_date_key >= today() - 120),",
+" g AS (SELECT user_id, local_date_key, any(mean_glucose_mgdl) AS mean_glucose_mgdl, any(tir_pct) AS tir_pct, any(glucose_cv_pct) AS glucose_cv_pct, any(late_spike_flag) AS late_spike_flag, any(cgm_coverage_pct) AS cgm_coverage_pct FROM flo_ml.raw_cgm_daily WHERE local_date_key >= today() - 120),",
+" bc AS (",
+" SELECT",
+" user_id,",
+" local_date_key,",
+" argMax(body_fat_pct, timestamp_utc) AS body_fat_pct,",
+" argMax(lean_mass_kg, timestamp_utc) AS lean_mass_kg,",
+" argMax(estimated, timestamp_utc) AS body_comp_is_estimated",
+" FROM flo_ml.raw_body_comp_events",
+" WHERE local_date_key >= today() - 120",
+" GROUP BY user_id, local_date_key",
+" ),",
+" u AS (",
+" SELECT",
+" user_id,",
+" local_date_key",
+" FROM w",
+" UNION DISTINCT SELECT user_id, local_date_key FROM a",
+" UNION DISTINCT SELECT user_id, local_date_key FROM s",
+" UNION DISTINCT SELECT user_id, local_date_key FROM c",
+" UNION DISTINCT SELECT user_id, local_date_key FROM n",
+" UNION DISTINCT SELECT user_id, local_date_key FROM g",
+" UNION DISTINCT SELECT user_id, local_date_key FROM bc",
+" )",
+"SELECT",
+" u.user_id,",
+" u.local_date_key,",
+" coalesce(any(w.user_timezone), 'UTC') AS user_timezone,",
+" w.weight_kg AS weight_kg,",
+" NULL AS weight_trend_kg,",
+" NULL AS weight_trend_slope_kg_per_day,",
+" NULL AS water_volatility_score,",
+" a.steps,",
+" a.active_energy_kcal,",
+" a.workout_minutes,",
+" a.strength_sessions,",
+" s.sleep_duration_min,",
+" s.sleep_score,",
+" c.rhr,",
+" c.hrv,",
+" n.calories_kcal,",
+" n.protein_g,",
+" n.carbs_g,",
+" n.fat_g,",
+" n.nutrition_coverage_pct,",
+" g.mean_glucose_mgdl,",
+" g.tir_pct,",
+" g.glucose_cv_pct,",
+" g.late_spike_flag,",
+" g.cgm_coverage_pct,",
+" bc.body_fat_pct,",
+" bc.lean_mass_kg,",
+" bc.body_comp_is_estimated,",
+" NULL AS data_quality_weighins_per_week_14d,",
+" NULL AS data_quality_staleness_days,",
+" NULL AS data_quality_nutrition_days_14d,",
+" NULL AS data_quality_cgm_days_14d,",
+" v_utc AS version_utc",
+"FROM u",
+"LEFT JOIN w USING (user_id, local_date_key)",
+"LEFT JOIN a USING (user_id, local_date_key)",
+"LEFT JOIN s USING (user_id, local_date_key)",
+"LEFT JOIN c USING (user_id, local_date_key)",
+"LEFT JOIN n USING (user_id, local_date_key)",
+"LEFT JOIN g USING (user_id, local_date_key)",
+"LEFT JOIN bc USING (user_id, local_date_key);"
+],
+"idempotency": {
+"strategy": "ReplacingMergeTree version_utc",
+"notes": "This writes NULLs for derived fields which will be filled by subsequent jobs (trend/quality)."
+}
+},
+{
+"id": "job_030_compute_weight_trend_and_quality",
+"schedule": "hourly",
+"purpose": "Compute smoothed trend, slope, water volatility, and data quality fields in daily_features.",
+"inputs": ["flo_ml.daily_features", "flo_ml.daily_weight_features", "flo_ml.raw_nutrition_daily", "flo_ml.raw_cgm_daily"],
+"outputs": ["flo_ml.daily_features"],
+"sql": [
+"INSERT INTO flo_ml.daily_features",
+"WITH",
+" now64() AS v_utc,",
+" base AS (",
+" SELECT",
+" user_id,",
+" local_date_key,",
+" any(user_timezone) AS user_timezone,",
+" any(weight_kg) AS weight_kg,",
+" any(steps) AS steps, any(active_energy_kcal) AS active_energy_kcal, any(workout_minutes) AS workout_minutes, any(strength_sessions) AS strength_sessions,",
+" any(sleep_duration_min) AS sleep_duration_min, any(sleep_score) AS sleep_score,",
+" any(rhr) AS rhr, any(hrv) AS hrv,",
+" any(calories_kcal) AS calories_kcal, any(protein_g) AS protein_g, any(carbs_g) AS carbs_g, any(fat_g) AS fat_g, any(nutrition_coverage_pct) AS nutrition_coverage_pct,",
+" any(mean_glucose_mgdl) AS mean_glucose_mgdl, any(tir_pct) AS tir_pct, any(glucose_cv_pct) AS glucose_cv_pct, any(late_spike_flag) AS late_spike_flag, any(cgm_coverage_pct) AS cgm_coverage_pct,",
+" any(body_fat_pct) AS body_fat_pct, any(lean_mass_kg) AS lean_mass_kg, any(body_comp_is_estimated) AS body_comp_is_estimated",
+" FROM flo_ml.daily_features FINAL",
+" WHERE local_date_key >= today() - 120",
+" GROUP BY user_id, local_date_key",
+" ),",
+" w_series AS (",
+" SELECT",
+" user_id,",
+" local_date_key,",
+" weight_kg,",
+" avg(weight_kg) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS trend_7d,",
+" (avg(weight_kg) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 13 PRECEDING AND 7 PRECEDING) - avg(weight_kg) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)) / 7.0 AS slope_kg_per_day_proxy,",
+" stddevPop(weight_kg) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS volatility_7d",
+" FROM base",
+" WHERE weight_kg IS NOT NULL",
+" ),",
+" quality AS (",
+" SELECT",
+" user_id,",
+" local_date_key,",
+" countIf(weight_kg IS NOT NULL) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 13 PRECEDING AND CURRENT ROW) AS weigh_days_14d,",
+" (countIf(weight_kg IS NOT NULL) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 13 PRECEDING AND CURRENT ROW)) / 2.0 AS weighins_per_week_14d,",
+" dateDiff('day', maxIf(local_date_key, weight_kg IS NOT NULL) OVER (PARTITION BY user_id), local_date_key) AS staleness_days,",
+" countIf(calories_kcal IS NOT NULL OR protein_g IS NOT NULL) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 13 PRECEDING AND CURRENT ROW) AS nutrition_days_14d,",
+" countIf(mean_glucose_mgdl IS NOT NULL) OVER (PARTITION BY user_id ORDER BY local_date_key ROWS BETWEEN 13 PRECEDING AND CURRENT ROW) AS cgm_days_14d",
+" FROM base",
+" )",
+"SELECT",
+" b.user_id,",
+" b.local_date_key,",
+" b.user_timezone,",
+" b.weight_kg,",
+" ws.trend_7d AS weight_trend_kg,",
+" (-ws.slope_kg_per_day_proxy) AS weight_trend_slope_kg_per_day,",
+" least(greatest(ws.volatility_7d / 1.0, 0.0), 2.0) AS water_volatility_score,",
+" b.steps, b.active_energy_kcal, b.workout_minutes, b.strength_sessions,",
+" b.sleep_duration_min, b.sleep_score,",
+" b.rhr, b.hrv,",
+" b.calories_kcal, b.protein_g, b.carbs_g, b.fat_g, b.nutrition_coverage_pct,",
+" b.mean_glucose_mgdl, b.tir_pct, b.glucose_cv_pct, b.late_spike_flag, b.cgm_coverage_pct,",
+" b.body_fat_pct, b.lean_mass_kg, b.body_comp_is_estimated,",
+" q.weighins_per_week_14d AS data_quality_weighins_per_week_14d,",
+" toUInt16(ifNull(q.staleness_days, 999)) AS data_quality_staleness_days,",
+" toUInt8(ifNull(q.nutrition_days_14d, 0)) AS data_quality_nutrition_days_14d,",
+" toUInt8(ifNull(q.cgm_days_14d, 0)) AS data_quality_cgm_days_14d,",
+" v_utc AS version_utc",
+"FROM base b",
+"LEFT JOIN w_series ws USING (user_id, local_date_key)",
+"LEFT JOIN quality q USING (user_id, local_date_key);"
+],
+"idempotency": {
+"strategy": "ReplacingMergeTree version_utc"
+}
+},
+{
+"id": "job_040_enqueue_recompute_for_recent_changes",
+"schedule": "every_10_minutes",
+"purpose": "Detect users with new weigh-in/body comp/nutrition/cgm days in last N minutes and enqueue recompute events.",
+"inputs": [
+"flo_ml.raw_weight_events",
+"flo_ml.raw_body_comp_events",
+"flo_ml.raw_nutrition_daily",
+"flo_ml.raw_cgm_daily"
+],
+"outputs": ["flo_ml.recompute_queue"],
+"sql": [
+"INSERT INTO flo_ml.recompute_queue",
+"SELECT",
+" concat('auto_', toString(now64()), '', user_id) AS event_id,",
+" user_id,",
+" 'DATA_CHANGED' AS reason,",
+" 5 AS priority,",
+" now64() AS queued_at_utc,",
+" NULL AS requested_local_date_key_optional",
+"FROM (",
+" SELECT DISTINCT user_id FROM flo_ml.raw_weight_events WHERE created_at_utc >= now() - INTERVAL 10 MINUTE",
+" UNION DISTINCT",
+" SELECT DISTINCT user_id FROM flo_ml.raw_body_comp_events WHERE created_at_utc >= now() - INTERVAL 10 MINUTE",
+" UNION DISTINCT",
+" SELECT DISTINCT user_id FROM flo_ml.raw_nutrition_daily WHERE created_at_utc >= now() - INTERVAL 10 MINUTE",
+" UNION DISTINCT",
+" SELECT DISTINCT user_id FROM flo_ml.raw_cgm_daily WHERE created_at_utc >= now() - INTERVAL 10 MINUTE",
+");"
+]
+}
+]
+},
+"ml_forecasting": {
+"approach": "Hybrid statistical + personalization with uncertainty (no LLM math).",
+"model_components": {
+"trend_extraction": {
+"source": "ClickHouse daily_features.weight_trend_kg + slope proxy",
+"notes": "Use 7d rolling mean as trend baseline; slope proxy derives direction."
+},
+"effective_energy_balance_state": {
+"implemented_in": "forecast_worker",
+"state": "E_t (effective surplus/deficit proxy)",
+"update_rule_mvp": [
+"E_t inferred from recent slope (kg/day) mapped to kcal/day via user response parameter k_user_response",
+"Adjust E_t slightly using steps/active_energy if present (small regularization)",
+"If nutrition calories present with good coverage, blend inferred E_t with calorie-based estimate"
+]
+},
+"water_noise_model": {
+"implemented_in": "forecast_worker",
+"inputs": [
+"daily_features.water_volatility_score",
+"recent residuals = (weight_kg - weight_trend_kg)"
+],
+"output": "sigma_water to widen band during volatile periods"
+},
+"personalization": {
+"implemented_in": "forecast_worker",
+"parameters": [
+"k_user_response (default 1.0, updated online)",
+"water_noise_sigma (default 0.35, updated from residuals)"
+],
+"update_frequency": "on each recompute if at least 14 days of data exist"
+},
+"uncertainty_and_confidence": {
+"implemented_in": "forecast_worker",
+"inputs": [
+"daily_features.data_quality_weighins_per_week_14d",
+"daily_features.data_quality_staleness_days",
+"nutrition_days_14d",
+"cgm_days_14d",
+"water_noise_sigma"
+],
+"rules": [
+"LOW if weighins_per_week_14d < 2 OR staleness_days > 7",
+"MEDIUM if 2-4/week and staleness_days <= 7",
+"HIGH if >= 5/week and staleness_days <= 3"
+],
+"band_multiplier": {
+"LOW": 1.8,
+"MEDIUM": 1.2,
+"HIGH": 0.9
+}
+},
+"driver_attribution": {
+"implemented_in": "forecast_worker",
+"method_mvp": [
+"Produce 3-5 drivers based on strongest observed signals: trend slope, weigh-in consistency, protein adequacy, steps trend, late CGM spikes, sleep debt proxies",
+"Drivers are rules-based now; evolve to feature-importance later"
+]
+},
+"scenario_simulator": {
+"implemented_in": "forecast_worker",
+"principle": "Apply deltas to E_t and/or uncertainty (adherence risk) then reproject band.",
+"levers_mvp": [
+{
+"lever_id": "steps_plus_2000",
+"title": "+2,000 steps/day",
+"effort": "Easy",
+"effect": { "delta_E_kcal_per_day": -80, "uncertainty_multiplier": 1.05 }
+},
+{
+"lever_id": "protein_plus_25g",
+"title": "+25g protein/day",
+"effort": "Easy",
+"effect": { "delta_E_kcal_per_day": -40, "uncertainty_multiplier": 1.0, "note": "satiety + adherence proxy; small direct effect" }
+},
+{
+"lever_id": "last_meal_minus_2h",
+"title": "Last meal 2h earlier",
+"effort": "Medium",
+"effect": { "delta_E_kcal_per_day": -60, "uncertainty_multiplier": 0.98, "requires": "cgm_days_14d >= 4 or meal timing data" }
+}
+]
+}
+},
+"outputs_written": {
+"forecast_summary": "One row per user, replaced each recompute.",
+"forecast_series": "One row per future day for horizon; multiple generations allowed (by generated_at_utc). UI should use latest generated_at_utc for the user.",
+"forecast_drivers": "Top 3-5 drivers per generation.",
+"simulator_results": "One row per lever per generation.",
+"model_state": "Updated personalization params."
+}
+},
+"endpoints": {
+"auth": {
+"strategy": "JWT (Supabase Auth) or your existing auth middleware",
+"required_claims": ["user_id"]
+},
+"rest": [
+{
+"id": "GET_weight_tile",
+"method": "GET",
+"path": "/v1/weight/tile",
+"purpose": "Dashboard tile payload: current weight, body comp, goal, progress, forecast summary, confidence, status, source freshness.",
+"query": [],
+"response": {
+"shape": {
+"user_id": "string",
+"generated_at_utc": "string",
+"status_chip": "string",
+"confidence_level": "string",
+"current_weight_kg": "number|null",
+"delta_vs_7d_avg_kg": "number|null",
+"body_fat_pct": "number|null",
+"lean_mass_kg": "number|null",
+"goal": {
+"configured": "boolean",
+"goal_type": "string|null",
+"target_weight_kg": "number|null",
+"target_date_local": "string|null"
+},
+"progress_percent": "number|null",
+"forecast": {
+"horizon_days": "number",
+"weight_low_kg_at_horizon": "number|null",
+"weight_high_kg_at_horizon": "number|null",
+"eta_weeks": "number|null",
+"eta_uncertainty_weeks": "number|null"
+},
+"source": {
+"label": "string|null",
+"last_sync_relative": "string|null",
+"staleness_days": "number|null"
+}
+}
+},
+"data_source": {
+"primary": "ClickHouse flo_ml.forecast_summary (latest by version_utc)",
+"secondary": "If no forecast exists, compute minimal fallback from vw_latest_weight_per_user and goal"
+}
+},
+{
+"id": "GET_weight_overview",
+"method": "GET",
+"path": "/v1/weight/overview",
+"purpose": "Full module overview: tile info + chart series + drivers + simulator levers.",
+"query": [
+{ "name": "range", "type": "string", "allowed": ["30d", "90d", "6m"], "default": "30d" }
+],
+"response": {
+"shape": {
+"summary": "same_as_GET_weight_tile",
+"series": {
+"actual_weight_daily": "array<{local_date_key:string, value_kg:number|null}>",
+"trend_weight_daily": "array<{local_date_key:string, value_kg:number|null}>",
+"forecast_band": "array<{local_date_key:string, low_kg:number|null, mid_kg:number|null, high_kg:number|null}>"
+},
+"drivers": "array<{rank:number, driver_id:string, title:string, subtitle:string|null, confidence_level:string, deeplink:string}>",
+"simulator": {
+"levers": "array<{lever_id:string, title:string, effort:string}>",
+"results": "array<{lever_id:string, forecast_low_kg_at_horizon:number|null, forecast_high_kg_at_horizon:number|null, eta_weeks:number|null, confidence_level:string}>"
+},
+"data_quality": {
+"weighins_per_week_14d": "number|null",
+"staleness_days": "number|null",
+"nutrition_days_14d": "number|null",
+"cgm_days_14d": "number|null"
+}
+}
+},
+"data_source": {
+"actual_and_trend": "ClickHouse flo_ml.daily_features (range)",
+"forecast": "ClickHouse flo_ml.forecast_series (latest generation)",
+"drivers": "ClickHouse flo_ml.forecast_drivers (latest generation)",
+"simulator": "ClickHouse flo_ml.simulator_results (latest generation)"
+}
+},
+{
+"id": "POST_weight_goal",
+"method": "POST",
+"path": "/v1/weight/goal",
+"purpose": "Create/update goal and trigger recompute.",
+"request": {
+"shape": {
+"goal_type": "string",
+"target_weight_kg": "number",
+"target_date_local_optional": "string|null",
+"timeframe_weeks_optional": "number|null",
+"checkin_cadence": "string",
+"preferences_optional": {
+"training_intent_optional": "string|null",
+"diet_style_optional": "string|null",
+"meal_timing_preference_optional": "string|null"
+}
+}
+},
+"response": { "shape": { "ok": "boolean" } },
+"side_effects": [
+"persist goal (Supabase or ClickHouse goal table)",
+"enqueue recompute_queue reason=GOAL_CHANGED priority=10"
+]
+},
+{
+"id": "POST_manual_weigh_in",
+"method": "POST",
+"path": "/v1/weight/weigh-in",
+"purpose": "Manual weigh-in entry; write to ClickHouse raw_weight_events; optionally write back to Apple Health; trigger recompute.",
+"request": {
+"shape": {
+"timestamp_local": "string(ISO8601 with timezone offset)",
+"user_timezone": "string(IANA)",
+"weight_kg": "number",
+"write_to_apple_health_optional": "boolean"
+}
+},
+"response": { "shape": { "ok": "boolean", "event_id": "string" } },
+"side_effects": [
+"insert into flo_ml.raw_weight_events (source_type=MANUAL, imported=0, editable=1)",
+"enqueue recompute_queue reason=WEIGH_IN_ADDED priority=20"
+]
+},
+{
+"id": "POST_manual_body_comp",
+"method": "POST",
+"path": "/v1/weight/body-comp",
+"purpose": "Manual body comp entry; insert into raw_body_comp_events; trigger recompute.",
+"request": {
+"shape": {
+"timestamp_local": "string(ISO8601 with timezone offset)",
+"user_timezone": "string(IANA)",
+"body_fat_pct_optional": "number|null",
+"lean_mass_kg_optional": "number|null",
+"estimated_optional": "boolean",
+"write_to_apple_health_optional": "boolean"
+}
+},
+"response": { "shape": { "ok": "boolean", "event_id": "string" } },
+"side_effects": [
+"insert into flo_ml.raw_body_comp_events (source_type=MANUAL)",
+"enqueue recompute_queue reason=BODY_COMP_ADDED priority=12"
+]
+},
+{
+"id": "POST_forecast_recompute",
+"method": "POST",
+"path": "/v1/weight/forecast/recompute",
+"purpose": "Admin/internal: force recompute for a user immediately.",
+"request": { "shape": { "user_id": "string", "reason": "string" } },
+"response": { "shape": { "ok": "boolean" } },
+"auth": { "role_required": "admin" },
+"side_effects": ["enqueue recompute_queue reason=FORCE priority=255"]
+}
+]
+},
+"recompute_triggers": {
+"event_sources": [
+{
+"name": "healthkit_ingest_pipeline",
+"events": [
+"WEIGHT_IMPORTED",
+"BODY_COMP_IMPORTED",
+"ACTIVITY_DAY_UPDATED",
+"SLEEP_DAY_UPDATED",
+"CARDIO_DAY_UPDATED"
+],
+"trigger_action": "enqueue recompute_queue (priority based on event type)"
+},
+{
+"name": "nutrition_ingest_pipeline",
+"events": ["NUTRITION_DAY_UPDATED"],
+"trigger_action": "enqueue recompute_queue reason=NUTRITION_CHANGED priority=6"
+},
+{
+"name": "cgm_ingest_pipeline",
+"events": ["CGM_DAY_UPDATED"],
+"trigger_action": "enqueue recompute_queue reason=CGM_CHANGED priority=6"
+},
+{
+"name": "user_goal_service",
+"events": ["GOAL_CREATED", "GOAL_UPDATED", "GOAL_DELETED"],
+"trigger_action": "enqueue recompute_queue reason=GOAL_CHANGED priority=10"
+},
+{
+"name": "manual_entry_service",
+"events": ["MANUAL_WEIGHIN_SAVED", "MANUAL_BODYCOMP_SAVED"],
+"trigger_action": "enqueue recompute_queue (priority 12-20)"
+}
+],
+"priority_map": {
+"WEIGH_IN_ADDED": 20,
+"WEIGHT_IMPORTED": 18,
+"GOAL_CHANGED": 10,
+"BODY_COMP_ADDED": 12,
+"BODY_COMP_IMPORTED": 10,
+"DATA_CHANGED": 5,
+"NUTRITION_CHANGED": 6,
+"CGM_CHANGED": 6,
+"FORCE": 255
+},
+"debounce": {
+"window_seconds": 120,
+"strategy": "forecast_worker dedupes queue by user_id within window; keep highest priority reason"
+}
+},
+"forecast_worker": {
+"polling": {
+"queue_table": "flo_ml.recompute_queue",
+"poll_interval_seconds": 10,
+"batch_size": 50,
+"lock_strategy": "At-least-once processing; mark done by writing a processed log externally or via a separate processed table if needed."
+},
+"processing_steps": [
+{
+"step": "load_context",
+"actions": [
+"Fetch user goal from goal store (Supabase or CH).",
+"Fetch last 120 days from flo_ml.daily_features FINAL for the user.",
+"Fetch latest model_state (defaults if absent)."
+]
+},
+{
+"step": "derive_current_metrics",
+"actions": [
+"Current weight = latest non-null weight_kg by local_date_key.",
+"Delta vs 7d avg = current_weight - avg(last 7 non-null weights).",
+"Progress% = (start_weight - current_weight) / (start_weight - target_weight) clipped 0..100 for loss goals; inverse for gain."
+]
+},
+{
+"step": "confidence_and_bandwidth",
+"actions": [
+"Compute confidence from daily_features.data_quality* rules.",
+"Compute base sigma from model_state.water_noise_sigma and recent residuals.",
+"Compute band_multiplier based on confidence."
+]
+},
+{
+"step": "forecast_generation_mvp",
+"actions": [
+"Estimate trend slope using recent weight_trend_slope_kg_per_day or compute linear regression on last 14 trend points.",
+"Project midline forward: W(t+1) = W(t) - slope_kg_per_day (or adjusted by E_t) with mild mean reversion.",
+"Band: low/high = mid ± (sigma * band_multiplier * sqrt(day_index/7))."
+]
+},
+{
+"step": "eta_to_goal",
+"actions": [
+"If target_weight exists, solve for day when midline crosses target; eta_uncertainty from band width at crossing.",
+"If no crossing, eta_weeks = null."
+]
+},
+{
+"step": "status_chip",
+"actions": [
+"NEEDS_DATA if no weight in last 7 days or goal missing or staleness > 7.",
+"AT_RISK if goal date exists and projected ETA (mid) exceeds goal date by > 14 days or slope opposite goal direction.",
+"ON_TRACK otherwise."
+]
+},
+{
+"step": "drivers_rules_mvp",
+"actions": [
+"Select up to 5 drivers based on strongest signals:",
+"1) Trend direction and speed vs required pace",
+"2) Weigh-in frequency impacting confidence",
+"3) Protein adequacy (if available) and strength_sessions flag",
+"4) Steps/workout drop vs baseline",
+"5) Late CGM spike flag frequency (if CGM available)",
+"6) Sleep debt proxies (sleep_duration_min < baseline)"
+]
+},
+{
+"step": "simulator",
+"actions": [
+"For each lever, adjust slope/E_t and uncertainty then rerun horizon endpoints; store horizon low/high + ETA."
+]
+},
+{
+"step": "write_outputs",
+"actions": [
+"Upsert forecast_summary (ReplacingMergeTree) for the user.",
+"Insert forecast_series for horizon days (tagged with generated_at_utc).",
+"Insert drivers + simulator rows (generated_at_utc).",
+"Update model_state parameters (ReplacingMergeTree)."
+]
+}
+],
+"sql_writes": {
+"forecast_summary_upsert": {
+"table": "flo_ml.forecast_summary",
+"method": "INSERT with version_utc (ReplacingMergeTree)"
+},
+"forecast_series_insert": {
+"table": "flo_ml.forecast_series",
+"method": "INSERT daily horizon rows; UI selects latest generated_at_utc"
+}
+},
+"safety": {
+"hard_stops": [
+"If fewer than 4 weigh-in days in last 30 days: forecast still generated but confidence forced LOW and band widened.",
+"If no goal configured: still generate forecast band but status NEEDS_DATA and progress/ETA null."
+]
+}
+},
+"repo_build_plan": {
+"tickets": [
+{
+"id": "T001_clickhouse_schema",
+"deliverables": [
+"Create database flo_ml",
+"Create tables listed in clickhouse.tables",
+"Create vw_latest_weight_per_user"
+],
+"verification": [
+"Can insert raw_weight_events and query by user_id",
+"Can insert daily_weight_features and see rows appear"
+]
+},
+{
+"id": "T002_orchestrator_jobs",
+"deliverables": [
+"Implement job runner to execute clickhouse_jobs.jobs SQL on schedule (hourly + every 10 minutes)",
+"Store job run logs (success/fail) in your existing logging system"
+],
+"verification": [
+"daily_weight_features updates hourly",
+"daily_features updates hourly with non-null weight_kg when weigh-ins exist",
+"recompute_queue receives rows when new raw events arrive"
+]
+},
+{
+"id": "T003_forecast_worker_service",
+"deliverables": [
+"Service that polls recompute_queue, dedupes, and computes forecasts per processing_steps",
+"Writes forecast_summary, forecast_series, forecast_drivers, simulator_results, model_state"
+],
+"verification": [
+"After a weigh-in insert, forecast_summary exists for that user within 30s",
+"forecast_series contains horizon_days rows for latest generated_at_utc",
+"Drivers and simulator results exist"
+]
+},
+{
+"id": "T004_api_endpoints",
+"deliverables": [
+"Implement endpoints in endpoints.rest",
+"Ensure auth user_id scoping"
+],
+"verification": [
+"GET /v1/weight/tile returns values from forecast_summary",
+"GET /v1/weight/overview returns series aligned with requested range and latest forecast generation"
+]
+},
+{
+"id": "T005_goal_storage_and_triggers",
+"deliverables": [
+"Persist goal in your chosen store",
+"On goal change, enqueue recompute_queue"
+],
+"verification": [
+"Updating goal triggers immediate recompute"
+]
+},
+{
+"id": "T006_backtesting_and_calibration",
+"deliverables": [
+"Offline job that backtests forecasts (7/14/28/42 day MAE) and band calibration",
+"Dashboard or log output"
+],
+"verification": [
+"Bands capture actual values ~80% within 80% interval (calibration target)"
+]
+}
+]
+},
+"acceptance_tests": {
+"functional": [
+{
+"name": "forecast_generated_after_weighin",
+"steps": [
+"Insert raw_weight_events for user across 14 days",
+"Enqueue recompute_queue for user",
+"Run forecast_worker once"
+],
+"assert": [
+"forecast_summary exists",
+"forecast_series length == horizon_days",
+"confidence_level in {LOW, MEDIUM, HIGH}"
+]
+},
+{
+"name": "low_data_widens_band",
+"steps": [
+"Provide only 2 weigh-ins in last 30 days",
+"Recompute"
+],
+"assert": [
+"confidence_level == LOW",
+"forecast_weight_high_kg_at_horizon - forecast_weight_low_kg_at_horizon >= 1.5"
+]
+},
+{
+"name": "goal_risk_status",
+"steps": [
+"Set aggressive target date",
+"Recompute with slow negative slope"
+],
+"assert": [
+"status_chip == AT_RISK"
+]
+}
+],
+"data_integrity": [
+{
+"name": "local_day_bucketing_consistency",
+"assert": [
+"local_date_key for a timestamp_utc matches user_timezone conversion",
+"No duplicate daily_features rows survive after FINAL for same user/date"
+]
+}
+]
+}
+}

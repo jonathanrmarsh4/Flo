@@ -1,0 +1,648 @@
+import { X, Target, TrendingDown, TrendingUp, Activity, Check, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+
+interface GoalSetupFlowProps {
+  isDark: boolean;
+  onClose: () => void;
+  onSave: (data: GoalData) => void;
+}
+
+export interface GoalData {
+  goalType: 'LOSE_WEIGHT' | 'GAIN_WEIGHT' | 'RECOMP';
+  targetWeightKg: number;
+  targetBodyFatPct?: number;
+  targetDateLocal?: string;
+  timeframeWeeks?: number;
+  checkinCadence: 'DAILY' | 'THREE_PER_WEEK' | 'WEEKLY';
+  trainingIntent?: string;
+  dietStyle?: string;
+  mealTimingPreference?: string;
+}
+
+export function GoalSetupFlow({ isDark, onClose, onSave }: GoalSetupFlowProps) {
+  const [step, setStep] = useState(1);
+  const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Form state
+  const [goalType, setGoalType] = useState<'LOSE_WEIGHT' | 'GAIN_WEIGHT' | 'RECOMP'>('LOSE_WEIGHT');
+  const [targetWeight, setTargetWeight] = useState('72.0');
+  const [targetBodyFat, setTargetBodyFat] = useState('');
+  const [timeframeMode, setTimeframeMode] = useState<'BY_DATE' | 'IN_WEEKS'>('IN_WEEKS');
+  const [targetDate, setTargetDate] = useState('');
+  const [timeframeWeeks, setTimeframeWeeks] = useState('12');
+  const [trainingIntent, setTrainingIntent] = useState<string>('');
+  const [dietStyle, setDietStyle] = useState<string>('');
+  const [mealTiming, setMealTiming] = useState<string>('');
+  const [cadence, setCadence] = useState<'DAILY' | 'THREE_PER_WEEK' | 'WEEKLY'>('THREE_PER_WEEK');
+
+  const handleSave = () => {
+    const data: GoalData = {
+      goalType,
+      targetWeightKg: parseFloat(targetWeight),
+      targetBodyFatPct: targetBodyFat ? parseFloat(targetBodyFat) : undefined,
+      targetDateLocal: timeframeMode === 'BY_DATE' ? targetDate : undefined,
+      timeframeWeeks: timeframeMode === 'IN_WEEKS' ? parseInt(timeframeWeeks) : undefined,
+      checkinCadence: cadence,
+      trainingIntent: trainingIntent || undefined,
+      dietStyle: dietStyle || undefined,
+      mealTimingPreference: mealTiming || undefined
+    };
+
+    setShowSuccess(true);
+    setTimeout(() => {
+      onSave(data);
+    }, 1500);
+  };
+
+  const canProceed = () => {
+    if (step === 1) return true;
+    if (step === 2) return targetWeight && parseFloat(targetWeight) > 0;
+    if (step === 3) return true;
+    if (step === 4) return true;
+    return false;
+  };
+
+  const getPaceRating = () => {
+    const currentWeight = 75.2;
+    const delta = Math.abs(parseFloat(targetWeight) - currentWeight);
+    const weeks = parseInt(timeframeWeeks) || 12;
+    const pacePerWeek = delta / weeks;
+    
+    if (pacePerWeek < 0.3) return { label: 'Conservative', color: 'green' };
+    if (pacePerWeek < 0.6) return { label: 'Moderate', color: 'blue' };
+    return { label: 'Aggressive', color: 'orange' };
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center">
+      {/* Backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        className={`relative w-full max-w-lg rounded-t-3xl overflow-hidden ${
+          isDark 
+            ? 'bg-gradient-to-b from-slate-900 to-slate-950 border-t border-white/10' 
+            : 'bg-gradient-to-b from-white to-gray-50 border-t border-black/10'
+        }`}
+        style={{ maxHeight: '90vh' }}
+      >
+        {/* Success Animation */}
+        <AnimatePresence>
+          {showSuccess && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10"
+            >
+              <div className="text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', damping: 10, stiffness: 200 }}
+                  className="flex items-center justify-center mb-4"
+                >
+                  <div className={`p-6 rounded-full ${
+                    isDark ? 'bg-gradient-to-br from-purple-500 to-blue-500' : 'bg-gradient-to-br from-purple-400 to-blue-400'
+                  }`}>
+                    <Check className="w-12 h-12 text-white" />
+                  </div>
+                </motion.div>
+                <div className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Goal Configured!
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Header */}
+        <div className={`sticky top-0 z-10 backdrop-blur-xl px-6 py-4 border-b ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-xl ${
+                isDark ? 'bg-gradient-to-br from-purple-500/20 to-blue-500/20' : 'bg-gradient-to-br from-purple-100 to-blue-100'
+              }`}>
+                <Target className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+              </div>
+              <div>
+                <h2 className={`text-xl ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Set your goal
+                </h2>
+                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  Step {step} of 4
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-xl transition-all hover:scale-110 ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-black/5'
+              }`}
+            >
+              <X className={`w-5 h-5 ${isDark ? 'text-white/70' : 'text-gray-600'}`} />
+            </button>
+          </div>
+
+          {/* Progress Bar */}
+          <div className={`mt-4 h-1 rounded-full overflow-hidden ${
+            isDark ? 'bg-white/10' : 'bg-gray-200'
+          }`}>
+            <div 
+              className="h-full bg-gradient-to-r from-purple-500 to-blue-500 transition-all duration-300"
+              style={{ width: `${(step / 4) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="overflow-y-auto px-6 py-6" style={{ maxHeight: 'calc(90vh - 220px)' }}>
+          <AnimatePresence mode="wait">
+            {/* STEP 1: Choose Goal Type */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-4"
+              >
+                <h3 className={`mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Choose a goal
+                </h3>
+
+                <button
+                  onClick={() => setGoalType('LOSE_WEIGHT')}
+                  className={`w-full p-5 rounded-2xl border-2 transition-all text-left ${
+                    goalType === 'LOSE_WEIGHT'
+                      ? isDark 
+                        ? 'border-purple-500 bg-purple-500/10' 
+                        : 'border-purple-500 bg-purple-50'
+                      : isDark
+                        ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl ${
+                      isDark ? 'bg-gradient-to-br from-green-500/20 to-teal-500/20' : 'bg-gradient-to-br from-green-100 to-teal-100'
+                    }`}>
+                      <TrendingDown className={`w-6 h-6 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Lose weight
+                      </div>
+                      <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        Reduce scale weight over time
+                      </p>
+                    </div>
+                    {goalType === 'LOSE_WEIGHT' && (
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        isDark ? 'bg-purple-500' : 'bg-purple-600'
+                      }`}>
+                        <div className="w-3 h-3 rounded-full bg-white" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setGoalType('GAIN_WEIGHT')}
+                  className={`w-full p-5 rounded-2xl border-2 transition-all text-left ${
+                    goalType === 'GAIN_WEIGHT'
+                      ? isDark 
+                        ? 'border-purple-500 bg-purple-500/10' 
+                        : 'border-purple-500 bg-purple-50'
+                      : isDark
+                        ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl ${
+                      isDark ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20' : 'bg-gradient-to-br from-blue-100 to-cyan-100'
+                    }`}>
+                      <TrendingUp className={`w-6 h-6 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Gain weight
+                      </div>
+                      <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        Increase scale weight over time
+                      </p>
+                    </div>
+                    {goalType === 'GAIN_WEIGHT' && (
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        isDark ? 'bg-purple-500' : 'bg-purple-600'
+                      }`}>
+                        <div className="w-3 h-3 rounded-full bg-white" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setGoalType('RECOMP')}
+                  className={`w-full p-5 rounded-2xl border-2 transition-all text-left ${
+                    goalType === 'RECOMP'
+                      ? isDark 
+                        ? 'border-purple-500 bg-purple-500/10' 
+                        : 'border-purple-500 bg-purple-50'
+                      : isDark
+                        ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl ${
+                      isDark ? 'bg-gradient-to-br from-orange-500/20 to-amber-500/20' : 'bg-gradient-to-br from-orange-100 to-amber-100'
+                    }`}>
+                      <Activity className={`w-6 h-6 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <div className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Recomposition
+                      </div>
+                      <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        Lose fat, maintain/gain lean mass
+                      </p>
+                    </div>
+                    {goalType === 'RECOMP' && (
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        isDark ? 'bg-purple-500' : 'bg-purple-600'
+                      }`}>
+                        <div className="w-3 h-3 rounded-full bg-white" />
+                      </div>
+                    )}
+                  </div>
+                </button>
+              </motion.div>
+            )}
+
+            {/* STEP 2: Set Target */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <h3 className={`mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Set your target
+                </h3>
+
+                {/* Target Weight */}
+                <div>
+                  <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                    Target weight <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={targetWeight}
+                      onChange={(e) => setTargetWeight(e.target.value)}
+                      className={`w-full px-4 pr-16 py-4 rounded-xl border text-lg ${
+                        isDark 
+                          ? 'bg-white/5 border-white/10 text-white' 
+                          : 'bg-white border-gray-200 text-gray-900'
+                      }`}
+                    />
+                    <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm ${
+                      isDark ? 'text-white/50' : 'text-gray-500'
+                    }`}>
+                      kg
+                    </span>
+                  </div>
+                </div>
+
+                {/* Target Body Fat (Optional) */}
+                <div>
+                  <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                    Target body fat % (Optional)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      value={targetBodyFat}
+                      onChange={(e) => setTargetBodyFat(e.target.value)}
+                      className={`w-full px-4 pr-16 py-4 rounded-xl border text-lg ${
+                        isDark 
+                          ? 'bg-white/5 border-white/10 text-white placeholder-white/30' 
+                          : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
+                      }`}
+                      placeholder="12.0"
+                    />
+                    <span className={`absolute right-4 top-1/2 -translate-y-1/2 text-sm ${
+                      isDark ? 'text-white/50' : 'text-gray-500'
+                    }`}>
+                      %
+                    </span>
+                  </div>
+                </div>
+
+                {/* Timeframe Mode Toggle */}
+                <div>
+                  <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                    Timeframe
+                  </label>
+                  <div className={`flex gap-2 p-1 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                    <button
+                      onClick={() => setTimeframeMode('IN_WEEKS')}
+                      className={`flex-1 py-2 rounded text-sm transition-all ${
+                        timeframeMode === 'IN_WEEKS'
+                          ? isDark ? 'bg-white text-black' : 'bg-white text-gray-900 shadow-sm'
+                          : isDark ? 'text-white/70' : 'text-gray-600'
+                      }`}
+                    >
+                      In weeks
+                    </button>
+                    <button
+                      onClick={() => setTimeframeMode('BY_DATE')}
+                      className={`flex-1 py-2 rounded text-sm transition-all ${
+                        timeframeMode === 'BY_DATE'
+                          ? isDark ? 'bg-white text-black' : 'bg-white text-gray-900 shadow-sm'
+                          : isDark ? 'text-white/70' : 'text-gray-600'
+                      }`}
+                    >
+                      By date
+                    </button>
+                  </div>
+                </div>
+
+                {/* Conditional: Weeks or Date */}
+                {timeframeMode === 'IN_WEEKS' ? (
+                  <div>
+                    <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                      Number of weeks
+                    </label>
+                    <input
+                      type="number"
+                      value={timeframeWeeks}
+                      onChange={(e) => setTimeframeWeeks(e.target.value)}
+                      className={`w-full px-4 py-4 rounded-xl border text-lg ${
+                        isDark 
+                          ? 'bg-white/5 border-white/10 text-white' 
+                          : 'bg-white border-gray-200 text-gray-900'
+                      }`}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                      Target date
+                    </label>
+                    <input
+                      type="date"
+                      value={targetDate}
+                      onChange={(e) => setTargetDate(e.target.value)}
+                      className={`w-full px-4 py-4 rounded-xl border text-lg ${
+                        isDark 
+                          ? 'bg-white/5 border-white/10 text-white' 
+                          : 'bg-white border-gray-200 text-gray-900'
+                      }`}
+                    />
+                  </div>
+                )}
+
+                {/* Pace Rating */}
+                {timeframeMode === 'IN_WEEKS' && targetWeight && (
+                  <div className={`p-4 rounded-xl ${
+                    isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                        Pace rating
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs ${
+                        getPaceRating().color === 'green'
+                          ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                          : getPaceRating().color === 'blue'
+                            ? isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-700'
+                            : isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        {getPaceRating().label}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* STEP 3: Preferences */}
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <h3 className={`mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Preferences (Optional)
+                </h3>
+
+                {/* Training Intent */}
+                <div>
+                  <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                    Training intent
+                  </label>
+                  <div className="space-y-2">
+                    {['Maintain', 'Build muscle', 'Endurance'].map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => setTrainingIntent(option)}
+                        className={`w-full p-4 rounded-xl border transition-all text-left ${
+                          trainingIntent === option
+                            ? isDark 
+                              ? 'border-purple-500 bg-purple-500/10' 
+                              : 'border-purple-500 bg-purple-50'
+                            : isDark
+                              ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                              : 'border-gray-200 bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Diet Style */}
+                <div>
+                  <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                    Diet style
+                  </label>
+                  <div className="space-y-2">
+                    {['Flexible', 'Lower-carb', 'Higher-carb'].map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => setDietStyle(option)}
+                        className={`w-full p-4 rounded-xl border transition-all text-left ${
+                          dietStyle === option
+                            ? isDark 
+                              ? 'border-purple-500 bg-purple-500/10' 
+                              : 'border-purple-500 bg-purple-50'
+                            : isDark
+                              ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                              : 'border-gray-200 bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Meal Timing */}
+                <div>
+                  <label className={`block text-sm mb-3 ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                    Meal timing preference
+                  </label>
+                  <div className="space-y-2">
+                    {['Early', 'Normal', 'Late'].map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => setMealTiming(option)}
+                        className={`w-full p-4 rounded-xl border transition-all text-left ${
+                          mealTiming === option
+                            ? isDark 
+                              ? 'border-purple-500 bg-purple-500/10' 
+                              : 'border-purple-500 bg-purple-50'
+                            : isDark
+                              ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                              : 'border-gray-200 bg-white hover:bg-gray-50'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* STEP 4: Check-in Cadence */}
+            {step === 4 && (
+              <motion.div
+                key="step4"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <h3 className={`mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Weigh-in cadence
+                </h3>
+
+                <p className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  More frequent weigh-ins improve forecast accuracy
+                </p>
+
+                <div className={`flex gap-2 p-1 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                  {[
+                    { id: 'DAILY' as const, label: 'Daily' },
+                    { id: 'THREE_PER_WEEK' as const, label: '3×/week' },
+                    { id: 'WEEKLY' as const, label: 'Weekly' }
+                  ].map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setCadence(option.id)}
+                      className={`flex-1 py-3 rounded text-sm transition-all ${
+                        cadence === option.id
+                          ? isDark ? 'bg-white text-black' : 'bg-white text-gray-900 shadow-sm'
+                          : isDark ? 'text-white/70' : 'text-gray-600'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className={`p-4 rounded-xl ${
+                  isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
+                }`}>
+                  <div className="flex items-start gap-2">
+                    <Info className={`w-4 h-4 mt-0.5 flex-shrink-0 ${isDark ? 'text-blue-400' : 'text-blue-700'}`} />
+                    <p className={`text-xs ${isDark ? 'text-blue-400' : 'text-blue-700'}`}>
+                      We recommend daily weigh-ins for the most accurate forecasting and faster detection of trends.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Footer */}
+        <div className={`sticky bottom-0 backdrop-blur-xl px-6 py-4 border-t ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+        }`}>
+          <div className="flex gap-3">
+            {step > 1 && (
+              <button
+                onClick={() => setStep(step - 1)}
+                className={`px-6 py-3 rounded-xl border transition-all ${
+                  isDark ? 'border-white/20 text-white hover:bg-white/5' : 'border-gray-300 text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+            )}
+            
+            {step < 4 ? (
+              <button
+                onClick={() => setStep(step + 1)}
+                disabled={!canProceed()}
+                className={`flex-1 py-3 rounded-xl transition-all ${
+                  canProceed()
+                    ? isDark 
+                      ? 'bg-white text-black hover:bg-white/90' 
+                      : 'bg-gray-900 text-white hover:bg-gray-800'
+                    : 'bg-gray-400 text-white cursor-not-allowed opacity-50'
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  Next
+                  <ChevronRight className="w-5 h-5" />
+                </span>
+              </button>
+            ) : (
+              <button
+                onClick={handleSave}
+                className={`flex-1 py-3 rounded-xl text-white transition-all active:scale-95 ${
+                  isDark 
+                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600' 
+                    : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600'
+                }`}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Check className="w-5 h-5" />
+                  Save goal
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
