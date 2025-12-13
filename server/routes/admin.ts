@@ -956,6 +956,115 @@ export function registerAdminRoutes(app: Express) {
 
   /**
    * ============================================================================
+   * REGENERATE MORNING BRIEFING
+   * ============================================================================
+   * 
+   * Force regenerate a user's morning briefing after ClickHouse data sync.
+   * Supports CLI key authentication for programmatic access.
+   */
+  app.post('/api/admin/briefing/regenerate/:userId', async (req: any, res) => {
+    try {
+      // Check for CLI key auth first
+      const cliKey = req.headers['x-admin-cli-key'];
+      const expectedKey = process.env.ADMIN_CLI_KEY;
+      
+      const isCliAuth = cliKey && expectedKey && cliKey === expectedKey;
+      
+      if (!isCliAuth) {
+        if (!req.user?.claims?.sub) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        const adminUser = await storage.getUser(req.user.claims.sub);
+        if (!adminUser || adminUser.role !== 'admin') {
+          return res.status(403).json({ message: "Forbidden - Admin access required" });
+        }
+      }
+      
+      const { userId } = req.params;
+      
+      const { getHealthId } = await import('../services/supabaseHealthStorage');
+      const { morningBriefingOrchestrator, deleteTodaysBriefing } = await import('../services/morningBriefingOrchestrator');
+      const { users } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
+      const { formatInTimeZone } = await import('date-fns-tz');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "Health ID not found for user" });
+      }
+      
+      // Get user timezone
+      const userResult = await db.select({ timezone: users.timezone, firstName: users.firstName }).from(users).where(eq(users.id, userId)).limit(1);
+      const userTimezone = userResult[0]?.timezone || 'UTC';
+      const userName = userResult[0]?.firstName || 'there';
+      const today = formatInTimeZone(new Date(), userTimezone, 'yyyy-MM-dd');
+      
+      // Delete existing briefing
+      await deleteTodaysBriefing(userId, today);
+      logger.info(`[Admin] Deleted existing briefing for ${userId} on ${today}`);
+      
+      // Aggregate insights with fresh ClickHouse data
+      const insights = await morningBriefingOrchestrator.aggregateDailyInsights(healthId, today, userId, userTimezone);
+      
+      // Generate new briefing
+      const briefingResponse = await morningBriefingOrchestrator.generateMorningBriefing(
+        insights,
+        {
+          name: userName,
+          goals: [],
+          preferences: {
+            enabled: true,
+            notification_morning_hour: 7,
+            preferred_tone: 'supportive',
+            show_weather: true,
+            show_recommendations: true,
+          },
+        }
+      );
+      
+      if (!briefingResponse) {
+        return res.status(500).json({ error: "Failed to generate briefing" });
+      }
+      
+      // Store the briefing
+      const briefingId = await morningBriefingOrchestrator.storeBriefingLog(
+        healthId,
+        today,
+        {
+          user_profile: { 
+            name: userName, 
+            goals: [],
+            preferences: {
+              enabled: true,
+              notification_morning_hour: 7,
+              preferred_tone: 'supportive' as const,
+              show_weather: true,
+              show_recommendations: true,
+            },
+          },
+          insights_used: insights,
+        },
+        briefingResponse,
+        'manual'
+      );
+      
+      logger.info(`[Admin] Regenerated briefing ${briefingId} for ${userId}`);
+      
+      res.json({
+        success: true,
+        userId,
+        briefingId,
+        date: today,
+        message: "Briefing regenerated successfully with fresh ClickHouse data",
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Briefing regeneration failed:', error);
+      res.status(500).json({ error: error.message || "Failed to regenerate briefing" });
+    }
+  });
+
+  /**
+   * ============================================================================
    * DATA PARITY REPORT - ClickHouse vs Supabase Comparison
    * ============================================================================
    * 
