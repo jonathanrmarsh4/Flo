@@ -109,7 +109,6 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   
   const audioQueueRef = useRef<AudioBuffer[]>([]);
   const isPlayingRef = useRef(false);
-  const nextStartTimeRef = useRef<number>(0); // For gapless scheduled playback
   const streamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -162,15 +161,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     return output;
   }, []);
 
-  // Play queued audio buffers with scheduled gapless playback
-  // Uses precise timing to eliminate clicks/gaps between chunks
+  // Play queued audio buffers sequentially (original simple approach)
   const playNextAudio = useCallback(() => {
     console.log('[GeminiLive] playNextAudio called, queue size:', audioQueueRef.current.length);
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       setState(prev => ({ ...prev, isSpeaking: false }));
-      // Reset scheduled time when queue empties
-      nextStartTimeRef.current = 0;
       console.log('[GeminiLive] Queue empty, stopping playback');
       return;
     }
@@ -185,25 +181,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       return;
     }
 
-    // Calculate precise start time for gapless playback
-    // If nextStartTime is in the past or not set, start immediately with small buffer
-    const now = ctx.currentTime;
-    let startTime = nextStartTimeRef.current;
-    
-    if (startTime <= now) {
-      // Add small latency buffer (50ms) for smoother startup
-      startTime = now + 0.05;
-    }
-    
-    // Schedule next buffer to start exactly when this one ends
-    nextStartTimeRef.current = startTime + buffer.duration;
-
-    console.log('[GeminiLive] Scheduled buffer at:', startTime.toFixed(3), 'duration:', buffer.duration.toFixed(3));
+    console.log('[GeminiLive] Playing buffer, duration:', buffer.duration.toFixed(3), 'sampleRate:', buffer.sampleRate);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
     source.onended = playNextAudio;
-    source.start(startTime);
+    source.start();
   }, []);
 
   // Decode and queue incoming audio (24kHz PCM from Gemini)
@@ -542,7 +525,6 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     // Reset all audio state
     audioQueueRef.current = [];
     isPlayingRef.current = false;
-    nextStartTimeRef.current = 0;
 
     // Close playback context
     if (playbackContextRef.current) {
