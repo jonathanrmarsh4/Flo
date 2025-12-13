@@ -4407,16 +4407,29 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
 
   try {
     // 1. Sleep data (from sleep_nights - includes ALL sleep metrics from Oura/HealthKit/manual)
+    // Fetch more records to find the most recent non-null values for key metrics
     const { data: sleepData } = await supabase
       .from('sleep_nights')
       .select('*')
       .eq('health_id', healthId)
       .order('sleep_date', { ascending: false })
-      .limit(1);
+      .limit(7);
 
     const sleep = sleepData?.[0];
     const sleepSource = sleep?.source === 'oura' ? 'Oura Ring' : sleep?.source === 'healthkit' ? 'Apple Watch' : 'Manual';
     const sleepUpdated = sleep?.updated_at || sleep?.sleep_date || null;
+    
+    // Helper to find most recent non-null value for a specific field
+    const findLatestNonNull = (field: string): { value: any; source: string; updated: string | null } | null => {
+      if (!sleepData) return null;
+      for (const night of sleepData) {
+        if (night[field] != null) {
+          const src = night.source === 'oura' ? 'Oura Ring' : night.source === 'healthkit' ? 'Apple Watch' : 'Manual';
+          return { value: night[field], source: src, updated: night.updated_at || night.sleep_date };
+        }
+      }
+      return null;
+    };
     
     // ALL expected sleep metrics - always shown
     const totalSleepFormatted = sleep?.total_sleep_min != null 
@@ -4441,11 +4454,22 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
     addMetric('Sleep', 'rem_pct', 'REM Sleep %', sleep?.rem_pct != null ? Math.round(sleep.rem_pct) : null, '%', sleepSource, sleepUpdated);
     addMetric('Sleep', 'bedtime', 'Bedtime', sleep?.bedtime_local, '', sleepSource, sleepUpdated);
     addMetric('Sleep', 'waketime', 'Wake Time', sleep?.waketime_local, '', sleepSource, sleepUpdated);
-    addMetric('Recovery', 'hrv', 'HRV (Sleep)', sleep?.hrv_ms != null ? Math.round(sleep.hrv_ms) : null, 'ms', sleepSource, sleepUpdated);
-    addMetric('Heart', 'resting_hr', 'Resting Heart Rate', sleep?.resting_hr_bpm != null ? Math.round(sleep.resting_hr_bpm) : null, 'bpm', sleepSource, sleepUpdated);
-    addMetric('Respiratory', 'respiratory_rate_sleep', 'Respiratory Rate (Sleep)', sleep?.respiratory_rate != null ? Math.round(sleep.respiratory_rate * 10) / 10 : null, 'bpm', sleepSource, sleepUpdated);
-    addMetric('Vitals', 'wrist_temp', 'Wrist Temperature', sleep?.wrist_temperature != null ? Math.round(sleep.wrist_temperature * 100) / 100 : null, '°C', sleepSource, sleepUpdated);
-    addMetric('Respiratory', 'oxygen_saturation_sleep', 'Blood Oxygen (Sleep)', sleep?.oxygen_saturation != null ? Math.round(sleep.oxygen_saturation * 10) / 10 : null, '%', sleepSource, sleepUpdated);
+    
+    // For HRV and Resting HR, find most recent non-null value (may be from previous night)
+    const hrvData = findLatestNonNull('hrv_ms');
+    addMetric('Recovery', 'hrv', 'HRV (Sleep)', hrvData ? Math.round(hrvData.value) : null, 'ms', hrvData?.source || sleepSource, hrvData?.updated || sleepUpdated);
+    
+    const rhrData = findLatestNonNull('resting_hr_bpm');
+    addMetric('Heart', 'resting_hr', 'Resting Heart Rate', rhrData ? Math.round(rhrData.value) : null, 'bpm', rhrData?.source || sleepSource, rhrData?.updated || sleepUpdated);
+    
+    const respData = findLatestNonNull('respiratory_rate');
+    addMetric('Respiratory', 'respiratory_rate_sleep', 'Respiratory Rate (Sleep)', respData ? Math.round(respData.value * 10) / 10 : null, 'bpm', respData?.source || sleepSource, respData?.updated || sleepUpdated);
+    
+    const tempData = findLatestNonNull('wrist_temperature');
+    addMetric('Vitals', 'wrist_temp', 'Wrist Temperature', tempData ? Math.round(tempData.value * 100) / 100 : null, '°C', tempData?.source || sleepSource, tempData?.updated || sleepUpdated);
+    
+    const spo2Data = findLatestNonNull('oxygen_saturation');
+    addMetric('Respiratory', 'oxygen_saturation_sleep', 'Blood Oxygen (Sleep)', spo2Data ? Math.round(spo2Data.value * 10) / 10 : null, '%', spo2Data?.source || sleepSource, spo2Data?.updated || sleepUpdated);
 
     // 2. Daily Metrics (from user_daily_metrics - includes activity, body composition, etc.)
     const { data: dailyData } = await supabase
@@ -4895,15 +4919,15 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
     }
 
     // 9. Oura SpO2
-    const { data: spo2Data } = await supabase
+    const { data: ouraSpo2Data } = await supabase
       .from('oura_daily_spo2')
       .select('day, spo2_percentage, breathing_disturbance_index, updated_at')
       .eq('health_id', healthId)
       .order('day', { ascending: false })
       .limit(1);
 
-    if (spo2Data?.[0]) {
-      const spo2 = spo2Data[0];
+    if (ouraSpo2Data?.[0]) {
+      const spo2 = ouraSpo2Data[0];
       if (spo2.spo2_percentage != null) {
         metrics.push({
           category: 'Respiratory',
