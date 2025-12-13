@@ -12,6 +12,37 @@ public class HealthKitNormalisationService {
         return TimeZone.current
     }
     
+    // MARK: - Oura Source Filtering
+    
+    /// Oura source patterns to filter from activity metrics
+    /// Oura Ring syncs step/activity data to HealthKit which can cause double-counting
+    /// when user also has Apple Watch
+    private let ouraSourcePatterns = ["oura", "ouraring", "com.ouraring"]
+    
+    /// Check if a source identifier or name matches Oura patterns
+    private func isOuraSource(_ sample: HKSample) -> Bool {
+        let sourceId = sample.sourceRevision.source.bundleIdentifier.lowercased()
+        let sourceName = sample.sourceRevision.source.name.lowercased()
+        
+        for pattern in ouraSourcePatterns {
+            if sourceId.contains(pattern) || sourceName.contains(pattern) {
+                return true
+            }
+        }
+        return false
+    }
+    
+    /// Check if a source bundle identifier matches Oura patterns
+    private func isOuraSourceByBundleId(_ bundleId: String) -> Bool {
+        let lowerId = bundleId.lowercased()
+        for pattern in ouraSourcePatterns {
+            if lowerId.contains(pattern) {
+                return true
+            }
+        }
+        return false
+    }
+    
     // MARK: - Public API
     
     /// Normalize and sync the last N days of HealthKit data to backend
@@ -1355,18 +1386,38 @@ public class HealthKitNormalisationService {
     // MARK: - Active Energy Aggregation
     
     /// Aggregate active energy for a full day (sum of all samples)
+    /// NOTE: Excludes Oura Ring samples to prevent double-counting with Apple Watch
     private func aggregateActiveEnergy(dayStart: Date, dayEnd: Date, completion: @escaping (Double?) -> Void) {
         let energyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!
         let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
         
-        let query = HKSampleQuery(sampleType: energyType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { (query, samples, error) in
+        let query = HKSampleQuery(sampleType: energyType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [weak self] (query, samples, error) in
+            guard let self = self else {
+                completion(nil)
+                return
+            }
+            
             guard let samples = samples as? [HKQuantitySample], error == nil, !samples.isEmpty else {
                 completion(nil)
                 return
             }
             
-            // Sum all active energy in kcal
-            let totalKcal = samples.reduce(0.0) { sum, sample in
+            // Filter out Oura Ring samples to prevent double-counting
+            let filteredSamples = samples.filter { !self.isOuraSource($0) }
+            
+            if filteredSamples.isEmpty {
+                print("[ActiveEnergy] All samples were from Oura, returning nil")
+                completion(nil)
+                return
+            }
+            
+            let ouraFilteredCount = samples.count - filteredSamples.count
+            if ouraFilteredCount > 0 {
+                print("[ActiveEnergy] Filtered out \(ouraFilteredCount) Oura samples from \(samples.count) total")
+            }
+            
+            // Sum all active energy in kcal (excluding Oura)
+            let totalKcal = filteredSamples.reduce(0.0) { sum, sample in
                 return sum + sample.quantity.doubleValue(for: .kilocalorie())
             }
             
@@ -1480,6 +1531,7 @@ public class HealthKitNormalisationService {
     // MARK: - Steps Normalization
     
     /// Normalize steps using HKStatisticsQuery to let HealthKit handle deduplication
+    /// NOTE: Excludes Oura Ring samples to prevent double-counting with Apple Watch
     private func normalizeSteps(dayStart: Date, dayEnd: Date, completion: @escaping (Int?, StepsSourcesMetadata?) -> Void) {
         let stepsType = HKObjectType.quantityType(forIdentifier: .stepCount)!
         let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
@@ -1490,7 +1542,12 @@ public class HealthKitNormalisationService {
             quantityType: stepsType,
             quantitySamplePredicate: predicate,
             options: [.cumulativeSum, .separateBySource]
-        ) { (query, statistics, error) in
+        ) { [weak self] (query, statistics, error) in
+            guard let self = self else {
+                completion(nil, nil)
+                return
+            }
+            
             guard let statistics = statistics, error == nil else {
                 print("[Steps] No statistics available")
                 completion(nil, nil)
@@ -1506,9 +1563,11 @@ public class HealthKitNormalisationService {
             
             // Categorize sources and pick the PRIMARY source for each device type
             // (don't sum multiple sources from same device - they overlap!)
+            // NOTE: Oura Ring sources are explicitly filtered out to prevent double-counting
             var watchSources: [(bundleId: String, steps: Int)] = []
             var iphoneSources: [(bundleId: String, steps: Int)] = []
             var otherSources: [(bundleId: String, steps: Int)] = []
+            var ouraFilteredSources: [(bundleId: String, steps: Int)] = []
             var sourceIds: [String] = []
             
             for source in sources {
@@ -1517,6 +1576,13 @@ public class HealthKitNormalisationService {
                 
                 if let sum = statistics.sumQuantity(for: source) {
                     let steps = Int(sum.doubleValue(for: .count()))
+                    
+                    // Filter out Oura Ring sources to prevent double-counting
+                    if self.isOuraSourceByBundleId(bundleId) {
+                        ouraFilteredSources.append((bundleId, steps))
+                        print("[Steps] 🚫 Oura source FILTERED: \(bundleId): \(steps) steps (excluded)")
+                        continue
+                    }
                     
                     if bundleId.contains("watchOS") || bundleId.contains("Watch") {
                         watchSources.append((bundleId, steps))
@@ -1529,6 +1595,13 @@ public class HealthKitNormalisationService {
                         print("[Steps] Other source \(bundleId): \(steps) steps")
                     }
                 }
+            }
+            
+            // Log if Oura sources were filtered
+            if !ouraFilteredSources.isEmpty {
+                let totalOuraSteps = ouraFilteredSources.reduce(0) { $0 + $1.steps }
+                print("[Steps] ═══════════════════")
+                print("[Steps] Filtered \(ouraFilteredSources.count) Oura source(s) with \(totalOuraSteps) total steps")
             }
             
             // Pick the PRIMARY source (highest step count) from each device type
@@ -1557,6 +1630,12 @@ public class HealthKitNormalisationService {
                 return
             }
             
+            // Build notes including Oura filtering info
+            var notes = "Using HKStatisticsQuery with .separateBySource for accurate deduplication"
+            if !ouraFilteredSources.isEmpty {
+                notes += "; Filtered \(ouraFilteredSources.count) Oura source(s)"
+            }
+            
             let metadata = StepsSourcesMetadata(
                 watchSteps: watchSteps > 0 ? watchSteps : nil,
                 iphoneSteps: iphoneSteps > 0 ? iphoneSteps : nil,
@@ -1566,7 +1645,7 @@ public class HealthKitNormalisationService {
                 gapsFilled: 0,
                 priorityOrder: sourceOrder,
                 sourceIdentifiers: sourceIds.sorted(),
-                notes: "Using HKStatisticsQuery with .separateBySource for accurate deduplication"
+                notes: notes
             )
             
             completion(finalSteps, metadata)
