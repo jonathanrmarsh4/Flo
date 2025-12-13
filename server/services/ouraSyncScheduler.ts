@@ -10,7 +10,7 @@ import { db } from '../db';
 import { userIntegrations } from '@shared/schema';
 import { eq, and, lt, or, isNull } from 'drizzle-orm';
 import { syncOuraData } from './ouraApiClient';
-import { getHealthId } from './supabaseHealthStorage';
+import { getHealthId, upsertSleepNight } from './supabaseHealthStorage';
 import { syncSleepMetricsToClickHouse } from './clickhouseHealthSync';
 import { updateSyncStatus } from './integrationsService';
 
@@ -54,7 +54,7 @@ async function getUsersNeedingSync(): Promise<Array<{ userId: string; lastSyncAt
 
 /**
  * Sync Oura data for a single user
- * syncOuraData already handles Supabase storage, we just need to sync to ClickHouse
+ * Stores to Supabase sleep_nights table and ClickHouse for ML analysis
  */
 async function syncUserOuraData(userId: string): Promise<void> {
   // Mark as in-flight to prevent re-enqueue
@@ -72,16 +72,46 @@ async function syncUserOuraData(userId: string): Promise<void> {
     }
     
     // Sync last 3 days for background sync (7 days for manual sync)
-    // syncOuraData handles Supabase storage and updates sync status
     const result = await syncOuraData(userId, healthId, 3);
     
     if (result.success) {
-      // Sync to ClickHouse for ML analysis
       for (const night of result.sleepNights) {
         try {
+          // Store to Supabase sleep_nights table (for User Data dashboard)
+          // Calculate percentages from durations
+          const deepPct = night.totalSleepMin && night.deepSleepMin ? (night.deepSleepMin / night.totalSleepMin) * 100 : null;
+          const remPct = night.totalSleepMin && night.remSleepMin ? (night.remSleepMin / night.totalSleepMin) * 100 : null;
+          const corePct = night.totalSleepMin && night.coreSleepMin ? (night.coreSleepMin / night.totalSleepMin) * 100 : null;
+          
+          await upsertSleepNight(userId, {
+            sleep_date: night.sleepDate,
+            timezone: night.timezone,
+            total_sleep_min: night.totalSleepMin,
+            time_in_bed_min: night.timeInBedMin,
+            sleep_latency_min: night.sleepLatencyMin,
+            sleep_efficiency_pct: night.sleepEfficiencyPct,
+            deep_sleep_min: night.deepSleepMin,
+            rem_sleep_min: night.remSleepMin,
+            core_sleep_min: night.coreSleepMin,
+            waso_min: night.wasoMin,
+            num_awakenings: night.numAwakenings,
+            deep_pct: deepPct,
+            rem_pct: remPct,
+            core_pct: corePct,
+            hrv_ms: night.hrvMs,
+            resting_hr_bpm: night.restingHrBpm,
+            respiratory_rate: night.respiratoryRate,
+            wrist_temperature: night.skinTempDeviation,
+            bedtime_local: night.nightStart?.toISOString() ?? null,
+            waketime_local: night.finalWake?.toISOString() ?? null,
+            source: 'oura',
+            oura_session_id: night.ouraSessionId,
+          });
+          
+          // Sync to ClickHouse for ML analysis
           await syncSleepMetricsToClickHouse(healthId, night, 'oura');
         } catch (err) {
-          console.error(`[OuraSyncScheduler] Failed to sync to ClickHouse:`, err);
+          console.error(`[OuraSyncScheduler] Failed to store sleep night:`, err);
         }
       }
       

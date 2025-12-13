@@ -9788,6 +9788,9 @@ Important: This is for educational purposes. Include a brief note that users sho
         oxygenSaturationPct: dailyMetrics.oxygenSaturation ?? dailyMetrics.oxygenSaturationPct ?? null,
         respiratoryRateBpm: dailyMetrics.respiratoryRate ?? dailyMetrics.respiratoryRateBpm ?? null,
         bodyTempC: dailyMetrics.bodyTemperatureCelsius ?? dailyMetrics.bodyTempC ?? null,
+        // Heart rate recovery and AFib burden - iOS may send as camelCase
+        hrRecovery1min: dailyMetrics.heartRateRecovery1Min ?? dailyMetrics.hrRecovery1min ?? dailyMetrics.heartRateRecoveryOneMinute ?? null,
+        afibBurdenPct: dailyMetrics.afibBurden ?? dailyMetrics.afibBurdenPct ?? dailyMetrics.aFibBurden ?? null,
       };
       
       // PRODUCTION DEBUG: Log ALL extended metrics to verify iOS is sending them
