@@ -304,6 +304,7 @@ export default function AssessmentDetail() {
     
     // Add subjective check-in data
     checkins.forEach((checkin) => {
+      if (!checkin.checkin_date) return; // Guard against null/undefined dates
       const dateKey = checkin.checkin_date.split('T')[0];
       const existing = dateMap.get(dateKey) || { dateKey };
       
@@ -318,6 +319,7 @@ export default function AssessmentDetail() {
     
     // Add objective HealthKit data
     objectiveMetrics.forEach((metric: any) => {
+      if (!metric.date) return; // Guard against null/undefined dates
       const dateKey = metric.date;
       const existing = dateMap.get(dateKey) || { dateKey };
       
