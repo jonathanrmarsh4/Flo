@@ -2559,11 +2559,11 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
 function RecoveryTabContent({ isDark }: { isDark: boolean }) {
   const { toast } = useToast();
   
-  const { data: sessionsData, isLoading: sessionsLoading } = useQuery<RecoverySession[]>({
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery<{ sessions: RecoverySession[] }>({
     queryKey: ['/api/recovery/sessions'],
   });
   
-  const { data: statsData, isLoading: statsLoading } = useQuery<RecoveryStats>({
+  const { data: statsData, isLoading: statsLoading } = useQuery<{ stats: RecoveryStats }>({
     queryKey: ['/api/recovery/stats'],
   });
 
@@ -2618,8 +2618,8 @@ function RecoveryTabContent({ isDark }: { isDark: boolean }) {
   };
 
   const isLoading = sessionsLoading || statsLoading;
-  const sessions = sessionsData ?? [];
-  const stats = statsData ?? null;
+  const sessions = sessionsData?.sessions ?? [];
+  const stats = statsData?.stats ?? null;
 
   return (
     <RecoveryTab
