@@ -1,0 +1,66 @@
+⚡️  To Native ->  Preferences get 44420516
+⚡️  TO JS {"value":"1765629201420"}
+⚡️  TO JS {"isActive":true}
+⚡️  TO JS {"isActive":true}
+⚡️  To Native ->  Preferences get 44420517
+⚡️  TO JS {"value":"1765629201420"}
+⚡️  [log] - 🌍 [Timezone] App resumed from background - checking timezone
+⚡️  To Native ->  Preferences get 44420518
+⚡️  To Native ->  Preferences get 44420519
+⚡️  TO JS {"value":"1765626554328"}
+⚡️  TO JS {"value":"Australia\/Perth"}
+⚡️  [log] - 🌍 [Timezone] Skipping sync (no change, within throttle): Australia/Perth
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:17.216Z
+⚡️  [log] - [AQI] Query state: {"isLoading":true,"isError":false,"hasData":false}
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:17.253Z
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:18.083Z
+⚡️  [log] - [VoiceChat] Starting Gemini Live conversation...
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:18.787Z
+⚡️  [error] - [ERROR] API request failed {"status":503,"response":"{\"error\":\"Weather service temporarily unavailable\",\"reason\":\"api_error\"}"}
+⚡️  [log] - [AQI] Query state: {"isLoading":false,"isError":true,"hasData":false}
+⚡️  [log] - [AQI] Error detected: {"reason":"api_error","message":"503: {\"error\":\"Weather service temporarily unavailable\",\"reason\":\"api_error\"}"}
+⚡️  [log] - [GeminiLive] WebSocket connected
+⚡️  [log] - [GeminiLive] Session started: voice_095f8978-a3ad-4fe1-af39-1bba9b6e8d78_1765629259156
+⚡️  [log] - [VoiceChat] Connected to Gemini Live
+⚡️  [log] - [GeminiLive] Wake lock acquired - screen will stay awake
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:20.124Z
+🎤 Media capture permission requested - type: WKMediaCaptureType(rawValue: 1)
+✅ Granting microphone permission
+⚡️  [log] - [GeminiLive] Device sample rate: 48000
+⚡️  [log] - [GeminiLive] Started listening - capturing and resampling to 16kHz
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:20.803Z
+⚡️  [log] - [GeminiLive] Model response: **Analyzing Recent Health Data**
+
+Hi Jon, I've got
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:22.182Z
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [GeminiLive] Turn complete
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:23.759Z
+⚡️  [log] - [VoiceChat] Transcript:  Life. Final: false
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:33.675Z
+⚡️  [log] - [GeminiLive] Model response: **Acknowledge and Initiate**
+
+I've registered the 
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:34.866Z
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [GeminiLive] Turn complete
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:36.461Z
+⚡️  [log] - [VoiceChat] Transcript:  <noise> Final: false
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:46.289Z
+⚡️  [log] - [GeminiLive] Model response: **Initiating the Dialogue**
+
+I've registered the u
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:47.437Z
+⚡️  [log] - [VoiceChat] Transcript:  Final: true
+⚡️  [log] - [GeminiLive] Turn complete
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:49.122Z
+⚡️  [log] - [VoiceChat] Ending conversation...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Wake lock released
+⚡️  [log] - [GeminiLive] Wake lock released
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] HOOK INITIALIZED - v3 2025-12-13T12:34:55.754Z
+⚡️  TO JS {"isActive":false}
+⚡️  TO JS {"isActive":false}
