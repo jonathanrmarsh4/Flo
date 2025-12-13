@@ -1,0 +1,93 @@
+{
+  "project": "Recovery_Module_Logic",
+  "instruction_to_developer": "Use the formulas and constants defined in 'global_math' and 'activity_logic' to calculate outputs. Do not hallucinate new formulas.",
+  
+  "global_math": {
+    "standard_met_formula": "calories_burned = (met_value * 3.5 * user_weight_kg / 200) * duration_minutes",
+    "unit_conversions": {
+      "temp_f_to_c": "(temp_f - 32) * 0.5556",
+      "kg_to_lbs": "kg * 2.20462"
+    }
+  },
+
+  "output_definitions": {
+    "calories": "Energy expenditure estimate based on METs.",
+    "recovery_score_impact": "A value (0-100) added to the user's daily recovery buffer.",
+    "benefit_tags": "List of physiological benefits to display in the UI summary."
+  },
+
+  "activities": {
+    "sauna": {
+      "inputs": {
+        "duration_minutes": "required (int)",
+        "temperature_c": "optional (default: 80)",
+        "user_weight_kg": "required (float)"
+      },
+      "calculation_logic": {
+        "met_determination": {
+          "base_met": 2.0,
+          "temp_modifier": "IF temperature_c > 90 THEN met_value = 2.5 ELSE met_value = 2.0"
+        },
+        "recovery_score_algorithm": {
+          "base_points_per_minute": 1.5,
+          "max_cap": 45,
+          "formula": "score = min((duration_minutes * base_points_per_minute), max_cap)"
+        },
+        "benefit_thresholds": [
+          {
+            "min_duration_min": 15,
+            "tag": "Heat Shock Protein Release",
+            "science_note": "Cellular repair activation starts."
+          },
+          {
+            "min_duration_min": 25,
+            "tag": "Growth Hormone Boost",
+            "science_note": "Significant HGH release detected in studies."
+          }
+        ]
+      }
+    },
+
+    "ice_bath": {
+      "inputs": {
+        "duration_minutes": "required (float, allow decimals)",
+        "temperature_c": "optional (default: 10)",
+        "user_weight_kg": "required (float)"
+      },
+      "calculation_logic": {
+        "met_determination": {
+          "base_met": 1.5,
+          "temp_modifier": "No MET change based on temp for safety, stick to 1.5 base."
+        },
+        "recovery_score_algorithm": {
+          "base_points_per_minute": 10.0,
+          "max_cap": 50,
+          "formula": "score = min((duration_minutes * base_points_per_minute), max_cap)"
+        },
+        "benefit_thresholds": [
+          {
+            "min_duration_min": 1,
+            "tag": "Dopamine Spike",
+            "science_note": "Increase in neurotransmitters for focus/mood."
+          },
+          {
+            "min_duration_min": 3,
+            "tag": "Systemic Inflammation Reduction",
+            "science_note": "Vasoconstriction aids waste flushing."
+          }
+        ]
+      }
+    }
+  },
+
+  "safety_guardrails": {
+    "sauna": {
+      "alert_trigger": "duration_minutes > 60",
+      "message": "Extended heat exposure increases risk of dehydration. Please verify duration."
+    },
+    "ice_bath": {
+      "alert_trigger": "duration_minutes > 10",
+      "message": "Extended cold exposure carries hypothermia risk. Please verify duration."
+    }
+  }
+}
