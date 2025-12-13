@@ -118,8 +118,9 @@ class GeminiLiveClient {
     });
 
     // Native audio model for voice conversations
-    // Updated Dec 2025: Using latest stable dialog model for better audio quality
-    const model = 'gemini-2.5-flash-preview-native-audio-dialog';
+    // Updated Dec 13, 2025: Using new December 2025 model with improved
+    // instruction following (90%), better function calling, and smoother conversations
+    const model = 'gemini-2.5-flash-native-audio-preview-12-2025';
     
     const connectParams: LiveConnectParameters = {
       model,
