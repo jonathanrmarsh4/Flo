@@ -216,12 +216,46 @@ export async function fillMissingMetricsFromSamples(
     const healthRouter = await import("./healthStorageRouter");
     const existing = await healthRouter.getUserDailyMetricsByDate(userId, localDate);
 
+    // Aggregate samples first - we need this even if no record exists
+    const aggregated = await aggregateSamplesForDate(userId, localDate, timezone);
+    
+    // Check if we have any aggregated data to save
+    const hasAggregatedData = Object.values(aggregated).some(v => v !== null);
+    
     if (!existing) {
-      logger.debug(`[SampleAggregator] No daily metrics record for ${userId} on ${localDate}`);
+      // No daily metrics record exists - CREATE one with aggregated sample data
+      if (!hasAggregatedData) {
+        logger.debug(`[SampleAggregator] No daily metrics record and no samples for ${userId} on ${localDate}`);
+        return;
+      }
+      
+      // Build the new record with all aggregated values
+      const newRecord: Record<string, any> = {
+        local_date: localDate,
+        timezone,
+      };
+      
+      if (aggregated.oxygen_saturation_pct != null) newRecord.oxygen_saturation_pct = aggregated.oxygen_saturation_pct;
+      if (aggregated.respiratory_rate_bpm != null) newRecord.respiratory_rate_bpm = aggregated.respiratory_rate_bpm;
+      if (aggregated.body_temp_c != null) newRecord.body_temp_c = aggregated.body_temp_c;
+      if (aggregated.basal_energy_kcal != null) newRecord.basal_energy_kcal = aggregated.basal_energy_kcal;
+      if (aggregated.walking_hr_avg_bpm != null) newRecord.walking_hr_avg_bpm = aggregated.walking_hr_avg_bpm;
+      if (aggregated.dietary_water_ml != null) newRecord.dietary_water_ml = aggregated.dietary_water_ml;
+      if (aggregated.walking_speed_ms != null) newRecord.walking_speed_ms = aggregated.walking_speed_ms;
+      if (aggregated.walking_step_length_m != null) newRecord.walking_step_length_m = aggregated.walking_step_length_m;
+      if (aggregated.walking_double_support_pct != null) newRecord.walking_double_support_pct = aggregated.walking_double_support_pct;
+      if (aggregated.walking_asymmetry_pct != null) newRecord.walking_asymmetry_pct = aggregated.walking_asymmetry_pct;
+      if (aggregated.apple_walking_steadiness != null) newRecord.apple_walking_steadiness = aggregated.apple_walking_steadiness;
+      if (aggregated.six_minute_walk_distance_m != null) newRecord.six_minute_walk_distance_m = aggregated.six_minute_walk_distance_m;
+      if (aggregated.stair_ascent_speed_ms != null) newRecord.stair_ascent_speed_ms = aggregated.stair_ascent_speed_ms;
+      if (aggregated.stair_descent_speed_ms != null) newRecord.stair_descent_speed_ms = aggregated.stair_descent_speed_ms;
+      
+      await healthRouter.upsertDailyMetrics(userId, newRecord as any);
+      logger.info(`[SampleAggregator] Created new daily metrics record with ${Object.keys(newRecord).length - 2} metrics from samples for ${userId} on ${localDate}`);
       return;
     }
 
-    // Check if any of our target fields are missing
+    // Record exists - check if any of our target fields are missing
     const missingFields: string[] = [];
     if (existing.oxygenSaturationPct == null) missingFields.push('oxygen_saturation_pct');
     if (existing.respiratoryRateBpm == null) missingFields.push('respiratory_rate_bpm');
@@ -244,68 +278,59 @@ export async function fillMissingMetricsFromSamples(
       return;
     }
 
-    // Aggregate samples
-    const aggregated = await aggregateSamplesForDate(userId, localDate, timezone);
-
-    // Build update object only for fields that have values
+    // Build update object with snake_case keys (matching Supabase column names)
     const updates: Record<string, number> = {};
     if (aggregated.oxygen_saturation_pct != null && existing.oxygenSaturationPct == null) {
-      updates.oxygenSaturationPct = aggregated.oxygen_saturation_pct;
+      updates.oxygen_saturation_pct = aggregated.oxygen_saturation_pct;
     }
     if (aggregated.respiratory_rate_bpm != null && existing.respiratoryRateBpm == null) {
-      updates.respiratoryRateBpm = aggregated.respiratory_rate_bpm;
+      updates.respiratory_rate_bpm = aggregated.respiratory_rate_bpm;
     }
     if (aggregated.body_temp_c != null && existing.bodyTempC == null) {
-      updates.bodyTempC = aggregated.body_temp_c;
+      updates.body_temp_c = aggregated.body_temp_c;
     }
     if (aggregated.basal_energy_kcal != null && existing.basalEnergyKcal == null) {
-      updates.basalEnergyKcal = aggregated.basal_energy_kcal;
+      updates.basal_energy_kcal = aggregated.basal_energy_kcal;
     }
     if (aggregated.walking_hr_avg_bpm != null && existing.walkingHrAvgBpm == null) {
-      updates.walkingHrAvgBpm = aggregated.walking_hr_avg_bpm;
+      updates.walking_hr_avg_bpm = aggregated.walking_hr_avg_bpm;
     }
     if (aggregated.dietary_water_ml != null && existing.dietaryWaterMl == null) {
-      updates.dietaryWaterMl = aggregated.dietary_water_ml;
+      updates.dietary_water_ml = aggregated.dietary_water_ml;
     }
     // Gait & Mobility
     if (aggregated.walking_speed_ms != null && existing.walkingSpeedMs == null) {
-      updates.walkingSpeedMs = aggregated.walking_speed_ms;
+      updates.walking_speed_ms = aggregated.walking_speed_ms;
     }
     if (aggregated.walking_step_length_m != null && existing.walkingStepLengthM == null) {
-      updates.walkingStepLengthM = aggregated.walking_step_length_m;
+      updates.walking_step_length_m = aggregated.walking_step_length_m;
     }
     if (aggregated.walking_double_support_pct != null && existing.walkingDoubleSupportPct == null) {
-      updates.walkingDoubleSupportPct = aggregated.walking_double_support_pct;
+      updates.walking_double_support_pct = aggregated.walking_double_support_pct;
     }
     if (aggregated.walking_asymmetry_pct != null && existing.walkingAsymmetryPct == null) {
-      updates.walkingAsymmetryPct = aggregated.walking_asymmetry_pct;
+      updates.walking_asymmetry_pct = aggregated.walking_asymmetry_pct;
     }
     if (aggregated.apple_walking_steadiness != null && existing.appleWalkingSteadiness == null) {
-      updates.appleWalkingSteadiness = aggregated.apple_walking_steadiness;
+      updates.apple_walking_steadiness = aggregated.apple_walking_steadiness;
     }
     if (aggregated.six_minute_walk_distance_m != null && existing.sixMinuteWalkDistanceM == null) {
-      updates.sixMinuteWalkDistanceM = aggregated.six_minute_walk_distance_m;
+      updates.six_minute_walk_distance_m = aggregated.six_minute_walk_distance_m;
     }
     if (aggregated.stair_ascent_speed_ms != null && existing.stairAscentSpeedMs == null) {
-      updates.stairAscentSpeedMs = aggregated.stair_ascent_speed_ms;
+      updates.stair_ascent_speed_ms = aggregated.stair_ascent_speed_ms;
     }
     if (aggregated.stair_descent_speed_ms != null && existing.stairDescentSpeedMs == null) {
-      updates.stairDescentSpeedMs = aggregated.stair_descent_speed_ms;
+      updates.stair_descent_speed_ms = aggregated.stair_descent_speed_ms;
     }
 
     if (Object.keys(updates).length > 0) {
       // Update via healthRouter which routes to Supabase when enabled
-      // Use upsert with merged existing data to update specific fields
+      // Keys are already snake_case to match Supabase column names
       await healthRouter.upsertDailyMetrics(userId, {
         local_date: localDate,
         timezone,
-        ...Object.fromEntries(
-          Object.entries(updates).map(([key, value]) => [
-            // Convert camelCase to snake_case for Supabase
-            key.replace(/([A-Z])/g, '_$1').toLowerCase(),
-            value
-          ])
-        ),
+        ...updates,
       } as any);
 
       logger.info(`[SampleAggregator] Updated ${Object.keys(updates).length} metrics from samples for ${userId} on ${localDate}:`, updates);
