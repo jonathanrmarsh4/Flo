@@ -290,6 +290,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/user/data-metrics - Get latest metric values with sources for User Data table
+  app.get('/api/user/data-metrics', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const metrics = await supabaseHealthStorage.getLatestMetricsWithSources(userId);
+      res.json({ metrics });
+    } catch (error) {
+      logger.error('Error getting user data metrics:', error);
+      res.status(500).json({ error: "Failed to get user data metrics" });
+    }
+  });
+
   // GET /api/user/export-stats - Get counts for export preview
   app.get('/api/user/export-stats', isAuthenticated, async (req: any, res) => {
     try {

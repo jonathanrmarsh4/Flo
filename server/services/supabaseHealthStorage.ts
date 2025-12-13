@@ -4369,4 +4369,269 @@ export async function cancelBiomarkerFollowup(
   return data;
 }
 
+// ==================== USER DATA METRICS ====================
+
+export interface UserDataMetric {
+  category: string;
+  name: string;
+  displayName: string;
+  value: number | string;
+  unit: string;
+  source: string;
+  lastUpdated: string;
+}
+
+/**
+ * Get latest metric values with sources for User Data display
+ * Aggregates data from healthkit_samples, sleep_nights, cgm_readings, and oura tables
+ */
+export async function getLatestMetricsWithSources(userId: string): Promise<UserDataMetric[]> {
+  const healthId = await getHealthId(userId);
+  const metrics: UserDataMetric[] = [];
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  try {
+    // 1. Sleep data (from sleep_nights - includes Oura/HealthKit/manual)
+    const { data: sleepData } = await supabase
+      .from('sleep_nights')
+      .select('sleep_date, total_sleep_min, deep_sleep_min, rem_sleep_min, hrv_ms, resting_hr_bpm, source, updated_at')
+      .eq('health_id', healthId)
+      .order('sleep_date', { ascending: false })
+      .limit(1);
+
+    if (sleepData?.[0]) {
+      const sleep = sleepData[0];
+      const sourceDisplay = sleep.source === 'oura' ? 'Oura Ring' : sleep.source === 'healthkit' ? 'Apple Watch' : 'Manual';
+      
+      if (sleep.total_sleep_min) {
+        const hours = Math.floor(sleep.total_sleep_min / 60);
+        const mins = Math.round(sleep.total_sleep_min % 60);
+        metrics.push({
+          category: 'Sleep',
+          name: 'total_sleep',
+          displayName: 'Total Sleep',
+          value: `${hours}h ${mins}m`,
+          unit: '',
+          source: sourceDisplay,
+          lastUpdated: sleep.updated_at || sleep.sleep_date,
+        });
+      }
+      if (sleep.deep_sleep_min) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'deep_sleep',
+          displayName: 'Deep Sleep',
+          value: Math.round(sleep.deep_sleep_min),
+          unit: 'min',
+          source: sourceDisplay,
+          lastUpdated: sleep.updated_at || sleep.sleep_date,
+        });
+      }
+      if (sleep.rem_sleep_min) {
+        metrics.push({
+          category: 'Sleep',
+          name: 'rem_sleep',
+          displayName: 'REM Sleep',
+          value: Math.round(sleep.rem_sleep_min),
+          unit: 'min',
+          source: sourceDisplay,
+          lastUpdated: sleep.updated_at || sleep.sleep_date,
+        });
+      }
+      if (sleep.hrv_ms) {
+        metrics.push({
+          category: 'Recovery',
+          name: 'hrv',
+          displayName: 'HRV',
+          value: Math.round(sleep.hrv_ms),
+          unit: 'ms',
+          source: sourceDisplay,
+          lastUpdated: sleep.updated_at || sleep.sleep_date,
+        });
+      }
+      if (sleep.resting_hr_bpm) {
+        metrics.push({
+          category: 'Heart',
+          name: 'resting_hr',
+          displayName: 'Resting Heart Rate',
+          value: Math.round(sleep.resting_hr_bpm),
+          unit: 'bpm',
+          source: sourceDisplay,
+          lastUpdated: sleep.updated_at || sleep.sleep_date,
+        });
+      }
+    }
+
+    // 2. HealthKit samples (steps, active energy, etc.)
+    const { data: hkSamples } = await supabase
+      .from('healthkit_samples')
+      .select('data_type, value, unit, source_name, device_name, start_date, created_at')
+      .eq('health_id', healthId)
+      .gte('start_date', thirtyDaysAgo.toISOString())
+      .order('start_date', { ascending: false });
+
+    if (hkSamples && hkSamples.length > 0) {
+      // Group by data_type and get latest of each
+      const latestByType = new Map<string, typeof hkSamples[0]>();
+      for (const sample of hkSamples) {
+        if (!latestByType.has(sample.data_type)) {
+          latestByType.set(sample.data_type, sample);
+        }
+      }
+
+      const hkMetricMap: Record<string, { category: string; displayName: string; unit: string }> = {
+        'stepCount': { category: 'Activity', displayName: 'Steps', unit: 'steps' },
+        'HKQuantityTypeIdentifierStepCount': { category: 'Activity', displayName: 'Steps', unit: 'steps' },
+        'activeEnergyBurned': { category: 'Activity', displayName: 'Active Energy', unit: 'kcal' },
+        'HKQuantityTypeIdentifierActiveEnergyBurned': { category: 'Activity', displayName: 'Active Energy', unit: 'kcal' },
+        'distanceWalkingRunning': { category: 'Activity', displayName: 'Distance', unit: 'km' },
+        'HKQuantityTypeIdentifierDistanceWalkingRunning': { category: 'Activity', displayName: 'Distance', unit: 'km' },
+        'heartRate': { category: 'Heart', displayName: 'Heart Rate', unit: 'bpm' },
+        'HKQuantityTypeIdentifierHeartRate': { category: 'Heart', displayName: 'Heart Rate', unit: 'bpm' },
+        'heartRateVariabilitySDNN': { category: 'Recovery', displayName: 'HRV (SDNN)', unit: 'ms' },
+        'HKQuantityTypeIdentifierHeartRateVariabilitySDNN': { category: 'Recovery', displayName: 'HRV (SDNN)', unit: 'ms' },
+        'restingHeartRate': { category: 'Heart', displayName: 'Resting HR', unit: 'bpm' },
+        'HKQuantityTypeIdentifierRestingHeartRate': { category: 'Heart', displayName: 'Resting HR', unit: 'bpm' },
+        'vo2Max': { category: 'Fitness', displayName: 'VO2 Max', unit: 'mL/kg/min' },
+        'HKQuantityTypeIdentifierVO2Max': { category: 'Fitness', displayName: 'VO2 Max', unit: 'mL/kg/min' },
+        'bodyMass': { category: 'Body', displayName: 'Weight', unit: 'kg' },
+        'HKQuantityTypeIdentifierBodyMass': { category: 'Body', displayName: 'Weight', unit: 'kg' },
+        'bodyFatPercentage': { category: 'Body', displayName: 'Body Fat', unit: '%' },
+        'HKQuantityTypeIdentifierBodyFatPercentage': { category: 'Body', displayName: 'Body Fat', unit: '%' },
+        'oxygenSaturation': { category: 'Respiratory', displayName: 'Blood Oxygen', unit: '%' },
+        'HKQuantityTypeIdentifierOxygenSaturation': { category: 'Respiratory', displayName: 'Blood Oxygen', unit: '%' },
+        'respiratoryRate': { category: 'Respiratory', displayName: 'Respiratory Rate', unit: 'bpm' },
+        'HKQuantityTypeIdentifierRespiratoryRate': { category: 'Respiratory', displayName: 'Respiratory Rate', unit: 'bpm' },
+      };
+
+      for (const [dataType, sample] of latestByType) {
+        const mapping = hkMetricMap[dataType];
+        if (mapping) {
+          // Skip if we already have this metric from sleep_nights (e.g., HRV, resting HR)
+          const existingNames = metrics.map(m => m.name);
+          if (mapping.displayName === 'HRV' && existingNames.includes('hrv')) continue;
+          if (mapping.displayName === 'Resting HR' && existingNames.includes('resting_hr')) continue;
+
+          let sourceDisplay = 'Apple Watch';
+          if (sample.source_name?.toLowerCase().includes('oura')) {
+            sourceDisplay = 'Oura Ring';
+          } else if (sample.device_name) {
+            sourceDisplay = sample.device_name;
+          }
+
+          let value = sample.value;
+          // Convert distance from m to km
+          if (dataType.includes('distance') && value > 100) {
+            value = Math.round(value / 100) / 10; // to km with 1 decimal
+          }
+          // Convert oxygen saturation from decimal to percentage
+          if (dataType.includes('oxygen') && value <= 1) {
+            value = Math.round(value * 100);
+          }
+
+          metrics.push({
+            category: mapping.category,
+            name: dataType,
+            displayName: mapping.displayName,
+            value: typeof value === 'number' ? Math.round(value * 10) / 10 : value,
+            unit: mapping.unit,
+            source: sourceDisplay,
+            lastUpdated: sample.created_at || sample.start_date,
+          });
+        }
+      }
+    }
+
+    // 3. CGM readings (Dexcom)
+    const { data: cgmData } = await supabase
+      .from('cgm_readings')
+      .select('glucose_value, glucose_unit, recorded_at, source')
+      .eq('health_id', healthId)
+      .order('recorded_at', { ascending: false })
+      .limit(1);
+
+    if (cgmData?.[0]) {
+      const cgm = cgmData[0];
+      metrics.push({
+        category: 'Glucose',
+        name: 'blood_glucose',
+        displayName: 'Blood Glucose',
+        value: cgm.glucose_value,
+        unit: cgm.glucose_unit || 'mg/dL',
+        source: 'Dexcom',
+        lastUpdated: cgm.recorded_at,
+      });
+    }
+
+    // 4. Oura stress/resilience (if available)
+    const { data: stressData } = await supabase
+      .from('oura_daily_stress')
+      .select('day, stress_high, recovery_high, updated_at')
+      .eq('health_id', healthId)
+      .order('day', { ascending: false })
+      .limit(1);
+
+    if (stressData?.[0]) {
+      const stress = stressData[0];
+      if (stress.stress_high != null) {
+        metrics.push({
+          category: 'Stress',
+          name: 'stress_high',
+          displayName: 'Stress (High)',
+          value: stress.stress_high,
+          unit: 'min',
+          source: 'Oura Ring',
+          lastUpdated: stress.updated_at || stress.day,
+        });
+      }
+      if (stress.recovery_high != null) {
+        metrics.push({
+          category: 'Stress',
+          name: 'recovery_high',
+          displayName: 'Recovery (High)',
+          value: stress.recovery_high,
+          unit: 'min',
+          source: 'Oura Ring',
+          lastUpdated: stress.updated_at || stress.day,
+        });
+      }
+    }
+
+    // 5. Oura resilience
+    const { data: resilienceData } = await supabase
+      .from('oura_daily_resilience')
+      .select('day, level, updated_at')
+      .eq('health_id', healthId)
+      .order('day', { ascending: false })
+      .limit(1);
+
+    if (resilienceData?.[0]) {
+      metrics.push({
+        category: 'Recovery',
+        name: 'resilience',
+        displayName: 'Resilience',
+        value: resilienceData[0].level || 'N/A',
+        unit: '',
+        source: 'Oura Ring',
+        lastUpdated: resilienceData[0].updated_at || resilienceData[0].day,
+      });
+    }
+
+    // Sort by category then name
+    const categoryOrder = ['Sleep', 'Recovery', 'Heart', 'Activity', 'Fitness', 'Body', 'Respiratory', 'Glucose', 'Stress'];
+    metrics.sort((a, b) => {
+      const catA = categoryOrder.indexOf(a.category);
+      const catB = categoryOrder.indexOf(b.category);
+      if (catA !== catB) return catA - catB;
+      return a.displayName.localeCompare(b.displayName);
+    });
+
+    return metrics;
+  } catch (error) {
+    logger.error('[SupabaseHealth] Error getting latest metrics with sources:', error);
+    return [];
+  }
+}
+
 logger.info('[SupabaseHealth] Health storage service initialized');

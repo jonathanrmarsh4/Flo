@@ -1,4 +1,4 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check, Crown, Zap, LineChart, ArrowRight } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check, Crown, Zap, LineChart, ArrowRight, Database } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
 import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
@@ -13,6 +13,7 @@ import { HelpSupportScreen } from '@/components/HelpSupportScreen';
 import { NotificationsScreen } from '@/components/NotificationsScreen';
 import { PasskeyManagement } from '@/components/PasskeyManagement';
 import { IntegrationsSettings } from '@/components/IntegrationsSettings';
+import { UserDataScreen } from '@/components/UserDataScreen';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -34,6 +35,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [showTermsOfService, setShowTermsOfService] = useState(false);
   const [showMedicalDisclaimer, setShowMedicalDisclaimer] = useState(false);
   const [showExportData, setShowExportData] = useState(false);
+  const [showUserData, setShowUserData] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -1291,6 +1293,20 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
 
           <div className="space-y-2">
             <button 
+              onClick={() => setShowUserData(true)}
+              className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
+              isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
+            }`} data-testid="button-user-data">
+              <div className="flex items-center gap-3">
+                <Database className={`w-4 h-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                <span className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-800'}`}>
+                  User Data
+                </span>
+              </div>
+              <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+            </button>
+
+            <button 
               onClick={() => setShowExportData(true)}
               className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
               isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'
@@ -1417,6 +1433,13 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
         <ExportDataScreen 
           isDark={isDark} 
           onClose={() => setShowExportData(false)} 
+        />
+      )}
+
+      {showUserData && (
+        <UserDataScreen 
+          isDark={isDark} 
+          onClose={() => setShowUserData(false)} 
         />
       )}
 
