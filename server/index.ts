@@ -10,6 +10,7 @@ import { initializeReminderDeliveryService } from "./services/reminderDeliverySe
 import { startFollowUpScheduler } from "./services/followUpScheduler";
 import { clickhouseOrchestrator } from "./services/clickhouseOrchestrator";
 import { startMorningBriefingScheduler } from "./services/morningBriefingScheduler";
+import { startWeightForecastOrchestrator, startForecastWorker } from "./services/weightForecast";
 import { startCGMSyncScheduler } from "./services/cgmSyncScheduler";
 import { startOuraSyncScheduler } from "./services/ouraSyncScheduler";
 
@@ -179,6 +180,12 @@ app.use((req, res, next) => {
       
       // Start the Oura sync scheduler (hourly for connected Oura users)
       startOuraSyncScheduler();
+      
+      // Start the weight forecast orchestrator (hourly feature jobs + 10-min recompute queue)
+      startWeightForecastOrchestrator();
+      
+      // Start the weight forecast worker (polls queue and generates forecasts every 10s)
+      startForecastWorker();
     }, 5000);
   });
 })();

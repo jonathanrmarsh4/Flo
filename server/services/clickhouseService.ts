@@ -1,5 +1,6 @@
 import { createClient, ClickHouseClient } from '@clickhouse/client';
 import { createLogger } from '../utils/logger';
+import { initializeWeightForecastSchema } from './weightForecast/clickhouseSchema';
 
 const logger = createLogger('ClickHouse');
 
@@ -1001,7 +1002,12 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
-    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, behavior attribution, morning briefing, adaptive thresholds, and metric suppressions)');
+    logger.info('[ClickHouse] All flo_health tables initialized successfully');
+
+    // Initialize weight forecast schema (flo_ml database)
+    await initializeWeightForecastSchema();
+
+    logger.info('[ClickHouse] All tables initialized successfully (including ML learned baselines, long-term correlation engine, behavior attribution, morning briefing, adaptive thresholds, metric suppressions, and weight forecast)');
     return true;
   } catch (error) {
     logger.error('[ClickHouse] Failed to initialize tables:', error);

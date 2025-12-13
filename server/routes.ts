@@ -17193,6 +17193,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   const recoveryRouter = await import('./routes/recovery');
   app.use('/api/recovery', isAuthenticated, recoveryRouter.default);
 
+  // Weight forecasting routes (tile, overview, goal, weigh-in, body-comp)
+  const weightForecastRouter = await import('./routes/weightForecast');
+  app.use('/v1/weight', weightForecastRouter.default);
+
   const httpServer = createServer(app);
   
   // ────────────────────────────────────────────────────────────────
