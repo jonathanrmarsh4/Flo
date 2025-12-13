@@ -113,8 +113,8 @@ export function UserDataScreen({ isDark, onClose }: UserDataScreenProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
           <p className={`text-sm mb-6 ${isDark ? 'text-white/60' : 'text-gray-500'}`}>
             Latest values from your connected devices and data sources.
           </p>
