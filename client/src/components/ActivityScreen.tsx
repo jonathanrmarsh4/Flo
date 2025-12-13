@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2 } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BottomNav } from './BottomNav';
 import { CGMScreen } from './CGMScreen';
 import { DataSourceBadge } from '@/components/DataSourceBadge';
+import { RecoveryTab, type RecoverySession, type RecoveryStats, type SaunaSessionData, type IceBathSessionData } from '@/components/recovery';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface ActivityScreenProps {
   isDark: boolean;
@@ -13,7 +16,7 @@ interface ActivityScreenProps {
   onAddClick?: () => void;
 }
 
-type TabType = 'activity' | 'nutrition' | 'glucose';
+type TabType = 'activity' | 'nutrition' | 'recovery' | 'glucose';
 
 interface ActivitySummary {
   date: string;
@@ -231,6 +234,13 @@ export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenPr
               isDark={isDark}
             />
             <TabButton
+              icon={<Flame className="w-4 h-4" />}
+              label="Recovery"
+              isActive={activeTab === 'recovery'}
+              onClick={() => setActiveTab('recovery')}
+              isDark={isDark}
+            />
+            <TabButton
               icon={<Gauge className="w-4 h-4" />}
               label="Glucose"
               isActive={activeTab === 'glucose'}
@@ -245,6 +255,7 @@ export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenPr
         <div className="max-w-2xl mx-auto">
           {activeTab === 'activity' && <ActivityTabContent isDark={isDark} />}
           {activeTab === 'nutrition' && <NutritionTabContent isDark={isDark} />}
+          {activeTab === 'recovery' && <RecoveryTabContent isDark={isDark} />}
         </div>
       </main>
 
@@ -2543,4 +2554,81 @@ function MacrosDetailsModal({ isDark, onClose }: MacrosDetailsModalProps) {
   );
 
   return createPortal(modalContent, document.body);
+}
+
+function RecoveryTabContent({ isDark }: { isDark: boolean }) {
+  const { toast } = useToast();
+  
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery<RecoverySession[]>({
+    queryKey: ['/api/recovery/sessions'],
+  });
+  
+  const { data: statsData, isLoading: statsLoading } = useQuery<RecoveryStats>({
+    queryKey: ['/api/recovery/stats'],
+  });
+
+  const saveSaunaMutation = useMutation({
+    mutationFn: async (data: SaunaSessionData) => {
+      return apiRequest('POST', '/api/recovery/sauna', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/recovery/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/recovery/stats'] });
+      toast({
+        title: 'Sauna session logged',
+        description: 'Your sauna session has been recorded.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to save',
+        description: error.message || 'Could not save your session.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const saveIceBathMutation = useMutation({
+    mutationFn: async (data: IceBathSessionData) => {
+      return apiRequest('POST', '/api/recovery/icebath', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/recovery/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/recovery/stats'] });
+      toast({
+        title: 'Ice bath logged',
+        description: 'Your ice bath session has been recorded.',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Failed to save',
+        description: error.message || 'Could not save your session.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleSaveSauna = async (data: SaunaSessionData) => {
+    await saveSaunaMutation.mutateAsync(data);
+  };
+
+  const handleSaveIceBath = async (data: IceBathSessionData) => {
+    await saveIceBathMutation.mutateAsync(data);
+  };
+
+  const isLoading = sessionsLoading || statsLoading;
+  const sessions = sessionsData ?? [];
+  const stats = statsData ?? null;
+
+  return (
+    <RecoveryTab
+      isDark={isDark}
+      sessions={sessions}
+      stats={stats}
+      onSaveSauna={handleSaveSauna}
+      onSaveIceBath={handleSaveIceBath}
+      isLoading={isLoading}
+    />
+  );
 }

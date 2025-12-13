@@ -17177,6 +17177,10 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   const integrationsRouter = await import('./routes/integrations');
   app.use('/api/integrations', integrationsRouter.default);
 
+  // Recovery routes (sauna, ice bath thermal recovery tracking)
+  const recoveryRouter = await import('./routes/recovery');
+  app.use('/api/recovery', isAuthenticated, recoveryRouter.default);
+
   const httpServer = createServer(app);
   
   // ────────────────────────────────────────────────────────────────

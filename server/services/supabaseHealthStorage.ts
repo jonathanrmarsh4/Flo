@@ -5057,4 +5057,231 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
   }
 }
 
+// ==================== RECOVERY SESSIONS (Sauna & Ice Bath) ====================
+
+export interface RecoverySession {
+  id?: string;
+  health_id: string;
+  session_type: 'sauna' | 'icebath';
+  session_date: string; // YYYY-MM-DD local date
+  timezone: string;
+  duration_minutes: number;
+  duration_seconds?: number | null; // For ice bath precision (mm:ss)
+  temperature?: number | null;
+  temperature_unit?: 'F' | 'C' | null;
+  timing?: 'post-workout' | 'separate' | null; // Sauna only
+  feeling?: number | null; // 1-5 scale
+  calories_burned?: number | null;
+  recovery_score?: number | null;
+  benefit_tags?: string[] | null; // e.g., ["Heat Shock Protein Release", "Dopamine Spike"]
+  notes?: string | null;
+  source?: string | null;
+  created_at?: Date;
+  updated_at?: Date;
+}
+
+export async function createRecoverySession(userId: string, session: Omit<RecoverySession, 'health_id' | 'id' | 'created_at' | 'updated_at'>): Promise<RecoverySession> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .insert({
+      ...session,
+      health_id: healthId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error creating recovery session:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Created ${session.session_type} recovery session for user ${userId}`);
+  return data;
+}
+
+export async function getRecoverySessions(userId: string, days = 30): Promise<RecoverySession[]> {
+  const healthId = await getHealthId(userId);
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .gte('session_date', cutoffDateStr)
+    .order('session_date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching recovery sessions:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getRecoverySessionsByType(userId: string, sessionType: 'sauna' | 'icebath', days = 30): Promise<RecoverySession[]> {
+  const healthId = await getHealthId(userId);
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('session_type', sessionType)
+    .gte('session_date', cutoffDateStr)
+    .order('session_date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching recovery sessions by type:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getRecoverySessionsByDate(userId: string, localDate: string): Promise<RecoverySession[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .eq('session_date', localDate)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching recovery sessions by date:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getRecoverySessionById(userId: string, sessionId: string): Promise<RecoverySession | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .eq('health_id', healthId)
+    .maybeSingle();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching recovery session by ID:', error);
+    return null;
+  }
+
+  return data;
+}
+
+export async function updateRecoverySession(
+  userId: string,
+  sessionId: string,
+  updates: Partial<Omit<RecoverySession, 'id' | 'health_id' | 'created_at'>>
+): Promise<RecoverySession | null> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', sessionId)
+    .eq('health_id', healthId)
+    .select()
+    .single();
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error updating recovery session:', error);
+    throw error;
+  }
+
+  logger.info(`[SupabaseHealth] Updated recovery session ${sessionId}`);
+  return data;
+}
+
+export async function deleteRecoverySession(userId: string, sessionId: string): Promise<boolean> {
+  const healthId = await getHealthId(userId);
+  
+  const { error } = await supabase
+    .from('recovery_sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('health_id', healthId);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error deleting recovery session:', error);
+    return false;
+  }
+
+  logger.info(`[SupabaseHealth] Deleted recovery session ${sessionId}`);
+  return true;
+}
+
+export async function getRecoveryStats(userId: string, days = 30): Promise<{
+  totalSaunaSessions: number;
+  totalIceBathSessions: number;
+  totalSaunaMinutes: number;
+  totalIceBathMinutes: number;
+  totalCaloriesBurned: number;
+  avgRecoveryScore: number | null;
+}> {
+  const healthId = await getHealthId(userId);
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .select('session_type, duration_minutes, duration_seconds, calories_burned, recovery_score')
+    .eq('health_id', healthId)
+    .gte('session_date', cutoffDateStr);
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching recovery stats:', error);
+    throw error;
+  }
+
+  const sessions = data || [];
+  const saunaSessions = sessions.filter(s => s.session_type === 'sauna');
+  const iceBathSessions = sessions.filter(s => s.session_type === 'icebath');
+
+  const totalSaunaMinutes = saunaSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+  const totalIceBathSeconds = iceBathSessions.reduce((sum, s) => {
+    const mins = s.duration_minutes || 0;
+    const secs = s.duration_seconds || 0;
+    return sum + (mins * 60) + secs;
+  }, 0);
+  const totalIceBathMinutes = Math.round(totalIceBathSeconds / 60 * 10) / 10;
+  const totalCaloriesBurned = sessions.reduce((sum, s) => sum + (s.calories_burned || 0), 0);
+  
+  const scoresWithValues = sessions.filter(s => s.recovery_score != null).map(s => s.recovery_score!);
+  const avgRecoveryScore = scoresWithValues.length > 0
+    ? Math.round((scoresWithValues.reduce((a, b) => a + b, 0) / scoresWithValues.length) * 10) / 10
+    : null;
+
+  return {
+    totalSaunaSessions: saunaSessions.length,
+    totalIceBathSessions: iceBathSessions.length,
+    totalSaunaMinutes,
+    totalIceBathMinutes,
+    totalCaloriesBurned,
+    avgRecoveryScore,
+  };
+}
+
 logger.info('[SupabaseHealth] Health storage service initialized');
