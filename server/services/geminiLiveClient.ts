@@ -269,9 +269,14 @@ class GeminiLiveClient {
 
       // Handle model's response (text and/or audio) in modelTurn.parts
       if (message.serverContent?.modelTurn?.parts) {
+        const partCount = message.serverContent.modelTurn.parts.length;
+        let audioPartsFound = 0;
+        let textPartsFound = 0;
+        
         for (const part of message.serverContent.modelTurn.parts) {
           // Handle text response
           if (part.text) {
+            textPartsFound++;
             callbacks.onModelText(part.text);
           }
           
@@ -279,14 +284,37 @@ class GeminiLiveClient {
           // Audio comes in part.inlineData with mimeType like 'audio/pcm;rate=24000'
           const inlineData = (part as any).inlineData;
           if (inlineData?.data && inlineData?.mimeType?.includes('audio')) {
-            logger.debug('[GeminiLive] Audio chunk received', { 
+            audioPartsFound++;
+            logger.info('[GeminiLive] Audio chunk received', { 
               mimeType: inlineData.mimeType,
               dataLength: inlineData.data.length 
             });
             const audioBuffer = Buffer.from(inlineData.data, 'base64');
             callbacks.onAudioChunk(audioBuffer);
+          } else if (inlineData) {
+            // Log unexpected inlineData format for debugging
+            logger.warn('[GeminiLive] InlineData present but not audio', {
+              hasMimeType: !!inlineData.mimeType,
+              mimeType: inlineData.mimeType,
+              hasData: !!inlineData.data,
+            });
           }
         }
+        
+        // Log part summary to track audio vs text responses
+        if (partCount > 0) {
+          logger.info('[GeminiLive] Processed modelTurn parts', {
+            totalParts: partCount,
+            textParts: textPartsFound,
+            audioParts: audioPartsFound,
+          });
+        }
+      } else if (message.serverContent?.modelTurn) {
+        // modelTurn exists but no parts - this shouldn't happen but log it
+        logger.warn('[GeminiLive] modelTurn present but no parts', {
+          hasModelTurn: true,
+          partsValue: message.serverContent.modelTurn.parts,
+        });
       }
 
       // Handle turn complete
