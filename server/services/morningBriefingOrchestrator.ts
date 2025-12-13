@@ -221,6 +221,47 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
   };
 
   try {
+    // DEBUG: First check how many total rows exist for this health_id in ClickHouse
+    const countQuery = `
+      SELECT count() as total_rows, min(recorded_at) as earliest, max(recorded_at) as latest
+      FROM flo_health.health_metrics
+      WHERE health_id = {healthId:String}
+    `;
+    const countResult = await clickhouse.query<{
+      total_rows: number;
+      earliest: string;
+      latest: string;
+    }>(countQuery, { healthId });
+    
+    if (countResult.length > 0) {
+      const { total_rows, earliest, latest } = countResult[0];
+      logger.info(`[MorningBriefing] DEBUG ClickHouse data for ${healthId}: total_rows=${total_rows}, earliest=${earliest}, latest=${latest}`);
+      
+      // AUTO-HEAL: If ClickHouse has 0 rows, trigger full history sync from Supabase (once)
+      if (total_rows === 0) {
+        const { clickhouseBaselineEngine } = await import('./clickhouseBaselineEngine');
+        
+        // Check if we already attempted a sync for this user recently (prevent repeated syncs)
+        if (!clickhouseBaselineEngine.hasRecentSyncAttempt(healthId)) {
+          logger.warn(`[MorningBriefing] ClickHouse has 0 rows for ${healthId}, triggering full history sync...`);
+          try {
+            const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
+            logger.info(`[MorningBriefing] Full history sync complete for ${healthId}: ${syncResult.total} records synced`);
+            // Mark sync as attempted regardless of result count
+            clickhouseBaselineEngine.recordSyncAttempt(healthId, syncResult.total);
+          } catch (syncErr) {
+            logger.error(`[MorningBriefing] Full history sync failed for ${healthId}:`, syncErr);
+            // Mark as attempted to avoid thrashing on repeated errors
+            clickhouseBaselineEngine.recordSyncAttempt(healthId, 0);
+          }
+        } else {
+          logger.debug(`[MorningBriefing] Skipping sync for ${healthId} - recent attempt already made`);
+        }
+      }
+    } else {
+      logger.warn(`[MorningBriefing] DEBUG ClickHouse has NO data for healthId=${healthId}`);
+    }
+
     // First, try to compute fresh baselines directly from health_metrics (source of truth)
     // This bypasses the metric_baselines table which may have stale or mismatched window data
     // NOTE: Do not use FINAL - SharedMergeTree doesn't support it

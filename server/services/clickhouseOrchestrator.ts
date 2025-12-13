@@ -168,7 +168,21 @@ class ClickHouseOrchestrator {
           const healthId = await getHealthId(user.id);
           if (!healthId) continue;
 
-          await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 1);
+          // Check if user has any ClickHouse data - if not, sync full history (once per cooldown)
+          const hasData = await clickhouseBaselineEngine.hasDataForUser(healthId);
+          if (!hasData && !clickhouseBaselineEngine.hasRecentSyncAttempt(healthId)) {
+            logger.info(`[ClickHouseOrchestrator] User ${user.id} has no ClickHouse data, running full history sync...`);
+            try {
+              const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
+              clickhouseBaselineEngine.recordSyncAttempt(healthId, syncResult.total);
+            } catch (syncErr) {
+              clickhouseBaselineEngine.recordSyncAttempt(healthId, 0);
+              throw syncErr;
+            }
+          } else if (hasData) {
+            // Normal incremental sync (last 1 day)
+            await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 1);
+          }
 
           const result = await correlationInsightService.runFullAnalysis(user.id);
           stats.usersProcessed++;
@@ -324,7 +338,21 @@ class ClickHouseOrchestrator {
           const healthId = await getHealthId(user.id);
           if (!healthId) continue;
 
-          await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 1);
+          // Check if user has any ClickHouse data - if not, sync full history (once per cooldown)
+          const hasData = await clickhouseBaselineEngine.hasDataForUser(healthId);
+          if (!hasData && !clickhouseBaselineEngine.hasRecentSyncAttempt(healthId)) {
+            logger.info(`[ClickHouseOrchestrator] Manual: User ${user.id} has no ClickHouse data, running full history sync...`);
+            try {
+              const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
+              clickhouseBaselineEngine.recordSyncAttempt(healthId, syncResult.total);
+            } catch (syncErr) {
+              clickhouseBaselineEngine.recordSyncAttempt(healthId, 0);
+              throw syncErr;
+            }
+          } else if (hasData) {
+            await clickhouseBaselineEngine.syncHealthDataFromSupabase(healthId, 1);
+          }
+          
           const result = await correlationInsightService.runFullAnalysis(user.id);
           stats.usersProcessed++;
           stats.anomaliesDetected += result.anomalies.length;

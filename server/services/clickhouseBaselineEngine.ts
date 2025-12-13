@@ -585,6 +585,63 @@ export class ClickHouseBaselineEngine {
   // Full history constant: 10 years (3650 days) covers all possible user data
   static readonly FULL_HISTORY_DAYS = 3650;
 
+  // Track recent sync attempts to prevent repeated full syncs for users with no data
+  // Map: healthId -> { timestamp: Date, recordsSynced: number }
+  private syncAttempts = new Map<string, { timestamp: Date; recordsSynced: number }>();
+  private readonly SYNC_COOLDOWN_HOURS = 24; // Don't retry full sync for 24 hours
+
+  /**
+   * Check if we've recently attempted a full sync for this user.
+   * Returns true if sync was attempted within the cooldown period.
+   */
+  hasRecentSyncAttempt(healthId: string): boolean {
+    const attempt = this.syncAttempts.get(healthId);
+    if (!attempt) return false;
+    
+    const hoursSinceAttempt = (Date.now() - attempt.timestamp.getTime()) / (1000 * 60 * 60);
+    return hoursSinceAttempt < this.SYNC_COOLDOWN_HOURS;
+  }
+
+  /**
+   * Record that we attempted a full sync for this user.
+   */
+  recordSyncAttempt(healthId: string, recordsSynced: number): void {
+    this.syncAttempts.set(healthId, { timestamp: new Date(), recordsSynced });
+    logger.debug(`[ClickHouseML] Recorded sync attempt for ${healthId}: ${recordsSynced} records`);
+  }
+
+  /**
+   * Clear sync attempt record for a user (use when forcing a retry).
+   */
+  clearSyncAttempt(healthId: string): void {
+    this.syncAttempts.delete(healthId);
+  }
+
+  /**
+   * Check if a user has any data in ClickHouse health_metrics table.
+   * Used to determine if full history sync is needed.
+   */
+  async hasDataForUser(healthId: string): Promise<boolean> {
+    if (!await this.ensureInitialized()) return false;
+    
+    try {
+      const client = getClickHouseClient();
+      if (!client) return false;
+      
+      const result = await client.query({
+        query: `SELECT count() as cnt FROM flo_health.health_metrics WHERE health_id = {healthId:String} LIMIT 1`,
+        query_params: { healthId },
+        format: 'JSONEachRow',
+      });
+      
+      const rows = await result.json() as { cnt: number }[];
+      return rows.length > 0 && rows[0].cnt > 0;
+    } catch (error) {
+      logger.error(`[ClickHouseML] Error checking data for ${healthId}:`, error);
+      return false;
+    }
+  }
+
   async syncHealthDataFromSupabase(healthId: string, daysBack: number | null = 30): Promise<number> {
     if (!await this.ensureInitialized()) return 0;
 

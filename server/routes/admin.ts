@@ -841,6 +841,47 @@ export function registerAdminRoutes(app: Express) {
 
   /**
    * ============================================================================
+   * CLICKHOUSE FULL HISTORY SYNC
+   * ============================================================================
+   * 
+   * Triggers a full history sync from Supabase to ClickHouse for a specific user.
+   * Use this when a user has no ClickHouse data and baselines are falling back to
+   * population defaults. This syncs ALL historical data instead of just the last day.
+   */
+  app.post('/api/admin/ml/full-sync/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      const { getHealthId } = await import('../services/supabaseHealthStorage');
+      const { clickhouseBaselineEngine } = await import('../services/clickhouseBaselineEngine');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "Health ID not found for user" });
+      }
+
+      logger.info(`[Admin] Starting full ClickHouse sync for user ${userId} (healthId: ${healthId})`);
+      
+      // Run comprehensive sync with null daysBack to get full history
+      const syncResult = await clickhouseBaselineEngine.syncAllHealthData(healthId, null);
+      
+      logger.info(`[Admin] Full sync complete for ${userId}:`, syncResult);
+      
+      res.json({
+        success: true,
+        userId,
+        healthId,
+        syncResult,
+        message: `Synced ${syncResult.total} total records to ClickHouse`,
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Full sync failed:', error);
+      res.status(500).json({ error: error.message || "Failed to run full sync" });
+    }
+  });
+
+  /**
+   * ============================================================================
    * DATA PARITY REPORT - ClickHouse vs Supabase Comparison
    * ============================================================================
    * 
