@@ -838,4 +838,267 @@ export function registerAdminRoutes(app: Express) {
   // - /api/admin/ml/neon-comparison/:userId  
   // - /api/admin/ml/full-comparison/:userId
   // ClickHouse is now the single source of truth - no comparison needed.
+
+  /**
+   * ============================================================================
+   * DATA PARITY REPORT - ClickHouse vs Supabase Comparison
+   * ============================================================================
+   * 
+   * Compares activity metrics (steps, active_energy) between ClickHouse and Supabase
+   * to identify any discrepancies, particularly Oura + HealthKit duplicate issues.
+   */
+  app.get('/api/admin/data-parity/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const days = parseInt(req.query.days as string) || 14;
+      
+      const { getHealthId } = await import('../services/supabaseHealthStorage');
+      const { getClickHouseClient, isClickHouseEnabled } = await import('../services/clickhouseService');
+      const { getSupabaseClient } = await import('../services/supabaseClient');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "Health ID not found for user" });
+      }
+      
+      const errors: string[] = [];
+      const report: any = {
+        userId,
+        healthId,
+        generatedAt: new Date().toISOString(),
+        daysAnalyzed: days,
+        clickhouse: { available: false, metrics: {}, error: null },
+        supabase: { available: false, metrics: {}, error: null },
+        discrepancies: [],
+        summary: {},
+        errors: [],
+      };
+      
+      // Query ClickHouse for activity metrics - keep per-source breakdown
+      if (isClickHouseEnabled()) {
+        const ch = getClickHouseClient();
+        if (ch) {
+          try {
+            // Query returns per-source values so we can detect duplicates
+            const chResult = await ch.query({
+              query: `
+                SELECT 
+                  local_date,
+                  metric_type,
+                  source,
+                  sum(value) as total_value,
+                  count() as sample_count
+                FROM flo_health.health_metrics FINAL
+                WHERE health_id = {healthId:String}
+                  AND local_date >= today() - {days:UInt32}
+                  AND metric_type IN ('steps', 'active_energy')
+                GROUP BY local_date, metric_type, source
+                ORDER BY local_date DESC, metric_type, source
+              `,
+              query_params: { healthId, days },
+              format: 'JSONEachRow',
+            });
+            
+            const chRows = await chResult.json() as any[];
+            report.clickhouse.available = true;
+            
+            // Group by date and metric, keeping all sources
+            const chMetrics: Record<string, Record<string, { total: number; bySource: Record<string, number> }>> = {};
+            for (const row of chRows) {
+              const dateKey = row.local_date;
+              if (!chMetrics[dateKey]) chMetrics[dateKey] = {};
+              if (!chMetrics[dateKey][row.metric_type]) {
+                chMetrics[dateKey][row.metric_type] = { total: 0, bySource: {} };
+              }
+              chMetrics[dateKey][row.metric_type].bySource[row.source] = row.total_value;
+              chMetrics[dateKey][row.metric_type].total += row.total_value;
+            }
+            report.clickhouse.metrics = chMetrics;
+          } catch (chError: any) {
+            report.clickhouse.error = chError.message;
+            errors.push(`ClickHouse: ${chError.message}`);
+            logger.error(`[DataParity] ClickHouse query error: ${chError.message}`);
+          }
+        }
+      } else {
+        report.clickhouse.error = 'ClickHouse not enabled';
+      }
+      
+      // Query Supabase for activity metrics (user_daily_metrics table)
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - days);
+          const startDateStr = startDate.toISOString().split('T')[0];
+          
+          const { data: sbRows, error: sbError } = await supabase
+            .from('user_daily_metrics')
+            .select('local_date, steps, active_energy, steps_sources, active_energy_sources')
+            .eq('health_id', healthId)
+            .gte('local_date', startDateStr)
+            .order('local_date', { ascending: false });
+          
+          if (sbError) {
+            report.supabase.error = sbError.message;
+            errors.push(`Supabase: ${sbError.message}`);
+            logger.error(`[DataParity] Supabase query error: ${sbError.message}`);
+          } else if (sbRows) {
+            report.supabase.available = true;
+            const sbMetrics: Record<string, { steps?: number; active_energy?: number; sources?: any }> = {};
+            for (const row of sbRows) {
+              // sources are already arrays from Supabase, no JSON.parse needed
+              const stepsSources = Array.isArray(row.steps_sources) ? row.steps_sources : [];
+              const energySources = Array.isArray(row.active_energy_sources) ? row.active_energy_sources : [];
+              
+              sbMetrics[row.local_date] = {
+                steps: row.steps,
+                active_energy: row.active_energy,
+                sources: {
+                  steps: stepsSources,
+                  active_energy: energySources,
+                },
+              };
+            }
+            report.supabase.metrics = sbMetrics;
+          }
+        } catch (sbError: any) {
+          report.supabase.error = sbError.message;
+          errors.push(`Supabase: ${sbError.message}`);
+          logger.error(`[DataParity] Supabase query exception: ${sbError.message}`);
+        }
+      } else {
+        report.supabase.error = 'Supabase client not available';
+      }
+      
+      // If both databases failed, return error
+      if (!report.clickhouse.available && !report.supabase.available) {
+        return res.status(502).json({ 
+          error: "Could not query either database", 
+          details: errors 
+        });
+      }
+      
+      // Compare and find discrepancies
+      const chDates = Object.keys(report.clickhouse.metrics);
+      const sbDates = Object.keys(report.supabase.metrics);
+      const allDates = Array.from(new Set([...chDates, ...sbDates])).sort().reverse();
+      
+      for (const date of allDates) {
+        const chData = report.clickhouse.metrics[date] || {};
+        const sbData = report.supabase.metrics[date] || {};
+        
+        // Check steps discrepancy
+        const chSteps = chData.steps?.total;
+        const sbSteps = sbData.steps;
+        if (chSteps !== undefined && sbSteps !== undefined) {
+          const diff = Math.abs(chSteps - sbSteps);
+          const diffPct = sbSteps > 0 ? (diff / sbSteps) * 100 : 0;
+          if (diffPct > 5) {
+            report.discrepancies.push({
+              date,
+              metric: 'steps',
+              clickhouse: chSteps,
+              clickhouseSources: chData.steps?.bySource,
+              supabase: sbSteps,
+              supabaseSources: sbData.sources?.steps,
+              difference: diff,
+              diffPercent: diffPct.toFixed(1) + '%',
+            });
+          }
+        }
+        
+        // Check active_energy discrepancy
+        const chEnergy = chData.active_energy?.total;
+        const sbEnergy = sbData.active_energy;
+        if (chEnergy !== undefined && sbEnergy !== undefined) {
+          const diff = Math.abs(chEnergy - sbEnergy);
+          const diffPct = sbEnergy > 0 ? (diff / sbEnergy) * 100 : 0;
+          if (diffPct > 5) {
+            report.discrepancies.push({
+              date,
+              metric: 'active_energy',
+              clickhouse: chEnergy,
+              clickhouseSources: chData.active_energy?.bySource,
+              supabase: sbEnergy,
+              supabaseSources: sbData.sources?.active_energy,
+              difference: diff,
+              diffPercent: diffPct.toFixed(1) + '%',
+            });
+          }
+        }
+      }
+      
+      // Check for Oura sources in both ClickHouse and Supabase data
+      const ouraPatterns = ['oura', 'ouraring', 'com.ouraring'];
+      const ouraSourceWarnings: any[] = [];
+      
+      // Check ClickHouse sources
+      for (const [date, metrics] of Object.entries(report.clickhouse.metrics) as [string, any][]) {
+        for (const [metricType, data] of Object.entries(metrics) as [string, any][]) {
+          const sources = Object.keys(data.bySource || {});
+          const ouraSources = sources.filter((s: string) => 
+            ouraPatterns.some(p => s?.toLowerCase().includes(p))
+          );
+          if (ouraSources.length > 0) {
+            ouraSourceWarnings.push({
+              date,
+              metric: metricType,
+              database: 'clickhouse',
+              ouraSources,
+              ouraValue: ouraSources.reduce((sum, src) => sum + (data.bySource[src] || 0), 0),
+              allSources: sources,
+            });
+          }
+        }
+      }
+      
+      // Check Supabase sources
+      for (const [date, data] of Object.entries(report.supabase.metrics) as [string, any][]) {
+        const stepsSources: string[] = data.sources?.steps || [];
+        const energySources: string[] = data.sources?.active_energy || [];
+        
+        const ouraStepsSources = stepsSources.filter((s: string) => 
+          ouraPatterns.some(p => s?.toLowerCase().includes(p))
+        );
+        const ouraEnergySources = energySources.filter((s: string) => 
+          ouraPatterns.some(p => s?.toLowerCase().includes(p))
+        );
+        
+        if (ouraStepsSources.length > 0) {
+          ouraSourceWarnings.push({
+            date,
+            metric: 'steps',
+            database: 'supabase',
+            ouraSources: ouraStepsSources,
+            allSources: stepsSources,
+          });
+        }
+        if (ouraEnergySources.length > 0) {
+          ouraSourceWarnings.push({
+            date,
+            metric: 'active_energy',
+            database: 'supabase',
+            ouraSources: ouraEnergySources,
+            allSources: energySources,
+          });
+        }
+      }
+      
+      report.summary = {
+        datesWithClickHouseData: chDates.length,
+        datesWithSupabaseData: sbDates.length,
+        discrepancyCount: report.discrepancies.length,
+        ouraSourceWarnings: ouraSourceWarnings.length,
+      };
+      report.ouraWarnings = ouraSourceWarnings;
+      report.errors = errors;
+      
+      logger.info(`[DataParity] Generated report for ${userId}: ${report.discrepancies.length} discrepancies, ${ouraSourceWarnings.length} Oura source warnings`);
+      res.json(report);
+    } catch (error: any) {
+      logger.error('[Admin] Data parity report failed:', error);
+      res.status(500).json({ error: error.message || "Failed to generate data parity report" });
+    }
+  });
 }
