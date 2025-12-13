@@ -894,6 +894,19 @@ export class ClickHouseBaselineEngine {
     if (!await this.ensureInitialized()) return [];
 
     try {
+      // Minimum value thresholds for sleep metrics to exclude naps and partial syncs
+      // These values represent 4 hours (240 min) as the minimum for "real" overnight sleep
+      const sleepMinimumThresholds: Record<string, number> = {
+        'time_in_bed_min': 240,       // Minimum 4 hours to count as overnight sleep
+        'sleep_duration_min': 180,    // Minimum 3 hours actual sleep
+        'total_sleep_min': 180,       // Minimum 3 hours actual sleep
+        'deep_sleep_min': 15,         // Minimum 15 min deep sleep (excludes naps with no deep sleep)
+        'rem_sleep_min': 15,          // Minimum 15 min REM sleep
+        'core_sleep_min': 60,         // Minimum 1 hour core sleep
+      };
+
+      // Build conditional WHERE clause for minimum thresholds
+      // For sleep metrics, exclude values below threshold; for all others, include everything
       const sql = `
         SELECT
           metric_type,
@@ -909,6 +922,16 @@ export class ClickHouseBaselineEngine {
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND recorded_at >= now() - INTERVAL {windowDays:UInt8} DAY
+          -- Filter out naps/partial syncs for sleep metrics
+          AND (
+            (metric_type = 'time_in_bed_min' AND value >= 240) OR
+            (metric_type = 'sleep_duration_min' AND value >= 180) OR
+            (metric_type = 'total_sleep_min' AND value >= 180) OR
+            (metric_type = 'deep_sleep_min' AND value >= 15) OR
+            (metric_type = 'rem_sleep_min' AND value >= 15) OR
+            (metric_type = 'core_sleep_min' AND value >= 60) OR
+            (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
+          )
         GROUP BY metric_type
         HAVING count() >= 3
       `;

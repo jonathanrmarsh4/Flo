@@ -266,6 +266,7 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
     // This bypasses the metric_baselines table which may have stale or mismatched window data
     // NOTE: Do not use FINAL - SharedMergeTree doesn't support it
     // Duplicates are handled by the aggregation (GROUP BY) itself
+    // IMPORTANT: Filter out naps/partial syncs for sleep metrics using minimum thresholds
     const liveBaselinesQuery = `
       SELECT
         metric_type,
@@ -275,6 +276,15 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
       FROM flo_health.health_metrics
       WHERE health_id = {healthId:String}
         AND recorded_at >= now() - INTERVAL 90 DAY
+        AND (
+          (metric_type = 'time_in_bed_min' AND value >= 240) OR
+          (metric_type = 'sleep_duration_min' AND value >= 180) OR
+          (metric_type = 'total_sleep_min' AND value >= 180) OR
+          (metric_type = 'deep_sleep_min' AND value >= 15) OR
+          (metric_type = 'rem_sleep_min' AND value >= 15) OR
+          (metric_type = 'core_sleep_min' AND value >= 60) OR
+          (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
+        )
       GROUP BY metric_type
       HAVING count() >= 3
     `;
@@ -298,6 +308,15 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND recorded_at >= now() - INTERVAL 30 DAY
+          AND (
+            (metric_type = 'time_in_bed_min' AND value >= 240) OR
+            (metric_type = 'sleep_duration_min' AND value >= 180) OR
+            (metric_type = 'total_sleep_min' AND value >= 180) OR
+            (metric_type = 'deep_sleep_min' AND value >= 15) OR
+            (metric_type = 'rem_sleep_min' AND value >= 15) OR
+            (metric_type = 'core_sleep_min' AND value >= 60) OR
+            (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
+          )
         GROUP BY metric_type
         HAVING count() >= 3
       `;
@@ -321,6 +340,15 @@ async function fetchBaselines(healthId: string): Promise<BaselineMetrics> {
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND recorded_at >= now() - INTERVAL 7 DAY
+          AND (
+            (metric_type = 'time_in_bed_min' AND value >= 240) OR
+            (metric_type = 'sleep_duration_min' AND value >= 180) OR
+            (metric_type = 'total_sleep_min' AND value >= 180) OR
+            (metric_type = 'deep_sleep_min' AND value >= 15) OR
+            (metric_type = 'rem_sleep_min' AND value >= 15) OR
+            (metric_type = 'core_sleep_min' AND value >= 60) OR
+            (metric_type NOT IN ('time_in_bed_min', 'sleep_duration_min', 'total_sleep_min', 'deep_sleep_min', 'rem_sleep_min', 'core_sleep_min'))
+          )
         GROUP BY metric_type
         HAVING count() >= 2
       `;

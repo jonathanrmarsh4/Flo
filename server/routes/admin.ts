@@ -1325,4 +1325,141 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ error: error.message || "Failed to generate data parity report" });
     }
   });
+
+  /**
+   * ============================================================================
+   * SLEEP BASELINE DIAGNOSTIC - Debug time_in_bed_min baseline issues
+   * ============================================================================
+   * 
+   * Queries ClickHouse for time_in_bed_min values to identify why baseline might be incorrect
+   * (e.g., naps being included, partial syncs, data corruption).
+   */
+  app.get('/api/admin/sleep-baseline-debug/:userId', isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const days = parseInt(req.query.days as string) || 90;
+      
+      const { getHealthId } = await import('../services/supabaseHealthStorage');
+      const { getClickHouseClient, isClickHouseEnabled } = await import('../services/clickhouseService');
+      const { getSupabaseClient } = await import('../services/supabaseClient');
+      
+      const healthId = await getHealthId(userId);
+      if (!healthId) {
+        return res.status(404).json({ error: "Health ID not found for user" });
+      }
+      
+      const report: any = {
+        userId,
+        healthId,
+        generatedAt: new Date().toISOString(),
+        daysAnalyzed: days,
+        clickhouse: { available: false, data: [], baseline: null, error: null },
+        supabase: { available: false, data: [], error: null },
+        analysis: {},
+      };
+      
+      // Query ClickHouse for time_in_bed_min values
+      if (isClickHouseEnabled()) {
+        const ch = getClickHouseClient();
+        if (ch) {
+          try {
+            // Get individual values to find outliers
+            const chResult = await ch.query({
+              query: `
+                SELECT 
+                  local_date,
+                  value,
+                  source,
+                  recorded_at
+                FROM flo_health.health_metrics FINAL
+                WHERE health_id = {healthId:String}
+                  AND metric_type = 'time_in_bed_min'
+                  AND recorded_at >= now() - INTERVAL {days:UInt32} DAY
+                ORDER BY local_date DESC
+                LIMIT 200
+              `,
+              query_params: { healthId, days },
+              format: 'JSONEachRow',
+            });
+            
+            const chRows = await chResult.json() as any[];
+            report.clickhouse.available = true;
+            report.clickhouse.data = chRows;
+            
+            // Calculate baseline stats
+            const values = chRows.map(r => r.value).filter((v): v is number => v != null);
+            if (values.length > 0) {
+              const mean = values.reduce((a, b) => a + b, 0) / values.length;
+              const sorted = [...values].sort((a, b) => a - b);
+              const min = sorted[0];
+              const max = sorted[sorted.length - 1];
+              const median = sorted[Math.floor(sorted.length / 2)];
+              
+              // Find suspect values (potential naps or partial sleeps < 4 hours = 240 min)
+              const suspectValues = chRows.filter(r => r.value < 240);
+              
+              report.clickhouse.baseline = {
+                mean: Math.round(mean),
+                min,
+                max,
+                median,
+                count: values.length,
+                suspectCount: suspectValues.length,
+                suspectValues: suspectValues.slice(0, 10), // First 10 suspect values
+              };
+              
+              report.analysis.issue = mean < 360 
+                ? `ISSUE DETECTED: Mean time_in_bed is only ${Math.round(mean)} minutes (${(mean/60).toFixed(1)} hours). This suggests naps or partial sleep sessions are polluting the baseline.`
+                : `Baseline looks reasonable: ${Math.round(mean)} minutes (${(mean/60).toFixed(1)} hours)`;
+            }
+          } catch (chError: any) {
+            report.clickhouse.error = chError.message;
+            logger.error(`[SleepDebug] ClickHouse query error: ${chError.message}`);
+          }
+        }
+      } else {
+        report.clickhouse.error = 'ClickHouse not enabled';
+      }
+      
+      // Query Supabase sleep_nights for comparison
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        try {
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() - days);
+          const startDateStr = startDate.toISOString().split('T')[0];
+          
+          const { data: sbRows, error: sbError } = await supabase
+            .from('sleep_nights')
+            .select('sleep_date, time_in_bed_min, total_sleep_min, source')
+            .eq('health_id', healthId)
+            .gte('sleep_date', startDateStr)
+            .order('sleep_date', { ascending: false })
+            .limit(200);
+          
+          if (sbError) {
+            report.supabase.error = sbError.message;
+            logger.error(`[SleepDebug] Supabase query error: ${sbError.message}`);
+          } else if (sbRows) {
+            report.supabase.available = true;
+            report.supabase.data = sbRows;
+            
+            // Find suspect values in Supabase too
+            const suspectRows = sbRows.filter(r => r.time_in_bed_min != null && r.time_in_bed_min < 240);
+            report.supabase.suspectCount = suspectRows.length;
+            report.supabase.suspectValues = suspectRows.slice(0, 10);
+          }
+        } catch (sbError: any) {
+          report.supabase.error = sbError.message;
+          logger.error(`[SleepDebug] Supabase query exception: ${sbError.message}`);
+        }
+      }
+      
+      logger.info(`[SleepDebug] Generated report for ${userId}: ClickHouse mean=${report.clickhouse.baseline?.mean}, suspect=${report.clickhouse.baseline?.suspectCount}`);
+      res.json(report);
+    } catch (error: any) {
+      logger.error('[Admin] Sleep baseline debug failed:', error);
+      res.status(500).json({ error: error.message || "Failed to generate sleep baseline debug report" });
+    }
+  });
 }
