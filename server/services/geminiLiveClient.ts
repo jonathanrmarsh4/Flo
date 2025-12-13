@@ -118,9 +118,8 @@ class GeminiLiveClient {
     });
 
     // Native audio model for voice conversations
-    // Updated Dec 13, 2025: Using new December 2025 model with improved
-    // instruction following (90%), better function calling, and smoother conversations
-    const model = 'gemini-2.5-flash-native-audio-preview-12-2025';
+    // Using September 2025 model - the December 2025 model has audio output issues
+    const model = 'gemini-2.5-flash-native-audio-preview-09-2025';
     
     const connectParams: LiveConnectParameters = {
       model,
@@ -170,11 +169,6 @@ class GeminiLiveClient {
           // Low temperature for stable token selection - prevents spaced-out letters
           // in transcription (e.g., "t r a n s c r i p t" instead of "transcript")
           temperature: 0.1,
-          // Disable thinking/reasoning to prevent latency (Dec 2024 fix)
-          // The 09-2025 model shares architecture with reasoning models
-          thinkingConfig: {
-            thinkingBudget: 0,
-          },
           speechConfig: config.voiceName ? {
             voiceConfig: {
               prebuiltVoiceConfig: {
@@ -275,13 +269,7 @@ class GeminiLiveClient {
 
       // Handle model's response (text and/or audio) in modelTurn.parts
       if (message.serverContent?.modelTurn?.parts) {
-        const parts = message.serverContent.modelTurn.parts;
-        logger.debug('[GeminiLive] Processing modelTurn with parts', { 
-          partsCount: parts.length,
-          partKeys: parts.map((p: any) => Object.keys(p)).flat()
-        });
-        
-        for (const part of parts) {
+        for (const part of message.serverContent.modelTurn.parts) {
           // Handle text response
           if (part.text) {
             callbacks.onModelText(part.text);
@@ -290,13 +278,6 @@ class GeminiLiveClient {
           // Handle audio response from native-audio model
           // Audio comes in part.inlineData with mimeType like 'audio/pcm;rate=24000'
           const inlineData = (part as any).inlineData;
-          if (inlineData) {
-            logger.debug('[GeminiLive] Found inlineData in part', { 
-              mimeType: inlineData.mimeType,
-              hasData: !!inlineData.data,
-              dataLength: inlineData.data?.length || 0
-            });
-          }
           if (inlineData?.data && inlineData?.mimeType?.includes('audio')) {
             logger.debug('[GeminiLive] Audio chunk received', { 
               mimeType: inlineData.mimeType,
