@@ -530,3 +530,115 @@ export async function syncOuraExtendedMetricsToClickHouse(
     console.log(`[ClickHouseHealthSync] Completed sync of ${syncTasks.length} Oura extended metric types`);
   }
 }
+
+/**
+ * Sync recovery session (sauna/ice bath) to ClickHouse
+ * Tracks thermal recovery metrics for ML analysis
+ */
+export interface RecoverySessionSync {
+  sessionType: 'sauna' | 'icebath';
+  sessionDate: string; // YYYY-MM-DD
+  durationMinutes: number;
+  durationSeconds?: number | null;
+  temperatureCelsius?: number | null;
+  caloriesBurned?: number | null;
+  recoveryScore?: number | null;
+  feeling?: number | null;
+}
+
+export async function syncRecoverySessionToClickHouse(
+  healthId: string,
+  session: RecoverySessionSync
+): Promise<void> {
+  if (!clickhouse.isEnabled()) {
+    return;
+  }
+  
+  const rows: HealthMetricRow[] = [];
+  const source: DataSource = 'manual';
+  const recordedAt = `${session.sessionDate}T12:00:00Z`;
+  const localDate = session.sessionDate;
+  
+  // Duration metrics
+  if (session.sessionType === 'sauna') {
+    rows.push({
+      health_id: healthId,
+      metric_type: 'sauna_duration_min',
+      value: session.durationMinutes,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  } else {
+    const totalSeconds = (session.durationMinutes * 60) + (session.durationSeconds || 0);
+    rows.push({
+      health_id: healthId,
+      metric_type: 'icebath_duration_sec',
+      value: totalSeconds,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  }
+  
+  // Temperature (in Celsius for consistency)
+  if (session.temperatureCelsius !== null && session.temperatureCelsius !== undefined) {
+    const metricType = session.sessionType === 'sauna' ? 'sauna_temp_celsius' : 'icebath_temp_celsius';
+    rows.push({
+      health_id: healthId,
+      metric_type: metricType,
+      value: session.temperatureCelsius,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  }
+  
+  // Calories burned
+  if (session.caloriesBurned !== null && session.caloriesBurned !== undefined) {
+    const metricType = session.sessionType === 'sauna' ? 'sauna_calories' : 'icebath_calories';
+    rows.push({
+      health_id: healthId,
+      metric_type: metricType,
+      value: session.caloriesBurned,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  }
+  
+  // Recovery score
+  if (session.recoveryScore !== null && session.recoveryScore !== undefined) {
+    const metricType = session.sessionType === 'sauna' ? 'sauna_recovery_score' : 'icebath_recovery_score';
+    rows.push({
+      health_id: healthId,
+      metric_type: metricType,
+      value: session.recoveryScore,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  }
+  
+  // Subjective feeling (1-5 scale)
+  if (session.feeling !== null && session.feeling !== undefined) {
+    const metricType = session.sessionType === 'sauna' ? 'sauna_feeling' : 'icebath_feeling';
+    rows.push({
+      health_id: healthId,
+      metric_type: metricType,
+      value: session.feeling,
+      recorded_at: recordedAt,
+      local_date: localDate,
+      source,
+    });
+  }
+  
+  if (rows.length > 0) {
+    try {
+      await clickhouse.insert('health_metrics', rows as unknown as Record<string, unknown>[]);
+      console.log(`[ClickHouseHealthSync] Synced ${rows.length} ${session.sessionType} recovery metrics`);
+    } catch (error) {
+      console.error('[ClickHouseHealthSync] Failed to sync recovery session:', error);
+    }
+  }
+}

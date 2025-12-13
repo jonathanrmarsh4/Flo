@@ -10,6 +10,7 @@ import {
   getRecoverySessionById,
   deleteRecoverySession,
   getRecoveryStats,
+  getHealthId,
   type RecoverySession,
 } from "../services/supabaseHealthStorage";
 import {
@@ -17,6 +18,7 @@ import {
   calculateIceBathSession,
   normalizeTemperatureToCelsius,
 } from "../services/recoveryCalculator";
+import { syncRecoverySessionToClickHouse } from "../services/clickhouseHealthSync";
 import * as healthRouter from "../services/healthStorageRouter";
 
 const router = Router();
@@ -121,6 +123,22 @@ router.post('/sauna', async (req: Request, res: Response) => {
       recoveryScore: calculations.recoveryScore,
     });
 
+    // Sync to ClickHouse for ML analytics (fire and forget)
+    try {
+      const healthId = await getHealthId(user.id);
+      syncRecoverySessionToClickHouse(healthId, {
+        sessionType: 'sauna',
+        sessionDate: sessionDate,
+        durationMinutes: duration,
+        temperatureCelsius: tempCelsius ?? undefined,
+        caloriesBurned: calculations.caloriesBurned,
+        recoveryScore: calculations.recoveryScore,
+        feeling: feeling ?? undefined,
+      }).catch(err => logger.debug('[Recovery] ClickHouse sync error:', err));
+    } catch (e) {
+      logger.debug('[Recovery] Failed to get healthId for ClickHouse sync');
+    }
+
     res.json({
       success: true,
       session,
@@ -195,6 +213,22 @@ router.post('/icebath', async (req: Request, res: Response) => {
       calories: calculations.caloriesBurned,
       recoveryScore: calculations.recoveryScore,
     });
+
+    // Sync to ClickHouse for ML analytics (fire and forget)
+    try {
+      const healthId = await getHealthId(user.id);
+      syncRecoverySessionToClickHouse(healthId, {
+        sessionType: 'icebath',
+        sessionDate: sessionDate,
+        durationMinutes: durationMinutes,
+        durationSeconds: durationSeconds,
+        caloriesBurned: calculations.caloriesBurned,
+        recoveryScore: calculations.recoveryScore,
+        feeling: feeling ?? undefined,
+      }).catch(err => logger.debug('[Recovery] ClickHouse sync error:', err));
+    } catch (e) {
+      logger.debug('[Recovery] Failed to get healthId for ClickHouse sync');
+    }
 
     res.json({
       success: true,

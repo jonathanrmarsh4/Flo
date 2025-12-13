@@ -5168,6 +5168,26 @@ export async function getRecoverySessionsByDate(userId: string, localDate: strin
   return data || [];
 }
 
+export async function getRecoverySessionsByDateRange(userId: string, startDate: string, endDate: string): Promise<RecoverySession[]> {
+  const healthId = await getHealthId(userId);
+  
+  const { data, error } = await supabase
+    .from('recovery_sessions')
+    .select('*')
+    .eq('health_id', healthId)
+    .gte('session_date', startDate)
+    .lte('session_date', endDate)
+    .order('session_date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    logger.error('[SupabaseHealth] Error fetching recovery sessions by date range:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
 export async function getRecoverySessionById(userId: string, sessionId: string): Promise<RecoverySession | null> {
   const healthId = await getHealthId(userId);
   

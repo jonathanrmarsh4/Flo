@@ -2392,4 +2392,83 @@ export async function getLatestLocation(userId: string): Promise<supabaseHealth.
   return supabaseHealth.getLatestLocation(userId);
 }
 
+// Recovery Sessions (Sauna/Ice Bath)
+export type { RecoverySession } from "./supabaseHealthStorage";
+
+export async function getRecoverySessions(userId: string, days = 30): Promise<supabaseHealth.RecoverySession[]> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  return supabaseHealth.getRecoverySessions(userId, days);
+}
+
+export async function getRecoverySessionsByDate(userId: string, localDate: string): Promise<supabaseHealth.RecoverySession[]> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  return supabaseHealth.getRecoverySessionsByDate(userId, localDate);
+}
+
+export async function getRecoverySessionsByDateRange(userId: string, startDate: string, endDate: string): Promise<supabaseHealth.RecoverySession[]> {
+  if (!isSupabaseHealthEnabled()) {
+    return [];
+  }
+  return supabaseHealth.getRecoverySessionsByDateRange(userId, startDate, endDate);
+}
+
+export async function createRecoverySession(
+  userId: string,
+  session: Omit<supabaseHealth.RecoverySession, 'health_id' | 'id' | 'created_at' | 'updated_at'>
+): Promise<supabaseHealth.RecoverySession> {
+  if (!isSupabaseHealthEnabled()) {
+    throw new Error("Supabase health storage not enabled - cannot create recovery session");
+  }
+  return supabaseHealth.createRecoverySession(userId, session);
+}
+
+export async function deleteRecoverySession(userId: string, sessionId: string): Promise<boolean> {
+  if (!isSupabaseHealthEnabled()) {
+    return false;
+  }
+  return supabaseHealth.deleteRecoverySession(userId, sessionId);
+}
+
+/**
+ * Calculate combined thermal recovery score for a day
+ * Averages recovery scores from all sauna and ice bath sessions
+ * @param userId User ID
+ * @param localDate Date string (YYYY-MM-DD)
+ * @returns Combined recovery score (0-100) or null if no sessions
+ */
+export async function getDailyThermalRecoveryScore(userId: string, localDate: string): Promise<number | null> {
+  try {
+    const sessions = await getRecoverySessionsByDate(userId, localDate);
+    
+    if (!sessions || sessions.length === 0) {
+      return null;
+    }
+    
+    // Calculate weighted average of recovery scores
+    // Sessions with higher recovery scores contribute more
+    let totalScore = 0;
+    let count = 0;
+    
+    for (const session of sessions) {
+      if (session.recovery_score != null) {
+        totalScore += session.recovery_score;
+        count++;
+      }
+    }
+    
+    if (count === 0) {
+      return null;
+    }
+    
+    return totalScore / count;
+  } catch (error) {
+    logger.error(`[HealthStorageRouter] getDailyThermalRecoveryScore failed for ${userId}, ${localDate}:`, error);
+    return null;
+  }
+}
+
 logger.info(`Health storage router initialized (Supabase enabled: ${isSupabaseHealthEnabled()})`);

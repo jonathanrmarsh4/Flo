@@ -9952,6 +9952,9 @@ Important: This is for educational purposes. Include a brief note that users sho
           // Map userDailyMetrics fields to Flōmentum metrics
           // Note: userDailyMetrics has limited fields, so some will be null
           // IMPORTANT: Use stepsRawSum for actual step count, not stepsNormalized (which is 0-1 score)
+          // Fetch thermal recovery score for today (sauna/ice bath sessions)
+          const thermalRecoveryScore = await healthRouter.getDailyThermalRecoveryScore(userId, metrics.localDate);
+          
           const flomentumMetrics: any = {
             sleepTotalMinutes: sleepNight?.totalSleepMin ?? null, // Query from sleep_nights instead of metrics.sleepHours
             hrvSdnnMs: metrics.hrvMs ?? null,
@@ -9963,6 +9966,7 @@ Important: This is for educational purposes. Include a brief note that users sho
             activeKcal: metrics.activeEnergyKcal ?? null,
             exerciseMinutes: metrics.exerciseMinutes ?? null, // Now available from iOS HealthKit
             standHours: fullMetrics.standHours ?? null, // Now available from iOS HealthKit
+            thermalRecoveryScore, // Sauna/ice bath recovery score
           };
 
           const context: any = {
@@ -10387,6 +10391,9 @@ Important: This is for educational purposes. Include a brief note that users sho
           if (dailyMetrics) {
             const baselines = await calculateFlomentumBaselines(userId, sleepDate);
             
+            // Fetch thermal recovery score for this date
+            const thermalRecoveryScore = await healthRouter.getDailyThermalRecoveryScore(userId, sleepDate);
+            
             const flomentumMetrics: any = {
               sleepTotalMinutes: sleepNight.totalSleepMin, // Now we have sleep data!
               hrvSdnnMs: dailyMetrics.hrvMs ?? null,
@@ -10398,6 +10405,7 @@ Important: This is for educational purposes. Include a brief note that users sho
               activeKcal: dailyMetrics.activeEnergyKcal ?? null,
               exerciseMinutes: dailyMetrics.exerciseMinutes ?? null,
               standHours: null,
+              thermalRecoveryScore, // Sauna/ice bath recovery score
             };
 
             const context: any = {
@@ -13515,6 +13523,9 @@ Important: This is for educational purposes. Include a brief note that users sho
       // Calculate Flōmentum score
       const { calculateFlomentumScore } = await import("./services/flomentumScoringEngine");
       
+      // Fetch thermal recovery score for this date
+      const thermalRecoveryScore = await healthRouter.getDailyThermalRecoveryScore(userId, summaryData.date);
+      
       const metrics: any = {
         sleepTotalMinutes: summaryData.sleep_total_minutes ?? null,
         hrvSdnnMs: summaryData.hrv_sdnn_ms ?? null,
@@ -13526,6 +13537,7 @@ Important: This is for educational purposes. Include a brief note that users sho
         activeKcal: summaryData.active_kcal ?? null,
         exerciseMinutes: summaryData.exercise_minutes ?? null,
         standHours: summaryData.stand_hours ?? null,
+        thermalRecoveryScore, // Sauna/ice bath recovery score
       };
 
       const context: any = {

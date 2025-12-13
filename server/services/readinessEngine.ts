@@ -227,7 +227,7 @@ function calculateLoadScore(
 }
 
 /**
- * Calculate recovery boost from logged life events
+ * Calculate recovery boost from logged life events AND recovery sessions
  * Rewards users for intentional recovery activities in the last 24 hours
  * @param userId User ID
  * @param date Date string (YYYY-MM-DD)
@@ -237,7 +237,64 @@ async function calculateRecoveryBoost(userId: string, date: string): Promise<Rec
   const activities: RecoveryBoostResult['activities'] = [];
   
   try {
-    // Fetch life events from the last 24 hours
+    // Track which activity types we've already counted (one boost per type per day)
+    const countedTypes = new Set<string>();
+    
+    // 1. Fetch recovery sessions from the new recovery_sessions table
+    // This is the preferred source for sauna/ice bath data
+    // Use 24-hour window (yesterday and today) to match life events behavior
+    try {
+      const yesterday = new Date(date);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const recoverySessions = await healthRouter.getRecoverySessionsByDateRange(userId, yesterdayStr, date);
+      
+      if (recoverySessions && recoverySessions.length > 0) {
+        logger.info(`[Readiness] Found ${recoverySessions.length} recovery sessions for boost calculation`);
+        
+        for (const session of recoverySessions) {
+          const sessionType = session.session_type;
+          const duration = session.duration_minutes ?? 0;
+          
+          // Skip if we've already counted this type today
+          if (countedTypes.has(sessionType)) continue;
+          
+          if (sessionType === 'icebath') {
+            // Ice bath: +3-5 points based on duration
+            // 2+ min = +3, 4+ min = +4, 6+ min = +5
+            let boost = 3;
+            if (duration >= 6) boost = 5;
+            else if (duration >= 4) boost = 4;
+            
+            activities.push({
+              type: 'Cold Exposure',
+              boost,
+              details: duration ? `${duration} min` : undefined,
+            });
+            countedTypes.add(sessionType);
+            countedTypes.add('ice_bath'); // Also mark life event type as counted
+            countedTypes.add('cold_plunge');
+          } else if (sessionType === 'sauna') {
+            // Sauna: +2-4 points based on duration
+            // 10+ min = +2, 15+ min = +3, 20+ min = +4
+            let boost = 2;
+            if (duration >= 20) boost = 4;
+            else if (duration >= 15) boost = 3;
+            
+            activities.push({
+              type: 'Sauna',
+              boost,
+              details: duration ? `${duration} min` : undefined,
+            });
+            countedTypes.add(sessionType);
+          }
+        }
+      }
+    } catch (error: unknown) {
+      logger.warn(`[Readiness] Error fetching recovery sessions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    
+    // 2. Fetch life events from the last 24 hours (legacy source, still supported)
     const targetDate = new Date(date);
     const startDate = new Date(targetDate);
     startDate.setHours(startDate.getHours() - 24);
@@ -247,116 +304,117 @@ async function calculateRecoveryBoost(userId: string, date: string): Promise<Rec
       limit: 50,
     });
     
-    if (!lifeEvents || lifeEvents.length === 0) {
-      logger.debug(`[Readiness] No life events found for recovery boost calculation`);
-      return { totalBoost: 0, activities: [] };
+    if (lifeEvents && lifeEvents.length > 0) {
+      logger.debug(`[Readiness] Found ${lifeEvents.length} life events for recovery boost calculation`);
+      
+      for (const event of lifeEvents) {
+        // Handle both Supabase (snake_case) and Neon (camelCase) field names
+        const eventType = ((event as any).event_type || (event as any).eventType || '').toLowerCase();
+        const details = (event.details || {}) as Record<string, any>;
+        
+        // Skip if we've already counted this type today (from recovery sessions or earlier events)
+        if (countedTypes.has(eventType)) continue;
+        
+        switch (eventType) {
+          case 'ice_bath':
+          case 'cold_plunge': {
+            // Ice bath: +3-5 points based on duration
+            // 2+ min = +3, 4+ min = +4, 6+ min = +5
+            const duration = details.duration_min || details.duration || 0;
+            let boost = 3;
+            if (duration >= 6) boost = 5;
+            else if (duration >= 4) boost = 4;
+            
+            activities.push({
+              type: 'Cold Exposure',
+              boost,
+              details: duration ? `${duration} min` : undefined,
+            });
+            countedTypes.add(eventType);
+            countedTypes.add('icebath'); // Also mark recovery session type as counted
+            break;
+          }
+          
+          case 'sauna': {
+            // Sauna: +2-4 points based on duration
+            // 10+ min = +2, 15+ min = +3, 20+ min = +4
+            const duration = details.duration_min || details.duration || 0;
+            let boost = 2;
+            if (duration >= 20) boost = 4;
+            else if (duration >= 15) boost = 3;
+            
+            activities.push({
+              type: 'Sauna',
+              boost,
+              details: duration ? `${duration} min` : undefined,
+            });
+            countedTypes.add(eventType);
+            break;
+          }
+          
+          case 'breathwork':
+          case 'meditation': {
+            // Breathwork/meditation: +2-3 points
+            const duration = details.duration_min || details.duration || 0;
+            let boost = 2;
+            if (duration >= 15) boost = 3;
+            
+            activities.push({
+              type: eventType === 'breathwork' ? 'Breathwork' : 'Meditation',
+              boost,
+              details: duration ? `${duration} min` : undefined,
+            });
+            countedTypes.add(eventType);
+            break;
+          }
+          
+          case 'yoga':
+          case 'stretching': {
+            // Yoga/stretching: +1-2 points
+            const duration = details.duration_min || details.duration || 0;
+            let boost = 1;
+            if (duration >= 30) boost = 2;
+            
+            activities.push({
+              type: eventType === 'yoga' ? 'Yoga' : 'Stretching',
+              boost,
+              details: duration ? `${duration} min` : undefined,
+            });
+            countedTypes.add(eventType);
+            break;
+          }
+          
+          case 'massage': {
+            // Massage: +3 points
+            activities.push({
+              type: 'Massage',
+              boost: 3,
+            });
+            countedTypes.add(eventType);
+            break;
+          }
+          
+          case 'supplements': {
+            // Supplements: +1 point (general health behavior)
+            activities.push({
+              type: 'Supplements',
+              boost: 1,
+              details: details.names?.join(', '),
+            });
+            countedTypes.add(eventType);
+            break;
+          }
+          
+          // Note: Alcohol would have a NEGATIVE effect, but we're not penalizing here
+          // That's handled elsewhere - this is purely for recovery BOOSTS
+        }
+      }
     }
     
-    logger.info(`[Readiness] Found ${lifeEvents.length} life events for recovery boost calculation`);
-    
-    // Track which activity types we've already counted (one boost per type per day)
-    const countedTypes = new Set<string>();
-    
-    for (const event of lifeEvents) {
-      // Handle both Supabase (snake_case) and Neon (camelCase) field names
-      const eventType = ((event as any).event_type || (event as any).eventType || '').toLowerCase();
-      const details = (event.details || {}) as Record<string, any>;
-      
-      // Skip if we've already counted this type today
-      if (countedTypes.has(eventType)) continue;
-      
-      switch (eventType) {
-        case 'ice_bath':
-        case 'cold_plunge': {
-          // Ice bath: +3-5 points based on duration
-          // 2+ min = +3, 4+ min = +4, 6+ min = +5
-          const duration = details.duration_min || details.duration || 0;
-          let boost = 3;
-          if (duration >= 6) boost = 5;
-          else if (duration >= 4) boost = 4;
-          
-          activities.push({
-            type: 'Cold Exposure',
-            boost,
-            details: duration ? `${duration} min` : undefined,
-          });
-          countedTypes.add(eventType);
-          break;
-        }
-        
-        case 'sauna': {
-          // Sauna: +2-4 points based on duration
-          // 10+ min = +2, 15+ min = +3, 20+ min = +4
-          const duration = details.duration_min || details.duration || 0;
-          let boost = 2;
-          if (duration >= 20) boost = 4;
-          else if (duration >= 15) boost = 3;
-          
-          activities.push({
-            type: 'Sauna',
-            boost,
-            details: duration ? `${duration} min` : undefined,
-          });
-          countedTypes.add(eventType);
-          break;
-        }
-        
-        case 'breathwork':
-        case 'meditation': {
-          // Breathwork/meditation: +2-3 points
-          const duration = details.duration_min || details.duration || 0;
-          let boost = 2;
-          if (duration >= 15) boost = 3;
-          
-          activities.push({
-            type: eventType === 'breathwork' ? 'Breathwork' : 'Meditation',
-            boost,
-            details: duration ? `${duration} min` : undefined,
-          });
-          countedTypes.add(eventType);
-          break;
-        }
-        
-        case 'yoga':
-        case 'stretching': {
-          // Yoga/stretching: +1-2 points
-          const duration = details.duration_min || details.duration || 0;
-          let boost = 1;
-          if (duration >= 30) boost = 2;
-          
-          activities.push({
-            type: eventType === 'yoga' ? 'Yoga' : 'Stretching',
-            boost,
-            details: duration ? `${duration} min` : undefined,
-          });
-          countedTypes.add(eventType);
-          break;
-        }
-        
-        case 'massage': {
-          // Massage: +3 points
-          activities.push({
-            type: 'Massage',
-            boost: 3,
-          });
-          countedTypes.add(eventType);
-          break;
-        }
-        
-        case 'supplements': {
-          // Supplements: +1 point (general health behavior)
-          activities.push({
-            type: 'Supplements',
-            boost: 1,
-            details: details.names?.join(', '),
-          });
-          countedTypes.add(eventType);
-          break;
-        }
-        
-        // Note: Alcohol would have a NEGATIVE effect, but we're not penalizing here
-        // That's handled elsewhere - this is purely for recovery BOOSTS
-      }
+    // No recovery data found from either source
+    if (activities.length === 0) {
+      logger.debug(`[Readiness] No recovery activities found for boost calculation`);
+      return { totalBoost: 0, activities: [] };
     }
     
     // Calculate total boost (capped at 10 points max to prevent gaming)

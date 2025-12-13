@@ -14,6 +14,7 @@ export interface FlomentumMetrics {
   activeKcal: number | null;
   exerciseMinutes: number | null;
   standHours: number | null;
+  thermalRecoveryScore: number | null; // Sauna/ice bath recovery score (0-100)
 }
 
 export interface FlomentumContext {
@@ -29,7 +30,7 @@ export interface FlomentumFactor {
   status: 'positive' | 'neutral' | 'negative';
   title: string;
   detail: string;
-  componentKey: 'sleep' | 'steps' | 'intensity' | 'sedentary' | 'resting_hr' | 'hrv' | 'resp_rate' | 'temp' | 'spo2';
+  componentKey: 'sleep' | 'steps' | 'intensity' | 'sedentary' | 'resting_hr' | 'hrv' | 'resp_rate' | 'temp' | 'spo2' | 'thermal_recovery';
   pointsContribution: number;
 }
 
@@ -74,6 +75,11 @@ export function calculateFlomentumScore(
   const redFlagsResult = scoreRedFlags(metrics, context);
   score += redFlagsResult.points;
   factors.push(...redFlagsResult.factors);
+
+  // 5. Thermal recovery (sauna/ice bath)
+  const thermalResult = scoreThermalRecovery(metrics.thermalRecoveryScore);
+  score += thermalResult.points;
+  if (thermalResult.factor) factors.push(thermalResult.factor);
 
   // Clamp score to 0-100 range
   score = Math.max(0, Math.min(100, Math.round(score)));
@@ -417,6 +423,73 @@ function scoreRedFlags(metrics: FlomentumMetrics, context: FlomentumContext): { 
   return { points, factors };
 }
 
+/**
+ * Score thermal recovery activities (sauna and ice bath)
+ * Rewards users for deliberate recovery practices
+ * @param thermalRecoveryScore Combined recovery score from sauna/ice bath sessions (0-100)
+ * @returns Points contribution and factor for Flōmentum
+ */
+function scoreThermalRecovery(thermalRecoveryScore: number | null): { points: number; factor: FlomentumFactor | null } {
+  if (thermalRecoveryScore === null || thermalRecoveryScore === undefined) {
+    // No recovery sessions logged - neutral (no points added or subtracted)
+    return { points: 0, factor: null };
+  }
+
+  // Excellent thermal recovery (score >= 80): +4 points
+  if (thermalRecoveryScore >= 80) {
+    return {
+      points: 4,
+      factor: {
+        status: 'positive',
+        title: 'Great thermal recovery today',
+        detail: `Recovery score: ${Math.round(thermalRecoveryScore)}`,
+        componentKey: 'thermal_recovery',
+        pointsContribution: 4,
+      },
+    };
+  }
+
+  // Good thermal recovery (score >= 60): +2 points
+  if (thermalRecoveryScore >= 60) {
+    return {
+      points: 2,
+      factor: {
+        status: 'positive',
+        title: 'Good thermal recovery today',
+        detail: `Recovery score: ${Math.round(thermalRecoveryScore)}`,
+        componentKey: 'thermal_recovery',
+        pointsContribution: 2,
+      },
+    };
+  }
+
+  // Some thermal recovery (score >= 30): +1 point
+  if (thermalRecoveryScore >= 30) {
+    return {
+      points: 1,
+      factor: {
+        status: 'neutral',
+        title: 'Light thermal recovery today',
+        detail: `Recovery score: ${Math.round(thermalRecoveryScore)}`,
+        componentKey: 'thermal_recovery',
+        pointsContribution: 1,
+      },
+    };
+  }
+
+  // Very low score (below 30) - still positive but minimal
+  return {
+    points: 0,
+    factor: {
+      status: 'neutral',
+      title: 'Minimal thermal recovery',
+      detail: `Recovery score: ${Math.round(thermalRecoveryScore)}`,
+      componentKey: 'thermal_recovery',
+      pointsContribution: 0,
+    },
+  };
+}
+
 function determineZone(score: number): FlomentumZone {
   if (score >= 75) return 'BUILDING';
   if (score >= 60) return 'MAINTAINING';
@@ -477,6 +550,10 @@ function generateDailyFocus(factors: FlomentumFactor[], environmental?: Environm
     spo2: {
       title: 'Listen to your body',
       body: 'Your vitals suggest possible strain or illness. Take it easy and rest if needed.',
+    },
+    thermal_recovery: {
+      title: 'Try thermal recovery today',
+      body: 'A sauna session or cold plunge can boost recovery and build stress resilience.',
     },
   };
 

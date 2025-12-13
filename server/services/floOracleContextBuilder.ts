@@ -33,6 +33,8 @@ import {
   getInsightCards as getHealthRouterInsightCards,
   getActiveLifeContext,
   getEnvironmentalContext,
+  getRecoverySessions as getHealthRouterRecoverySessions,
+  getDailyThermalRecoveryScore,
   type EnvironmentalContext,
 } from './healthStorageRouter';
 import { 
@@ -1093,6 +1095,17 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.warn('[FloOracle] Failed to fetch life events:', error);
     }
 
+    // Fetch recovery sessions (sauna, ice bath) from the last 14 days
+    let recoverySessionsContext = '';
+    try {
+      recoverySessionsContext = await getRecentRecoverySessions(userId, 14);
+      if (recoverySessionsContext) {
+        logger.info(`[FloOracle] Fetched recovery sessions for user ${userId}`);
+      }
+    } catch (error) {
+      logger.warn('[FloOracle] Failed to fetch recovery sessions:', error);
+    }
+
     // Fetch pending biomarker follow-ups (scheduled appointments for concerns)
     let biomarkerFollowupsContext = '';
     try {
@@ -1116,7 +1129,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       logger.debug('[FloOracle] Correlation insights not available:', error);
     }
 
-    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory) + lifeEventsContext + biomarkerFollowupsContext + correlationContext;
+    const contextString = buildContextString(context, bloodPanelHistory, workoutHistory) + lifeEventsContext + recoverySessionsContext + biomarkerFollowupsContext + correlationContext;
     logger.info(`[FloOracle] Context built successfully (${contextString.length} chars, includesLifeEvents: ${lifeEventsContext.length > 0})`);
     
     // Cache the result
@@ -1765,6 +1778,78 @@ export async function getRecentLifeEvents(userId: string, days: number = 14): Pr
     return lines.join('\n');
   } catch (error) {
     logger.error('[FloOracle] Error retrieving life events:', error);
+    return '';
+  }
+}
+
+/**
+ * Get recent recovery sessions (sauna, ice bath) for AI context
+ * Returns user's thermal recovery practices from the past 14 days
+ * Uses healthStorageRouter to read from Supabase
+ */
+export async function getRecentRecoverySessions(userId: string, days: number = 14): Promise<string> {
+  try {
+    const sessions = await getHealthRouterRecoverySessions(userId, days);
+
+    if (!sessions || sessions.length === 0) {
+      return '';
+    }
+
+    const lines = [
+      '',
+      'RECOVERY SESSIONS (sauna & ice bath practices - reference when discussing recovery or stress resilience):',
+    ];
+
+    // Group sessions by type and summarize
+    const saunaSessions = sessions.filter(s => s.session_type === 'sauna');
+    const iceBathSessions = sessions.filter(s => s.session_type === 'icebath');
+
+    // Calculate summary stats
+    const totalSaunaMins = saunaSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const totalIceMins = iceBathSessions.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const totalCalories = sessions.reduce((sum, s) => sum + (s.calories_burned || 0), 0);
+
+    if (saunaSessions.length > 0) {
+      const avgTemp = saunaSessions.reduce((sum, s) => sum + (s.temperature || 0), 0) / saunaSessions.length;
+      lines.push(`  Sauna: ${saunaSessions.length} sessions (${totalSaunaMins} min total, avg temp ${Math.round(avgTemp)}°)`);
+    }
+
+    if (iceBathSessions.length > 0) {
+      const avgTemp = iceBathSessions.reduce((sum, s) => sum + (s.temperature || 0), 0) / iceBathSessions.length;
+      lines.push(`  Ice Bath: ${iceBathSessions.length} sessions (${totalIceMins} min total, avg temp ${Math.round(avgTemp)}°)`);
+    }
+
+    if (totalCalories > 0) {
+      lines.push(`  Recovery calories burned: ${Math.round(totalCalories)} kcal`);
+    }
+
+    // Show recent individual sessions (last 5)
+    const recentSessions = sessions.slice(0, 5);
+    if (recentSessions.length > 0) {
+      lines.push('  Recent sessions:');
+      recentSessions.forEach(session => {
+        const sessionDate = new Date(session.local_date || session.created_at);
+        const daysAgo = Math.floor((Date.now() - sessionDate.getTime()) / (1000 * 60 * 60 * 24));
+        const timeRef = daysAgo === 0 ? 'today' : daysAgo === 1 ? 'yesterday' : `${daysAgo} days ago`;
+        const type = session.session_type === 'sauna' ? 'Sauna' : 'Ice Bath';
+        const duration = session.duration_minutes ? `${session.duration_minutes} min` : '';
+        const temp = session.temperature ? `, ${session.temperature}°${session.temp_unit || 'F'}` : '';
+        const feeling = session.feeling ? ` - felt ${session.feeling}` : '';
+        lines.push(`    • ${timeRef}: ${type} ${duration}${temp}${feeling}`);
+      });
+    }
+
+    // Add today's thermal recovery score if available
+    const today = new Date().toISOString().split('T')[0];
+    const thermalScore = await getDailyThermalRecoveryScore(userId, today);
+    if (thermalScore !== null) {
+      lines.push(`  Today's thermal recovery score: ${thermalScore}/100`);
+    }
+
+    logger.info(`[FloOracle] Retrieved ${sessions.length} recovery sessions for user ${userId}`);
+    return lines.join('\n');
+  } catch (error) {
+    logger.error('[FloOracle] Error retrieving recovery sessions:', error);
     return '';
   }
 }
