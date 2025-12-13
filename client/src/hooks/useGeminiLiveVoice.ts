@@ -161,9 +161,19 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     return output;
   }, []);
 
+  // Track current playback for timeout fallback
+  const playbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Play queued audio buffers sequentially
-  const playNextAudio = useCallback(() => {
+  const playNextAudio = useCallback(async () => {
     console.log('[GeminiLive] playNextAudio called, queue size:', audioQueueRef.current.length);
+    
+    // Clear any pending timeout from previous playback
+    if (playbackTimeoutRef.current) {
+      clearTimeout(playbackTimeoutRef.current);
+      playbackTimeoutRef.current = null;
+    }
+    
     if (audioQueueRef.current.length === 0) {
       isPlayingRef.current = false;
       setState(prev => ({ ...prev, isSpeaking: false }));
@@ -181,13 +191,45 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       return;
     }
 
-    console.log('[GeminiLive] Playing buffer, duration:', buffer.duration.toFixed(3));
+    // CRITICAL: Resume context if suspended (Safari often suspends during playback)
+    if (ctx.state === 'suspended') {
+      console.log('[GeminiLive] Resuming suspended AudioContext before playback');
+      try {
+        await ctx.resume();
+      } catch (e) {
+        console.error('[GeminiLive] Failed to resume AudioContext:', e);
+      }
+    }
+
+    console.log('[GeminiLive] Playing buffer, duration:', buffer.duration.toFixed(3), 'context state:', ctx.state);
     
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
-    source.onended = playNextAudio;
-    source.start(); // Start immediately
+    
+    // Track if onended fired
+    let endedFired = false;
+    
+    source.onended = () => {
+      endedFired = true;
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+        playbackTimeoutRef.current = null;
+      }
+      playNextAudio();
+    };
+    
+    source.start();
+    
+    // SAFARI FIX: Set timeout fallback in case onended doesn't fire
+    // Add 500ms buffer to expected duration for processing delays
+    const timeoutMs = (buffer.duration * 1000) + 500;
+    playbackTimeoutRef.current = setTimeout(() => {
+      if (!endedFired) {
+        console.warn('[GeminiLive] Playback timeout - onended did not fire, forcing next');
+        playNextAudio();
+      }
+    }, timeoutMs);
   }, []);
 
   // Decode and queue incoming audio (24kHz PCM from Gemini)
@@ -508,6 +550,12 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     // Release wake lock immediately
     releaseWakeLock();
     
+    // Clear playback timeout
+    if (playbackTimeoutRef.current) {
+      clearTimeout(playbackTimeoutRef.current);
+      playbackTimeoutRef.current = null;
+    }
+    
     stopListening();
 
     // Close WebSocket
@@ -556,6 +604,32 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
       text,
     }));
   }, []);
+
+  // Handle visibility changes - resume AudioContext when tab becomes visible (Safari fix)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && playbackContextRef.current) {
+        if (playbackContextRef.current.state === 'suspended') {
+          console.log('[GeminiLive] Tab visible - resuming suspended AudioContext');
+          try {
+            await playbackContextRef.current.resume();
+            // If we have queued audio and not playing, restart playback
+            if (audioQueueRef.current.length > 0 && !isPlayingRef.current) {
+              console.log('[GeminiLive] Restarting playback after visibility change');
+              playNextAudio();
+            }
+          } catch (e) {
+            console.error('[GeminiLive] Failed to resume on visibility change:', e);
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [playNextAudio]);
 
   // Cleanup on unmount
   useEffect(() => {
