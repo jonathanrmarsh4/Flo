@@ -24,6 +24,10 @@ const SAMPLE_TYPE_MAPPING: Record<string, string> = {
   'bodyTemperature': 'body_temp_c',
   'HKQuantityTypeIdentifierBodyTemperature': 'body_temp_c',
   
+  // Wrist Temperature (Apple Watch overnight)
+  'appleSleepingWristTemperature': 'wrist_temp_c',
+  'HKQuantityTypeIdentifierAppleSleepingWristTemperature': 'wrist_temp_c',
+  
   // Energy
   'basalEnergyBurned': 'basal_energy_kcal',
   'HKQuantityTypeIdentifierBasalEnergyBurned': 'basal_energy_kcal',
