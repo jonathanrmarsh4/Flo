@@ -107,13 +107,13 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'both',  // Changed to 'both' - detect high REM % too
     severity: { moderate: 25, high: 40 },
   },
-  sleep_hrv: {
+  sleep_hrv_ms: {
     zScoreThreshold: 1.5,
     percentageThreshold: 15,
     direction: 'both',
     severity: { moderate: 15, high: 25 },
   },
-  waso: {
+  waso_min: {
     zScoreThreshold: 1.5,
     percentageThreshold: 30,
     direction: 'high',

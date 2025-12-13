@@ -230,20 +230,21 @@ class CorrelationInsightService {
   }
 
   private getMetricAlertTitle(anomaly: AnomalyResult): string {
+    // Use canonical ClickHouse metric names (see server/services/metrics/constants.ts)
     const titles: Record<string, Record<string, string>> = {
       wrist_temperature_deviation: {
         above: 'Elevated Overnight Temperature',
         below: 'Temperature Below Baseline',
       },
-      respiratory_rate: {
+      respiratory_rate_bpm: {
         above: 'Breathing Rate Elevated',
         below: 'Breathing Rate Low',
       },
-      hrv: {
+      hrv_ms: {
         above: 'HRV Spike Detected',
         below: 'HRV Drop Detected',
       },
-      resting_heart_rate: {
+      resting_heart_rate_bpm: {
         above: 'Elevated Resting Heart Rate',
         below: 'Lower Resting Heart Rate',
       },

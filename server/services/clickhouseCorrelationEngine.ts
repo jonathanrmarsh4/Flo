@@ -205,7 +205,7 @@ export class ClickHouseCorrelationEngine {
           value as duration_minutes
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
-          AND metric_type = 'exercise'
+          AND metric_type = 'exercise_minutes'
           AND local_date >= {startDate:Date}
           AND local_date <= {endDate:Date}
           AND value > 0
