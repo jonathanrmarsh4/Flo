@@ -4384,13 +4384,26 @@ export interface UserDataMetric {
 /**
  * Get latest metric values with sources for User Data display
  * Aggregates data from healthkit_samples, sleep_nights, user_daily_metrics, cgm_readings, and oura tables
- * Now returns ALL available metrics across all categories
+ * Now returns ALL expected metrics - shows "No data" for missing values so user can see what's not being tracked
  */
 export async function getLatestMetricsWithSources(userId: string): Promise<UserDataMetric[]> {
   const healthId = await getHealthId(userId);
   const metrics: UserDataMetric[] = [];
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Helper to add metric - always adds, shows "No data" if null
+  const addMetric = (category: string, name: string, displayName: string, value: any, unit: string, source: string, lastUpdated: string | null) => {
+    metrics.push({
+      category,
+      name,
+      displayName,
+      value: value != null ? value : 'No data',
+      unit: value != null ? unit : '',
+      source: value != null ? source : '—',
+      lastUpdated: lastUpdated || '',
+    });
+  };
 
   try {
     // 1. Sleep data (from sleep_nights - includes ALL sleep metrics from Oura/HealthKit/manual)
@@ -4401,244 +4414,38 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       .order('sleep_date', { ascending: false })
       .limit(1);
 
-    if (sleepData?.[0]) {
-      const sleep = sleepData[0];
-      const sourceDisplay = sleep.source === 'oura' ? 'Oura Ring' : sleep.source === 'healthkit' ? 'Apple Watch' : 'Manual';
-      const lastUpdated = sleep.updated_at || sleep.sleep_date;
-      
-      // Total Sleep
-      if (sleep.total_sleep_min != null) {
-        const hours = Math.floor(sleep.total_sleep_min / 60);
-        const mins = Math.round(sleep.total_sleep_min % 60);
-        metrics.push({
-          category: 'Sleep',
-          name: 'total_sleep',
-          displayName: 'Total Sleep',
-          value: `${hours}h ${mins}m`,
-          unit: '',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Time in Bed
-      if (sleep.time_in_bed_min != null) {
-        const hours = Math.floor(sleep.time_in_bed_min / 60);
-        const mins = Math.round(sleep.time_in_bed_min % 60);
-        metrics.push({
-          category: 'Sleep',
-          name: 'time_in_bed',
-          displayName: 'Time in Bed',
-          value: `${hours}h ${mins}m`,
-          unit: '',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Deep Sleep
-      if (sleep.deep_sleep_min != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'deep_sleep',
-          displayName: 'Deep Sleep',
-          value: Math.round(sleep.deep_sleep_min),
-          unit: 'min',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // REM Sleep
-      if (sleep.rem_sleep_min != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'rem_sleep',
-          displayName: 'REM Sleep',
-          value: Math.round(sleep.rem_sleep_min),
-          unit: 'min',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Core/Light Sleep
-      if (sleep.core_sleep_min != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'core_sleep',
-          displayName: 'Core/Light Sleep',
-          value: Math.round(sleep.core_sleep_min),
-          unit: 'min',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Sleep Efficiency
-      if (sleep.sleep_efficiency_pct != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'sleep_efficiency',
-          displayName: 'Sleep Efficiency',
-          value: Math.round(sleep.sleep_efficiency_pct),
-          unit: '%',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Sleep Latency
-      if (sleep.sleep_latency_min != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'sleep_latency',
-          displayName: 'Sleep Latency',
-          value: Math.round(sleep.sleep_latency_min),
-          unit: 'min',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // WASO (Wake After Sleep Onset)
-      if (sleep.waso_min != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'waso',
-          displayName: 'Wake Time (WASO)',
-          value: Math.round(sleep.waso_min),
-          unit: 'min',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Number of Awakenings
-      if (sleep.num_awakenings != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'num_awakenings',
-          displayName: 'Awakenings',
-          value: sleep.num_awakenings,
-          unit: '',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Fragmentation Index
-      if (sleep.fragmentation_index != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'fragmentation',
-          displayName: 'Fragmentation Index',
-          value: Math.round(sleep.fragmentation_index * 10) / 10,
-          unit: '',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Deep Sleep %
-      if (sleep.deep_pct != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'deep_pct',
-          displayName: 'Deep Sleep %',
-          value: Math.round(sleep.deep_pct),
-          unit: '%',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // REM Sleep %
-      if (sleep.rem_pct != null) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'rem_pct',
-          displayName: 'REM Sleep %',
-          value: Math.round(sleep.rem_pct),
-          unit: '%',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Bedtime
-      if (sleep.bedtime_local) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'bedtime',
-          displayName: 'Bedtime',
-          value: sleep.bedtime_local,
-          unit: '',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Wake Time
-      if (sleep.waketime_local) {
-        metrics.push({
-          category: 'Sleep',
-          name: 'waketime',
-          displayName: 'Wake Time',
-          value: sleep.waketime_local,
-          unit: '',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // HRV from sleep
-      if (sleep.hrv_ms != null) {
-        metrics.push({
-          category: 'Recovery',
-          name: 'hrv',
-          displayName: 'HRV (Sleep)',
-          value: Math.round(sleep.hrv_ms),
-          unit: 'ms',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Resting HR from sleep
-      if (sleep.resting_hr_bpm != null) {
-        metrics.push({
-          category: 'Heart',
-          name: 'resting_hr',
-          displayName: 'Resting Heart Rate',
-          value: Math.round(sleep.resting_hr_bpm),
-          unit: 'bpm',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Respiratory Rate from sleep
-      if (sleep.respiratory_rate != null) {
-        metrics.push({
-          category: 'Respiratory',
-          name: 'respiratory_rate_sleep',
-          displayName: 'Respiratory Rate (Sleep)',
-          value: Math.round(sleep.respiratory_rate * 10) / 10,
-          unit: 'bpm',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Wrist Temperature from sleep
-      if (sleep.wrist_temperature != null) {
-        metrics.push({
-          category: 'Vitals',
-          name: 'wrist_temp',
-          displayName: 'Wrist Temperature',
-          value: Math.round(sleep.wrist_temperature * 100) / 100,
-          unit: '°C',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-      // Oxygen Saturation from sleep
-      if (sleep.oxygen_saturation != null) {
-        metrics.push({
-          category: 'Respiratory',
-          name: 'oxygen_saturation_sleep',
-          displayName: 'Blood Oxygen (Sleep)',
-          value: Math.round(sleep.oxygen_saturation * 10) / 10,
-          unit: '%',
-          source: sourceDisplay,
-          lastUpdated,
-        });
-      }
-    }
+    const sleep = sleepData?.[0];
+    const sleepSource = sleep?.source === 'oura' ? 'Oura Ring' : sleep?.source === 'healthkit' ? 'Apple Watch' : 'Manual';
+    const sleepUpdated = sleep?.updated_at || sleep?.sleep_date || null;
+    
+    // ALL expected sleep metrics - always shown
+    const totalSleepFormatted = sleep?.total_sleep_min != null 
+      ? `${Math.floor(sleep.total_sleep_min / 60)}h ${Math.round(sleep.total_sleep_min % 60)}m` 
+      : null;
+    addMetric('Sleep', 'total_sleep', 'Total Sleep', totalSleepFormatted, '', sleepSource, sleepUpdated);
+    
+    const timeInBedFormatted = sleep?.time_in_bed_min != null 
+      ? `${Math.floor(sleep.time_in_bed_min / 60)}h ${Math.round(sleep.time_in_bed_min % 60)}m` 
+      : null;
+    addMetric('Sleep', 'time_in_bed', 'Time in Bed', timeInBedFormatted, '', sleepSource, sleepUpdated);
+    
+    addMetric('Sleep', 'deep_sleep', 'Deep Sleep', sleep?.deep_sleep_min != null ? Math.round(sleep.deep_sleep_min) : null, 'min', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'rem_sleep', 'REM Sleep', sleep?.rem_sleep_min != null ? Math.round(sleep.rem_sleep_min) : null, 'min', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'core_sleep', 'Core/Light Sleep', sleep?.core_sleep_min != null ? Math.round(sleep.core_sleep_min) : null, 'min', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'sleep_efficiency', 'Sleep Efficiency', sleep?.sleep_efficiency_pct != null ? Math.round(sleep.sleep_efficiency_pct) : null, '%', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'sleep_latency', 'Sleep Latency', sleep?.sleep_latency_min != null ? Math.round(sleep.sleep_latency_min) : null, 'min', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'waso', 'Wake Time (WASO)', sleep?.waso_min != null ? Math.round(sleep.waso_min) : null, 'min', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'num_awakenings', 'Awakenings', sleep?.num_awakenings, '', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'fragmentation', 'Fragmentation Index', sleep?.fragmentation_index != null ? Math.round(sleep.fragmentation_index * 10) / 10 : null, '', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'deep_pct', 'Deep Sleep %', sleep?.deep_pct != null ? Math.round(sleep.deep_pct) : null, '%', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'rem_pct', 'REM Sleep %', sleep?.rem_pct != null ? Math.round(sleep.rem_pct) : null, '%', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'bedtime', 'Bedtime', sleep?.bedtime_local, '', sleepSource, sleepUpdated);
+    addMetric('Sleep', 'waketime', 'Wake Time', sleep?.waketime_local, '', sleepSource, sleepUpdated);
+    addMetric('Recovery', 'hrv', 'HRV (Sleep)', sleep?.hrv_ms != null ? Math.round(sleep.hrv_ms) : null, 'ms', sleepSource, sleepUpdated);
+    addMetric('Heart', 'resting_hr', 'Resting Heart Rate', sleep?.resting_hr_bpm != null ? Math.round(sleep.resting_hr_bpm) : null, 'bpm', sleepSource, sleepUpdated);
+    addMetric('Respiratory', 'respiratory_rate_sleep', 'Respiratory Rate (Sleep)', sleep?.respiratory_rate != null ? Math.round(sleep.respiratory_rate * 10) / 10 : null, 'bpm', sleepSource, sleepUpdated);
+    addMetric('Vitals', 'wrist_temp', 'Wrist Temperature', sleep?.wrist_temperature != null ? Math.round(sleep.wrist_temperature * 100) / 100 : null, '°C', sleepSource, sleepUpdated);
+    addMetric('Respiratory', 'oxygen_saturation_sleep', 'Blood Oxygen (Sleep)', sleep?.oxygen_saturation != null ? Math.round(sleep.oxygen_saturation * 10) / 10 : null, '%', sleepSource, sleepUpdated);
 
     // 2. Daily Metrics (from user_daily_metrics - includes activity, body composition, etc.)
     const { data: dailyData } = await supabase
@@ -4648,241 +4455,63 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       .order('local_date', { ascending: false })
       .limit(1);
 
-    if (dailyData?.[0]) {
-      const daily = dailyData[0];
-      const lastUpdated = daily.updated_at || daily.local_date;
-      
-      // Steps
-      if (daily.steps_normalized != null) {
-        metrics.push({
-          category: 'Activity',
-          name: 'steps_daily',
-          displayName: 'Steps',
-          value: Math.round(daily.steps_normalized).toLocaleString(),
-          unit: '',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Active Energy
-      if (daily.active_energy_kcal != null) {
-        metrics.push({
-          category: 'Activity',
-          name: 'active_energy_daily',
-          displayName: 'Active Energy',
-          value: Math.round(daily.active_energy_kcal),
-          unit: 'kcal',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Basal Energy
-      if (daily.basal_energy_kcal != null) {
-        metrics.push({
-          category: 'Activity',
-          name: 'basal_energy',
-          displayName: 'Basal Energy',
-          value: Math.round(daily.basal_energy_kcal),
-          unit: 'kcal',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Exercise Minutes
-      if (daily.exercise_minutes != null) {
-        metrics.push({
-          category: 'Activity',
-          name: 'exercise_min',
-          displayName: 'Exercise Minutes',
-          value: Math.round(daily.exercise_minutes),
-          unit: 'min',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Stand Hours
-      if (daily.stand_hours != null) {
-        metrics.push({
-          category: 'Activity',
-          name: 'stand_hours',
-          displayName: 'Stand Hours',
-          value: daily.stand_hours,
-          unit: 'hrs',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Flights Climbed
-      if (daily.flights_climbed != null) {
-        metrics.push({
-          category: 'Activity',
-          name: 'flights_climbed',
-          displayName: 'Flights Climbed',
-          value: daily.flights_climbed,
-          unit: '',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Distance
-      if (daily.distance_meters != null) {
-        const km = Math.round(daily.distance_meters / 100) / 10;
-        metrics.push({
-          category: 'Activity',
-          name: 'distance_daily',
-          displayName: 'Distance',
-          value: km,
-          unit: 'km',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Weight
-      if (daily.weight_kg != null) {
-        metrics.push({
-          category: 'Body',
-          name: 'weight',
-          displayName: 'Weight',
-          value: Math.round(daily.weight_kg * 10) / 10,
-          unit: 'kg',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // BMI
-      if (daily.bmi != null) {
-        metrics.push({
-          category: 'Body',
-          name: 'bmi',
-          displayName: 'BMI',
-          value: Math.round(daily.bmi * 10) / 10,
-          unit: '',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Body Fat %
-      if (daily.body_fat_pct != null) {
-        metrics.push({
-          category: 'Body',
-          name: 'body_fat',
-          displayName: 'Body Fat',
-          value: Math.round(daily.body_fat_pct * 10) / 10,
-          unit: '%',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Lean Body Mass
-      if (daily.lean_body_mass_kg != null) {
-        metrics.push({
-          category: 'Body',
-          name: 'lean_mass',
-          displayName: 'Lean Body Mass',
-          value: Math.round(daily.lean_body_mass_kg * 10) / 10,
-          unit: 'kg',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Waist Circumference
-      if (daily.waist_circumference_cm != null) {
-        metrics.push({
-          category: 'Body',
-          name: 'waist_circ',
-          displayName: 'Waist Circumference',
-          value: Math.round(daily.waist_circumference_cm * 10) / 10,
-          unit: 'cm',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // VO2 Max
-      if (daily.vo2_max != null) {
-        metrics.push({
-          category: 'Fitness',
-          name: 'vo2_max_daily',
-          displayName: 'VO2 Max',
-          value: Math.round(daily.vo2_max * 10) / 10,
-          unit: 'mL/kg/min',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Walking HR Average
-      if (daily.walking_hr_avg_bpm != null) {
-        metrics.push({
-          category: 'Heart',
-          name: 'walking_hr',
-          displayName: 'Walking Heart Rate',
-          value: Math.round(daily.walking_hr_avg_bpm),
-          unit: 'bpm',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Respiratory Rate
-      if (daily.respiratory_rate_bpm != null) {
-        metrics.push({
-          category: 'Respiratory',
-          name: 'respiratory_rate_daily',
-          displayName: 'Respiratory Rate',
-          value: Math.round(daily.respiratory_rate_bpm * 10) / 10,
-          unit: 'bpm',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Oxygen Saturation
-      if (daily.oxygen_saturation_pct != null) {
-        metrics.push({
-          category: 'Respiratory',
-          name: 'oxygen_sat_daily',
-          displayName: 'Blood Oxygen',
-          value: Math.round(daily.oxygen_saturation_pct),
-          unit: '%',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Body Temperature
-      if (daily.body_temp_celsius != null) {
-        metrics.push({
-          category: 'Vitals',
-          name: 'body_temp',
-          displayName: 'Body Temperature',
-          value: Math.round(daily.body_temp_celsius * 10) / 10,
-          unit: '°C',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Dietary Water
-      if (daily.dietary_water_ml != null) {
-        const liters = Math.round(daily.dietary_water_ml / 100) / 10;
-        metrics.push({
-          category: 'Nutrition',
-          name: 'water_intake',
-          displayName: 'Water Intake',
-          value: liters,
-          unit: 'L',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-      // Blood Pressure
-      if (daily.systolic_bp != null && daily.diastolic_bp != null) {
-        metrics.push({
-          category: 'Vitals',
-          name: 'blood_pressure',
-          displayName: 'Blood Pressure',
-          value: `${Math.round(daily.systolic_bp)}/${Math.round(daily.diastolic_bp)}`,
-          unit: 'mmHg',
-          source: 'Apple Watch',
-          lastUpdated,
-        });
-      }
-    }
+    const daily = dailyData?.[0];
+    const dailyUpdated = daily?.updated_at || daily?.local_date || null;
+    
+    // ALL expected activity metrics - always shown
+    addMetric('Activity', 'steps_daily', 'Steps', daily?.steps_normalized != null ? Math.round(daily.steps_normalized).toLocaleString() : null, '', 'Apple Watch', dailyUpdated);
+    addMetric('Activity', 'active_energy_daily', 'Active Energy', daily?.active_energy_kcal != null ? Math.round(daily.active_energy_kcal) : null, 'kcal', 'Apple Watch', dailyUpdated);
+    addMetric('Activity', 'basal_energy', 'Basal Energy', daily?.basal_energy_kcal != null ? Math.round(daily.basal_energy_kcal) : null, 'kcal', 'Apple Watch', dailyUpdated);
+    addMetric('Activity', 'exercise_min', 'Exercise Minutes', daily?.exercise_minutes != null ? Math.round(daily.exercise_minutes) : null, 'min', 'Apple Watch', dailyUpdated);
+    addMetric('Activity', 'stand_hours', 'Stand Hours', daily?.stand_hours, 'hrs', 'Apple Watch', dailyUpdated);
+    addMetric('Activity', 'flights_climbed', 'Flights Climbed', daily?.flights_climbed, '', 'Apple Watch', dailyUpdated);
+    addMetric('Activity', 'distance_daily', 'Distance', daily?.distance_meters != null ? Math.round(daily.distance_meters / 100) / 10 : null, 'km', 'Apple Watch', dailyUpdated);
+    addMetric('Activity', 'move_time', 'Apple Move Time', daily?.move_time_min != null ? Math.round(daily.move_time_min) : null, 'min', 'Apple Watch', dailyUpdated);
+    
+    // Body metrics - always shown
+    addMetric('Body', 'weight', 'Weight', daily?.weight_kg != null ? Math.round(daily.weight_kg * 10) / 10 : null, 'kg', 'Apple Watch', dailyUpdated);
+    addMetric('Body', 'height', 'Height', daily?.height_cm != null ? Math.round(daily.height_cm) : null, 'cm', 'Apple Watch', dailyUpdated);
+    addMetric('Body', 'bmi', 'BMI', daily?.bmi != null ? Math.round(daily.bmi * 10) / 10 : null, '', 'Apple Watch', dailyUpdated);
+    addMetric('Body', 'body_fat', 'Body Fat', daily?.body_fat_pct != null ? Math.round(daily.body_fat_pct * 10) / 10 : null, '%', 'Apple Watch', dailyUpdated);
+    addMetric('Body', 'lean_mass', 'Lean Body Mass', daily?.lean_body_mass_kg != null ? Math.round(daily.lean_body_mass_kg * 10) / 10 : null, 'kg', 'Apple Watch', dailyUpdated);
+    addMetric('Body', 'waist_circ', 'Waist Circumference', daily?.waist_circumference_cm != null ? Math.round(daily.waist_circumference_cm * 10) / 10 : null, 'cm', 'Apple Watch', dailyUpdated);
+    
+    // Fitness metrics
+    addMetric('Fitness', 'vo2_max_daily', 'VO2 Max', daily?.vo2_max != null ? Math.round(daily.vo2_max * 10) / 10 : null, 'mL/kg/min', 'Apple Watch', dailyUpdated);
+    
+    // Heart metrics
+    addMetric('Heart', 'walking_hr', 'Walking Heart Rate', daily?.walking_hr_avg_bpm != null ? Math.round(daily.walking_hr_avg_bpm) : null, 'bpm', 'Apple Watch', dailyUpdated);
+    addMetric('Heart', 'hr_recovery', 'Heart Rate Recovery (1 min)', daily?.hr_recovery_1min != null ? Math.round(daily.hr_recovery_1min) : null, 'bpm', 'Apple Watch', dailyUpdated);
+    addMetric('Heart', 'afib_burden', 'AFib Burden', daily?.afib_burden_pct != null ? Math.round(daily.afib_burden_pct * 10) / 10 : null, '%', 'Apple Watch', dailyUpdated);
+    
+    // Respiratory metrics
+    addMetric('Respiratory', 'respiratory_rate_daily', 'Respiratory Rate', daily?.respiratory_rate_bpm != null ? Math.round(daily.respiratory_rate_bpm * 10) / 10 : null, 'bpm', 'Apple Watch', dailyUpdated);
+    addMetric('Respiratory', 'oxygen_sat_daily', 'Blood Oxygen', daily?.oxygen_saturation_pct != null ? Math.round(daily.oxygen_saturation_pct) : null, '%', 'Apple Watch', dailyUpdated);
+    
+    // Vitals
+    addMetric('Vitals', 'body_temp', 'Body Temperature', daily?.body_temp_celsius != null ? Math.round(daily.body_temp_celsius * 10) / 10 : null, '°C', 'Apple Watch', dailyUpdated);
+    const bpValue = daily?.systolic_bp != null && daily?.diastolic_bp != null 
+      ? `${Math.round(daily.systolic_bp)}/${Math.round(daily.diastolic_bp)}` 
+      : null;
+    addMetric('Vitals', 'blood_pressure', 'Blood Pressure', bpValue, 'mmHg', 'Apple Watch', dailyUpdated);
+    
+    // Audio/Environmental
+    addMetric('Environmental', 'env_audio', 'Environmental Audio Exposure', daily?.env_audio_exposure_db != null ? Math.round(daily.env_audio_exposure_db) : null, 'dB', 'Apple Watch', dailyUpdated);
+    addMetric('Environmental', 'headphone_audio', 'Headphone Audio Exposure', daily?.headphone_audio_exposure_db != null ? Math.round(daily.headphone_audio_exposure_db) : null, 'dB', 'Apple Watch', dailyUpdated);
+    
+    // Nutrition - basic
+    addMetric('Nutrition', 'water_intake', 'Water Intake', daily?.dietary_water_ml != null ? Math.round(daily.dietary_water_ml / 100) / 10 : null, 'L', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'calories', 'Calories Consumed', daily?.dietary_energy_kcal != null ? Math.round(daily.dietary_energy_kcal) : null, 'kcal', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'protein', 'Protein', daily?.dietary_protein_g != null ? Math.round(daily.dietary_protein_g) : null, 'g', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'carbs', 'Carbohydrates', daily?.dietary_carbs_g != null ? Math.round(daily.dietary_carbs_g) : null, 'g', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'fat_total', 'Total Fat', daily?.dietary_fat_g != null ? Math.round(daily.dietary_fat_g) : null, 'g', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'fiber', 'Fiber', daily?.dietary_fiber_g != null ? Math.round(daily.dietary_fiber_g) : null, 'g', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'sugar', 'Sugar', daily?.dietary_sugar_g != null ? Math.round(daily.dietary_sugar_g) : null, 'g', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'sodium', 'Sodium', daily?.dietary_sodium_mg != null ? Math.round(daily.dietary_sodium_mg) : null, 'mg', 'Apple Watch', dailyUpdated);
+    addMetric('Nutrition', 'caffeine', 'Caffeine', daily?.dietary_caffeine_mg != null ? Math.round(daily.dietary_caffeine_mg) : null, 'mg', 'Apple Watch', dailyUpdated);
+    
+    // Mindfulness
+    addMetric('Mindfulness', 'mindful_min', 'Mindful Minutes', daily?.mindful_minutes != null ? Math.round(daily.mindful_minutes) : null, 'min', 'Apple Watch', dailyUpdated);
 
     // 3. HealthKit samples (for additional/granular metrics not in daily aggregates)
     const { data: hkSamples } = await supabase
@@ -5190,8 +4819,129 @@ export async function getLatestMetricsWithSources(userId: string): Promise<UserD
       }
     }
 
+    // 9. Oura SpO2
+    const { data: spo2Data } = await supabase
+      .from('oura_daily_spo2')
+      .select('day, spo2_percentage, breathing_disturbance_index, updated_at')
+      .eq('health_id', healthId)
+      .order('day', { ascending: false })
+      .limit(1);
+
+    if (spo2Data?.[0]) {
+      const spo2 = spo2Data[0];
+      if (spo2.spo2_percentage != null) {
+        metrics.push({
+          category: 'Respiratory',
+          name: 'spo2_oura',
+          displayName: 'SpO2 (Oura)',
+          value: Math.round(spo2.spo2_percentage * 10) / 10,
+          unit: '%',
+          source: 'Oura Ring',
+          lastUpdated: spo2.updated_at || spo2.day,
+        });
+      }
+      if (spo2.breathing_disturbance_index != null) {
+        metrics.push({
+          category: 'Respiratory',
+          name: 'breathing_disturbance',
+          displayName: 'Breathing Disturbance Index',
+          value: Math.round(spo2.breathing_disturbance_index * 10) / 10,
+          unit: '',
+          source: 'Oura Ring',
+          lastUpdated: spo2.updated_at || spo2.day,
+        });
+      }
+    }
+
+    // 10. Latest workout
+    const { data: workoutData } = await supabase
+      .from('healthkit_workouts')
+      .select('workout_type, duration_minutes, total_energy_burned, total_distance, source_name, start_date, created_at')
+      .eq('health_id', healthId)
+      .order('start_date', { ascending: false })
+      .limit(1);
+
+    if (workoutData?.[0]) {
+      const workout = workoutData[0];
+      const workoutSource = workout.source_name?.toLowerCase().includes('oura') ? 'Oura Ring' : 'Apple Watch';
+      const workoutUpdated = workout.created_at || workout.start_date;
+      
+      metrics.push({
+        category: 'Workouts',
+        name: 'last_workout_type',
+        displayName: 'Last Workout Type',
+        value: workout.workout_type?.replace(/_/g, ' ').replace(/HKWorkoutActivityType/i, '') || 'Unknown',
+        unit: '',
+        source: workoutSource,
+        lastUpdated: workoutUpdated,
+      });
+      if (workout.duration_minutes != null) {
+        metrics.push({
+          category: 'Workouts',
+          name: 'last_workout_duration',
+          displayName: 'Last Workout Duration',
+          value: Math.round(workout.duration_minutes),
+          unit: 'min',
+          source: workoutSource,
+          lastUpdated: workoutUpdated,
+        });
+      }
+      if (workout.total_energy_burned != null) {
+        metrics.push({
+          category: 'Workouts',
+          name: 'last_workout_energy',
+          displayName: 'Last Workout Calories',
+          value: Math.round(workout.total_energy_burned),
+          unit: 'kcal',
+          source: workoutSource,
+          lastUpdated: workoutUpdated,
+        });
+      }
+    }
+
+    // 11. Latest biomarker measurements (lab results)
+    const { data: biomarkerData } = await supabase
+      .from('biomarker_measurements')
+      .select(`
+        biomarker_id,
+        value_display,
+        unit_canonical,
+        source,
+        created_at,
+        biomarker_test_sessions!inner (
+          test_date,
+          health_id
+        )
+      `)
+      .eq('biomarker_test_sessions.health_id', healthId)
+      .order('biomarker_test_sessions(test_date)', { ascending: false })
+      .limit(20);
+
+    if (biomarkerData && biomarkerData.length > 0) {
+      const seenBiomarkers = new Set<string>();
+      for (const bm of biomarkerData) {
+        if (seenBiomarkers.has(bm.biomarker_id)) continue;
+        seenBiomarkers.add(bm.biomarker_id);
+        
+        const displayName = bm.biomarker_id
+          .split('_')
+          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(' ');
+        
+        metrics.push({
+          category: 'Lab Results',
+          name: `biomarker_${bm.biomarker_id}`,
+          displayName: displayName,
+          value: bm.value_display || 'N/A',
+          unit: bm.unit_canonical || '',
+          source: bm.source === 'pdf_extraction' ? 'Lab Report' : bm.source || 'Manual',
+          lastUpdated: (bm.biomarker_test_sessions as any)?.test_date || bm.created_at,
+        });
+      }
+    }
+
     // Sort by category then name
-    const categoryOrder = ['Sleep', 'Recovery', 'Heart', 'Activity', 'Fitness', 'Body', 'Mobility', 'Respiratory', 'Vitals', 'Glucose', 'Nutrition', 'Mindfulness', 'Stress'];
+    const categoryOrder = ['Sleep', 'Recovery', 'Heart', 'Activity', 'Workouts', 'Fitness', 'Body', 'Mobility', 'Respiratory', 'Vitals', 'Environmental', 'Glucose', 'Nutrition', 'Mindfulness', 'Stress', 'Lab Results'];
     metrics.sort((a, b) => {
       const catA = categoryOrder.indexOf(a.category);
       const catB = categoryOrder.indexOf(b.category);
