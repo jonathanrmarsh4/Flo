@@ -368,7 +368,7 @@ async function fetchTodayMetrics(healthId: string, eventDate: string, timezone?:
 
     logger.info(`[MorningBriefing] fetchTodayMetrics: sleepDate=${eventDate} (today), activityDate=${yesterdayDate} (yesterday)`);
 
-    // Fetch sleep data for TODAY (last night's sleep ends today)
+    // Fetch sleep data for TODAY (last night's sleep ends today) - Supabase sleep_nights is accurate
     const { data: sleepData } = await supabase
       .from('sleep_nights')
       .select('total_sleep_min, deep_sleep_min, rem_sleep_min, sleep_efficiency_pct, hrv_ms, resting_hr_bpm')
@@ -376,34 +376,85 @@ async function fetchTodayMetrics(healthId: string, eventDate: string, timezone?:
       .eq('sleep_date', eventDate)
       .maybeSingle();
 
-    // Fetch activity metrics for YESTERDAY (completed full day of activity)
-    // IMPORTANT: Use steps_raw_sum for actual step count, not steps_normalized (which is a 0-1 score)
-    const { data: dailyMetrics } = await supabase
-      .from('user_daily_metrics')
-      .select('steps_normalized, steps_raw_sum, active_energy_kcal, exercise_minutes, hrv_ms, resting_hr_bpm')
-      .eq('health_id', healthId)
-      .eq('local_date', yesterdayDate)
-      .maybeSingle();
+    // Fetch activity metrics from ClickHouse (source of truth) for YESTERDAY
+    // ClickHouse has more reliable activity data than Supabase user_daily_metrics
+    // Use aggregation (max) to handle potential duplicate records per day
+    let clickhouseActivity: { steps: number | null; active_energy: number | null; exercise_minutes: number | null } = {
+      steps: null,
+      active_energy: null,
+      exercise_minutes: null,
+    };
 
-    // DEBUG: Log raw values to diagnose steps/active_energy issues
-    logger.info(`[MorningBriefing] fetchTodayMetrics for ${healthId}: activity from ${yesterdayDate}: steps_raw_sum=${dailyMetrics?.steps_raw_sum}, active_energy_kcal=${dailyMetrics?.active_energy_kcal}`);
+    try {
+      // Use argMax to get the value from the latest recorded timestamp per metric_type
+      // This ensures we get the final daily total (most recent snapshot) rather than summing duplicates
+      const activityQuery = `
+        SELECT 
+          metric_type,
+          argMax(value, recorded_at) as value
+        FROM flo_health.health_metrics
+        WHERE health_id = {healthId:String}
+          AND toDate(local_date) = toDate({yesterdayDate:String})
+          AND metric_type IN ('steps', 'active_energy', 'exercise_minutes')
+        GROUP BY metric_type
+      `;
+      
+      const activityRows = await clickhouse.query<{ metric_type: string; value: number }>(
+        activityQuery,
+        { healthId, yesterdayDate }
+      );
+
+      for (const row of activityRows) {
+        if (row.metric_type === 'steps') clickhouseActivity.steps = row.value;
+        if (row.metric_type === 'active_energy') clickhouseActivity.active_energy = row.value;
+        if (row.metric_type === 'exercise_minutes') clickhouseActivity.exercise_minutes = row.value;
+      }
+
+      logger.info(`[MorningBriefing] ClickHouse activity for ${healthId} on ${yesterdayDate}: steps=${clickhouseActivity.steps}, active_energy=${clickhouseActivity.active_energy}, exercise_minutes=${clickhouseActivity.exercise_minutes}`);
+    } catch (chErr) {
+      logger.warn(`[MorningBriefing] ClickHouse activity query failed, falling back to Supabase: ${chErr instanceof Error ? chErr.message : String(chErr)}`);
+    }
+
+    // Fallback to Supabase if ClickHouse didn't return activity data
+    if (clickhouseActivity.steps === null && clickhouseActivity.active_energy === null) {
+      const { data: dailyMetrics } = await supabase
+        .from('user_daily_metrics')
+        .select('steps_normalized, steps_raw_sum, active_energy_kcal, exercise_minutes, hrv_ms, resting_hr_bpm')
+        .eq('health_id', healthId)
+        .eq('local_date', yesterdayDate)
+        .maybeSingle();
+
+      logger.info(`[MorningBriefing] Supabase fallback for ${healthId}: steps_raw_sum=${dailyMetrics?.steps_raw_sum}, steps_normalized=${dailyMetrics?.steps_normalized}, active_energy_kcal=${dailyMetrics?.active_energy_kcal}`);
+
+      // Use Supabase data as fallback - prefer steps_raw_sum (raw count) over steps_normalized (0-1 score)
+      // steps_normalized is a unitless score and should only be used if raw sum is unavailable
+      if (dailyMetrics?.steps_raw_sum != null && dailyMetrics.steps_raw_sum > 0) {
+        clickhouseActivity.steps = dailyMetrics.steps_raw_sum;
+      } else if (dailyMetrics?.steps_normalized != null) {
+        // steps_normalized is likely the actual step count despite the name (iOS sends it this way)
+        clickhouseActivity.steps = dailyMetrics.steps_normalized;
+        logger.warn(`[MorningBriefing] Using steps_normalized for ${healthId} - steps_raw_sum was null/zero`);
+      }
+      clickhouseActivity.active_energy = dailyMetrics?.active_energy_kcal ?? null;
+      clickhouseActivity.exercise_minutes = dailyMetrics?.exercise_minutes ?? null;
+    }
 
     // Note: readiness_score is now handled exclusively by aggregateDailyInsights via readinessEngine
     // This ensures consistency with the dashboard and prevents duplicate/conflicting calculations
 
     return {
-      // HRV and RHR from sleep data (today) with fallback to activity data (yesterday) if needed
-      hrv: sleepData?.hrv_ms ?? dailyMetrics?.hrv_ms ?? null,
-      rhr: sleepData?.resting_hr_bpm ?? dailyMetrics?.resting_hr_bpm ?? null,
+      // HRV and RHR from sleep data (today)
+      hrv: sleepData?.hrv_ms ?? null,
+      rhr: sleepData?.resting_hr_bpm ?? null,
       // Sleep metrics from today (last night's sleep)
       sleep_hours: sleepData?.total_sleep_min ? sleepData.total_sleep_min / 60 : null,
       deep_sleep_minutes: sleepData?.deep_sleep_min ?? null,
       rem_sleep_minutes: sleepData?.rem_sleep_min ?? null,
       sleep_efficiency: sleepData?.sleep_efficiency_pct ?? null,
-      // Activity metrics from yesterday (completed full day)
-      steps: dailyMetrics?.steps_raw_sum ?? null,
-      active_energy: dailyMetrics?.active_energy_kcal ?? null,
-      workout_minutes: dailyMetrics?.exercise_minutes ?? null,
+      // Activity metrics from ClickHouse (source of truth) with Supabase fallback
+      steps: clickhouseActivity.steps,
+      active_energy: clickhouseActivity.active_energy,
+      workout_minutes: clickhouseActivity.exercise_minutes,
       readiness_score: null, // Calculated by aggregateDailyInsights using readinessEngine
     };
   } catch (error) {
