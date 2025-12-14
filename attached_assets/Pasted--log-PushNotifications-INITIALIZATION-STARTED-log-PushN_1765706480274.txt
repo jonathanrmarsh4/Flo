@@ -1,0 +1,37 @@
+⚡️  [log] - [PushNotifications] ===== INITIALIZATION STARTED =====
+⚡️  [log] - [PushNotifications] isNativePlatform: true
+⚡️  [log] - [PushNotifications] getPlatform: ios
+⚡️  [log] - [PushNotifications] isInitialized: false
+⚡️  [log] - [PushNotifications] Loading @capacitor/push-notifications module...
+⚡️  To Native ->  PushNotifications checkPermissions 115258557
+⚡️  [log] - [PushNotifications] Module loaded successfully
+⚡️  [log] - [PushNotifications] Current permission status: {"receive":"granted"}
+⚡️  [log] - [PushNotifications] Permission granted, setting up listeners...
+⚡️  [log] - [PushNotifications] Setting up APNs event listeners...
+⚡️  [log] - [PushNotifications] Adding registration listener...
+⚡️  To Native ->  PushNotifications addListener 115258558
+⚡️  [log] - [PushNotifications] Registration listener added
+⚡️  To Native ->  PushNotifications addListener 115258559
+⚡️  [log] - [PushNotifications] Adding registrationError listener...
+⚡️  [log] - [PushNotifications] RegistrationError listener added
+⚡️  To Native ->  PushNotifications ⚡️  [log] - [PushNotifications] Adding pushNotificationReceived listener...
+⚡️  [log] - [PushNotifications] PushNotificationReceived listener added
+⚡️  To Native ->  PushNotifications addListener 115258561
+⚡️  [log] - [PushNotifications] Adding pushNotificationActionPerformed listener...
+⚡️  [log] - [PushNotifications] PushNotificationActionPerformed listener added
+⚡️  To Native ->  PushNotifications register 115258562
+⚡️  [log] - [PushNotifications] ===== ALL LISTENERS REGISTERED =====
+⚡️  [log] - [PushNotifications] Calling PushNotifications.register() to get APNs token...
+⚡️  [log] - [PushNotifications] ===== INITIALIZATION COMPLETE =====
+⚡️  [log] - [PushNotifications] Waiting for APNs registration callback (registration event)...
+⚡️  [log] - [PushNotifications] ===== APNs REGISTRATION CALLBACK RECEIVED =====
+⚡️  [log] - [PushNotifications] Token received from APNs (first 20 chars): 3018B4414407F22B4AED...
+⚡️  [log] - [PushNotifications] Full token length: 64
+⚡️  [log] - [PushNotifications] Registration attempt # 1
+⚡️  [log] - [PushNotifications] ===== BACKEND REGISTRATION STARTING =====
+⚡️  [log] - [PushNotifications] Auth token available: YES (length: 285)
+⚡️  [log] - [PushNotifications] Sending POST /api/device-tokens...
+⚡️  [log] - [PushNotifications] Payload: { deviceToken: ( 64 chars), platform: ios }
+⚡️  [log] - [PushNotifications] ===== BACKEND REGISTRATION SUCCESS =====
+⚡️  [log] - [PushNotifications] Response status: 200
+⚡️  [log] - [PushNotifications] Response data: {"success":true,"action":"updated","tokenId":"b57ab61a-cef0-4ecc-81bb-d872b6577fc0"}
