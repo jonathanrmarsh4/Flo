@@ -638,12 +638,13 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                     </div>
                   )}
 
-                  {data && data.drivers.length > 0 && (
-                    <div className={`rounded-2xl p-5 ${
-                      isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'
-                    }`}>
-                      <h3 className={`mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Key Drivers</h3>
-                      
+                  {/* Key Drivers Section - always visible with fallback */}
+                  <div className={`rounded-2xl p-5 ${
+                    isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'
+                  }`}>
+                    <h3 className={`mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Key Drivers</h3>
+                    
+                    {data && data.drivers.length > 0 ? (
                       <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10' : 'border-gray-200'}`} data-testid="table-key-drivers">
                         <div className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 py-2.5 text-xs ${
                           isDark ? 'bg-white/5 text-white/50' : 'bg-gray-50 text-gray-500'
@@ -721,101 +722,118 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                           );
                         })}
                       </div>
-                    </div>
-                  )}
-
-                  {data?.simulator?.results && data.simulator.results.length > 0 && (
-                    <div className={`rounded-2xl p-5 ${
-                      isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'
-                    }`}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>What if...</h3>
-                          <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                            Explore different scenarios
-                          </p>
-                        </div>
-                        <Zap className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                    ) : (
+                      <div className={`text-center py-8 ${isDark ? 'text-white/50' : 'text-gray-500'}`} data-testid="empty-key-drivers">
+                        <Activity className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+                        <p className="text-sm mb-1">Building your driver analysis</p>
+                        <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                          Continue tracking to discover what impacts your weight
+                        </p>
                       </div>
+                    )}
+                  </div>
 
-                      <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10' : 'border-gray-200'}`} data-testid="table-what-if-simulator">
-                        <div className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 py-2.5 text-xs ${
-                          isDark ? 'bg-white/5 text-white/50' : 'bg-gray-50 text-gray-500'
-                        }`}>
-                          <span>Scenario</span>
-                          <span className="text-center">Effort</span>
-                          <span className="text-center">Delta</span>
-                          <span className="text-center">ETA</span>
+                  {/* What-If Simulator Section - always visible with fallback */}
+                  <div className={`rounded-2xl p-5 ${
+                    isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'
+                  }`}>
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <h3 className={`mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>What if...</h3>
+                        <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                          Explore different scenarios
+                        </p>
+                      </div>
+                      <Zap className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                    </div>
+
+                    {data?.simulator?.results && data.simulator.results.length > 0 ? (
+                      <>
+                        <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10' : 'border-gray-200'}`} data-testid="table-what-if-simulator">
+                          <div className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 py-2.5 text-xs ${
+                            isDark ? 'bg-white/5 text-white/50' : 'bg-gray-50 text-gray-500'
+                          }`}>
+                            <span>Scenario</span>
+                            <span className="text-center">Effort</span>
+                            <span className="text-center">Delta</span>
+                            <span className="text-center">ETA</span>
+                          </div>
+                          
+                          {data.simulator.results.slice(0, 5).map((result, idx) => {
+                            const baselineWeight = data.summary.forecast.weight_low_kg_at_horizon && data.summary.forecast.weight_high_kg_at_horizon
+                              ? (data.summary.forecast.weight_low_kg_at_horizon + data.summary.forecast.weight_high_kg_at_horizon) / 2
+                              : currentWeight;
+                            
+                            const deltaLow = result.forecast_low_kg_at_horizon != null && baselineWeight != null
+                              ? result.forecast_low_kg_at_horizon - baselineWeight 
+                              : null;
+                            const deltaHigh = result.forecast_high_kg_at_horizon != null && baselineWeight != null
+                              ? result.forecast_high_kg_at_horizon - baselineWeight 
+                              : null;
+                            
+                            return (
+                              <div
+                                key={`${result.lever_id}-${result.effort}`}
+                                className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center px-4 py-3 ${
+                                  idx !== data.simulator.results.slice(0, 5).length - 1 ? (isDark ? 'border-b border-white/5' : 'border-b border-gray-100') : ''
+                                } ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'} transition-all cursor-pointer`}
+                                data-testid={`row-simulator-${result.lever_id}`}
+                              >
+                                <div className="min-w-0">
+                                  <p className={`text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                    {result.lever_title}
+                                  </p>
+                                </div>
+                                
+                                <div className={`px-2 py-0.5 rounded text-xs text-center ${
+                                  result.effort === 'low' || result.effort === 'LOW'
+                                    ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                                    : result.effort === 'medium' || result.effort === 'MEDIUM'
+                                      ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+                                      : isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
+                                }`}>
+                                  {result.effort.charAt(0).toUpperCase() + result.effort.slice(1).toLowerCase()}
+                                </div>
+                                
+                                <div className="text-center">
+                                  {deltaLow !== null && deltaHigh !== null ? (
+                                    <span className={`text-xs ${
+                                      deltaLow < 0 
+                                        ? isDark ? 'text-green-400' : 'text-green-600'
+                                        : isDark ? 'text-orange-400' : 'text-orange-600'
+                                    }`}>
+                                      {deltaLow < 0 ? '' : '+'}{deltaLow.toFixed(1)} to {deltaHigh < 0 ? '' : '+'}{deltaHigh.toFixed(1)} kg
+                                    </span>
+                                  ) : (
+                                    <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>--</span>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center justify-center gap-1">
+                                  <Clock className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                                  <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                                    {result.eta_weeks ? `${result.eta_weeks}w` : '--'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                         
-                        {data.simulator.results.slice(0, 5).map((result, idx) => {
-                          // Compare against baseline forecast (what happens with no intervention)
-                          // If baseline forecast unavailable, fall back to current weight
-                          const baselineWeight = data.summary.forecast.weight_low_kg_at_horizon && data.summary.forecast.weight_high_kg_at_horizon
-                            ? (data.summary.forecast.weight_low_kg_at_horizon + data.summary.forecast.weight_high_kg_at_horizon) / 2
-                            : currentWeight;
-                          
-                          const deltaLow = result.forecast_low_kg_at_horizon != null && baselineWeight != null
-                            ? result.forecast_low_kg_at_horizon - baselineWeight 
-                            : null;
-                          const deltaHigh = result.forecast_high_kg_at_horizon != null && baselineWeight != null
-                            ? result.forecast_high_kg_at_horizon - baselineWeight 
-                            : null;
-                          
-                          return (
-                            <div
-                              key={`${result.lever_id}-${result.effort}`}
-                              className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center px-4 py-3 ${
-                                idx !== data.simulator.results.slice(0, 5).length - 1 ? (isDark ? 'border-b border-white/5' : 'border-b border-gray-100') : ''
-                              } ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'} transition-all cursor-pointer`}
-                              data-testid={`row-simulator-${result.lever_id}`}
-                            >
-                              <div className="min-w-0">
-                                <p className={`text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                  {result.lever_title}
-                                </p>
-                              </div>
-                              
-                              <div className={`px-2 py-0.5 rounded text-xs text-center ${
-                                result.effort === 'low' || result.effort === 'LOW'
-                                  ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-                                  : result.effort === 'medium' || result.effort === 'MEDIUM'
-                                    ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
-                                    : isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
-                              }`}>
-                                {result.effort.charAt(0).toUpperCase() + result.effort.slice(1).toLowerCase()}
-                              </div>
-                              
-                              <div className="text-center">
-                                {deltaLow !== null && deltaHigh !== null ? (
-                                  <span className={`text-xs ${
-                                    deltaLow < 0 
-                                      ? isDark ? 'text-green-400' : 'text-green-600'
-                                      : isDark ? 'text-orange-400' : 'text-orange-600'
-                                  }`}>
-                                    {deltaLow < 0 ? '' : '+'}{deltaLow.toFixed(1)} to {deltaHigh < 0 ? '' : '+'}{deltaHigh.toFixed(1)} kg
-                                  </span>
-                                ) : (
-                                  <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>--</span>
-                                )}
-                              </div>
-                              
-                              <div className="flex items-center justify-center gap-1">
-                                <Clock className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
-                                <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
-                                  {result.eta_weeks ? `${result.eta_weeks}w` : '--'}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
+                        <p className={`text-xs mt-3 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                          Estimates based on your current trends and behavior patterns
+                        </p>
+                      </>
+                    ) : (
+                      <div className={`text-center py-6 ${isDark ? 'text-white/50' : 'text-gray-500'}`} data-testid="empty-what-if-simulator">
+                        <Target className={`w-10 h-10 mx-auto mb-3 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+                        <p className="text-sm mb-1">Scenarios coming soon</p>
+                        <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                          More data is needed to model what-if scenarios
+                        </p>
                       </div>
-                      
-                      <p className={`text-xs mt-3 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                        Estimates based on your current trends and behavior patterns
-                      </p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </>
               )}
 
