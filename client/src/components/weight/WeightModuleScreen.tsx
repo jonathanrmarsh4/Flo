@@ -232,7 +232,7 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
           </div>
         </div>
 
-        <div className="p-4 overflow-y-auto" style={{ height: 'calc(100vh - 80px - env(safe-area-inset-top))' }}>
+        <div className="p-4 pb-24 overflow-y-auto" style={{ height: 'calc(100vh - 80px - env(safe-area-inset-top) - env(safe-area-inset-bottom))' }}>
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-white/40' : 'text-gray-400'}`} />

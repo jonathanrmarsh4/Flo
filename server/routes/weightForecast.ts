@@ -17,6 +17,7 @@ import { requireAdmin } from '../middleware/rbac';
 import { createLogger } from '../utils/logger';
 import { getClickHouseClient, isClickHouseEnabled } from '../services/clickhouseService';
 import { queueForecastRecompute } from '../services/weightForecast/clickhouseSchema';
+import { triggerBackfillIfNeeded } from '../services/clickhouseBackfillService';
 import { v4 as uuidv4 } from 'uuid';
 import * as supabaseHealthStorage from '../services/supabaseHealthStorage';
 
@@ -167,6 +168,10 @@ async function saveUserGoal(userId: string, goal: z.infer<typeof goalSchema>): P
 router.get('/tile', isAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user.claims.sub;
+    
+    // Trigger ClickHouse backfill if needed (non-blocking)
+    triggerBackfillIfNeeded(userId);
+    
     const goal = await getUserGoal(userId);
     
     let summary: ForecastSummary | null = null;
@@ -305,6 +310,10 @@ router.get('/tile', isAuthenticated, async (req: any, res) => {
 router.get('/overview', isAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user.claims.sub;
+    
+    // Trigger ClickHouse backfill if needed (non-blocking)
+    triggerBackfillIfNeeded(userId);
+    
     const range = (req.query.range as string) || '30d';
     const rangeDays = range === '6m' ? 180 : range === '90d' ? 90 : 30;
     const goal = await getUserGoal(userId);
