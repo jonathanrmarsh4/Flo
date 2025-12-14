@@ -1,0 +1,30 @@
+⚡️  [log] - [PushNotifications] ===== INITIALIZATION STARTED =====
+⚡️  [log] - [PushNotifications] isNativePlatform: true
+⚡️  [log] - [PushNotifications] getPlatform: ios
+⚡️  [log] - [PushNotifications] isInitialized: false
+⚡️  [log] - [PushNotifications] Loading @capacitor/push-notifications module...
+⚡️  To Native ->  PushNotifications checkPermissions 105488030
+⚡️  [log] - [PushNotifications] Module loaded successfully
+⚡️  [log] - [PushNotifications] Current permission status: {"receive":"granted"}
+⚡️  [log] - [PushNotifications] Permission granted, setting up listeners...
+⚡️  [log] - [PushNotifications] Setting up APNs event listeners...
+⚡️  To Native ->  PushNotifications addListener 105488031
+⚡️  [log] - [PushNotifications] All listeners registered
+⚡️  To Native ->  PushNotifications addListener 105488032
+⚡️  To Native ->  PushNotifications addListener 105488033
+⚡️  To Native ->  PushNotifications addListener 105488034
+⚡️  To Native ->  PushNotifications register 105488035
+⚡️  [log] - [PushNotifications] Calling PushNotifications.register() to get APNs token...
+⚡️  [log] - [PushNotifications] ===== INITIALIZATION COMPLETE =====
+⚡️  [log] - [PushNotifications] Waiting for APNs registration callback (registration event)...
+⚡️  [log] - [PushNotifications] ===== APNs REGISTRATION CALLBACK RECEIVED =====
+⚡️  [log] - [PushNotifications] Token received from APNs (first 20 chars): 3018B4414407F22B4AED...
+⚡️  [log] - [PushNotifications] Full token length: 64
+⚡️  [log] - [PushNotifications] Registration attempt # 1
+⚡️  [log] - [PushNotifications] ===== BACKEND REGISTRATION STARTING =====
+⚡️  [log] - [PushNotifications] Auth token available: YES (length: 285)
+⚡️  [log] - [PushNotifications] Sending POST /api/device-tokens...
+⚡️  [log] - [PushNotifications] Payload: { deviceToken: ( 64 chars), platform: ios }
+⚡️  [log] - [PushNotifications] ===== BACKEND REGISTRATION SUCCESS =====
+⚡️  [log] - [PushNotifications] Response status: 200
+⚡️  [log] - [PushNotifications] Response data: {"success":true,"action":"created","tokenId":"b57ab61a-cef0-4ecc-81bb-d872b6577fc0"}
