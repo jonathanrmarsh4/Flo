@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, Mic, MicOff, MessageSquare, XCircle, Save, History, Trash2, Clock, Calendar } from 'lucide-react';
+import { Brain, Play, Pause, Database, Volume2, Loader2, ChevronDown, ChevronUp, Download, AlertCircle, Mic, MicOff, MessageSquare, XCircle, Save, History, Trash2, Clock, Calendar, Send } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { useGeminiLiveVoice } from '@/hooks/useGeminiLiveVoice';
 import { format, formatDistanceToNow } from 'date-fns';
 
@@ -44,7 +45,7 @@ export function AdminSIE() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
   
-  const [showBrainstorm, setShowBrainstorm] = useState(false);
+  const [showBrainstorm, setShowBrainstorm] = useState(true);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [currentUserText, setCurrentUserText] = useState('');
   const [isSieResponding, setIsSieResponding] = useState(false);
@@ -54,6 +55,12 @@ export function AdminSIE() {
   const [showHistory, setShowHistory] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  
+  // Text chat state
+  const [textInput, setTextInput] = useState('');
+  const [isTextLoading, setIsTextLoading] = useState(false);
+  const [chatSessionId, setChatSessionId] = useState<string | null>(null);
+  const textInputRef = useRef<HTMLInputElement>(null);
   
   const { data: sessionsResponse, refetch: refetchSessions } = useQuery<{ sessions: SavedSession[] }>({
     queryKey: ['/api/sandbox/sie/brainstorm-sessions'],
@@ -302,6 +309,55 @@ export function AdminSIE() {
     }
   };
 
+  // Handle text chat submission - similar to VoiceChatScreen
+  const handleTextSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!textInput.trim() || isTextLoading) return;
+    
+    const userText = textInput.trim();
+    setTextInput('');
+    setIsTextLoading(true);
+    
+    // Add user message to transcript
+    const userEntry: TranscriptEntry = {
+      role: 'user',
+      text: userText,
+      timestamp: new Date(),
+    };
+    setTranscript(prev => [...prev, userEntry]);
+    
+    try {
+      // Call SIE chat endpoint
+      const response = await apiRequest('POST', '/api/sandbox/sie/chat', {
+        message: userText,
+        sessionId: chatSessionId,
+      });
+      
+      const result = await response.json() as { response: string; sessionId: string };
+      
+      // Update session ID for continuity
+      setChatSessionId(result.sessionId);
+      
+      // Add SIE response to transcript
+      const sieEntry: TranscriptEntry = {
+        role: 'sie',
+        text: result.response,
+        timestamp: new Date(),
+      };
+      setTranscript(prev => [...prev, sieEntry]);
+      
+    } catch (error: any) {
+      console.error('[AdminSIE] Text chat failed:', error);
+      toast({
+        title: 'Message failed',
+        description: error.message || 'Could not send message. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsTextLoading(false);
+    }
+  }, [textInput, isTextLoading, chatSessionId, toast]);
+
   const runSIEMutation = useMutation({
     mutationFn: async () => {
       setError(null);
@@ -546,55 +602,59 @@ export function AdminSIE() {
               )}
             </div>
 
-            <div className="rounded-lg border bg-black/30 border-white/10 overflow-hidden">
-              <button
-                onClick={() => setShowBrainstorm(!showBrainstorm)}
-                className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors"
-                data-testid="button-toggle-sie-brainstorm"
-              >
-                <div className="flex items-center gap-2">
-                  <Mic className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm text-white/70">Voice Brainstorm with SIE</span>
-                  {isConnected && (
-                    <span className="text-xs bg-green-500/30 px-2 py-0.5 rounded-full text-green-300">
-                      Connected
-                    </span>
-                  )}
-                  {transcript.length > 0 && (
-                    <span className="text-xs bg-purple-500/30 px-2 py-0.5 rounded-full text-purple-300">
-                      {transcript.length} exchanges
-                    </span>
-                  )}
-                </div>
-                {showBrainstorm ? (
-                  <ChevronUp className="w-4 h-4 text-white/50" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-white/50" />
-                )}
-              </button>
-              
-              {showBrainstorm && (
-                <div className="border-t border-white/10">
-                  <div className="p-4 border-b border-white/10">
-                    <div className="flex flex-wrap gap-3">
-                      <Button
-                        onClick={handleToggleConnection}
-                        variant={isConnected ? 'destructive' : 'default'}
-                        className={!isConnected ? 'bg-purple-500 hover:bg-purple-600' : ''}
-                        data-testid="button-sie-voice-connect"
-                      >
-                        {isConnected ? (
-                          <>
-                            <XCircle className="w-4 h-4 mr-2" />
-                            End Session
-                          </>
-                        ) : (
-                          <>
-                            <Mic className="w-4 h-4 mr-2" />
-                            Start Voice Brainstorm
-                          </>
-                        )}
-                      </Button>
+          </div>
+        )}
+
+        {/* Brainstorm/Chat section - always visible */}
+        <div className="rounded-lg border bg-black/30 border-white/10 overflow-hidden">
+          <button
+            onClick={() => setShowBrainstorm(!showBrainstorm)}
+            className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors"
+            data-testid="button-toggle-sie-brainstorm"
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-purple-400" />
+              <span className="text-sm text-white/70">Chat with SIE</span>
+              {isConnected && (
+                <span className="text-xs bg-green-500/30 px-2 py-0.5 rounded-full text-green-300">
+                  Voice Connected
+                </span>
+              )}
+              {transcript.length > 0 && (
+                <span className="text-xs bg-purple-500/30 px-2 py-0.5 rounded-full text-purple-300">
+                  {transcript.length} messages
+                </span>
+              )}
+            </div>
+            {showBrainstorm ? (
+              <ChevronUp className="w-4 h-4 text-white/50" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-white/50" />
+            )}
+          </button>
+          
+          {showBrainstorm && (
+            <div className="border-t border-white/10">
+              <div className="p-4 border-b border-white/10">
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    onClick={handleToggleConnection}
+                    variant={isConnected ? 'destructive' : 'default'}
+                    className={!isConnected ? 'bg-purple-500 hover:bg-purple-600' : ''}
+                    data-testid="button-sie-voice-connect"
+                  >
+                    {isConnected ? (
+                      <>
+                        <XCircle className="w-4 h-4 mr-2" />
+                        End Voice
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-4 h-4 mr-2" />
+                        Voice Mode
+                      </>
+                    )}
+                  </Button>
                       
                       {isConnected && (
                         <Button
@@ -710,13 +770,42 @@ export function AdminSIE() {
                       
                       {transcript.length === 0 && !currentUserText && !isSieResponding && !isConnected && (
                         <div className="text-center py-8 text-white/40 text-sm">
-                          <Mic className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p>Start a voice session to brainstorm with SIE</p>
-                          <p className="text-xs mt-1">Discuss priorities, feasibility, and what to build next</p>
+                          <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>Start a conversation with SIE</p>
+                          <p className="text-xs mt-1">Type a message below or use voice to brainstorm</p>
                         </div>
                       )}
                     </div>
                   </ScrollArea>
+                  
+                  {/* Text chat input - always visible when not in voice mode */}
+                  {!isConnected && (
+                    <div className="p-4 border-t border-white/10">
+                      <form onSubmit={handleTextSubmit} className="flex gap-2">
+                        <Input
+                          ref={textInputRef}
+                          value={textInput}
+                          onChange={(e) => setTextInput(e.target.value)}
+                          placeholder="Type a message to SIE..."
+                          className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                          disabled={isTextLoading}
+                          data-testid="input-sie-text-chat"
+                        />
+                        <Button
+                          type="submit"
+                          disabled={!textInput.trim() || isTextLoading}
+                          className="bg-purple-500 hover:bg-purple-600"
+                          data-testid="button-sie-send-text"
+                        >
+                          {isTextLoading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </form>
+                    </div>
+                  )}
                   
                   {showHistory && (
                     <div className="border-t border-white/10 p-4">
@@ -853,12 +942,10 @@ export function AdminSIE() {
                 </div>
               )}
             </div>
-          </div>
-        )}
 
         <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
           <p className="text-xs text-purple-300">
-            <strong>SIE v2.0:</strong> Uses Gemini 2.5 Pro for analysis and Gemini Live for voice brainstorming. Run an analysis first, then start a voice session to discuss priorities and plan features together.
+            <strong>SIE v2.0:</strong> Chat with SIE using text or voice. Run an analysis first for deeper insights, then brainstorm priorities and features together.
           </p>
         </div>
       </div>
