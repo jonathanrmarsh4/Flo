@@ -994,7 +994,7 @@ const userIdSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/).max(100);
 /**
  * GET /v1/weight/goal-narrative
  * Returns an AI-generated inspirational narrative about the user's weight goal.
- * This is cached and updated with each forecast recompute.
+ * Generates on-demand if no cached narrative exists.
  */
 router.get('/goal-narrative', isAuthenticated, async (req: any, res) => {
   try {
@@ -1009,11 +1009,18 @@ router.get('/goal-narrative', isAuthenticated, async (req: any, res) => {
       return res.json({ narrative: null, generated_at: null });
     }
     
+    // First check if we have a cached narrative
     const result = await client.query({
       query: `
         SELECT 
           goal_narrative,
-          generated_at_utc
+          generated_at_utc,
+          current_weight_kg,
+          goal_target_weight_kg,
+          goal_type,
+          progress_percent,
+          eta_weeks,
+          status_chip
         FROM flo_ml.forecast_summary FINAL
         WHERE user_id = {userId:String}
         ORDER BY generated_at_utc DESC
@@ -1023,16 +1030,97 @@ router.get('/goal-narrative', isAuthenticated, async (req: any, res) => {
       format: 'JSONEachRow',
     });
     
-    const rows = await result.json() as Array<{ goal_narrative: string | null; generated_at_utc: string }>;
+    const rows = await result.json() as Array<{ 
+      goal_narrative: string | null; 
+      generated_at_utc: string;
+      current_weight_kg: number | null;
+      goal_target_weight_kg: number | null;
+      goal_type: string | null;
+      progress_percent: number | null;
+      eta_weeks: number | null;
+      status_chip: string | null;
+    }>;
     
-    if (rows.length === 0 || !rows[0].goal_narrative) {
+    // If cached narrative exists, return it
+    if (rows.length > 0 && rows[0].goal_narrative) {
+      return res.json({
+        narrative: rows[0].goal_narrative,
+        generated_at: rows[0].generated_at_utc,
+      });
+    }
+    
+    // No cached narrative - generate one on-demand
+    if (rows.length === 0 || !rows[0].goal_target_weight_kg) {
       return res.json({ narrative: null, generated_at: null });
     }
     
-    res.json({
-      narrative: rows[0].goal_narrative,
-      generated_at: rows[0].generated_at_utc,
-    });
+    const userData = rows[0];
+    const { getGeminiClient } = await import('../services/geminiChatClient');
+    const geminiClient = getGeminiClient();
+    
+    if (!geminiClient) {
+      return res.json({ narrative: null, generated_at: null });
+    }
+    
+    const goalType = userData.goal_type || 'MAINTAIN';
+    const currentWeight = userData.current_weight_kg ?? 0;
+    const targetWeight = userData.goal_target_weight_kg;
+    const remaining = Math.abs(currentWeight - targetWeight);
+    const progressPct = userData.progress_percent ?? 0;
+    const etaWeeks = userData.eta_weeks;
+    const statusChip = userData.status_chip || 'UNKNOWN';
+    
+    const systemPrompt = `You are Flō, an elite longevity coach. Generate a SHORT, inspiring 1-2 sentence narrative about the user's weight goal progress. Be data-driven and specific. No bullet points. Max 50 words.`;
+    
+    const userPrompt = `Goal: ${goalType} to ${targetWeight}kg. Current: ${currentWeight.toFixed(1)}kg. Remaining: ${remaining.toFixed(1)}kg. Progress: ${progressPct.toFixed(0)}%. Status: ${statusChip.replace('_', ' ')}. ${etaWeeks ? `ETA: ~${etaWeeks} weeks.` : ''}`;
+    
+    try {
+      const result = await geminiClient.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: 0.7,
+          maxOutputTokens: 100,
+        },
+      });
+      
+      const narrative = result.text?.trim() || null;
+      
+      if (narrative) {
+        // Cache the narrative in ClickHouse for next time
+        try {
+          await client.insert({
+            table: 'flo_ml.forecast_summary',
+            values: [{
+              user_id: userId,
+              generated_at_utc: new Date().toISOString(),
+              goal_narrative: narrative,
+              current_weight_kg: currentWeight,
+              goal_target_weight_kg: targetWeight,
+              goal_type: goalType,
+              progress_percent: progressPct,
+              eta_weeks: etaWeeks,
+              status_chip: statusChip,
+              horizon_days: 42,
+              confidence_level: 'LOW',
+            }],
+            format: 'JSONEachRow',
+          });
+        } catch (cacheError) {
+          logger.warn('[WeightForecast] Failed to cache narrative:', cacheError);
+        }
+        
+        return res.json({
+          narrative,
+          generated_at: new Date().toISOString(),
+        });
+      }
+    } catch (aiError) {
+      logger.error('[WeightForecast] AI generation failed:', aiError);
+    }
+    
+    return res.json({ narrative: null, generated_at: null });
   } catch (error) {
     logger.error('[WeightForecast] Error fetching goal narrative:', error);
     res.status(500).json({ error: 'Failed to fetch goal narrative' });
