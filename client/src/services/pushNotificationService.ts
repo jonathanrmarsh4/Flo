@@ -67,7 +67,11 @@ class PushNotificationService {
   private async setupListeners(PushNotifications: any): Promise<void> {
     console.log('[PushNotifications] Setting up APNs event listeners...');
     
-    PushNotifications.addListener('registration', async (token: { value: string }) => {
+    // CRITICAL: Must await each addListener to ensure they're registered 
+    // before calling register() - otherwise we miss the callback!
+    
+    console.log('[PushNotifications] Adding registration listener...');
+    await PushNotifications.addListener('registration', async (token: { value: string }) => {
       console.log('[PushNotifications] ===== APNs REGISTRATION CALLBACK RECEIVED =====');
       console.log('[PushNotifications] Token received from APNs (first 20 chars):', token.value.substring(0, 20) + '...');
       console.log('[PushNotifications] Full token length:', token.value.length);
@@ -76,22 +80,29 @@ class PushNotificationService {
       console.log('[PushNotifications] Registration attempt #', this.registrationAttempts);
       await this.registerTokenWithBackend(token.value);
     });
+    console.log('[PushNotifications] Registration listener added');
 
-    PushNotifications.addListener('registrationError', (error: any) => {
+    console.log('[PushNotifications] Adding registrationError listener...');
+    await PushNotifications.addListener('registrationError', (error: any) => {
       console.error('[PushNotifications] ===== APNs REGISTRATION ERROR =====');
       console.error('[PushNotifications] Error object:', JSON.stringify(error));
       console.error('[PushNotifications] This means APNs could not provide a device token');
     });
+    console.log('[PushNotifications] RegistrationError listener added');
 
-    PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
+    console.log('[PushNotifications] Adding pushNotificationReceived listener...');
+    await PushNotifications.addListener('pushNotificationReceived', (notification: any) => {
       console.log('[PushNotifications] Notification received in foreground:', JSON.stringify(notification));
     });
+    console.log('[PushNotifications] PushNotificationReceived listener added');
 
-    PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
+    console.log('[PushNotifications] Adding pushNotificationActionPerformed listener...');
+    await PushNotifications.addListener('pushNotificationActionPerformed', (action: any) => {
       console.log('[PushNotifications] Notification tapped:', JSON.stringify(action));
     });
+    console.log('[PushNotifications] PushNotificationActionPerformed listener added');
     
-    console.log('[PushNotifications] All listeners registered');
+    console.log('[PushNotifications] ===== ALL LISTENERS REGISTERED =====');
   }
 
   private async registerTokenWithBackend(token: string): Promise<void> {
