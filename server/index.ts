@@ -13,6 +13,7 @@ import { startMorningBriefingScheduler } from "./services/morningBriefingSchedul
 import { startWeightForecastOrchestrator, startForecastWorker } from "./services/weightForecast";
 import { startCGMSyncScheduler } from "./services/cgmSyncScheduler";
 import { startOuraSyncScheduler } from "./services/ouraSyncScheduler";
+import { centralizedNotificationService } from "./services/centralizedNotificationService";
 
 const app = express();
 
@@ -186,6 +187,15 @@ app.use((req, res, next) => {
       
       // Start the weight forecast worker (polls queue and generates forecasts every 10s)
       startForecastWorker();
+      
+      // Start the centralized notification service (queue-based, timezone-aware notifications)
+      centralizedNotificationService.start().then(result => {
+        if (result.success) {
+          console.log('[CentralizedNotifications] Service auto-started successfully');
+        }
+      }).catch(err => {
+        console.error('[CentralizedNotifications] Failed to auto-start:', err);
+      });
     }, 5000);
   });
 })();
