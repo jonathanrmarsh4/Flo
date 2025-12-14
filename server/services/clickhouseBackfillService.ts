@@ -179,22 +179,35 @@ export async function runFullBackfill(
     logger.info(`[ClickHouseBackfill] Completed backfill for ${userId}: ${JSON.stringify(metrics)}`);
 
     // Trigger hourly jobs immediately to materialize data into daily_features
-    // This ensures the weight forecast module has data available right away
+    // Then queue forecast recompute to generate drivers and simulator results
     if (metrics.total > 0) {
-      try {
-        const { runHourlyJobs } = await import('./weightForecast/orchestrationJobs');
-        logger.info(`[ClickHouseBackfill] Triggering hourly jobs to materialize data for ${userId}`);
-        setImmediate(async () => {
-          try {
-            await runHourlyJobs();
-            logger.info(`[ClickHouseBackfill] Hourly jobs completed after backfill for ${userId}`);
-          } catch (jobErr) {
-            logger.warn('[ClickHouseBackfill] Hourly jobs failed after backfill:', jobErr);
+      setImmediate(async () => {
+        try {
+          // Step 1: Run hourly jobs to materialize daily_features
+          const { runHourlyJobs } = await import('./weightForecast/orchestrationJobs');
+          logger.info(`[ClickHouseBackfill] Triggering hourly jobs to materialize data for ${userId}`);
+          await runHourlyJobs();
+          logger.info(`[ClickHouseBackfill] Hourly jobs completed after backfill for ${userId}`);
+          
+          // Step 2: Queue forecast recompute with high priority to generate drivers/simulator
+          const { queueForecastRecompute } = await import('./weightForecast/clickhouseSchema');
+          await queueForecastRecompute(userId, 'data_sync', 1); // Priority 1 = highest
+          logger.info(`[ClickHouseBackfill] Queued forecast recompute for ${userId}`);
+          
+          // Step 3: Trigger immediate forecast processing (bypass debounce for backfill)
+          const { processUserForecastManual } = await import('./weightForecast/forecastWorker');
+          if (typeof processUserForecastManual === 'function') {
+            const success = await processUserForecastManual(userId);
+            if (success) {
+              logger.info(`[ClickHouseBackfill] Immediate forecast generated for ${userId}`);
+            } else {
+              logger.warn(`[ClickHouseBackfill] Forecast generation returned false for ${userId}`);
+            }
           }
-        });
-      } catch (e) {
-        logger.warn('[ClickHouseBackfill] Could not trigger hourly jobs:', e);
-      }
+        } catch (jobErr) {
+          logger.warn('[ClickHouseBackfill] Post-backfill jobs failed:', jobErr);
+        }
+      });
     }
 
     return { success: true, metrics };
