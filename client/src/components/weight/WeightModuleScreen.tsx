@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
-import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock, Sparkles, MessageCircleQuestion } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { ManualWeighInSheet } from './ManualWeighInSheet';
 import { BodyCompSheet } from './BodyCompSheet';
 import { GoalSetupFlow } from './GoalSetupFlow';
+import { apiRequest } from '@/lib/queryClient';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface WeightOverviewResponse {
   summary: {
@@ -85,11 +87,29 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
   const [showBodyCompSheet, setShowBodyCompSheet] = useState(false);
   const [showGoalSetup, setShowGoalSetup] = useState(false);
   const [timeRange, setTimeRange] = useState<'30' | '90' | '180'>('30');
+  const [showWhySheet, setShowWhySheet] = useState(false);
+  const [whyContent, setWhyContent] = useState<string | null>(null);
 
   const rangeParam = timeRange === '30' ? '30d' : timeRange === '90' ? '90d' : '6m';
   
   const { data, isLoading, error } = useQuery<WeightOverviewResponse>({
     queryKey: [`/v1/weight/overview?range=${rangeParam}`],
+  });
+
+  const { data: narrativeData } = useQuery<{ narrative: string | null; generated_at: string | null }>({
+    queryKey: ['/v1/weight/goal-narrative'],
+    enabled: data?.summary.goal.configured === true,
+  });
+
+  const whyMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/v1/weight/goal-why');
+      return response.json();
+    },
+    onSuccess: (data: { why: string }) => {
+      setWhyContent(data.why);
+      setShowWhySheet(true);
+    },
   });
 
   const formatDate = (dateStr: string) => {
@@ -624,6 +644,42 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                           </div>
                         </div>
                       )}
+
+                      {narrativeData?.narrative && (
+                        <div className={`mt-4 p-3 rounded-xl ${
+                          isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-100'
+                        }`}>
+                          <div className="flex items-start gap-2">
+                            <Sparkles className={`w-4 h-4 mt-0.5 shrink-0 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                            <p className={`text-sm leading-relaxed ${isDark ? 'text-white/80' : 'text-gray-700'}`} data-testid="text-goal-narrative">
+                              {narrativeData.narrative}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => whyMutation.mutate()}
+                        disabled={whyMutation.isPending}
+                        className={`w-full mt-4 py-2.5 rounded-xl text-sm border transition-all flex items-center justify-center gap-2 ${
+                          isDark 
+                            ? 'border-purple-500/30 text-purple-300 hover:bg-purple-500/10' 
+                            : 'border-purple-200 text-purple-700 hover:bg-purple-50'
+                        } ${whyMutation.isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        data-testid="button-goal-why"
+                      >
+                        {whyMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Generating insight...
+                          </>
+                        ) : (
+                          <>
+                            <MessageCircleQuestion className="w-4 h-4" />
+                            Why am I doing this?
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
 
@@ -1099,6 +1155,51 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
         currentWeight={currentWeight}
         existingGoal={data?.summary.goal}
       />
+
+      <Sheet open={showWhySheet} onOpenChange={(open) => {
+        setShowWhySheet(open);
+      }}>
+        <SheetContent 
+          side="bottom" 
+          className={`${isDark ? 'bg-slate-900 border-white/10' : 'bg-white border-gray-200'} rounded-t-3xl`}
+          style={{ paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}
+        >
+          <SheetHeader className="pb-4">
+            <SheetTitle className={`flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <Sparkles className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+              Your Why
+            </SheetTitle>
+          </SheetHeader>
+          
+          <div className="max-h-[60vh] overflow-y-auto">
+            {whyContent ? (
+              <div className={`p-4 rounded-2xl ${
+                isDark ? 'bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-white/10' : 'bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200'
+              }`}>
+                <p className={`text-sm leading-relaxed whitespace-pre-wrap ${
+                  isDark ? 'text-white/90' : 'text-gray-800'
+                }`} data-testid="text-why-content">
+                  {whyContent}
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className={`w-6 h-6 animate-spin ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+              </div>
+            )}
+          </div>
+          
+          <button
+            onClick={() => setShowWhySheet(false)}
+            className={`w-full mt-6 py-3 rounded-xl text-sm transition-all ${
+              isDark ? 'bg-white text-black hover:bg-white/90' : 'bg-gray-900 text-white hover:bg-gray-800'
+            }`}
+            data-testid="button-close-why-sheet"
+          >
+            Got it
+          </button>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
