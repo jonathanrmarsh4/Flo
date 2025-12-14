@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock } from 'lucide-react';
+import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
@@ -36,6 +36,7 @@ interface WeightOverviewResponse {
       last_sync_relative: string | null;
       staleness_days: number | null;
     };
+    daily_advice: string | null;
   };
   series: {
     actual_weight_daily: Array<{ local_date_key: string; value_kg: number | null }>;
@@ -382,6 +383,39 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                       </button>
                     </div>
                   </div>
+
+                  {data?.summary.daily_advice && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`rounded-2xl p-5 ${
+                        isDark 
+                          ? 'bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20' 
+                          : 'bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200'
+                      }`}
+                      data-testid="card-daily-advice"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-xl shrink-0 ${
+                          isDark ? 'bg-amber-500/20' : 'bg-amber-100'
+                        }`}>
+                          <Sparkles className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs uppercase tracking-wide mb-1.5 ${
+                            isDark ? 'text-amber-400/80' : 'text-amber-700'
+                          }`}>
+                            Today's Insight
+                          </p>
+                          <p className={`text-sm leading-relaxed ${
+                            isDark ? 'text-white/90' : 'text-gray-800'
+                          }`} data-testid="text-daily-advice">
+                            {data.summary.daily_advice}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {weightChartData.length > 0 && (
                     <div className={`rounded-2xl p-6 ${

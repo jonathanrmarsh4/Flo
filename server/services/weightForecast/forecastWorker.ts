@@ -10,8 +10,24 @@
 
 import { getClickHouseClient, isClickHouseEnabled } from '../clickhouseService';
 import { createLogger } from '../../utils/logger';
+import { GoogleGenAI } from '@google/genai';
+import { trackGeminiUsage } from '../aiUsageTracker';
 
 const logger = createLogger('ForecastWorker');
+
+let geminiClient: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI | null {
+  if (!geminiClient) {
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      logger.warn('[ForecastWorker] GOOGLE_AI_API_KEY not configured - AI advice disabled');
+      return null;
+    }
+    geminiClient = new GoogleGenAI({ apiKey });
+  }
+  return geminiClient;
+}
 
 const POLL_INTERVAL_MS = 10000;
 const BATCH_SIZE = 50;
@@ -121,10 +137,24 @@ interface SimulatorResult {
   confidence_level: ConfidenceLevel;
 }
 
-const LEVERS = [
+const LEVERS_LOSE = [
   { lever_id: 'steps_plus_2000', title: '+2,000 steps/day', effort: 'Easy' as const, delta_E_kcal_per_day: -80, uncertainty_multiplier: 1.05 },
   { lever_id: 'protein_plus_25g', title: '+25g protein/day', effort: 'Easy' as const, delta_E_kcal_per_day: -40, uncertainty_multiplier: 1.0 },
   { lever_id: 'last_meal_minus_2h', title: 'Last meal 2h earlier', effort: 'Medium' as const, delta_E_kcal_per_day: -60, uncertainty_multiplier: 0.98 },
+  { lever_id: 'deficit_250', title: '-250 kcal/day', effort: 'Medium' as const, delta_E_kcal_per_day: -250, uncertainty_multiplier: 1.0 },
+];
+
+const LEVERS_GAIN = [
+  { lever_id: 'surplus_350', title: '+350 kcal/day', effort: 'Easy' as const, delta_E_kcal_per_day: 350, uncertainty_multiplier: 1.0 },
+  { lever_id: 'protein_plus_30g', title: '+30g protein/day', effort: 'Easy' as const, delta_E_kcal_per_day: 50, uncertainty_multiplier: 0.95 },
+  { lever_id: 'strength_plus_1', title: '+1 strength session/week', effort: 'Medium' as const, delta_E_kcal_per_day: 30, uncertainty_multiplier: 0.9 },
+  { lever_id: 'surplus_500', title: '+500 kcal/day (aggressive)', effort: 'Hard' as const, delta_E_kcal_per_day: 500, uncertainty_multiplier: 1.1 },
+];
+
+const LEVERS_MAINTAIN = [
+  { lever_id: 'steps_consistent', title: 'Keep 8k+ steps/day', effort: 'Easy' as const, delta_E_kcal_per_day: 0, uncertainty_multiplier: 0.9 },
+  { lever_id: 'protein_maintain', title: 'Maintain 1.6g/kg protein', effort: 'Easy' as const, delta_E_kcal_per_day: 0, uncertainty_multiplier: 0.95 },
+  { lever_id: 'strength_maintain', title: 'Keep 2+ strength sessions', effort: 'Medium' as const, delta_E_kcal_per_day: 0, uncertainty_multiplier: 0.9 },
 ];
 
 async function pollQueueAndProcess(): Promise<void> {
@@ -205,6 +235,110 @@ function dedupeByUser(items: QueueItem[]): Map<string, QueueItem> {
   return userMap;
 }
 
+async function generateDailyAdvice(
+  goal: UserGoal,
+  currentMetrics: CurrentMetrics,
+  forecast: ForecastBand,
+  eta: EtaResult,
+  drivers: ForecastDriver[],
+  features: DailyFeature[],
+  userId: string
+): Promise<string | null> {
+  const client = getGeminiClient();
+  if (!client) return null;
+
+  try {
+    const goalType = goal.goal_type || 'MAINTAIN';
+    const currentWeight = currentMetrics.currentWeightKg ?? 0;
+    const targetWeight = goal.target_weight_kg;
+    const weeklyRate = Math.abs(forecast.slopeKgPerDay * 7);
+    const direction = forecast.slopeKgPerDay > 0 ? 'gaining' : forecast.slopeKgPerDay < 0 ? 'losing' : 'stable';
+    
+    const latest = features.length > 0 ? features[0] : null;
+    const avgProtein = features.slice(0, 7).filter(f => f.protein_g !== null).map(f => f.protein_g!);
+    const proteinAvg = avgProtein.length >= 3 ? Math.round(avgProtein.reduce((a, b) => a + b, 0) / avgProtein.length) : null;
+    const avgSteps = features.slice(0, 7).filter(f => f.steps !== null).map(f => f.steps!);
+    const stepsAvg = avgSteps.length >= 3 ? Math.round(avgSteps.reduce((a, b) => a + b, 0) / avgSteps.length) : null;
+    const strengthSessions = features.slice(0, 7).filter(f => f.strength_sessions !== null).map(f => f.strength_sessions!).reduce((a, b) => a + b, 0);
+    
+    const cgmData = latest?.mean_glucose_mgdl !== null ? {
+      meanGlucose: latest?.mean_glucose_mgdl,
+      tirPct: latest?.tir_pct,
+      lateSpikes: features.slice(0, 7).filter(f => f.late_spike_flag === 1).length,
+    } : null;
+
+    const topDrivers = drivers.slice(0, 3).map(d => d.title).join('; ');
+
+    const systemPrompt = `You are Flō, an elite longevity coach and data scientist. Generate ONE personalized, motivational daily message (2-3 sentences max) for someone working on their weight goals.
+
+Style:
+- Be specific with numbers from the data
+- Sound like a $10k/year concierge health coach
+- Be encouraging but data-driven
+- Vary your focus daily - don't always mention the same metrics
+- If goal is GAIN: focus on surplus, protein, strength training, lean mass
+- If goal is LOSE: focus on deficit, steps, protein to preserve muscle
+- If goal is MAINTAIN: focus on consistency, stability, body composition
+${cgmData ? '- Include glucose insights when relevant (meal timing, TIR, late spikes)' : ''}
+
+End with one concrete action for today.`;
+
+    const userPrompt = `Goal: ${goalType} weight
+Current: ${currentWeight.toFixed(1)} kg${targetWeight ? ` → Target: ${targetWeight} kg` : ''}
+Trend: ${direction} at ${weeklyRate.toFixed(2)} kg/week
+${eta.etaWeeks ? `ETA to goal: ~${eta.etaWeeks} weeks` : ''}
+${proteinAvg ? `7-day avg protein: ${proteinAvg}g` : ''}
+${stepsAvg ? `7-day avg steps: ${stepsAvg}` : ''}
+${strengthSessions > 0 ? `Strength sessions this week: ${strengthSessions}` : ''}
+${cgmData ? `Glucose: avg ${Math.round(cgmData.meanGlucose!)} mg/dL, TIR ${cgmData.tirPct?.toFixed(0) || '--'}%, late spikes: ${cgmData.lateSpikes} in 7d` : ''}
+Top priorities: ${topDrivers || 'Keep going!'}
+
+Generate today's personalized advice.`;
+
+    const startTime = Date.now();
+    const result = await client.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.8,
+        maxOutputTokens: 200,
+      },
+    });
+
+    const latencyMs = Date.now() - startTime;
+    const adviceText = result.text?.trim() || null;
+
+    const usage = result.usageMetadata;
+    if (usage) {
+      await trackGeminiUsage(
+        'weight_daily_advice',
+        'gemini-2.5-flash',
+        {
+          promptTokens: usage.promptTokenCount || 0,
+          completionTokens: usage.candidatesTokenCount || 0,
+          totalTokens: usage.totalTokenCount || 0,
+        },
+        {
+          userId,
+          latencyMs,
+          status: adviceText ? 'success' : 'empty_response',
+          metadata: { goalType },
+        }
+      ).catch(() => {});
+    }
+
+    if (adviceText) {
+      logger.info(`[ForecastWorker] Generated AI advice for user ${userId}`, { latencyMs, length: adviceText.length });
+    }
+
+    return adviceText;
+  } catch (error) {
+    logger.error(`[ForecastWorker] Failed to generate AI advice for user ${userId}:`, error);
+    return null;
+  }
+}
+
 async function processUserForecast(client: any, userId: string): Promise<void> {
   const generatedAtUtc = new Date().toISOString();
 
@@ -219,15 +353,17 @@ async function processUserForecast(client: any, userId: string): Promise<void> {
   const statusChip = determineStatusChip(dailyFeatures, goal, eta, forecast.slopeKgPerDay);
   const drivers = generateDrivers(dailyFeatures, currentMetrics, goal, confidence);
   const simulatorResults = runSimulator(forecast, currentMetrics, goal, baseSigma, bandMultiplier, confidence);
+  
+  const dailyAdvice = await generateDailyAdvice(goal, currentMetrics, forecast, eta, drivers, dailyFeatures, userId);
 
-  await writeForecastSummary(client, userId, generatedAtUtc, confidence, statusChip, currentMetrics, goal, forecast, eta);
+  await writeForecastSummary(client, userId, generatedAtUtc, confidence, statusChip, currentMetrics, goal, forecast, eta, dailyAdvice);
   await writeForecastSeries(client, userId, generatedAtUtc, forecast, confidence);
   await writeDrivers(client, userId, generatedAtUtc, drivers);
   await writeSimulatorResults(client, userId, generatedAtUtc, simulatorResults);
   await updateModelState(client, userId, modelState, dailyFeatures);
   await cleanupProcessedQueue(client, userId);
 
-  logger.info(`[ForecastWorker] Generated forecast for user ${userId}: confidence=${confidence}, status=${statusChip}`);
+  logger.info(`[ForecastWorker] Generated forecast for user ${userId}: confidence=${confidence}, status=${statusChip}, hasAdvice=${!!dailyAdvice}`);
 }
 
 async function fetchDailyFeatures(client: any, userId: string): Promise<DailyFeature[]> {
@@ -537,8 +673,8 @@ function determineStatusChip(
 
 function generateDrivers(
   features: DailyFeature[],
-  _currentMetrics: CurrentMetrics,
-  _goal: UserGoal,
+  currentMetrics: CurrentMetrics,
+  goal: UserGoal,
   confidence: ConfidenceLevel
 ): ForecastDriver[] {
   const drivers: ForecastDriver[] = [];
@@ -549,19 +685,144 @@ function generateDrivers(
   }
 
   const recentFeatures = features.slice(0, 14);
+  const goalType = goal.goal_type;
+  const currentWeight = currentMetrics.currentWeightKg ?? 70;
   
-  if (latest.weight_trend_slope_kg_per_day !== null) {
-    const slope = latest.weight_trend_slope_kg_per_day;
-    if (Math.abs(slope) > 0.01) {
-      const direction = slope < 0 ? 'losing' : 'gaining';
-      const rate = Math.abs(slope * 7).toFixed(1);
+  const avgCalories = recentFeatures.filter(f => f.calories_kcal !== null).map(f => f.calories_kcal!);
+  const avgCal = avgCalories.length >= 3 ? avgCalories.reduce((a, b) => a + b, 0) / avgCalories.length : null;
+  
+  const avgProtein = recentFeatures.filter(f => f.protein_g !== null).map(f => f.protein_g!);
+  const avgP = avgProtein.length >= 3 ? avgProtein.reduce((a, b) => a + b, 0) / avgProtein.length : null;
+  
+  const avgSteps = recentFeatures.filter(f => f.steps !== null).map(f => f.steps!);
+  const avgS = avgSteps.length >= 7 ? avgSteps.reduce((a, b) => a + b, 0) / avgSteps.length : null;
+  
+  const avgStrength = recentFeatures.filter(f => f.strength_sessions !== null).map(f => f.strength_sessions!);
+  const weeklyStrength = avgStrength.length >= 7 ? avgStrength.reduce((a, b) => a + b, 0) : null;
+  
+  const slope = latest.weight_trend_slope_kg_per_day ?? 0;
+  const weeklyRate = Math.abs(slope * 7);
+  
+  const estimatedTDEE = 22 * currentWeight + (avgS ? avgS * 0.04 : 0) + (weeklyStrength ? weeklyStrength * 50 : 0);
+
+  if (goalType === 'GAIN') {
+    const targetProtein = Math.round(currentWeight * 1.8);
+    const targetCalories = Math.round(estimatedTDEE + 350);
+    
+    if (slope > 0.01) {
       drivers.push({
         rank: 1,
-        driver_id: 'trend_direction',
-        title: `You're ${direction} ~${rate} kg/week`,
-        subtitle: slope < 0 ? 'Keep it up!' : 'Consider adjusting intake',
+        driver_id: 'gain_on_track',
+        title: `Great progress: +${weeklyRate.toFixed(1)} kg/week`,
+        subtitle: 'You\'re building mass at a healthy rate',
         confidence_level: confidence,
         deeplink: 'flo://weight/history',
+      });
+    } else if (slope <= 0) {
+      const neededSurplus = Math.round(Math.abs(slope) * 7700 / 7 + 300);
+      drivers.push({
+        rank: 1,
+        driver_id: 'gain_increase_calories',
+        title: `Increase calories by ~${neededSurplus} kcal/day`,
+        subtitle: avgCal ? `Currently ~${Math.round(avgCal)} kcal/day → aim for ${Math.round(avgCal + neededSurplus)}` : `Aim for ${targetCalories}+ kcal/day`,
+        confidence_level: confidence,
+        deeplink: 'flo://nutrition',
+      });
+    }
+    
+    if (avgP !== null && avgP < targetProtein) {
+      drivers.push({
+        rank: drivers.length + 1,
+        driver_id: 'gain_protein_target',
+        title: `Hit ${targetProtein}g protein daily`,
+        subtitle: `Currently averaging ${Math.round(avgP)}g – need +${Math.round(targetProtein - avgP)}g`,
+        confidence_level: 'HIGH',
+        deeplink: 'flo://nutrition',
+      });
+    }
+    
+    if (weeklyStrength !== null && weeklyStrength < 3) {
+      drivers.push({
+        rank: drivers.length + 1,
+        driver_id: 'gain_strength_sessions',
+        title: 'Add more strength training',
+        subtitle: `${weeklyStrength} sessions/week – aim for 3-4 to maximize lean mass`,
+        confidence_level: 'MEDIUM',
+        deeplink: 'flo://activity',
+      });
+    }
+    
+  } else if (goalType === 'LOSE') {
+    const targetDeficit = 400;
+    const targetCalories = Math.round(estimatedTDEE - targetDeficit);
+    const targetProtein = Math.round(currentWeight * 1.6);
+    
+    if (slope < -0.01) {
+      drivers.push({
+        rank: 1,
+        driver_id: 'lose_on_track',
+        title: `On track: -${weeklyRate.toFixed(1)} kg/week`,
+        subtitle: weeklyRate > 1 ? 'Consider slowing down to preserve muscle' : 'Sustainable pace – keep going!',
+        confidence_level: confidence,
+        deeplink: 'flo://weight/history',
+      });
+    } else if (slope >= 0) {
+      const neededDeficit = Math.round(slope * 7700 / 7 + targetDeficit);
+      drivers.push({
+        rank: 1,
+        driver_id: 'lose_create_deficit',
+        title: `Create a ${neededDeficit} kcal/day deficit`,
+        subtitle: avgCal ? `Currently ~${Math.round(avgCal)} kcal/day → aim for ${Math.round(avgCal - neededDeficit)}` : `Aim for ${targetCalories} kcal/day`,
+        confidence_level: confidence,
+        deeplink: 'flo://nutrition',
+      });
+    }
+    
+    if (avgP !== null && avgP < targetProtein) {
+      drivers.push({
+        rank: drivers.length + 1,
+        driver_id: 'lose_protein_preserve',
+        title: `Protect muscle: ${targetProtein}g protein`,
+        subtitle: `Currently ${Math.round(avgP)}g/day – increase to preserve lean mass`,
+        confidence_level: 'HIGH',
+        deeplink: 'flo://nutrition',
+      });
+    }
+    
+    if (avgS !== null && avgS < 8000) {
+      const extraSteps = 8000 - Math.round(avgS);
+      const extraCal = Math.round(extraSteps * 0.04);
+      drivers.push({
+        rank: drivers.length + 1,
+        driver_id: 'lose_increase_steps',
+        title: `Add ${extraSteps.toLocaleString()} daily steps`,
+        subtitle: `Burns ~${extraCal} extra kcal/day`,
+        confidence_level: 'MEDIUM',
+        deeplink: 'flo://activity',
+      });
+    }
+    
+  } else {
+    if (Math.abs(slope) < 0.02) {
+      drivers.push({
+        rank: 1,
+        driver_id: 'maintain_stable',
+        title: 'Weight is stable',
+        subtitle: 'You\'re maintaining well – keep doing what you\'re doing',
+        confidence_level: confidence,
+        deeplink: 'flo://weight/history',
+      });
+    } else {
+      const direction = slope > 0 ? 'gaining' : 'losing';
+      const adjustment = slope > 0 ? 'reduce' : 'increase';
+      const amount = Math.round(Math.abs(slope) * 7700 / 7);
+      drivers.push({
+        rank: 1,
+        driver_id: 'maintain_adjust',
+        title: `Gradually ${direction} – ${adjustment} by ~${amount} kcal`,
+        subtitle: `Small adjustment needed to maintain your weight`,
+        confidence_level: confidence,
+        deeplink: 'flo://nutrition',
       });
     }
   }
@@ -572,52 +833,50 @@ function generateDrivers(
       rank: drivers.length + 1,
       driver_id: 'weighin_frequency',
       title: 'Weigh in more often',
-      subtitle: `Only ${weighinsPerWeek.toFixed(1)}/week – aim for 4+`,
+      subtitle: `Only ${weighinsPerWeek.toFixed(1)}/week – aim for 4+ for accurate tracking`,
       confidence_level: 'LOW',
       deeplink: 'flo://weight/log',
     });
   }
 
-  const avgProtein = recentFeatures.filter(f => f.protein_g !== null).map(f => f.protein_g!);
-  if (avgProtein.length >= 3) {
-    const avgP = avgProtein.reduce((a, b) => a + b, 0) / avgProtein.length;
-    if (avgP < 100) {
-      drivers.push({
-        rank: drivers.length + 1,
-        driver_id: 'protein_low',
-        title: 'Boost protein intake',
-        subtitle: `Averaging ${Math.round(avgP)}g/day – aim for 120g+`,
-        confidence_level: 'MEDIUM',
-        deeplink: 'flo://nutrition',
-      });
-    }
-  }
-
-  const avgSteps = recentFeatures.filter(f => f.steps !== null).map(f => f.steps!);
-  if (avgSteps.length >= 7) {
-    const avgS = avgSteps.reduce((a, b) => a + b, 0) / avgSteps.length;
-    if (avgS < 6000) {
-      drivers.push({
-        rank: drivers.length + 1,
-        driver_id: 'steps_low',
-        title: 'Increase daily movement',
-        subtitle: `Averaging ${Math.round(avgS).toLocaleString()} steps – aim for 8,000+`,
-        confidence_level: 'MEDIUM',
-        deeplink: 'flo://activity',
-      });
-    }
-  }
-
   const lateSpikes = recentFeatures.filter(f => f.late_spike_flag === 1).length;
-  if (lateSpikes >= 3) {
+  const hasCgmData = recentFeatures.some(f => f.mean_glucose_mgdl !== null);
+  if (hasCgmData && lateSpikes >= 3) {
     drivers.push({
       rank: drivers.length + 1,
-      driver_id: 'late_cgm_spikes',
-      title: 'Watch late-night eating',
-      subtitle: `${lateSpikes} glucose spikes after 8pm recently`,
+      driver_id: 'cgm_late_spikes',
+      title: 'Optimize meal timing',
+      subtitle: `${lateSpikes} glucose spikes after 8pm – try eating dinner earlier`,
       confidence_level: 'MEDIUM',
       deeplink: 'flo://cgm',
     });
+  }
+  
+  const avgGlucose = recentFeatures.filter(f => f.mean_glucose_mgdl !== null).map(f => f.mean_glucose_mgdl!);
+  if (avgGlucose.length >= 5) {
+    const meanGlucose = avgGlucose.reduce((a, b) => a + b, 0) / avgGlucose.length;
+    const avgTir = recentFeatures.filter(f => f.tir_pct !== null).map(f => f.tir_pct!);
+    const tirPct = avgTir.length > 0 ? avgTir.reduce((a, b) => a + b, 0) / avgTir.length : null;
+    
+    if (tirPct !== null && tirPct < 70) {
+      drivers.push({
+        rank: drivers.length + 1,
+        driver_id: 'cgm_improve_tir',
+        title: 'Improve glucose stability',
+        subtitle: `Time in range ${Math.round(tirPct)}% – try lower glycemic foods`,
+        confidence_level: 'MEDIUM',
+        deeplink: 'flo://cgm',
+      });
+    } else if (meanGlucose > 110) {
+      drivers.push({
+        rank: drivers.length + 1,
+        driver_id: 'cgm_high_avg',
+        title: 'Watch carb intake',
+        subtitle: `Average glucose ${Math.round(meanGlucose)} mg/dL – consider reducing refined carbs`,
+        confidence_level: 'MEDIUM',
+        deeplink: 'flo://cgm',
+      });
+    }
   }
 
   return drivers.slice(0, 5);
@@ -634,7 +893,11 @@ function runSimulator(
   const results: SimulatorResult[] = [];
   const startWeight = currentMetrics.currentWeightKg ?? 70;
 
-  for (const lever of LEVERS) {
+  const levers = goal.goal_type === 'GAIN' ? LEVERS_GAIN 
+    : goal.goal_type === 'MAINTAIN' ? LEVERS_MAINTAIN 
+    : LEVERS_LOSE;
+
+  for (const lever of levers) {
     const adjustedSlopeKgPerDay = baseForecast.slopeKgPerDay + (lever.delta_E_kcal_per_day / 7700);
     const adjustedBandMultiplier = bandMultiplier * lever.uncertainty_multiplier;
     
@@ -675,7 +938,8 @@ async function writeForecastSummary(
   currentMetrics: CurrentMetrics,
   goal: UserGoal,
   forecast: ForecastBand,
-  eta: EtaResult
+  eta: EtaResult,
+  dailyAdvice: string | null
 ): Promise<void> {
   const sourceLabel = currentMetrics.stalenessDays <= 1 ? 'Apple Health' : 'Manual';
   const lastSyncRelative = currentMetrics.stalenessDays === 0 ? 'Today' 
@@ -702,6 +966,7 @@ async function writeForecastSummary(
       source_label: sourceLabel,
       last_sync_relative: lastSyncRelative,
       staleness_days: currentMetrics.stalenessDays,
+      daily_advice: dailyAdvice,
       version_utc: generatedAtUtc,
     }],
     format: 'JSONEachRow',

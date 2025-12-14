@@ -342,6 +342,7 @@ async function createForecastSummaryTable(client: any): Promise<void> {
         source_label Nullable(String),
         last_sync_relative Nullable(String),
         staleness_days Nullable(UInt16),
+        daily_advice Nullable(String),
         version_utc DateTime64(3, 'UTC') DEFAULT now64(3)
       )
       ENGINE = ReplacingMergeTree(version_utc)
@@ -349,6 +350,15 @@ async function createForecastSummaryTable(client: any): Promise<void> {
       PRIMARY KEY (user_id)
     `,
   });
+  
+  try {
+    await client.command({
+      query: `ALTER TABLE flo_ml.forecast_summary ADD COLUMN IF NOT EXISTS daily_advice Nullable(String)`,
+    });
+  } catch (e) {
+    // Column may already exist
+  }
+  
   logger.info('[WeightForecastSchema] Created forecast_summary table');
 }
 

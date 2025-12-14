@@ -72,6 +72,7 @@ interface ForecastSummary {
   source_label: string | null;
   last_sync_relative: string | null;
   staleness_days: number | null;
+  daily_advice: string | null;
 }
 
 interface ForecastDriver {
@@ -204,7 +205,8 @@ router.get('/tile', isAuthenticated, async (req: any, res) => {
                 eta_uncertainty_weeks,
                 source_label,
                 last_sync_relative,
-                staleness_days
+                staleness_days,
+                daily_advice
               FROM flo_ml.forecast_summary FINAL
               WHERE user_id = {userId:String}
               LIMIT 1
@@ -353,7 +355,8 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
                   eta_uncertainty_weeks,
                   source_label,
                   last_sync_relative,
-                  staleness_days
+                  staleness_days,
+                  daily_advice
                 FROM flo_ml.forecast_summary FINAL
                 WHERE user_id = {userId:String}
                 LIMIT 1
@@ -544,6 +547,7 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
           last_sync_relative: summary?.last_sync_relative ?? null,
           staleness_days: summary?.staleness_days ?? null,
         },
+        daily_advice: summary?.daily_advice ?? null,
       },
       series: {
         actual_weight_daily: features.map(f => ({
