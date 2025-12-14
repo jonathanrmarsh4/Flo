@@ -1572,8 +1572,8 @@ IMPORTANT: When the session starts, immediately greet ${firstName} warmly by nam
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     const firstName = user?.firstName || 'Admin';
 
-    // SIE-specific voice for strategic discussions
-    const sieVoice = 'Puck';
+    // Use same voice as sandbox (Kore - firm, confident) for reliable audio output
+    const sieVoice = 'Kore';
 
     // Simple system instruction without blocking data fetches
     const systemInstruction = `You are Flō-SIE (Self-Improvement Engine), a strategic co-founder having a live voice brainstorming session about Flō product direction.
