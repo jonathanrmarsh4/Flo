@@ -716,7 +716,14 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
       simulatorResults.push(...inlineSimResults);
     }
     
-    const levers = [
+    const levers = goal.goal_type === 'GAIN' ? [
+      { lever_id: 'surplus_350', title: '+350 kcal/day', effort: 'Easy' },
+      { lever_id: 'protein_plus_30g', title: '+30g protein/day', effort: 'Easy' },
+      { lever_id: 'strength_plus_1', title: '+1 strength session/week', effort: 'Medium' },
+    ] : goal.goal_type === 'MAINTAIN' ? [
+      { lever_id: 'steps_consistent', title: 'Keep 8k+ steps/day', effort: 'Easy' },
+      { lever_id: 'protein_maintain', title: 'Maintain 1.6g/kg protein', effort: 'Easy' },
+    ] : [
       { lever_id: 'steps_plus_2000', title: '+2,000 steps/day', effort: 'Easy' },
       { lever_id: 'protein_plus_25g', title: '+25g protein/day', effort: 'Easy' },
       { lever_id: 'last_meal_minus_2h', title: 'Last meal 2h earlier', effort: 'Medium' },
