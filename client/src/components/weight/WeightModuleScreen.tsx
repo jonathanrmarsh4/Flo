@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ManualWeighInSheet } from './ManualWeighInSheet';
@@ -568,18 +568,61 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                         <Activity className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                       </div>
 
+                      {bodyFatPct !== null && bodyFatPct !== undefined && currentWeight && (
+                        <div className="mb-4">
+                          <div className="h-6 rounded-full overflow-hidden flex" data-testid="chart-body-composition-bar">
+                            <div 
+                              className="h-full bg-gradient-to-r from-orange-400 to-orange-500 flex items-center justify-center"
+                              style={{ width: `${bodyFatPct}%` }}
+                            >
+                              {bodyFatPct >= 15 && (
+                                <span className="text-xs text-white font-medium">{bodyFatPct}%</span>
+                              )}
+                            </div>
+                            <div 
+                              className="h-full bg-gradient-to-r from-blue-400 to-blue-500 flex items-center justify-center"
+                              style={{ width: `${100 - bodyFatPct}%` }}
+                            >
+                              {(100 - bodyFatPct) >= 15 && (
+                                <span className="text-xs text-white font-medium">{(100 - bodyFatPct).toFixed(0)}%</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex justify-between mt-2">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-orange-400 to-orange-500" />
+                              <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Fat</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-400 to-blue-500" />
+                              <span className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Lean</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Body fat</p>
-                          <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-body-fat">
+                        <div className={`p-3 rounded-xl ${isDark ? 'bg-orange-500/10' : 'bg-orange-50'}`}>
+                          <p className={`text-xs mb-1 ${isDark ? 'text-orange-300/70' : 'text-orange-700'}`}>Body fat</p>
+                          <p className={`text-xl font-medium ${isDark ? 'text-orange-300' : 'text-orange-700'}`} data-testid="text-body-fat">
                             {bodyFatPct !== null ? `${bodyFatPct}%` : '--'}
                           </p>
+                          {bodyFatPct !== null && bodyFatPct !== undefined && currentWeight && (
+                            <p className={`text-xs mt-0.5 ${isDark ? 'text-orange-300/50' : 'text-orange-600/70'}`}>
+                              {(currentWeight * bodyFatPct / 100).toFixed(1)} kg
+                            </p>
+                          )}
                         </div>
-                        <div>
-                          <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Lean mass</p>
-                          <p className={`text-2xl ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-lean-mass">
-                            {leanMassKg !== null ? `${leanMassKg.toFixed(1)} kg` : '--'}
+                        <div className={`p-3 rounded-xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+                          <p className={`text-xs mb-1 ${isDark ? 'text-blue-300/70' : 'text-blue-700'}`}>Lean mass</p>
+                          <p className={`text-xl font-medium ${isDark ? 'text-blue-300' : 'text-blue-700'}`} data-testid="text-lean-mass">
+                            {leanMassKg !== null && leanMassKg !== undefined ? `${leanMassKg.toFixed(1)} kg` : '--'}
                           </p>
+                          {leanMassKg !== null && leanMassKg !== undefined && currentWeight && (
+                            <p className={`text-xs mt-0.5 ${isDark ? 'text-blue-300/50' : 'text-blue-600/70'}`}>
+                              {((leanMassKg / currentWeight) * 100).toFixed(0)}% of total
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -601,9 +644,20 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                     }`}>
                       <h3 className={`mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Key Drivers</h3>
                       
-                      <div className="space-y-3">
-                        {data.drivers.slice(0, 3).map((driver) => {
+                      <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10' : 'border-gray-200'}`} data-testid="table-key-drivers">
+                        <div className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 py-2.5 text-xs ${
+                          isDark ? 'bg-white/5 text-white/50' : 'bg-gray-50 text-gray-500'
+                        }`}>
+                          <span>Driver</span>
+                          <span className="text-center">Trend</span>
+                          <span className="text-center">Confidence</span>
+                          <span></span>
+                        </div>
+                        
+                        {data.drivers.slice(0, 5).map((driver, idx) => {
                           const IconComponent = getDriverIcon(driver.driver_id);
+                          const hasTrendUp = driver.subtitle?.includes('+') || driver.subtitle?.toLowerCase().includes('increase');
+                          const hasTrendDown = driver.subtitle?.includes('-') || driver.subtitle?.toLowerCase().includes('decrease');
                           
                           return (
                             <button
@@ -613,34 +667,56 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                                   window.location.href = driver.deeplink;
                                 }
                               }}
-                              className={`w-full p-4 rounded-xl border ${
-                                isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                              } transition-all text-left`}
-                              data-testid={`button-driver-${driver.driver_id}`}
+                              className={`w-full grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center px-4 py-3 transition-all text-left ${
+                                idx !== data.drivers.slice(0, 5).length - 1 ? (isDark ? 'border-b border-white/5' : 'border-b border-gray-100') : ''
+                              } ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                              data-testid={`row-driver-${driver.driver_id}`}
                             >
-                              <div className="flex items-start gap-3">
-                                <div className={`p-2 rounded-lg ${isDark ? 'bg-white/10' : 'bg-white'}`}>
-                                  <IconComponent className={`w-5 h-5 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`p-1.5 rounded-lg flex-shrink-0 ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}>
+                                  <IconComponent className={`w-4 h-4 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
                                 </div>
-                                <div className="flex-1">
-                                  <p className={`text-sm mb-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                <div className="min-w-0">
+                                  <p className={`text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                     {driver.title}
                                   </p>
                                   {driver.subtitle && (
-                                    <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                                    <p className={`text-xs truncate ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
                                       {driver.subtitle}
                                     </p>
                                   )}
                                 </div>
-                                <div className={`px-2 py-0.5 rounded text-xs ${
-                                  driver.confidence_level === 'HIGH'
-                                    ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
-                                    : isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
-                                }`}>
-                                  {driver.confidence_level.toLowerCase()}
-                                </div>
-                                <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
                               </div>
+                              
+                              <div className="flex justify-center">
+                                {hasTrendUp && (
+                                  <div className={`p-1 rounded ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
+                                    <TrendingUp className={`w-3.5 h-3.5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                                  </div>
+                                )}
+                                {hasTrendDown && (
+                                  <div className={`p-1 rounded ${isDark ? 'bg-red-500/20' : 'bg-red-100'}`}>
+                                    <TrendingDown className={`w-3.5 h-3.5 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+                                  </div>
+                                )}
+                                {!hasTrendUp && !hasTrendDown && (
+                                  <div className={`p-1 rounded ${isDark ? 'bg-gray-500/20' : 'bg-gray-100'}`}>
+                                    <Minus className={`w-3.5 h-3.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className={`px-2 py-0.5 rounded text-xs text-center ${
+                                driver.confidence_level === 'HIGH'
+                                  ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                                  : driver.confidence_level === 'MEDIUM'
+                                    ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+                                    : isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {driver.confidence_level.charAt(0) + driver.confidence_level.slice(1).toLowerCase()}
+                              </div>
+                              
+                              <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
                             </button>
                           );
                         })}
@@ -662,40 +738,82 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                         <Zap className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
                       </div>
 
-                      <div className="space-y-3">
-                        {data.simulator.results.slice(0, 3).map((result) => (
-                          <div
-                            key={`${result.lever_id}-${result.effort}`}
-                            className={`p-4 rounded-xl border ${
-                              isDark ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                            } transition-all cursor-pointer`}
-                            data-testid={`simulator-result-${result.lever_id}`}
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <p className={`text-sm mb-0.5 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <div className={`rounded-xl overflow-hidden border ${isDark ? 'border-white/10' : 'border-gray-200'}`} data-testid="table-what-if-simulator">
+                        <div className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 py-2.5 text-xs ${
+                          isDark ? 'bg-white/5 text-white/50' : 'bg-gray-50 text-gray-500'
+                        }`}>
+                          <span>Scenario</span>
+                          <span className="text-center">Effort</span>
+                          <span className="text-center">Delta</span>
+                          <span className="text-center">ETA</span>
+                        </div>
+                        
+                        {data.simulator.results.slice(0, 5).map((result, idx) => {
+                          // Compare against baseline forecast (what happens with no intervention)
+                          // If baseline forecast unavailable, fall back to current weight
+                          const baselineWeight = data.summary.forecast.weight_low_kg_at_horizon && data.summary.forecast.weight_high_kg_at_horizon
+                            ? (data.summary.forecast.weight_low_kg_at_horizon + data.summary.forecast.weight_high_kg_at_horizon) / 2
+                            : currentWeight;
+                          
+                          const deltaLow = result.forecast_low_kg_at_horizon != null && baselineWeight != null
+                            ? result.forecast_low_kg_at_horizon - baselineWeight 
+                            : null;
+                          const deltaHigh = result.forecast_high_kg_at_horizon != null && baselineWeight != null
+                            ? result.forecast_high_kg_at_horizon - baselineWeight 
+                            : null;
+                          
+                          return (
+                            <div
+                              key={`${result.lever_id}-${result.effort}`}
+                              className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center px-4 py-3 ${
+                                idx !== data.simulator.results.slice(0, 5).length - 1 ? (isDark ? 'border-b border-white/5' : 'border-b border-gray-100') : ''
+                              } ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'} transition-all cursor-pointer`}
+                              data-testid={`row-simulator-${result.lever_id}`}
+                            >
+                              <div className="min-w-0">
+                                <p className={`text-sm truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                   {result.lever_title}
                                 </p>
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className={`px-2 py-0.5 rounded ${
-                                isDark ? 'bg-white/10 text-white/70' : 'bg-gray-200 text-gray-700'
+                              
+                              <div className={`px-2 py-0.5 rounded text-xs text-center ${
+                                result.effort === 'low' || result.effort === 'LOW'
+                                  ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                                  : result.effort === 'medium' || result.effort === 'MEDIUM'
+                                    ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+                                    : isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
                               }`}>
-                                {result.effort} effort
-                              </span>
-                              {result.forecast_low_kg_at_horizon && result.forecast_high_kg_at_horizon && (
-                                <>
-                                  <span className={isDark ? 'text-white/50' : 'text-gray-500'}>|</span>
-                                  <span className={isDark ? 'text-white/70' : 'text-gray-700'}>
-                                    {result.forecast_low_kg_at_horizon.toFixed(1)}–{result.forecast_high_kg_at_horizon.toFixed(1)} kg
+                                {result.effort.charAt(0).toUpperCase() + result.effort.slice(1).toLowerCase()}
+                              </div>
+                              
+                              <div className="text-center">
+                                {deltaLow !== null && deltaHigh !== null ? (
+                                  <span className={`text-xs ${
+                                    deltaLow < 0 
+                                      ? isDark ? 'text-green-400' : 'text-green-600'
+                                      : isDark ? 'text-orange-400' : 'text-orange-600'
+                                  }`}>
+                                    {deltaLow < 0 ? '' : '+'}{deltaLow.toFixed(1)} to {deltaHigh < 0 ? '' : '+'}{deltaHigh.toFixed(1)} kg
                                   </span>
-                                </>
-                              )}
+                                ) : (
+                                  <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>--</span>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center justify-center gap-1">
+                                <Clock className={`w-3 h-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                                <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                                  {result.eta_weeks ? `${result.eta_weeks}w` : '--'}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
+                      
+                      <p className={`text-xs mt-3 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                        Estimates based on your current trends and behavior patterns
+                      </p>
                     </div>
                   )}
                 </>
@@ -868,40 +986,28 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
         </div>
       </motion.div>
 
-      <AnimatePresence>
-        {showWeighInSheet && (
-          <ManualWeighInSheet
-            isDark={isDark}
-            onClose={() => setShowWeighInSheet(false)}
-            onSave={(data) => {
-              console.log('Weigh-in saved:', data);
-              setShowWeighInSheet(false);
-            }}
-          />
-        )}
-        
-        {showBodyCompSheet && (
-          <BodyCompSheet
-            isDark={isDark}
-            onClose={() => setShowBodyCompSheet(false)}
-            onSave={(data) => {
-              console.log('Body comp saved:', data);
-              setShowBodyCompSheet(false);
-            }}
-          />
-        )}
+      <ManualWeighInSheet
+        open={showWeighInSheet}
+        onOpenChange={setShowWeighInSheet}
+        isDark={isDark}
+        currentWeight={currentWeight}
+      />
+      
+      <BodyCompSheet
+        open={showBodyCompSheet}
+        onOpenChange={setShowBodyCompSheet}
+        isDark={isDark}
+        currentBodyFat={bodyFatPct}
+        currentLeanMass={leanMassKg}
+      />
 
-        {showGoalSetup && (
-          <GoalSetupFlow
-            isDark={isDark}
-            onClose={() => setShowGoalSetup(false)}
-            onSave={(data) => {
-              console.log('Goal saved:', data);
-              setShowGoalSetup(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
+      <GoalSetupFlow
+        open={showGoalSetup}
+        onOpenChange={setShowGoalSetup}
+        isDark={isDark}
+        currentWeight={currentWeight}
+        existingGoal={data?.summary.goal}
+      />
     </div>
   );
 }
