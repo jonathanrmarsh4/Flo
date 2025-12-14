@@ -975,6 +975,14 @@ You MUST cite specific metrics in every insight:
 - "Deep sleep was 94 minutes vs your usual 71 - the evening gym session at 6pm likely helped"
 - "Your resting HR has dropped 4 bpm over the past week from 58 to 54"
 
+## CRITICAL: ACTIVITY METRICS ARE FROM YESTERDAY
+This is a MORNING briefing - the user just woke up. Activity metrics (steps, active_energy, workout_minutes) are from YESTERDAY, not today.
+- CORRECT: "Yesterday you walked 8,500 steps, 15% above your baseline"
+- CORRECT: "Your active energy yesterday was 450 kcal"
+- WRONG: "Your 28 steps today is way under baseline" (today just started!)
+- WRONG: "Active energy is 98% lower than usual today" (makes no sense at 7am!)
+Sleep and recovery metrics (HRV, RHR, sleep hours, deep sleep) ARE from last night and can be referred to as "today's" recovery data.
+
 ## PERSONALIZATION RULES (NON-NEGOTIABLE)
 1. **Life Events**: If present, ALWAYS mention them: "Day 3 post-Melbourne flight - jet lag typically peaks around now"
 2. **Correlations**: If ML patterns exist, USE them: "Your data shows evening workouts boost deep sleep 18% - consider the gym after 5pm"
@@ -1151,6 +1159,13 @@ ${richContext.causal_insights.length > 0
     const structuredPrompt = `## TODAY'S METRICS & BASELINES
 ${JSON.stringify(requestPayload, null, 2)}
 
+## CRITICAL: DATA TIMING CLARIFICATION
+The "today" object contains mixed-timing data:
+- **Sleep metrics** (hrv, rhr, sleep_hours, deep_sleep_minutes, rem_sleep_minutes, sleep_efficiency): From LAST NIGHT's sleep that ended this morning
+- **Activity metrics** (steps, active_energy, workout_minutes): From YESTERDAY (the previous full day), NOT today
+
+This is a MORNING briefing - the user just woke up. Do NOT say things like "your steps today are low" or "active energy is down today" - today has just started! 
+Instead, say things like "Yesterday you walked X steps" or "Your activity yesterday was..."
 ${richContextSection ? `## PERSONALIZATION DATA (USE THIS!)
 ${richContextSection}
 
