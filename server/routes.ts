@@ -4758,7 +4758,7 @@ Important: This is for educational purposes. Include a brief note that users sho
         .limit(1);
 
       if (existing.length > 0) {
-        // Update existing token
+        // Token exists - update it and deactivate any OTHER tokens for this user
         const [updated] = await db
           .update(deviceTokens)
           .set({
@@ -4770,9 +4770,29 @@ Important: This is for educational purposes. Include a brief note that users sho
           .where(eq(deviceTokens.deviceToken, validation.data.deviceToken))
           .returning();
         
-        logger.info(`[DeviceToken] Updated device token for user ${userId} - tokenId: ${updated?.id}`);
+        // Deactivate all OTHER tokens for this user (prevents stale token accumulation)
+        const deactivated = await db
+          .update(deviceTokens)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(
+            and(
+              eq(deviceTokens.userId, userId),
+              sql`${deviceTokens.deviceToken} != ${validation.data.deviceToken}`
+            )
+          );
+        
+        logger.info(`[DeviceToken] Updated device token for user ${userId} - tokenId: ${updated?.id}, deactivated other tokens`);
         return res.json({ success: true, action: 'updated', tokenId: updated?.id });
       }
+
+      // NEW token - deactivate ALL existing tokens for this user first
+      // This ensures only the latest token is active (prevents stale token accumulation)
+      const deactivatedCount = await db
+        .update(deviceTokens)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(deviceTokens.userId, userId));
+      
+      logger.info(`[DeviceToken] Deactivated ${deactivatedCount.rowCount || 0} old tokens for user ${userId}`);
 
       // Insert new token
       const [token] = await db
