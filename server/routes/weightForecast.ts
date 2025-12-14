@@ -167,76 +167,112 @@ async function saveUserGoal(userId: string, goal: z.infer<typeof goalSchema>): P
 router.get('/tile', isAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user.claims.sub;
-    
-    if (!isClickHouseEnabled()) {
-      return res.status(503).json({ error: 'Weight forecasting not available' });
-    }
-    
-    const client = getClickHouseClient();
-    if (!client) {
-      return res.status(503).json({ error: 'Weight forecasting not available' });
-    }
-    
-    const result = await client.query({
-      query: `
-        SELECT
-          user_id,
-          toString(generated_at_utc) AS generated_at_utc,
-          horizon_days,
-          confidence_level,
-          status_chip,
-          current_weight_kg,
-          delta_vs_7d_avg_kg,
-          goal_target_weight_kg,
-          toString(goal_target_date_local) AS goal_target_date_local,
-          progress_percent,
-          forecast_weight_low_kg_at_horizon,
-          forecast_weight_high_kg_at_horizon,
-          eta_weeks,
-          eta_uncertainty_weeks,
-          source_label,
-          last_sync_relative,
-          staleness_days
-        FROM flo_ml.forecast_summary FINAL
-        WHERE user_id = {userId:String}
-        LIMIT 1
-      `,
-      query_params: { userId },
-      format: 'JSONEachRow',
-    });
-    
-    const rows = await result.json() as ForecastSummary[];
-    const summary = rows.length > 0 ? rows[0] : null;
     const goal = await getUserGoal(userId);
     
+    let summary: ForecastSummary | null = null;
     let bodyFatPct: number | null = null;
     let leanMassKg: number | null = null;
+    let currentWeightKg: number | null = null;
+    let sourceLabel: string | null = null;
     
-    if (summary) {
-      const featuresResult = await client.query({
-        query: `
-          SELECT body_fat_pct, lean_mass_kg
-          FROM flo_ml.daily_features FINAL
-          WHERE user_id = {userId:String} AND body_fat_pct IS NOT NULL
-          ORDER BY local_date_key DESC
-          LIMIT 1
-        `,
-        query_params: { userId },
-        format: 'JSONEachRow',
-      });
-      const featuresRows = await featuresResult.json() as { body_fat_pct: number | null; lean_mass_kg: number | null }[];
-      if (featuresRows.length > 0) {
-        bodyFatPct = featuresRows[0].body_fat_pct;
-        leanMassKg = featuresRows[0].lean_mass_kg;
+    // Try ClickHouse first
+    if (isClickHouseEnabled()) {
+      const client = getClickHouseClient();
+      if (client) {
+        try {
+          const result = await client.query({
+            query: `
+              SELECT
+                user_id,
+                toString(generated_at_utc) AS generated_at_utc,
+                horizon_days,
+                confidence_level,
+                status_chip,
+                current_weight_kg,
+                delta_vs_7d_avg_kg,
+                goal_target_weight_kg,
+                toString(goal_target_date_local) AS goal_target_date_local,
+                progress_percent,
+                forecast_weight_low_kg_at_horizon,
+                forecast_weight_high_kg_at_horizon,
+                eta_weeks,
+                eta_uncertainty_weeks,
+                source_label,
+                last_sync_relative,
+                staleness_days
+              FROM flo_ml.forecast_summary FINAL
+              WHERE user_id = {userId:String}
+              LIMIT 1
+            `,
+            query_params: { userId },
+            format: 'JSONEachRow',
+          });
+          
+          const rows = await result.json() as ForecastSummary[];
+          summary = rows.length > 0 ? rows[0] : null;
+          
+          if (summary) {
+            currentWeightKg = summary.current_weight_kg;
+            sourceLabel = summary.source_label;
+            
+            const featuresResult = await client.query({
+              query: `
+                SELECT body_fat_pct, lean_mass_kg
+                FROM flo_ml.daily_features FINAL
+                WHERE user_id = {userId:String} AND body_fat_pct IS NOT NULL
+                ORDER BY local_date_key DESC
+                LIMIT 1
+              `,
+              query_params: { userId },
+              format: 'JSONEachRow',
+            });
+            const featuresRows = await featuresResult.json() as { body_fat_pct: number | null; lean_mass_kg: number | null }[];
+            if (featuresRows.length > 0) {
+              bodyFatPct = featuresRows[0].body_fat_pct;
+              leanMassKg = featuresRows[0].lean_mass_kg;
+            }
+          }
+        } catch (chError) {
+          logger.warn('[WeightForecast] ClickHouse query failed, falling back to Supabase:', chError);
+        }
+      }
+    }
+    
+    // Supabase fallback when ClickHouse has no data
+    if (!currentWeightKg) {
+      try {
+        const metrics = await supabaseHealthStorage.getDailyMetricsFlexible(userId, { limit: 90 });
+        
+        // Find latest weight
+        for (const m of metrics) {
+          if (m.weight_kg && !currentWeightKg) {
+            currentWeightKg = m.weight_kg;
+            sourceLabel = 'Apple Health';
+          }
+          if (m.body_fat_percent && !bodyFatPct) {
+            bodyFatPct = m.body_fat_percent;
+          }
+          if (m.lean_body_mass_kg && !leanMassKg) {
+            leanMassKg = m.lean_body_mass_kg;
+          }
+          // Stop once we have all values
+          if (currentWeightKg && bodyFatPct && leanMassKg) break;
+        }
+        
+        if (currentWeightKg) {
+          logger.info(`[WeightForecast] Using Supabase fallback for tile: weight=${currentWeightKg}kg`);
+        }
+      } catch (sbError) {
+        logger.error('[WeightForecast] Supabase fallback failed:', sbError);
       }
     }
     
     res.json({
       user_id: userId,
       generated_at_utc: summary?.generated_at_utc ?? null,
-      status_chip: summary?.status_chip ?? 'NEEDS_DATA',
+      status_chip: summary?.status_chip ?? (currentWeightKg ? 'DATA_AVAILABLE' : 'NEEDS_DATA'),
       confidence_level: summary?.confidence_level ?? 'LOW',
-      current_weight_kg: summary?.current_weight_kg ?? null,
+      current_weight_kg: currentWeightKg,
       delta_vs_7d_avg_kg: summary?.delta_vs_7d_avg_kg ?? null,
       body_fat_pct: bodyFatPct,
       lean_mass_kg: leanMassKg,
@@ -255,7 +291,7 @@ router.get('/tile', isAuthenticated, async (req: any, res) => {
         eta_uncertainty_weeks: summary?.eta_uncertainty_weeks ?? null,
       },
       source: {
-        label: summary?.source_label ?? null,
+        label: sourceLabel,
         last_sync_relative: summary?.last_sync_relative ?? null,
         staleness_days: summary?.staleness_days ?? null,
       },
@@ -270,130 +306,198 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user.claims.sub;
     const range = (req.query.range as string) || '30d';
-    
-    if (!isClickHouseEnabled()) {
-      return res.status(503).json({ error: 'Weight forecasting not available' });
-    }
-    
-    const client = getClickHouseClient();
-    if (!client) {
-      return res.status(503).json({ error: 'Weight forecasting not available' });
-    }
-    
     const rangeDays = range === '6m' ? 180 : range === '90d' ? 90 : 30;
-    
-    const [summaryResult, featuresResult, seriesResult, driversResult, simulatorResult] = await Promise.all([
-      client.query({
-        query: `
-          SELECT
-            user_id,
-            toString(generated_at_utc) AS generated_at_utc,
-            horizon_days,
-            confidence_level,
-            status_chip,
-            current_weight_kg,
-            delta_vs_7d_avg_kg,
-            goal_target_weight_kg,
-            toString(goal_target_date_local) AS goal_target_date_local,
-            progress_percent,
-            forecast_weight_low_kg_at_horizon,
-            forecast_weight_high_kg_at_horizon,
-            eta_weeks,
-            eta_uncertainty_weeks,
-            source_label,
-            last_sync_relative,
-            staleness_days
-          FROM flo_ml.forecast_summary FINAL
-          WHERE user_id = {userId:String}
-          LIMIT 1
-        `,
-        query_params: { userId },
-        format: 'JSONEachRow',
-      }),
-      client.query({
-        query: `
-          SELECT
-            toString(local_date_key) AS local_date_key,
-            weight_kg,
-            weight_trend_kg,
-            body_fat_pct,
-            lean_mass_kg,
-            data_quality_weighins_per_week_14d,
-            data_quality_staleness_days,
-            data_quality_nutrition_days_14d,
-            data_quality_cgm_days_14d
-          FROM flo_ml.daily_features FINAL
-          WHERE user_id = {userId:String} AND local_date_key >= today() - {rangeDays:UInt16}
-          ORDER BY local_date_key ASC
-        `,
-        query_params: { userId, rangeDays },
-        format: 'JSONEachRow',
-      }),
-      client.query({
-        query: `
-          SELECT
-            toString(local_date_key) AS local_date_key,
-            weight_mid_kg,
-            weight_low_kg,
-            weight_high_kg
-          FROM flo_ml.forecast_series
-          WHERE user_id = {userId:String}
-            AND generated_at_utc = (
-              SELECT max(generated_at_utc) FROM flo_ml.forecast_series WHERE user_id = {userId:String}
-            )
-          ORDER BY local_date_key ASC
-        `,
-        query_params: { userId },
-        format: 'JSONEachRow',
-      }),
-      client.query({
-        query: `
-          SELECT
-            rank,
-            driver_id,
-            title,
-            subtitle,
-            confidence_level,
-            deeplink
-          FROM flo_ml.forecast_drivers
-          WHERE user_id = {userId:String}
-            AND generated_at_utc = (
-              SELECT max(generated_at_utc) FROM flo_ml.forecast_drivers WHERE user_id = {userId:String}
-            )
-          ORDER BY rank ASC
-        `,
-        query_params: { userId },
-        format: 'JSONEachRow',
-      }),
-      client.query({
-        query: `
-          SELECT
-            lever_id,
-            lever_title,
-            effort,
-            forecast_low_kg_at_horizon,
-            forecast_high_kg_at_horizon,
-            eta_weeks,
-            confidence_level
-          FROM flo_ml.simulator_results
-          WHERE user_id = {userId:String}
-            AND generated_at_utc = (
-              SELECT max(generated_at_utc) FROM flo_ml.simulator_results WHERE user_id = {userId:String}
-            )
-        `,
-        query_params: { userId },
-        format: 'JSONEachRow',
-      }),
-    ]);
-    
-    const summaryRows = await summaryResult.json() as ForecastSummary[];
-    const features = await featuresResult.json() as DailyFeature[];
-    const forecastSeries = await seriesResult.json() as ForecastSeriesPoint[];
-    const drivers = await driversResult.json() as ForecastDriver[];
-    const simulatorResults = await simulatorResult.json() as SimulatorResult[];
-    
-    const summary = summaryRows.length > 0 ? summaryRows[0] : null;
     const goal = await getUserGoal(userId);
+    
+    let summary: ForecastSummary | null = null;
+    let features: DailyFeature[] = [];
+    let forecastSeries: ForecastSeriesPoint[] = [];
+    let drivers: ForecastDriver[] = [];
+    let simulatorResults: SimulatorResult[] = [];
+    let currentWeightKg: number | null = null;
+    let bodyFatPct: number | null = null;
+    let leanMassKg: number | null = null;
+    let sourceLabel: string | null = null;
+    
+    // Try ClickHouse first
+    if (isClickHouseEnabled()) {
+      const client = getClickHouseClient();
+      if (client) {
+        try {
+          const [summaryResult, featuresResult, seriesResult, driversResult, simulatorResult] = await Promise.all([
+            client.query({
+              query: `
+                SELECT
+                  user_id,
+                  toString(generated_at_utc) AS generated_at_utc,
+                  horizon_days,
+                  confidence_level,
+                  status_chip,
+                  current_weight_kg,
+                  delta_vs_7d_avg_kg,
+                  goal_target_weight_kg,
+                  toString(goal_target_date_local) AS goal_target_date_local,
+                  progress_percent,
+                  forecast_weight_low_kg_at_horizon,
+                  forecast_weight_high_kg_at_horizon,
+                  eta_weeks,
+                  eta_uncertainty_weeks,
+                  source_label,
+                  last_sync_relative,
+                  staleness_days
+                FROM flo_ml.forecast_summary FINAL
+                WHERE user_id = {userId:String}
+                LIMIT 1
+              `,
+              query_params: { userId },
+              format: 'JSONEachRow',
+            }),
+            client.query({
+              query: `
+                SELECT
+                  toString(local_date_key) AS local_date_key,
+                  weight_kg,
+                  weight_trend_kg,
+                  body_fat_pct,
+                  lean_mass_kg,
+                  data_quality_weighins_per_week_14d,
+                  data_quality_staleness_days,
+                  data_quality_nutrition_days_14d,
+                  data_quality_cgm_days_14d
+                FROM flo_ml.daily_features FINAL
+                WHERE user_id = {userId:String} AND local_date_key >= today() - {rangeDays:UInt16}
+                ORDER BY local_date_key ASC
+              `,
+              query_params: { userId, rangeDays },
+              format: 'JSONEachRow',
+            }),
+            client.query({
+              query: `
+                SELECT
+                  toString(local_date_key) AS local_date_key,
+                  weight_mid_kg,
+                  weight_low_kg,
+                  weight_high_kg
+                FROM flo_ml.forecast_series
+                WHERE user_id = {userId:String}
+                  AND generated_at_utc = (
+                    SELECT max(generated_at_utc) FROM flo_ml.forecast_series WHERE user_id = {userId:String}
+                  )
+                ORDER BY local_date_key ASC
+              `,
+              query_params: { userId },
+              format: 'JSONEachRow',
+            }),
+            client.query({
+              query: `
+                SELECT
+                  rank,
+                  driver_id,
+                  title,
+                  subtitle,
+                  confidence_level,
+                  deeplink
+                FROM flo_ml.forecast_drivers
+                WHERE user_id = {userId:String}
+                  AND generated_at_utc = (
+                    SELECT max(generated_at_utc) FROM flo_ml.forecast_drivers WHERE user_id = {userId:String}
+                  )
+                ORDER BY rank ASC
+              `,
+              query_params: { userId },
+              format: 'JSONEachRow',
+            }),
+            client.query({
+              query: `
+                SELECT
+                  lever_id,
+                  lever_title,
+                  effort,
+                  forecast_low_kg_at_horizon,
+                  forecast_high_kg_at_horizon,
+                  eta_weeks,
+                  confidence_level
+                FROM flo_ml.simulator_results
+                WHERE user_id = {userId:String}
+                  AND generated_at_utc = (
+                    SELECT max(generated_at_utc) FROM flo_ml.simulator_results WHERE user_id = {userId:String}
+                  )
+              `,
+              query_params: { userId },
+              format: 'JSONEachRow',
+            }),
+          ]);
+          
+          const summaryRows = await summaryResult.json() as ForecastSummary[];
+          features = await featuresResult.json() as DailyFeature[];
+          forecastSeries = await seriesResult.json() as ForecastSeriesPoint[];
+          drivers = await driversResult.json() as ForecastDriver[];
+          simulatorResults = await simulatorResult.json() as SimulatorResult[];
+          
+          summary = summaryRows.length > 0 ? summaryRows[0] : null;
+          if (summary) {
+            currentWeightKg = summary.current_weight_kg;
+            sourceLabel = summary.source_label;
+          }
+          
+          const latestFeature = features.length > 0 ? features[features.length - 1] : null;
+          if (latestFeature) {
+            bodyFatPct = latestFeature.body_fat_pct;
+            leanMassKg = latestFeature.lean_mass_kg;
+          }
+        } catch (chError) {
+          logger.warn('[WeightForecast] ClickHouse query failed, falling back to Supabase:', chError);
+        }
+      }
+    }
+    
+    // Supabase fallback when ClickHouse has no data
+    if (!currentWeightKg || features.length === 0) {
+      try {
+        const metrics = await supabaseHealthStorage.getDailyMetricsFlexible(userId, { limit: rangeDays });
+        
+        // Build features array from Supabase data
+        if (features.length === 0 && metrics.length > 0) {
+          // Reverse to get ascending order by date
+          const sortedMetrics = [...metrics].reverse();
+          features = sortedMetrics
+            .filter(m => m.weight_kg !== null)
+            .map(m => ({
+              local_date_key: m.local_date,
+              weight_kg: m.weight_kg ?? null,
+              weight_trend_kg: null,
+              body_fat_pct: m.body_fat_percent ?? null,
+              lean_mass_kg: m.lean_body_mass_kg ?? null,
+              data_quality_weighins_per_week_14d: null,
+              data_quality_staleness_days: null,
+              data_quality_nutrition_days_14d: null,
+              data_quality_cgm_days_14d: null,
+            }));
+          
+          logger.info(`[WeightForecast] Using Supabase fallback for overview: ${features.length} weight data points`);
+        }
+        
+        // Find latest values from Supabase
+        if (!currentWeightKg) {
+          for (const m of metrics) {
+            if (m.weight_kg && !currentWeightKg) {
+              currentWeightKg = m.weight_kg;
+              sourceLabel = 'Apple Health';
+            }
+            if (m.body_fat_percent && !bodyFatPct) {
+              bodyFatPct = m.body_fat_percent;
+            }
+            if (m.lean_body_mass_kg && !leanMassKg) {
+              leanMassKg = m.lean_body_mass_kg;
+            }
+            if (currentWeightKg && bodyFatPct && leanMassKg) break;
+          }
+        }
+      } catch (sbError) {
+        logger.error('[WeightForecast] Supabase fallback failed:', sbError);
+      }
+    }
+    
     const latestFeature = features.length > 0 ? features[features.length - 1] : null;
     
     const levers = [
@@ -406,12 +510,12 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
       summary: {
         user_id: userId,
         generated_at_utc: summary?.generated_at_utc ?? null,
-        status_chip: summary?.status_chip ?? 'NEEDS_DATA',
+        status_chip: summary?.status_chip ?? (currentWeightKg ? 'DATA_AVAILABLE' : 'NEEDS_DATA'),
         confidence_level: summary?.confidence_level ?? 'LOW',
-        current_weight_kg: summary?.current_weight_kg ?? null,
+        current_weight_kg: currentWeightKg,
         delta_vs_7d_avg_kg: summary?.delta_vs_7d_avg_kg ?? null,
-        body_fat_pct: latestFeature?.body_fat_pct ?? null,
-        lean_mass_kg: latestFeature?.lean_mass_kg ?? null,
+        body_fat_pct: bodyFatPct ?? latestFeature?.body_fat_pct ?? null,
+        lean_mass_kg: leanMassKg ?? latestFeature?.lean_mass_kg ?? null,
         goal: {
           configured: goal.configured,
           goal_type: goal.goal_type,
@@ -427,7 +531,7 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
           eta_uncertainty_weeks: summary?.eta_uncertainty_weeks ?? null,
         },
         source: {
-          label: summary?.source_label ?? null,
+          label: sourceLabel,
           last_sync_relative: summary?.last_sync_relative ?? null,
           staleness_days: summary?.staleness_days ?? null,
         },
