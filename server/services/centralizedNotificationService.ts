@@ -302,6 +302,7 @@ class CentralizedNotificationService {
 
   /**
    * Process pending notifications in the queue
+   * Uses atomic claim-then-process pattern to prevent duplicate sends
    */
   async processQueue(): Promise<void> {
     if (this.isProcessing) {
@@ -313,73 +314,31 @@ class CentralizedNotificationService {
     const now = new Date();
 
     try {
-      // Get notifications ready for delivery or retry
-      const pendingItems = await db
-        .select()
-        .from(notificationQueue)
-        .where(
-          and(
-            inArray(notificationQueue.status, ['scheduled', 'processing']),
-            lte(notificationQueue.scheduledForUtc, now)
-          )
-        )
-        .orderBy(notificationQueue.scheduledForUtc)
-        .limit(MAX_QUEUE_BATCH_SIZE);
+      // First, handle dead-letter items (max attempts exceeded)
+      await this.handleDeadLetterItems(now);
 
-      // Filter for items that are ready for retry and haven't exceeded max attempts
-      const readyItems = pendingItems.filter(item => {
-        // Skip items that have exceeded max attempts - mark them as failed
-        if (item.attempts >= item.maxAttempts) {
-          return false; // Will be handled separately
-        }
-        if (item.status === 'scheduled') return true;
-        // For 'processing' items, check if retry time has passed
-        if (item.nextRetryAt && new Date(item.nextRetryAt) <= now) return true;
-        return false;
-      });
+      // Atomically claim items one at a time using UPDATE ... RETURNING
+      // This prevents race conditions between workers
+      let processedCount = 0;
       
-      // Mark any items that exceeded max attempts as failed (dead letter)
-      const expiredItems = pendingItems.filter(item => item.attempts >= item.maxAttempts && item.status !== 'failed');
-      for (const item of expiredItems) {
-        await db
-          .update(notificationQueue)
-          .set({
-            status: 'failed',
-            failureReason: `Max attempts (${item.maxAttempts}) exceeded`,
-            updatedAt: now,
-          })
-          .where(eq(notificationQueue.id, item.id));
+      while (processedCount < MAX_QUEUE_BATCH_SIZE) {
+        const claimedItem = await this.claimNextQueueItem(now);
         
-        // Log to delivery audit
-        await db.insert(notificationDeliveryLog).values({
-          queueId: item.id,
-          userId: item.userId,
-          type: item.type,
-          title: item.title,
-          body: item.body,
-          success: false,
-          devicesReached: 0,
-          errorCode: 'DEAD_LETTER',
-          errorMessage: `Max attempts (${item.maxAttempts}) exceeded`,
-          scheduledForUtc: item.scheduledForUtc,
-        });
-        
-        logger.warn(`[NotificationService] Dead-lettered ${item.type} for user ${item.userId}: max attempts exceeded`);
-      }
-
-      if (readyItems.length === 0) {
-        return;
-      }
-
-      logger.info(`[NotificationService] Processing ${readyItems.length} notifications`);
-
-      // Process each item
-      for (const item of readyItems) {
-        try {
-          await this.processQueueItem(item as NotificationQueueItem);
-        } catch (err) {
-          logger.error(`[NotificationService] Error processing queue item ${item.id}:`, err);
+        if (!claimedItem) {
+          // No more items to process
+          break;
         }
+        
+        try {
+          await this.processClaimedItem(claimedItem);
+          processedCount++;
+        } catch (err) {
+          logger.error(`[NotificationService] Error processing queue item ${claimedItem.id}:`, err);
+        }
+      }
+      
+      if (processedCount > 0) {
+        logger.info(`[NotificationService] Processed ${processedCount} notifications`);
       }
     } finally {
       this.isProcessing = false;
@@ -387,32 +346,107 @@ class CentralizedNotificationService {
   }
 
   /**
-   * Process a single queue item
+   * Handle items that have exceeded max attempts (dead-letter)
    */
-  private async processQueueItem(item: NotificationQueueItem): Promise<void> {
-    const startTime = Date.now();
+  private async handleDeadLetterItems(now: Date): Promise<void> {
+    // Find and mark expired items as failed
+    const expiredItems = await db
+      .select()
+      .from(notificationQueue)
+      .where(
+        and(
+          inArray(notificationQueue.status, ['scheduled', 'processing']),
+          sql`${notificationQueue.attempts} >= ${notificationQueue.maxAttempts}`
+        )
+      )
+      .limit(50);
 
-    // Mark as processing atomically
-    const updated = await db
+    for (const item of expiredItems) {
+      await db
+        .update(notificationQueue)
+        .set({
+          status: 'failed',
+          failureReason: `Max attempts (${item.maxAttempts}) exceeded`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(notificationQueue.id, item.id),
+            inArray(notificationQueue.status, ['scheduled', 'processing'])
+          )
+        );
+      
+      await db.insert(notificationDeliveryLog).values({
+        queueId: item.id,
+        userId: item.userId,
+        type: item.type,
+        title: item.title,
+        body: item.body,
+        success: false,
+        devicesReached: 0,
+        errorCode: 'DEAD_LETTER',
+        errorMessage: `Max attempts (${item.maxAttempts}) exceeded`,
+        scheduledForUtc: item.scheduledForUtc,
+      });
+      
+      logger.warn(`[NotificationService] Dead-lettered ${item.type} for user ${item.userId}: max attempts exceeded`);
+    }
+  }
+
+  /**
+   * Atomically claim the next available queue item
+   * Uses UPDATE ... RETURNING for atomic claim without race conditions
+   */
+  private async claimNextQueueItem(now: Date): Promise<NotificationQueueItem | null> {
+    // Atomic claim: Update a single 'scheduled' item that's due
+    // The WHERE clause ensures only unclaimed items are grabbed
+    const [claimed] = await db
       .update(notificationQueue)
       .set({
         status: 'processing',
-        attempts: item.attempts + 1,
-        lastAttemptAt: new Date(),
-        updatedAt: new Date(),
+        attempts: sql`${notificationQueue.attempts} + 1`,
+        lastAttemptAt: now,
+        updatedAt: now,
       })
       .where(
         and(
-          eq(notificationQueue.id, item.id),
-          inArray(notificationQueue.status, ['scheduled', 'processing'])
+          eq(notificationQueue.status, 'scheduled'),
+          lte(notificationQueue.scheduledForUtc, now),
+          sql`${notificationQueue.attempts} < ${notificationQueue.maxAttempts}`
         )
       )
-      .returning({ id: notificationQueue.id });
+      .returning();
 
-    if (updated.length === 0) {
-      logger.warn(`[NotificationService] Queue item ${item.id} already processed by another worker`);
-      return;
+    if (claimed) {
+      return claimed as NotificationQueueItem;
     }
+
+    // Also check for items in 'processing' state that are ready for retry
+    const [retryItem] = await db
+      .update(notificationQueue)
+      .set({
+        status: 'processing',
+        attempts: sql`${notificationQueue.attempts} + 1`,
+        lastAttemptAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(notificationQueue.status, 'processing'),
+          lte(notificationQueue.nextRetryAt, now),
+          sql`${notificationQueue.attempts} < ${notificationQueue.maxAttempts}`
+        )
+      )
+      .returning();
+
+    return retryItem ? (retryItem as NotificationQueueItem) : null;
+  }
+
+  /**
+   * Process an already-claimed queue item
+   */
+  private async processClaimedItem(item: NotificationQueueItem): Promise<void> {
+    const startTime = Date.now();
 
     // Check if user has active device tokens
     const activeTokens = await db

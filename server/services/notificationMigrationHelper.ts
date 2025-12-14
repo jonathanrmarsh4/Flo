@@ -18,6 +18,7 @@ import { scheduledNotificationTemplates, userNotificationSchedules, users } from
 import { eq, and, isNotNull } from 'drizzle-orm';
 import { centralizedNotificationService } from './centralizedNotificationService';
 import { logger } from '../logger';
+import { n1ExperimentService } from './n1ExperimentService';
 
 // Default notification templates
 const NOTIFICATION_TEMPLATES = [
@@ -125,17 +126,28 @@ export async function migrateUserSchedules(): Promise<{ migrated: number; skippe
         { isEnabled: true, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }
       );
 
-      // Supplement reminder - disabled by default
-      // TODO: In production, this should only be enabled for users with active N-of-1 experiments
-      // This would require a Supabase query to check n1_experiments table for active experiments
-      // For now, users can manually enable this from settings once they start an experiment
+      // Check for active experiments to determine if supplement reminder should be enabled
+      let hasActiveExperiment = false;
+      try {
+        const activeExperiments = await n1ExperimentService.getActiveExperimentsWithProducts(user.id);
+        hasActiveExperiment = activeExperiments.length > 0;
+      } catch (err) {
+        // If we can't check experiments, default to disabled
+        logger.warn(`[NotificationMigration] Could not check experiments for user ${user.id}, disabling supplement reminder:`, err);
+      }
+
+      // Supplement reminder - only enabled for users with active experiments
       await centralizedNotificationService.upsertUserSchedule(
         user.id,
         'supplement_reminder',
         '20:00',
         timezone,
-        { isEnabled: false, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] } // Disabled by default - enable when user starts an experiment
+        { isEnabled: hasActiveExperiment, daysOfWeek: [0, 1, 2, 3, 4, 5, 6] }
       );
+
+      if (hasActiveExperiment) {
+        logger.info(`[NotificationMigration] Enabled supplement reminder for user ${user.id} (has active experiment)`);
+      }
 
       stats.migrated++;
     } catch (err) {
