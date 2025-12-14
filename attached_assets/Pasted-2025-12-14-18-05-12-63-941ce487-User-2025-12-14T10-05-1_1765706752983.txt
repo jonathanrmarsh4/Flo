@@ -1,0 +1,92 @@
+2025-12-14 18:05:12.63
+941ce487
+User
+[2025-12-14T10:05:12.634Z] [WARN] [ReminderDelivery] No devices reached for user TfHX3a {"error":"No active devices"}
+2025-12-14 18:05:12.63
+941ce487
+User
+[2025-12-14T10:05:12.634Z] [WARN] [APNs] No active device tokens found for user TfHX3a
+2025-12-14 18:05:12.86
+941ce487
+User
+[2025-12-14T10:05:12.869Z] [WARN] [ReminderDelivery] No user_profile found for health_id admin-test-user, using as-is
+2025-12-14 18:05:12.90
+941ce487
+User
+[2025-12-14T10:05:12.906Z] [WARN] [APNs] No active device tokens found for user admin-test-user
+2025-12-14 18:05:12.90
+941ce487
+User
+[2025-12-14T10:05:12.906Z] [WARN] [ReminderDelivery] No devices reached for user admin-test-user {"error":"No active devices"}
+2025-12-14 18:05:13.14
+941ce487
+User
+[2025-12-14T10:05:13.143Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-calcium-user-v3, using as-is
+2025-12-14 18:05:13.18
+941ce487
+User
+[2025-12-14T10:05:13.182Z] [WARN] [ReminderDelivery] No devices reached for user test-calcium-user-v3 {"error":"No active devices"}
+2025-12-14 18:05:13.18
+941ce487
+User
+[2025-12-14T10:05:13.182Z] [WARN] [APNs] No active device tokens found for user test-calcium-user-v3
+2025-12-14 18:05:13.41
+941ce487
+User
+[2025-12-14T10:05:13.418Z] [WARN] [ReminderDelivery] No user_profile found for health_id qmg5rP, using as-is
+2025-12-14 18:05:13.45
+941ce487
+User
+[2025-12-14T10:05:13.456Z] [WARN] [APNs] No active device tokens found for user qmg5rP
+2025-12-14 18:05:13.45
+941ce487
+User
+[2025-12-14T10:05:13.457Z] [WARN] [ReminderDelivery] No devices reached for user qmg5rP {"error":"No active devices"}
+2025-12-14 18:05:13.69
+941ce487
+User
+[2025-12-14T10:05:13.690Z] [WARN] [ReminderDelivery] No user_profile found for health_id _bC9ph, using as-is
+2025-12-14 18:05:13.72
+941ce487
+User
+[2025-12-14T10:05:13.727Z] [WARN] [APNs] No active device tokens found for user _bC9ph
+2025-12-14 18:05:13.72
+941ce487
+User
+[2025-12-14T10:05:13.727Z] [WARN] [ReminderDelivery] No devices reached for user _bC9ph {"error":"No active devices"}
+2025-12-14 18:05:13.96
+941ce487
+User
+[2025-12-14T10:05:13.963Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-upload-v3, using as-is
+2025-12-14 18:05:14.00
+941ce487
+User
+[2025-12-14T10:05:14.000Z] [WARN] [APNs] No active device tokens found for user test-upload-v3
+2025-12-14 18:05:14.00
+941ce487
+User
+[2025-12-14T10:05:14.000Z] [WARN] [ReminderDelivery] No devices reached for user test-upload-v3 {"error":"No active devices"}
+2025-12-14 18:05:14.23
+941ce487
+User
+[2025-12-14T10:05:14.234Z] [WARN] [ReminderDelivery] No user_profile found for health_id success-test, using as-is
+2025-12-14 18:05:14.27
+941ce487
+User
+[2025-12-14T10:05:14.272Z] [WARN] [ReminderDelivery] No devices reached for user success-test {"error":"No active devices"}
+2025-12-14 18:05:14.27
+941ce487
+User
+[2025-12-14T10:05:14.272Z] [WARN] [APNs] No active device tokens found for user success-test
+2025-12-14 18:05:14.27
+941ce487
+User
+[2025-12-14T10:05:14.272Z] [WARN] [APNs] No active device tokens found for user success-test
+2025-12-14 18:05:14.27
+941ce487
+User
+[2025-12-14T10:05:14.272Z] [WARN] [ReminderDelivery] No devices reached for user success-test {"error":"No active devices"}
+2025-12-14 18:05:30.65
+941ce487
+User
+10:05:30 AM [express] GET /api/admin/overview 304 in 483ms :: {"totalUsers":7,"activeUsers":7,"totalR…

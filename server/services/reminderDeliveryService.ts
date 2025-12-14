@@ -286,8 +286,20 @@ async function processEveningExperimentReminders() {
         const title = 'Log Your Supplement Check-in';
         const body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Don't forget to log how you're feeling with ${supplementNames}${suffix} today.`;
         
+        // Look up internal user_id from user_profiles (device tokens are stored by internal user_id, not Replit Auth ID)
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('health_id', user.healthId)
+          .single();
+        
+        const internalUserId = userProfile?.user_id || user.id;
+        if (userProfile?.user_id) {
+          logger.debug(`[ExperimentReminder] Mapped Replit ID ${user.id} -> internal user_id ${internalUserId} via health_id ${user.healthId}`);
+        }
+        
         const result = await apnsService.sendToUser(
-          user.id,
+          internalUserId,
           {
             title,
             body,
@@ -304,7 +316,7 @@ async function processEveningExperimentReminders() {
           // Mark notification as sent to prevent duplicates during catch-up window
           markNotificationSent(userToday, user.healthId, 'experiment_reminder');
           const sendType = user.isCatchUp ? 'CATCH-UP' : 'SCHEDULED';
-          logger.info(`[ExperimentReminder] ${sendType} reminder sent to ${user.firstName || user.id} for ${experimentCount} experiment(s)`);
+          logger.info(`[ExperimentReminder] ${sendType} reminder sent to ${user.firstName || user.id} (internal: ${internalUserId}) for ${experimentCount} experiment(s)`);
         }
       } catch (error) {
         logger.warn(`[ExperimentReminder] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
@@ -445,8 +457,20 @@ async function processThreePMSurveyNotifications() {
           body = `${user.firstName ? `Hey ${user.firstName}! ` : ''}Time to log your wellbeing + track your ${supplementNames} progress.`;
         }
         
+        // Look up internal user_id from user_profiles (device tokens are stored by internal user_id, not Replit Auth ID)
+        const { data: userProfile } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('health_id', user.healthId)
+          .single();
+        
+        const internalUserId = userProfile?.user_id || user.id;
+        if (userProfile?.user_id) {
+          logger.debug(`[3PMSurvey] Mapped Replit ID ${user.id} -> internal user_id ${internalUserId} via health_id ${user.healthId}`);
+        }
+        
         const result = await apnsService.sendToUser(
-          user.id,
+          internalUserId,
           {
             title,
             body,
@@ -463,7 +487,7 @@ async function processThreePMSurveyNotifications() {
           // Mark notification as sent to prevent duplicates during catch-up window
           markNotificationSent(userToday, user.healthId, '3pm_survey');
           const sendType = user.isCatchUp ? 'CATCH-UP' : 'SCHEDULED';
-          logger.info(`[3PMSurvey] ${sendType} notification sent to ${user.firstName || user.id} (${user.activeSupplements.length} supplements, ${user.timezone})`);
+          logger.info(`[3PMSurvey] ${sendType} notification sent to ${user.firstName || user.id} (internal: ${internalUserId}, ${user.activeSupplements.length} supplements, ${user.timezone})`);
         }
       } catch (error) {
         logger.warn(`[3PMSurvey] Failed to send notification to user ${user.id}`, { error: error instanceof Error ? error.message : String(error) });
@@ -602,7 +626,7 @@ export async function triggerManualSurveyNotification(userId: string) {
     const supabase = getSupabaseClient();
     const healthIdResult = await supabase
       .from('user_profiles')
-      .select('health_id')
+      .select('health_id, user_id')
       .eq('user_id', userId)
       .single();
 
@@ -620,8 +644,14 @@ export async function triggerManualSurveyNotification(userId: string) {
       body = `${user[0].firstName ? `Hey ${user[0].firstName}! ` : ''}Time to log your wellbeing + track your ${supplementNames} progress.`;
     }
 
+    // Use internal user_id from user_profiles if available (device tokens are stored by internal user_id)
+    const internalUserId = healthIdResult.data?.user_id || userId;
+    if (healthIdResult.data?.user_id && healthIdResult.data.user_id !== userId) {
+      logger.info(`[3PMSurvey] Manual notification: Using internal user_id ${internalUserId} (input: ${userId})`);
+    }
+
     const result = await apnsService.sendToUser(
-      userId,
+      internalUserId,
       {
         title,
         body,
@@ -634,7 +664,7 @@ export async function triggerManualSurveyNotification(userId: string) {
       }
     );
 
-    logger.info(`[3PMSurvey] Manual notification sent to user ${userId} (${activeSupplements.length} supplements):`, result);
+    logger.info(`[3PMSurvey] Manual notification sent to user ${userId} (internal: ${internalUserId}, ${activeSupplements.length} supplements):`, result);
     return result;
   } catch (error) {
     logger.error(`[3PMSurvey] Manual notification failed for user ${userId}`, { error: error instanceof Error ? error.message : String(error) });

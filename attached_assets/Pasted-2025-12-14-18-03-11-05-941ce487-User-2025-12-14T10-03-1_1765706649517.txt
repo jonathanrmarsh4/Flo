@@ -1,0 +1,128 @@
+2025-12-14 18:03:11.05
+941ce487
+User
+[2025-12-14T10:03:11.050Z] [WARN] [ReminderDelivery] No devices reached for user IHf4ob {"error":"No active devices"}
+2025-12-14 18:03:11.05
+941ce487
+User
+[2025-12-14T10:03:11.050Z] [WARN] [APNs] No active device tokens found for user IHf4ob
+2025-12-14 18:03:11.29
+941ce487
+User
+[2025-12-14T10:03:11.292Z] [WARN] [ReminderDelivery] No user_profile found for health_id final-test, using as-is
+2025-12-14 18:03:11.32
+941ce487
+User
+[2025-12-14T10:03:11.328Z] [WARN] [APNs] No active device tokens found for user final-test
+2025-12-14 18:03:11.32
+941ce487
+User
+[2025-12-14T10:03:11.328Z] [WARN] [ReminderDelivery] No devices reached for user final-test {"error":"No active devices"}
+2025-12-14 18:03:11.60
+941ce487
+User
+[2025-12-14T10:03:11.607Z] [WARN] [APNs] No active device tokens found for user e2e-winner
+2025-12-14 18:03:11.60
+941ce487
+User
+[2025-12-14T10:03:11.607Z] [WARN] [ReminderDelivery] No devices reached for user e2e-winner {"error":"No active devices"}
+2025-12-14 18:03:11.87
+941ce487
+User
+[2025-12-14T10:03:11.873Z] [WARN] [ReminderDelivery] No user_profile found for health_id test_insights_v2, using as-is
+2025-12-14 18:03:11.91
+941ce487
+User
+[2025-12-14T10:03:11.910Z] [WARN] [APNs] No active device tokens found for user test_insights_v2
+2025-12-14 18:03:12.18
+941ce487
+User
+[2025-12-14T10:03:12.184Z] [WARN] [ReminderDelivery] No devices reached for user test-user-calcium {"error":"No active devices"}
+2025-12-14 18:03:12.33
+941ce487
+User
+[2025-12-14T10:03:12.332Z] [INFO] [AIUsageTracker] Logging gemini usage: gemini-2.5-flash - 400 tokens ($0.0000)
+2025-12-14 18:03:12.37
+941ce487
+User
+[2025-12-14T10:03:12.371Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1413,"length":52}
+2025-12-14 18:03:12.46
+941ce487
+User
+[2025-12-14T10:03:12.465Z] [WARN] [ReminderDelivery] No devices reached for user test-user-estradiol {"error":"No active devices"}
+2025-12-14 18:03:12.46
+941ce487
+User
+[2025-12-14T10:03:12.465Z] [WARN] [ReminderDelivery] No devices reached for user test-user-estradiol {"error":"No active devices"}
+2025-12-14 18:03:32.30
+941ce487
+User
+[2025-12-14T10:03:32.303Z] [INFO] [AIUsageTracker] Logging gemini usage: gemini-2.5-flash - 400 tokens ($0.0000)
+2025-12-14 18:03:32.34
+941ce487
+User
+[2025-12-14T10:03:32.341Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1788,"length":30}
+2025-12-14 18:03:32.48
+941ce487
+User
+10:03:32 AM [express] GET /api/admin/audit-logs 304 in 107ms :: [{"id":"0e23cf82-177b-4abe-b4a0-5c929…
+2025-12-14 18:03:32.73
+941ce487
+User
+10:03:32 AM [express] GET /api/admin/overview 304 in 109ms :: {"totalUsers":7,"activeUsers":7,"totalR…
+2025-12-14 18:03:32.83
+941ce487
+User
+10:03:32 AM [express] GET /api/admin/ml-usage/metrics 304 in 107ms :: {"metrics":{"totalWindowsToday"…
+2025-12-14 18:03:34.56
+941ce487
+User
+[2025-12-14T10:03:34.568Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 1/1 forecasts generated
+2025-12-14 18:03:34.56
+941ce487
+User
+[2025-12-14T10:03:34.568Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 18:03:38.81
+941ce487
+User
+10:03:38 AM [express] GET /api/admin/system-health 200 in 1392ms :: {"services":[{"id":"postgresql","…
+2025-12-14 18:03:39.79
+941ce487
+User
+[2025-12-14T10:03:39.797Z] [INFO] [ForecastWorker] [ForecastWorker] Processing 1 users from 1 queue items
+2025-12-14 18:03:41.70
+941ce487
+User
+[2025-12-14T10:03:41.709Z] [INFO] [AIUsageTracker] Logging gemini usage: gemini-2.5-flash - 400 tokens ($0.0000)
+2025-12-14 18:03:41.88
+941ce487
+User
+[2025-12-14T10:03:41.885Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1160,"length":42}
+2025-12-14 18:03:44.28
+941ce487
+User
+[2025-12-14T10:03:44.285Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 18:03:44.28
+941ce487
+User
+[2025-12-14T10:03:44.285Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 1/1 forecasts generated
+2025-12-14 18:03:50.17
+941ce487
+User
+[2025-12-14T10:03:50.176Z] [INFO] [ForecastWorker] [ForecastWorker] Processing 1 users from 1 queue items
+2025-12-14 18:03:52.31
+941ce487
+User
+[2025-12-14T10:03:52.315Z] [INFO] [AIUsageTracker] Logging gemini usage: gemini-2.5-flash - 400 tokens ($0.0000)
+2025-12-14 18:03:52.46
+941ce487
+User
+[2025-12-14T10:03:52.460Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1425,"length":56}
+2025-12-14 18:03:54.67
+941ce487
+User
+[2025-12-14T10:03:54.672Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 18:03:54.67
+941ce487
+User
+[2025-12-14T10:03:54.672Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 
