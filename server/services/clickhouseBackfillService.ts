@@ -178,6 +178,25 @@ export async function runFullBackfill(
 
     logger.info(`[ClickHouseBackfill] Completed backfill for ${userId}: ${JSON.stringify(metrics)}`);
 
+    // Trigger hourly jobs immediately to materialize data into daily_features
+    // This ensures the weight forecast module has data available right away
+    if (metrics.total > 0) {
+      try {
+        const { runHourlyJobs } = await import('./weightForecast/orchestrationJobs');
+        logger.info(`[ClickHouseBackfill] Triggering hourly jobs to materialize data for ${userId}`);
+        setImmediate(async () => {
+          try {
+            await runHourlyJobs();
+            logger.info(`[ClickHouseBackfill] Hourly jobs completed after backfill for ${userId}`);
+          } catch (jobErr) {
+            logger.warn('[ClickHouseBackfill] Hourly jobs failed after backfill:', jobErr);
+          }
+        });
+      } catch (e) {
+        logger.warn('[ClickHouseBackfill] Could not trigger hourly jobs:', e);
+      }
+    }
+
     return { success: true, metrics };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
