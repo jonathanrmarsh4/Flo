@@ -1462,4 +1462,85 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ error: error.message || "Failed to generate sleep baseline debug report" });
     }
   });
+
+  // ==================== CENTRALIZED NOTIFICATION QUEUE ADMIN ====================
+
+  app.get('/api/admin/notifications/queue-stats', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { centralizedNotificationService } = await import('../services/centralizedNotificationService');
+      const stats = await centralizedNotificationService.getQueueStats();
+      res.json(stats);
+    } catch (error: any) {
+      logger.error('[Admin] Failed to get notification queue stats:', error);
+      res.status(500).json({ error: error.message || "Failed to get queue stats" });
+    }
+  });
+
+  app.get('/api/admin/notifications/delivery-stats', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { centralizedNotificationService } = await import('../services/centralizedNotificationService');
+      const hoursBack = parseInt(req.query.hours as string) || 24;
+      const stats = await centralizedNotificationService.getDeliveryStats(hoursBack);
+      res.json(stats);
+    } catch (error: any) {
+      logger.error('[Admin] Failed to get delivery stats:', error);
+      res.status(500).json({ error: error.message || "Failed to get delivery stats" });
+    }
+  });
+
+  app.get('/api/admin/notifications/recent-deliveries', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { notificationDeliveryLog } = await import('@shared/schema');
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100); // Cap at 100
+      
+      const deliveries = await db
+        .select({
+          id: notificationDeliveryLog.id,
+          userId: notificationDeliveryLog.userId,
+          type: notificationDeliveryLog.type,
+          title: notificationDeliveryLog.title,
+          success: notificationDeliveryLog.success,
+          devicesReached: notificationDeliveryLog.devicesReached,
+          errorMessage: notificationDeliveryLog.errorMessage,
+          attemptedAt: notificationDeliveryLog.attemptedAt,
+          latencyMs: notificationDeliveryLog.latencyMs,
+        })
+        .from(notificationDeliveryLog)
+        .orderBy(desc(notificationDeliveryLog.attemptedAt))
+        .limit(limit);
+      
+      // Sanitize error messages - truncate to prevent leaking verbose internal errors
+      const sanitized = deliveries.map(d => ({
+        ...d,
+        errorMessage: d.errorMessage ? d.errorMessage.substring(0, 200) : null,
+      }));
+      
+      res.json(sanitized);
+    } catch (error: any) {
+      logger.error('[Admin] Failed to get recent deliveries:', error);
+      res.status(500).json({ error: error.message || "Failed to get recent deliveries" });
+    }
+  });
+
+  app.post('/api/admin/notifications/retry-failed', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { centralizedNotificationService } = await import('../services/centralizedNotificationService');
+      const count = await centralizedNotificationService.retryAllFailed();
+      res.json({ count, message: `${count} notifications queued for retry` });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to retry failed notifications:', error);
+      res.status(500).json({ error: error.message || "Failed to retry failed notifications" });
+    }
+  });
+
+  app.post('/api/admin/notifications/process-queue', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { centralizedNotificationService } = await import('../services/centralizedNotificationService');
+      await centralizedNotificationService.processQueue();
+      res.json({ success: true, message: 'Queue processing triggered' });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to trigger queue processing:', error);
+      res.status(500).json({ error: error.message || "Failed to process queue" });
+    }
+  });
 }

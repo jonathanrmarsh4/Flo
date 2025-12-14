@@ -533,6 +533,130 @@ export const apnsConfiguration = pgTable("apns_configuration", {
   activeIdx: index("apns_config_active_idx").on(table.isActive),
 }));
 
+// ==================== CENTRALIZED NOTIFICATION SERVICE ====================
+// Reliable, timezone-aware notification scheduling with retry logic and admin controls
+
+// Notification types for scheduled reminders
+export const scheduledNotificationTypeEnum = pgEnum("scheduled_notification_type", [
+  "daily_brief",
+  "survey_3pm",
+  "supplement_reminder",
+  "weekly_summary",
+  "custom"
+]);
+
+// Delivery status for queue items
+export const notificationDeliveryStatusEnum = pgEnum("notification_delivery_status", [
+  "scheduled",     // Waiting for fire time
+  "processing",    // Currently being sent
+  "delivered",     // Successfully sent
+  "failed",        // Failed after all retries
+  "skipped"        // User disabled or no device token
+]);
+
+// Templates for scheduled notifications (admin-configurable)
+export const scheduledNotificationTemplates = pgTable("scheduled_notification_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: scheduledNotificationTypeEnum("type").notNull().unique(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  defaultLocalTime: varchar("default_local_time").notNull().default("08:00"), // HH:MM format
+  isActive: boolean("is_active").default(true).notNull(),
+  interruptionLevel: varchar("interruption_level").default("active"), // passive|active|time-sensitive|critical
+  metadata: jsonb("metadata"), // Additional config (deeplinks, sounds, etc.)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// User notification preferences (per-type subscriptions with timezone)
+export const userNotificationSchedules = pgTable("user_notification_schedules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: scheduledNotificationTypeEnum("type").notNull(),
+  isEnabled: boolean("is_enabled").default(true).notNull(),
+  localTime: varchar("local_time").notNull(), // HH:MM format (24hr)
+  timezone: varchar("timezone").notNull(), // IANA timezone (e.g., "America/Los_Angeles")
+  daysOfWeek: jsonb("days_of_week").default(sql`'[0,1,2,3,4,5,6]'`), // Array of day numbers (0=Sun, 6=Sat)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userTypeIdx: uniqueIndex("user_notification_schedules_user_type_idx").on(table.userId, table.type),
+  enabledIdx: index("user_notification_schedules_enabled_idx").on(table.isEnabled),
+  timezoneIdx: index("user_notification_schedules_timezone_idx").on(table.timezone),
+}));
+
+// Notification queue (scheduled jobs with retry state)
+export const notificationQueue = pgTable("notification_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  scheduleId: varchar("schedule_id").references(() => userNotificationSchedules.id, { onDelete: "set null" }),
+  type: scheduledNotificationTypeEnum("type").notNull(),
+  
+  // Scheduling
+  scheduledForUtc: timestamp("scheduled_for_utc").notNull(), // When to fire (in UTC)
+  localDateKey: varchar("local_date_key").notNull(), // YYYY-MM-DD in user's timezone (for dedup)
+  
+  // Content (may be pre-generated or template-based)
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  payload: jsonb("payload"), // Additional data for the notification
+  
+  // Delivery state
+  status: notificationDeliveryStatusEnum("status").default("scheduled").notNull(),
+  attempts: integer("attempts").default(0).notNull(),
+  maxAttempts: integer("max_attempts").default(3).notNull(),
+  lastAttemptAt: timestamp("last_attempt_at"),
+  nextRetryAt: timestamp("next_retry_at"),
+  deliveredAt: timestamp("delivered_at"),
+  failureReason: text("failure_reason"),
+  
+  // Tracking
+  devicesReached: integer("devices_reached").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("notification_queue_user_idx").on(table.userId),
+  statusIdx: index("notification_queue_status_idx").on(table.status),
+  scheduledIdx: index("notification_queue_scheduled_idx").on(table.scheduledForUtc),
+  typeStatusIdx: index("notification_queue_type_status_idx").on(table.type, table.status),
+  userDateTypeIdx: uniqueIndex("notification_queue_user_date_type_idx").on(table.userId, table.localDateKey, table.type),
+}));
+
+// Notification delivery audit log (permanent record of all deliveries)
+export const notificationDeliveryLog = pgTable("notification_delivery_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  queueId: varchar("queue_id").references(() => notificationQueue.id, { onDelete: "set null" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: scheduledNotificationTypeEnum("type").notNull(),
+  
+  // What was sent
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  
+  // Result
+  success: boolean("success").notNull(),
+  devicesReached: integer("devices_reached").default(0),
+  errorCode: varchar("error_code"),
+  errorMessage: text("error_message"),
+  
+  // Timing
+  scheduledForUtc: timestamp("scheduled_for_utc"),
+  attemptedAt: timestamp("attempted_at").defaultNow().notNull(),
+  latencyMs: integer("latency_ms"), // Time from scheduled to delivered
+  
+  // Device info
+  deviceTokensAttempted: integer("device_tokens_attempted").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  userIdx: index("notification_delivery_log_user_idx").on(table.userId),
+  typeIdx: index("notification_delivery_log_type_idx").on(table.type),
+  attemptedAtIdx: index("notification_delivery_log_attempted_at_idx").on(table.attemptedAt),
+  successIdx: index("notification_delivery_log_success_idx").on(table.success),
+}));
+
+// ==================== END CENTRALIZED NOTIFICATION SERVICE ====================
+
 // Insights system enums and tables
 export const insightCategoryEnum = pgEnum("insight_category", [
   "activity_sleep",
@@ -2329,6 +2453,46 @@ export const insertApnsConfigurationSchema = createInsertSchema(apnsConfiguratio
 
 export type InsertApnsConfiguration = z.infer<typeof insertApnsConfigurationSchema>;
 export type ApnsConfiguration = typeof apnsConfiguration.$inferSelect;
+
+// ==================== CENTRALIZED NOTIFICATION SERVICE SCHEMAS ====================
+
+// Zod enums for validation
+export const ScheduledNotificationTypeEnum = z.enum([
+  "daily_brief", "survey_3pm", "supplement_reminder", "weekly_summary", "custom"
+]);
+export const NotificationDeliveryStatusEnum = z.enum([
+  "scheduled", "processing", "delivered", "failed", "skipped"
+]);
+
+// Scheduled notification template schemas
+export const insertScheduledNotificationTemplateSchema = createInsertSchema(scheduledNotificationTemplates).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertScheduledNotificationTemplate = z.infer<typeof insertScheduledNotificationTemplateSchema>;
+export type ScheduledNotificationTemplate = typeof scheduledNotificationTemplates.$inferSelect;
+
+// User notification schedule schemas
+export const insertUserNotificationScheduleSchema = createInsertSchema(userNotificationSchedules).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertUserNotificationSchedule = z.infer<typeof insertUserNotificationScheduleSchema>;
+export type UserNotificationSchedule = typeof userNotificationSchedules.$inferSelect;
+
+// Notification queue schemas
+export const insertNotificationQueueSchema = createInsertSchema(notificationQueue).omit({
+  id: true, createdAt: true, updatedAt: true,
+});
+export type InsertNotificationQueue = z.infer<typeof insertNotificationQueueSchema>;
+export type NotificationQueueItem = typeof notificationQueue.$inferSelect;
+
+// Notification delivery log schemas
+export const insertNotificationDeliveryLogSchema = createInsertSchema(notificationDeliveryLog).omit({
+  id: true, createdAt: true,
+});
+export type InsertNotificationDeliveryLog = z.infer<typeof insertNotificationDeliveryLogSchema>;
+export type NotificationDeliveryLogEntry = typeof notificationDeliveryLog.$inferSelect;
+
+// ==================== END CENTRALIZED NOTIFICATION SERVICE SCHEMAS ====================
 
 // Insight category enum for validation
 export const InsightCategoryEnum = z.enum([

@@ -16,6 +16,7 @@ import { AdminSandboxVoice } from '@/components/admin/AdminSandboxVoice';
 import { AdminMessagesManager } from '@/components/admin/AdminMessagesManager';
 import { AdminSIE } from '@/components/admin/AdminSIE';
 import { AdminMLSettings } from '@/components/admin/AdminMLSettings';
+import { AdminNotificationQueue } from '@/components/admin/AdminNotificationQueue';
 
 interface AdminUserSummary {
   id: string;
@@ -1808,6 +1809,7 @@ export default function AdminDashboard() {
 
         {activeTab === 'notifications' && (
           <div className="space-y-6">
+            <AdminNotificationQueue />
             <AdminMessagesManager />
           </div>
         )}
