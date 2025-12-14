@@ -648,7 +648,9 @@ function determineStatusChip(
   const stalenessDays = latest?.data_quality_staleness_days ?? 999;
   const hasRecentWeight = features.some(f => f.weight_kg !== null);
 
-  if (!hasRecentWeight || stalenessDays > 7 || goal.goal_type === null) {
+  // Only return NEEDS_DATA if there's no weight data or data is stale
+  // If user has weight data but no goal, show ON_TRACK (drivers still work without explicit goal)
+  if (!hasRecentWeight || stalenessDays > 7) {
     return 'NEEDS_DATA';
   }
 
