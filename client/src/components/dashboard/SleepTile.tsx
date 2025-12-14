@@ -353,6 +353,38 @@ function ManualSleepDisplay({ isDark, entry, onEdit }: { isDark: boolean; entry:
 }
 
 function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog, onWhyClick }: { isDark: boolean; data: HealthKitSleepData; onOpenDetail: () => void; onManualLog: () => void; onWhyClick?: () => void }) {
+  // Format time string to standard AM/PM format
+  const formatTimeToAmPm = (timeStr: string | null | undefined): string => {
+    if (!timeStr) return '--:--';
+    
+    // If already in AM/PM format, return as-is (uppercase)
+    if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) {
+      return timeStr.toUpperCase();
+    }
+    
+    // Handle 24-hour format like "22:30" or "06:45"
+    const timeMatch = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1], 10);
+      const minutes = timeMatch[2];
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes} ${ampm}`;
+    }
+    
+    // Try parsing as ISO date string
+    try {
+      const d = new Date(timeStr);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      }
+    } catch {
+      // Fall through
+    }
+    
+    return timeStr;
+  };
+
   const getScoreColors = () => {
     if (data.nightflo_score >= 80) {
       return {
@@ -532,7 +564,7 @@ function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog, onWhyC
                 Bedtime
               </div>
               <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-bedtime">
-                {data.bedtime_local}
+                {formatTimeToAmPm(data.bedtime_local)}
               </div>
             </div>
           </div>
@@ -553,7 +585,7 @@ function HealthKitSleepDisplay({ isDark, data, onOpenDetail, onManualLog, onWhyC
                 Wake
               </div>
               <div className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-waketime">
-                {data.waketime_local}
+                {formatTimeToAmPm(data.waketime_local)}
               </div>
             </div>
           </div>
