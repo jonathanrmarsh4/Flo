@@ -20,6 +20,7 @@ import { sql } from 'drizzle-orm';
 import { createClient } from '@supabase/supabase-js';
 import { trackGeminiUsage } from './aiUsageTracker';
 import OpenAI from 'openai';
+import { geminiChatClient, GeminiChatMessage } from './geminiChatClient';
 
 // Initialize clients lazily
 let geminiClient: GoogleGenAI | null = null;
@@ -728,42 +729,29 @@ export async function chatWithSIE(
     timestamp: new Date(),
   });
   
-  // Build conversation for Gemini
+  // Build conversation for Gemini using same geminiChatClient as Flō Oracle
   const systemPrompt = buildBrainstormSystemPrompt(session.dataLandscape, session.originalAnalysis);
   
-  const conversationHistory = session.messages.map(msg => ({
-    role: msg.role as 'user' | 'model',
-    parts: [{ text: msg.content }],
-  }));
+  // Convert session messages to GeminiChatMessage format (same as Flō Oracle)
+  const chatMessages: GeminiChatMessage[] = [
+    { role: 'system', content: systemPrompt },
+    ...session.messages.map(msg => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+    })),
+  ];
   
-  // Fix role naming for Gemini (uses 'model' not 'assistant')
-  const geminiHistory = conversationHistory.map(msg => ({
-    role: msg.role === 'user' ? 'user' : 'model',
-    parts: msg.parts,
-  }));
-  
-  logger.info('[SIE Chat] Calling Gemini', { 
-    model: 'gemini-2.5-pro',
-    historyLength: geminiHistory.length,
+  logger.info('[SIE Chat] Calling Gemini via geminiChatClient (same as Flō Oracle)', { 
+    model: 'gemini-2.5-flash',
+    historyLength: chatMessages.length,
   });
   
-  const client = getGeminiClient();
-  
-  const result = await client.models.generateContent({
-    model: 'gemini-2.5-pro',
-    contents: geminiHistory,
-    config: {
-      systemInstruction: systemPrompt,
-      temperature: 0.8, // Slightly lower for more focused conversation
-      maxOutputTokens: 2000,
-    },
+  // Use the same geminiChatClient that Flō Oracle uses
+  const responseText = await geminiChatClient.chat(chatMessages, {
+    model: 'gemini-2.5-flash',
+    temperature: 0.8,
+    maxTokens: 2000,
   });
-  
-  const responseText = result.text || '';
-  
-  if (!responseText) {
-    throw new Error('Empty response from Gemini');
-  }
   
   // Add assistant response to history
   session.messages.push({
@@ -772,20 +760,7 @@ export async function chatWithSIE(
     timestamp: new Date(),
   });
   
-  // Track usage
-  if (result.usageMetadata) {
-    await trackGeminiUsage('sie_brainstorm', 'gemini-2.5-pro', {
-      promptTokens: result.usageMetadata.promptTokenCount || 0,
-      completionTokens: result.usageMetadata.candidatesTokenCount || 0,
-      totalTokens: result.usageMetadata.totalTokenCount || 0,
-    }, {
-      latencyMs: Date.now() - startTime,
-      status: 'success',
-      metadata: { sessionId: session.sessionId, messageCount: session.messages.length },
-    }).catch(() => {});
-  }
-  
-  logger.info('[SIE Chat] Response generated', { 
+  logger.info('[SIE Chat] Response generated via geminiChatClient', { 
     sessionId: session.sessionId,
     responseLength: responseText.length,
     totalMessages: session.messages.length,
