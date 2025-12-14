@@ -498,6 +498,63 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                   </div>
                 )}
 
+                {data?.simulator?.results && data.simulator.results.length > 0 && (
+                  <div className={`p-4 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Activity className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                      <h3 className={`text-sm font-medium ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                        What If Simulator
+                      </h3>
+                    </div>
+                    <p className={`text-xs mb-3 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      See how changes could affect your forecast
+                    </p>
+                    <div className="space-y-2">
+                      {data.simulator.results.map((result) => (
+                        <div 
+                          key={`${result.lever_id}-${result.effort}`}
+                          className={`p-3 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}
+                          data-testid={`simulator-result-${result.lever_id}`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {result.lever_title}
+                            </span>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-[10px] px-1.5 py-0 ${
+                                result.effort === 'EASY' 
+                                  ? isDark ? 'border-green-500/50 text-green-400' : 'border-green-500 text-green-700'
+                                  : result.effort === 'MODERATE'
+                                  ? isDark ? 'border-yellow-500/50 text-yellow-400' : 'border-yellow-500 text-yellow-700'
+                                  : isDark ? 'border-orange-500/50 text-orange-400' : 'border-orange-500 text-orange-700'
+                              }`}
+                            >
+                              {result.effort === 'EASY' ? 'Easy' : result.effort === 'MODERATE' ? 'Moderate' : 'Hard'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                              {result.forecast_low_kg_at_horizon !== null && result.forecast_high_kg_at_horizon !== null ? (
+                                <span>
+                                  Projected: {result.forecast_low_kg_at_horizon.toFixed(1)} - {result.forecast_high_kg_at_horizon.toFixed(1)} kg
+                                </span>
+                              ) : (
+                                <span>Projection unavailable</span>
+                              )}
+                            </div>
+                            {result.eta_weeks !== null && (
+                              <div className={`text-xs ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>
+                                ~{result.eta_weeks} weeks
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className={`text-xs text-center ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
                   {data?.summary.source.label && (
                     <span>Data from {data.summary.source.label}</span>
