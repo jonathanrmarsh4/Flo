@@ -214,7 +214,16 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
   const bodyFatPct = data?.summary.body_fat_pct;
   const leanMassKg = data?.summary.lean_mass_kg;
 
-  const weightYDomain = currentWeight ? [currentWeight - 5, currentWeight + 5] : ['auto', 'auto'];
+  const weightYDomain = useMemo(() => {
+    if (!currentWeight) return ['auto', 'auto'];
+    const goalWeight = data?.summary.goal.target_weight_kg;
+    if (goalWeight) {
+      const minVal = Math.min(currentWeight, goalWeight) - 5;
+      const maxVal = Math.max(currentWeight, goalWeight) + 5;
+      return [Math.floor(minVal), Math.ceil(maxVal)];
+    }
+    return [currentWeight - 25, currentWeight + 25];
+  }, [currentWeight, data?.summary.goal.target_weight_kg]);
 
   const getDriverIcon = (driverId: string) => {
     if (driverId.includes('sleep')) return Moon;
@@ -406,8 +415,9 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                           <XAxis 
                             dataKey="date" 
                             stroke={isDark ? '#ffffff40' : '#00000040'}
-                            style={{ fontSize: '12px' }}
-                            interval="preserveStartEnd"
+                            style={{ fontSize: '11px' }}
+                            interval={timeRange === '30' ? 6 : timeRange === '90' ? 13 : 29}
+                            tickMargin={5}
                           />
                           <YAxis 
                             stroke={isDark ? '#ffffff40' : '#00000040'}
