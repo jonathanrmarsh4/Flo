@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Sparkles, Mail, Lock, AlertCircle, Fingerprint, Loader2 } from 'lucide-react';
+import { ArrowRight, Mail, Lock, AlertCircle, Fingerprint, Loader2 } from 'lucide-react';
 import { FloLogo } from './FloLogo';
 import { useLocation } from 'wouter';
 import { logger } from '@/lib/logger';
@@ -19,10 +19,6 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
-
-  const handleReplitLogin = () => {
-    window.location.href = '/api/login';
-  };
 
   const handlePasskeyLogin = async () => {
     setError('');
@@ -156,9 +152,14 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
             <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
               Track. Improve. Evolve.
             </p>
-            <p className={`text-xs mt-2 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+            <a 
+              href="https://nuvitaelabs.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`text-xs mt-2 hover:underline ${isDark ? 'text-white/40 hover:text-white/60' : 'text-gray-500 hover:text-gray-700'}`}
+            >
               by Nuvitae Labs
-            </p>
+            </a>
           </div>
         </div>
 
@@ -186,37 +187,6 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
                   <span>{error}</span>
                 </div>
               )}
-
-              {/* Replit Auth Button */}
-              <button
-                onClick={handleReplitLogin}
-                className={`w-full py-3.5 rounded-xl text-white flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02] active:scale-[0.98] text-sm ${
-                  isDark
-                    ? 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30'
-                    : 'bg-gradient-to-r from-teal-500 via-cyan-500 to-blue-500 hover:shadow-lg hover:shadow-cyan-500/30'
-                }`}
-                data-testid="button-login-replit"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>Continue with Replit</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <p className={`text-xs text-center mt-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                Supports Google, Apple, GitHub, X, and Email
-              </p>
-
-              {/* Divider */}
-              <div className="relative my-6">
-                <div className={`absolute inset-0 flex items-center`}>
-                  <div className={`w-full border-t ${isDark ? 'border-white/10' : 'border-black/10'}`}></div>
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className={`px-2 ${isDark ? 'bg-white/5 text-white/50' : 'bg-white/60 text-gray-500'}`}>
-                    or
-                  </span>
-                </div>
-              </div>
 
               {/* Passkey Login Button */}
               <button
@@ -357,11 +327,32 @@ export function LoginScreen({ onLogin, isDark }: LoginScreenProps) {
         {/* Medical Disclaimer */}
         <p className={`text-[10px] text-center mt-4 max-w-md leading-relaxed ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
           By continuing, you agree to our{' '}
-          <button className={`text-[9px] underline ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Terms</button>
+          <a href="https://get-flo.com/terms" target="_blank" rel="noopener noreferrer" className={`underline ${isDark ? 'text-white/60 hover:text-white/80' : 'text-gray-600 hover:text-gray-800'}`}>Terms</a>
           {' & '}
-          <button className={`text-[9px] underline ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Privacy Policy</button>
+          <a href="https://get-flo.com/privacy" target="_blank" rel="noopener noreferrer" className={`underline ${isDark ? 'text-white/60 hover:text-white/80' : 'text-gray-600 hover:text-gray-800'}`}>Privacy Policy</a>
           . Not a substitute for medical advice.
         </p>
+        
+        {/* Website Links */}
+        <div className={`flex items-center justify-center gap-4 mt-3 text-[10px] ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+          <a 
+            href="https://get-flo.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={`hover:underline ${isDark ? 'hover:text-white/60' : 'hover:text-gray-700'}`}
+          >
+            get-flo.com
+          </a>
+          <span>•</span>
+          <a 
+            href="https://nuvitaelabs.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={`hover:underline ${isDark ? 'hover:text-white/60' : 'hover:text-gray-700'}`}
+          >
+            nuvitaelabs.com
+          </a>
+        </div>
       </div>
 
       {/* Floating animation keyframes */}

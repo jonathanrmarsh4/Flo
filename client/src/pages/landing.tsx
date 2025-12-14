@@ -14,7 +14,6 @@ export default function Landing() {
   }, [navigate]);
 
   const handleLogin = () => {
-    // Redirect to Replit Auth login
     window.location.href = "/api/login";
   };
 
