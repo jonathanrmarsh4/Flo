@@ -54,36 +54,83 @@ async function runJob010BuildDailyWeightFeatures(): Promise<JobResult> {
   }
 
   try {
+    // Note: ClickHouse's toTimeZone() requires a constant timezone string, not a column.
+    // We use the pre-computed local_date_key from raw_weight_events and calculate local_hour
+    // using timezone offset mapping via multiIf() for common timezones.
     const sql = `
       INSERT INTO flo_ml.daily_weight_features
       WITH
         now64() AS v_utc
       SELECT
         user_id,
-        toDate(toTimeZone(timestamp_utc, user_timezone)) AS local_date_key,
+        local_date_key,
         any(user_timezone) AS user_timezone,
         if(
-          countIf(toHour(toTimeZone(timestamp_utc, user_timezone)) >= 4 AND toHour(toTimeZone(timestamp_utc, user_timezone)) <= 10) > 0,
-          argMinIf(weight_kg, timestamp_utc, toHour(toTimeZone(timestamp_utc, user_timezone)) >= 4 AND toHour(toTimeZone(timestamp_utc, user_timezone)) <= 10),
+          countIf(local_hour >= 4 AND local_hour <= 10) > 0,
+          argMinIf(weight_kg, timestamp_utc, local_hour >= 4 AND local_hour <= 10),
           quantileExact(0.5)(weight_kg)
         ) AS weight_daily_kg,
         if(
-          countIf(toHour(toTimeZone(timestamp_utc, user_timezone)) >= 4 AND toHour(toTimeZone(timestamp_utc, user_timezone)) <= 10) > 0,
+          countIf(local_hour >= 4 AND local_hour <= 10) > 0,
           'MORNING_PREFERRED',
           'MEDIAN_FALLBACK'
         ) AS weight_daily_source,
         if(
-          countIf(toHour(toTimeZone(timestamp_utc, user_timezone)) >= 4 AND toHour(toTimeZone(timestamp_utc, user_timezone)) <= 10) > 0,
-          argMinIf(timestamp_utc, timestamp_utc, toHour(toTimeZone(timestamp_utc, user_timezone)) >= 4 AND toHour(toTimeZone(timestamp_utc, user_timezone)) <= 10),
+          countIf(local_hour >= 4 AND local_hour <= 10) > 0,
+          argMinIf(timestamp_utc, timestamp_utc, local_hour >= 4 AND local_hour <= 10),
           argMax(timestamp_utc, timestamp_utc)
         ) AS weight_daily_timestamp_utc,
-        if(countIf(toHour(toTimeZone(timestamp_utc, user_timezone)) >= 4 AND toHour(toTimeZone(timestamp_utc, user_timezone)) <= 10) > 0, 1, 0) AS weight_daily_is_morning,
+        if(countIf(local_hour >= 4 AND local_hour <= 10) > 0, 1, 0) AS weight_daily_is_morning,
         quantileExact(0.5)(weight_kg) AS weight_daily_median_kg,
         min(weight_kg) AS weight_daily_min_kg,
         max(weight_kg) AS weight_daily_max_kg,
         v_utc AS version_utc
       FROM (
-        SELECT user_id, event_id, timestamp_utc, user_timezone, weight_kg
+        SELECT 
+          user_id, 
+          event_id, 
+          timestamp_utc, 
+          user_timezone, 
+          weight_kg,
+          local_date_key,
+          -- Calculate local hour using timezone offset mapping
+          -- Note: Adding 24 before modulo ensures positive result for negative offsets
+          -- Offsets are approximate (ignoring DST) but sufficient for morning-window heuristic
+          ((toHour(timestamp_utc) + multiIf(
+            user_timezone = 'Australia/Perth', 8,
+            user_timezone = 'Australia/Sydney', 11,
+            user_timezone = 'Australia/Melbourne', 11,
+            user_timezone = 'Australia/Brisbane', 10,
+            user_timezone = 'Australia/Adelaide', 10,  -- Actually 9.5, rounded
+            user_timezone = 'Australia/Darwin', 10,    -- Actually 9.5, rounded
+            user_timezone = 'America/New_York', -5,
+            user_timezone = 'America/Chicago', -6,
+            user_timezone = 'America/Denver', -7,
+            user_timezone = 'America/Los_Angeles', -8,
+            user_timezone = 'America/Phoenix', -7,
+            user_timezone = 'America/Anchorage', -9,
+            user_timezone = 'America/Toronto', -5,
+            user_timezone = 'America/Vancouver', -8,
+            user_timezone = 'Europe/London', 0,
+            user_timezone = 'Europe/Paris', 1,
+            user_timezone = 'Europe/Berlin', 1,
+            user_timezone = 'Europe/Amsterdam', 1,
+            user_timezone = 'Europe/Rome', 1,
+            user_timezone = 'Europe/Madrid', 1,
+            user_timezone = 'Europe/Moscow', 3,
+            user_timezone = 'Asia/Tokyo', 9,
+            user_timezone = 'Asia/Singapore', 8,
+            user_timezone = 'Asia/Hong_Kong', 8,
+            user_timezone = 'Asia/Shanghai', 8,
+            user_timezone = 'Asia/Seoul', 9,
+            user_timezone = 'Asia/Kolkata', 6,         -- Actually 5.5, rounded
+            user_timezone = 'Asia/Mumbai', 6,          -- Actually 5.5, rounded
+            user_timezone = 'Asia/Dubai', 4,
+            user_timezone = 'Pacific/Auckland', 13,
+            user_timezone = 'Pacific/Honolulu', -10,
+            user_timezone = 'UTC', 0,
+            8  -- Default to Australia/Perth offset
+          ) + 24) % 24) AS local_hour
         FROM flo_ml.raw_weight_events
         WHERE timestamp_utc >= now() - INTERVAL 120 DAY
       )
