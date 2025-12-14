@@ -9614,6 +9614,49 @@ Important: This is for educational purposes. Include a brief note that users sho
         })();
       }
 
+      // Sync weight and body composition samples to ClickHouse Weight Forecast Engine (non-blocking)
+      if (inserted > 0) {
+        (async () => {
+          try {
+            const { isClickHouseEnabled } = await import('./services/clickhouseService');
+            if (isClickHouseEnabled()) {
+              const { syncHealthKitWeightSamples } = await import('./services/weightForecast');
+              const { getHealthId } = await import('./services/supabaseHealthStorage');
+              const healthId = await getHealthId(userId);
+              
+              // Guard against null healthId - use userId as fallback
+              const effectiveUserId = healthId || userId;
+              if (!healthId) {
+                logger.debug(`[WeightForecast] No healthId for ${userId}, using userId as identifier`);
+              }
+              
+              const user = await storage.getUser(userId);
+              const timezone = user?.timezone || 'Australia/Perth';
+              
+              // Format samples for weight forecast ingestion
+              const formattedForWeight = samples.map((s: any) => ({
+                data_type: s.dataType,
+                value: s.value,
+                unit: s.unit,
+                start_date: new Date(s.startDate).toISOString(),
+                end_date: new Date(s.endDate).toISOString(),
+                source_name: s.sourceName || null,
+                source_bundle_id: s.sourceBundleId || null,
+                device_name: s.deviceName || null,
+                uuid: s.uuid || null,
+              }));
+              
+              const result = await syncHealthKitWeightSamples(effectiveUserId, formattedForWeight, timezone);
+              if (result.weightEvents > 0 || result.bodyCompEvents > 0) {
+                logger.info(`[WeightForecast] Synced ${result.weightEvents} weight, ${result.bodyCompEvents} body-comp events for ${userId}`);
+              }
+            }
+          } catch (weightError: any) {
+            logger.warn(`[WeightForecast] Background sync failed for ${userId}:`, weightError.message);
+          }
+        })();
+      }
+
       res.json({ 
         inserted,
         duplicates,

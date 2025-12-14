@@ -27,3 +27,12 @@ export {
   getWorkerStats,
   type WorkerStats
 } from './forecastWorker';
+export {
+  syncHealthKitWeightSamples,
+  insertManualWeighIn,
+  insertManualBodyComp,
+  syncHistoricalWeightFromSupabase,
+  type HealthKitSample,
+  type WeightEvent,
+  type BodyCompEvent
+} from './dataIngestion';
