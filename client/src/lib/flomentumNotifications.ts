@@ -10,18 +10,22 @@ export interface FlomentumNotificationConfig {
   dailyScoreEnabled: boolean;
   weeklySummaryEnabled: boolean;
   syncReminderEnabled: boolean;
-  actionRemindersEnabled: boolean; // NEW: Morning check, evening wind-down, midday movement
+  actionRemindersEnabled: boolean; // Morning check, evening wind-down, midday movement
+  threePMSurveyEnabled: boolean; // 3PM wellbeing check-in survey
   dailyScoreTime: string; // HH:MM format (24hr)
   syncReminderTime: string; // HH:MM format (24hr)
+  threePMSurveyTime: string; // HH:MM format (24hr) - defaults to 15:00
 }
 
 const DEFAULT_CONFIG: FlomentumNotificationConfig = {
   dailyScoreEnabled: true,
   weeklySummaryEnabled: true,
   syncReminderEnabled: true,
-  actionRemindersEnabled: true, // Enable by default
+  actionRemindersEnabled: true,
+  threePMSurveyEnabled: true, // Enable 3PM survey by default
   dailyScoreTime: '20:00', // 8 PM
   syncReminderTime: '09:00', // 9 AM
+  threePMSurveyTime: '15:00', // 3 PM
 };
 
 /**
@@ -353,6 +357,52 @@ export async function scheduleDailyActionReminders(config: FlomentumNotification
 }
 
 /**
+ * Schedule 3PM Wellbeing Survey notification
+ * This is a LOCAL notification that fires at 3PM in the user's device timezone
+ * Much more reliable than server-side push notifications for time-sensitive reminders
+ */
+export async function scheduleThreePMSurvey(config: FlomentumNotificationConfig = DEFAULT_CONFIG) {
+  if (!Capacitor.isNativePlatform() || !config.threePMSurveyEnabled) {
+    return;
+  }
+
+  try {
+    const [hours, minutes] = config.threePMSurveyTime.split(':').map(Number);
+    const now = new Date();
+    const scheduledTime = new Date();
+    scheduledTime.setHours(hours, minutes, 0, 0);
+
+    // If time has passed today, schedule for tomorrow
+    if (scheduledTime <= now) {
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+
+    await LocalNotifications.schedule({
+      notifications: [{
+        id: 106, // Unique ID for 3PM survey
+        title: '3PM Check-In',
+        body: 'Quick 30-second wellbeing check - how are you feeling?',
+        schedule: {
+          at: scheduledTime,
+          every: 'day',
+        },
+        extra: { 
+          type: 'survey_3pm',
+          deepLink: 'flo://survey/3pm',
+        },
+        sound: undefined,
+        attachments: undefined,
+        actionTypeId: '',
+      }]
+    });
+
+    console.log(`[Flōmentum Notifications] 3PM survey scheduled for ${config.threePMSurveyTime} (next: ${scheduledTime.toLocaleString()})`);
+  } catch (error) {
+    console.error('[Flōmentum Notifications] Failed to schedule 3PM survey', error);
+  }
+}
+
+/**
  * Cancel all Flōmentum scheduled notifications
  */
 export async function cancelAllFlomentumNotifications() {
@@ -370,6 +420,7 @@ export async function cancelAllFlomentumNotifications() {
         { id: 103 }, // Morning check
         { id: 104 }, // Evening wind-down
         { id: 105 }, // Midday movement
+        { id: 106 }, // 3PM survey
       ]
     });
     console.log('[Flōmentum Notifications] All scheduled notifications cancelled');
@@ -406,6 +457,11 @@ export async function initializeFlomentumNotifications(config: FlomentumNotifica
 
     if (config.actionRemindersEnabled) {
       await scheduleDailyActionReminders(config);
+    }
+
+    // Schedule 3PM survey - this is the most reliable way to deliver time-sensitive notifications
+    if (config.threePMSurveyEnabled) {
+      await scheduleThreePMSurvey(config);
     }
 
     console.log('[Flōmentum Notifications] Initialization complete');
