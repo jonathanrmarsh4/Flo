@@ -167,6 +167,187 @@ async function saveUserGoal(userId: string, goal: z.infer<typeof goalSchema>): P
   });
 }
 
+function generateInlineDrivers(
+  features: DailyFeature[],
+  currentWeightKg: number,
+  goal: { configured: boolean; goal_type: string | null; target_weight_kg: number | null; target_date_local: string | null; start_weight_kg: number | null }
+): ForecastDriver[] {
+  const drivers: ForecastDriver[] = [];
+  
+  if (features.length < 3) {
+    return drivers;
+  }
+  
+  const withWeight = features.filter(f => f.weight_kg !== null);
+  if (withWeight.length < 2) {
+    return drivers;
+  }
+  
+  // Calculate simple trend from weight data using actual date difference
+  const latestWeight = withWeight[withWeight.length - 1].weight_kg!;
+  const oldestWeight = withWeight[0].weight_kg!;
+  const latestDate = new Date(withWeight[withWeight.length - 1].local_date_key);
+  const oldestDate = new Date(withWeight[0].local_date_key);
+  const daysSpan = Math.max(1, Math.round((latestDate.getTime() - oldestDate.getTime()) / (1000 * 60 * 60 * 24)));
+  const slopeKgPerDay = daysSpan > 0 ? (latestWeight - oldestWeight) / daysSpan : 0;
+  const weeklyRate = Math.abs(slopeKgPerDay * 7);
+  
+  const goalType = goal.goal_type;
+  const confidence = 'LOW' as const;
+  
+  if (goalType === 'GAIN') {
+    if (slopeKgPerDay > 0.01) {
+      drivers.push({
+        rank: 1,
+        driver_id: 'gain_on_track',
+        title: `Good progress: +${weeklyRate.toFixed(1)} kg/week`,
+        subtitle: 'You\'re building mass at a healthy rate',
+        confidence_level: confidence,
+        deeplink: 'flo://weight/history',
+      });
+    } else {
+      drivers.push({
+        rank: 1,
+        driver_id: 'gain_increase_calories',
+        title: 'Increase calories to gain weight',
+        subtitle: 'Add 300-500 kcal/day to create a surplus',
+        confidence_level: confidence,
+        deeplink: 'flo://nutrition',
+      });
+    }
+    drivers.push({
+      rank: 2,
+      driver_id: 'gain_protein_target',
+      title: `Target ${Math.round(currentWeightKg * 1.8)}g protein daily`,
+      subtitle: 'Protein supports muscle growth during weight gain',
+      confidence_level: 'MEDIUM',
+      deeplink: 'flo://nutrition',
+    });
+  } else if (goalType === 'LOSE') {
+    if (slopeKgPerDay < -0.01) {
+      drivers.push({
+        rank: 1,
+        driver_id: 'lose_on_track',
+        title: `On track: -${weeklyRate.toFixed(1)} kg/week`,
+        subtitle: weeklyRate > 1 ? 'Consider slowing down to preserve muscle' : 'Sustainable pace – keep going!',
+        confidence_level: confidence,
+        deeplink: 'flo://weight/history',
+      });
+    } else {
+      drivers.push({
+        rank: 1,
+        driver_id: 'lose_create_deficit',
+        title: 'Create a calorie deficit',
+        subtitle: 'Aim for 300-500 kcal/day deficit for sustainable loss',
+        confidence_level: confidence,
+        deeplink: 'flo://nutrition',
+      });
+    }
+    drivers.push({
+      rank: 2,
+      driver_id: 'lose_protein_preserve',
+      title: `Maintain ${Math.round(currentWeightKg * 1.6)}g protein`,
+      subtitle: 'High protein preserves muscle during weight loss',
+      confidence_level: 'MEDIUM',
+      deeplink: 'flo://nutrition',
+    });
+  } else {
+    // MAINTAIN or no goal
+    if (Math.abs(slopeKgPerDay) < 0.02) {
+      drivers.push({
+        rank: 1,
+        driver_id: 'maintain_stable',
+        title: 'Weight is stable',
+        subtitle: 'You\'re maintaining well – keep up your current habits',
+        confidence_level: confidence,
+        deeplink: 'flo://weight/history',
+      });
+    } else {
+      const direction = slopeKgPerDay > 0 ? 'increasing' : 'decreasing';
+      drivers.push({
+        rank: 1,
+        driver_id: 'maintain_trend',
+        title: `Weight ${direction} ${weeklyRate.toFixed(1)} kg/week`,
+        subtitle: 'Small adjustments can help maintain your target',
+        confidence_level: confidence,
+        deeplink: 'flo://weight/history',
+      });
+    }
+    drivers.push({
+      rank: 2,
+      driver_id: 'activity_consistency',
+      title: 'Stay active consistently',
+      subtitle: 'Aim for 8,000+ steps daily to support metabolism',
+      confidence_level: 'MEDIUM',
+      deeplink: 'flo://activity',
+    });
+  }
+  
+  // Add weigh-in frequency driver if applicable
+  const latest = features[features.length - 1];
+  const weighinsPerWeek = latest?.data_quality_weighins_per_week_14d ?? 0;
+  if (weighinsPerWeek < 3) {
+    drivers.push({
+      rank: drivers.length + 1,
+      driver_id: 'weighin_frequency',
+      title: 'Weigh in more often',
+      subtitle: `Only ${weighinsPerWeek.toFixed(1)}/week – aim for 4+ for accurate tracking`,
+      confidence_level: 'LOW',
+      deeplink: 'flo://weight/log',
+    });
+  }
+  
+  return drivers.slice(0, 4);
+}
+
+function generateInlineSimulatorResults(
+  currentWeightKg: number,
+  goal: { configured: boolean; goal_type: string | null; target_weight_kg: number | null; target_date_local: string | null; start_weight_kg: number | null }
+): SimulatorResult[] {
+  const results: SimulatorResult[] = [];
+  const horizonDays = 42;
+  
+  const levers = goal.goal_type === 'GAIN' ? [
+    { lever_id: 'surplus_350', title: '+350 kcal/day', effort: 'Easy' as const, delta_E_kcal_per_day: 350 },
+    { lever_id: 'protein_plus_30g', title: '+30g protein/day', effort: 'Easy' as const, delta_E_kcal_per_day: 50 },
+    { lever_id: 'strength_plus_1', title: '+1 strength session/week', effort: 'Medium' as const, delta_E_kcal_per_day: 30 },
+  ] : goal.goal_type === 'MAINTAIN' ? [
+    { lever_id: 'steps_consistent', title: 'Keep 8k+ steps/day', effort: 'Easy' as const, delta_E_kcal_per_day: 0 },
+    { lever_id: 'protein_maintain', title: 'Maintain 1.6g/kg protein', effort: 'Easy' as const, delta_E_kcal_per_day: 0 },
+  ] : [
+    { lever_id: 'steps_plus_2000', title: '+2,000 steps/day', effort: 'Easy' as const, delta_E_kcal_per_day: -80 },
+    { lever_id: 'protein_plus_25g', title: '+25g protein/day', effort: 'Easy' as const, delta_E_kcal_per_day: -40 },
+    { lever_id: 'last_meal_minus_2h', title: 'Last meal 2h earlier', effort: 'Medium' as const, delta_E_kcal_per_day: -60 },
+  ];
+  
+  for (const lever of levers) {
+    const slopeKgPerDay = lever.delta_E_kcal_per_day / 7700;
+    const horizonMidKg = currentWeightKg + (slopeKgPerDay * horizonDays);
+    const uncertainty = 0.5 * Math.sqrt(horizonDays / 7);
+    
+    let etaWeeks: number | null = null;
+    if (goal.target_weight_kg && Math.abs(slopeKgPerDay) > 0.001) {
+      const delta = goal.target_weight_kg - currentWeightKg;
+      const daysToGoal = delta / slopeKgPerDay;
+      if (daysToGoal > 0 && daysToGoal < 365) {
+        etaWeeks = Math.round((daysToGoal / 7) * 10) / 10;
+      }
+    }
+    
+    results.push({
+      lever_id: lever.lever_id,
+      lever_title: lever.title,
+      effort: lever.effort,
+      forecast_low_kg_at_horizon: Math.round((horizonMidKg - uncertainty) * 10) / 10,
+      forecast_high_kg_at_horizon: Math.round((horizonMidKg + uncertainty) * 10) / 10,
+      eta_weeks: etaWeeks,
+      confidence_level: 'LOW',
+    });
+  }
+  
+  return results;
+}
+
 router.get('/tile', isAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user.claims.sub;
@@ -520,6 +701,19 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
       queueForecastRecompute(userId, 'on_demand', 50).catch(err => {
         logger.warn('[WeightForecast] Failed to auto-queue recompute:', err);
       });
+    }
+    
+    // Generate inline drivers if we have features but no drivers from ClickHouse
+    if (drivers.length === 0 && features.length >= 3 && currentWeightKg) {
+      const inlineDrivers = generateInlineDrivers(features, currentWeightKg, goal);
+      drivers.push(...inlineDrivers);
+      logger.info(`[WeightForecast] Generated ${drivers.length} inline drivers for user ${userId}`);
+    }
+    
+    // Generate inline simulator results if we have features but no results from ClickHouse
+    if (simulatorResults.length === 0 && currentWeightKg) {
+      const inlineSimResults = generateInlineSimulatorResults(currentWeightKg, goal);
+      simulatorResults.push(...inlineSimResults);
     }
     
     const levers = [
