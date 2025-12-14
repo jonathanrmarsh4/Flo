@@ -226,14 +226,14 @@ export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onS
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className={`w-full max-w-md rounded-3xl overflow-hidden ${
+          className={`w-full max-w-md rounded-3xl overflow-hidden max-h-[90vh] flex flex-col ${
             isDark
               ? `bg-gradient-to-br ${colors.bg} backdrop-blur-xl border ${colors.border}`
               : 'bg-white border border-gray-200 shadow-2xl'
           }`}
           data-testid="feedback-survey-modal"
         >
-          <div className="p-6">
+          <div className="p-6 overflow-y-auto flex-1">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-xl ${isDark ? 'bg-white/10' : 'bg-black/5'}`}>
