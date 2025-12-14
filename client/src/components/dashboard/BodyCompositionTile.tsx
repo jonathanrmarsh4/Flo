@@ -1,9 +1,9 @@
-import { Scale, GripVertical, TrendingDown, TrendingUp, Minus, Target } from 'lucide-react';
-import { useState } from 'react';
+import { Scale, ChevronRight, TrendingDown, TrendingUp, Minus, Info } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DataSourceBadge } from '@/components/DataSourceBadge';
 import { Badge } from '@/components/ui/badge';
 import { WeightModuleScreen } from '@/components/weight/WeightModuleScreen';
+import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 
 interface WeightTileResponse {
   user_id: string;
@@ -35,6 +35,15 @@ interface WeightTileResponse {
   };
 }
 
+interface WeightOverviewResponse {
+  summary: WeightTileResponse;
+  series: {
+    actual_weight_daily: Array<{ local_date_key: string; value_kg: number | null }>;
+    trend_weight_daily: Array<{ local_date_key: string; value_kg: number | null }>;
+    forecast_band: Array<{ local_date_key: string; low_kg: number | null; mid_kg: number | null; high_kg: number | null }>;
+  };
+}
+
 interface BodyCompositionTileProps {
   isDark: boolean;
 }
@@ -42,17 +51,59 @@ interface BodyCompositionTileProps {
 export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
   const [showModule, setShowModule] = useState(false);
 
-  const { data, isLoading, error } = useQuery<WeightTileResponse>({
+  const { data: tileData, isLoading: tileLoading } = useQuery<WeightTileResponse>({
     queryKey: ['/v1/weight/tile'],
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     retry: 1,
   });
 
-  if (isLoading) {
+  const { data: overviewData } = useQuery<WeightOverviewResponse>({
+    queryKey: ['/v1/weight/overview?range=30d'],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    retry: 1,
+    enabled: !!tileData,
+  });
+
+  const miniChartData = useMemo(() => {
+    if (!overviewData?.series) return [];
+    
+    const dateMap = new Map<string, { date: string; actual: number | null; forecastLow: number | null; forecastHigh: number | null }>();
+    
+    overviewData.series.actual_weight_daily.forEach(d => {
+      dateMap.set(d.local_date_key, {
+        date: d.local_date_key,
+        actual: d.value_kg,
+        forecastLow: null,
+        forecastHigh: null,
+      });
+    });
+
+    overviewData.series.forecast_band.forEach(d => {
+      const existing = dateMap.get(d.local_date_key);
+      if (existing) {
+        existing.forecastLow = d.low_kg;
+        existing.forecastHigh = d.high_kg;
+      } else {
+        dateMap.set(d.local_date_key, {
+          date: d.local_date_key,
+          actual: null,
+          forecastLow: d.low_kg,
+          forecastHigh: d.high_kg,
+        });
+      }
+    });
+
+    return Array.from(dateMap.values())
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-30);
+  }, [overviewData]);
+
+  if (tileLoading) {
     return (
       <div 
-        className={`backdrop-blur-xl rounded-2xl border p-4 animate-pulse ${
+        className={`backdrop-blur-xl rounded-2xl border p-5 animate-pulse ${
           isDark 
             ? 'bg-white/5 border-white/10' 
             : 'bg-white/60 border-black/10'
@@ -60,190 +111,258 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
         data-testid="tile-body-composition-loading"
       >
         <div className="flex items-center gap-2 mb-4">
-          <div className={`w-4 h-4 rounded ${isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
-          <div className={`h-4 w-24 rounded ${isDark ? 'bg-white/20' : 'bg-gray-300'}`} />
+          <div className={`w-8 h-8 rounded-xl ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+          <div className={`h-4 w-32 rounded ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
         </div>
-        <div className={`h-10 w-20 rounded ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+        <div className={`h-12 w-24 rounded ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
       </div>
     );
   }
 
-  if (error || !data) {
+  if (!tileData) {
     return null;
   }
 
-  const getStatusVariant = (): { variant: 'default' | 'secondary' | 'outline' | 'destructive'; className: string } => {
-    switch (data.status_chip) {
-      case 'ON_TRACK': return { 
-        variant: 'outline', 
-        className: isDark ? 'border-green-500/40 text-green-400 bg-green-500/10' : 'border-green-600/40 text-green-700 bg-green-50' 
-      };
-      case 'AHEAD': return { 
-        variant: 'outline', 
-        className: isDark ? 'border-blue-500/40 text-blue-400 bg-blue-500/10' : 'border-blue-600/40 text-blue-700 bg-blue-50' 
-      };
-      case 'BEHIND': return { 
-        variant: 'outline', 
-        className: isDark ? 'border-orange-500/40 text-orange-400 bg-orange-500/10' : 'border-orange-600/40 text-orange-700 bg-orange-50' 
-      };
-      case 'STALE': return { 
-        variant: 'outline', 
-        className: isDark ? 'border-yellow-500/40 text-yellow-400 bg-yellow-500/10' : 'border-yellow-600/40 text-yellow-700 bg-yellow-50' 
-      };
-      default: return { 
-        variant: 'secondary', 
-        className: '' 
-      };
+  const getStatusChipStyle = () => {
+    switch (tileData.status_chip) {
+      case 'ON_TRACK': return isDark 
+        ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+        : 'bg-green-100 text-green-700 border-green-200';
+      case 'AHEAD': return isDark 
+        ? 'bg-blue-500/20 text-blue-400 border-blue-500/30' 
+        : 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'BEHIND': return isDark 
+        ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' 
+        : 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'STALE': return isDark 
+        ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' 
+        : 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      default: return isDark 
+        ? 'bg-gray-500/20 text-gray-400 border-gray-500/30' 
+        : 'bg-gray-100 text-gray-600 border-gray-200';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'ON_TRACK': return 'On track';
+      case 'AHEAD': return 'Ahead';
+      case 'BEHIND': return 'Behind';
+      case 'STALE': return 'Stale';
+      default: return status.replace('_', ' ');
     }
   };
 
   const getDeltaIcon = () => {
-    if (data.delta_vs_7d_avg_kg === null) return null;
-    if (data.delta_vs_7d_avg_kg > 0.1) return <TrendingUp className="w-4 h-4" />;
-    if (data.delta_vs_7d_avg_kg < -0.1) return <TrendingDown className="w-4 h-4" />;
-    return <Minus className="w-4 h-4" />;
+    if (tileData.delta_vs_7d_avg_kg === null) return null;
+    if (tileData.delta_vs_7d_avg_kg < -0.1) return <TrendingDown className="w-3 h-3" />;
+    if (tileData.delta_vs_7d_avg_kg > 0.1) return <TrendingUp className="w-3 h-3" />;
+    return <Minus className="w-3 h-3" />;
   };
 
-  const getDeltaColor = () => {
-    if (data.delta_vs_7d_avg_kg === null) return '';
-    if (data.delta_vs_7d_avg_kg > 0) return isDark ? 'text-orange-400' : 'text-orange-600';
-    if (data.delta_vs_7d_avg_kg < 0) return isDark ? 'text-green-400' : 'text-green-600';
-    return isDark ? 'text-white/50' : 'text-gray-500';
+  const getConfidenceStyle = () => {
+    switch (tileData.confidence_level) {
+      case 'HIGH': return isDark ? 'text-green-400' : 'text-green-600';
+      case 'MEDIUM': return isDark ? 'text-yellow-400' : 'text-yellow-600';
+      default: return isDark ? 'text-gray-400' : 'text-gray-500';
+    }
   };
 
-  const bodyFatPct = data.body_fat_pct ?? 0;
-  const leanMassKg = data.lean_mass_kg ?? 0;
-  const hasBodyComp = data.body_fat_pct !== null;
+  const getConfidenceText = () => {
+    switch (tileData.confidence_level) {
+      case 'HIGH': return 'High confidence';
+      case 'MEDIUM': return 'Medium confidence';
+      default: return 'Low confidence';
+    }
+  };
 
-  const fatAngle = hasBodyComp ? (bodyFatPct / 100) * 360 : 0;
-  const leanAngle = hasBodyComp && data.lean_mass_kg !== null && data.current_weight_kg !== null
-    ? ((data.lean_mass_kg / data.current_weight_kg) * 100 / 100) * 360
-    : 0;
+  const chartYDomain = useMemo(() => {
+    if (miniChartData.length === 0) return [0, 100];
+    const values = miniChartData.flatMap(d => [d.actual, d.forecastLow, d.forecastHigh].filter(v => v !== null)) as number[];
+    if (values.length === 0) return [0, 100];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    return [min - 2, max + 2];
+  }, [miniChartData]);
+
+  const forecastWeeks = tileData.forecast.horizon_days ? Math.round(tileData.forecast.horizon_days / 7) : null;
 
   return (
     <>
       <div 
         onClick={() => setShowModule(true)}
-        className={`backdrop-blur-xl rounded-2xl border p-4 transition-all cursor-pointer hover:scale-[1.02] ${
+        className={`backdrop-blur-xl rounded-2xl border p-5 transition-all cursor-pointer hover:scale-[1.01] ${
           isDark 
-            ? 'bg-white/5 border-white/10 hover:bg-white/10' 
-            : 'bg-white/60 border-black/10 hover:bg-white/90'
+            ? 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-white/10 hover:border-white/20' 
+            : 'bg-gradient-to-br from-white to-gray-50 border-gray-200 hover:border-gray-300'
         }`}
         data-testid="tile-body-composition"
       >
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Scale className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-            <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Weight
-            </h3>
-            {data.source.label && (
-              <DataSourceBadge source={data.source.label.toLowerCase().includes('health') ? 'healthkit' : 'manual'} size="sm" />
-            )}
-          </div>
-          <GripVertical className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-300'}`} data-testid="drag-handle-body-composition" />
-        </div>
-
-        <div className="flex items-end justify-between mb-3">
-          <div>
-            <div className="flex items-baseline gap-1">
-              <span className={`text-3xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-current-weight">
-                {data.current_weight_kg !== null ? data.current_weight_kg.toFixed(1) : '--'}
-              </span>
-              <span className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                kg
-              </span>
-            </div>
-            {data.delta_vs_7d_avg_kg !== null && (
-              <div className={`flex items-center gap-1 text-xs mt-1 ${getDeltaColor()}`}>
-                {getDeltaIcon()}
-                <span>{data.delta_vs_7d_avg_kg > 0 ? '+' : ''}{data.delta_vs_7d_avg_kg.toFixed(1)} vs 7d</span>
-              </div>
-            )}
-          </div>
-          
-          {data.status_chip && data.status_chip !== 'NEEDS_DATA' && (
-            <Badge variant={getStatusVariant().variant} className={`text-[10px] ${getStatusVariant().className}`}>
-              {data.status_chip.replace('_', ' ')}
-            </Badge>
-          )}
-        </div>
-
-        {data.goal.configured && data.goal.target_weight_kg && (
-          <div className={`flex items-center gap-2 mb-3 p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-            <Target className={`w-3 h-3 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-            <span className={`text-xs ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-              Goal: {data.goal.target_weight_kg} kg
-            </span>
-            {data.progress_percent !== null && (
-              <div className="flex-1 ml-2">
-                <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                  <div 
-                    className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, Math.max(0, data.progress_percent))}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {hasBodyComp && (
+        <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="relative w-12 h-12">
-              <svg className="w-12 h-12 transform -rotate-90">
-                <circle
-                  cx="24"
-                  cy="24"
-                  r="20"
-                  fill="none"
-                  stroke={isDark ? '#fb923c' : '#f97316'}
-                  strokeWidth="6"
-                  strokeDasharray={`${(fatAngle / 360) * 126} 126`}
-                  strokeDashoffset="0"
-                />
-                {leanAngle > 0 && (
-                  <circle
-                    cx="24"
-                    cy="24"
-                    r="20"
-                    fill="none"
-                    stroke={isDark ? '#60a5fa' : '#3b82f6'}
-                    strokeWidth="6"
-                    strokeDasharray={`${(leanAngle / 360) * 126} 126`}
-                    strokeDashoffset={`-${(fatAngle / 360) * 126}`}
-                  />
-                )}
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className={`text-[10px] font-medium ${isDark ? 'text-white/70' : 'text-gray-600'}`}>
-                  {bodyFatPct.toFixed(0)}%
-                </span>
-              </div>
+            <div className={`p-2 rounded-xl ${
+              isDark ? 'bg-gradient-to-br from-purple-500/20 to-blue-500/20' : 'bg-gradient-to-br from-purple-100 to-blue-100'
+            }`}>
+              <Scale className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
             </div>
-
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-orange-500' : 'bg-orange-600'}`} />
-                <span className={`text-[10px] ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Fat</span>
-                <span className={`text-[10px] ml-auto ${isDark ? 'text-white/50' : 'text-gray-500'}`}>{bodyFatPct.toFixed(1)}%</span>
-              </div>
-              {leanMassKg > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-blue-500' : 'bg-blue-600'}`} />
-                  <span className={`text-[10px] ${isDark ? 'text-white/60' : 'text-gray-600'}`}>Lean</span>
-                  <span className={`text-[10px] ml-auto ${isDark ? 'text-white/50' : 'text-gray-500'}`}>{leanMassKg.toFixed(1)} kg</span>
-                </div>
+            <div>
+              <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Weight & Composition
+              </h3>
+              {tileData.source.last_sync_relative && (
+                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  {tileData.source.last_sync_relative}
+                </p>
               )}
             </div>
           </div>
-        )}
+          
+          <div className="flex items-center gap-2">
+            {tileData.status_chip && tileData.status_chip !== 'NEEDS_DATA' && (
+              <div className={`px-3 py-1 rounded-full text-xs border ${getStatusChipStyle()}`}>
+                {getStatusText(tileData.status_chip)}
+              </div>
+            )}
+            <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
+          </div>
+        </div>
 
-        {data.forecast.eta_weeks !== null && (
-          <div className={`text-[10px] mt-2 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
-            ETA to goal: ~{data.forecast.eta_weeks} weeks
+        <div className="flex items-end gap-3 mb-4">
+          <div className="flex items-baseline gap-1">
+            <span className={`text-4xl font-light ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-current-weight">
+              {tileData.current_weight_kg !== null ? tileData.current_weight_kg.toFixed(1) : '--'}
+            </span>
+            <span className={`text-lg ${isDark ? 'text-white/50' : 'text-gray-500'}`}>kg</span>
+          </div>
+          
+          {tileData.delta_vs_7d_avg_kg !== null && (
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+              tileData.delta_vs_7d_avg_kg < 0 
+                ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                : tileData.delta_vs_7d_avg_kg > 0
+                  ? isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
+                  : isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600'
+            }`} data-testid="badge-weight-delta">
+              {getDeltaIcon()}
+              <span>{Math.abs(tileData.delta_vs_7d_avg_kg).toFixed(1)} kg vs 7d avg</span>
+            </div>
+          )}
+        </div>
+
+        {(tileData.body_fat_pct !== null || tileData.lean_mass_kg !== null) && (
+          <div className={`grid grid-cols-2 gap-3 mb-4 p-3 rounded-xl ${
+            isDark ? 'bg-white/5' : 'bg-gray-50'
+          }`}>
+            <div>
+              <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Body fat</p>
+              <p className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-body-fat">
+                {tileData.body_fat_pct !== null ? `${tileData.body_fat_pct.toFixed(1)}%` : '--'}
+              </p>
+            </div>
+            <div>
+              <p className={`text-xs mb-1 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Lean mass</p>
+              <p className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-lean-mass">
+                {tileData.lean_mass_kg !== null ? `${tileData.lean_mass_kg.toFixed(1)} kg` : '--'}
+              </p>
+            </div>
           </div>
         )}
+
+        {tileData.goal.configured && tileData.goal.target_weight_kg && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                Goal: {tileData.goal.target_weight_kg} kg
+              </span>
+              {tileData.progress_percent !== null && (
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+                  {Math.round(tileData.progress_percent)}%
+                </span>
+              )}
+            </div>
+            <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+              <div 
+                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all"
+                style={{ width: `${Math.min(100, Math.max(0, tileData.progress_percent ?? 0))}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {forecastWeeks && tileData.forecast.weight_low_kg_at_horizon && tileData.forecast.weight_high_kg_at_horizon && (
+          <div className={`flex items-center justify-between mb-4 p-3 rounded-xl ${
+            isDark ? 'bg-white/5' : 'bg-gray-50'
+          }`}>
+            <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>
+              Forecast ({forecastWeeks}w)
+            </span>
+            <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-forecast-range">
+              {tileData.forecast.weight_low_kg_at_horizon.toFixed(1)}–{tileData.forecast.weight_high_kg_at_horizon.toFixed(1)} kg
+            </span>
+          </div>
+        )}
+
+        {miniChartData.length > 0 && (
+          <div className="h-20 mb-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={miniChartData}>
+                <defs>
+                  <linearGradient id="miniWeightGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="miniForecastGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <YAxis domain={chartYDomain} hide />
+                <Area
+                  type="monotone"
+                  dataKey="actual"
+                  stroke="#8b5cf6"
+                  strokeWidth={2}
+                  fill="url(#miniWeightGradient)"
+                  connectNulls
+                />
+                <Area
+                  type="monotone"
+                  dataKey="forecastLow"
+                  stroke="none"
+                  fill="transparent"
+                  stackId="forecast"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="forecastHigh"
+                  stroke={isDark ? '#64748b' : '#94a3b8'}
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                  fill="url(#miniForecastGradient)"
+                  connectNulls
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`w-4 h-4 rounded ${isDark ? 'bg-red-500/20' : 'bg-red-100'} flex items-center justify-center`}>
+              <span className="text-[8px]">♥</span>
+            </div>
+            <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+              {tileData.source.label || 'No source'}
+            </span>
+          </div>
+          
+          {tileData.confidence_level && (
+            <div className={`flex items-center gap-1 text-xs ${getConfidenceStyle()}`}>
+              <Info className="w-3 h-3" />
+              <span>{getConfidenceText()}</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {showModule && (
