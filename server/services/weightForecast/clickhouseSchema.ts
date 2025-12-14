@@ -359,6 +359,22 @@ async function createForecastSummaryTable(client: any): Promise<void> {
     // Column may already exist
   }
   
+  try {
+    await client.command({
+      query: `ALTER TABLE flo_ml.forecast_summary ADD COLUMN IF NOT EXISTS goal_narrative Nullable(String)`,
+    });
+  } catch (e) {
+    // Column may already exist
+  }
+  
+  try {
+    await client.command({
+      query: `ALTER TABLE flo_ml.forecast_summary ADD COLUMN IF NOT EXISTS goal_type LowCardinality(String)`,
+    });
+  } catch (e) {
+    // Column may already exist
+  }
+  
   logger.info('[WeightForecastSchema] Created forecast_summary table');
 }
 
