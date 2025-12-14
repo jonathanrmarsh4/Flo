@@ -1,0 +1,65 @@
+2025-12-14 18:51:00.01
+b9c55c6a
+User
+[2025-12-14T10:51:00.012Z] [WARN] [APNs] Invalid device token detected: 3018B44144...
+2025-12-14 18:51:00.01
+b9c55c6a
+User
+[2025-12-14T10:51:00.012Z] [ERROR] [APNs] Failed to send notification: {"error":{"message":"APNS Error: 400 - BadDeviceToken","stack":"Error: APNS Error: 400 - BadDeviceToken\n at ApnsClient._handleServerResponse (file:///home/runner/workspace/node_modules/apns2/dist/esm/apns.js:115:23)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)\n at async ApnsService.sendNotification (file:///home/runner/workspace/dist/index.js:20729:11)\n at async file:///home/runner/workspace/dist/index.js:20776:28\n at async Promise.all (index 0)\n at async ApnsService.sendBatchNotifications (file:///home/runner/workspace/dist/index.js:20774:25)\n at async ApnsService.sendToUser (file:///home/runner/workspace/dist/index.js:20824:27)\n at async file:///home/runner/workspace/dist/index.js:61004:24"}}
+2025-12-14 18:51:00.04
+b9c55c6a
+User
+[2025-12-14T10:51:00.049Z] [INFO] [APNs] Device token deactivated: 3018B44144...
+2025-12-14 18:51:00.04
+b9c55c6a
+User
+[2025-12-14T10:51:00.049Z] [WARN] [Admin] No devices found for any ID: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-14 18:51:00.04
+b9c55c6a
+User
+[2025-12-14T10:51:00.049Z] [INFO] [APNs] Batch send complete: 0 successful, 1 failed
+2025-12-14 18:51:00.08
+b9c55c6a
+User
+10:51:00 AM [express] POST /api/admin/test-push 200 in 891ms :: {"devicesReached":0,"error":"No activ…
+2025-12-14 18:51:00.17
+b9c55c6a
+User
+[2025-12-14T10:51:00.177Z] [INFO] [AIUsageTracker] Logging gemini usage: gemini-2.5-flash - 400 tokens ($0.0000)
+2025-12-14 18:51:00.21
+b9c55c6a
+User
+[2025-12-14T10:51:00.214Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1129,"length":55}
+2025-12-14 18:51:00.27
+b9c55c6a
+User
+[2025-12-14T10:51:00.278Z] [INFO] [ReminderDelivery] Found 50 reminders ready for delivery
+2025-12-14 18:51:00.51
+b9c55c6a
+User
+[2025-12-14T10:51:00.514Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-biomarker, using as-is
+2025-12-14 18:51:00.62
+b9c55c6a
+User
+[2025-12-14T10:51:00.620Z] [WARN] [APNs] No active device tokens found for user test-user-biomarker {"userId":"test-user-biomarker","userIdLength":19,"userIdType":"UUID","inactiveTokensForUser":0,"totalTokensInDb":5,"inactiveTokenDetails":[]}
+2025-12-14 18:51:00.62
+b9c55c6a
+User
+[2025-12-14T10:51:00.620Z] [WARN] [ReminderDelivery] No devices reached for user test-user-biomarker {"error":"No active devices"}
+2025-12-14 18:51:00.85
+b9c55c6a
+User
+[2025-12-14T10:51:00.855Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-persist-v3, using as-is
+2025-12-14 18:51:00.96
+b9c55c6a
+User
+[2025-12-14T10:51:00.960Z] [WARN] [APNs] No active device tokens found for user test-persist-v3 {"userId":"test-persist-v3","userIdLength":15,"userIdType":"UUID","inactiveTokensForUser":0,"totalTokensInDb":5,"inactiveTokenDetails":[]}
+2025-12-14 18:51:00.96
+b9c55c6a
+User
+[2025-12-14T10:51:00.960Z] [WARN] [ReminderDelivery] No devices reached for user test-persist-v3 {"error":"No active devices"}
+2025-12-14 18:51:01.19
+b9c55c6a
+User
+[2025-12-14T10:51:01.194Z] [WARN] [ReminderDelivery] No user_profile found for health_id final_success_111, using as-is
+
