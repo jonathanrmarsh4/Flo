@@ -261,11 +261,43 @@ class ApnsService {
         );
 
       if (tokens.length === 0) {
-        logger.warn(`[APNs] No active device tokens found for user ${userId}`);
+        // Enhanced debugging: check if there are ANY tokens for this user (including inactive)
+        const allUserTokens = await db
+          .select({
+            id: deviceTokens.id,
+            isActive: deviceTokens.isActive,
+            tokenPreview: deviceTokens.deviceToken,
+            createdAt: deviceTokens.createdAt,
+          })
+          .from(deviceTokens)
+          .where(eq(deviceTokens.userId, userId));
+        
+        // Also check total tokens in database for debugging
+        const totalTokens = await db
+          .select({ count: deviceTokens.id })
+          .from(deviceTokens);
+        
+        logger.warn(`[APNs] No active device tokens found for user ${userId}`, {
+          userId,
+          userIdLength: userId.length,
+          userIdType: userId.includes('-') ? 'UUID' : 'short',
+          inactiveTokensForUser: allUserTokens.length,
+          totalTokensInDb: totalTokens.length,
+          inactiveTokenDetails: allUserTokens.map(t => ({
+            id: t.id,
+            isActive: t.isActive,
+            tokenPreview: t.tokenPreview?.substring(0, 15) + '...',
+            createdAt: t.createdAt,
+          })),
+        });
         return { success: false, devicesReached: 0, error: 'No active devices' };
       }
 
-      logger.info(`[APNs] Sending notification to ${tokens.length} device(s) for user ${userId}`);
+      logger.info(`[APNs] Sending notification to ${tokens.length} device(s) for user ${userId}`, {
+        userId,
+        tokenCount: tokens.length,
+        tokenPreviews: tokens.map(t => t.deviceToken.substring(0, 15) + '...'),
+      });
 
       // Send to all devices
       const results = await this.sendBatchNotifications(

@@ -4730,7 +4730,15 @@ Important: This is for educational purposes. Include a brief note that users sho
     try {
       const userId = req.user?.claims?.sub;
       
-      logger.info(`[DeviceToken] Registration request - userId: ${userId}, hasBody: ${!!req.body}, token: ${req.body?.deviceToken?.substring(0, 20)}...`);
+      const userIdType = userId?.includes('-') ? 'UUID' : 'short';
+      logger.info(`[DeviceToken] Registration request`, {
+        userId,
+        userIdLength: userId?.length,
+        userIdType,
+        tokenPreview: req.body?.deviceToken?.substring(0, 20) + '...',
+        tokenLength: req.body?.deviceToken?.length,
+        platform: req.body?.platform || 'ios',
+      });
       
       if (!userId) {
         logger.warn(`[DeviceToken] No userId found in request - auth may have failed`);
