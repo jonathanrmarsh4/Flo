@@ -35,9 +35,10 @@ interface WeightTileResponse {
 
 interface BodyCompositionTileProps {
   isDark: boolean;
+  onTalkToFlo?: (context?: string) => void;
 }
 
-export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
+export function BodyCompositionTile({ isDark, onTalkToFlo }: BodyCompositionTileProps) {
   const [showModule, setShowModule] = useState(false);
 
   const { data: tileData, isLoading: tileLoading } = useQuery<WeightTileResponse>({
@@ -263,6 +264,7 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
         <WeightModuleScreen 
           isDark={isDark}
           onClose={() => setShowModule(false)}
+          onTalkToFlo={onTalkToFlo}
         />
       )}
     </>

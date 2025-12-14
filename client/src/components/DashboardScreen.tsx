@@ -366,7 +366,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
         case 'body-composition':
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
-              <BodyCompositionTile isDark={isDark} />
+              <BodyCompositionTile isDark={isDark} onTalkToFlo={onTalkToFlo} />
             </SortableItem>
           );
 
