@@ -4343,6 +4343,90 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Get device tokens for a user (admin debugging)
+  app.get("/api/admin/users/:userId/device-tokens", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get all device tokens for this user
+      const tokens = await db
+        .select()
+        .from(deviceTokens)
+        .where(eq(deviceTokens.userId, userId));
+      
+      // Get user info for context
+      const user = await storage.getUser(userId);
+      
+      logger.info(`[Admin] Device tokens query for user ${userId}: found ${tokens.length} tokens`);
+      
+      res.json({
+        userId,
+        username: user?.username,
+        healthId: user?.healthId,
+        totalTokens: tokens.length,
+        activeTokens: tokens.filter(t => t.isActive).length,
+        inactiveTokens: tokens.filter(t => !t.isActive).length,
+        tokens: tokens.map(t => ({
+          id: t.id,
+          platform: t.platform,
+          isActive: t.isActive,
+          tokenPreview: t.deviceToken.substring(0, 20) + '...',
+          tokenLength: t.deviceToken.length,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+          lastUsedAt: t.lastUsedAt,
+        })),
+      });
+    } catch (error) {
+      logger.error('Error fetching device tokens:', error);
+      res.status(500).json({ error: "Failed to fetch device tokens" });
+    }
+  });
+
+  // Get all device tokens in the system (admin debugging)
+  app.get("/api/admin/device-tokens", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      // Get all device tokens
+      const allTokens = await db
+        .select({
+          id: deviceTokens.id,
+          userId: deviceTokens.userId,
+          platform: deviceTokens.platform,
+          isActive: deviceTokens.isActive,
+          deviceToken: deviceTokens.deviceToken,
+          createdAt: deviceTokens.createdAt,
+          updatedAt: deviceTokens.updatedAt,
+        })
+        .from(deviceTokens)
+        .orderBy(deviceTokens.updatedAt);
+      
+      // Get unique user count
+      const uniqueUsers = new Set(allTokens.map(t => t.userId)).size;
+      
+      logger.info(`[Admin] All device tokens query: found ${allTokens.length} tokens from ${uniqueUsers} users`);
+      
+      res.json({
+        totalTokens: allTokens.length,
+        activeTokens: allTokens.filter(t => t.isActive).length,
+        inactiveTokens: allTokens.filter(t => !t.isActive).length,
+        uniqueUsers,
+        tokens: allTokens.map(t => ({
+          id: t.id,
+          userId: t.userId,
+          platform: t.platform,
+          isActive: t.isActive,
+          tokenPreview: t.deviceToken.substring(0, 20) + '...',
+          tokenLength: t.deviceToken.length,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+        })),
+      });
+    } catch (error) {
+      logger.error('Error fetching all device tokens:', error);
+      res.status(500).json({ error: "Failed to fetch device tokens" });
+    }
+  });
+
   // Get detailed user profile metrics for admin
   app.get("/api/admin/users/:userId/profile-metrics", isAuthenticated, requireAdmin, async (req, res) => {
     try {
