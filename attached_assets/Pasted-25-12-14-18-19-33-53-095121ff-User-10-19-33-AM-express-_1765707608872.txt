@@ -1,0 +1,41 @@
+25-12-14 18:19:33.53
+095121ff
+User
+10:19:33 AM [express] POST /api/admin/apns-config 200 in 227ms :: {"success":true,"message":"APNs con…
+2025-12-14 18:19:33.94
+095121ff
+User
+10:19:33 AM [express] GET /api/admin/apns-config 200 in 148ms :: {"hasActiveConfig":false,"configs":[…
+2025-12-14 18:19:38.18
+095121ff
+User
+[2025-12-14T10:19:38.188Z] [INFO] [Admin] Test push - trying IDs: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-14 18:19:38.30
+095121ff
+User
+[2025-12-14T10:19:38.306Z] [WARN] [APNs] No active device tokens found for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"userId":"095f8978-a3ad-4fe1-af39-1bba9b6e8d78","userIdLength":36,"userIdType":"UUID","inactiveTokensForUser":4,"totalTokensInDb":5,"inactiveTokenDetails":[{"id":"ff0415f0-cf50-4c76-ac8d-12674a421f45","isActive":false,"tokenPreview":"61D7B036F9ABE41...","createdAt":"2025-12-10T13:46:42.552Z"},{"id":"e7ff9048-2b69-49f8-ab8b-1a7481b55603","isActive":false,"tokenPreview":"FE02E4C5AD4D757...","createdAt":"2025-12-09T03:50:17.313Z"},{"id":"430029cb-6e7b-4dd6-8bba-5d8b147e0f99","isActive":false,"tokenPreview":"0F03C7EEA7A3A12...","createdAt":"2025-12-09T11:25:07.133Z"},{"id":"b57ab61a-cef0-4ecc-81bb-d872b6577fc0","isActive":false,"tokenPreview":"3018B4414407F22...","createdAt":"2025-12-14T09:20:07.277Z"}]}
+
+2025-12-14 18:19:38.30
+095121ff
+User
+[2025-12-14T10:19:38.306Z] [WARN] [Admin] No devices found for any ID: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-14 18:19:38.34
+095121ff
+User
+10:19:38 AM [express] POST /api/admin/test-push 200 in 787ms :: {"devicesReached":0,"error":"No activ…
+2025-12-14 18:19:41.45
+095121ff
+User
+10:19:41 AM [express] GET /api/admin/audit-logs 304 in 109ms :: [{"id":"0e23cf82-177b-4abe-b4a0-5c929…
+2025-12-14 18:19:41.59
+095121ff
+User
+10:19:41 AM [express] GET /api/admin/overview 304 in 109ms :: {"totalUsers":7,"activeUsers":7,"totalR…
+2025-12-14 18:19:41.93
+095121ff
+User
+10:19:41 AM [express] GET /api/admin/ml-usage/metrics 304 in 345ms :: {"metrics":{"totalWindowsToday"…
+2025-12-14 18:19:44.16
+095121ff
+User
+10:19:44 AM [express] GET /api/admin/system-health 200 in 1351ms :: {"service

@@ -4427,6 +4427,29 @@ Important: This is for educational purposes. Include a brief note that users sho
     }
   });
 
+  // Activate a device token (admin debugging)
+  app.post("/api/admin/device-tokens/:tokenId/activate", isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { tokenId } = req.params;
+      
+      const [updated] = await db
+        .update(deviceTokens)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(eq(deviceTokens.id, tokenId))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Token not found" });
+      }
+      
+      logger.info(`[Admin] Activated device token ${tokenId} for user ${updated.userId}`);
+      res.json({ success: true, token: { id: updated.id, userId: updated.userId, isActive: updated.isActive } });
+    } catch (error) {
+      logger.error('Error activating device token:', error);
+      res.status(500).json({ error: "Failed to activate device token" });
+    }
+  });
+
   // Get detailed user profile metrics for admin
   app.get("/api/admin/users/:userId/profile-metrics", isAuthenticated, requireAdmin, async (req, res) => {
     try {
@@ -4802,10 +4825,13 @@ Important: This is for educational purposes. Include a brief note that users sho
       
       logger.info(`[DeviceToken] Deactivated ${deactivatedCount.rowCount || 0} old tokens for user ${userId}`);
 
-      // Insert new token
+      // Insert new token - explicitly set isActive: true to ensure it's active
       const [token] = await db
         .insert(deviceTokens)
-        .values(validation.data)
+        .values({
+          ...validation.data,
+          isActive: true,
+        })
         .returning();
 
       logger.info(`[DeviceToken] Registered NEW device token for user ${userId} - tokenId: ${token?.id}`);
