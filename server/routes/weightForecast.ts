@@ -313,6 +313,7 @@ router.get('/tile', isAuthenticated, async (req: any, res) => {
 router.get('/overview', isAuthenticated, async (req: any, res) => {
   try {
     const userId = req.user.claims.sub;
+    logger.info(`[WeightForecast] Overview request for user ${userId}`);
     
     // Trigger ClickHouse backfill if needed (non-blocking)
     triggerBackfillIfNeeded(userId);
