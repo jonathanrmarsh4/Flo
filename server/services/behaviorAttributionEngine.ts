@@ -470,63 +470,90 @@ export class BehaviorAttributionEngine {
         }
       }
 
-      // 4. Environmental factors from environmental_daily
-      const { data: environment } = await supabase
-        .from('environmental_daily')
+      // 4. Environmental factors from weather_daily_cache (contains OpenWeather data)
+      const { data: weatherCache } = await supabase
+        .from('weather_daily_cache')
         .select('*')
         .eq('health_id', healthId)
-        .eq('local_date', localDate)
+        .eq('date', localDate)
         .single();
 
-      if (environment) {
-        if (environment.aqi != null) {
+      if (weatherCache) {
+        const weatherData = weatherCache.weather_data as Record<string, any> | null;
+        const aqData = weatherCache.air_quality_data as Record<string, any> | null;
+        const aqComponents = aqData?.components || {};
+        
+        // AQI from air quality data
+        const aqi = aqData?.aqi;
+        if (aqi != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
             factor_key: 'aqi',
-            numeric_value: environment.aqi,
+            numeric_value: aqi,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
             baseline_value: null,
-            is_notable: environment.aqi > 100,
+            is_notable: aqi >= 3, // Moderate or worse on OpenWeather's 1-5 scale
+            source: 'openweather',
+          });
+        }
+        
+        // PM2.5 - Fine particulate matter (key health indicator)
+        const pm25 = aqComponents.pm2_5 ?? aqComponents.pm25;
+        if (pm25 != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
+            factor_key: 'pm25',
+            numeric_value: pm25,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: pm25 > 35, // Unhealthy for sensitive groups
             source: 'openweather',
           });
         }
 
-        if (environment.temperature_c != null) {
+        // Temperature from weather data
+        const temperature = weatherData?.temperature;
+        if (temperature != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
             factor_key: 'temperature_c',
-            numeric_value: environment.temperature_c,
+            numeric_value: temperature,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
             baseline_value: null,
-            is_notable: false,
+            is_notable: temperature > 30 || temperature < 5,
             source: 'openweather',
           });
         }
 
-        if (environment.humidity_pct != null) {
+        // Humidity from weather data
+        const humidity = weatherData?.humidity;
+        if (humidity != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
             factor_key: 'humidity_pct',
-            numeric_value: environment.humidity_pct,
+            numeric_value: humidity,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
             baseline_value: null,
-            is_notable: false,
+            is_notable: humidity > 80,
             source: 'openweather',
           });
         }
 
-        // Additional environmental factors
-        if (environment.pressure_hpa != null) {
+        // Pressure from weather data
+        const pressure = weatherData?.pressure;
+        if (pressure != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
             factor_key: 'pressure_hpa',
-            numeric_value: environment.pressure_hpa,
+            numeric_value: pressure,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
@@ -536,39 +563,29 @@ export class BehaviorAttributionEngine {
           });
         }
 
-        if (environment.uv_index != null) {
-          factors.push({
-            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
-            factor_key: 'uv_index',
-            numeric_value: environment.uv_index,
-            string_value: null,
-            time_value: null,
-            deviation_from_baseline: null,
-            baseline_value: null,
-            is_notable: environment.uv_index >= 8,
-            source: 'openweather',
-          });
-        }
-
-        if (environment.cloud_cover_pct != null) {
-          factors.push({
-            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
-            factor_key: 'cloud_cover_pct',
-            numeric_value: environment.cloud_cover_pct,
-            string_value: null,
-            time_value: null,
-            deviation_from_baseline: null,
-            baseline_value: null,
-            is_notable: false,
-            source: 'openweather',
-          });
-        }
-
-        if (environment.wind_speed_mps != null) {
+        // Wind speed from weather data
+        const windSpeed = weatherData?.windSpeed;
+        if (windSpeed != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
             factor_key: 'wind_speed_mps',
-            numeric_value: environment.wind_speed_mps,
+            numeric_value: windSpeed,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'openweather',
+          });
+        }
+        
+        // Cloud cover from weather data
+        const clouds = weatherData?.clouds;
+        if (clouds != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.ENVIRONMENT,
+            factor_key: 'cloud_cover_pct',
+            numeric_value: clouds,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
@@ -579,11 +596,11 @@ export class BehaviorAttributionEngine {
         }
 
         // Location tracking for travel detection
-        if (environment.latitude != null && environment.longitude != null) {
+        if (weatherCache.latitude != null && weatherCache.longitude != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.LOCATION,
             factor_key: 'latitude',
-            numeric_value: environment.latitude,
+            numeric_value: weatherCache.latitude,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
@@ -594,7 +611,7 @@ export class BehaviorAttributionEngine {
           factors.push({
             factor_category: FACTOR_CATEGORIES.LOCATION,
             factor_key: 'longitude',
-            numeric_value: environment.longitude,
+            numeric_value: weatherCache.longitude,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
@@ -604,31 +621,19 @@ export class BehaviorAttributionEngine {
           });
         }
 
-        if (environment.city_name != null) {
+        // City name from weather data
+        const cityName = weatherData?.cityName;
+        if (cityName != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.LOCATION,
             factor_key: 'city',
             numeric_value: null,
-            string_value: environment.city_name,
+            string_value: cityName,
             time_value: null,
             deviation_from_baseline: null,
             baseline_value: null,
             is_notable: false,
             source: 'openweather',
-          });
-        }
-
-        if (environment.timezone != null) {
-          factors.push({
-            factor_category: FACTOR_CATEGORIES.LOCATION,
-            factor_key: 'timezone',
-            numeric_value: null,
-            string_value: environment.timezone,
-            time_value: null,
-            deviation_from_baseline: null,
-            baseline_value: null,
-            is_notable: false,
-            source: 'system',
           });
         }
       }
@@ -1056,7 +1061,8 @@ export class BehaviorAttributionEngine {
       'cryotherapy': 'cryotherapy',
       'contrast_therapy': 'contrast therapy',
       // Environment
-      'aqi': 'air quality (AQI)',
+      'aqi': 'air quality index',
+      'pm25': 'fine particulate matter (PM2.5)',
       'temperature_c': 'temperature',
       'humidity_pct': 'humidity',
       'pressure_hpa': 'barometric pressure',

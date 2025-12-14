@@ -9233,40 +9233,40 @@ Important: This is for educational purposes. Include a brief note that users sho
         });
       }
       
-      // Step 2: Check environmental_data (backfill data) for recent days
+      // Step 2: Check weather_daily_cache for recent days (up to 3 days back)
       const healthId = await getHealthId(userId);
       if (healthId) {
-        // Look for data from today or up to 3 days ago (weather doesn't change dramatically)
-        const { data: envData } = await supabase
-          .from('environmental_data')
+        const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const { data: recentCache } = await supabase
+          .from('weather_daily_cache')
           .select('*')
           .eq('health_id', healthId)
-          .gte('local_date', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-          .order('local_date', { ascending: false })
+          .gte('date', threeDaysAgo)
+          .order('date', { ascending: false })
           .limit(1)
           .maybeSingle();
         
-        if (envData) {
-          logger.info(`[Environmental] Using backfill data from ${envData.local_date} for user ${userId}`);
+        if (recentCache) {
+          logger.info(`[Environmental] Using recent cache from ${recentCache.date} for user ${userId}`);
+          const aqData = recentCache.air_quality_data as any;
+          const weatherData = recentCache.weather_data as any;
+          const flattenedAirQuality = aqData ? {
+            aqi: aqData.aqi,
+            aqiLabel: aqData.aqiLabel,
+            pm25: aqData.components?.pm2_5 ?? aqData.pm25 ?? 0,
+            pm10: aqData.components?.pm10 ?? aqData.pm10 ?? 0,
+            o3: aqData.components?.o3 ?? aqData.o3 ?? 0,
+            no2: aqData.components?.no2 ?? aqData.no2 ?? 0,
+            co: aqData.components?.co ?? aqData.co ?? 0,
+            so2: aqData.components?.so2 ?? aqData.so2 ?? 0,
+          } : null;
           return res.json({
-            date: envData.local_date,
-            weather: {
-              temperature: envData.temperature_c,
-              humidity: envData.humidity_pct,
-              description: envData.weather_condition,
-            },
-            airQuality: {
-              aqi: envData.avg_aqi || envData.aqi,
-              pm25: envData.avg_pm25 || 0,
-              pm10: envData.avg_pm10 || 0,
-              o3: envData.avg_o3 || 0,
-              no2: envData.avg_no2 || 0,
-              co: envData.avg_co || 0,
-              so2: envData.avg_so2 || 0,
-            },
-            location: { lat: envData.latitude, lon: envData.longitude },
-            fetchedAt: envData.created_at || envData.local_date,
-            isBackfillData: true,
+            date: recentCache.date,
+            weather: weatherData,
+            airQuality: flattenedAirQuality,
+            location: { lat: recentCache.latitude, lon: recentCache.longitude },
+            fetchedAt: recentCache.fetched_at,
+            isRecentCache: true,
           });
         }
       }
