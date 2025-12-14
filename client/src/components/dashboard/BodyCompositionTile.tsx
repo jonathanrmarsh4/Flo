@@ -1,9 +1,7 @@
 import { Scale, ChevronRight, TrendingDown, TrendingUp, Minus, Info } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Badge } from '@/components/ui/badge';
 import { WeightModuleScreen } from '@/components/weight/WeightModuleScreen';
-import { AreaChart, Area, ResponsiveContainer, YAxis } from 'recharts';
 
 interface WeightTileResponse {
   user_id: string;
@@ -35,15 +33,6 @@ interface WeightTileResponse {
   };
 }
 
-interface WeightOverviewResponse {
-  summary: WeightTileResponse;
-  series: {
-    actual_weight_daily: Array<{ local_date_key: string; value_kg: number | null }>;
-    trend_weight_daily: Array<{ local_date_key: string; value_kg: number | null }>;
-    forecast_band: Array<{ local_date_key: string; low_kg: number | null; mid_kg: number | null; high_kg: number | null }>;
-  };
-}
-
 interface BodyCompositionTileProps {
   isDark: boolean;
 }
@@ -57,48 +46,6 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
     gcTime: 15 * 60 * 1000,
     retry: 1,
   });
-
-  const { data: overviewData } = useQuery<WeightOverviewResponse>({
-    queryKey: ['/v1/weight/overview?range=30d'],
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    retry: 1,
-    enabled: !!tileData,
-  });
-
-  const miniChartData = useMemo(() => {
-    if (!overviewData?.series) return [];
-    
-    const dateMap = new Map<string, { date: string; actual: number | null; forecastLow: number | null; forecastHigh: number | null }>();
-    
-    overviewData.series.actual_weight_daily.forEach(d => {
-      dateMap.set(d.local_date_key, {
-        date: d.local_date_key,
-        actual: d.value_kg,
-        forecastLow: null,
-        forecastHigh: null,
-      });
-    });
-
-    overviewData.series.forecast_band.forEach(d => {
-      const existing = dateMap.get(d.local_date_key);
-      if (existing) {
-        existing.forecastLow = d.low_kg;
-        existing.forecastHigh = d.high_kg;
-      } else {
-        dateMap.set(d.local_date_key, {
-          date: d.local_date_key,
-          actual: null,
-          forecastLow: d.low_kg,
-          forecastHigh: d.high_kg,
-        });
-      }
-    });
-
-    return Array.from(dateMap.values())
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(-30);
-  }, [overviewData]);
 
   if (tileLoading) {
     return (
@@ -175,15 +122,6 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
       default: return 'Low confidence';
     }
   };
-
-  const chartYDomain = useMemo(() => {
-    if (miniChartData.length === 0) return [0, 100];
-    const values = miniChartData.flatMap(d => [d.actual, d.forecastLow, d.forecastHigh].filter(v => v !== null)) as number[];
-    if (values.length === 0) return [0, 100];
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    return [min - 2, max + 2];
-  }, [miniChartData]);
 
   const forecastWeeks = tileData.forecast.horizon_days ? Math.round(tileData.forecast.horizon_days / 7) : null;
 
@@ -299,50 +237,6 @@ export function BodyCompositionTile({ isDark }: BodyCompositionTileProps) {
             <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-forecast-range">
               {tileData.forecast.weight_low_kg_at_horizon.toFixed(1)}–{tileData.forecast.weight_high_kg_at_horizon.toFixed(1)} kg
             </span>
-          </div>
-        )}
-
-        {miniChartData.length > 0 && (
-          <div className="h-20 mb-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={miniChartData}>
-                <defs>
-                  <linearGradient id="miniWeightGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="miniForecastGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <YAxis domain={chartYDomain} hide />
-                <Area
-                  type="monotone"
-                  dataKey="actual"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  fill="url(#miniWeightGradient)"
-                  connectNulls
-                />
-                <Area
-                  type="monotone"
-                  dataKey="forecastLow"
-                  stroke="none"
-                  fill="transparent"
-                  stackId="forecast"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="forecastHigh"
-                  stroke={isDark ? '#64748b' : '#94a3b8'}
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
-                  fill="url(#miniForecastGradient)"
-                  connectNulls
-                />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
         )}
 
