@@ -18,6 +18,7 @@ import { createLogger } from '../utils/logger';
 import { getClickHouseClient, isClickHouseEnabled } from '../services/clickhouseService';
 import { queueForecastRecompute } from '../services/weightForecast/clickhouseSchema';
 import { triggerBackfillIfNeeded } from '../services/clickhouseBackfillService';
+import { processUserForecastManual } from '../services/weightForecast/forecastWorker';
 import { v4 as uuidv4 } from 'uuid';
 import * as supabaseHealthStorage from '../services/supabaseHealthStorage';
 
@@ -750,6 +751,95 @@ router.post('/forecast/recompute', isAuthenticated, requireAdmin, async (req: an
   } catch (error) {
     logger.error('[WeightForecast] Error queueing recompute:', error);
     res.status(500).json({ error: 'Failed to queue recompute' });
+  }
+});
+
+const executeSchema = z.object({
+  user_id: z.string().regex(/^[a-zA-Z0-9_-]+$/).max(100),
+});
+
+router.post('/forecast/execute', isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const parsed = executeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid user_id format', details: parsed.error.errors });
+    }
+    
+    const { user_id } = parsed.data;
+    
+    if (!isClickHouseEnabled()) {
+      return res.status(503).json({ error: 'Weight forecasting not available' });
+    }
+    
+    logger.info(`[WeightForecast] Admin direct execute for user ${user_id}`);
+    const success = await processUserForecastManual(user_id);
+    
+    if (success) {
+      logger.info(`[WeightForecast] Successfully generated forecast for user ${user_id}`);
+      res.json({ ok: true, message: 'Forecast generated successfully' });
+    } else {
+      logger.warn(`[WeightForecast] Failed to generate forecast for user ${user_id}`);
+      res.status(500).json({ ok: false, error: 'Forecast generation failed - check server logs' });
+    }
+  } catch (error) {
+    logger.error('[WeightForecast] Error executing forecast:', error);
+    res.status(500).json({ error: 'Failed to execute forecast', details: String(error) });
+  }
+});
+
+const userIdSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/).max(100);
+
+router.get('/debug/tables', isAuthenticated, requireAdmin, async (req: any, res) => {
+  try {
+    const userIdRaw = req.query.user_id as string | undefined;
+    let userId: string | null = null;
+    
+    if (userIdRaw) {
+      const parsed = userIdSchema.safeParse(userIdRaw);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid user_id format' });
+      }
+      userId = parsed.data;
+    }
+    
+    if (!isClickHouseEnabled()) {
+      return res.status(503).json({ error: 'ClickHouse not available' });
+    }
+    
+    const client = getClickHouseClient();
+    if (!client) {
+      return res.status(503).json({ error: 'ClickHouse client not available' });
+    }
+    
+    const queries = userId ? [
+      { name: 'daily_features', query: 'SELECT count(*) as cnt FROM flo_ml.daily_features WHERE user_id = {userId:String}' },
+      { name: 'forecast_summary', query: 'SELECT count(*) as cnt FROM flo_ml.forecast_summary FINAL WHERE user_id = {userId:String}' },
+      { name: 'forecast_drivers', query: 'SELECT count(*) as cnt FROM flo_ml.forecast_drivers WHERE user_id = {userId:String}' },
+      { name: 'simulator_results', query: 'SELECT count(*) as cnt FROM flo_ml.simulator_results WHERE user_id = {userId:String}' },
+      { name: 'recompute_queue', query: 'SELECT count(*) as cnt FROM flo_ml.recompute_queue WHERE user_id = {userId:String}' },
+    ] : [
+      { name: 'daily_features', query: 'SELECT count(*) as cnt FROM flo_ml.daily_features' },
+      { name: 'forecast_summary', query: 'SELECT count(*) as cnt FROM flo_ml.forecast_summary FINAL' },
+      { name: 'forecast_drivers', query: 'SELECT count(*) as cnt FROM flo_ml.forecast_drivers' },
+      { name: 'simulator_results', query: 'SELECT count(*) as cnt FROM flo_ml.simulator_results' },
+      { name: 'recompute_queue', query: 'SELECT count(*) as cnt FROM flo_ml.recompute_queue' },
+    ];
+    
+    const results: Record<string, number> = {};
+    for (const q of queries) {
+      const result = await client.query({ 
+        query: q.query, 
+        query_params: userId ? { userId } : {},
+        format: 'JSONEachRow' 
+      });
+      const rows = await result.json() as { cnt: string }[];
+      results[q.name] = parseInt(rows[0]?.cnt || '0', 10);
+    }
+    
+    res.json({ user_id: userId || 'all', table_counts: results });
+  } catch (error) {
+    logger.error('[WeightForecast] Error querying debug tables:', error);
+    res.status(500).json({ error: 'Failed to query tables', details: String(error) });
   }
 });
 

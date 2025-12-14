@@ -459,7 +459,7 @@ async function createLatestWeightView(client: any): Promise<void> {
       SELECT 
         user_id,
         argMax(weight_kg, timestamp_utc) AS weight_kg,
-        max(timestamp_utc) AS timestamp_utc
+        argMax(timestamp_utc, timestamp_utc) AS timestamp_utc
       FROM flo_ml.raw_weight_events
       GROUP BY user_id
     `,
