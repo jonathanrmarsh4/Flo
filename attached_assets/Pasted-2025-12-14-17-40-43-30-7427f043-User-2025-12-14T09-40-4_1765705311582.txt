@@ -1,0 +1,81 @@
+2025-12-14 17:40:43.30
+7427f043
+User
+[2025-12-14T09:40:43.303Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1163,"length":28}
+2025-12-14 17:40:45.60
+7427f043
+User
+[2025-12-14T09:40:45.605Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 1/1 forecasts generated
+2025-12-14 17:40:45.60
+7427f043
+User
+[2025-12-14T09:40:45.604Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 17:40:51.38
+7427f043
+User
+[2025-12-14T09:40:51.387Z] [INFO] [ForecastWorker] [ForecastWorker] Processing 1 users from 1 queue items
+2025-12-14 17:40:53.17
+7427f043
+User
+[2025-12-14T09:40:53.177Z] [INFO] [AIUsageTracker] Logging gemini usage: gemini-2.5-flash - 400 tokens ($0.0000)
+2025-12-14 17:40:53.21
+7427f043
+User
+[2025-12-14T09:40:53.215Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1096,"length":41}
+2025-12-14 17:40:55.50
+7427f043
+User
+[2025-12-14T09:40:55.500Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 17:40:55.50
+7427f043
+User
+[2025-12-14T09:40:55.500Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 1/1 forecasts generated
+2025-12-14 17:40:59.30
+7427f043
+User
+[2025-12-14T09:40:59.301Z] [INFO] [Admin] Test push - trying IDs: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-14 17:40:59.33
+7427f043
+User
+[2025-12-14T09:40:59.339Z] [INFO] [APNs] Sending notification to device: 61D7B036F9...
+2025-12-14 17:40:59.33
+7427f043
+User
+[2025-12-14T09:40:59.338Z] [INFO] [APNs] Sending notification to 1 device(s) for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-14 17:40:59.50
+7427f043
+User
+[2025-12-14T09:40:59.504Z] [INFO] [APNs] Notification sent successfully
+2025-12-14 17:40:59.50
+7427f043
+User
+[2025-12-14T09:40:59.504Z] [INFO] [Admin] Test push notification sent via ID 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: 1 devices reached
+2025-12-14 17:40:59.50
+7427f043
+User
+[2025-12-14T09:40:59.504Z] [INFO] [APNs] Batch send complete: 1 successful, 0 failed
+2025-12-14 17:40:59.54
+7427f043
+User
+9:40:59 AM [express] POST /api/admin/test-push 200 in 1110ms :: {"success":true,"devicesReached":1,"…
+2025-12-14 17:41:00.06
+7427f043
+User
+9:41:00 AM [express] GET /api/admin/system-health 200 in 1521ms :: {"services":[{"id":"postgresql","…
+2025-12-14 17:41:00.27
+7427f043
+User
+[2025-12-14T09:41:00.272Z] [INFO] [ReminderDelivery] Found 50 reminders ready for delivery
+2025-12-14 17:41:00.51
+7427f043
+User
+[2025-12-14T09:41:00.512Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-biomarker, using as-is
+2025-12-14 17:41:00.66
+7427f043
+User
+[2025-12-14T09:41:00.660Z] [WARN] [APNs] No active device tokens found for user test-user-biomarker
+2025-12-14 17:41:00.66
+7427f043
+User
+[2025-12-14T09:41:00.660Z] [WARN] [ReminderDelivery] No devices reached for user test-user-biomarker {"error":"No active devices"}
+
