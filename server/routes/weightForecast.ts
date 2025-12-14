@@ -991,6 +991,269 @@ router.post('/forecast/execute', isAuthenticated, requireAdmin, async (req: any,
 
 const userIdSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/).max(100);
 
+/**
+ * GET /v1/weight/goal-narrative
+ * Returns an AI-generated inspirational narrative about the user's weight goal.
+ * This is cached and updated with each forecast recompute.
+ */
+router.get('/goal-narrative', isAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.user.claims.sub;
+    
+    if (!isClickHouseEnabled()) {
+      return res.json({ narrative: null, generated_at: null });
+    }
+    
+    const client = getClickHouseClient();
+    if (!client) {
+      return res.json({ narrative: null, generated_at: null });
+    }
+    
+    const result = await client.query({
+      query: `
+        SELECT 
+          goal_narrative,
+          generated_at_utc
+        FROM flo_ml.forecast_summary FINAL
+        WHERE user_id = {userId:String}
+        ORDER BY generated_at_utc DESC
+        LIMIT 1
+      `,
+      query_params: { userId },
+      format: 'JSONEachRow',
+    });
+    
+    const rows = await result.json() as Array<{ goal_narrative: string | null; generated_at_utc: string }>;
+    
+    if (rows.length === 0 || !rows[0].goal_narrative) {
+      return res.json({ narrative: null, generated_at: null });
+    }
+    
+    res.json({
+      narrative: rows[0].goal_narrative,
+      generated_at: rows[0].generated_at_utc,
+    });
+  } catch (error) {
+    logger.error('[WeightForecast] Error fetching goal narrative:', error);
+    res.status(500).json({ error: 'Failed to fetch goal narrative' });
+  }
+});
+
+/**
+ * POST /v1/weight/goal-why
+ * Generates an on-demand full inspirational AI review of the user's current position.
+ * This is more detailed than the cached narrative and always fresh.
+ */
+router.post('/goal-why', isAuthenticated, async (req: any, res) => {
+  try {
+    const userId = req.user.claims.sub;
+    
+    const { getGeminiClient } = await import('../services/geminiChatClient');
+    const geminiClient = getGeminiClient();
+    
+    if (!geminiClient) {
+      return res.status(503).json({ error: 'AI service not available' });
+    }
+    
+    // Fetch user data from ClickHouse
+    let userData: {
+      current_weight_kg: number | null;
+      goal_type: string | null;
+      goal_target_weight_kg: number | null;
+      goal_target_date_local: string | null;
+      progress_percent: number | null;
+      eta_weeks: number | null;
+      daily_advice: string | null;
+      status_chip: string | null;
+      confidence_level: string | null;
+      forecast_weight_low_kg_at_horizon: number | null;
+      forecast_weight_high_kg_at_horizon: number | null;
+    } | null = null;
+    
+    let drivers: Array<{ title: string; subtitle: string | null }> = [];
+    let recentTrend: { direction: string; rate_kg_per_week: number } | null = null;
+    
+    if (isClickHouseEnabled()) {
+      const client = getClickHouseClient();
+      if (client) {
+        // Get forecast summary
+        const summaryResult = await client.query({
+          query: `
+            SELECT 
+              current_weight_kg,
+              goal_target_weight_kg,
+              goal_target_date_local,
+              goal_type,
+              progress_percent,
+              eta_weeks,
+              daily_advice,
+              status_chip,
+              confidence_level,
+              forecast_weight_low_kg_at_horizon,
+              forecast_weight_high_kg_at_horizon
+            FROM flo_ml.forecast_summary FINAL
+            WHERE user_id = {userId:String}
+            ORDER BY generated_at_utc DESC
+            LIMIT 1
+          `,
+          query_params: { userId },
+          format: 'JSONEachRow',
+        });
+        const summaryRows = await summaryResult.json() as typeof userData[];
+        if (summaryRows.length > 0) {
+          userData = summaryRows[0];
+        }
+        
+        // Get drivers
+        const driversResult = await client.query({
+          query: `
+            SELECT title, subtitle
+            FROM flo_ml.forecast_drivers
+            WHERE user_id = {userId:String}
+            ORDER BY rank ASC
+            LIMIT 5
+          `,
+          query_params: { userId },
+          format: 'JSONEachRow',
+        });
+        drivers = await driversResult.json() as typeof drivers;
+        
+        // Get recent trend from daily features
+        const trendResult = await client.query({
+          query: `
+            SELECT 
+              weight_kg
+            FROM flo_ml.daily_features
+            WHERE user_id = {userId:String} AND weight_kg IS NOT NULL
+            ORDER BY local_date_key DESC
+            LIMIT 14
+          `,
+          query_params: { userId },
+          format: 'JSONEachRow',
+        });
+        const trendRows = await trendResult.json() as Array<{ weight_kg: number }>;
+        if (trendRows.length >= 2) {
+          const latest = trendRows[0].weight_kg;
+          const oldest = trendRows[trendRows.length - 1].weight_kg;
+          const days = trendRows.length;
+          const slopePerDay = (latest - oldest) / days;
+          const ratePerWeek = slopePerDay * 7;
+          recentTrend = {
+            direction: slopePerDay > 0.01 ? 'gaining' : slopePerDay < -0.01 ? 'losing' : 'stable',
+            rate_kg_per_week: Math.abs(ratePerWeek),
+          };
+        }
+      }
+    }
+    
+    if (!userData || !userData.goal_target_weight_kg) {
+      return res.status(400).json({ error: 'No weight goal configured' });
+    }
+    
+    const goalType = userData.goal_type || 'MAINTAIN';
+    const currentWeight = userData.current_weight_kg ?? 0;
+    const targetWeight = userData.goal_target_weight_kg;
+    const remaining = Math.abs(currentWeight - targetWeight);
+    const progressPct = userData.progress_percent ?? 0;
+    const etaWeeks = userData.eta_weeks;
+    const statusChip = userData.status_chip || 'UNKNOWN';
+    
+    const driversList = drivers.map(d => `- ${d.title}${d.subtitle ? `: ${d.subtitle}` : ''}`).join('\n');
+    
+    const systemPrompt = `You are Flō, an elite longevity coach and analytical health scientist. The user has clicked a "Why" button to understand deeply why they should stay on track with their weight goal.
+
+Your mission is to deliver a powerful, data-driven inspirational message that:
+1. Acknowledges their current position with SPECIFIC numbers from their data
+2. Explains the science behind their progress (or lack thereof)
+3. Connects their daily behaviors to their goal outcome
+4. Projects what success looks like if they continue/improve
+5. Ends with a motivating call to action
+
+Style:
+- Be analytical first, inspirational second
+- Use specific numbers and percentages
+- Reference their actual metrics
+- Be encouraging but honest about challenges
+- Write 4-6 sentences, max 200 words
+- Don't use bullet points - write flowing prose
+
+For ${goalType} goals:
+${goalType === 'LOSE' ? '- Focus on sustainable fat loss, preserving muscle, metabolic health benefits' : ''}
+${goalType === 'GAIN' ? '- Focus on lean mass gains, strength improvements, body composition optimization' : ''}
+${goalType === 'MAINTAIN' ? '- Focus on consistency, metabolic stability, long-term health span' : ''}`;
+
+    const userPrompt = `User's Current Data:
+- Goal: ${goalType} weight to ${targetWeight} kg
+- Current weight: ${currentWeight.toFixed(1)} kg
+- Remaining: ${remaining.toFixed(1)} kg to goal
+- Progress: ${progressPct.toFixed(0)}% complete
+- Status: ${statusChip.replace('_', ' ')}
+${recentTrend ? `- Recent trend: ${recentTrend.direction} at ${recentTrend.rate_kg_per_week.toFixed(2)} kg/week` : ''}
+${etaWeeks ? `- Estimated time to goal: ~${etaWeeks} weeks` : ''}
+${userData.goal_target_date_local ? `- Target date: ${userData.goal_target_date_local}` : ''}
+
+Key Drivers Affecting Progress:
+${driversList || '- No specific drivers identified yet'}
+
+Generate a deeply personalized "Why" message that helps them understand their position and motivates them to continue.`;
+
+    const startTime = Date.now();
+    const result = await geminiClient.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.7,
+        maxOutputTokens: 400,
+      },
+    });
+    
+    const latencyMs = Date.now() - startTime;
+    const whyText = result.text?.trim() || null;
+    
+    if (!whyText) {
+      return res.status(500).json({ error: 'Failed to generate response' });
+    }
+    
+    // Track usage
+    const { trackGeminiUsage } = await import('../services/aiUsageTracker');
+    const usage = result.usageMetadata;
+    if (usage) {
+      await trackGeminiUsage(
+        'weight_goal_why',
+        'gemini-2.5-flash',
+        {
+          promptTokens: usage.promptTokenCount || 0,
+          completionTokens: usage.candidatesTokenCount || 0,
+          totalTokens: usage.totalTokenCount || 0,
+        },
+        {
+          userId,
+          latencyMs,
+          status: 'success',
+          metadata: { goalType },
+        }
+      ).catch(() => {});
+    }
+    
+    logger.info(`[WeightForecast] Generated goal-why for user ${userId}`, { latencyMs, length: whyText.length });
+    
+    res.json({
+      why: whyText,
+      generated_at: new Date().toISOString(),
+      context: {
+        current_weight_kg: currentWeight,
+        target_weight_kg: targetWeight,
+        progress_percent: progressPct,
+        status: statusChip,
+      },
+    });
+  } catch (error) {
+    logger.error('[WeightForecast] Error generating goal-why:', error);
+    res.status(500).json({ error: 'Failed to generate response' });
+  }
+});
+
 router.get('/debug/tables', isAuthenticated, requireAdmin, async (req: any, res) => {
   try {
     const userIdRaw = req.query.user_id as string | undefined;
