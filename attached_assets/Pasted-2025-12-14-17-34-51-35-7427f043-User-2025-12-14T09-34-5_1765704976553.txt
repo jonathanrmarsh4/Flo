@@ -1,0 +1,68 @@
+2025-12-14 17:34:51.35
+7427f043
+User
+[2025-12-14T09:34:51.356Z] [INFO] [ForecastWorker] [ForecastWorker] Processing 1 users from 1 queue items
+2025-12-14 17:34:51.35
+7427f043
+User
+[2025-12-14T09:34:51.356Z] [INFO] [ForecastWorker] [ForecastWorker] Processing 1 users from 1 queue items
+2025-12-14 17:34:51.35
+7427f043
+User
+[2025-12-14T09:34:51.356Z] [INFO] [ForecastWorker] [ForecastWorker] Processing 1 users from 1 queue items
+2025-12-14 17:34:53.48
+7427f043
+User
+[2025-12-14T09:34:53.484Z] [INFO] [AIUsageTracker] Logging gemini usage: gemini-2.5-flash - 400 tokens ($0.0000)
+2025-12-14 17:34:53.65
+7427f043
+User
+[2025-12-14T09:34:53.656Z] [INFO] [ForecastWorker] [ForecastWorker] Generated AI advice for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 {"latencyMs":1291,"length":27}
+2025-12-14 17:34:55.97
+7427f043
+User
+[2025-12-14T09:34:55.977Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 17:34:55.97
+7427f043
+User
+[2025-12-14T09:34:55.977Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 1/1 forecasts generated
+2025-12-14 17:34:55.97
+7427f043
+User
+[2025-12-14T09:34:55.977Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 17:34:55.97
+7427f043
+User
+[2025-12-14T09:34:55.977Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 1/1 forecasts generated
+2025-12-14 17:34:55.97
+7427f043
+User
+[2025-12-14T09:34:55.977Z] [INFO] [ForecastWorker] [ForecastWorker] Generated forecast for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78: confidence=MEDIUM, status=ON_TRACK, hasAdvice=true
+2025-12-14 17:34:55.97
+7427f043
+User
+[2025-12-14T09:34:55.977Z] [INFO] [ForecastWorker] [ForecastWorker] Completed: 1/1 forecasts generated
+2025-12-14 17:35:00.19
+7427f043
+User
+[2025-12-14T09:35:00.191Z] [INFO] [3PMSurvey] Perth user Amanda: UTC=2025-12-14T09:35:00.036Z, Local=17:35, Hour=17, Min=35, Primary=false, CatchUp=true, LocalDate=2025-12-14
+2025-12-14 17:35:00.33
+7427f043
+User
+[2025-12-14T09:35:00.337Z] [INFO] [ReminderDelivery] Found 50 reminders ready for delivery
+2025-12-14 17:35:00.49
+7427f043
+User
+[2025-12-14T09:35:00.494Z] [INFO] [3PMSurvey] Perth user Richard: UTC=2025-12-14T09:35:00.036Z, Local=17:35, Hour=17, Min=35, Primary=false, CatchUp=true, LocalDate=2025-12-14
+2025-12-14 17:35:00.57
+7427f043
+User
+[2025-12-14T09:35:00.577Z] [WARN] [ReminderDelivery] No user_profile found for health_id test-user-biomarker, using as-is
+2025-12-14 17:35:00.61
+7427f043
+User
+[2025-12-14T09:35:00.614Z] [WARN] [ReminderDelivery] No devices reached for user test-user-biomarker {"error":"No active devices"}
+2025-12-14 17:35:00.61
+7427f043
+User
+[2025-12-14T09:35:00.613Z] [WARN] [APNs] No active device tokens found for user test-user-biomarker
