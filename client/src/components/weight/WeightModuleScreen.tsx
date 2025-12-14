@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { LineChart, Line, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { ManualWeighInSheet } from './ManualWeighInSheet';
 import { BodyCompSheet } from './BodyCompSheet';
 import { GoalSetupFlow } from './GoalSetupFlow';
@@ -41,6 +41,7 @@ interface WeightOverviewResponse {
     actual_weight_daily: Array<{ local_date_key: string; value_kg: number | null }>;
     trend_weight_daily: Array<{ local_date_key: string; value_kg: number | null }>;
     forecast_band: Array<{ local_date_key: string; low_kg: number | null; mid_kg: number | null; high_kg: number | null }>;
+    body_fat_daily?: Array<{ local_date_key: string; value_pct: number | null }>;
   };
   drivers: Array<{
     rank: number;
@@ -133,7 +134,7 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
       forecastLow: number | null;
       forecastMid: number | null;
       forecastHigh: number | null;
-      forecastRange: number | null;
+      bodyFatPct: number | null;
       goal: number | null;
     }>();
 
@@ -146,7 +147,7 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
         forecastLow: null,
         forecastMid: null,
         forecastHigh: null,
-        forecastRange: null,
+        bodyFatPct: null,
         goal: data.summary.goal.target_weight_kg,
       });
     });
@@ -164,7 +165,7 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
           forecastLow: null,
           forecastMid: null,
           forecastHigh: null,
-          forecastRange: null,
+          bodyFatPct: null,
           goal: data.summary.goal.target_weight_kg,
         });
       }
@@ -176,7 +177,6 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
         existing.forecastLow = d.low_kg;
         existing.forecastMid = d.mid_kg;
         existing.forecastHigh = d.high_kg;
-        existing.forecastRange = d.low_kg !== null && d.high_kg !== null ? d.high_kg - d.low_kg : null;
       } else {
         dateMap.set(d.local_date_key, {
           date: formatDate(d.local_date_key),
@@ -186,11 +186,20 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
           forecastLow: d.low_kg,
           forecastMid: d.mid_kg,
           forecastHigh: d.high_kg,
-          forecastRange: d.low_kg !== null && d.high_kg !== null ? d.high_kg - d.low_kg : null,
+          bodyFatPct: null,
           goal: data.summary.goal.target_weight_kg,
         });
       }
     });
+
+    if (data.series.body_fat_daily) {
+      data.series.body_fat_daily.forEach((d: { local_date_key: string; value_pct: number | null }) => {
+        const existing = dateMap.get(d.local_date_key);
+        if (existing) {
+          existing.bodyFatPct = d.value_pct;
+        }
+      });
+    }
 
     return Array.from(dateMap.values()).sort((a, b) => a.rawDate.localeCompare(b.rawDate));
   }, [data]);
@@ -399,68 +408,94 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                         </div>
                       </div>
 
-                      <ResponsiveContainer width="100%" height={250}>
-                        <AreaChart data={weightChartData}>
+                      <ResponsiveContainer width="100%" height={280}>
+                        <ComposedChart data={weightChartData} margin={{ top: 5, right: 40, left: 0, bottom: 5 }}>
                           <defs>
                             <linearGradient id="weightGradient" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
                               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                             </linearGradient>
-                            <linearGradient id="projectionGradient" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.2}/>
-                              <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
+                            <linearGradient id="forecastBandGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.15}/>
+                              <stop offset="100%" stopColor="#94a3b8" stopOpacity={0.05}/>
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#ffffff20' : '#00000010'} />
+                          <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#ffffff15' : '#00000008'} />
                           <XAxis 
                             dataKey="date" 
                             stroke={isDark ? '#ffffff40' : '#00000040'}
-                            style={{ fontSize: '11px' }}
-                            interval={timeRange === '30' ? 6 : timeRange === '90' ? 13 : 29}
+                            style={{ fontSize: '10px' }}
+                            interval={timeRange === '30' ? 6 : timeRange === '90' ? 14 : 30}
                             tickMargin={5}
                           />
                           <YAxis 
+                            yAxisId="weight"
                             stroke={isDark ? '#ffffff40' : '#00000040'}
-                            style={{ fontSize: '12px' }}
+                            style={{ fontSize: '11px' }}
                             domain={weightYDomain as [number, number]}
+                            allowDataOverflow={true}
+                            tickCount={6}
+                            tickFormatter={(v) => `${v}kg`}
+                          />
+                          <YAxis 
+                            yAxisId="bodyFat"
+                            orientation="right"
+                            stroke={isDark ? '#22c55e60' : '#22c55e80'}
+                            style={{ fontSize: '11px' }}
+                            domain={[0, 40]}
+                            tickFormatter={(v) => `${v}%`}
+                            hide={!weightChartData.some(d => d.bodyFatPct !== null)}
                           />
                           <Tooltip
                             contentStyle={{
                               backgroundColor: isDark ? '#1e293b' : '#ffffff',
                               border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
                               borderRadius: '8px',
-                              color: isDark ? '#ffffff' : '#000000'
+                              color: isDark ? '#ffffff' : '#000000',
+                              fontSize: '12px'
+                            }}
+                            formatter={(value: number, name: string) => {
+                              if (name === 'bodyFatPct') return [`${value?.toFixed(1)}%`, 'Body Fat'];
+                              if (value) return [`${value.toFixed(1)} kg`, name === 'actualWeight' ? 'Weight' : name === 'trendWeight' ? 'Trend' : name];
+                              return [null, null];
                             }}
                           />
                           {goalWeight && (
-                            <ReferenceLine y={goalWeight} stroke="#8b5cf6" strokeDasharray="5 5" label="Goal" />
+                            <ReferenceLine yAxisId="weight" y={goalWeight} stroke="#8b5cf6" strokeDasharray="5 5" label={{ value: 'Goal', position: 'insideTopRight', fill: isDark ? '#a78bfa' : '#8b5cf6', fontSize: 11 }} />
                           )}
                           
                           <Area
+                            yAxisId="weight"
+                            type="monotone"
+                            dataKey="forecastHigh"
+                            stroke="none"
+                            fill="url(#forecastBandGradient)"
+                            connectNulls
+                            isAnimationActive={false}
+                          />
+                          <Area
+                            yAxisId="weight"
+                            type="monotone"
+                            dataKey="forecastLow"
+                            stroke="none"
+                            fill={isDark ? '#0f172a' : '#ffffff'}
+                            connectNulls
+                            isAnimationActive={false}
+                          />
+                          
+                          <Area
+                            yAxisId="weight"
                             type="monotone"
                             dataKey="actualWeight"
                             stroke="#8b5cf6"
                             strokeWidth={2}
                             fill="url(#weightGradient)"
                             connectNulls
-                          />
-                          
-                          <Area
-                            type="monotone"
-                            dataKey="forecastLow"
-                            stroke="none"
-                            fill="transparent"
-                            stackId="1"
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="forecastRange"
-                            stroke="none"
-                            fill="url(#projectionGradient)"
-                            stackId="1"
+                            name="Weight"
                           />
                           
                           <Line
+                            yAxisId="weight"
                             type="monotone"
                             dataKey="trendWeight"
                             stroke={isDark ? '#60a5fa' : '#3b82f6'}
@@ -471,6 +506,7 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                             name="Trend"
                           />
                           <Line
+                            yAxisId="weight"
                             type="monotone"
                             dataKey="forecastMid"
                             stroke={isDark ? '#a78bfa' : '#8b5cf6'}
@@ -480,25 +516,18 @@ export function WeightModuleScreen({ isDark, onClose }: WeightModuleScreenProps)
                             connectNulls
                             name="Forecast"
                           />
+                          
                           <Line
+                            yAxisId="bodyFat"
                             type="monotone"
-                            dataKey="forecastLow"
-                            stroke={isDark ? '#94a3b8' : '#64748b'}
-                            strokeWidth={1}
-                            strokeDasharray="4 4"
+                            dataKey="bodyFatPct"
+                            stroke="#22c55e"
+                            strokeWidth={2}
                             dot={false}
                             connectNulls
+                            name="Body Fat %"
                           />
-                          <Line
-                            type="monotone"
-                            dataKey="forecastHigh"
-                            stroke={isDark ? '#94a3b8' : '#64748b'}
-                            strokeWidth={1}
-                            strokeDasharray="4 4"
-                            dot={false}
-                            connectNulls
-                          />
-                        </AreaChart>
+                        </ComposedChart>
                       </ResponsiveContainer>
 
                       <div className="mt-4 flex flex-wrap gap-2">
