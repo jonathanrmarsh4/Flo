@@ -139,21 +139,51 @@ class GeminiLiveClient {
           this.processMessage(message, callbacks);
         },
         onerror: (error: ErrorEvent) => {
-          logger.error('[GeminiLive] Session error', { sessionId, error: error.message });
+          // Common error codes from Google:
+          // - 1011: Internal Server Error (most common mid-conversation crash)
+          // - 500: Server-side issues
+          // - RESOURCE_EXHAUSTED: Max concurrent sessions exceeded
+          logger.error('[GeminiLive] Session error - Google API issue', { 
+            sessionId, 
+            error: error.message,
+            type: error.type,
+            // Provide user-friendly context
+            likelyCause: 'Google Gemini API server-side error - not a client issue'
+          });
           sessionFailed(new Error(error.message || 'Gemini Live session error'));
-          callbacks.onError(new Error(error.message || 'Gemini Live session error'));
+          callbacks.onError(new Error(error.message || 'Voice connection interrupted by Google servers. Please try again.'));
         },
         onclose: (event: CloseEvent) => {
           const closeReason = event?.wasClean 
             ? 'clean_close' 
             : `unexpected_close_${event?.code || 'unknown'}`;
           
-          logger.info('[GeminiLive] Session closed via callback', { 
-            sessionId, 
-            code: event?.code,
-            reason: event?.reason,
-            wasClean: event?.wasClean
-          });
+          // Log detailed info for unexpected closes to help diagnose mid-conversation crashes
+          const metadata = this.sessionMetadata.get(sessionId);
+          const sessionDuration = metadata ? (Date.now() - metadata.startTime) / 1000 : 0;
+          
+          if (!event?.wasClean) {
+            // Unexpected disconnect - likely Google server issue or network problem
+            logger.warn('[GeminiLive] UNEXPECTED SESSION TERMINATION', { 
+              sessionId, 
+              code: event?.code,
+              reason: event?.reason || 'No reason provided by Google',
+              wasClean: event?.wasClean,
+              sessionDurationSeconds: sessionDuration.toFixed(1),
+              audioChunksProcessed: metadata?.audioChunkCount || 0,
+              // Common codes: 1000=normal, 1001=going away, 1006=abnormal, 1011=server error
+              diagnosis: event?.code === 1011 ? 'Google internal server error' :
+                         event?.code === 1006 ? 'Connection lost (network or server issue)' :
+                         event?.code === 1001 ? 'Server going away (possibly rate limited)' :
+                         'Unknown disconnect reason'
+            });
+          } else {
+            logger.info('[GeminiLive] Session closed cleanly', { 
+              sessionId, 
+              code: event?.code,
+              sessionDurationSeconds: sessionDuration.toFixed(1)
+            });
+          }
           
           // Track usage and cleanup metadata for all close paths
           this.trackAndCleanup(sessionId, closeReason);
