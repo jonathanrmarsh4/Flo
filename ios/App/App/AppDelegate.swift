@@ -301,8 +301,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         print("✅ [APNs] Device token received from Apple: \(tokenString.prefix(20))...")
         print("✅ [APNs] Token length: \(tokenString.count) characters")
         
-        // Forward to Capacitor's ApplicationDelegateProxy to trigger the JavaScript callback
-        ApplicationDelegateProxy.shared.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        // Forward to Capacitor PushNotifications plugin via NotificationCenter
+        // The plugin listens for this notification to receive the device token
+        NotificationCenter.default.post(name: Notification.Name.capacitorDidRegisterForRemoteNotifications, object: deviceToken)
     }
     
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
@@ -310,8 +311,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         print("❌ [APNs] Error: \(error.localizedDescription)")
         print("❌ [APNs] Full error: \(error)")
         
-        // Forward to Capacitor's ApplicationDelegateProxy to trigger the JavaScript error callback
-        ApplicationDelegateProxy.shared.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+        // Forward to Capacitor PushNotifications plugin via NotificationCenter
+        NotificationCenter.default.post(name: Notification.Name.capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
 }
