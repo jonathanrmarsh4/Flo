@@ -1543,4 +1543,75 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ error: error.message || "Failed to process queue" });
     }
   });
+
+  // =====================================================
+  // NOTIFICATION MIGRATION ENDPOINTS
+  // =====================================================
+
+  // Seed notification templates
+  app.post('/api/admin/notifications/seed-templates', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { seedNotificationTemplates } = await import('../services/notificationMigrationHelper');
+      await seedNotificationTemplates();
+      res.json({ success: true, message: 'Notification templates seeded successfully' });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to seed notification templates:', error);
+      res.status(500).json({ error: error.message || "Failed to seed templates" });
+    }
+  });
+
+  // Migrate user schedules to new notification system
+  app.post('/api/admin/notifications/migrate-schedules', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { migrateUserSchedules } = await import('../services/notificationMigrationHelper');
+      const stats = await migrateUserSchedules();
+      res.json({ 
+        success: true, 
+        message: `Migration complete: ${stats.migrated} users migrated, ${stats.skipped} skipped, ${stats.errors} errors`,
+        stats 
+      });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to migrate user schedules:', error);
+      res.status(500).json({ error: error.message || "Failed to migrate schedules" });
+    }
+  });
+
+  // Run full migration (templates + schedules)
+  app.post('/api/admin/notifications/run-migration', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { runFullMigration } = await import('../services/notificationMigrationHelper');
+      await runFullMigration();
+      res.json({ success: true, message: 'Full notification migration completed' });
+    } catch (error: any) {
+      logger.error('[Admin] Failed to run full migration:', error);
+      res.status(500).json({ error: error.message || "Failed to run migration" });
+    }
+  });
+
+  // Start/stop the centralized notification service
+  app.post('/api/admin/notifications/service/:action', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { action } = req.params;
+      const { centralizedNotificationService } = await import('../services/centralizedNotificationService');
+      
+      if (action === 'start') {
+        const result = await centralizedNotificationService.start();
+        res.json({ ...result, isRunning: centralizedNotificationService.isServiceRunning() });
+      } else if (action === 'stop') {
+        const result = centralizedNotificationService.stop();
+        res.json({ ...result, isRunning: centralizedNotificationService.isServiceRunning() });
+      } else if (action === 'status') {
+        res.json({ 
+          success: true, 
+          isRunning: centralizedNotificationService.isServiceRunning(),
+          message: centralizedNotificationService.isServiceRunning() ? 'Service is running' : 'Service is stopped'
+        });
+      } else {
+        res.status(400).json({ error: 'Invalid action. Use "start", "stop", or "status"' });
+      }
+    } catch (error: any) {
+      logger.error('[Admin] Failed to control notification service:', error);
+      res.status(500).json({ error: error.message || "Failed to control service" });
+    }
+  });
 }

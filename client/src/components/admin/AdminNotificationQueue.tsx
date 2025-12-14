@@ -1,9 +1,10 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Bell, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle, Send, BarChart3 } from 'lucide-react';
+import { Bell, RefreshCw, CheckCircle, XCircle, Clock, AlertTriangle, Send, BarChart3, Database, Play, Square, Upload } from 'lucide-react';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 interface QueueStats {
   scheduled: number;
@@ -83,6 +84,86 @@ export function AdminNotificationQueue() {
       toast({
         title: 'Queue Processing Triggered',
         description: 'Queue processor has been manually triggered',
+      });
+    },
+  });
+
+  const seedTemplatesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/notifications/seed-templates');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Templates Seeded',
+        description: 'Notification templates have been created/updated',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to seed templates',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const migrateSchedulesMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/notifications/migrate-schedules');
+      return res.json();
+    },
+    onSuccess: (data: { message: string; stats: { migrated: number; skipped: number; errors: number } }) => {
+      toast({
+        title: 'Migration Complete',
+        description: data.message,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to migrate schedules',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const startServiceMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/notifications/service/start');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Service Started',
+        description: 'Notification service is now running',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to start service',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const stopServiceMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/notifications/service/stop');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Service Stopped',
+        description: 'Notification service has been stopped',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to stop service',
+        variant: 'destructive',
       });
     },
   });
@@ -283,6 +364,82 @@ export function AdminNotificationQueue() {
           ) : (
             <div className="text-center py-8 text-white/50">No recent deliveries</div>
           )}
+        </CardContent>
+      </Card>
+
+      <Separator className="bg-white/10" />
+
+      <Card className="bg-white/5 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-base text-white flex items-center gap-2">
+            <Database className="w-5 h-5 text-purple-400" />
+            Migration & Service Controls
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-white/70">Migration Steps</h4>
+              <p className="text-xs text-white/50">
+                1. Seed templates first, then migrate user schedules
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => seedTemplatesMutation.mutate()}
+                  disabled={seedTemplatesMutation.isPending}
+                  className="gap-1"
+                  data-testid="button-seed-templates"
+                >
+                  <Upload className="w-4 h-4" />
+                  {seedTemplatesMutation.isPending ? 'Seeding...' : 'Seed Templates'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => migrateSchedulesMutation.mutate()}
+                  disabled={migrateSchedulesMutation.isPending}
+                  className="gap-1"
+                  data-testid="button-migrate-schedules"
+                >
+                  <Database className="w-4 h-4" />
+                  {migrateSchedulesMutation.isPending ? 'Migrating...' : 'Migrate Schedules'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-white/70">Service Control</h4>
+              <p className="text-xs text-white/50">
+                Start/stop the centralized notification processor
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => startServiceMutation.mutate()}
+                  disabled={startServiceMutation.isPending}
+                  className="gap-1"
+                  data-testid="button-start-service"
+                >
+                  <Play className="w-4 h-4" />
+                  {startServiceMutation.isPending ? 'Starting...' : 'Start Service'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => stopServiceMutation.mutate()}
+                  disabled={stopServiceMutation.isPending}
+                  className="gap-1"
+                  data-testid="button-stop-service"
+                >
+                  <Square className="w-4 h-4" />
+                  {stopServiceMutation.isPending ? 'Stopping...' : 'Stop Service'}
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

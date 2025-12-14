@@ -75,11 +75,24 @@ class CentralizedNotificationService {
   private queueProcessor: NodeJS.Timeout | null = null;
   private schedulerCron: ReturnType<typeof cron.schedule> | null = null;
   private isProcessing = false;
+  private isRunning = false;
 
   /**
-   * Start the notification service
+   * Check if service is currently running
    */
-  async start(): Promise<void> {
+  isServiceRunning(): boolean {
+    return this.isRunning;
+  }
+
+  /**
+   * Start the notification service (idempotent - safe to call multiple times)
+   */
+  async start(): Promise<{ success: boolean; message: string }> {
+    if (this.isRunning) {
+      logger.info('[NotificationService] Service already running, ignoring start request');
+      return { success: true, message: 'Service already running' };
+    }
+
     logger.info('[NotificationService] Starting centralized notification service...');
 
     // Start queue processor (runs every 30 seconds)
@@ -101,13 +114,20 @@ class CentralizedNotificationService {
     // Initial queue population
     await this.populateQueue();
 
+    this.isRunning = true;
     logger.info('[NotificationService] Service started successfully');
+    return { success: true, message: 'Service started' };
   }
 
   /**
-   * Stop the notification service
+   * Stop the notification service (idempotent - safe to call multiple times)
    */
-  stop(): void {
+  stop(): { success: boolean; message: string } {
+    if (!this.isRunning) {
+      logger.info('[NotificationService] Service already stopped, ignoring stop request');
+      return { success: true, message: 'Service already stopped' };
+    }
+
     logger.info('[NotificationService] Stopping notification service...');
 
     if (this.queueProcessor) {
@@ -120,7 +140,9 @@ class CentralizedNotificationService {
       this.schedulerCron = null;
     }
 
+    this.isRunning = false;
     logger.info('[NotificationService] Service stopped');
+    return { success: true, message: 'Service stopped' };
   }
 
   // =====================================================
