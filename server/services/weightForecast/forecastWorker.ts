@@ -267,7 +267,7 @@ async function fetchDailyFeatures(client: any, userId: string): Promise<DailyFea
         data_quality_nutrition_days_14d,
         data_quality_cgm_days_14d
       FROM flo_ml.daily_features FINAL
-      WHERE user_id = '${userId}' AND local_date_key >= today() - 120
+      WHERE user_id = '${userId}' AND local_date_key >= toString(today() - 120)
       ORDER BY local_date_key DESC
     `,
     format: 'JSONEachRow',
