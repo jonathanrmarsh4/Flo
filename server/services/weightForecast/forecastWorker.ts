@@ -969,6 +969,8 @@ async function writeForecastSummary(
       last_sync_relative: lastSyncRelative,
       staleness_days: currentMetrics.stalenessDays,
       daily_advice: dailyAdvice,
+      goal_narrative: dailyAdvice,
+      goal_type: goal.goal_type,
       version_utc: generatedAtUtc,
     }],
     format: 'JSONEachRow',
