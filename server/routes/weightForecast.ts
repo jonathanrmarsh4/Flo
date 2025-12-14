@@ -512,6 +512,14 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
     
     const latestFeature = features.length > 0 ? features[features.length - 1] : null;
     
+    // Auto-queue forecast recompute if user has weight data but no drivers/simulator results yet
+    if (isClickHouseEnabled() && features.length >= 7 && drivers.length === 0) {
+      logger.info(`[WeightForecast] Auto-queuing recompute for user ${userId}: has ${features.length} data points but no drivers`);
+      queueForecastRecompute(userId, 'on_demand', 50).catch(err => {
+        logger.warn('[WeightForecast] Failed to auto-queue recompute:', err);
+      });
+    }
+    
     const levers = [
       { lever_id: 'steps_plus_2000', title: '+2,000 steps/day', effort: 'Easy' },
       { lever_id: 'protein_plus_25g', title: '+25g protein/day', effort: 'Easy' },

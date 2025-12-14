@@ -322,7 +322,7 @@ Generate today's personalized advice.`;
         {
           userId,
           latencyMs,
-          status: adviceText ? 'success' : 'empty_response',
+          status: adviceText ? 'success' : 'error',
           metadata: { goalType },
         }
       ).catch(() => {});
