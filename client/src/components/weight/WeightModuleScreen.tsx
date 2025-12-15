@@ -738,15 +738,14 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
                       )}
 
                       {narrativeData?.narrative && (
-                        <div className={`mt-4 p-3 rounded-xl ${
-                          isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-100'
-                        }`}>
-                          <div className="flex items-start gap-2">
-                            <Sparkles className={`w-4 h-4 mt-0.5 shrink-0 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                            <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap overflow-visible ${isDark ? 'text-white/80' : 'text-gray-700'}`} data-testid="text-goal-narrative">
-                              {narrativeData.narrative}
-                            </p>
+                        <div className={`mt-4 p-4 rounded-xl ${isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-100'}`}>
+                          <div className={`flex items-center gap-2 mb-2`}>
+                            <Sparkles className={`w-4 h-4 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                            <span className={`text-xs font-medium ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>Goal Insight</span>
                           </div>
+                          <p className={`text-sm ${isDark ? 'text-white/80' : 'text-gray-700'}`} data-testid="text-goal-narrative">
+                            {narrativeData.narrative}
+                          </p>
                         </div>
                       )}
 
