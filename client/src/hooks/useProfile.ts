@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import type { Profile, UpdateDemographics, UpdateHealthBaseline, UpdateGoals, UpdateAIPersonalization, UpdateReminderPreferences, User } from '@shared/schema';
+import type { Profile, UpdateDemographics, UpdateHealthBaseline, UpdateGoals, UpdateAIPersonalization, UpdateReminderPreferences, UpdateBodyFatCalibration, User } from '@shared/schema';
 
 export function useProfile() {
   return useQuery<Profile | null>({
@@ -68,6 +68,26 @@ export function useUpdateReminderPreferences() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+    },
+  });
+}
+
+export function useBodyFatCalibration() {
+  return useQuery<{ bodyFatCorrectionPct: number }>({
+    queryKey: ['/api/profile/body-fat-calibration'],
+  });
+}
+
+export function useUpdateBodyFatCalibration() {
+  return useMutation({
+    mutationFn: async (data: UpdateBodyFatCalibration) => {
+      const response = await apiRequest('PATCH', '/api/profile/body-fat-calibration', data);
+      return response.json() as Promise<{ success: boolean; bodyFatCorrectionPct: number }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/profile/body-fat-calibration'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/weight/tile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/v1/weight/overview'] });
     },
   });
 }

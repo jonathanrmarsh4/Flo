@@ -1,7 +1,7 @@
-import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check, Crown, Zap, LineChart, ArrowRight, Database } from 'lucide-react';
+import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check, Crown, Zap, LineChart, ArrowRight, Database, Scale } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
-import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization } from '@/hooks/useProfile';
+import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization, useBodyFatCalibration, useUpdateBodyFatCalibration } from '@/hooks/useProfile';
 import { ReminderSettings } from '@/components/ReminderSettings';
 import { usePlan } from '@/hooks/usePlan';
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen';
@@ -67,6 +67,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const updateGoals = useUpdateGoals();
   const updateAIPersonalization = useUpdateAIPersonalization();
   
+  // Body fat calibration hooks
+  const { data: bodyFatCalibration } = useBodyFatCalibration();
+  const updateBodyFatCalibration = useUpdateBodyFatCalibration();
+  
   // Comprehensive insights generation mutation
   const generateInsights = useMutation({
     mutationFn: async () => {
@@ -111,6 +115,7 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [localWeight, setLocalWeight] = useState<string>('');
   const [localHeight, setLocalHeight] = useState<string>('');
   const [localSleep, setLocalSleep] = useState<string>('');
+  const [localBodyFatCorrection, setLocalBodyFatCorrection] = useState<string>('0');
   
   // Local state for medical context (only saves when clicking Done)
   const [localMedicalContext, setLocalMedicalContext] = useState<string>('');
@@ -148,6 +153,13 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
       }
     }
   }, [profile, isEditing]);
+  
+  // Sync body fat calibration from API
+  useEffect(() => {
+    if (bodyFatCalibration) {
+      setLocalBodyFatCorrection(bodyFatCalibration.bodyFatCorrectionPct?.toString() ?? '0');
+    }
+  }, [bodyFatCalibration]);
 
   // Fetch voice preference on mount
   useEffect(() => {
@@ -725,6 +737,71 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
                 </span>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Body Composition Calibration */}
+        <div className={`backdrop-blur-xl rounded-3xl border p-6 ${
+          isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
+        }`} data-testid="card-body-fat-calibration">
+          <div className="flex items-center gap-2 mb-4">
+            <Scale className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+            <h2 className={`text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Body Fat Calibration
+            </h2>
+          </div>
+          
+          <p className={`text-xs mb-4 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+            Calibrate your scale's body fat reading against a more accurate measurement like DEXA. 
+            If your scale shows 7% but DEXA shows 12%, set a +5% correction.
+          </p>
+          
+          <div className="flex items-center justify-between py-3">
+            <div className="flex items-center gap-3">
+              <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>Correction</span>
+            </div>
+            {isEditing ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={localBodyFatCorrection}
+                  onChange={(e) => setLocalBodyFatCorrection(e.target.value)}
+                  onBlur={() => {
+                    const value = parseFloat(localBodyFatCorrection);
+                    if (isNaN(value)) {
+                      toast({
+                        title: "Invalid Value",
+                        description: "Please enter a valid number.",
+                        variant: "destructive",
+                      });
+                      setLocalBodyFatCorrection(bodyFatCalibration?.bodyFatCorrectionPct?.toString() ?? '0');
+                      return;
+                    }
+                    if (value < -15 || value > 15) {
+                      toast({
+                        title: "Out of Range",
+                        description: "Correction must be between -15% and +15%.",
+                        variant: "destructive",
+                      });
+                      setLocalBodyFatCorrection(bodyFatCalibration?.bodyFatCorrectionPct?.toString() ?? '0');
+                      return;
+                    }
+                    updateBodyFatCalibration.mutate({ bodyFatCorrectionPct: value });
+                  }}
+                  disabled={updateBodyFatCalibration.isPending}
+                  className="w-20 text-center"
+                  autoComplete="off"
+                  data-testid="input-body-fat-correction"
+                />
+                <span className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-700'}`}>%</span>
+              </div>
+            ) : (
+              <span className={`${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-body-fat-correction">
+                {bodyFatCalibration?.bodyFatCorrectionPct ?? 0}%
+              </span>
+            )}
           </div>
         </div>
 

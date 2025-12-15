@@ -33,6 +33,7 @@ import {
   updateGoalsSchema, 
   updateAIPersonalizationSchema,
   updateReminderPreferencesSchema,
+  updateBodyFatCalibrationSchema,
   listUsersQuerySchema,
   updateUserSchema,
   normalizationInputSchema,
@@ -1104,6 +1105,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error updating reminder preferences:', error);
       res.status(500).json({ error: "Failed to update reminder preferences" });
+    }
+  });
+
+  // Update body fat calibration
+  app.patch("/api/profile/body-fat-calibration", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      // Validate with Zod schema
+      const validationResult = updateBodyFatCalibrationSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      // Update the profile in Supabase health storage
+      await healthRouter.upsertProfile(userId, {
+        body_fat_correction_pct: validationResult.data.bodyFatCorrectionPct,
+      });
+
+      res.json({ 
+        success: true,
+        bodyFatCorrectionPct: validationResult.data.bodyFatCorrectionPct,
+      });
+    } catch (error) {
+      logger.error('Error updating body fat calibration:', error);
+      res.status(500).json({ error: "Failed to update body fat calibration" });
+    }
+  });
+
+  // Get body fat calibration
+  app.get("/api/profile/body-fat-calibration", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const profile = await healthRouter.getProfile(userId);
+      const bodyFatCorrectionPct = (profile as any)?.body_fat_correction_pct ?? 0;
+
+      res.json({ bodyFatCorrectionPct });
+    } catch (error) {
+      logger.error('Error fetching body fat calibration:', error);
+      res.status(500).json({ error: "Failed to fetch body fat calibration" });
     }
   });
 

@@ -202,10 +202,14 @@ export async function buildWeightManagementContext(userId: string): Promise<Weig
   };
 
   try {
+    // Fetch profile to get body fat correction setting
+    const profile = await supabaseHealth.getProfile(userId);
+    const bodyFatCorrectionPct = profile?.body_fat_correction_pct ?? 0;
+    
     await Promise.all([
       populateUserProfile(userId, context),
       populateGoal(userId, context),
-      populateWeightData(userId, context),
+      populateWeightData(userId, context, bodyFatCorrectionPct),
       populateNutritionData(userId, context),
       populateEnergyData(userId, context),
       populateSleepData(userId, context),
@@ -287,7 +291,7 @@ async function populateGoal(userId: string, context: WeightContextJson): Promise
   }
 }
 
-async function populateWeightData(userId: string, context: WeightContextJson): Promise<void> {
+async function populateWeightData(userId: string, context: WeightContextJson, bodyFatCorrectionPct: number = 0): Promise<void> {
   if (!isClickHouseEnabled()) {
     logger.debug('[WeightManagementContext] ClickHouse not enabled - skipping weight data');
     return;
@@ -390,7 +394,9 @@ async function populateWeightData(userId: string, context: WeightContextJson): P
 
     const bodyCompRows = await bodyCompResult.json() as Array<{ body_fat_pct: number | null }>;
     if (bodyCompRows.length > 0 && bodyCompRows[0].body_fat_pct) {
-      context.weight_data.body_fat_pct = bodyCompRows[0].body_fat_pct;
+      // Apply body fat correction from user profile calibration
+      const rawBodyFat = bodyCompRows[0].body_fat_pct;
+      context.weight_data.body_fat_pct = Math.round((rawBodyFat + bodyFatCorrectionPct) * 10) / 10;
     }
   } catch (error) {
     logger.error('[WeightManagementContext] Error fetching weight data:', error);

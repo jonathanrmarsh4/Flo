@@ -25,6 +25,17 @@ import * as supabaseHealthStorage from '../services/supabaseHealthStorage';
 const logger = createLogger('WeightForecastRoutes');
 const router = Router();
 
+/**
+ * Apply body fat correction from user profile.
+ * User can calibrate their scale's body fat reading by setting a correction offset.
+ * E.g., if scale shows 7% but DEXA shows 12%, user sets +5 correction.
+ */
+function applyBodyFatCorrection(rawBodyFatPct: number | null, correctionPct: number | null): number | null {
+  if (rawBodyFatPct === null) return null;
+  const correction = correctionPct ?? 0;
+  return Math.round((rawBodyFatPct + correction) * 10) / 10;
+}
+
 const goalSchema = z.object({
   goal_type: z.enum(['LOSE', 'GAIN', 'MAINTAIN']),
   target_weight_kg: z.number().positive(),
@@ -355,7 +366,12 @@ router.get('/tile', isAuthenticated, async (req: any, res) => {
     // Trigger ClickHouse backfill if needed (non-blocking)
     triggerBackfillIfNeeded(userId);
     
-    const goal = await getUserGoal(userId);
+    // Fetch profile for body fat correction
+    const [goal, profile] = await Promise.all([
+      getUserGoal(userId),
+      supabaseHealthStorage.getProfile(userId),
+    ]);
+    const bodyFatCorrectionPct = profile?.body_fat_correction_pct ?? 0;
     
     let summary: ForecastSummary | null = null;
     let bodyFatPct: number | null = null;
@@ -463,7 +479,7 @@ router.get('/tile', isAuthenticated, async (req: any, res) => {
       confidence_level: summary?.confidence_level ?? 'LOW',
       current_weight_kg: currentWeightKg,
       delta_vs_7d_avg_kg: summary?.delta_vs_7d_avg_kg ?? null,
-      body_fat_pct: bodyFatPct,
+      body_fat_pct: applyBodyFatCorrection(bodyFatPct, bodyFatCorrectionPct),
       lean_mass_kg: leanMassKg,
       goal: {
         configured: goal.configured,
@@ -501,7 +517,13 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
     
     const range = (req.query.range as string) || '30d';
     const rangeDays = range === '6m' ? 180 : range === '90d' ? 90 : 30;
-    const goal = await getUserGoal(userId);
+    
+    // Fetch profile for body fat correction
+    const [goal, profile] = await Promise.all([
+      getUserGoal(userId),
+      supabaseHealthStorage.getProfile(userId),
+    ]);
+    const bodyFatCorrectionPct = profile?.body_fat_correction_pct ?? 0;
     
     let summary: ForecastSummary | null = null;
     let features: DailyFeature[] = [];
@@ -737,7 +759,7 @@ router.get('/overview', isAuthenticated, async (req: any, res) => {
         confidence_level: summary?.confidence_level ?? 'LOW',
         current_weight_kg: currentWeightKg,
         delta_vs_7d_avg_kg: summary?.delta_vs_7d_avg_kg ?? null,
-        body_fat_pct: bodyFatPct ?? latestFeature?.body_fat_pct ?? null,
+        body_fat_pct: applyBodyFatCorrection(bodyFatPct ?? latestFeature?.body_fat_pct ?? null, bodyFatCorrectionPct),
         lean_mass_kg: leanMassKg ?? latestFeature?.lean_mass_kg ?? null,
         goal: {
           configured: goal.configured,
