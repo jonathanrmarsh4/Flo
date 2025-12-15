@@ -302,7 +302,7 @@ Generate today's personalized advice.`;
       config: {
         systemInstruction: systemPrompt,
         temperature: 0.8,
-        maxOutputTokens: 350,
+        maxOutputTokens: 500,
       },
     });
 

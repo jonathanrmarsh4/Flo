@@ -148,24 +148,83 @@ function repairJson(jsonStr: string): string {
   return repaired;
 }
 
-function parseAIResponse(responseText: string): WeightAIAnalysis {
-  let jsonStr = responseText.trim();
+function extractJsonFromResponse(responseText: string): string {
+  let text = responseText.trim();
   
-  const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    jsonStr = jsonMatch[1].trim();
+  // Remove thinking tags if present (Gemini sometimes wraps thinking in <think>...</think>)
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  text = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+  
+  // Try to find JSON in code blocks first (most reliable)
+  // Look for the LAST code block in case there are multiple
+  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/g;
+  const codeBlockMatches: RegExpExecArray[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    codeBlockMatches.push(match);
   }
   
-  if (jsonStr.startsWith('{') === false) {
-    const startIdx = jsonStr.indexOf('{');
+  if (codeBlockMatches.length > 0) {
+    // Use the last code block that contains valid-looking JSON
+    for (let i = codeBlockMatches.length - 1; i >= 0; i--) {
+      const content = codeBlockMatches[i][1].trim();
+      if (content.startsWith('{') && content.includes('"headline"')) {
+        return content;
+      }
+    }
+    // Fallback to first code block
+    return codeBlockMatches[0][1].trim();
+  }
+  
+  // No code blocks - try to find raw JSON object
+  // Find the first '{' that looks like start of our expected response
+  const headlineIndex = text.indexOf('"headline"');
+  if (headlineIndex !== -1) {
+    // Find the opening brace before "headline"
+    let openBrace = text.lastIndexOf('{', headlineIndex);
+    if (openBrace !== -1) {
+      text = text.substring(openBrace);
+    }
+  } else if (!text.startsWith('{')) {
+    const startIdx = text.indexOf('{');
     if (startIdx !== -1) {
-      jsonStr = jsonStr.substring(startIdx);
+      text = text.substring(startIdx);
     }
   }
   
-  const lastBrace = jsonStr.lastIndexOf('}');
-  if (lastBrace !== -1 && lastBrace < jsonStr.length - 1) {
-    jsonStr = jsonStr.substring(0, lastBrace + 1);
+  // Find the matching closing brace
+  let braceCount = 0;
+  let endIdx = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '{') braceCount++;
+    else if (text[i] === '}') {
+      braceCount--;
+      if (braceCount === 0) {
+        endIdx = i;
+        break;
+      }
+    }
+  }
+  
+  if (endIdx !== -1) {
+    text = text.substring(0, endIdx + 1);
+  }
+  
+  return text.trim();
+}
+
+function parseAIResponse(responseText: string): WeightAIAnalysis {
+  // Log raw response length for debugging
+  logger.debug(`[WeightManagementAI] Raw response length: ${responseText.length} chars`);
+  
+  // Extract JSON using improved logic
+  const jsonStr = extractJsonFromResponse(responseText);
+  
+  if (!jsonStr || !jsonStr.startsWith('{')) {
+    logger.error(`[WeightManagementAI] Failed to extract JSON from response`);
+    logger.error(`[WeightManagementAI] Raw response preview (first 500 chars): ${responseText.substring(0, 500)}`);
+    logger.error(`[WeightManagementAI] Raw response preview (last 500 chars): ${responseText.substring(Math.max(0, responseText.length - 500))}`);
+    throw new Error('Failed to parse AI analysis response');
   }
   
   let parsed: any;
@@ -173,13 +232,15 @@ function parseAIResponse(responseText: string): WeightAIAnalysis {
     parsed = JSON.parse(jsonStr);
   } catch (firstError) {
     logger.warn('[WeightManagementAI] First parse failed, attempting repair...');
+    logger.debug(`[WeightManagementAI] Extracted JSON preview (first 500 chars): ${jsonStr.substring(0, 500)}`);
     try {
       const repairedJson = repairJson(jsonStr);
       parsed = JSON.parse(repairedJson);
       logger.info('[WeightManagementAI] JSON repair successful');
     } catch (repairError) {
       logger.error('[WeightManagementAI] JSON repair also failed:', repairError);
-      logger.debug(`[WeightManagementAI] Raw response (first 1000 chars): ${jsonStr.substring(0, 1000)}`);
+      logger.error(`[WeightManagementAI] Raw response (first 1000 chars): ${responseText.substring(0, 1000)}`);
+      logger.error(`[WeightManagementAI] Extracted JSON (first 1000 chars): ${jsonStr.substring(0, 1000)}`);
       throw new Error('Failed to parse AI analysis response');
     }
   }
