@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { ChevronRight, BarChart3, LucideIcon, Lightbulb } from 'lucide-react';
+import { ChevronRight, BarChart3, LucideIcon, Lightbulb, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { useState } from 'react';
 
 interface InsightCardProps {
   IconComponent: LucideIcon;
@@ -7,7 +8,7 @@ interface InsightCardProps {
   pattern: string;
   confidence: number;
   supportingData: string;
-  action?: string | null; // CRITICAL FIX: Add actionable recommendations
+  action?: string | null;
   details?: {
     daysAnalyzed?: number;
     additionalInfo?: string[];
@@ -16,6 +17,8 @@ interface InsightCardProps {
   isNew?: boolean;
   onViewDetails?: () => void;
   delay?: number;
+  insightId?: string;
+  onFeedback?: (insightId: string, isHelpful: boolean) => void;
 }
 
 export function InsightCard({
@@ -29,7 +32,19 @@ export function InsightCard({
   isNew = false,
   onViewDetails,
   delay = 0,
+  insightId,
+  onFeedback,
 }: InsightCardProps) {
+  const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
+  const [feedbackPending, setFeedbackPending] = useState(false);
+
+  const handleFeedback = (isHelpful: boolean) => {
+    if (!insightId || !onFeedback || feedbackGiven) return;
+    setFeedbackPending(true);
+    setFeedbackGiven(isHelpful ? 'up' : 'down');
+    onFeedback(insightId, isHelpful);
+    setFeedbackPending(false);
+  };
   const getConfidenceColor = (conf: number) => {
     if (conf >= 0.8) return 'bg-teal-400';
     if (conf >= 0.6) return 'bg-blue-400';
@@ -124,6 +139,43 @@ export function InsightCard({
             <p className="text-xs font-medium text-teal-400">Recommended Action</p>
           </div>
           <p className="text-xs text-white/80 leading-relaxed">{action}</p>
+        </div>
+      )}
+
+      {/* Feedback Buttons - Thumbs Up/Down */}
+      {insightId && onFeedback && (
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/10">
+          <span className="text-xs text-white/40">Was this helpful?</span>
+          <div className="flex items-center gap-2">
+            <button
+              data-testid={`button-feedback-up-${insightId}`}
+              onClick={() => handleFeedback(true)}
+              disabled={feedbackGiven !== null || feedbackPending}
+              className={`p-2 rounded-lg transition-all ${
+                feedbackGiven === 'up'
+                  ? 'bg-teal-500/30 text-teal-400'
+                  : feedbackGiven !== null
+                  ? 'opacity-30 cursor-not-allowed text-white/40'
+                  : 'hover:bg-white/10 text-white/60 hover:text-teal-400'
+              }`}
+            >
+              <ThumbsUp className="w-4 h-4" />
+            </button>
+            <button
+              data-testid={`button-feedback-down-${insightId}`}
+              onClick={() => handleFeedback(false)}
+              disabled={feedbackGiven !== null || feedbackPending}
+              className={`p-2 rounded-lg transition-all ${
+                feedbackGiven === 'down'
+                  ? 'bg-red-500/30 text-red-400'
+                  : feedbackGiven !== null
+                  ? 'opacity-30 cursor-not-allowed text-white/40'
+                  : 'hover:bg-white/10 text-white/60 hover:text-red-400'
+              }`}
+            >
+              <ThumbsDown className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 

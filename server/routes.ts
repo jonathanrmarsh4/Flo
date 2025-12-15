@@ -16064,7 +16064,29 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         feedbackNotes,
       });
 
-      logger.info(`[DailyInsightsV2] Feedback submitted for insight ${insightId} by user ${userId}`);
+      logger.info(`[DailyInsightsV2] Feedback submitted for insight ${insightId} by user ${userId}: helpful=${isHelpful}`);
+
+      // ML FEEDBACK LOOP: Update personalized thresholds based on user feedback
+      // Thumbs down (isHelpful=false) = false positive → increase thresholds (less sensitive)
+      // Thumbs up (isHelpful=true) = confirmed useful → maintain/decrease thresholds
+      try {
+        const healthId = await healthRouter.getHealthId(userId);
+        if (healthId) {
+          const { clickhouseBaselineEngine } = await import('./services/clickhouseBaselineEngine');
+          
+          // Use insight category as metric type for threshold adjustment
+          // Categories like 'sleep', 'activity', 'nutrition' map to metric domains
+          const metricType = insight.category || patternSignature?.split('_')[0] || 'general';
+          const wasConfirmed = isHelpful === true;
+          
+          await clickhouseBaselineEngine.updatePersonalizedThreshold(healthId, metricType, wasConfirmed);
+          
+          logger.info(`[DailyInsightsV2] ML threshold updated for ${metricType}: confirmed=${wasConfirmed}`);
+        }
+      } catch (mlError: any) {
+        // Don't fail the request if ML update fails - feedback is already stored
+        logger.warn(`[DailyInsightsV2] ML threshold update failed (non-critical): ${mlError.message}`);
+      }
 
       res.json({ success: true });
     } catch (error: any) {

@@ -78,6 +78,29 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
     refreshMutation.mutate();
   };
 
+  // Feedback mutation for thumbs up/down
+  const feedbackMutation = useMutation({
+    mutationFn: async ({ insightId, isHelpful }: { insightId: string; isHelpful: boolean }) => {
+      const insight = insights.find(i => i.id === insightId);
+      return apiRequest('POST', '/api/daily-insights/feedback', {
+        insightId,
+        patternSignature: insight?.category || 'general',
+        isHelpful,
+        isAccurate: isHelpful,
+      });
+    },
+    onSuccess: () => {
+      console.log('[Insights] Feedback submitted successfully');
+    },
+    onError: (error: any) => {
+      console.error('[Insights] Failed to submit feedback:', error);
+    },
+  });
+
+  const handleInsightFeedback = (insightId: string, isHelpful: boolean) => {
+    feedbackMutation.mutate({ insightId, isHelpful });
+  };
+
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 z-50">
       {/* Header */}
@@ -148,10 +171,12 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
                       pattern={insight.pattern}
                       confidence={insight.confidence}
                       supportingData={insight.supportingData || ''}
-                      action={insight.action} // CRITICAL FIX: Pass actionable recommendations
+                      action={insight.action}
                       details={insight.details as any}
                       isNew={insight.isNew}
                       delay={index * 0.1}
+                      insightId={insight.id}
+                      onFeedback={handleInsightFeedback}
                     />
                   );
                 })
