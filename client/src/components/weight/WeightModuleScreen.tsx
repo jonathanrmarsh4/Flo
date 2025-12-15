@@ -743,7 +743,7 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
                         }`}>
                           <div className="flex items-start gap-2">
                             <Sparkles className={`w-4 h-4 mt-0.5 shrink-0 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-                            <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${isDark ? 'text-white/80' : 'text-gray-700'}`} data-testid="text-goal-narrative">
+                            <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap overflow-visible ${isDark ? 'text-white/80' : 'text-gray-700'}`} data-testid="text-goal-narrative">
                               {narrativeData.narrative}
                             </p>
                           </div>

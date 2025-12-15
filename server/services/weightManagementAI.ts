@@ -134,6 +134,20 @@ function buildPromptWithContext(contextJson: WeightContextJson): string {
   return masterPrompt.replace(/\{\{FLO_WEIGHT_CONTEXT_JSON\}\}/g, contextString);
 }
 
+function repairJson(jsonStr: string): string {
+  let repaired = jsonStr;
+  repaired = repaired.replace(/,\s*}/g, '}');
+  repaired = repaired.replace(/,\s*]/g, ']');
+  repaired = repaired.replace(/:\s*,/g, ': null,');
+  repaired = repaired.replace(/:\s*}/g, ': null}');
+  repaired = repaired.replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3');
+  repaired = repaired.replace(/:\s*'([^']*)'/g, ': "$1"');
+  repaired = repaired.replace(/\n/g, ' ');
+  repaired = repaired.replace(/\t/g, ' ');
+  repaired = repaired.replace(/[\x00-\x1F\x7F]/g, ' ');
+  return repaired;
+}
+
 function parseAIResponse(responseText: string): WeightAIAnalysis {
   let jsonStr = responseText.trim();
   
@@ -154,11 +168,24 @@ function parseAIResponse(responseText: string): WeightAIAnalysis {
     jsonStr = jsonStr.substring(0, lastBrace + 1);
   }
   
+  let parsed: any;
   try {
-    const parsed = JSON.parse(jsonStr);
-    
-    const analysis: WeightAIAnalysis = {
-      headline: parsed.headline || 'Weight analysis in progress...',
+    parsed = JSON.parse(jsonStr);
+  } catch (firstError) {
+    logger.warn('[WeightManagementAI] First parse failed, attempting repair...');
+    try {
+      const repairedJson = repairJson(jsonStr);
+      parsed = JSON.parse(repairedJson);
+      logger.info('[WeightManagementAI] JSON repair successful');
+    } catch (repairError) {
+      logger.error('[WeightManagementAI] JSON repair also failed:', repairError);
+      logger.debug(`[WeightManagementAI] Raw response (first 1000 chars): ${jsonStr.substring(0, 1000)}`);
+      throw new Error('Failed to parse AI analysis response');
+    }
+  }
+  
+  const analysis: WeightAIAnalysis = {
+    headline: parsed.headline || 'Weight analysis in progress...',
       current_state: {
         goal: {
           target_weight_kg: parsed.current_state?.goal?.target_weight_kg ?? null,
@@ -232,14 +259,9 @@ function parseAIResponse(responseText: string): WeightAIAnalysis {
       })) : [],
       safety_notes: Array.isArray(parsed.safety_notes) ? parsed.safety_notes : [],
       tone_close: parsed.tone_close || '',
-    };
-    
-    return analysis;
-  } catch (parseError) {
-    logger.error('[WeightManagementAI] Failed to parse AI response as JSON:', parseError);
-    logger.debug(`[WeightManagementAI] Raw response: ${jsonStr.substring(0, 500)}`);
-    throw new Error('Failed to parse AI analysis response');
-  }
+  };
+  
+  return analysis;
 }
 
 export async function generateWeightAnalysis(userId: string): Promise<WeightAIAnalysis> {
