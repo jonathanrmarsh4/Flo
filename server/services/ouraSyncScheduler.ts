@@ -9,13 +9,13 @@ import * as cron from 'node-cron';
 import { db } from '../db';
 import { userIntegrations } from '@shared/schema';
 import { eq, and, lt, or, isNull } from 'drizzle-orm';
-import { syncOuraData } from './ouraApiClient';
-import { getHealthId, upsertSleepNight } from './supabaseHealthStorage';
-import { syncSleepMetricsToClickHouse } from './clickhouseHealthSync';
+import { syncOuraData, fetchDailySpO2 } from './ouraApiClient';
+import { getHealthId, upsertSleepNight, upsertOuraSpo2 } from './supabaseHealthStorage';
+import { syncSleepMetricsToClickHouse, syncOuraSpO2ToClickHouse } from './clickhouseHealthSync';
 import { updateSyncStatus } from './integrationsService';
 
 // Rate limiting: 5000 requests per 5 minutes = ~16 requests/second max
-// Being conservative: 1 user sync = ~3 API calls (sleep, readiness, heart_rate)
+// Being conservative: 1 user sync = ~4 API calls (sleep, readiness, heart_rate, spo2)
 // Target: ~2 users/second to stay well under limits
 const MIN_SYNC_INTERVAL_MS = 500; // 2 syncs per second max
 const MAX_CONCURRENT_SYNCS = 2;
@@ -54,7 +54,8 @@ async function getUsersNeedingSync(): Promise<Array<{ userId: string; lastSyncAt
 
 /**
  * Sync Oura data for a single user
- * Stores to Supabase sleep_nights table and ClickHouse for ML analysis
+ * Stores to Supabase sleep_nights and oura_daily_spo2 tables
+ * Also syncs to ClickHouse for ML analysis
  */
 async function syncUserOuraData(userId: string): Promise<void> {
   // Mark as in-flight to prevent re-enqueue
@@ -116,6 +117,38 @@ async function syncUserOuraData(userId: string): Promise<void> {
       }
       
       console.log(`[OuraSyncScheduler] Synced ${result.sleepNights.length} nights for user ${userId}`);
+      
+      // Sync SpO2 data (Blood Oxygen) - available for Gen 3 Oura Ring
+      try {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 3);
+        
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        
+        const spo2Data = await fetchDailySpO2(userId, startStr, endStr);
+        
+        if (spo2Data && spo2Data.length > 0) {
+          for (const spo2 of spo2Data) {
+            // Store to Supabase oura_daily_spo2 table
+            await upsertOuraSpo2(userId, {
+              day: spo2.day,
+              oura_id: spo2.id,
+              spo2_average: spo2.spo2_percentage?.average ?? null,
+              breathing_disturbance_index: spo2.breathing_disturbance_index ?? null,
+            });
+          }
+          
+          // Sync to ClickHouse for ML analysis
+          await syncOuraSpO2ToClickHouse(healthId, spo2Data);
+          
+          console.log(`[OuraSyncScheduler] Synced ${spo2Data.length} SpO2 records for user ${userId}`);
+        }
+      } catch (spo2Error) {
+        // SpO2 requires Gen 3 Oura Ring - log but don't fail the entire sync
+        console.warn(`[OuraSyncScheduler] SpO2 sync skipped for user ${userId}:`, spo2Error);
+      }
     } else {
       console.warn(`[OuraSyncScheduler] Sync failed for user ${userId}: ${result.error}`);
     }

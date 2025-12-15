@@ -5304,4 +5304,37 @@ export async function getRecoveryStats(userId: string, days = 30): Promise<{
   };
 }
 
+// ==================== OURA SpO2 DATA ====================
+
+export interface OuraSpo2Data {
+  day: string;
+  oura_id?: string;
+  spo2_average?: number | null;
+  breathing_disturbance_index?: number | null;
+}
+
+export async function upsertOuraSpo2(userId: string, spo2Data: OuraSpo2Data): Promise<void> {
+  const healthId = await getHealthId(userId);
+  
+  const payload = {
+    health_id: healthId,
+    day: spo2Data.day,
+    oura_id: spo2Data.oura_id || null,
+    spo2_average: spo2Data.spo2_average ?? null,
+    breathing_disturbance_index: spo2Data.breathing_disturbance_index ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  
+  const { error } = await supabase
+    .from('oura_daily_spo2')
+    .upsert(payload, { onConflict: 'health_id,day' });
+  
+  if (error) {
+    logger.error('[SupabaseHealth] Error upserting Oura SpO2:', error);
+    throw error;
+  }
+  
+  logger.debug(`[SupabaseHealth] Upserted Oura SpO2 for ${spo2Data.day}: ${spo2Data.spo2_average}%`);
+}
+
 logger.info('[SupabaseHealth] Health storage service initialized');
