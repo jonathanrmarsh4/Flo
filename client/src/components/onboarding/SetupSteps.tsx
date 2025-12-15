@@ -1,6 +1,8 @@
-import { useState, useRef } from 'react';
-import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint, MapPin } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint, MapPin, Watch, ExternalLink } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
+import { App } from '@capacitor/app';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Geolocation } from '@capacitor/geolocation';
 import { locationService } from '@/lib/locationService';
@@ -16,7 +18,7 @@ interface SetupStepsProps {
   onComplete: () => void;
 }
 
-type SetupStep = 'notifications' | 'location' | 'profile' | 'bloodwork' | 'optional' | 'security' | 'complete';
+type SetupStep = 'notifications' | 'location' | 'profile' | 'bloodwork' | 'optional' | 'integrations' | 'security' | 'complete';
 
 // Generate year options (100 years back from current year)
 const currentYear = new Date().getFullYear();
@@ -87,12 +89,26 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const [passkeyRegistered, setPasskeyRegistered] = useState(false);
 
+  // Wearables integration state
+  const [ouraConnected, setOuraConnected] = useState(false);
+  const [dexcomConnected, setDexcomConnected] = useState(false);
+  const [isConnectingOura, setIsConnectingOura] = useState(false);
+  const [isConnectingDexcom, setIsConnectingDexcom] = useState(false);
+  const [isCheckingIntegrations, setIsCheckingIntegrations] = useState(false);
+  
+  // Refs for polling interval cleanup
+  const ouraPollingRef = useRef<NodeJS.Timeout | null>(null);
+  const dexcomPollingRef = useRef<NodeJS.Timeout | null>(null);
+  const ouraTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dexcomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const steps = [
     { id: 'notifications' as const, title: 'Enable Notifications', icon: Bell, required: true },
     { id: 'location' as const, title: 'Enable Location', icon: MapPin, required: false },
     { id: 'profile' as const, title: 'Configure Profile', icon: User, required: true },
     { id: 'bloodwork' as const, title: 'Upload Blood Work', icon: Upload, required: true },
     { id: 'optional' as const, title: 'Optional Scans', icon: Bone, required: false },
+    { id: 'integrations' as const, title: 'Connect Wearables', icon: Watch, required: false },
     { id: 'security' as const, title: 'Secure Your Account', icon: Shield, required: false },
   ];
 
@@ -428,11 +444,240 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
   const handleOptionalNext = () => {
     setCompletedSteps([...completedSteps, 'optional']);
-    setCurrentStep('security');
+    setCurrentStep('integrations');
   };
 
   const handleSkipOptional = () => {
     setCompletedSteps([...completedSteps, 'optional']);
+    setCurrentStep('integrations');
+  };
+
+  // Check integration status when entering integrations step
+  const checkIntegrationStatus = async () => {
+    setIsCheckingIntegrations(true);
+    try {
+      const res = await apiRequest('GET', '/api/integrations');
+      if (res.ok) {
+        const integrations = await res.json();
+        const oura = integrations.find((i: any) => i.provider === 'oura');
+        const dexcom = integrations.find((i: any) => i.provider === 'dexcom');
+        setOuraConnected(oura?.status === 'connected');
+        setDexcomConnected(dexcom?.status === 'connected');
+      }
+    } catch (error) {
+      console.error('[Onboarding] Failed to check integrations:', error);
+    } finally {
+      setIsCheckingIntegrations(false);
+    }
+  };
+
+  // Effect to check integration status when step changes to integrations
+  // Also handles cleanup and App resume listener for OAuth return
+  useEffect(() => {
+    if (currentStep === 'integrations') {
+      checkIntegrationStatus();
+      
+      // Add App resume listener for native platforms to re-check status when returning from OAuth
+      const isNative = Capacitor.isNativePlatform();
+      let appResumeListener: any = null;
+      
+      if (isNative) {
+        App.addListener('appStateChange', async ({ isActive }) => {
+          if (isActive && currentStep === 'integrations') {
+            console.log('[Onboarding] App resumed, checking integration status');
+            await checkIntegrationStatus();
+          }
+        }).then(listener => {
+          appResumeListener = listener;
+        });
+      }
+      
+      // Cleanup function
+      return () => {
+        // Clear polling intervals
+        if (ouraPollingRef.current) {
+          clearInterval(ouraPollingRef.current);
+          ouraPollingRef.current = null;
+        }
+        if (dexcomPollingRef.current) {
+          clearInterval(dexcomPollingRef.current);
+          dexcomPollingRef.current = null;
+        }
+        if (ouraTimeoutRef.current) {
+          clearTimeout(ouraTimeoutRef.current);
+          ouraTimeoutRef.current = null;
+        }
+        if (dexcomTimeoutRef.current) {
+          clearTimeout(dexcomTimeoutRef.current);
+          dexcomTimeoutRef.current = null;
+        }
+        // Remove App resume listener
+        if (appResumeListener) {
+          appResumeListener.remove();
+        }
+      };
+    }
+  }, [currentStep]);
+
+  // Connect Oura
+  const handleConnectOura = async () => {
+    setIsConnectingOura(true);
+    try {
+      const res = await apiRequest('POST', '/api/integrations/oura/connect');
+      if (res.ok) {
+        const { authUrl } = await res.json();
+        
+        // Open OAuth URL using Capacitor Browser for native, window.open for web
+        const isNative = Capacitor.isNativePlatform();
+        if (isNative) {
+          await Browser.open({ url: authUrl });
+        } else {
+          window.open(authUrl, '_blank');
+        }
+        
+        toast({
+          title: 'Oura Ring',
+          description: 'Complete the connection in the browser, then return here.',
+        });
+        
+        // Clear any existing polling
+        if (ouraPollingRef.current) {
+          clearInterval(ouraPollingRef.current);
+        }
+        if (ouraTimeoutRef.current) {
+          clearTimeout(ouraTimeoutRef.current);
+        }
+        
+        // Poll for connection status and store in ref for cleanup
+        ouraPollingRef.current = setInterval(async () => {
+          const statusRes = await apiRequest('GET', '/api/integrations');
+          if (statusRes.ok) {
+            const integrations = await statusRes.json();
+            const oura = integrations.find((i: any) => i.provider === 'oura');
+            if (oura?.status === 'connected') {
+              setOuraConnected(true);
+              if (ouraPollingRef.current) {
+                clearInterval(ouraPollingRef.current);
+                ouraPollingRef.current = null;
+              }
+              toast({
+                title: 'Oura Connected',
+                description: 'Your Oura Ring data will sync automatically.',
+              });
+            }
+          }
+        }, 3000);
+        
+        // Stop polling after 5 minutes
+        ouraTimeoutRef.current = setTimeout(() => {
+          if (ouraPollingRef.current) {
+            clearInterval(ouraPollingRef.current);
+            ouraPollingRef.current = null;
+          }
+        }, 300000);
+      } else {
+        const error = await res.json();
+        toast({
+          title: 'Connection Failed',
+          description: error.error || 'Could not connect to Oura',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error('[Onboarding] Oura connect error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to start Oura connection',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsConnectingOura(false);
+    }
+  };
+
+  // Connect Dexcom
+  const handleConnectDexcom = async () => {
+    setIsConnectingDexcom(true);
+    try {
+      const res = await apiRequest('POST', '/api/integrations/dexcom/connect');
+      if (res.ok) {
+        const { authUrl } = await res.json();
+        
+        // Open OAuth URL using Capacitor Browser for native, window.open for web
+        const isNative = Capacitor.isNativePlatform();
+        if (isNative) {
+          await Browser.open({ url: authUrl });
+        } else {
+          window.open(authUrl, '_blank');
+        }
+        
+        toast({
+          title: 'Dexcom CGM',
+          description: 'Complete the connection in the browser, then return here.',
+        });
+        
+        // Clear any existing polling
+        if (dexcomPollingRef.current) {
+          clearInterval(dexcomPollingRef.current);
+        }
+        if (dexcomTimeoutRef.current) {
+          clearTimeout(dexcomTimeoutRef.current);
+        }
+        
+        // Poll for connection status and store in ref for cleanup
+        dexcomPollingRef.current = setInterval(async () => {
+          const statusRes = await apiRequest('GET', '/api/integrations');
+          if (statusRes.ok) {
+            const integrations = await statusRes.json();
+            const dexcom = integrations.find((i: any) => i.provider === 'dexcom');
+            if (dexcom?.status === 'connected') {
+              setDexcomConnected(true);
+              if (dexcomPollingRef.current) {
+                clearInterval(dexcomPollingRef.current);
+                dexcomPollingRef.current = null;
+              }
+              toast({
+                title: 'Dexcom Connected',
+                description: 'Your glucose data will sync automatically.',
+              });
+            }
+          }
+        }, 3000);
+        
+        // Stop polling after 5 minutes
+        dexcomTimeoutRef.current = setTimeout(() => {
+          if (dexcomPollingRef.current) {
+            clearInterval(dexcomPollingRef.current);
+            dexcomPollingRef.current = null;
+          }
+        }, 300000);
+      } else {
+        const error = await res.json();
+        toast({
+          title: 'Connection Failed',
+          description: error.error || 'Could not connect to Dexcom',
+          variant: 'destructive',
+        });
+      }
+    } catch (error: any) {
+      console.error('[Onboarding] Dexcom connect error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to start Dexcom connection',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsConnectingDexcom(false);
+    }
+  };
+
+  const handleIntegrationsNext = () => {
+    setCompletedSteps([...completedSteps, 'integrations']);
+    setCurrentStep('security');
+  };
+
+  const handleSkipIntegrations = () => {
+    setCompletedSteps([...completedSteps, 'integrations']);
     setCurrentStep('security');
   };
 
@@ -1194,6 +1439,155 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 <button
                   onClick={handleOptionalNext}
                   className="flex-1 py-4 rounded-xl font-medium transition-all bg-gradient-to-r from-orange-500 via-amber-500 to-yellow-500 text-white shadow-lg hover:shadow-xl"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span>Continue</span>
+                    <ChevronRight className="w-5 h-5" />
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Integrations Step - Oura & Dexcom */}
+          {currentStep === 'integrations' && (
+            <div 
+              className="space-y-6"
+              style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex p-4 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-500 mb-4 shadow-2xl">
+                  <Watch className="w-10 h-10 text-white" />
+                </div>
+                <h3 className={`text-xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Connect Wearables
+                </h3>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Link your devices for deeper health insights
+                </p>
+              </div>
+
+              {isCheckingIntegrations ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-white/60' : 'text-gray-400'}`} />
+                </div>
+              ) : (
+                <>
+                  {/* Oura Ring */}
+                  <div 
+                    onClick={!ouraConnected && !isConnectingOura ? handleConnectOura : undefined}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      ouraConnected
+                        ? 'border-indigo-500/50 bg-gradient-to-br from-indigo-500/10 to-purple-500/10'
+                        : isDark 
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer' 
+                          : 'bg-white/60 border-black/10 hover:bg-white/80 cursor-pointer'
+                    } ${isConnectingOura ? 'opacity-70 cursor-wait' : ''}`}
+                    data-testid="card-oura-integration"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className={`p-2 rounded-xl ${
+                          ouraConnected
+                            ? 'bg-gradient-to-br from-indigo-500 to-purple-500'
+                            : isDark ? 'bg-white/10' : 'bg-gray-200'
+                        }`}>
+                          {isConnectingOura ? (
+                            <Loader2 className="w-5 h-5 text-white animate-spin" />
+                          ) : (
+                            <Watch className={`w-5 h-5 ${ouraConnected ? 'text-white' : isDark ? 'text-white/60' : 'text-gray-600'}`} />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className={`font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Oura Ring
+                          </h4>
+                          <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                            Sleep, activity, and readiness tracking
+                          </p>
+                        </div>
+                      </div>
+                      {ouraConnected ? (
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0 ml-3">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      ) : (
+                        <ExternalLink className={`w-5 h-5 flex-shrink-0 ml-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Dexcom CGM */}
+                  <div 
+                    onClick={!dexcomConnected && !isConnectingDexcom ? handleConnectDexcom : undefined}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      dexcomConnected
+                        ? 'border-indigo-500/50 bg-gradient-to-br from-indigo-500/10 to-purple-500/10'
+                        : isDark 
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer' 
+                          : 'bg-white/60 border-black/10 hover:bg-white/80 cursor-pointer'
+                    } ${isConnectingDexcom ? 'opacity-70 cursor-wait' : ''}`}
+                    data-testid="card-dexcom-integration"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className={`p-2 rounded-xl ${
+                          dexcomConnected
+                            ? 'bg-gradient-to-br from-indigo-500 to-purple-500'
+                            : isDark ? 'bg-white/10' : 'bg-gray-200'
+                        }`}>
+                          {isConnectingDexcom ? (
+                            <Loader2 className="w-5 h-5 text-white animate-spin" />
+                          ) : (
+                            <Heart className={`w-5 h-5 ${dexcomConnected ? 'text-white' : isDark ? 'text-white/60' : 'text-gray-600'}`} />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className={`font-medium mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Dexcom CGM
+                          </h4>
+                          <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                            Continuous glucose monitoring
+                          </p>
+                        </div>
+                      </div>
+                      {dexcomConnected ? (
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center flex-shrink-0 ml-3">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      ) : (
+                        <ExternalLink className={`w-5 h-5 flex-shrink-0 ml-3 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Info Box */}
+                  <div className={`p-4 rounded-xl border ${
+                    isDark ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'
+                  }`}>
+                    <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                      You can connect wearables anytime from your profile settings
+                    </p>
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSkipIntegrations}
+                  className={`flex-1 py-4 rounded-xl font-medium transition-all ${
+                    isDark 
+                      ? 'bg-white/10 text-white hover:bg-white/20' 
+                      : 'bg-black/5 text-gray-900 hover:bg-black/10'
+                  }`}
+                  data-testid="button-skip-integrations"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleIntegrationsNext}
+                  className="flex-1 py-4 rounded-xl font-medium transition-all bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg hover:shadow-xl"
+                  data-testid="button-continue-integrations"
                 >
                   <div className="flex items-center justify-center gap-2">
                     <span>Continue</span>
