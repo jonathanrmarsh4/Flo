@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, MessageCircle, ThermometerSnowflake, HeartPulse, Moon, AlertTriangle } from 'lucide-react';
+import { X, MessageCircle, ThermometerSnowflake, HeartPulse, Moon, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
@@ -51,6 +51,7 @@ interface TypedResponse {
   responseBoolean?: boolean;
   responseOptionIndex?: number;
   responseText?: string;
+  insightFeedback?: 'up' | 'down';
 }
 
 export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onSubmit, causalContext }: FeedbackSurveyModalProps) {
@@ -58,6 +59,7 @@ export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onS
   const [booleanValue, setBooleanValue] = useState<boolean | null>(null);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState<number | null>(null);
   const [textResponse, setTextResponse] = useState('');
+  const [insightFeedback, setInsightFeedback] = useState<'up' | 'down' | null>(null);
   const queryClient = useQueryClient();
 
   const submitFeedbackMutation = useMutation({
@@ -111,6 +113,10 @@ export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onS
       case 'open_ended':
         response.responseText = textResponse.trim();
         break;
+    }
+
+    if (insightFeedback) {
+      response.insightFeedback = insightFeedback;
     }
 
     submitFeedbackMutation.mutate(response);
@@ -335,6 +341,44 @@ export function FeedbackSurveyModal({ feedbackId, question, isDark, onClose, onS
                     </div>
                   </div>
                 )}
+                {/* Insight feedback thumbs up/down */}
+                <div className={`flex items-center justify-between pt-3 mt-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                  <span className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                    Was this insight helpful?
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setInsightFeedback(insightFeedback === 'up' ? null : 'up')}
+                      className={`p-2 rounded-lg transition-all ${
+                        insightFeedback === 'up'
+                          ? isDark
+                            ? 'bg-green-500/30 text-green-400'
+                            : 'bg-green-100 text-green-600'
+                          : isDark
+                            ? 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+                      }`}
+                      data-testid="insight-feedback-up"
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setInsightFeedback(insightFeedback === 'down' ? null : 'down')}
+                      className={`p-2 rounded-lg transition-all ${
+                        insightFeedback === 'down'
+                          ? isDark
+                            ? 'bg-red-500/30 text-red-400'
+                            : 'bg-red-100 text-red-600'
+                          : isDark
+                            ? 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white/60'
+                            : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600'
+                      }`}
+                      data-testid="insight-feedback-down"
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
