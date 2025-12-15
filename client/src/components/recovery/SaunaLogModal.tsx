@@ -333,9 +333,12 @@ export function SaunaLogModal({ isDark, onClose, onSave, isLoading }: SaunaLogMo
           </div>
         </div>
 
-        <div className={`sticky bottom-0 backdrop-blur-xl px-6 py-4 border-t ${
-          isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
-        }`}>
+        <div 
+          className={`sticky bottom-0 backdrop-blur-xl px-6 py-4 border-t ${
+            isDark ? 'bg-white/5 border-white/10' : 'bg-white/70 border-black/10'
+          }`}
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
+        >
           <button
             onClick={handleSave}
             disabled={isLoading}
