@@ -109,6 +109,7 @@ export interface HealthProfile {
     startDate?: string;
     endDate?: string;
   } | null;
+  body_fat_correction_pct?: number | null;
   created_at?: Date;
   updated_at?: Date;
 }
