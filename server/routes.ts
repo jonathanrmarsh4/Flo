@@ -34,6 +34,7 @@ import {
   updateAIPersonalizationSchema,
   updateReminderPreferencesSchema,
   updateBodyFatCalibrationSchema,
+  updateNameSchema,
   listUsersQuerySchema,
   updateUserSchema,
   normalizationInputSchema,
@@ -1147,6 +1148,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error('Error fetching body fat calibration:', error);
       res.status(500).json({ error: "Failed to fetch body fat calibration" });
+    }
+  });
+
+  // Update user name (firstName, lastName)
+  app.patch("/api/profile/name", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const validationResult = updateNameSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        const validationError = fromError(validationResult.error);
+        return res.status(400).json({ error: validationError.toString() });
+      }
+
+      const updateData: { firstName?: string; lastName?: string; updatedAt: Date } = {
+        updatedAt: new Date(),
+      };
+      if (validationResult.data.firstName !== undefined) {
+        updateData.firstName = validationResult.data.firstName;
+      }
+      if (validationResult.data.lastName !== undefined) {
+        updateData.lastName = validationResult.data.lastName;
+      }
+
+      await db.update(users)
+        .set(updateData)
+        .where(eq(users.id, userId));
+
+      const [updatedUser] = await db.select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      logger.info('[ProfileName] Updated', { userId, firstName: updateData.firstName, lastName: updateData.lastName });
+
+      res.json(updatedUser);
+    } catch (error) {
+      logger.error('Error updating user name:', error);
+      res.status(500).json({ error: "Failed to update user name" });
     }
   });
 

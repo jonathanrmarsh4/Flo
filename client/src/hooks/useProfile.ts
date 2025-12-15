@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import type { Profile, UpdateDemographics, UpdateHealthBaseline, UpdateGoals, UpdateAIPersonalization, UpdateReminderPreferences, UpdateBodyFatCalibration, User } from '@shared/schema';
+import type { Profile, UpdateDemographics, UpdateHealthBaseline, UpdateGoals, UpdateAIPersonalization, UpdateReminderPreferences, UpdateBodyFatCalibration, UpdateName, User } from '@shared/schema';
 
 export function useProfile() {
   return useQuery<Profile | null>({
@@ -88,6 +88,18 @@ export function useUpdateBodyFatCalibration() {
       queryClient.invalidateQueries({ queryKey: ['/api/profile/body-fat-calibration'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/weight/tile'] });
       queryClient.invalidateQueries({ queryKey: ['/api/v1/weight/overview'] });
+    },
+  });
+}
+
+export function useUpdateName() {
+  return useMutation({
+    mutationFn: async (data: UpdateName) => {
+      const response = await apiRequest('PATCH', '/api/profile/name', data);
+      return response.json() as Promise<User>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
     },
   });
 }

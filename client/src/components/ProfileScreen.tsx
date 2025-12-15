@@ -1,7 +1,7 @@
 import { User, Calendar, Weight, Ruler, Activity, Moon, Target, Brain, Bell, Shield, FileText, Info, Download, Trash2, ChevronRight, Edit2, Heart, Mail, Loader2, Plus, X, ChevronLeft, ChevronRight as ChevronRightIcon, Sparkles, Smartphone, Wallet, CreditCard, Mic, Play, Check, Crown, Zap, LineChart, ArrowRight, Database, Scale } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { User as UserType } from '@shared/schema';
-import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization, useBodyFatCalibration, useUpdateBodyFatCalibration } from '@/hooks/useProfile';
+import { useProfile, useUpdateDemographics, useUpdateHealthBaseline, useUpdateGoals, useUpdateAIPersonalization, useBodyFatCalibration, useUpdateBodyFatCalibration, useUpdateName } from '@/hooks/useProfile';
 import { ReminderSettings } from '@/components/ReminderSettings';
 import { usePlan } from '@/hooks/usePlan';
 import { PrivacyPolicyScreen } from '@/components/PrivacyPolicyScreen';
@@ -71,6 +71,9 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const { data: bodyFatCalibration } = useBodyFatCalibration();
   const updateBodyFatCalibration = useUpdateBodyFatCalibration();
   
+  // Name update hook
+  const updateName = useUpdateName();
+  
   // Comprehensive insights generation mutation
   const generateInsights = useMutation({
     mutationFn: async () => {
@@ -120,6 +123,10 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   // Local state for medical context (only saves when clicking Done)
   const [localMedicalContext, setLocalMedicalContext] = useState<string>('');
   
+  // Local state for name editing
+  const [localFirstName, setLocalFirstName] = useState<string>('');
+  const [localLastName, setLocalLastName] = useState<string>('');
+  
   // Safe defaults to prevent spreading undefined
   const currentHealthBaseline = profile?.healthBaseline ?? {};
   const currentAIPersonalization = profile?.aiPersonalization ?? {};
@@ -160,6 +167,14 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
       setLocalBodyFatCorrection(bodyFatCalibration.bodyFatCorrectionPct?.toString() ?? '0');
     }
   }, [bodyFatCalibration]);
+  
+  // Sync name from user data (but not while editing to prevent cursor jumping)
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalFirstName(user.firstName ?? '');
+      setLocalLastName(user.lastName ?? '');
+    }
+  }, [user.firstName, user.lastName, isEditing]);
 
   // Fetch voice preference on mount
   useEffect(() => {
@@ -376,9 +391,57 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
               <User className={`w-12 h-12 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
             )}
           </div>
-          <div className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-user-name">
-            {userName}
-          </div>
+          {isEditing ? (
+            <div className="flex flex-col gap-2 w-full max-w-xs">
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder="First Name"
+                  value={localFirstName}
+                  onChange={(e) => setLocalFirstName(e.target.value)}
+                  onBlur={() => {
+                    if (localFirstName !== (user.firstName ?? '') && localFirstName.trim()) {
+                      updateName.mutate({ firstName: localFirstName.trim() });
+                    }
+                  }}
+                  disabled={updateName.isPending}
+                  className="flex-1 text-center"
+                  autoComplete="off"
+                  autoCapitalize="words"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-testid="input-first-name"
+                />
+                <Input
+                  type="text"
+                  placeholder="Last Name"
+                  value={localLastName}
+                  onChange={(e) => setLocalLastName(e.target.value)}
+                  onBlur={() => {
+                    if (localLastName !== (user.lastName ?? '') && localLastName.trim()) {
+                      updateName.mutate({ lastName: localLastName.trim() });
+                    }
+                  }}
+                  disabled={updateName.isPending}
+                  className="flex-1 text-center"
+                  autoComplete="off"
+                  autoCapitalize="words"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-testid="input-last-name"
+                />
+              </div>
+              {updateName.isPending && (
+                <div className="flex items-center justify-center">
+                  <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-user-name">
+              {userName}
+            </div>
+          )}
           <div className={`text-sm ${isDark ? 'text-white/70' : 'text-gray-600'} flex items-center gap-2 mt-1`} data-testid="text-user-email">
             <Mail className="w-4 h-4" />
             {user.email || 'No email'}

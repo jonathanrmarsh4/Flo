@@ -1624,6 +1624,13 @@ export const updateBodyFatCalibrationSchema = z.object({
   bodyFatCorrectionPct: z.number().min(-15).max(15), // Range -15% to +15% correction
 });
 
+export const updateNameSchema = z.object({
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+}).refine(data => data.firstName !== undefined || data.lastName !== undefined, {
+  message: "At least one of 'firstName' or 'lastName' must be provided",
+});
+
 export type InsertProfile = z.infer<typeof insertProfileSchema>;
 export type Profile = typeof profiles.$inferSelect;
 export type UpdateDemographics = z.infer<typeof updateDemographicsSchema>;
@@ -1632,6 +1639,7 @@ export type UpdateGoals = z.infer<typeof updateGoalsSchema>;
 export type UpdateAIPersonalization = z.infer<typeof updateAIPersonalizationSchema>;
 export type UpdateReminderPreferences = z.infer<typeof updateReminderPreferencesSchema>;
 export type UpdateBodyFatCalibration = z.infer<typeof updateBodyFatCalibrationSchema>;
+export type UpdateName = z.infer<typeof updateNameSchema>;
 
 export const insertBloodWorkRecordSchema = createInsertSchema(bloodWorkRecords).omit({
   id: true,
