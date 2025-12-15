@@ -229,7 +229,10 @@ export async function buildWeightManagementContext(userId: string): Promise<Weig
 async function populateUserProfile(userId: string, context: WeightContextJson): Promise<void> {
   try {
     const profile = await getHealthRouterProfile(userId);
-    if (!profile) return;
+    if (!profile) {
+      logger.debug(`[WeightManagementContext] No profile found for user ${userId}`);
+      return;
+    }
 
     const birthYear = (profile as any).birth_year || (profile as any).birthYear;
     context.user_profile.age = calculateAgeFromBirthYear(birthYear);
@@ -240,6 +243,9 @@ async function populateUserProfile(userId: string, context: WeightContextJson): 
     if (height) {
       context.user_profile.height_cm = heightUnit === 'inches' ? Math.round(height * 2.54) : height;
     }
+    
+    logger.debug(`[WeightManagementContext] Profile data for user ${userId}: birthYear=${birthYear}, sex=${profile.sex}, height=${height}, heightUnit=${heightUnit}`);
+    logger.debug(`[WeightManagementContext] Computed: age=${context.user_profile.age}, height_cm=${context.user_profile.height_cm}`);
 
     const goals = profile.goals;
     if (Array.isArray(goals)) {
@@ -455,16 +461,26 @@ async function populateEnergyData(userId: string, context: WeightContextJson): P
 
     if (!dailyMetrics || dailyMetrics.length === 0) return;
 
-    const avgField = (field: string): number | null => {
-      const values = dailyMetrics.filter((d: any) => d[field] != null && d[field] > 0);
+    // Helper to average a field, supporting multiple possible field names
+    const avgFieldMulti = (fields: string[]): number | null => {
+      const values: number[] = [];
+      for (const d of dailyMetrics) {
+        for (const field of fields) {
+          if (d[field] != null && d[field] > 0) {
+            values.push(d[field]);
+            break; // Use first matching field
+          }
+        }
+      }
       if (values.length === 0) return null;
-      return Math.round(values.reduce((sum: number, d: any) => sum + d[field], 0) / values.length);
+      return Math.round(values.reduce((sum, val) => sum + val, 0) / values.length);
     };
 
-    context.energy_data.avg_resting_energy_kcal = avgField('basal_energy');
-    context.energy_data.avg_active_burn_kcal = avgField('active_energy');
-    context.energy_data.avg_steps_14d = avgField('steps');
-    context.energy_data.avg_workout_minutes_14d = avgField('workout_minutes');
+    // Map to correct field names from user_daily_metrics table
+    context.energy_data.avg_resting_energy_kcal = avgFieldMulti(['basal_energy_kcal', 'basal_energy']);
+    context.energy_data.avg_active_burn_kcal = avgFieldMulti(['active_energy_kcal', 'active_energy']);
+    context.energy_data.avg_steps_14d = avgFieldMulti(['steps_normalized', 'steps_raw_sum', 'steps']);
+    context.energy_data.avg_workout_minutes_14d = avgFieldMulti(['exercise_minutes', 'workout_minutes']);
 
     const restingEnergy = context.energy_data.avg_resting_energy_kcal;
     const activeEnergy = context.energy_data.avg_active_burn_kcal;
@@ -520,6 +536,7 @@ async function populateSleepData(userId: string, context: WeightContextJson): Pr
       );
     }
 
+    // Try to get HRV from sleep records first
     const hrvValues = sleepNights
       .filter((s: any) => {
         const hrv = s.avg_hrv_ms || s.avgHrvMs;
@@ -533,6 +550,7 @@ async function populateSleepData(userId: string, context: WeightContextJson): Pr
       );
     }
 
+    // Try to get RHR from sleep records first
     const rhrValues = sleepNights
       .filter((s: any) => {
         const rhr = s.avg_rhr_bpm || s.avgRhrBpm || s.rhr;
@@ -544,6 +562,41 @@ async function populateSleepData(userId: string, context: WeightContextJson): Pr
       context.sleep_recovery.avg_rhr_bpm = Math.round(
         rhrValues.reduce((a: number, b: number) => a + b, 0) / rhrValues.length
       );
+    }
+
+    // Fallback to daily_metrics table if HRV or RHR still null
+    if (context.sleep_recovery.avg_hrv_ms === null || context.sleep_recovery.avg_rhr_bpm === null) {
+      try {
+        const dailyMetrics = await getHealthRouterDailyMetrics(userId, 14);
+        
+        // Fallback for HRV from daily_metrics (hrv_ms field)
+        if (context.sleep_recovery.avg_hrv_ms === null && dailyMetrics && dailyMetrics.length > 0) {
+          const hrvFromDaily = dailyMetrics
+            .filter((d: any) => d.hrv_ms != null && d.hrv_ms > 0)
+            .map((d: any) => d.hrv_ms);
+          
+          if (hrvFromDaily.length > 0) {
+            context.sleep_recovery.avg_hrv_ms = Math.round(
+              hrvFromDaily.reduce((a: number, b: number) => a + b, 0) / hrvFromDaily.length
+            );
+          }
+        }
+        
+        // Fallback for RHR from daily_metrics (resting_hr_bpm field)
+        if (context.sleep_recovery.avg_rhr_bpm === null && dailyMetrics && dailyMetrics.length > 0) {
+          const rhrFromDaily = dailyMetrics
+            .filter((d: any) => d.resting_hr_bpm != null && d.resting_hr_bpm > 0)
+            .map((d: any) => d.resting_hr_bpm);
+          
+          if (rhrFromDaily.length > 0) {
+            context.sleep_recovery.avg_rhr_bpm = Math.round(
+              rhrFromDaily.reduce((a: number, b: number) => a + b, 0) / rhrFromDaily.length
+            );
+          }
+        }
+      } catch (fallbackError: unknown) {
+        logger.debug('[WeightManagementContext] HRV/RHR fallback to daily_metrics failed');
+      }
     }
 
     const avgDuration = context.sleep_recovery.avg_sleep_duration_min;
