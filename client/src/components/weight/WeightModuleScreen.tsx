@@ -1,11 +1,91 @@
 import { useState, useMemo } from 'react';
-import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock, Sparkles, MessageCircleQuestion } from 'lucide-react';
+import { X, Plus, Scale, Activity, Zap, Calendar, Target, Moon, Footprints, Drumstick, ChevronRight, AlertCircle, Loader2, TrendingUp, TrendingDown, Minus, Clock, Sparkles, MessageCircleQuestion, CheckCircle, AlertTriangle, Lightbulb, BarChart3, Brain } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { apiRequest } from '@/lib/queryClient';
 import { ManualWeighInSheet } from './ManualWeighInSheet';
 import { BodyCompSheet } from './BodyCompSheet';
 import { GoalSetupFlow } from './GoalSetupFlow';
+
+interface WeightAIAnalysis {
+  headline: string;
+  current_state: {
+    goal: {
+      target_weight_kg: number | null;
+      target_date: string | null;
+      goal_rate_kg_per_week: number | null;
+    };
+    trend: {
+      weight_today_kg: number | null;
+      trend_7d_kg: number | null;
+      trend_28d_kg: number | null;
+      rate_kg_per_week: number | null;
+      is_plateau: boolean;
+      plateau_reason_hypotheses: string[];
+    };
+    energy_balance_estimate: {
+      estimated_TDEE_kcal: number | null;
+      estimated_intake_kcal: number | null;
+      estimated_deficit_kcal_per_day: number | null;
+      confidence: 'low' | 'medium' | 'high';
+      why: string;
+    };
+    metabolic_health_signals: {
+      sleep_flag: 'good' | 'ok' | 'needs_work' | 'unknown';
+      stress_flag: 'good' | 'ok' | 'needs_work' | 'unknown';
+      cgm_flag: 'stable' | 'variable' | 'concerning_lows' | 'unknown';
+    };
+  };
+  what_is_working: Array<{
+    insight: string;
+    evidence: string[];
+    keep_doing: string;
+  }>;
+  what_is_blocking_progress: Array<{
+    issue: string;
+    evidence: string[];
+    why_it_matters: string;
+    most_likely_driver: string;
+  }>;
+  top_levers_next_7_days: Array<{
+    lever: string;
+    why_this: string;
+    exact_target: string;
+    how_to_do_it: string[];
+    success_metric: string[];
+    difficulty: 'easy' | 'medium' | 'hard';
+  }>;
+  cgm_coaching: {
+    available: boolean;
+    key_patterns: string[];
+    next_meal_experiment: {
+      hypothesis: string;
+      protocol: string[];
+      what_success_looks_like: string[];
+    } | null;
+  };
+  forecast: {
+    if_no_change: {
+      four_week_weight_kg: number | null;
+      reasoning: string;
+    };
+    if_apply_top_levers: {
+      four_week_weight_kg: number | null;
+      reasoning: string;
+    };
+    confidence: 'low' | 'medium' | 'high';
+  };
+  data_gaps: Array<{
+    missing: string;
+    why_it_matters: string;
+    how_to_capture: string;
+  }>;
+  safety_notes: string[];
+  tone_close: string;
+}
 
 interface WeightOverviewResponse {
   summary: {
@@ -86,11 +166,24 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
   const [showBodyCompSheet, setShowBodyCompSheet] = useState(false);
   const [showGoalSetup, setShowGoalSetup] = useState(false);
   const [timeRange, setTimeRange] = useState<'30' | '90' | '180'>('30');
+  const [showAIAnalysisSheet, setShowAIAnalysisSheet] = useState(false);
+  const [aiAnalysisData, setAiAnalysisData] = useState<WeightAIAnalysis | null>(null);
 
   const rangeParam = timeRange === '30' ? '30d' : timeRange === '90' ? '90d' : '6m';
   
   const { data, isLoading, error } = useQuery<WeightOverviewResponse>({
     queryKey: [`/v1/weight/overview?range=${rangeParam}`],
+  });
+
+  const aiAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/v1/weight/ai-analysis');
+      return response.json() as Promise<WeightAIAnalysis>;
+    },
+    onSuccess: (data) => {
+      setAiAnalysisData(data);
+      setShowAIAnalysisSheet(true);
+    },
   });
 
   const { data: narrativeData } = useQuery<{ narrative: string | null; generated_at: string | null }>({
@@ -644,43 +737,28 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
                         </div>
                       )}
 
-                      {onTalkToFlo && (
-                        <button
-                          onClick={() => {
-                            const goalTypeEnum = data.summary.goal.goal_type;
-                            const goalTypeLabel = goalTypeEnum === 'LOSE' ? 'lose weight to' : 
-                                               goalTypeEnum === 'GAIN' ? 'gain weight to' : 'maintain weight at';
-                            const targetWeight = data.summary.goal.target_weight_kg ?? 0;
-                            const currentW = data.summary.current_weight_kg ?? 0;
-                            const progress = data.summary.progress_percent ?? 0;
-                            const narrative = narrativeData?.narrative ?? '';
-                            const status = data.summary.status_chip ?? 'UNKNOWN';
-                            
-                            const context = JSON.stringify({
-                              topic: 'weight_goal_why',
-                              goal_type: goalTypeEnum,
-                              target_weight_kg: targetWeight,
-                              current_weight_kg: currentW,
-                              progress_percent: progress,
-                              status_chip: status,
-                              narrative: narrative,
-                              question: `Help me understand why I set my weight goal to ${goalTypeLabel} ${targetWeight}kg. What are the health benefits and motivations behind this goal?`
-                            });
-                            
-                            onClose();
-                            onTalkToFlo(context);
-                          }}
-                          className={`w-full mt-4 py-2.5 rounded-xl text-sm border transition-all flex items-center justify-center gap-2 ${
-                            isDark 
-                              ? 'border-purple-500/30 text-purple-300 hover:bg-purple-500/10' 
-                              : 'border-purple-200 text-purple-700 hover:bg-purple-50'
-                          }`}
-                          data-testid="button-goal-why"
-                        >
-                          <MessageCircleQuestion className="w-4 h-4" />
-                          Why am I doing this?
-                        </button>
-                      )}
+                      <button
+                        onClick={() => aiAnalysisMutation.mutate()}
+                        disabled={aiAnalysisMutation.isPending}
+                        className={`w-full mt-4 py-2.5 rounded-xl text-sm border transition-all flex items-center justify-center gap-2 ${
+                          isDark 
+                            ? 'border-purple-500/30 text-purple-300 hover:bg-purple-500/10 disabled:opacity-50' 
+                            : 'border-purple-200 text-purple-700 hover:bg-purple-50 disabled:opacity-50'
+                        }`}
+                        data-testid="button-goal-why"
+                      >
+                        {aiAnalysisMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-4 h-4" />
+                            AI Weight Analysis
+                          </>
+                        )}
+                      </button>
                     </div>
                   )}
 
@@ -1156,6 +1234,170 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
         currentWeight={currentWeight}
         existingGoal={data?.summary.goal}
       />
+
+      <Sheet open={showAIAnalysisSheet} onOpenChange={setShowAIAnalysisSheet}>
+        <SheetContent 
+          side="bottom" 
+          className={`h-[90vh] ${isDark ? 'bg-slate-900 border-white/10' : 'bg-white border-gray-200'}`}
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <SheetHeader className="pb-4">
+            <SheetTitle className={`flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <Brain className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+              Weight Analysis
+            </SheetTitle>
+          </SheetHeader>
+
+          <ScrollArea className="h-[calc(90vh-100px)] pr-4">
+            {aiAnalysisData && (
+              <div className="space-y-6 pb-8">
+                <div className={`p-4 rounded-xl ${
+                  isDark ? 'bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30' : 'bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200'
+                }`}>
+                  <p className={`text-lg font-medium ${isDark ? 'text-white' : 'text-gray-900'}`} data-testid="text-ai-headline">
+                    {aiAnalysisData.headline}
+                  </p>
+                </div>
+
+                {aiAnalysisData.what_is_working.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                      <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>What's Working</h3>
+                    </div>
+                    {aiAnalysisData.what_is_working.map((item, idx) => (
+                      <div key={idx} className={`p-4 rounded-xl ${
+                        isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'
+                      }`}>
+                        <p className={`font-medium mb-2 ${isDark ? 'text-green-300' : 'text-green-800'}`}>{item.insight}</p>
+                        {item.evidence.length > 0 && (
+                          <ul className={`text-sm mb-2 space-y-1 ${isDark ? 'text-green-300/80' : 'text-green-700'}`}>
+                            {item.evidence.map((e, i) => <li key={i}>• {e}</li>)}
+                          </ul>
+                        )}
+                        <p className={`text-sm italic ${isDark ? 'text-green-400/70' : 'text-green-600'}`}>Keep doing: {item.keep_doing}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {aiAnalysisData.what_is_blocking_progress.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+                      <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>What's Blocking Progress</h3>
+                    </div>
+                    {aiAnalysisData.what_is_blocking_progress.map((item, idx) => (
+                      <div key={idx} className={`p-4 rounded-xl ${
+                        isDark ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-orange-50 border border-orange-200'
+                      }`}>
+                        <p className={`font-medium mb-2 ${isDark ? 'text-orange-300' : 'text-orange-800'}`}>{item.issue}</p>
+                        {item.evidence.length > 0 && (
+                          <ul className={`text-sm mb-2 space-y-1 ${isDark ? 'text-orange-300/80' : 'text-orange-700'}`}>
+                            {item.evidence.map((e, i) => <li key={i}>• {e}</li>)}
+                          </ul>
+                        )}
+                        <p className={`text-sm ${isDark ? 'text-orange-400/70' : 'text-orange-600'}`}>{item.why_it_matters}</p>
+                        <p className={`text-sm mt-1 font-medium ${isDark ? 'text-orange-300' : 'text-orange-700'}`}>Driver: {item.most_likely_driver}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {aiAnalysisData.top_levers_next_7_days.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className={`w-5 h-5 ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`} />
+                      <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Top Actions for Next 7 Days</h3>
+                    </div>
+                    {aiAnalysisData.top_levers_next_7_days.map((lever, idx) => (
+                      <div key={idx} className={`p-4 rounded-xl ${
+                        isDark ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-yellow-50 border border-yellow-200'
+                      }`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <p className={`font-medium ${isDark ? 'text-yellow-300' : 'text-yellow-800'}`}>{lever.lever}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            lever.difficulty === 'easy' 
+                              ? isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-700'
+                              : lever.difficulty === 'hard'
+                                ? isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-700'
+                                : isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
+                          }`}>{lever.difficulty}</span>
+                        </div>
+                        <p className={`text-sm mb-2 ${isDark ? 'text-yellow-300/80' : 'text-yellow-700'}`}>{lever.why_this}</p>
+                        <p className={`text-sm font-medium mb-1 ${isDark ? 'text-yellow-200' : 'text-yellow-800'}`}>Target: {lever.exact_target}</p>
+                        {lever.how_to_do_it.length > 0 && (
+                          <ul className={`text-sm mb-2 space-y-1 ${isDark ? 'text-yellow-300/70' : 'text-yellow-600'}`}>
+                            {lever.how_to_do_it.map((h, i) => <li key={i}>• {h}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {aiAnalysisData.forecast && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className={`w-5 h-5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                      <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>4-Week Forecast</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={`p-4 rounded-xl ${isDark ? 'bg-gray-500/10 border border-gray-500/20' : 'bg-gray-50 border border-gray-200'}`}>
+                        <p className={`text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>If no change</p>
+                        <p className={`text-xl font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {aiAnalysisData.forecast.if_no_change.four_week_weight_kg?.toFixed(1) ?? '--'} kg
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-xl ${isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-200'}`}>
+                        <p className={`text-xs mb-1 ${isDark ? 'text-purple-400' : 'text-purple-600'}`}>With top actions</p>
+                        <p className={`text-xl font-medium ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>
+                          {aiAnalysisData.forecast.if_apply_top_levers.four_week_weight_kg?.toFixed(1) ?? '--'} kg
+                        </p>
+                      </div>
+                    </div>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Confidence: {aiAnalysisData.forecast.confidence}</p>
+                  </div>
+                )}
+
+                {aiAnalysisData.data_gaps.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                      <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Data Gaps</h3>
+                    </div>
+                    {aiAnalysisData.data_gaps.map((gap, idx) => (
+                      <div key={idx} className={`p-3 rounded-xl ${isDark ? 'bg-gray-500/10 border border-gray-500/20' : 'bg-gray-50 border border-gray-200'}`}>
+                        <p className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>{gap.missing}</p>
+                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{gap.how_to_capture}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {aiAnalysisData.tone_close && (
+                  <div className={`p-4 rounded-xl ${
+                    isDark ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20' : 'bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200'
+                  }`}>
+                    <p className={`text-sm leading-relaxed italic ${isDark ? 'text-purple-200' : 'text-purple-700'}`} data-testid="text-ai-tone-close">
+                      {aiAnalysisData.tone_close}
+                    </p>
+                  </div>
+                )}
+
+                {aiAnalysisData.safety_notes.length > 0 && (
+                  <div className={`p-3 rounded-xl ${isDark ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'}`}>
+                    <p className={`text-xs font-medium mb-1 ${isDark ? 'text-red-400' : 'text-red-600'}`}>Safety Notes</p>
+                    {aiAnalysisData.safety_notes.map((note, idx) => (
+                      <p key={idx} className={`text-xs ${isDark ? 'text-red-300/80' : 'text-red-600'}`}>• {note}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

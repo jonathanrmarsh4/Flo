@@ -1350,4 +1350,30 @@ router.get('/debug/tables', isAuthenticated, requireAdmin, async (req: any, res)
   }
 });
 
+/**
+ * POST /v1/weight/ai-analysis
+ * Generates AI-powered weight management analysis with structured recommendations
+ */
+router.post('/ai-analysis', isAuthenticated, async (req, res) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    
+    logger.info(`[WeightForecast] AI analysis requested for user ${userId}`);
+    
+    const { generateWeightAnalysis } = await import('../services/weightManagementAI');
+    const analysis = await generateWeightAnalysis(userId);
+    
+    res.json(analysis);
+  } catch (error) {
+    logger.error('[WeightForecast] Error generating AI analysis:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate AI analysis', 
+      details: error instanceof Error ? error.message : String(error) 
+    });
+  }
+});
+
 export default router;
