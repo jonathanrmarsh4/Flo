@@ -455,12 +455,14 @@ async function fetchTodayMetrics(healthId: string, eventDate: string, timezone?:
     };
 
     try {
-      // Use argMax to get the value from the latest recorded timestamp per metric_type
-      // This ensures we get the final daily total (most recent snapshot) rather than summing duplicates
+      // Use max(value) for cumulative metrics like steps and active_energy
+      // These metrics accumulate throughout the day, so we want the highest value seen
+      // Using argMax(value, recorded_at) would get the LATEST sync which might be a partial/incomplete value
+      // (e.g., 8 steps from a fresh app open instead of 8,338 steps from an earlier complete sync)
       const activityQuery = `
         SELECT 
           metric_type,
-          argMax(value, recorded_at) as value
+          max(value) as value
         FROM flo_health.health_metrics
         WHERE health_id = {healthId:String}
           AND toDate(local_date) = toDate({yesterdayDate:String})
