@@ -457,9 +457,19 @@ async function populateEnergyData(userId: string, context: WeightContextJson): P
     
     if (isSupabaseHealthEnabled()) {
       dailyMetrics = await supabaseHealth.getDailyMetrics(userId, 14);
+      logger.debug(`[WeightManagementContext] Got ${dailyMetrics?.length || 0} daily metrics for user ${userId}`);
+      if (dailyMetrics && dailyMetrics.length > 0) {
+        const sample = dailyMetrics[0];
+        logger.debug(`[WeightManagementContext] Sample daily metric fields: steps_normalized=${sample.steps_normalized}, exercise_minutes=${sample.exercise_minutes}, basal_energy_kcal=${sample.basal_energy_kcal}, active_energy_kcal=${sample.active_energy_kcal}`);
+      }
+    } else {
+      logger.debug(`[WeightManagementContext] Supabase health not enabled for energy data`);
     }
 
-    if (!dailyMetrics || dailyMetrics.length === 0) return;
+    if (!dailyMetrics || dailyMetrics.length === 0) {
+      logger.debug(`[WeightManagementContext] No daily metrics found for user ${userId}`);
+      return;
+    }
 
     // Helper to average a field, supporting multiple possible field names
     const avgFieldMulti = (fields: string[]): number | null => {
