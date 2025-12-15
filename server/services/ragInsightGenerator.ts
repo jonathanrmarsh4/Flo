@@ -512,6 +512,20 @@ function buildActivitySummary(dailyMetrics: DailyMetric[], workouts: WorkoutSess
   return sections.join('\n');
 }
 
+// Active experiment interface for insight correlation
+export interface ActiveExperiment {
+  id: string;
+  supplementType: string;
+  productName: string;
+  dosageAmount: number;
+  dosageUnit: string;
+  dosageFrequency: string;
+  primaryIntent: string;
+  status: 'baseline' | 'active';
+  daysIntoExperiment: number;
+  experimentDays: number;
+}
+
 /**
  * Generate holistic insights using RAG (vector search + GPT-4o)
  */
@@ -522,7 +536,8 @@ export async function generateRAGInsights(
   userContext: UserContext,
   availableBiomarkers: Array<{ id: string; name: string; unitCanonical: string }> = [],
   dailyMetrics: DailyMetric[] = [],
-  workouts: WorkoutSession[] = []
+  workouts: WorkoutSession[] = [],
+  activeExperiments: ActiveExperiment[] = []
 ): Promise<RAGInsight[]> {
   
   // Even if no biomarker changes, we should still analyze activity patterns
@@ -586,6 +601,20 @@ ${biomarkers.slice(0, 10).map(b => `- ${b.name}: ${b.value} ${b.unit}${b.isAbnor
 
 ## Activity & Workout Data (IMPORTANT - Analyze This!)
 ${activitySummary}
+
+## Active Supplement Experiments (CRITICAL - Correlate With Changes!)
+${activeExperiments.length > 0 
+  ? activeExperiments.map(exp => 
+      `- **${exp.productName}** (${exp.supplementType}): ${exp.dosageAmount}${exp.dosageUnit} ${exp.dosageFrequency}
+    Goal: ${exp.primaryIntent.replace(/_/g, ' ')}
+    Status: ${exp.status} (Day ${exp.daysIntoExperiment} of ${exp.experimentDays})
+    ${exp.primaryIntent.toLowerCase().includes('sleep') ? '→ CORRELATE ANY SLEEP IMPROVEMENTS WITH THIS EXPERIMENT' : ''}
+    ${exp.primaryIntent.toLowerCase().includes('energy') ? '→ CORRELATE ANY ENERGY/HRV CHANGES WITH THIS EXPERIMENT' : ''}
+    ${exp.primaryIntent.toLowerCase().includes('recovery') ? '→ CORRELATE ANY RECOVERY IMPROVEMENTS WITH THIS EXPERIMENT' : ''}`
+    ).join('\n\n')
+  : 'No active supplement experiments'}
+
+**IMPORTANT**: When you detect improvements in metrics that align with an active experiment's goal (e.g., better deep sleep during a Magnesium experiment targeting sleep), you MUST mention the possible correlation in your insight. Example: "Your deep sleep increased 18% this week. This coincides with Day 12 of your Magnesium experiment targeting sleep quality - early signs suggest it may be working."
 
 ${biomarkerNamesSection}
 

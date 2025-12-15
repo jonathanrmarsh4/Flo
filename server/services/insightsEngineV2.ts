@@ -19,9 +19,10 @@ import { detectStaleLabWarning, type StaleLabWarning, detectMetricDeviations, ty
 import { getFreshnessCategory, SLOW_MOVING_BIOMARKERS } from './dataClassification';
 import { logger } from '../logger';
 import { getUserContext, generateContextualInsight, type UserContext, type BaselineData } from './aiInsightGenerator';
-import { detectDataChanges, generateRAGInsights, type RAGInsight } from './ragInsightGenerator';
+import { detectDataChanges, generateRAGInsights, type RAGInsight, type ActiveExperiment } from './ragInsightGenerator';
 import { writeBatchInsightsToBrain } from './brainService';
 import { clickhouseBaselineEngine, type MetricsAnalysisResult } from './clickhouseBaselineEngine';
+import { n1ExperimentService } from './n1ExperimentService';
 
 // ============================================================================
 // ML Architecture - ClickHouse is the Single Source of Truth (Stage 3 Complete)
@@ -1199,6 +1200,42 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
       .orderBy(biomarkers.name);
     logger.info(`[InsightsEngineV2] Found ${availableBiomarkers.length} available biomarkers`);
     
+    // Step 5b: Fetch active n1 experiments for experiment-aware insights
+    let activeExperiments: ActiveExperiment[] = [];
+    try {
+      const allExperiments = await n1ExperimentService.getUserExperiments(userId);
+      const now = new Date();
+      
+      activeExperiments = allExperiments
+        .filter(exp => exp.status === 'baseline' || exp.status === 'active')
+        .map(exp => {
+          // Use experiment/baseline start dates, fall back to created_at for accurate day counting
+          const createdAt = exp.created_at ? new Date(exp.created_at) : now;
+          const experimentStart = exp.experiment_start_date ? new Date(exp.experiment_start_date) : createdAt;
+          const baselineStart = exp.baseline_start_date ? new Date(exp.baseline_start_date) : createdAt;
+          const daysIntoExperiment = exp.status === 'active' 
+            ? Math.floor((now.getTime() - experimentStart.getTime()) / (1000 * 60 * 60 * 24))
+            : Math.floor((now.getTime() - baselineStart.getTime()) / (1000 * 60 * 60 * 24));
+          
+          return {
+            id: exp.id,
+            supplementType: exp.supplement_type_id,
+            productName: exp.product_name,
+            dosageAmount: exp.dosage_amount,
+            dosageUnit: exp.dosage_unit,
+            dosageFrequency: exp.dosage_frequency,
+            primaryIntent: exp.primary_intent,
+            status: exp.status as 'baseline' | 'active',
+            daysIntoExperiment: Math.max(0, daysIntoExperiment),
+            experimentDays: exp.experiment_days,
+          };
+        });
+      
+      logger.info(`[InsightsEngineV2] Found ${activeExperiments.length} active experiments for insight correlation`);
+    } catch (expError: any) {
+      logger.warn(`[InsightsEngineV2] Failed to fetch experiments: ${expError?.message || expError}`);
+    }
+    
     // Step 6: Generate RAG-based holistic insights
     logger.info('[InsightsEngineV2] Generating RAG-based insights using vector search + GPT-4o');
     const ragInsights: RAGInsight[] = await generateRAGInsights(
@@ -1208,7 +1245,8 @@ export async function generateDailyInsights(userId: string, forceRegenerate: boo
       userContext,
       availableBiomarkers,
       healthData.dailyMetrics,
-      healthData.workouts
+      healthData.workouts,
+      activeExperiments
     );
     logger.info(`[InsightsEngineV2] Generated ${ragInsights.length} RAG insights`);
     

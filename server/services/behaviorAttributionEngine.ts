@@ -792,6 +792,166 @@ export class BehaviorAttributionEngine {
         }
       }
 
+      // 8. Active supplement experiments from n1_experiments table
+      // These are crucial for correlating outcomes (e.g., deep sleep improvement) with interventions
+      const { data: activeExperiments } = await supabase
+        .from('n1_experiments')
+        .select('*')
+        .eq('health_id', healthId)
+        .in('status', ['active', 'baseline']);
+
+      if (activeExperiments && activeExperiments.length > 0) {
+        for (const experiment of activeExperiments) {
+          // Calculate days into experiment
+          const experimentStart = experiment.experiment_start_date 
+            ? new Date(experiment.experiment_start_date)
+            : null;
+          const daysIntoExperiment = experimentStart
+            ? Math.floor((new Date(localDate).getTime() - experimentStart.getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+
+          // Add the supplement as an active factor
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.SUPPLEMENT,
+            factor_key: experiment.supplement_type_id || 'unknown_supplement',
+            numeric_value: experiment.dosage_amount || 0,
+            string_value: `${experiment.product_name || experiment.supplement_type_id} (${experiment.status})`,
+            time_value: experimentStart,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: true, // Experiments are always notable for attribution
+            source: 'n1_experiment',
+            metadata: {
+              experiment_id: experiment.id,
+              supplement_type: experiment.supplement_type_id,
+              product_name: experiment.product_name,
+              product_brand: experiment.product_brand,
+              dosage_amount: experiment.dosage_amount,
+              dosage_unit: experiment.dosage_unit,
+              dosage_frequency: experiment.dosage_frequency,
+              dosage_timing: experiment.dosage_timing,
+              primary_intent: experiment.primary_intent,
+              experiment_status: experiment.status,
+              days_into_experiment: daysIntoExperiment,
+              experiment_days: experiment.experiment_days,
+            },
+          });
+
+          logger.debug(`[BehaviorAttribution] Added active experiment factor: ${experiment.supplement_type_id} (day ${daysIntoExperiment})`);
+        }
+      }
+
+      // 9. Training load from recent workouts (calculate 7-day rolling average vs today)
+      // Higher than normal training load can affect recovery metrics like deep sleep
+      const sevenDaysAgo = new Date(localDate);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { data: recentWorkouts } = await supabase
+        .from('healthkit_workouts')
+        .select('duration, total_energy_burned, start_date')
+        .eq('health_id', healthId)
+        .gte('start_date', sevenDaysAgo.toISOString())
+        .lt('start_date', `${localDate}T23:59:59`);
+
+      if (recentWorkouts && recentWorkouts.length > 0) {
+        // Calculate average daily workout duration based on distinct workout days (not fixed 7)
+        const distinctDays = new Set(
+          recentWorkouts.map(w => new Date(w.start_date).toISOString().split('T')[0])
+        ).size;
+        const daysForAverage = Math.max(1, distinctDays); // Avoid division by zero
+        const avgDailyDuration = recentWorkouts.reduce((sum, w) => sum + (w.duration || 0), 0) / daysForAverage;
+        const avgDailyCalories = recentWorkouts.reduce((sum, w) => sum + (w.total_energy_burned || 0), 0) / daysForAverage;
+
+        // Get today's workout totals (already calculated above)
+        const todayDuration = factors.find(f => f.factor_key === 'total_duration_min')?.numeric_value || 0;
+        const todayCalories = factors.find(f => f.factor_key === 'total_calories' && f.factor_category === 'workout')?.numeric_value || 0;
+
+        // Calculate training load deviation
+        const durationDeviation = avgDailyDuration > 0 ? ((todayDuration - avgDailyDuration) / avgDailyDuration) * 100 : 0;
+        const caloriesDeviation = avgDailyCalories > 0 ? ((todayCalories - avgDailyCalories) / avgDailyCalories) * 100 : 0;
+
+        factors.push({
+          factor_category: FACTOR_CATEGORIES.WORKOUT,
+          factor_key: 'training_load_7d_avg_min',
+          numeric_value: Math.round(avgDailyDuration),
+          string_value: null,
+          time_value: null,
+          deviation_from_baseline: durationDeviation,
+          baseline_value: avgDailyDuration,
+          is_notable: Math.abs(durationDeviation) > 50, // Notable if 50%+ above/below average
+          source: 'calculated',
+        });
+
+        factors.push({
+          factor_category: FACTOR_CATEGORIES.WORKOUT,
+          factor_key: 'training_load_7d_avg_kcal',
+          numeric_value: Math.round(avgDailyCalories),
+          string_value: null,
+          time_value: null,
+          deviation_from_baseline: caloriesDeviation,
+          baseline_value: avgDailyCalories,
+          is_notable: Math.abs(caloriesDeviation) > 50,
+          source: 'calculated',
+        });
+
+        if (Math.abs(durationDeviation) > 30 || Math.abs(caloriesDeviation) > 30) {
+          logger.debug(`[BehaviorAttribution] Notable training load deviation: duration ${durationDeviation.toFixed(0)}%, calories ${caloriesDeviation.toFixed(0)}%`);
+        }
+      }
+
+      // 10. Body composition tracking from health_daily_metrics (weight, body fat)
+      const { data: bodyMetrics } = await supabase
+        .from('health_daily_metrics')
+        .select('weight_kg, body_fat_percent, lean_body_mass_kg, local_date')
+        .eq('health_id', healthId)
+        .eq('local_date', localDate)
+        .single();
+
+      if (bodyMetrics) {
+        if (bodyMetrics.weight_kg != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'weight_kg',
+            numeric_value: bodyMetrics.weight_kg,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (bodyMetrics.body_fat_percent != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'body_fat_percent',
+            numeric_value: bodyMetrics.body_fat_percent,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        if (bodyMetrics.lean_body_mass_kg != null) {
+          factors.push({
+            factor_category: FACTOR_CATEGORIES.LIFESTYLE,
+            factor_key: 'lean_body_mass_kg',
+            numeric_value: bodyMetrics.lean_body_mass_kg,
+            string_value: null,
+            time_value: null,
+            deviation_from_baseline: null,
+            baseline_value: null,
+            is_notable: false,
+            source: 'healthkit',
+          });
+        }
+
+        logger.debug(`[BehaviorAttribution] Added body composition factors: weight=${bodyMetrics.weight_kg}, body_fat=${bodyMetrics.body_fat_percent}`);
+      }
+
       // Calculate baselines and deviations for each factor
       await this.enrichWithBaselines(healthId, localDate, factors);
 
