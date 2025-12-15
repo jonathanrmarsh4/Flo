@@ -6,6 +6,7 @@ import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Respon
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 import { ManualWeighInSheet } from './ManualWeighInSheet';
 import { BodyCompSheet } from './BodyCompSheet';
 import { GoalSetupFlow } from './GoalSetupFlow';
@@ -168,6 +169,7 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
   const [timeRange, setTimeRange] = useState<'30' | '90' | '180'>('30');
   const [showAIAnalysisSheet, setShowAIAnalysisSheet] = useState(false);
   const [aiAnalysisData, setAiAnalysisData] = useState<WeightAIAnalysis | null>(null);
+  const { toast } = useToast();
 
   const rangeParam = timeRange === '30' ? '30d' : timeRange === '90' ? '90d' : '6m';
   
@@ -178,11 +180,22 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
   const aiAnalysisMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest('POST', '/v1/weight/ai-analysis');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to generate analysis');
+      }
       return response.json() as Promise<WeightAIAnalysis>;
     },
     onSuccess: (data) => {
       setAiAnalysisData(data);
       setShowAIAnalysisSheet(true);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Analysis Failed',
+        description: error.message || 'Unable to generate weight analysis. Please try again.',
+        variant: 'destructive',
+      });
     },
   });
 
