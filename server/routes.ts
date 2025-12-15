@@ -6446,11 +6446,15 @@ Important: This is for educational purposes. Include a brief note that users sho
         });
       }
 
-      // Calculate totals matching Flo's aggregation
-      const calories = byType['HKQuantityTypeIdentifierDietaryEnergyConsumed']?.total || 0;
-      const protein = byType['HKQuantityTypeIdentifierDietaryProtein']?.total || 0;
-      const carbs = byType['HKQuantityTypeIdentifierDietaryCarbohydrates']?.total || 0;
-      const fat = byType['HKQuantityTypeIdentifierDietaryFatTotal']?.total || 0;
+      // Calculate totals matching Flo's aggregation (support both short camelCase and full HK identifiers)
+      const calories = (byType['dietaryEnergyConsumed']?.total || 0) + 
+                       (byType['HKQuantityTypeIdentifierDietaryEnergyConsumed']?.total || 0);
+      const protein = (byType['dietaryProtein']?.total || 0) + 
+                      (byType['HKQuantityTypeIdentifierDietaryProtein']?.total || 0);
+      const carbs = (byType['dietaryCarbohydrates']?.total || 0) + 
+                    (byType['HKQuantityTypeIdentifierDietaryCarbohydrates']?.total || 0);
+      const fat = (byType['dietaryFatTotal']?.total || 0) + 
+                  (byType['HKQuantityTypeIdentifierDietaryFatTotal']?.total || 0);
 
       // Check for potential duplicates (same source, same value, within 1 second)
       const potentialDuplicates: any[] = [];
@@ -10964,11 +10968,15 @@ Important: This is for educational purposes. Include a brief note that users sho
         });
       }
 
-      // Calculate totals matching Flo's aggregation
-      const calories = byType['HKQuantityTypeIdentifierDietaryEnergyConsumed']?.total || 0;
-      const protein = byType['HKQuantityTypeIdentifierDietaryProtein']?.total || 0;
-      const carbs = byType['HKQuantityTypeIdentifierDietaryCarbohydrates']?.total || 0;
-      const fat = byType['HKQuantityTypeIdentifierDietaryFatTotal']?.total || 0;
+      // Calculate totals matching Flo's aggregation (support both short camelCase and full HK identifiers)
+      const calories = (byType['dietaryEnergyConsumed']?.total || 0) + 
+                       (byType['HKQuantityTypeIdentifierDietaryEnergyConsumed']?.total || 0);
+      const protein = (byType['dietaryProtein']?.total || 0) + 
+                      (byType['HKQuantityTypeIdentifierDietaryProtein']?.total || 0);
+      const carbs = (byType['dietaryCarbohydrates']?.total || 0) + 
+                    (byType['HKQuantityTypeIdentifierDietaryCarbohydrates']?.total || 0);
+      const fat = (byType['dietaryFatTotal']?.total || 0) + 
+                  (byType['HKQuantityTypeIdentifierDietaryFatTotal']?.total || 0);
 
       return res.json({
         date,
@@ -10986,6 +10994,22 @@ Important: This is for educational purposes. Include a brief note that users sho
           fatG: Math.round(fat * 100) / 100,
         },
         byType,
+        diagnosis: samples?.length === 0 ? {
+          issue: "No nutrition samples found in healthkit_samples table",
+          possibleCauses: [
+            "iOS app hasn't synced nutrition data yet",
+            "HealthKit nutrition permissions not granted on iOS device",
+            "No nutrition data logged in Apple Health or connected apps (e.g., MyFitnessPal, Cronometer)",
+            "Nutrition sync was skipped because HealthKit returned 0 samples"
+          ],
+          suggestedActions: [
+            "1. Open iOS app Settings > Health > Data Access & Devices",
+            "2. Verify nutrition permissions are granted to the Flo app",
+            "3. Log food in a nutrition tracking app that syncs to Apple Health",
+            "4. Force sync from the iOS app (pull down to refresh)",
+            "5. Check iOS device console for '[Nutrition]' logs"
+          ]
+        } : undefined,
       });
     } catch (error: any) {
       logger.error("[Nutrition] Debug error:", error);
