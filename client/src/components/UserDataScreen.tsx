@@ -1,6 +1,6 @@
 import { ChevronLeft, Database, RefreshCw, Watch, Activity, Moon, Heart, Loader2, Thermometer, Droplets, Brain, Wind, Footprints, Scale, Apple, Zap } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { formatDistanceToNow } from 'date-fns';
+import { format } from 'date-fns';
 
 interface UserDataScreenProps {
   isDark: boolean;
@@ -67,7 +67,7 @@ export function UserDataScreen({ isDark, onClose }: UserDataScreenProps) {
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return 'Unknown';
-      return formatDistanceToNow(date, { addSuffix: true });
+      return format(date, "MMM d, yyyy 'at' h:mm a");
     } catch {
       return 'Unknown';
     }
