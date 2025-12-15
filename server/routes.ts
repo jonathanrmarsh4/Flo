@@ -10747,23 +10747,23 @@ Important: This is for educational purposes. Include a brief note that users sho
       if (records.length === 0 && !nutritionBackfillTriggered.has(userId)) {
         nutritionBackfillTriggered.add(userId);
         
-        // Check if user has raw nutrition samples in Supabase
-        const { getSupabaseClient } = await import('./services/supabaseHealthStorage');
-        const supabase = getSupabaseClient();
-        if (supabase) {
-          const { data: samples } = await supabase
-            .from('healthkit_samples')
-            .select('id')
-            .eq('user_id', userId)
-            .ilike('sample_type', '%Dietary%')
-            .limit(1);
+        try {
+          // Check if user has raw nutrition samples using healthRouter
+          // Query for any dietary data type samples in last 90 days
+          const nutritionDataTypes = ['dietaryProtein', 'dietaryCarbohydrates', 'dietaryFatTotal', 'dietaryEnergyConsumed'];
+          const rawSamples = await healthRouter.getHealthkitSamples(userId, {
+            dataTypes: nutritionDataTypes,
+            startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 90 days ago
+            endDate: new Date(),
+            limit: 1,
+          });
           
-          if (samples && samples.length > 0) {
+          if (rawSamples && rawSamples.length > 0) {
             // User has raw samples but no aggregated data - trigger backfill
             logger.info(`[Nutrition] Auto-triggering backfill for ${userId} (has samples but no aggregates)`);
             
-            // Get user timezone - prefer profile timezone, fallback to Australia/Perth for Australian users
-            const profile = await storage.getProfile(userId);
+            // Get user timezone from Supabase profile
+            const profile = await healthRouter.getProfile(userId);
             const timezone = profile?.timezone || 'Australia/Perth';
             
             // Run backfill in background (don't await)
@@ -10787,6 +10787,8 @@ Important: This is for educational purposes. Include a brief note that users sho
               }
             })();
           }
+        } catch (backfillError) {
+          logger.warn(`[Nutrition] Auto-backfill check failed for ${userId}:`, backfillError);
         }
       }
       
