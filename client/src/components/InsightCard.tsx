@@ -18,7 +18,7 @@ interface InsightCardProps {
   onViewDetails?: () => void;
   delay?: number;
   insightId?: string;
-  onFeedback?: (insightId: string, isHelpful: boolean) => void;
+  onFeedback?: (insightId: string, isHelpful: boolean) => Promise<void>;
 }
 
 export function InsightCard({
@@ -38,12 +38,20 @@ export function InsightCard({
   const [feedbackGiven, setFeedbackGiven] = useState<'up' | 'down' | null>(null);
   const [feedbackPending, setFeedbackPending] = useState(false);
 
-  const handleFeedback = (isHelpful: boolean) => {
-    if (!insightId || !onFeedback || feedbackGiven) return;
+  const handleFeedback = async (isHelpful: boolean) => {
+    if (!insightId || !onFeedback || feedbackGiven || feedbackPending) return;
     setFeedbackPending(true);
+    const previousState = feedbackGiven;
     setFeedbackGiven(isHelpful ? 'up' : 'down');
-    onFeedback(insightId, isHelpful);
-    setFeedbackPending(false);
+    
+    try {
+      await onFeedback(insightId, isHelpful);
+    } catch (error) {
+      setFeedbackGiven(previousState);
+      console.error('[InsightCard] Feedback failed, reverting state:', error);
+    } finally {
+      setFeedbackPending(false);
+    }
   };
   const getConfidenceColor = (conf: number) => {
     if (conf >= 0.8) return 'bg-teal-400';

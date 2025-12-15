@@ -82,23 +82,25 @@ export function RAGInsightsScreen({ isDark, onClose }: RAGInsightsScreenProps) {
   const feedbackMutation = useMutation({
     mutationFn: async ({ insightId, isHelpful }: { insightId: string; isHelpful: boolean }) => {
       const insight = insights.find(i => i.id === insightId);
+      const patternSignature = `${insight?.category || 'general'}_${insight?.pattern?.slice(0, 50) || insightId}`;
       return apiRequest('POST', '/api/daily-insights/feedback', {
         insightId,
-        patternSignature: insight?.category || 'general',
+        patternSignature,
         isHelpful,
         isAccurate: isHelpful,
       });
     },
     onSuccess: () => {
-      console.log('[Insights] Feedback submitted successfully');
+      console.log('[Insights] Feedback submitted successfully - ML thresholds updated');
     },
     onError: (error: any) => {
       console.error('[Insights] Failed to submit feedback:', error);
+      throw error;
     },
   });
 
-  const handleInsightFeedback = (insightId: string, isHelpful: boolean) => {
-    feedbackMutation.mutate({ insightId, isHelpful });
+  const handleInsightFeedback = async (insightId: string, isHelpful: boolean): Promise<void> => {
+    await feedbackMutation.mutateAsync({ insightId, isHelpful });
   };
 
   return (
