@@ -6414,15 +6414,25 @@ Important: This is for educational purposes. Include a brief note that users sho
         return res.status(500).json({ error: "Supabase not available" });
       }
 
-      // Get all dietary samples for this date
+      // Get all dietary samples for this date (check both lowercase 'dietary' and uppercase 'Dietary')
       const { data: samples, error } = await supabase
         .from('healthkit_samples')
         .select('*')
         .eq('health_id', healthId)
-        .ilike('data_type', '%Dietary%')
+        .or('data_type.ilike.%dietary%,data_type.ilike.%Dietary%')
         .gte('start_date', dayStartUTC.toISOString())
         .lte('start_date', dayEndUTC.toISOString())
         .order('start_date', { ascending: true });
+      
+      // Also get distinct data_types for this user to debug what's in the DB
+      const { data: allDistinctTypes } = await supabase
+        .from('healthkit_samples')
+        .select('data_type')
+        .eq('health_id', healthId)
+        .limit(1000);
+      
+      const uniqueDataTypes = [...new Set((allDistinctTypes || []).map(r => r.data_type))].sort();
+      const dietaryTypes = uniqueDataTypes.filter(t => t.toLowerCase().includes('dietary'));
 
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -6495,9 +6505,65 @@ Important: This is for educational purposes. Include a brief note that users sho
         },
         potentialDuplicates,
         byType,
+        debug: {
+          allDataTypesInDb: uniqueDataTypes.slice(0, 50),
+          dietaryTypesInDb: dietaryTypes,
+          totalDistinctTypes: uniqueDataTypes.length,
+        },
       });
     } catch (error: any) {
       logger.error("[Admin] Nutrition debug error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Simple debug endpoint to check what samples exist for a user (no date filter)
+  app.get("/api/admin/samples/overview/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { getSupabaseClient, getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const supabase = getSupabaseClient();
+      
+      if (!supabase) {
+        return res.status(500).json({ error: "Supabase not available" });
+      }
+      
+      // Get distinct data_types and their counts
+      const { data: allSamples } = await supabase
+        .from('healthkit_samples')
+        .select('data_type, start_date')
+        .eq('health_id', healthId)
+        .order('start_date', { ascending: false })
+        .limit(1000);
+      
+      // Count by type
+      const typeCounts: Record<string, number> = {};
+      const dateRange = { min: '', max: '' };
+      
+      for (const s of allSamples || []) {
+        typeCounts[s.data_type] = (typeCounts[s.data_type] || 0) + 1;
+        if (!dateRange.min || s.start_date < dateRange.min) dateRange.min = s.start_date;
+        if (!dateRange.max || s.start_date > dateRange.max) dateRange.max = s.start_date;
+      }
+      
+      // Find dietary types
+      const dietaryTypes = Object.entries(typeCounts)
+        .filter(([type]) => type.toLowerCase().includes('dietary'))
+        .sort((a, b) => b[1] - a[1]);
+      
+      return res.json({
+        userId,
+        healthId,
+        totalSamples: allSamples?.length || 0,
+        dateRange,
+        allTypes: Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 50),
+        dietaryTypes,
+        hasDietaryData: dietaryTypes.length > 0,
+      });
+    } catch (error: any) {
+      logger.error("[Admin] Samples overview error:", error);
       return res.status(500).json({ error: error.message });
     }
   });

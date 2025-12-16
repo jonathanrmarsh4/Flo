@@ -835,6 +835,12 @@ export async function getHealthkitSamplesFlexible(
 ): Promise<HealthkitSample[]> {
   const healthId = await getHealthId(userId);
   
+  // Debug logging for nutrition query troubleshooting
+  const isDietaryQuery = options.dataTypes?.some(dt => dt.toLowerCase().includes('dietary'));
+  if (isDietaryQuery) {
+    logger.info(`[SupabaseHealth] Flexible query - userId: ${userId}, healthId: ${healthId}, dataTypes: ${options.dataTypes?.length}, startDate: ${options.startDate?.toISOString()}, endDate: ${options.endDate?.toISOString()}`);
+  }
+  
   let query = supabase
     .from('healthkit_samples')
     .select('*')
@@ -863,6 +869,39 @@ export async function getHealthkitSamplesFlexible(
   if (error) {
     logger.error('[SupabaseHealth] Error fetching healthkit samples (flexible):', error);
     throw error;
+  }
+  
+  if (isDietaryQuery) {
+    logger.info(`[SupabaseHealth] Flexible query returned ${data?.length || 0} samples`);
+    // Log first few sample data_types if any found
+    if (data && data.length > 0) {
+      const sampleTypes = Array.from(new Set(data.slice(0, 10).map(d => d.data_type)));
+      logger.info(`[SupabaseHealth] Sample data_types: ${sampleTypes.join(', ')}`);
+    } else if (options.startDate && options.endDate) {
+      // Debug: Query what data types DO exist for this date range (without data_type filter)
+      const { data: debugData } = await supabase
+        .from('healthkit_samples')
+        .select('data_type')
+        .eq('health_id', healthId)
+        .gte('start_date', options.startDate.toISOString())
+        .lte('start_date', options.endDate.toISOString())
+        .limit(100);
+      
+      if (debugData && debugData.length > 0) {
+        const actualTypes = Array.from(new Set(debugData.map(d => d.data_type)));
+        logger.warn(`[SupabaseHealth] DEBUG: No dietary samples found, but ${debugData.length} samples exist with types: ${actualTypes.slice(0, 20).join(', ')}`);
+      } else {
+        logger.warn(`[SupabaseHealth] DEBUG: NO samples at all for healthId ${healthId} in date range ${options.startDate.toISOString()} to ${options.endDate.toISOString()}`);
+        
+        // Check if user has ANY samples at all
+        const { data: anyData, count } = await supabase
+          .from('healthkit_samples')
+          .select('data_type', { count: 'exact' })
+          .eq('health_id', healthId)
+          .limit(5);
+        logger.warn(`[SupabaseHealth] DEBUG: User has ${count || 0} total samples in DB. Sample types: ${anyData?.map(d => d.data_type).join(', ') || 'none'}`);
+      }
+    }
   }
 
   return data || [];
