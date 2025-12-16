@@ -508,12 +508,18 @@ export async function computeDailyReadiness(userId: string, date: string): Promi
     const rhrBaseline = await getBaseline(userId, "resting_hr");
     const activityBaseline = await getBaseline(userId, "active_energy_kcal");
 
-    // Determine if we're in calibration mode (baselines have <14 samples)
-    const isCalibrating = 
-      (sleepBaseline && sleepBaseline.numSamples < 14) ||
-      (hrvBaseline && hrvBaseline.numSamples < 14) ||
-      (rhrBaseline && rhrBaseline.numSamples < 14) ||
-      (!sleepBaseline && !hrvBaseline && !rhrBaseline);
+    // Determine if we're in calibration mode
+    // Calibration ends when MAJORITY (2+ out of 3) key baselines have 14+ samples
+    // This prevents false "calibrating" status when one metric has sparse data
+    const calibratedBaselines = [
+      sleepBaseline && sleepBaseline.numSamples >= 14,
+      hrvBaseline && hrvBaseline.numSamples >= 14,
+      rhrBaseline && rhrBaseline.numSamples >= 14,
+    ].filter(Boolean).length;
+    
+    const isCalibrating = calibratedBaselines < 2;
+    
+    logger.debug(`[Readiness] Calibration check for user ${userId}: sleep=${sleepBaseline?.numSamples ?? 0}, hrv=${hrvBaseline?.numSamples ?? 0}, rhr=${rhrBaseline?.numSamples ?? 0} → calibrated=${calibratedBaselines}/3, isCalibrating=${isCalibrating}`);
 
     // Calculate component scores
     const sleepScore = calculateSleepScore(todayMetrics.sleepHours, sleepBaseline);
