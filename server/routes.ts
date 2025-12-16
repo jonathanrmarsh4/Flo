@@ -1113,18 +1113,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/profile/body-fat-calibration", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      logger.info(`[BodyFat] Received update request from ${userId}: ${JSON.stringify(req.body)}`);
 
       // Validate with Zod schema
       const validationResult = updateBodyFatCalibrationSchema.safeParse(req.body);
       if (!validationResult.success) {
         const validationError = fromError(validationResult.error);
+        logger.warn(`[BodyFat] Validation failed: ${validationError.toString()}`);
         return res.status(400).json({ error: validationError.toString() });
       }
 
       // Update the profile in Supabase health storage
-      await healthRouter.upsertProfile(userId, {
+      const updatedProfile = await healthRouter.upsertProfile(userId, {
         body_fat_correction_pct: validationResult.data.bodyFatCorrectionPct,
       });
+      
+      logger.info(`[BodyFat] Updated profile for ${userId}: body_fat_correction_pct = ${updatedProfile?.body_fat_correction_pct}`);
+
+      // Verify the value was persisted by re-reading
+      const verifyProfile = await healthRouter.getProfile(userId);
+      logger.info(`[BodyFat] Verification read for ${userId}: body_fat_correction_pct = ${verifyProfile?.body_fat_correction_pct}`);
 
       res.json({ 
         success: true,
