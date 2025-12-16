@@ -6561,6 +6561,15 @@ Important: This is for educational purposes. Include a brief note that users sho
         .filter(([type]) => type.toLowerCase().includes('dietary'))
         .sort((a, b) => b[1] - a[1]);
       
+      // Find mobility/gait types
+      const mobilityTypes = Object.entries(typeCounts)
+        .filter(([type]) => 
+          type.toLowerCase().includes('walking') || 
+          type.toLowerCase().includes('stair') ||
+          type.toLowerCase().includes('steadiness')
+        )
+        .sort((a, b) => b[1] - a[1]);
+      
       return res.json({
         userId,
         healthId,
@@ -6568,10 +6577,94 @@ Important: This is for educational purposes. Include a brief note that users sho
         dateRange,
         allTypes: Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 50),
         dietaryTypes,
+        mobilityTypes,
         hasDietaryData: dietaryTypes.length > 0,
+        hasMobilityData: mobilityTypes.length > 0,
       });
     } catch (error: any) {
       logger.error("[Admin] Samples overview error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Debug endpoint to check movement quality data for a user
+  app.get("/api/admin/mobility/debug/:userId", isAuthenticated, requireAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { days = 7 } = req.query;
+      const { getSupabaseClient, getHealthId } = await import('./services/supabaseHealthStorage');
+      
+      const healthId = await getHealthId(userId);
+      const supabase = getSupabaseClient();
+      
+      if (!supabase) {
+        return res.status(500).json({ error: "Supabase not available" });
+      }
+      
+      // Get user_daily_metrics with walking fields
+      const { data: dailyMetrics, error: metricsError } = await supabase
+        .from('user_daily_metrics')
+        .select('local_date, walking_speed_ms, walking_step_length_m, walking_double_support_pct, walking_asymmetry_pct, apple_walking_steadiness, six_minute_walk_distance_m, stair_ascent_speed_ms, stair_descent_speed_ms')
+        .eq('health_id', healthId)
+        .order('local_date', { ascending: false })
+        .limit(parseInt(days as string));
+      
+      // Get raw healthkit_samples for mobility types
+      const mobilityDataTypes = [
+        'walkingSpeed', 'HKQuantityTypeIdentifierWalkingSpeed',
+        'walkingStepLength', 'HKQuantityTypeIdentifierWalkingStepLength',
+        'walkingDoubleSupportPercentage', 'HKQuantityTypeIdentifierWalkingDoubleSupportPercentage',
+        'walkingAsymmetryPercentage', 'HKQuantityTypeIdentifierWalkingAsymmetryPercentage',
+        'appleWalkingSteadiness', 'HKQuantityTypeIdentifierAppleWalkingSteadiness',
+        'stairAscentSpeed', 'HKQuantityTypeIdentifierStairAscentSpeed',
+        'stairDescentSpeed', 'HKQuantityTypeIdentifierStairDescentSpeed',
+      ];
+      
+      const { data: samples, error: samplesError } = await supabase
+        .from('healthkit_samples')
+        .select('data_type, value, unit, start_date, source_name')
+        .eq('health_id', healthId)
+        .in('data_type', mobilityDataTypes)
+        .order('start_date', { ascending: false })
+        .limit(100);
+      
+      // Count samples by type
+      const sampleCounts: Record<string, number> = {};
+      for (const s of samples || []) {
+        sampleCounts[s.data_type] = (sampleCounts[s.data_type] || 0) + 1;
+      }
+      
+      // Check if any daily metrics have walking data
+      const metricsWithWalkingData = (dailyMetrics || []).filter(m => 
+        m.walking_speed_ms || m.walking_step_length_m || m.walking_double_support_pct || m.walking_asymmetry_pct
+      );
+      
+      return res.json({
+        userId,
+        healthId,
+        diagnosis: {
+          hasSamplesInHealthkitSamples: (samples?.length || 0) > 0,
+          hasWalkingDataInDailyMetrics: metricsWithWalkingData.length > 0,
+          sampleCount: samples?.length || 0,
+          metricsWithWalkingData: metricsWithWalkingData.length,
+        },
+        rawSamples: {
+          count: samples?.length || 0,
+          byType: sampleCounts,
+          recentSamples: samples?.slice(0, 10),
+        },
+        dailyMetrics: {
+          count: dailyMetrics?.length || 0,
+          data: dailyMetrics,
+          error: metricsError?.message,
+        },
+        errors: {
+          metricsError: metricsError?.message,
+          samplesError: samplesError?.message,
+        },
+      });
+    } catch (error: any) {
+      logger.error("[Admin] Mobility debug error:", error);
       return res.status(500).json({ error: error.message });
     }
   });

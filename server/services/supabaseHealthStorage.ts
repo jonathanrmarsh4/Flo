@@ -1222,6 +1222,15 @@ export interface UserDailyMetric {
   oxygen_saturation_pct?: number | null;
   respiratory_rate_bpm?: number | null;
   body_temp_c?: number | null;
+  // Gait & Mobility metrics
+  walking_speed_ms?: number | null;
+  walking_step_length_m?: number | null;
+  walking_double_support_pct?: number | null;
+  walking_asymmetry_pct?: number | null;
+  apple_walking_steadiness?: number | null;
+  six_minute_walk_distance_m?: number | null;
+  stair_ascent_speed_ms?: number | null;
+  stair_descent_speed_ms?: number | null;
   normalization_version?: string;
   created_at?: Date;
   updated_at?: Date;
