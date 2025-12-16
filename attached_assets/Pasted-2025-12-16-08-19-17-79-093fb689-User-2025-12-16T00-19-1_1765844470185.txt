@@ -1,0 +1,95 @@
+2025-12-16 08:19:17.79
+093fb689
+User
+[2025-12-16T00:19:17.799Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase returned 0 nutrition records
+2025-12-16 08:19:17.79
+093fb689
+User
+[2025-12-16T00:19:17.799Z] [INFO] [InsightsEngineV2] Fetched 0 nutrition days via healthRouter
+2025-12-16 08:19:19.99
+093fb689
+User
+[2025-12-16T00:19:19.991Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Fetching nutrition metrics for userId: 34226453, options: {"startDate":"2025-09-17T00:19:18.715Z","limit":90}
+2025-12-16 08:19:23.32
+093fb689
+User
+[2025-12-16T00:19:23.325Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Fetching nutrition metrics for userId: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, options: {"startDate":"2025-09-17T00:19:21.183Z","limit":90}
+2025-12-16 08:19:23.58
+093fb689
+User
+[2025-12-16T00:19:23.581Z] [INFO] [SupabaseHealth] First nutrition record: {"id":"63c60c0a-8248-4dfe-9150-b677c2218cdc","health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","local_date":"2025-12-15","timezone":"2025-12-15","energy_kcal":436.59,"carbohydrates_g":null,"protein_g":null,"fat_total_g":null,"fat_saturated_g":null,"fat_polyunsaturated_g":null,"fat_monounsaturated_g":null,"cholesterol_mg":null,"fiber_g":null,"sugar_g":null,"vitamin_a_mcg":null,"vitamin_b6_mg":0,"vitamin_b12_mcg":null,"vitamin_c_mg":null,"vitamin_d_mcg":null,"vitamin_e_mg":null,"vitamin_k_mcg":null,"thiamin_mg":null,"riboflavin_mg":null,"niacin_mg":null,"folate_mcg":null,"biotin_mcg":null,"pantothenic_acid_mg":null,"calcium_mg":null,"chloride_mg":null,"chromium_mcg":null,"copper_mg":null,"iodine_mcg":null,"iron_mg":0.08,"magnesium_mg":null,"manganese_mg":null,"molybdenum_mcg":null,"phosphorus_mg":null,"potassium_mg":3.78,"selenium_mcg":null,"sodium_mg":1.89,"zinc_mg":0.08,"caffeine_mg":null,"water_ml":245.87,"meal_count":null,"sources":null,"created_at":"2025-12-15T12:44:58.543123","updated_at":"2025-12-16T00:19:06.311"}
+2025-12-16 08:19:23.58
+093fb689
+User
+[2025-12-16T00:19:23.581Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase returned 20 nutrition records
+2025-12-16 08:19:23.58
+093fb689
+User
+[2025-12-16T00:19:23.582Z] [INFO] [InsightsEngineV2] Fetched 20 nutrition days via healthRouter
+2025-12-16 08:19:24.26
+093fb689
+User
+[2025-12-16T00:19:24.266Z] [INFO] [WeightForecastSchema] [WeightForecastSchema] Created raw_nutrition_daily table
+2025-12-16 08:20:03.67
+093fb689
+User
+[2025-12-16T00:20:03.675Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Fetching nutrition metrics for userId: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, options: {}
+2025-12-16 08:20:03.93
+093fb689
+User
+[2025-12-16T00:20:03.938Z] [INFO] [SupabaseHealth] First nutrition record: {"id":"63c60c0a-8248-4dfe-9150-b677c2218cdc","health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","local_date":"2025-12-15","timezone":"2025-12-15","energy_kcal":436.59,"carbohydrates_g":null,"protein_g":null,"fat_total_g":null,"fat_saturated_g":null,"fat_polyunsaturated_g":null,"fat_monounsaturated_g":null,"cholesterol_mg":null,"fiber_g":null,"sugar_g":null,"vitamin_a_mcg":null,"vitamin_b6_mg":0,"vitamin_b12_mcg":null,"vitamin_c_mg":null,"vitamin_d_mcg":null,"vitamin_e_mg":null,"vitamin_k_mcg":null,"thiamin_mg":null,"riboflavin_mg":null,"niacin_mg":null,"folate_mcg":null,"biotin_mcg":null,"pantothenic_acid_mg":null,"calcium_mg":null,"chloride_mg":null,"chromium_mcg":null,"copper_mg":null,"iodine_mcg":null,"iron_mg":0.08,"magnesium_mg":null,"manganese_mg":null,"molybdenum_mcg":null,"phosphorus_mg":null,"potassium_mg":3.78,"selenium_mcg":null,"sodium_mg":1.89,"zinc_mg":0.08,"caffeine_mg":null,"water_ml":245.87,"meal_count":null,"sources":null,"created_at":"2025-12-15T12:44:58.543123","updated_at":"2025-12-16T00:19:06.311"}
+2025-12-16 08:20:03.93
+093fb689
+User
+[2025-12-16T00:20:03.938Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase returned 20 nutrition records
+2025-12-16 08:20:03.94
+093fb689
+User
+12:20:03 AM [express] GET /api/nutrition/daily 200 in 305ms :: [{"id":"63c60c0a-8248-4dfe-9150-b677c2…
+2025-12-16 08:20:06.25
+093fb689
+User
+[2025-12-16T00:20:06.251Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Fetching nutrition metrics for userId: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, options: {"limit":14}
+2025-12-16 08:20:06.52
+093fb689
+User
+[2025-12-16T00:20:06.520Z] [INFO] [SupabaseHealth] First nutrition record: {"id":"63c60c0a-8248-4dfe-9150-b677c2218cdc","health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","local_date":"2025-12-15","timezone":"2025-12-15","energy_kcal":436.59,"carbohydrates_g":null,"protein_g":null,"fat_total_g":null,"fat_saturated_g":null,"fat_polyunsaturated_g":null,"fat_monounsaturated_g":null,"cholesterol_mg":null,"fiber_g":null,"sugar_g":null,"vitamin_a_mcg":null,"vitamin_b6_mg":0,"vitamin_b12_mcg":null,"vitamin_c_mg":null,"vitamin_d_mcg":null,"vitamin_e_mg":null,"vitamin_k_mcg":null,"thiamin_mg":null,"riboflavin_mg":null,"niacin_mg":null,"folate_mcg":null,"biotin_mcg":null,"pantothenic_acid_mg":null,"calcium_mg":null,"chloride_mg":null,"chromium_mcg":null,"copper_mg":null,"iodine_mcg":null,"iron_mg":0.08,"magnesium_mg":null,"manganese_mg":null,"molybdenum_mcg":null,"phosphorus_mg":null,"potassium_mg":3.78,"selenium_mcg":null,"sodium_mg":1.89,"zinc_mg":0.08,"caffeine_mg":null,"water_ml":245.87,"meal_count":null,"sources":null,"created_at":"2025-12-15T12:44:58.543123","updated_at":"2025-12-16T00:19:06.311"}
+2025-12-16 08:20:06.52
+093fb689
+User
+[2025-12-16T00:20:06.520Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase returned 14 nutrition records
+2025-12-16 08:20:06.52
+093fb689
+User
+12:20:06 AM [express] GET /api/nutrition/macros/weekly 500 in 310ms :: {"error":"Invalid time zone sp…
+2025-12-16 08:20:10.87
+093fb689
+User
+[2025-12-16T00:20:10.879Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Fetching nutrition metrics for userId: 095f8978-a3ad-4fe1-af39-1bba9b6e8d78, options: {}
+2025-12-16 08:20:11.19
+093fb689
+User
+[2025-12-16T00:20:11.194Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase returned 20 nutrition records
+2025-12-16 08:20:11.19
+093fb689
+User
+[2025-12-16T00:20:11.194Z] [INFO] [SupabaseHealth] First nutrition record: {"id":"63c60c0a-8248-4dfe-9150-b677c2218cdc","health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","local_date":"2025-12-15","timezone":"2025-12-15","energy_kcal":436.59,"carbohydrates_g":null,"protein_g":null,"fat_total_g":null,"fat_saturated_g":null,"fat_polyunsaturated_g":null,"fat_monounsaturated_g":null,"cholesterol_mg":null,"fiber_g":null,"sugar_g":null,"vitamin_a_mcg":null,"vitamin_b6_mg":0,"vitamin_b12_mcg":null,"vitamin_c_mg":null,"vitamin_d_mcg":null,"vitamin_e_mg":null,"vitamin_k_mcg":null,"thiamin_mg":null,"riboflavin_mg":null,"niacin_mg":null,"folate_mcg":null,"biotin_mcg":null,"pantothenic_acid_mg":null,"calcium_mg":null,"chloride_mg":null,"chromium_mcg":null,"copper_mg":null,"iodine_mcg":null,"iron_mg":0.08,"magnesium_mg":null,"manganese_mg":null,"molybdenum_mcg":null,"phosphorus_mg":null,"potassium_mg":3.78,"selenium_mcg":null,"sodium_mg":1.89,"zinc_mg":0.08,"caffeine_mg":null,"water_ml":245.87,"meal_count":null,"sources":null,"created_at":"2025-12-15T12:44:58.543123","updated_at":"2025-12-16T00:19:06.311"}
+2025-12-16 08:20:11.19
+093fb689
+User
+12:20:11 AM [express] GET /api/nutrition/daily 304 in 356ms :: [{"id":"63c60c0a-8248-4dfe-9150-b677c2…
+2025-12-16 08:20:11.19
+093fb689
+User
+12:20:11 AM [express] GET /api/nutrition/daily 304 in 356ms :: [{"id":"63c60c0a-8248-4dfe-9150-b677c2…
+2025-12-16 08:20:11.19
+093fb689
+User
+[2025-12-16T00:20:11.194Z] [INFO] [SupabaseHealth] First nutrition record: {"id":"63c60c0a-8248-4dfe-9150-b677c2218cdc","health_id":"29d2a63e-44a2-472c-a825-89be5a07cbeb","local_date":"2025-12-15","timezone":"2025-12-15","energy_kcal":436.59,"carbohydrates_g":null,"protein_g":null,"fat_total_g":null,"fat_saturated_g":null,"fat_polyunsaturated_g":null,"fat_monounsaturated_g":null,"cholesterol_mg":null,"fiber_g":null,"sugar_g":null,"vitamin_a_mcg":null,"vitamin_b6_mg":0,"vitamin_b12_mcg":null,"vitamin_c_mg":null,"vitamin_d_mcg":null,"vitamin_e_mg":null,"vitamin_k_mcg":null,"thiamin_mg":null,"riboflavin_mg":null,"niacin_mg":null,"folate_mcg":null,"biotin_mcg":null,"pantothenic_acid_mg":null,"calcium_mg":null,"chloride_mg":null,"chromium_mcg":null,"copper_mg":null,"iodine_mcg":null,"iron_mg":0.08,"magnesium_mg":null,"manganese_mg":null,"molybdenum_mcg":null,"phosphorus_mg":null,"potassium_mg":3.78,"selenium_mcg":null,"sodium_mg":1.89,"zinc_mg":0.08,"caffeine_mg":null,"water_ml":245.87,"meal_count":null,"sources":null,"created_at":"2025-12-15T12:44:58.543123","updated_at":"2025-12-16T00:19:06.311"}
+
+2025-12-16 08:20:11.19
+093fb689
+User
+[2025-12-16T00:20:11.194Z] [INFO] [HealthStorageRouter] [HealthStorageRouter] Supabase returned 20 nutrition records
+
+Collapse

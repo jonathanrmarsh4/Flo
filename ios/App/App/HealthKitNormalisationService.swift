@@ -2633,13 +2633,17 @@ public class HealthKitNormalisationService {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
         
-        for (dayStart, _, timezone) in dayBoundaries {
+        // Note: dayBoundaries tuple is (dayStart, dayEnd, localDateStr) - 3rd element is the date string, not timezone
+        // We need to send the actual timezone identifier
+        let timezoneIdentifier = userTimezone.identifier
+        
+        for (dayStart, _, localDateStr) in dayBoundaries {
             dispatchGroup.enter()
             
-            let localDate = dateFormatter.string(from: dayStart)
+            // Use the localDateStr from dayBoundaries (already formatted as yyyy-MM-dd)
             let body: [String: Any] = [
-                "localDate": localDate,
-                "timezone": timezone
+                "localDate": localDateStr,
+                "timezone": timezoneIdentifier
             ]
             
             var request = URLRequest(url: url)

@@ -325,7 +325,8 @@ export async function aggregateNutritionForDate(
       // Log if we skipped Apple Health derived data
       if (sources.length > 1) {
         const skippedSources = sources.slice(1).map(([key, data]) => `${data.displayName}(${data.values.length} samples)`);
-        const hasAppleHealth = sources.some(([key]) => isAppleHealthDerived(key, key));
+        // Check if any source is Apple Health derived using displayName (which contains the actual source name)
+        const hasAppleHealth = sources.some(([key, data]) => isAppleHealthDerived(data.displayName, key));
         if (hasAppleHealth) {
           logger.info(`[NutritionAggregator] ${nutrient}: using ${preferredData.displayName} (${preferredData.values.length} samples, sum=${sum.toFixed(2)}), skipped Apple Health derived: ${skippedSources.join(', ')}`);
         }
