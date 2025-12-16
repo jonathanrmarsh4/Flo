@@ -6,6 +6,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { parseApiError } from "@/lib/utils";
 
 interface AnomalyAlertTileProps {
   isDark: boolean;
@@ -76,10 +77,16 @@ export function AnomalyAlertTile({ isDark }: AnomalyAlertTileProps) {
       setTextResponse('');
       setIsSubmitting(false);
     },
-    onError: () => {
+    onError: (err: Error) => {
+      const parsed = parseApiError(err);
       toast({
-        title: "Failed to submit",
-        description: "Please try again.",
+        title: "Couldn't Submit",
+        description: (
+          <div>
+            <p>{parsed.message}</p>
+            <p className="text-xs opacity-60 mt-1">Error: {parsed.code}</p>
+          </div>
+        ),
         variant: "destructive",
       });
       setIsSubmitting(false);

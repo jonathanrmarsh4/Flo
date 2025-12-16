@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
+import { parseApiError } from '@/lib/utils';
 
 interface BiomarkerInsight {
   lifestyleActions: string[];
@@ -147,9 +148,15 @@ export function BiomarkerInsightsModal({
 
   useEffect(() => {
     if (error && isOpen) {
+      const parsed = parseApiError(error);
       toast({
-        title: "Failed to load insights",
-        description: "Unable to generate AI insights for this biomarker. Please try again later.",
+        title: "Couldn't Load Insights",
+        description: (
+          <div>
+            <p>{parsed.message}</p>
+            <p className="text-xs opacity-60 mt-1">Error: {parsed.code}</p>
+          </div>
+        ),
         variant: "destructive",
       });
     }

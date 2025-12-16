@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { parseApiError } from '@/lib/utils';
 
 interface MorningBriefingData {
   briefing_id: string;
@@ -133,9 +134,15 @@ export function MorningBriefingTile({ isDark, onTalkToFlo, useMetric = true }: M
       });
     },
     onError: (err: Error) => {
+      const parsed = parseApiError(err);
       toast({
-        title: 'Failed to submit feedback',
-        description: err.message,
+        title: 'Couldn\'t Submit Feedback',
+        description: (
+          <div>
+            <p>{parsed.message}</p>
+            <p className="text-xs opacity-60 mt-1">Error: {parsed.code}</p>
+          </div>
+        ),
         variant: 'destructive',
       });
     },

@@ -5,6 +5,7 @@ import InsightsScreen from "@/pages/InsightsScreen";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { parseApiError } from "@/lib/utils";
 
 interface InsightsModalProps {
   isOpen: boolean;
@@ -26,9 +27,15 @@ export function InsightsModal({ isOpen, onClose }: InsightsModalProps) {
       });
     },
     onError: (error: any) => {
+      const parsed = parseApiError(error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to refresh insights",
+        title: "Couldn't Refresh",
+        description: (
+          <div>
+            <p>{parsed.message}</p>
+            <p className="text-xs opacity-60 mt-1">Error: {parsed.code}</p>
+          </div>
+        ),
         variant: "destructive",
       });
     },
