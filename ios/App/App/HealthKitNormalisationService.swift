@@ -346,7 +346,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -386,7 +394,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -426,7 +442,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -466,7 +490,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -506,7 +538,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -580,7 +620,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -620,7 +668,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -660,7 +716,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -700,7 +764,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -740,7 +812,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -780,7 +860,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -820,7 +908,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -860,7 +956,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -900,7 +1004,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -940,7 +1052,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -980,7 +1100,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1020,7 +1148,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1060,7 +1196,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1100,7 +1244,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1140,7 +1292,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1180,7 +1340,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1220,7 +1388,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: metrics.basalEnergyKcal,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1260,7 +1436,15 @@ public class HealthKitNormalisationService {
                 basalEnergyKcal: basalEnergy,
                 dietaryWaterMl: metrics.dietaryWaterMl,
                 stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
+                notes: metrics.notes,
+                walkingSpeedMs: metrics.walkingSpeedMs,
+                walkingStepLengthM: metrics.walkingStepLengthM,
+                walkingDoubleSupportPct: metrics.walkingDoubleSupportPct,
+                walkingAsymmetryPct: metrics.walkingAsymmetryPct,
+                appleWalkingSteadiness: metrics.appleWalkingSteadiness,
+                sixMinuteWalkDistanceM: metrics.sixMinuteWalkDistanceM,
+                stairAscentSpeedMs: metrics.stairAscentSpeedMs,
+                stairDescentSpeedMs: metrics.stairDescentSpeedMs
             )
             dispatchGroup.leave()
         }
@@ -1283,6 +1467,11 @@ public class HealthKitNormalisationService {
             metrics.sixMinuteWalkDistanceM = gaitData.sixMinuteWalkDistanceM
             metrics.stairAscentSpeedMs = gaitData.stairAscentSpeedMs
             metrics.stairDescentSpeedMs = gaitData.stairDescentSpeedMs
+            
+            // Log gait data for debugging
+            if gaitData.walkingSpeedMs != nil || gaitData.walkingStepLengthM != nil {
+                print("[Normalisation] 🚶 Gait metrics found: speed=\(gaitData.walkingSpeedMs ?? 0)m/s, step=\(gaitData.walkingStepLengthM ?? 0)m")
+            }
             dispatchGroup.leave()
         }
         
