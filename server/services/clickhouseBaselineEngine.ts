@@ -1133,8 +1133,27 @@ export class ClickHouseBaselineEngine {
 
       const patternedAnomalies = this.detectMultiMetricPatterns(anomalies);
       
+      // Filter isolated temperature anomalies that lack corroborating vital sign deviations
+      // Skin/wrist temperature spikes can be data integrity issues (sensor placement, ambient temp, etc.)
+      // Only alert for temperature anomalies when accompanied by at least one other vital sign change
+      const temperatureMetrics = ['wrist_temperature_deviation', 'skin_temp_deviation_c', 'skin_temp_trend_deviation_c', 'body_temperature', 'body_temperature_c'];
+      const corroboratingVitalSigns = ['resting_heart_rate_bpm', 'respiratory_rate_bpm', 'hrv_ms', 'oxygen_saturation_pct'];
+      
+      const hasCorroboratingVitalSign = patternedAnomalies.some(a => corroboratingVitalSigns.includes(a.metricType));
+      
+      const corroboratedAnomalies = patternedAnomalies.filter(a => {
+        // If this is a temperature anomaly, require at least one corroborating vital sign
+        if (temperatureMetrics.includes(a.metricType)) {
+          if (!hasCorroboratingVitalSign) {
+            logger.debug(`[ClickHouseML] Filtering isolated temperature anomaly ${a.metricType} - no corroborating vital signs detected`);
+            return false;
+          }
+        }
+        return true;
+      });
+      
       // Filter anomalies by admin-configured minimum confidence threshold
-      const filteredAnomalies = patternedAnomalies.filter(a => a.modelConfidence >= mlSettings.anomalyMinConfidence);
+      const filteredAnomalies = corroboratedAnomalies.filter(a => a.modelConfidence >= mlSettings.anomalyMinConfidence);
 
       if (filteredAnomalies.length > 0) {
         await this.storeAnomalies(healthId, filteredAnomalies);
