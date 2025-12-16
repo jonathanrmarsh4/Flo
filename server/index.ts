@@ -144,6 +144,13 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || '5000', 10);
+  
+  // Detect if running in Autoscale deployment (stateless - no background workers)
+  // REPL_DEPLOYMENT_TYPE is set by Replit during deployments
+  // For Autoscale, background schedulers violate stateless requirements
+  const isAutoscaleDeployment = process.env.REPL_DEPLOYMENT_TYPE === 'autoscale';
+  const isProduction = process.env.NODE_ENV === 'production';
+  
   server.listen({
     port,
     host: "0.0.0.0",
@@ -151,11 +158,18 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
     
-    // Defer scheduler initialization to ensure fast server startup for deployments
-    // This allows the health check to pass before background tasks are initialized
-    setTimeout(() => {
+    // Only start background schedulers if NOT in Autoscale deployment
+    // Autoscale deployments are stateless and shouldn't run background workers
+    // For production with background workers, use Reserved VM deployment instead
+    if (isAutoscaleDeployment) {
+      log(`Autoscale deployment detected - background schedulers disabled`);
+      return;
+    }
+    
+    // Start background schedulers immediately (no setTimeout delay)
+    // This is safe for Reserved VM deployments and development
+    try {
       // Start the ClickHouse orchestrator (4 windows: 00:00, 06:00, 12:00, 18:00 UTC)
-      // Replaces old baseline (3 AM) and anomaly detection (5 AM) schedulers
       clickhouseOrchestrator.start();
       
       // Start the weekly Flōmentum aggregation scheduler
@@ -196,6 +210,13 @@ app.use((req, res, next) => {
       }).catch(err => {
         console.error('[CentralizedNotifications] Failed to auto-start:', err);
       });
-    }, 5000);
+      
+      log(`Background schedulers started successfully`);
+    } catch (err) {
+      console.error('[Server] Failed to start background schedulers:', err);
+    }
   });
-})();
+})().catch(err => {
+  console.error('[Server] Fatal startup error:', err);
+  process.exit(1);
+});
