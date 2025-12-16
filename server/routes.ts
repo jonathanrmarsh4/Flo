@@ -10887,10 +10887,32 @@ Important: This is for educational purposes. Include a brief note that users sho
   app.post("/api/nutrition/aggregate", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { localDate, timezone } = req.body;
+      let { localDate, timezone } = req.body;
       
-      if (!localDate || !timezone) {
-        return res.status(400).json({ error: "localDate and timezone are required" });
+      // Debug log to diagnose iOS payload issues
+      logger.info(`[Nutrition] Aggregate request from ${userId}: body=${JSON.stringify(req.body)}`);
+      
+      if (!localDate) {
+        return res.status(400).json({ error: "localDate is required" });
+      }
+      
+      // Validate timezone - if it looks like a date (YYYY-MM-DD), it's likely a client bug
+      // Fallback to user's profile timezone or default
+      const isValidTimezone = timezone && !timezone.match(/^\d{4}-\d{2}-\d{2}/) && 
+        (() => {
+          try {
+            Intl.DateTimeFormat(undefined, { timeZone: timezone });
+            return true;
+          } catch {
+            return false;
+          }
+        })();
+      
+      if (!isValidTimezone) {
+        logger.warn(`[Nutrition] Invalid timezone received: "${timezone}", fetching from profile`);
+        const profile = await healthRouter.getProfile(userId);
+        timezone = profile?.timezone || 'Australia/Perth';
+        logger.info(`[Nutrition] Using profile timezone: ${timezone}`);
       }
 
       // Small delay to ensure samples are fully committed to Supabase
