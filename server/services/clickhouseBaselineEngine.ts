@@ -1133,27 +1133,39 @@ export class ClickHouseBaselineEngine {
 
       const patternedAnomalies = this.detectMultiMetricPatterns(anomalies);
       
+      // First filter by admin-configured minimum confidence threshold
+      const confidenceFilteredAnomalies = patternedAnomalies.filter(a => a.modelConfidence >= mlSettings.anomalyMinConfidence);
+      
       // Filter isolated temperature anomalies that lack corroborating vital sign deviations
       // Skin/wrist temperature spikes can be data integrity issues (sensor placement, ambient temp, etc.)
       // Only alert for temperature anomalies when accompanied by at least one other vital sign change
+      // that survives confidence filtering AND has medically consistent direction
       const temperatureMetrics = ['wrist_temperature_deviation', 'skin_temp_deviation_c', 'skin_temp_trend_deviation_c', 'body_temperature', 'body_temperature_c'];
-      const corroboratingVitalSigns = ['resting_heart_rate_bpm', 'respiratory_rate_bpm', 'hrv_ms', 'oxygen_saturation_pct'];
       
-      const hasCorroboratingVitalSign = patternedAnomalies.some(a => corroboratingVitalSigns.includes(a.metricType));
+      // Find corroborating vitals with medically consistent directions for fever/illness:
+      // - Elevated HR (above baseline) indicates stress/illness
+      // - Elevated respiration (above baseline) indicates respiratory distress
+      // - Lowered HRV (below baseline) indicates sympathetic activation/stress
+      // - Lowered SpO2 (below baseline) indicates respiratory compromise
+      const hasValidCorroboratingVital = confidenceFilteredAnomalies.some(a => {
+        if (a.metricType === 'resting_heart_rate_bpm' && a.direction === 'above') return true;
+        if (a.metricType === 'respiratory_rate_bpm' && a.direction === 'above') return true;
+        if (a.metricType === 'hrv_ms' && a.direction === 'below') return true;
+        if (a.metricType === 'oxygen_saturation_pct' && a.direction === 'below') return true;
+        return false;
+      });
       
-      const corroboratedAnomalies = patternedAnomalies.filter(a => {
+      const filteredAnomalies = confidenceFilteredAnomalies.filter(a => {
         // If this is a temperature anomaly, require at least one corroborating vital sign
+        // with medically consistent direction that also passed confidence threshold
         if (temperatureMetrics.includes(a.metricType)) {
-          if (!hasCorroboratingVitalSign) {
-            logger.debug(`[ClickHouseML] Filtering isolated temperature anomaly ${a.metricType} - no corroborating vital signs detected`);
+          if (!hasValidCorroboratingVital) {
+            logger.debug(`[ClickHouseML] Filtering isolated temperature anomaly ${a.metricType} - no medically corroborating vital signs detected`);
             return false;
           }
         }
         return true;
       });
-      
-      // Filter anomalies by admin-configured minimum confidence threshold
-      const filteredAnomalies = corroboratedAnomalies.filter(a => a.modelConfidence >= mlSettings.anomalyMinConfidence);
 
       if (filteredAnomalies.length > 0) {
         await this.storeAnomalies(healthId, filteredAnomalies);
