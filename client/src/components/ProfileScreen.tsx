@@ -133,16 +133,24 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   
   // Handle save when clicking Done
   const handleToggleEdit = () => {
-    // If exiting edit mode, save the medical context if it changed
+    // If exiting edit mode, save pending changes
     if (isEditing) {
-      const serverValue = profile?.aiPersonalization?.medicalContext ?? '';
-      if (localMedicalContext !== serverValue) {
+      // Save medical context if changed
+      const serverMedicalContext = profile?.aiPersonalization?.medicalContext ?? '';
+      if (localMedicalContext !== serverMedicalContext) {
         updateAIPersonalization.mutate({
           aiPersonalization: {
             ...currentAIPersonalization,
             medicalContext: localMedicalContext
           }
         });
+      }
+      
+      // Save body fat calibration if changed
+      const bodyFatValue = parseFloat(localBodyFatCorrection);
+      const serverBodyFat = bodyFatCalibration?.bodyFatCorrectionPct ?? 0;
+      if (!isNaN(bodyFatValue) && bodyFatValue >= -15 && bodyFatValue <= 15 && bodyFatValue !== serverBodyFat) {
+        updateBodyFatCalibration.mutate({ bodyFatCorrectionPct: bodyFatValue });
       }
     }
     setIsEditing(!isEditing);
