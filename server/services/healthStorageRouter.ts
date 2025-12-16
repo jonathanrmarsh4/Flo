@@ -63,6 +63,7 @@ export async function getProfile(userId: string) {
           reminderTime: null,
           createdAt: profile.created_at ? new Date(profile.created_at) : new Date(),
           updatedAt: profile.updated_at ? new Date(profile.updated_at) : new Date(),
+          body_fat_correction_pct: profile.body_fat_correction_pct ?? 0,
         };
       }
       return undefined;
@@ -114,6 +115,7 @@ export async function upsertProfile(userId: string, data: any) {
       reminderTime: null,
       createdAt: result.created_at ? new Date(result.created_at) : new Date(),
       updatedAt: result.updated_at ? new Date(result.updated_at) : new Date(),
+      body_fat_correction_pct: result.body_fat_correction_pct ?? 0,
     };
   } catch (error) {
     logger.error("[HealthStorageRouter] Supabase upsertProfile failed:", error);
