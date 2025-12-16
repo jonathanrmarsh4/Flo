@@ -11533,7 +11533,25 @@ Important: This is for educational purposes. Include a brief note that users sho
         ? vo2Values.reduce((a, b) => a + b, 0) / vo2Values.length 
         : null;
       
-      const currentVo2 = todayMetrics?.vo2Max ?? null;
+      // VO2 max: use today's value if available, otherwise fall back to most recent historical value
+      // This is needed because VO2 max is only measured during outdoor cardio activities like running
+      let currentVo2 = todayMetrics?.vo2Max ?? null;
+      let vo2LastMeasured: string | null = null;
+      
+      if (currentVo2 == null && vo2Values.length > 0) {
+        // Find the most recent VO2 max value from history
+        const vo2WithDates = thirtyDayMetrics
+          .filter(m => m.vo2Max != null)
+          .map(m => ({ vo2: m.vo2Max!, date: m.localDate }));
+        
+        if (vo2WithDates.length > 0) {
+          // Sort by date descending to get most recent
+          vo2WithDates.sort((a, b) => b.date.localeCompare(a.date));
+          currentVo2 = vo2WithDates[0].vo2;
+          vo2LastMeasured = vo2WithDates[0].date;
+        }
+      }
+      
       let vo2Trend: 'up' | 'stable' | 'down' = 'stable';
       if (currentVo2 != null && vo2Avg != null) {
         if (currentVo2 > vo2Avg + 1) vo2Trend = 'up';
@@ -11591,6 +11609,7 @@ Important: This is for educational purposes. Include a brief note that users sho
         vo2Max: currentVo2,
         vo2Level,
         vo2Trend,
+        vo2LastMeasured, // Date when VO2 max was last measured (null if measured today)
         restingHeartRate: todayMetrics?.restingHrBpm ?? null,
         // Recovery metrics
         hrv,

@@ -31,6 +31,7 @@ interface ActivitySummary {
   vo2Max: number | null;
   vo2Level: string | null;
   vo2Trend: 'up' | 'stable' | 'down';
+  vo2LastMeasured: string | null; // Date when VO2 max was last measured (null if measured today)
   restingHeartRate: number | null;
   hrv: number | null;
   hrvBaseline: number | null;
@@ -595,6 +596,7 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
   const vo2Level = summary?.vo2Level ?? 'Unknown';
   const restingHeartRate = summary?.restingHeartRate;
   const vo2Trend = summary?.vo2Trend ?? 'stable';
+  const vo2LastMeasured = summary?.vo2LastMeasured; // Date when VO2 was last measured (null if today)
   
   const hrv = summary?.hrv;
   const hrvBaseline = summary?.hrvBaseline;
@@ -776,17 +778,24 @@ function ActivityTabContent({ isDark }: { isDark: boolean }) {
               </div>
             </div>
             
-            <div className={`flex items-center gap-2 text-sm ${
-              vo2Trend === 'up' ? isDark ? 'text-green-400' : 'text-green-600' :
-              vo2Trend === 'down' ? isDark ? 'text-red-400' : 'text-red-600' :
-              isDark ? 'text-white/50' : 'text-gray-500'
-            }`}>
-              {vo2Trend === 'up' && <TrendingUp className="w-4 h-4" />}
-              {vo2Trend === 'stable' && <span className="w-4 h-0.5 bg-current"></span>}
-              {vo2Trend === 'down' && <TrendingDown className="w-4 h-4" />}
-              <span className="text-xs">
-                {vo2Trend === 'up' ? 'Improving' : vo2Trend === 'down' ? 'Declining' : 'Stable'} (30d)
-              </span>
+            <div className="flex items-center justify-between">
+              <div className={`flex items-center gap-2 text-sm ${
+                vo2Trend === 'up' ? isDark ? 'text-green-400' : 'text-green-600' :
+                vo2Trend === 'down' ? isDark ? 'text-red-400' : 'text-red-600' :
+                isDark ? 'text-white/50' : 'text-gray-500'
+              }`}>
+                {vo2Trend === 'up' && <TrendingUp className="w-4 h-4" />}
+                {vo2Trend === 'stable' && <span className="w-4 h-0.5 bg-current"></span>}
+                {vo2Trend === 'down' && <TrendingDown className="w-4 h-4" />}
+                <span className="text-xs">
+                  {vo2Trend === 'up' ? 'Improving' : vo2Trend === 'down' ? 'Declining' : 'Stable'} (30d)
+                </span>
+              </div>
+              {vo2LastMeasured && (
+                <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                  Last measured: {new Date(vo2LastMeasured).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              )}
             </div>
           </>
         ) : (
