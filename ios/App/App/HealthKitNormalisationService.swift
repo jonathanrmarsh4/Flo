@@ -2964,15 +2964,15 @@ public class HealthKitNormalisationService {
                 defer { dispatchGroup.leave() }
                 
                 if let error = error {
-                    print("[Nutrition] ❌ Aggregation failed for \(localDate): \(error.localizedDescription)")
+                    print("[Nutrition] ❌ Aggregation failed for \(localDateStr): \(error.localizedDescription)")
                     anyFailed = true
                     return
                 }
                 
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                    print("[Nutrition] ✅ Aggregation triggered for \(localDate)")
+                    print("[Nutrition] ✅ Aggregation triggered for \(localDateStr)")
                 } else {
-                    print("[Nutrition] ⚠️ Aggregation response not 200 for \(localDate)")
+                    print("[Nutrition] ⚠️ Aggregation response not 200 for \(localDateStr)")
                     anyFailed = true
                 }
             }.resume()
