@@ -10893,9 +10893,15 @@ Important: This is for educational purposes. Include a brief note that users sho
         return res.status(400).json({ error: "localDate and timezone are required" });
       }
 
+      // Small delay to ensure samples are fully committed to Supabase
+      // This addresses race conditions where aggregation runs before samples are queryable
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      logger.info(`[Nutrition] Starting aggregation for ${userId} on ${localDate} (${timezone})`);
+
       await upsertNutritionDaily(userId, localDate, timezone);
       
-      logger.info(`[Nutrition] Aggregated for ${userId} on ${localDate}`);
+      logger.info(`[Nutrition] Aggregation completed for ${userId} on ${localDate}`);
 
       // Trigger ClickHouse nutrition sync (non-blocking background task)
       (async () => {
