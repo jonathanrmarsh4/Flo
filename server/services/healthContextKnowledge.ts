@@ -346,6 +346,158 @@ export const METRIC_HEALTH_CONTEXTS: Record<string, MetricHealthContext> = {
     },
   },
 
+  // Percentage variant of deep sleep
+  deep_sleep_pct: {
+    displayName: 'Deep Sleep Percentage',
+    description: 'Proportion of total sleep time spent in slow-wave deep sleep',
+    normalSignificance: 'The percentage of deep sleep indicates overall sleep quality - healthy adults typically get 13-23% deep sleep.',
+    
+    aboveBaseline: {
+      classification: 'positive',
+      potentialCauses: [
+        'Quality sleep environment',
+        'Physical exercise earlier in day',
+        'Good sleep timing consistency',
+        'Optimal nutrition and hydration',
+        'Avoiding alcohol',
+      ],
+      healthImplications: [
+        'Excellent for physical recovery and tissue repair',
+        'Supports immune function and healing',
+        'Indicates quality sleep architecture',
+        'Optimizes growth hormone release',
+      ],
+      conditionsToConsider: [],
+      actionableAdvice: 'Great sign! Your body is getting quality restorative sleep. Keep doing what you\'re doing!',
+    },
+    
+    belowBaseline: {
+      classification: 'concerning',
+      potentialCauses: [
+        'Alcohol consumption',
+        'Late-night eating',
+        'Inconsistent sleep schedule',
+        'Stress or anxiety',
+        'Hot sleeping environment',
+        'Exercise too close to bedtime',
+        'Caffeine in the afternoon',
+      ],
+      healthImplications: [
+        'Reduced physical recovery and tissue repair',
+        'May affect immune function',
+        'Could impact hormone regulation and metabolism',
+        'Less time for memory consolidation',
+      ],
+      conditionsToConsider: [
+        'Sleep apnea',
+        'Alcohol-related sleep disruption',
+        'Age-related changes (deep sleep naturally decreases with age)',
+        'Chronic stress',
+        'Sleep fragmentation',
+      ],
+      actionableAdvice: 'Avoid alcohol, late meals, and exercise within 3 hours of bedtime. Keep your bedroom cool (65-68°F).',
+    },
+  },
+
+  // Skin temperature metrics
+  skin_temp_deviation_c: {
+    displayName: 'Skin Temperature',
+    description: 'Deviation of skin temperature from your personal baseline',
+    normalSignificance: 'Skin temperature reflects your body\'s thermoregulation and can indicate immune activity, hormonal changes, or metabolic state.',
+    
+    aboveBaseline: {
+      classification: 'context_dependent',
+      potentialCauses: [
+        'Immune response or early illness',
+        'Hormonal fluctuations (menstrual cycle)',
+        'Increased metabolic rate',
+        'Environmental temperature changes',
+        'Intense exercise or recovery',
+        'Ovulation phase',
+      ],
+      healthImplications: [
+        'May indicate your immune system is actively fighting something',
+        'Could reflect hormonal changes throughout the cycle',
+        'Often precedes symptom onset by 1-3 days during illness',
+        'May indicate increased metabolic activity',
+      ],
+      conditionsToConsider: [
+        'Early-stage illness or infection',
+        'Hormonal changes (check cycle phase)',
+        'Inflammatory response',
+        'Thyroid changes (if persistent)',
+      ],
+      actionableAdvice: 'Monitor how you feel. If elevated for 2+ days with fatigue, consider extra rest and hydration.',
+    },
+    
+    belowBaseline: {
+      classification: 'neutral',
+      potentialCauses: [
+        'Cold environment',
+        'Reduced activity level',
+        'Recovery from illness',
+        'Normal daily variation',
+        'Follicular phase (post-menstruation)',
+      ],
+      healthImplications: [
+        'Often reflects recovery after illness or immune activity',
+        'May indicate lower metabolic state',
+        'Could be normal variation with environment or activity',
+      ],
+      conditionsToConsider: [
+        'Check if recovering from recent illness',
+        'Consider environmental factors',
+        'Hypothyroidism (only if persistently low with other symptoms)',
+      ],
+      actionableAdvice: 'Usually nothing to worry about. If you\'ve been ill, this often signals recovery.',
+    },
+  },
+
+  skin_temp_trend_deviation_c: {
+    displayName: 'Skin Temperature Trend',
+    description: 'Trend direction of skin temperature over recent nights',
+    normalSignificance: 'Temperature trends can signal emerging illness, hormonal patterns, or recovery status before you feel symptoms.',
+    
+    aboveBaseline: {
+      classification: 'context_dependent',
+      potentialCauses: [
+        'Early illness developing',
+        'Hormonal cycle changes',
+        'Increased stress',
+        'Recovery from intense training',
+        'Environmental heat',
+      ],
+      healthImplications: [
+        'Rising temperature trend often precedes illness by 1-3 days',
+        'May indicate your immune system is ramping up',
+        'Can reflect hormonal shifts in menstrual cycle',
+      ],
+      conditionsToConsider: [
+        'Developing infection or illness',
+        'Hormonal changes',
+        'Overtraining (if combined with other recovery signs)',
+      ],
+      actionableAdvice: 'Pay attention to how you feel. Consider extra rest, hydration, and vitamin C if trend continues.',
+    },
+    
+    belowBaseline: {
+      classification: 'positive',
+      potentialCauses: [
+        'Recovery from illness',
+        'Good recovery from training',
+        'Hormonal cycle (follicular phase)',
+        'Well-regulated thermoregulation',
+      ],
+      healthImplications: [
+        'Often indicates good recovery status',
+        'May signal resolved inflammation or infection',
+        'Suggests well-regulated metabolism',
+      ],
+      conditionsToConsider: [],
+      actionableAdvice: 'Good sign! Your body appears well-regulated. Keep up your current routine.',
+    },
+  },
+
   rem_sleep_min: {
     displayName: 'REM Sleep',
     description: 'Time spent in rapid eye movement sleep',
