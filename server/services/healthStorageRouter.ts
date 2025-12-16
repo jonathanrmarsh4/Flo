@@ -42,6 +42,29 @@ export function clearHealthIdCache(userId?: string): void {
   }
 }
 
+/**
+ * Get the body fat correction percentage for a user.
+ * This value is added to raw scale/HealthKit body fat readings to calibrate against DEXA scans.
+ */
+export async function getBodyFatCorrectionPct(userId: string): Promise<number> {
+  try {
+    const profile = await getProfile(userId);
+    return (profile as any)?.body_fat_correction_pct ?? 0;
+  } catch (error) {
+    logger.error("[HealthStorageRouter] Error getting body fat correction:", error);
+    return 0;
+  }
+}
+
+/**
+ * Apply body fat correction to a raw body fat percentage value.
+ * Returns the corrected value (raw + correction).
+ */
+export function applyBodyFatCorrection(rawBodyFatPct: number | null | undefined, correctionPct: number): number | null {
+  if (rawBodyFatPct == null) return null;
+  return Math.round((rawBodyFatPct + correctionPct) * 10) / 10;
+}
+
 export async function getProfile(userId: string) {
   if (isSupabaseHealthEnabled()) {
     try {
