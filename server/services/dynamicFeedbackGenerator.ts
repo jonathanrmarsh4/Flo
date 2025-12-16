@@ -50,6 +50,7 @@ interface MLAttribution {
     description: string;
     occurrenceCount: number;
     outcomeImprovement: number;
+    behaviorKeys?: string[];  // Canonical keys for deduplication against causes
   }>;
 }
 
@@ -558,6 +559,8 @@ Respond with JSON only:
         description: p.behaviors.map(b => b.description).join(' + '),
         occurrenceCount: p.occurrenceCount,
         outcomeImprovement: p.outcomeImprovement,
+        // Preserve underlying behavior keys for canonical comparison
+        behaviorKeys: p.behaviors.map(b => b.key.toLowerCase()),
       }));
 
       return { rankedCauses, historicalPattern, positivePatterns };
@@ -696,8 +699,25 @@ Respond with JSON only:
       const parsed = JSON.parse(text);
 
       // Deduplicate causes - ML might return same factor multiple times
-      const uniqueCauses = [...new Set(mlAttribution.rankedCauses.map(c => c.description))].slice(0, 3);
-      const whatsWorking = [...new Set(mlAttribution.positivePatterns.map(p => p.description))];
+      const uniqueCauses = Array.from(new Set(mlAttribution.rankedCauses.map(c => c.description))).slice(0, 3);
+      
+      // Filter out positive patterns that overlap with likely causes
+      // Use canonical factor IDs (keys) for reliable comparison instead of fuzzy string matching
+      const causeKeySet = new Set(mlAttribution.rankedCauses.map(c => c.key.toLowerCase()));
+      
+      const whatsWorking = Array.from(new Set(
+        mlAttribution.positivePatterns
+          .filter(p => {
+            // Check if any behavior key in this positive pattern overlaps with cause keys
+            // This is canonical ID comparison - no string fuzzing needed
+            const hasOverlap = p.behaviorKeys?.some(bKey => causeKeySet.has(bKey));
+            if (hasOverlap) {
+              return false; // Exclude patterns that share any factor with causes
+            }
+            return true;
+          })
+          .map(p => p.description)
+      ));
 
       // Build enriched health context for the response
       const enrichedHealthContext = healthContext ? {
