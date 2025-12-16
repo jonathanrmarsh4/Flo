@@ -36,6 +36,8 @@ import {
   getRecoverySessions as getHealthRouterRecoverySessions,
   getDailyThermalRecoveryScore,
   type EnvironmentalContext,
+  getBodyFatCorrectionPct,
+  applyBodyFatCorrection,
 } from './healthStorageRouter';
 import { 
   getDailyMetrics as getSupabaseDailyMetrics, 
@@ -761,11 +763,14 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
             return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
           };
           
+          // Get body fat correction to apply to raw readings
+          const bodyFatCorrectionPct = await getBodyFatCorrectionPct(userId);
+          
           context.healthkitMetrics = {
             weight: latest.weight_kg ? Math.round(latest.weight_kg * 10) / 10 : null,
             height: latest.height_cm ? Math.round(latest.height_cm) : null,
             bmi: latest.bmi ? Math.round(latest.bmi * 10) / 10 : null,
-            bodyFatPct: latest.body_fat_percent ? Math.round(latest.body_fat_percent * 10) / 10 : null,
+            bodyFatPct: applyBodyFatCorrection(latest.body_fat_percent, bodyFatCorrectionPct),
             leanBodyMass: latest.lean_body_mass_kg ? Math.round(latest.lean_body_mass_kg * 10) / 10 : null,
             distance: avgMetric('distance_meters') ? Math.round(avgMetric('distance_meters')!) : null,
             basalEnergy: avgMetric('basal_energy_kcal') ? Math.round(avgMetric('basal_energy_kcal')!) : null,
@@ -785,7 +790,7 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
             avgHeartRate: avgMetric('avg_heart_rate_bpm') ? Math.round(avgMetric('avg_heart_rate_bpm')!) : null,
           };
           
-          logger.info(`[FloOracle] Fetched HealthKit metrics from Supabase (${supabaseMetrics.length} days)`);
+          logger.info(`[FloOracle] Fetched HealthKit metrics from Supabase (${supabaseMetrics.length} days, body fat correction: ${bodyFatCorrectionPct}%)`);
         }
       } catch (error) {
         logger.error('[FloOracle] Error fetching Supabase daily metrics:', error);
@@ -854,11 +859,14 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
 
       const avgHeartRate = await getMetricAvg('heartRate');
       
+      // Get body fat correction to apply to raw readings
+      const bodyFatCorrectionPct = await getBodyFatCorrectionPct(userId);
+      
       context.healthkitMetrics = {
         weight: weight ? Math.round(weight * 10) / 10 : null,
         height: height ? Math.round(height) : null,
         bmi: bmi ? Math.round(bmi * 10) / 10 : null,
-        bodyFatPct: bodyFatPct ? Math.round(bodyFatPct * 10) / 10 : null,
+        bodyFatPct: applyBodyFatCorrection(bodyFatPct, bodyFatCorrectionPct),
         leanBodyMass: leanBodyMass ? Math.round(leanBodyMass * 10) / 10 : null,
         distance: distance ? Math.round(distance) : null,
         basalEnergy: basalEnergy ? Math.round(basalEnergy) : null,
@@ -967,9 +975,15 @@ export async function buildUserHealthContext(userId: string, skipCache: boolean 
       const mostRecentLeanMass = healthData.find(d => d.leanBodyMassKg !== null);
 
       if (mostRecentWeight || mostRecentBodyFat || mostRecentLeanMass) {
+        // Get body fat correction to apply to raw readings
+        const bodyFatCorrectionPct = await getBodyFatCorrectionPct(userId);
+        
         const parts: string[] = [];
         if (mostRecentWeight?.weightKg) parts.push(`Weight: ${mostRecentWeight.weightKg.toFixed(1)} kg`);
-        if (mostRecentBodyFat?.bodyFatPercent) parts.push(`Body fat: ${mostRecentBodyFat.bodyFatPercent.toFixed(1)}%`);
+        if (mostRecentBodyFat?.bodyFatPercent) {
+          const correctedBodyFat = applyBodyFatCorrection(mostRecentBodyFat.bodyFatPercent, bodyFatCorrectionPct);
+          if (correctedBodyFat != null) parts.push(`Body fat: ${correctedBodyFat.toFixed(1)}%`);
+        }
         if (mostRecentLeanMass?.leanBodyMassKg) parts.push(`Lean mass: ${mostRecentLeanMass.leanBodyMassKg.toFixed(1)} kg`);
         context.bodyCompositionExplanation = `HealthKit data: ${parts.join(', ')}`;
       } else {
@@ -1232,10 +1246,13 @@ export async function getUserHealthMetrics(userId: string): Promise<{
       // Get most recent values for extended metrics (handle both snake_case and camelCase)
       const mostRecent = rawMetrics[0];
       if (mostRecent) {
+        // Get body fat correction to apply to raw readings
+        const bodyFatCorrectionPct = await getBodyFatCorrectionPct(userId);
+        
         healthkitMetrics.weight = getField(mostRecent, 'weight_kg', 'weightKg');
         healthkitMetrics.height = getField(mostRecent, 'height_cm', 'heightCm');
         healthkitMetrics.bmi = mostRecent.bmi;
-        healthkitMetrics.bodyFatPct = getField(mostRecent, 'body_fat_percent', 'bodyFatPercent');
+        healthkitMetrics.bodyFatPct = applyBodyFatCorrection(getField(mostRecent, 'body_fat_percent', 'bodyFatPercent'), bodyFatCorrectionPct);
         healthkitMetrics.leanBodyMass = getField(mostRecent, 'lean_body_mass_kg', 'leanBodyMassKg');
         healthkitMetrics.distance = getField(mostRecent, 'distance_meters', 'distanceMeters');
         healthkitMetrics.basalEnergy = getField(mostRecent, 'basal_energy_kcal', 'basalEnergyKcal');

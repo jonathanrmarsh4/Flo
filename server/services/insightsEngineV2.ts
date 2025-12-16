@@ -11,6 +11,7 @@
 import { db } from '../db';
 import { biomarkers } from '../../shared/schema';
 import * as healthRouter from './healthStorageRouter';
+import { getBodyFatCorrectionPct, applyBodyFatCorrection } from './healthStorageRouter';
 import { determineHealthDomain, type RankedInsight, type HealthDomain, selectTopInsights, calculateRankScore, calculateConfidenceScore, calculateImpactScore, calculateActionabilityScore, calculateFreshnessScore } from './insightRanking';
 import { generateInsight, type GeneratedInsight } from './insightLanguageGenerator';
 import { type EvidenceTier, EVIDENCE_TIERS } from './evidenceHierarchy';
@@ -245,6 +246,9 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
     logger.error('[InsightsEngineV2] Failed to fetch nutrition via healthRouter:', error);
   }
   
+  // Get body fat correction to apply to raw readings
+  const bodyFatCorrectionPct = await getBodyFatCorrectionPct(userId);
+  
   return {
     healthkitSamples: rawHealthkitSamples.map((s: any) => ({
       dataType: s.data_type || s.dataType,
@@ -270,8 +274,9 @@ export async function fetchHealthData(userId: string): Promise<HealthDataSnapsho
       exerciseMinutes: m.exerciseMinutes || null,
       standHours: m.standHours || null,
       // Body Composition - router normalizes to bodyFatPercent, leanBodyMassKg
+      // Apply body fat correction from user's DEXA calibration
       weightKg: m.weightKg || null,
-      bodyFatPct: m.bodyFatPercent || m.bodyFatPct || null,
+      bodyFatPct: applyBodyFatCorrection(m.bodyFatPercent || m.bodyFatPct || null, bodyFatCorrectionPct),
       leanMassKg: m.leanBodyMassKg || m.leanMassKg || null,
       bmi: m.bmi || null,
       waistCircumferenceCm: m.waistCircumferenceCm || null,

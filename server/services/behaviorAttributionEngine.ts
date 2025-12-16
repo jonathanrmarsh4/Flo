@@ -1,9 +1,11 @@
 import { clickhouse, isClickHouseEnabled } from './clickhouseService';
 import { getSupabaseClient } from './supabaseClient';
+import { getUserIdFromHealthId } from './supabaseHealthStorage';
 import { logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
 import { mlSensitivitySettings } from '@shared/schema';
+import { getBodyFatCorrectionPct, applyBodyFatCorrection } from './healthStorageRouter';
 
 interface MLSettings {
   anomalyZScoreThreshold: number;
@@ -907,6 +909,17 @@ export class BehaviorAttributionEngine {
         .single();
 
       if (bodyMetrics) {
+        // Get body fat correction from user profile
+        let bodyFatCorrectionPct = 0;
+        try {
+          const userId = await getUserIdFromHealthId(healthId);
+          if (userId) {
+            bodyFatCorrectionPct = await getBodyFatCorrectionPct(userId);
+          }
+        } catch (correctionError) {
+          logger.debug('[BehaviorAttribution] Could not get body fat correction, using raw value');
+        }
+        
         if (bodyMetrics.weight_kg != null) {
           factors.push({
             factor_category: FACTOR_CATEGORIES.LIFESTYLE,
@@ -922,10 +935,12 @@ export class BehaviorAttributionEngine {
         }
 
         if (bodyMetrics.body_fat_percent != null) {
+          // Apply body fat correction from user's DEXA calibration
+          const correctedBodyFat = applyBodyFatCorrection(bodyMetrics.body_fat_percent, bodyFatCorrectionPct);
           factors.push({
             factor_category: FACTOR_CATEGORIES.LIFESTYLE,
             factor_key: 'body_fat_percent',
-            numeric_value: bodyMetrics.body_fat_percent,
+            numeric_value: correctedBodyFat ?? bodyMetrics.body_fat_percent,
             string_value: null,
             time_value: null,
             deviation_from_baseline: null,
@@ -949,7 +964,8 @@ export class BehaviorAttributionEngine {
           });
         }
 
-        logger.debug(`[BehaviorAttribution] Added body composition factors: weight=${bodyMetrics.weight_kg}, body_fat=${bodyMetrics.body_fat_percent}`);
+        const correctedBfForLog = applyBodyFatCorrection(bodyMetrics.body_fat_percent, bodyFatCorrectionPct);
+        logger.debug(`[BehaviorAttribution] Added body composition factors: weight=${bodyMetrics.weight_kg}, body_fat=${correctedBfForLog} (correction: ${bodyFatCorrectionPct}%)`);
       }
 
       // Calculate baselines and deviations for each factor
