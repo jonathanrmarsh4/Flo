@@ -92,6 +92,8 @@ export async function upsertProfile(userId: string, data: any) {
       goals: data.goals,
       health_baseline: data.healthBaseline,
       ai_personalization: data.aiPersonalization,
+      // Body fat calibration (passed through directly from routes.ts)
+      body_fat_correction_pct: data.body_fat_correction_pct,
     };
     
     const result = await supabaseHealth.upsertProfile(userId, supabaseData);
