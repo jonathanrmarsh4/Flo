@@ -219,8 +219,14 @@ export async function aggregateNutritionForDate(
   }
 
   try {
+    // DETAILED LOGGING: Log input parameters
+    logger.info(`[NutritionAggregator] === STARTING AGGREGATION ===`);
+    logger.info(`[NutritionAggregator] userId: ${userId}, localDate: ${localDate}, timezone: ${timezone}`);
+    
     // Parse localDate (YYYY-MM-DD) and create proper timezone-aware dates
     const [year, month, day] = localDate.split('-').map(Number);
+    logger.info(`[NutritionAggregator] Parsed date: year=${year}, month=${month}, day=${day}`);
+    
     // TZDate.tz correctly interprets the time as local time in the specified timezone
     const localDayStart = TZDate.tz(timezone, year, month - 1, day, 0, 0, 0, 0); // month is 0-indexed
     const localDayEnd = TZDate.tz(timezone, year, month - 1, day, 23, 59, 59, 999);
@@ -228,9 +234,15 @@ export async function aggregateNutritionForDate(
     const dayStartUTC = new Date(localDayStart.toISOString());
     const dayEndUTC = new Date(localDayEnd.toISOString());
     
+    // DETAILED LOGGING: Log UTC boundaries
+    logger.info(`[NutritionAggregator] Local day start: ${localDayStart.toString()}`);
+    logger.info(`[NutritionAggregator] Local day end: ${localDayEnd.toString()}`);
+    logger.info(`[NutritionAggregator] UTC query range: ${dayStartUTC.toISOString()} to ${dayEndUTC.toISOString()}`);
+    
     // Get all nutrition samples for this date via healthStorageRouter (reads from Supabase)
     // Filter by all dietary data types
     const dietaryDataTypes = Object.keys(NUTRITION_TYPE_MAPPING);
+    logger.info(`[NutritionAggregator] Querying ${dietaryDataTypes.length} dietary data types`);
     
     const samples = await healthRouter.getHealthkitSamples(userId, {
       dataTypes: dietaryDataTypes,
@@ -245,6 +257,10 @@ export async function aggregateNutritionForDate(
     // Note: Some apps (like FoodNoms) store source_name as null but set bundle_id
     const samplesByNutrientAndSource: Record<string, Record<string, { values: number[]; priority: number; displayName: string }>> = {};
     const samplesBySource: Record<string, number> = {};
+    
+    // DETAILED LOGGING: Track calorie samples specifically
+    const calorieSamples: { value: number; source: string; startDate: any }[] = [];
+    const proteinSamples: { value: number; source: string; startDate: any }[] = [];
     
     for (const sample of samples) {
       const dataType = sample.dataType;
@@ -261,6 +277,15 @@ export async function aggregateNutritionForDate(
       samplesBySource[displayName] = (samplesBySource[displayName] || 0) + 1;
       
       const targetField = NUTRITION_TYPE_MAPPING[dataType];
+      
+      // DETAILED LOGGING: Track specific nutrient samples
+      if (dataType === 'dietaryEnergyConsumed' || dataType === 'HKQuantityTypeIdentifierDietaryEnergyConsumed') {
+        calorieSamples.push({ value: sampleValue, source: displayName, startDate: sample.startDate });
+      }
+      if (dataType === 'dietaryProtein' || dataType === 'HKQuantityTypeIdentifierDietaryProtein') {
+        proteinSamples.push({ value: sampleValue, source: displayName, startDate: sample.startDate });
+      }
+      
       if (targetField && sampleValue != null) {
         let value = sampleValue;
         
@@ -281,7 +306,30 @@ export async function aggregateNutritionForDate(
           };
         }
         samplesByNutrientAndSource[targetField][sourceKey].values.push(value);
+      } else if (!targetField) {
+        logger.warn(`[NutritionAggregator] Unknown data type: ${dataType} (no mapping found)`);
       }
+    }
+    
+    // DETAILED LOGGING: Log calorie and protein samples
+    if (calorieSamples.length > 0) {
+      const totalCalories = calorieSamples.reduce((sum, s) => sum + s.value, 0);
+      logger.info(`[NutritionAggregator] CALORIE SAMPLES (${calorieSamples.length} total, sum=${totalCalories.toFixed(2)} kcal):`);
+      calorieSamples.forEach((s, i) => {
+        logger.info(`[NutritionAggregator]   [${i+1}] ${s.value.toFixed(2)} kcal from "${s.source}" at ${s.startDate}`);
+      });
+    } else {
+      logger.warn(`[NutritionAggregator] NO CALORIE SAMPLES FOUND for ${userId} on ${localDate}`);
+    }
+    
+    if (proteinSamples.length > 0) {
+      const totalProtein = proteinSamples.reduce((sum, s) => sum + s.value, 0);
+      logger.info(`[NutritionAggregator] PROTEIN SAMPLES (${proteinSamples.length} total, sum=${totalProtein.toFixed(2)} g):`);
+      proteinSamples.forEach((s, i) => {
+        logger.info(`[NutritionAggregator]   [${i+1}] ${s.value.toFixed(2)} g from "${s.source}" at ${s.startDate}`);
+      });
+    } else {
+      logger.warn(`[NutritionAggregator] NO PROTEIN SAMPLES FOUND for ${userId} on ${localDate}`);
     }
     
     // Log sources for debugging
@@ -293,6 +341,22 @@ export async function aggregateNutritionForDate(
     // This prevents double-counting when Apple Health creates derived entries
     // EXCEPTION: Water is summed from ALL sources - water entries are typically unique (not duplicates)
     const NUTRIENTS_SUM_ALL_SOURCES = ['waterMl'];
+    
+    // DETAILED LOGGING: Log the grouping structure for key nutrients
+    const keyNutrientsToLog = ['energyKcal', 'proteinG', 'carbohydratesG', 'fatTotalG'];
+    for (const nutrient of keyNutrientsToLog) {
+      const sourceData = samplesByNutrientAndSource[nutrient];
+      if (sourceData) {
+        const sources = Object.entries(sourceData);
+        logger.info(`[NutritionAggregator] ${nutrient} has ${sources.length} source(s):`);
+        sources.forEach(([key, data]) => {
+          const sum = data.values.reduce((a, b) => a + b, 0);
+          logger.info(`[NutritionAggregator]   - "${data.displayName}" (priority=${data.priority}): ${data.values.length} samples, sum=${sum.toFixed(2)}`);
+        });
+      } else {
+        logger.warn(`[NutritionAggregator] ${nutrient} has NO data in samplesByNutrientAndSource`);
+      }
+    }
     
     for (const [nutrient, sourceData] of Object.entries(samplesByNutrientAndSource)) {
       const sources = Object.entries(sourceData);
@@ -321,6 +385,17 @@ export async function aggregateNutritionForDate(
       const [preferredSourceKey, preferredData] = sources[0];
       const sum = preferredData.values.reduce((a, b) => a + b, 0);
       result[nutrient] = Math.round(sum * 100) / 100; // 2 decimal precision
+      
+      // DETAILED LOGGING: Log deduplication decision for key nutrients
+      if (keyNutrientsToLog.includes(nutrient)) {
+        logger.info(`[NutritionAggregator] DEDUP DECISION for ${nutrient}: selected "${preferredData.displayName}" (priority=${preferredData.priority}) with sum=${sum.toFixed(2)}`);
+        if (sources.length > 1) {
+          sources.slice(1).forEach(([key, data]) => {
+            const skippedSum = data.values.reduce((a, b) => a + b, 0);
+            logger.info(`[NutritionAggregator]   - SKIPPED "${data.displayName}" (priority=${data.priority}) with sum=${skippedSum.toFixed(2)}`);
+          });
+        }
+      }
       
       // Log if we skipped Apple Health derived data
       if (sources.length > 1) {
