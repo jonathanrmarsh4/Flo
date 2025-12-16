@@ -118,6 +118,40 @@ public struct NormalizedDailyMetrics: Codable {
     /// Sum of all water intake samples for the day
     var dietaryWaterMl: Double? = nil
     
+    // MARK: - Gait & Mobility Metrics
+    
+    /// Walking speed in meters per second
+    /// Average walking speed during steady-state walking
+    var walkingSpeedMs: Double? = nil
+    
+    /// Walking step length in meters
+    /// Average step length during walking
+    var walkingStepLengthM: Double? = nil
+    
+    /// Double support percentage (0-100)
+    /// Time spent with both feet on ground during gait cycle
+    var walkingDoubleSupportPct: Double? = nil
+    
+    /// Walking asymmetry percentage (0-100)
+    /// Difference in step time between left and right legs
+    var walkingAsymmetryPct: Double? = nil
+    
+    /// Apple Walking Steadiness score (0-1)
+    /// Overall walking stability assessment
+    var appleWalkingSteadiness: Double? = nil
+    
+    /// Six-minute walk test distance in meters
+    /// Distance covered in 6-minute walk assessment
+    var sixMinuteWalkDistanceM: Double? = nil
+    
+    /// Stair ascent speed in meters per second
+    /// Speed when climbing stairs
+    var stairAscentSpeedMs: Double? = nil
+    
+    /// Stair descent speed in meters per second
+    /// Speed when descending stairs
+    var stairDescentSpeedMs: Double? = nil
+    
     // MARK: - Metadata
     
     /// Steps sources metadata (for debugging/transparency)
@@ -159,6 +193,15 @@ public struct NormalizedDailyMetrics: Codable {
         case bodyTemperatureCelsius = "bodyTemperatureCelsius"
         case basalEnergyKcal = "basalEnergyKcal"
         case dietaryWaterMl = "dietaryWaterMl"
+        // Gait & Mobility
+        case walkingSpeedMs = "walkingSpeedMs"
+        case walkingStepLengthM = "walkingStepLengthM"
+        case walkingDoubleSupportPct = "walkingDoubleSupportPct"
+        case walkingAsymmetryPct = "walkingAsymmetryPct"
+        case appleWalkingSteadiness = "appleWalkingSteadiness"
+        case sixMinuteWalkDistanceM = "sixMinuteWalkDistanceM"
+        case stairAscentSpeedMs = "stairAscentSpeedMs"
+        case stairDescentSpeedMs = "stairDescentSpeedMs"
         case stepsSourcesMetadata = "stepsSourcesMetadata"
         case notes
     }

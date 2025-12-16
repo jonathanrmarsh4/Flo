@@ -10226,6 +10226,15 @@ Important: This is for educational purposes. Include a brief note that users sho
         // Heart rate recovery and AFib burden - iOS may send as camelCase
         hrRecovery1min: dailyMetrics.heartRateRecovery1Min ?? dailyMetrics.hrRecovery1min ?? dailyMetrics.heartRateRecoveryOneMinute ?? null,
         afibBurdenPct: dailyMetrics.afibBurden ?? dailyMetrics.afibBurdenPct ?? dailyMetrics.aFibBurden ?? null,
+        // Gait & Mobility metrics (8 types) - iOS sends camelCase
+        walkingSpeedMs: dailyMetrics.walkingSpeedMs ?? null,
+        walkingStepLengthM: dailyMetrics.walkingStepLengthM ?? null,
+        walkingDoubleSupportPct: dailyMetrics.walkingDoubleSupportPct ?? null,
+        walkingAsymmetryPct: dailyMetrics.walkingAsymmetryPct ?? null,
+        appleWalkingSteadiness: dailyMetrics.appleWalkingSteadiness ?? null,
+        sixMinuteWalkDistanceM: dailyMetrics.sixMinuteWalkDistanceM ?? null,
+        stairAscentSpeedMs: dailyMetrics.stairAscentSpeedMs ?? null,
+        stairDescentSpeedMs: dailyMetrics.stairDescentSpeedMs ?? null,
       };
       
       // PRODUCTION DEBUG: Log ALL extended metrics to verify iOS is sending them
@@ -10318,6 +10327,15 @@ Important: This is for educational purposes. Include a brief note that users sho
         oxygen_saturation_pct: extendedMetrics.oxygenSaturationPct,
         respiratory_rate_bpm: extendedMetrics.respiratoryRateBpm,
         body_temp_c: extendedMetrics.bodyTempC,
+        // Gait & Mobility metrics
+        walking_speed_ms: extendedMetrics.walkingSpeedMs,
+        walking_step_length_m: extendedMetrics.walkingStepLengthM,
+        walking_double_support_pct: extendedMetrics.walkingDoubleSupportPct,
+        walking_asymmetry_pct: extendedMetrics.walkingAsymmetryPct,
+        apple_walking_steadiness: extendedMetrics.appleWalkingSteadiness,
+        six_minute_walk_distance_m: extendedMetrics.sixMinuteWalkDistanceM,
+        stair_ascent_speed_ms: extendedMetrics.stairAscentSpeedMs,
+        stair_descent_speed_ms: extendedMetrics.stairDescentSpeedMs,
         normalization_version: 'norm_v1',
       };
       

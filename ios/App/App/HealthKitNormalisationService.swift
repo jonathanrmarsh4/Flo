@@ -1268,40 +1268,21 @@ public class HealthKitNormalisationService {
         // Dietary Water
         dispatchGroup.enter()
         aggregateDietaryWater(dayStart: dayStart, dayEnd: dayEnd) { water in
-            metrics = NormalizedDailyMetrics(
-                localDate: metrics.localDate,
-                timezone: metrics.timezone,
-                utcDayStart: metrics.utcDayStart,
-                utcDayEnd: metrics.utcDayEnd,
-                sleepHours: metrics.sleepHours,
-                restingHrBpm: metrics.restingHrBpm,
-                hrvMs: metrics.hrvMs,
-                activeEnergyKcal: metrics.activeEnergyKcal,
-                weightKg: metrics.weightKg,
-                heightCm: metrics.heightCm,
-                bmi: metrics.bmi,
-                bodyFatPercent: metrics.bodyFatPercent,
-                leanBodyMassKg: metrics.leanBodyMassKg,
-                waistCircumferenceCm: metrics.waistCircumferenceCm,
-                stepCount: metrics.stepCount,
-                distanceMeters: metrics.distanceMeters,
-                flightsClimbed: metrics.flightsClimbed,
-                exerciseMinutes: metrics.exerciseMinutes,
-                standHours: metrics.standHours,
-                avgHeartRateBpm: metrics.avgHeartRateBpm,
-                systolicBp: metrics.systolicBp,
-                diastolicBp: metrics.diastolicBp,
-                bloodGlucoseMgDl: metrics.bloodGlucoseMgDl,
-                vo2Max: metrics.vo2Max,
-                walkingHeartRateAvg: metrics.walkingHeartRateAvg,
-                oxygenSaturation: metrics.oxygenSaturation,
-                respiratoryRate: metrics.respiratoryRate,
-                bodyTemperatureCelsius: metrics.bodyTemperatureCelsius,
-                basalEnergyKcal: metrics.basalEnergyKcal,
-                dietaryWaterMl: water,
-                stepsSourcesMetadata: metrics.stepsSourcesMetadata,
-                notes: metrics.notes
-            )
+            metrics.dietaryWaterMl = water
+            dispatchGroup.leave()
+        }
+        
+        // Gait & Mobility Metrics (8 types)
+        dispatchGroup.enter()
+        aggregateGaitMetrics(dayStart: dayStart, dayEnd: dayEnd) { gaitData in
+            metrics.walkingSpeedMs = gaitData.walkingSpeedMs
+            metrics.walkingStepLengthM = gaitData.walkingStepLengthM
+            metrics.walkingDoubleSupportPct = gaitData.walkingDoubleSupportPct
+            metrics.walkingAsymmetryPct = gaitData.walkingAsymmetryPct
+            metrics.appleWalkingSteadiness = gaitData.appleWalkingSteadiness
+            metrics.sixMinuteWalkDistanceM = gaitData.sixMinuteWalkDistanceM
+            metrics.stairAscentSpeedMs = gaitData.stairAscentSpeedMs
+            metrics.stairDescentSpeedMs = gaitData.stairDescentSpeedMs
             dispatchGroup.leave()
         }
         
@@ -2189,6 +2170,135 @@ public class HealthKitNormalisationService {
             // Water in milliliters
             let ml = sum.doubleValue(for: HKUnit.literUnit(with: .milli))
             completion(ml)
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    // MARK: - Gait & Mobility Aggregation
+    
+    /// Container for gait metrics results
+    struct GaitMetricsResult {
+        var walkingSpeedMs: Double? = nil
+        var walkingStepLengthM: Double? = nil
+        var walkingDoubleSupportPct: Double? = nil
+        var walkingAsymmetryPct: Double? = nil
+        var appleWalkingSteadiness: Double? = nil
+        var sixMinuteWalkDistanceM: Double? = nil
+        var stairAscentSpeedMs: Double? = nil
+        var stairDescentSpeedMs: Double? = nil
+    }
+    
+    /// Aggregate all gait & mobility metrics for a day
+    private func aggregateGaitMetrics(dayStart: Date, dayEnd: Date, completion: @escaping (GaitMetricsResult) -> Void) {
+        var result = GaitMetricsResult()
+        let dispatchGroup = DispatchGroup()
+        
+        // Walking Speed (m/s)
+        if let walkingSpeedType = HKObjectType.quantityType(forIdentifier: .walkingSpeed) {
+            dispatchGroup.enter()
+            aggregateAverageQuantity(type: walkingSpeedType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.meter().unitDivided(by: HKUnit.second())) { value in
+                result.walkingSpeedMs = value
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Walking Step Length (m)
+        if let stepLengthType = HKObjectType.quantityType(forIdentifier: .walkingStepLength) {
+            dispatchGroup.enter()
+            aggregateAverageQuantity(type: stepLengthType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.meter()) { value in
+                result.walkingStepLengthM = value
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Walking Double Support Percentage (%)
+        if let doubleSupportType = HKObjectType.quantityType(forIdentifier: .walkingDoubleSupportPercentage) {
+            dispatchGroup.enter()
+            aggregateAverageQuantity(type: doubleSupportType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.percent()) { value in
+                // Convert from 0-1 to 0-100
+                result.walkingDoubleSupportPct = value.map { $0 * 100 }
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Walking Asymmetry Percentage (%)
+        if let asymmetryType = HKObjectType.quantityType(forIdentifier: .walkingAsymmetryPercentage) {
+            dispatchGroup.enter()
+            aggregateAverageQuantity(type: asymmetryType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.percent()) { value in
+                // Convert from 0-1 to 0-100
+                result.walkingAsymmetryPct = value.map { $0 * 100 }
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Apple Walking Steadiness (0-1 score)
+        if let steadinessType = HKObjectType.quantityType(forIdentifier: .appleWalkingSteadiness) {
+            dispatchGroup.enter()
+            aggregateLatestQuantity(type: steadinessType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.percent()) { value in
+                result.appleWalkingSteadiness = value
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Six Minute Walk Test Distance (m)
+        if let sixMinuteType = HKObjectType.quantityType(forIdentifier: .sixMinuteWalkTestDistance) {
+            dispatchGroup.enter()
+            aggregateLatestQuantity(type: sixMinuteType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.meter()) { value in
+                result.sixMinuteWalkDistanceM = value
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Stair Ascent Speed (m/s)
+        if let stairAscentType = HKObjectType.quantityType(forIdentifier: .stairAscentSpeed) {
+            dispatchGroup.enter()
+            aggregateAverageQuantity(type: stairAscentType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.meter().unitDivided(by: HKUnit.second())) { value in
+                result.stairAscentSpeedMs = value
+                dispatchGroup.leave()
+            }
+        }
+        
+        // Stair Descent Speed (m/s)
+        if let stairDescentType = HKObjectType.quantityType(forIdentifier: .stairDescentSpeed) {
+            dispatchGroup.enter()
+            aggregateAverageQuantity(type: stairDescentType, dayStart: dayStart, dayEnd: dayEnd, unit: HKUnit.meter().unitDivided(by: HKUnit.second())) { value in
+                result.stairDescentSpeedMs = value
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .global(qos: .background)) {
+            completion(result)
+        }
+    }
+    
+    /// Helper: Get average value for a quantity type over a day
+    private func aggregateAverageQuantity(type: HKQuantityType, dayStart: Date, dayEnd: Date, unit: HKUnit, completion: @escaping (Double?) -> Void) {
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        
+        let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate, options: .discreteAverage) { (query, statistics, error) in
+            guard let avg = statistics?.averageQuantity(), error == nil else {
+                completion(nil)
+                return
+            }
+            completion(avg.doubleValue(for: unit))
+        }
+        
+        healthStore.execute(query)
+    }
+    
+    /// Helper: Get latest value for a quantity type over a day
+    private func aggregateLatestQuantity(type: HKQuantityType, dayStart: Date, dayEnd: Date, unit: HKUnit, completion: @escaping (Double?) -> Void) {
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 1, sortDescriptors: [sortDescriptor]) { (query, samples, error) in
+            guard let sample = samples?.first as? HKQuantitySample, error == nil else {
+                completion(nil)
+                return
+            }
+            completion(sample.quantity.doubleValue(for: unit))
         }
         
         healthStore.execute(query)
