@@ -5,6 +5,7 @@ import { db } from '../db';
 import { lifeEvents, userDailyMetrics, sleepNights } from '@shared/schema';
 import { eq, and, gte, desc } from 'drizzle-orm';
 import { behaviorAttributionEngine } from './behaviorAttributionEngine';
+import { getMetricHealthContext, getClassificationLabel } from './healthContextKnowledge';
 
 const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
 
@@ -569,6 +570,7 @@ Respond with JSON only:
   /**
    * Generate a smart insight with causal analysis using ML data + AI formatting.
    * The ML layer computes causes, AI layer formats the narrative.
+   * Now includes health context to explain WHY an anomaly matters and potential health implications.
    */
   async generateSmartInsight(
     healthId: string,
@@ -582,6 +584,12 @@ Respond with JSON only:
     confidence: number;
     isRecurringPattern: boolean;
     questionText: string;
+    healthContext?: {
+      classification: 'positive' | 'concerning' | 'neutral' | 'context_dependent';
+      healthImplications: string[];
+      conditionsToConsider: string[];
+      actionableAdvice: string;
+    };
   } | null> {
     try {
       logger.info('[FeedbackGenerator] Starting generateSmartInsight', { 
@@ -603,12 +611,18 @@ Respond with JSON only:
       const direction = anomaly.direction === 'above' ? 'higher' : 'lower';
       const pct = Math.abs(Math.round(anomaly.deviationPct));
 
-      // Build the AI prompt with ML-computed data
+      // Get health context for this metric
+      const healthContext = getMetricHealthContext(anomaly.metricType, anomaly.direction);
+      const classificationInfo = healthContext 
+        ? getClassificationLabel(healthContext.classification)
+        : null;
+
+      // Build the AI prompt with ML-computed data AND health context
       const causesSection = mlAttribution.rankedCauses.length > 0
-        ? `LIKELY CAUSES (ML-computed, do not invent new ones):\n${mlAttribution.rankedCauses.map((c, i) => 
+        ? `LIKELY CAUSES (ML-computed from YOUR data, do not invent new ones):\n${mlAttribution.rankedCauses.map((c, i) => 
             `${i + 1}. ${c.description}: ${Math.abs(Math.round(c.deviation))}% ${c.deviation > 0 ? 'higher' : 'lower'} than usual (${c.contribution} contribution)`
           ).join('\n')}`
-        : 'LIKELY CAUSES: None identified yet - need more data.';
+        : 'LIKELY CAUSES: None identified from recent behavior data.';
 
       const historySection = mlAttribution.historicalPattern
         ? `HISTORICAL PATTERN (ML-computed):\n${mlAttribution.historicalPattern.patternDescription}\nThis pattern has occurred ${mlAttribution.historicalPattern.matchCount} times over ${mlAttribution.historicalPattern.totalHistoryMonths} months.\nConfidence: ${Math.round(mlAttribution.historicalPattern.confidence * 100)}%`
@@ -620,10 +634,25 @@ Respond with JSON only:
           ).join('\n')}`
         : '';
 
-      const prompt = `You are a health AI assistant creating a personalized insight for a user.
+      // Health context section - explains WHY this matters
+      const healthContextSection = healthContext ? `
+HEALTH SIGNIFICANCE (educational context):
+Classification: ${classificationInfo?.label || 'Unknown'}
+Description: ${healthContext.description}
+Why This Matters:
+${healthContext.healthImplications.map(h => `- ${h}`).join('\n')}
+${healthContext.conditionsToConsider.length > 0 ? `
+Potential Considerations:
+${healthContext.conditionsToConsider.map(c => `- ${c}`).join('\n')}` : ''}
+Recommended Action: ${healthContext.actionableAdvice}
+` : '';
+
+      const prompt = `You are a health AI assistant creating a personalized insight for a user. Your goal is to explain not just WHAT changed, but WHY it matters for their health.
 
 DETECTED CHANGE:
-${metricName} is ${pct}% ${direction} than the user's baseline
+${healthContext?.displayName || metricName} is ${pct}% ${direction} than the user's personal baseline
+
+${healthContextSection}
 
 ${causesSection}
 
@@ -633,19 +662,22 @@ ${positiveSection}
 
 ${userContext?.preferredName ? `USER NAME: ${userContext.preferredName}` : ''}
 
-Generate a warm, insightful message that:
-1. Summarizes the detected change in plain language
-2. References the ML-computed likely causes (do NOT invent causes not in the list)
-3. If this is a recurring pattern, mention that for credibility ("This has happened X times before when...")
-4. If there are positive patterns, highlight what's working so they can keep doing it
-5. End with asking how they feel on a 1-10 scale
-6. Be conversational and caring, not clinical
-7. Under 100 words total
-8. Use "Your data shows" instead of "I noticed"
+Generate an insightful, educational message that:
+1. States the detected change clearly
+2. EXPLAINS WHY this matters for their health (using the health significance info above)
+3. If the classification is "concerning", explain what to monitor; if "positive", celebrate it
+4. Reference the ML-computed likely causes if available (do NOT invent causes not in the list)
+5. If relevant, mention potential health considerations (from the list above) to discuss with their doctor
+6. Provide the actionable advice from the health context
+7. If this is a recurring pattern, mention it for credibility
+8. End with asking how they feel on a 1-10 scale
+9. Be warm and educational, not alarming
+10. Under 150 words total
+11. Always include the disclaimer: "This is educational information, not medical advice."
 
 Respond with JSON only:
 {
-  "insightText": "The main insight message",
+  "insightText": "The main insight message with health significance explanation",
   "questionText": "The 1-10 feeling question",
   "highlightedCauses": ["cause 1", "cause 2"],
   "reinforcementMessage": "Optional: What's working that they should keep doing"
@@ -667,6 +699,20 @@ Respond with JSON only:
       const uniqueCauses = [...new Set(mlAttribution.rankedCauses.map(c => c.description))].slice(0, 3);
       const whatsWorking = [...new Set(mlAttribution.positivePatterns.map(p => p.description))];
 
+      // Build enriched health context for the response
+      const enrichedHealthContext = healthContext ? {
+        classification: healthContext.classification,
+        healthImplications: healthContext.healthImplications,
+        conditionsToConsider: healthContext.conditionsToConsider,
+        actionableAdvice: healthContext.actionableAdvice,
+      } : undefined;
+
+      logger.info('[FeedbackGenerator] Smart insight generated with health context', {
+        hasHealthContext: !!healthContext,
+        classification: healthContext?.classification,
+        implicationsCount: healthContext?.healthImplications.length || 0,
+      });
+
       return {
         insightText: parsed.insightText || '',
         likelyCauses: uniqueCauses,
@@ -674,6 +720,7 @@ Respond with JSON only:
         confidence: mlAttribution.historicalPattern?.confidence || 0.3,
         isRecurringPattern: mlAttribution.historicalPattern?.isRecurringPattern || false,
         questionText: parsed.questionText || `On a scale of 1-10, how are you feeling right now?`,
+        healthContext: enrichedHealthContext,
       };
     } catch (error) {
       logger.error('[FeedbackGenerator] Error generating smart insight', { error });

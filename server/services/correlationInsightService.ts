@@ -102,10 +102,16 @@ class CorrelationInsightService {
           patternConfidence?: number;
           isRecurringPattern?: boolean;
           historicalMatchCount?: number;
+          healthContext?: {
+            classification: 'positive' | 'concerning' | 'neutral' | 'context_dependent';
+            healthImplications: string[];
+            conditionsToConsider: string[];
+            actionableAdvice: string;
+          };
         } | undefined;
         
         if (matchingAnomaly) {
-          // Generate smart insight with ML causal analysis
+          // Generate smart insight with ML causal analysis and health context
           const smartInsight = await dynamicFeedbackGenerator.generateSmartInsight(
             healthId,
             matchingAnomaly,
@@ -120,11 +126,14 @@ class CorrelationInsightService {
               patternConfidence: smartInsight.confidence,
               isRecurringPattern: smartInsight.isRecurringPattern,
               historicalMatchCount: 0, // Will be populated by historical pattern matching
+              healthContext: smartInsight.healthContext,
             };
             logger.info(`[CorrelationInsight] Generated smart insight for ${question.focusMetric}`, {
               hasLikelyCauses: smartInsight.likelyCauses.length > 0,
               hasWhatsWorking: smartInsight.whatsWorking.length > 0,
               confidence: smartInsight.confidence,
+              hasHealthContext: !!smartInsight.healthContext,
+              healthContextClassification: smartInsight.healthContext?.classification,
             });
           }
         }
@@ -323,6 +332,12 @@ class CorrelationInsightService {
       patternConfidence?: number;
       isRecurringPattern?: boolean;
       historicalMatchCount?: number;
+      healthContext?: {
+        classification: 'positive' | 'concerning' | 'neutral' | 'context_dependent';
+        healthImplications: string[];
+        conditionsToConsider: string[];
+        actionableAdvice: string;
+      };
     }
   ): Promise<boolean> {
     const expiresAt = new Date(Date.now() + FEEDBACK_EXPIRY_HOURS * 60 * 60 * 1000);
@@ -344,7 +359,7 @@ class CorrelationInsightService {
       
       if (existingToday.length > 0) {
         // Update existing record with new causal analysis data
-        if (causalAnalysis && (causalAnalysis.likelyCauses?.length || causalAnalysis.whatsWorking?.length)) {
+        if (causalAnalysis && (causalAnalysis.likelyCauses?.length || causalAnalysis.whatsWorking?.length || causalAnalysis.healthContext)) {
           await db.update(pendingCorrelationFeedback)
             .set({
               insightText: causalAnalysis.insightText || null,
@@ -353,9 +368,14 @@ class CorrelationInsightService {
               patternConfidence: causalAnalysis.patternConfidence || null,
               isRecurringPattern: causalAnalysis.isRecurringPattern || false,
               historicalMatchCount: causalAnalysis.historicalMatchCount || null,
+              // Health context fields
+              healthContextClassification: causalAnalysis.healthContext?.classification || null,
+              healthImplications: causalAnalysis.healthContext?.healthImplications || null,
+              conditionsToConsider: causalAnalysis.healthContext?.conditionsToConsider || null,
+              actionableAdvice: causalAnalysis.healthContext?.actionableAdvice || null,
             })
             .where(eq(pendingCorrelationFeedback.feedbackId, existingToday[0].feedbackId));
-          logger.debug(`[CorrelationInsight] Updated existing question for metric "${question.focusMetric}" with causal data`);
+          logger.debug(`[CorrelationInsight] Updated existing question for metric "${question.focusMetric}" with causal data and health context`);
         } else {
           logger.debug(`[CorrelationInsight] Skipping duplicate question for metric "${question.focusMetric}" - already have one today`);
         }
@@ -383,6 +403,11 @@ class CorrelationInsightService {
       patternConfidence: causalAnalysis?.patternConfidence || null,
       isRecurringPattern: causalAnalysis?.isRecurringPattern || false,
       historicalMatchCount: causalAnalysis?.historicalMatchCount || null,
+      // Health context - explains WHY the anomaly matters
+      healthContextClassification: causalAnalysis?.healthContext?.classification || null,
+      healthImplications: causalAnalysis?.healthContext?.healthImplications || null,
+      conditionsToConsider: causalAnalysis?.healthContext?.conditionsToConsider || null,
+      actionableAdvice: causalAnalysis?.healthContext?.actionableAdvice || null,
     }).onConflictDoUpdate({
       target: pendingCorrelationFeedback.feedbackId,
       set: {
@@ -402,6 +427,11 @@ class CorrelationInsightService {
         patternConfidence: causalAnalysis?.patternConfidence || null,
         isRecurringPattern: causalAnalysis?.isRecurringPattern || false,
         historicalMatchCount: causalAnalysis?.historicalMatchCount || null,
+        // Health context - explains WHY the anomaly matters
+        healthContextClassification: causalAnalysis?.healthContext?.classification || null,
+        healthImplications: causalAnalysis?.healthContext?.healthImplications || null,
+        conditionsToConsider: causalAnalysis?.healthContext?.conditionsToConsider || null,
+        actionableAdvice: causalAnalysis?.healthContext?.actionableAdvice || null,
       },
     });
 
@@ -508,6 +538,11 @@ class CorrelationInsightService {
     patternConfidence: number | null;
     isRecurringPattern: boolean;
     historicalMatchCount: number | null;
+    // Health context - explains WHY the anomaly matters
+    healthContextClassification: string | null;
+    healthImplications: string[] | null;
+    conditionsToConsider: string[] | null;
+    actionableAdvice: string | null;
   }>> {
     await this.cleanupExpiredFeedback();
     await this.cleanupOldAnsweredPatterns();
@@ -562,6 +597,11 @@ class CorrelationInsightService {
       patternConfidence: row.patternConfidence,
       isRecurringPattern: row.isRecurringPattern || false,
       historicalMatchCount: row.historicalMatchCount,
+      // Health context - explains WHY the anomaly matters
+      healthContextClassification: row.healthContextClassification,
+      healthImplications: row.healthImplications,
+      conditionsToConsider: row.conditionsToConsider,
+      actionableAdvice: row.actionableAdvice,
     }));
   }
 

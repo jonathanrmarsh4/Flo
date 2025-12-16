@@ -318,6 +318,10 @@ export const profiles = pgTable("profiles", {
   // AI Personalization (JSONB for flexibility)
   aiPersonalization: jsonb("ai_personalization").$type<z.infer<typeof aiPersonalizationSchema>>(),
   
+  // Body fat calibration correction (from DEXA scan comparison)
+  // This is a percentage to add to smart scale readings to match DEXA results
+  bodyFatCorrectionPct: real("body_fat_correction_pct").default(0),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -3052,6 +3056,12 @@ export const pendingCorrelationFeedback = pgTable("pending_correlation_feedback"
   patternConfidence: real("pattern_confidence"),
   isRecurringPattern: boolean("is_recurring_pattern").default(false),
   historicalMatchCount: integer("historical_match_count"),
+  
+  // Health context - explains WHY the anomaly matters and potential health implications
+  healthContextClassification: varchar("health_context_classification", { length: 30 }),
+  healthImplications: jsonb("health_implications").$type<string[]>(),
+  conditionsToConsider: jsonb("conditions_to_consider").$type<string[]>(),
+  actionableAdvice: text("actionable_advice"),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   visibleAt: timestamp("visible_at").defaultNow().notNull(),
