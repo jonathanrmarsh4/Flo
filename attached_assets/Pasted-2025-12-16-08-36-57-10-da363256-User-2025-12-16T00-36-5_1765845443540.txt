@@ -1,0 +1,140 @@
+2025-12-16 08:36:57.10
+da363256
+User
+[2025-12-16T00:36:57.105Z] [ERROR] [WeightForecastSchema] [WeightForecastSchema] Failed to initialize schema: {"error":{"message":"Aggregate function argMax(timestamp_utc, timestamp_utc) AS timestamp_utc is found inside another aggregate function in query. ","stack":"Error: Aggregate function argMax(timestamp_utc, timestamp_utc) AS timestamp_utc is found inside another aggregate function in query. \n at parseError (/home/runner/workspace/node_modules/@clickhouse/client-common/dist/error/error.js:38:16)\n at ClientRequest.onResponse (/home/runner/workspace/node_modules/@clickhouse/client/dist/connection/node_base_connection.js:457:107)\n at process.processTicksAndRejections (node:internal/process/task_queues:95:5)"}}
+2025-12-16 08:36:57.13
+da363256
+User
+[2025-12-16T00:36:57.138Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 102 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-16 08:36:57.13
+da363256
+User
+[2025-12-16T00:36:57.139Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:57.24
+da363256
+User
+[2025-12-16T00:36:57.240Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 readiness records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:57.24
+da363256
+User
+[2025-12-16T00:36:57.241Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 training load records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:57.38
+da363256
+User
+[2025-12-16T00:36:57.380Z] [INFO] [ClickHouseML] Auto-synced 8 readiness, 8 training load for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-16 08:36:57.38
+da363256
+User
+[2025-12-16T00:36:57.380Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 readiness records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:57.49
+da363256
+User
+[2025-12-16T00:36:57.493Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 8 training load records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:57.49
+da363256
+User
+[2025-12-16T00:36:57.493Z] [INFO] [ClickHouseML] Auto-synced 8 readiness, 8 training load for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-16 08:36:57.59
+da363256
+User
+[2025-12-16T00:36:57.598Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 102 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-16 08:36:57.59
+da363256
+User
+[2025-12-16T00:36:57.598Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:57.60
+da363256
+User
+[2025-12-16T00:36:57.607Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:57.60
+da363256
+User
+[2025-12-16T00:36:57.607Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 102 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-16 08:36:57.60
+da363256
+User
+[2025-12-16T00:36:57.608Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 7 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:57.60
+da363256
+User
+[2025-12-16T00:36:57.608Z] [INFO] [ClickHouseML] Auto-synced 7 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-16 08:36:57.60
+da363256
+User
+[2025-12-16T00:36:57.609Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:57.60
+da363256
+User
+[2025-12-16T00:36:57.609Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 102 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-16 08:36:57.68
+da363256
+User
+[2025-12-16T00:36:57.685Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:57.68
+da363256
+User
+[2025-12-16T00:36:57.685Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 102 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-16 08:36:57.70
+da363256
+User
+[2025-12-16T00:36:57.704Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:57.70
+da363256
+User
+[2025-12-16T00:36:57.704Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 102 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-16 08:36:57.77
+da363256
+User
+[2025-12-16T00:36:57.771Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 102 sleep component metrics for 29d2a63e-44a2-472c-a825-89be5a07cbeb from 8 nights
+2025-12-16 08:36:57.77
+da363256
+User
+[2025-12-16T00:36:57.771Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:57.77
+da363256
+User
+[2025-12-16T00:36:57.772Z] [INFO] [ClickHouseML] Auto-synced 7 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-16 08:36:57.77
+da363256
+User
+[2025-12-16T00:36:57.772Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 7 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:57.81
+da363256
+User
+[2025-12-16T00:36:57.817Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 7 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:57.93
+da363256
+User
+[2025-12-16T00:36:57.933Z] [INFO] [ClickHouseML] Auto-synced 7 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-16 08:36:57.93
+da363256
+User
+[2025-12-16T00:36:57.933Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 7 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:58.06
+da363256
+User
+[2025-12-16T00:36:58.061Z] [INFO] [ClickHouseML] Auto-synced 192 metrics for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78 after HealthKit ingestion
+2025-12-16 08:36:58.06
+da363256
+User
+[2025-12-16T00:36:58.066Z] [INFO] [ClickHouseML] Auto-synced 7 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-16 08:36:58.06
+da363256
+User
+[2025-12-16T00:36:58.066Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 7 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:58.14
+da363256
+User
+[2025-12-16T00:36:58.143Z] [INFO] [ClickHouseML] Auto-synced 7 nutrition records for 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-16 08:36:58.14
+da363256
+User
+[2025-12-16T00:36:58.145Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 7 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:36:58.20
+da363256
+User
+[2025-12-16T00:36:58.207Z] [INFO] [ClickHouseML] [ClickHouseML] Synced 7 nutrition records for 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-16 08:37:09.37
+da363256
+User
+[2025-12-16T00:37:09.375Z] [INFO] [ForecastWorker] [ForecastWorker] Processing 1 users from 1 queue items
