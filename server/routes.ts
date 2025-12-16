@@ -9663,10 +9663,8 @@ Important: This is for educational purposes. Include a brief note that users sho
         }
       }
       
-      // Step 3: Only fetch from API if no cached data, quota allows, AND user is premium/admin
-      // Free users only get cached/backfill data to conserve API quota
+      // Step 3: Fetch from API if no cached data - uses in-memory caching with fallback
       let hasLocation = false;
-      let quotaExhausted = false;
       let isPremiumUser = false;
       
       // Check user's subscription tier
@@ -9679,54 +9677,58 @@ Important: This is for educational purposes. Include a brief note that users sho
         
         if (location) {
           try {
-            const { getCurrentWeatherWithQuotaGuard, getQuotaStatus } = await import('./services/environmentalBackfillService');
+            // Use direct OpenWeather service with built-in caching and fallback
+            // This bypasses the Supabase RPC quota system which has been unreliable
+            const { getEnvironmentalData } = await import('./services/openWeatherService');
             
-            const quotaStatus = await getQuotaStatus();
-            if (quotaStatus.quotaExhausted) {
-              logger.warn(`[Environmental] Daily quota exhausted - no cache available for user ${userId}`);
-              quotaExhausted = true;
+            logger.info(`[Environmental] No cache found, fetching live data for user ${userId}`);
+            const envData = await getEnvironmentalData(location.latitude, location.longitude);
+            
+            // Check if we got no data at all - return 503
+            if (!envData.weather && !envData.airQuality) {
+              logger.warn(`[Environmental] No weather or AQI data available for user ${userId}`);
+              // Fall through to 503 response below
             } else {
-              logger.info(`[Environmental] No cache found, fetching live data for user ${userId}`);
-              const envData = await getCurrentWeatherWithQuotaGuard(location.latitude, location.longitude);
-              
-              if (envData) {
-                cache = await saveWeatherCache(
-                  userId, 
-                  today, 
-                  { latitude: location.latitude, longitude: location.longitude },
-                  envData.weather,
-                  envData.airQuality
-                );
-                
-                const aqData = cache.air_quality_data as any;
-                const flattenedAirQuality = aqData ? {
-                  aqi: aqData.aqi,
-                  aqiLabel: aqData.aqiLabel,
-                  pm25: aqData.components?.pm2_5 ?? aqData.pm25 ?? 0,
-                  pm10: aqData.components?.pm10 ?? aqData.pm10 ?? 0,
-                  o3: aqData.components?.o3 ?? aqData.o3 ?? 0,
-                  no2: aqData.components?.no2 ?? aqData.no2 ?? 0,
-                  co: aqData.components?.co ?? aqData.co ?? 0,
-                  so2: aqData.components?.so2 ?? aqData.so2 ?? 0,
-                } : null;
-                return res.json({
-                  date: cache.date,
-                  weather: cache.weather_data,
-                  airQuality: flattenedAirQuality,
-                  location: { lat: cache.latitude, lon: cache.longitude },
-                  fetchedAt: cache.fetched_at,
-                });
-              } else {
-                quotaExhausted = true;
+              // We got at least some data (fresh or from in-memory cache), use it
+              // Try to save to Supabase cache (non-blocking) - only save fresh data
+              if (!envData.isStale) {
+                try {
+                  cache = await saveWeatherCache(
+                    userId, 
+                    today, 
+                    { latitude: location.latitude, longitude: location.longitude },
+                    envData.weather,
+                    envData.airQuality
+                  );
+                } catch (cacheError) {
+                  logger.warn(`[Environmental] Failed to save to Supabase cache, returning data anyway:`, cacheError);
+                }
               }
+              
+              const flattenedAirQuality = envData.airQuality ? {
+                aqi: envData.airQuality.aqi,
+                aqiLabel: envData.airQuality.aqiLabel,
+                pm25: envData.airQuality.components?.pm2_5 ?? 0,
+                pm10: envData.airQuality.components?.pm10 ?? 0,
+                o3: envData.airQuality.components?.o3 ?? 0,
+                no2: envData.airQuality.components?.no2 ?? 0,
+                co: envData.airQuality.components?.co ?? 0,
+                so2: envData.airQuality.components?.so2 ?? 0,
+              } : null;
+              
+              return res.json({
+                date: today,
+                weather: envData.weather,
+                airQuality: flattenedAirQuality,
+                location: { lat: location.latitude, lon: location.longitude },
+                fetchedAt: envData.fetchedAt,
+                isStale: envData.isStale,
+                weatherTimestamp: envData.weatherTimestamp,
+                aqiTimestamp: envData.aqiTimestamp,
+              });
             }
           } catch (weatherError: any) {
-            const errorMsg = weatherError?.message || String(weatherError);
-            if (errorMsg.includes('QUOTA_RPC_UNAVAILABLE') || errorMsg.includes('QUOTA_INCREMENT_FAILED')) {
-              logger.error(`[Environmental] CRITICAL: Quota RPC unavailable`);
-            } else {
-              logger.error(`[Environmental] Failed to fetch weather data:`, weatherError);
-            }
+            logger.error(`[Environmental] Failed to fetch weather data:`, weatherError);
           }
         }
       }
@@ -9739,9 +9741,6 @@ Important: This is for educational purposes. Include a brief note that users sho
       } else if (!hasLocation) {
         logger.warn(`[Environmental] No location data for user ${userId}`);
         return res.status(404).json({ error: "No environmental data available", reason: "no_location_data" });
-      } else if (quotaExhausted) {
-        logger.warn(`[Environmental] Quota exhausted, no cache for user ${userId}`);
-        return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "quota_exhausted" });
       } else {
         logger.warn(`[Environmental] Weather fetch failed for user ${userId}`);
         return res.status(503).json({ error: "Weather service temporarily unavailable", reason: "api_error" });

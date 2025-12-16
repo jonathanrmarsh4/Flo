@@ -2,6 +2,92 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('OpenWeatherService');
 
+// In-memory cache with TTL for weather data
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  location: { lat: number; lon: number };
+}
+
+// Cache TTL: 2 hours for weather, 1 hour for AQI
+const WEATHER_CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+const AQI_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+// Maximum staleness: 12 hours - after this, we return 503 instead of stale data
+const MAX_STALENESS_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+// Rate limiting: max API calls per hour per server instance (split by endpoint)
+const MAX_WEATHER_CALLS_PER_HOUR = 300;
+const MAX_AQI_CALLS_PER_HOUR = 300;
+let weatherCallsThisHour = 0;
+let aqiCallsThisHour = 0;
+let lastWeatherHourReset = Date.now();
+let lastAqiHourReset = Date.now();
+
+// Location proximity threshold (roughly 10km)
+const LOCATION_PROXIMITY_THRESHOLD = 0.1; // degrees
+
+// In-memory caches - keyed by rounded lat/lon
+const weatherCache = new Map<string, CacheEntry<WeatherData>>();
+const aqiCache = new Map<string, CacheEntry<AirQualityData>>();
+
+// Global fallback: last successful fetch for any location
+let lastKnownWeather: CacheEntry<WeatherData> | null = null;
+let lastKnownAQI: CacheEntry<AirQualityData> | null = null;
+
+function checkAndIncrementWeatherRateLimit(): boolean {
+  const now = Date.now();
+  // Reset counter every hour
+  if (now - lastWeatherHourReset > 60 * 60 * 1000) {
+    weatherCallsThisHour = 0;
+    lastWeatherHourReset = now;
+  }
+  
+  if (weatherCallsThisHour >= MAX_WEATHER_CALLS_PER_HOUR) {
+    logger.warn(`[OpenWeather] Weather rate limit reached (${MAX_WEATHER_CALLS_PER_HOUR} calls/hour)`);
+    return false;
+  }
+  
+  weatherCallsThisHour++;
+  return true;
+}
+
+function checkAndIncrementAQIRateLimit(): boolean {
+  const now = Date.now();
+  // Reset counter every hour
+  if (now - lastAqiHourReset > 60 * 60 * 1000) {
+    aqiCallsThisHour = 0;
+    lastAqiHourReset = now;
+  }
+  
+  if (aqiCallsThisHour >= MAX_AQI_CALLS_PER_HOUR) {
+    logger.warn(`[OpenWeather] AQI rate limit reached (${MAX_AQI_CALLS_PER_HOUR} calls/hour)`);
+    return false;
+  }
+  
+  aqiCallsThisHour++;
+  return true;
+}
+
+function isWithinMaxStaleness(timestamp: number): boolean {
+  return Date.now() - timestamp < MAX_STALENESS_MS;
+}
+
+function getCacheKey(lat: number, lon: number): string {
+  // Round to 1 decimal place (~10km precision) for cache grouping
+  return `${lat.toFixed(1)},${lon.toFixed(1)}`;
+}
+
+function isWithinProximity(lat1: number, lon1: number, lat2: number, lon2: number): boolean {
+  return Math.abs(lat1 - lat2) < LOCATION_PROXIMITY_THRESHOLD && 
+         Math.abs(lon1 - lon2) < LOCATION_PROXIMITY_THRESHOLD;
+}
+
+function isCacheValid<T>(entry: CacheEntry<T> | null | undefined, ttlMs: number): boolean {
+  if (!entry) return false;
+  return Date.now() - entry.timestamp < ttlMs;
+}
+
 export interface WeatherData {
   temperature: number;
   feelsLike: number;
@@ -67,7 +153,27 @@ function getApiKey(): string {
   return key;
 }
 
-export async function getCurrentWeather(lat: number, lon: number): Promise<WeatherData | null> {
+export interface WeatherResult {
+  data: WeatherData;
+  timestamp: number;
+  isStale: boolean;
+}
+
+export async function getCurrentWeather(lat: number, lon: number): Promise<WeatherResult | null> {
+  const cacheKey = getCacheKey(lat, lon);
+  
+  // Check in-memory cache first
+  const cached = weatherCache.get(cacheKey);
+  if (isCacheValid(cached, WEATHER_CACHE_TTL_MS)) {
+    logger.info(`[OpenWeather] Using cached weather for ${cacheKey} (age: ${Math.round((Date.now() - cached!.timestamp) / 60000)}min)`);
+    return { data: cached!.data, timestamp: cached!.timestamp, isStale: false };
+  }
+  
+  // Check rate limit before making API call
+  if (!checkAndIncrementWeatherRateLimit()) {
+    return getFallbackWeather(lat, lon);
+  }
+  
   try {
     const apiKey = getApiKey();
     const url = `${API_BASE}/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
@@ -75,12 +181,13 @@ export async function getCurrentWeather(lat: number, lon: number): Promise<Weath
     const response = await fetch(url);
     if (!response.ok) {
       logger.error(`[OpenWeather] Weather API error: ${response.status} ${response.statusText}`);
-      return null;
+      return getFallbackWeather(lat, lon);
     }
     
     const data = await response.json();
+    const timestamp = Date.now();
     
-    return {
+    const weatherData: WeatherData = {
       temperature: data.main.temp,
       feelsLike: data.main.feels_like,
       humidity: data.main.humidity,
@@ -98,13 +205,70 @@ export async function getCurrentWeather(lat: number, lon: number): Promise<Weath
       cityName: data.name,
       countryCode: data.sys.country,
     };
+    
+    // Update cache
+    const cacheEntry: CacheEntry<WeatherData> = {
+      data: weatherData,
+      timestamp,
+      location: { lat, lon }
+    };
+    weatherCache.set(cacheKey, cacheEntry);
+    lastKnownWeather = cacheEntry;
+    
+    logger.info(`[OpenWeather] Fetched and cached fresh weather for ${cacheKey}`);
+    return { data: weatherData, timestamp, isStale: false };
   } catch (error) {
     logger.error('[OpenWeather] Error fetching current weather:', error);
-    return null;
+    return getFallbackWeather(lat, lon);
   }
 }
 
-export async function getCurrentAirQuality(lat: number, lon: number): Promise<AirQualityData | null> {
+function getFallbackWeather(lat: number, lon: number): WeatherResult | null {
+  const cacheKey = getCacheKey(lat, lon);
+  
+  // Try exact location cache first (must be within max staleness)
+  const cached = weatherCache.get(cacheKey);
+  if (cached && isWithinMaxStaleness(cached.timestamp)) {
+    const ageHours = Math.round((Date.now() - cached.timestamp) / 3600000);
+    logger.warn(`[OpenWeather] Using stale cache for ${cacheKey} (${ageHours}h old) as fallback`);
+    return { data: cached.data, timestamp: cached.timestamp, isStale: true };
+  }
+  
+  // Try last known weather if within proximity and max staleness
+  if (lastKnownWeather && 
+      isWithinProximity(lat, lon, lastKnownWeather.location.lat, lastKnownWeather.location.lon) &&
+      isWithinMaxStaleness(lastKnownWeather.timestamp)) {
+    const ageHours = Math.round((Date.now() - lastKnownWeather.timestamp) / 3600000);
+    logger.warn(`[OpenWeather] Using last known weather (${ageHours}h old) from nearby location as fallback`);
+    return { data: lastKnownWeather.data, timestamp: lastKnownWeather.timestamp, isStale: true };
+  }
+  
+  // Cache too old or doesn't exist - reject with null (will cause 503)
+  logger.warn(`[OpenWeather] No valid fallback weather available for ${cacheKey} (cache older than ${MAX_STALENESS_MS / 3600000}h)`);
+  return null;
+}
+
+export interface AQIResult {
+  data: AirQualityData;
+  timestamp: number;
+  isStale: boolean;
+}
+
+export async function getCurrentAirQuality(lat: number, lon: number): Promise<AQIResult | null> {
+  const cacheKey = getCacheKey(lat, lon);
+  
+  // Check in-memory cache first
+  const cached = aqiCache.get(cacheKey);
+  if (isCacheValid(cached, AQI_CACHE_TTL_MS)) {
+    logger.info(`[OpenWeather] Using cached AQI for ${cacheKey} (age: ${Math.round((Date.now() - cached!.timestamp) / 60000)}min)`);
+    return { data: cached!.data, timestamp: cached!.timestamp, isStale: false };
+  }
+  
+  // Check rate limit before making API call
+  if (!checkAndIncrementAQIRateLimit()) {
+    return getFallbackAQI(lat, lon);
+  }
+  
   try {
     const apiKey = getApiKey();
     const url = `${API_BASE}/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}`;
@@ -112,13 +276,14 @@ export async function getCurrentAirQuality(lat: number, lon: number): Promise<Ai
     const response = await fetch(url);
     if (!response.ok) {
       logger.error(`[OpenWeather] Air Quality API error: ${response.status} ${response.statusText}`);
-      return null;
+      return getFallbackAQI(lat, lon);
     }
     
     const data = await response.json();
     const item = data.list[0];
+    const timestamp = Date.now();
     
-    return {
+    const aqiData: AirQualityData = {
       aqi: item.main.aqi,
       aqiLabel: AQI_LABELS[item.main.aqi] || 'Moderate',
       components: {
@@ -132,10 +297,47 @@ export async function getCurrentAirQuality(lat: number, lon: number): Promise<Ai
         nh3: item.components.nh3,
       },
     };
+    
+    // Update cache
+    const cacheEntry: CacheEntry<AirQualityData> = {
+      data: aqiData,
+      timestamp,
+      location: { lat, lon }
+    };
+    aqiCache.set(cacheKey, cacheEntry);
+    lastKnownAQI = cacheEntry;
+    
+    logger.info(`[OpenWeather] Fetched and cached fresh AQI for ${cacheKey}`);
+    return { data: aqiData, timestamp, isStale: false };
   } catch (error) {
     logger.error('[OpenWeather] Error fetching air quality:', error);
-    return null;
+    return getFallbackAQI(lat, lon);
   }
+}
+
+function getFallbackAQI(lat: number, lon: number): AQIResult | null {
+  const cacheKey = getCacheKey(lat, lon);
+  
+  // Try exact location cache first (must be within max staleness)
+  const cached = aqiCache.get(cacheKey);
+  if (cached && isWithinMaxStaleness(cached.timestamp)) {
+    const ageHours = Math.round((Date.now() - cached.timestamp) / 3600000);
+    logger.warn(`[OpenWeather] Using stale AQI cache for ${cacheKey} (${ageHours}h old) as fallback`);
+    return { data: cached.data, timestamp: cached.timestamp, isStale: true };
+  }
+  
+  // Try last known AQI if within proximity and max staleness
+  if (lastKnownAQI && 
+      isWithinProximity(lat, lon, lastKnownAQI.location.lat, lastKnownAQI.location.lon) &&
+      isWithinMaxStaleness(lastKnownAQI.timestamp)) {
+    const ageHours = Math.round((Date.now() - lastKnownAQI.timestamp) / 3600000);
+    logger.warn(`[OpenWeather] Using last known AQI (${ageHours}h old) from nearby location as fallback`);
+    return { data: lastKnownAQI.data, timestamp: lastKnownAQI.timestamp, isStale: true };
+  }
+  
+  // Cache too old or doesn't exist - reject with null (will cause 503)
+  logger.warn(`[OpenWeather] No valid fallback AQI available for ${cacheKey} (cache older than ${MAX_STALENESS_MS / 3600000}h)`);
+  return null;
 }
 
 export async function getHistoricalAirQuality(
@@ -209,17 +411,31 @@ export async function getAirQualityForecast(lat: number, lon: number): Promise<A
   }
 }
 
-export async function getEnvironmentalData(lat: number, lon: number): Promise<EnvironmentalData> {
-  const [weather, airQuality] = await Promise.all([
+export interface EnvironmentalDataWithMeta extends EnvironmentalData {
+  isStale: boolean;
+  weatherTimestamp: number | null;
+  aqiTimestamp: number | null;
+}
+
+export async function getEnvironmentalData(lat: number, lon: number): Promise<EnvironmentalDataWithMeta> {
+  const [weatherResult, aqiResult] = await Promise.all([
     getCurrentWeather(lat, lon),
     getCurrentAirQuality(lat, lon),
   ]);
   
+  // Use the oldest timestamp as fetchedAt to accurately represent data freshness
+  const timestamps = [weatherResult?.timestamp, aqiResult?.timestamp].filter(Boolean) as number[];
+  const oldestTimestamp = timestamps.length > 0 ? Math.min(...timestamps) : Date.now();
+  const isStale = (weatherResult?.isStale ?? false) || (aqiResult?.isStale ?? false);
+  
   return {
-    weather,
-    airQuality,
-    fetchedAt: new Date().toISOString(),
+    weather: weatherResult?.data ?? null,
+    airQuality: aqiResult?.data ?? null,
+    fetchedAt: new Date(oldestTimestamp).toISOString(),
     location: { lat, lon },
+    isStale,
+    weatherTimestamp: weatherResult?.timestamp ?? null,
+    aqiTimestamp: aqiResult?.timestamp ?? null,
   };
 }
 
