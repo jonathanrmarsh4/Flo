@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { parseApiError } from '@/lib/utils';
 import { ManualWeighInSheet } from './ManualWeighInSheet';
 import { BodyCompSheet } from './BodyCompSheet';
 import { GoalSetupFlow } from './GoalSetupFlow';
@@ -191,9 +192,15 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
       setShowAIAnalysisSheet(true);
     },
     onError: (error: Error) => {
+      const parsed = parseApiError(error);
       toast({
         title: 'Analysis Failed',
-        description: error.message || 'Unable to generate weight analysis. Please try again.',
+        description: (
+          <div>
+            <p>{parsed.message}</p>
+            <p className="text-xs opacity-60 mt-1">Error: {parsed.code}</p>
+          </div>
+        ),
         variant: 'destructive',
       });
     },
