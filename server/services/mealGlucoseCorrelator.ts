@@ -30,6 +30,7 @@ interface NutritionSample {
 interface GlucoseSample {
   start_date: string;
   value: number;
+  unit?: string;
 }
 
 interface MealWindow {
@@ -91,6 +92,27 @@ const NUTRITION_TYPE_MAP: Record<string, string> = {
   'dietarySugar': 'sugar',
   'HKQuantityTypeIdentifierDietarySugar': 'sugar',
 };
+
+/**
+ * Normalize glucose values to mg/dL
+ * Handles mmol/L to mg/dL conversion (multiply by 18.0182)
+ */
+function normalizeGlucoseToMgDl(value: number, unit?: string): number {
+  if (!unit) {
+    // Infer unit from value range
+    // mmol/L typically 2-25, mg/dL typically 36-450
+    if (value > 0 && value < 30) {
+      return value * 18.0182;  // Likely mmol/L
+    }
+    return value;  // Likely already mg/dL
+  }
+  
+  const lowerUnit = unit.toLowerCase();
+  if (lowerUnit.includes('mmol') || lowerUnit === 'mmol/l') {
+    return value * 18.0182;
+  }
+  return value;  // Already mg/dL or mg/dl
+}
 
 /**
  * Process glucose responses for meals logged in a time window
@@ -167,30 +189,46 @@ export async function processMealGlucoseCorrelations(
     
     const { data: glucoseSamples, error: glucoseError } = await supabase
       .from('healthkit_samples')
-      .select('start_date, value')
+      .select('start_date, value, unit')
       .eq('health_id', healthId)
       .in('data_type', glucoseTypes)
       .gte('start_date', earliestMeal.toISOString())
       .lte('start_date', latestMealPlusWindow.toISOString())
       .order('start_date', { ascending: true });
 
+    // Normalize all glucose values to mg/dL (mmol/L * 18.0182 = mg/dL)
+    const normalizedGlucoseSamples = (glucoseSamples || []).map(s => ({
+      ...s,
+      value: normalizeGlucoseToMgDl(s.value, s.unit),
+    }));
+
     if (glucoseError) {
       logger.error('[MealGlucose] Error fetching glucose samples:', glucoseError);
       return { processed: 0, stored: 0 };
     }
 
-    if (!glucoseSamples || glucoseSamples.length === 0) {
+    if (normalizedGlucoseSamples.length === 0) {
       logger.debug('[MealGlucose] No glucose samples found in response window');
       return { processed: 0, stored: 0 };
     }
 
-    logger.info(`[MealGlucose] Found ${glucoseSamples.length} glucose samples for analysis`);
+    // Filter out physiologically impossible values (likely sensor errors or unit issues)
+    const validGlucoseSamples = normalizedGlucoseSamples.filter(s => 
+      s.value >= 40 && s.value <= 500  // Valid glucose range in mg/dL
+    );
+
+    if (validGlucoseSamples.length === 0) {
+      logger.debug('[MealGlucose] No valid glucose samples after filtering');
+      return { processed: 0, stored: 0 };
+    }
+
+    logger.info(`[MealGlucose] Found ${validGlucoseSamples.length} valid glucose samples for analysis`);
 
     // Calculate glucose response for each meal
     const responses: GlucoseResponse[] = [];
     
     for (const meal of meals) {
-      const response = calculateGlucoseResponse(healthId, meal, glucoseSamples as GlucoseSample[]);
+      const response = calculateGlucoseResponse(healthId, meal, validGlucoseSamples as GlucoseSample[]);
       if (response) {
         responses.push(response);
       }
@@ -417,7 +455,7 @@ function gradeGlucoseResponse(peak: number, delta: number, timeAbove140: number)
 }
 
 /**
- * Store glucose responses in ClickHouse
+ * Store glucose responses in ClickHouse (with deduplication)
  */
 async function storeGlucoseResponses(responses: GlucoseResponse[]): Promise<number> {
   const ch = getClickHouseClient();
@@ -426,8 +464,41 @@ async function storeGlucoseResponses(responses: GlucoseResponse[]): Promise<numb
     return 0;
   }
 
+  if (responses.length === 0) return 0;
+
   try {
-    const rows = responses.map(r => ({
+    // Check for existing entries to avoid duplicates (by health_id + meal_time)
+    const healthId = responses[0].healthId;
+    const mealTimes = responses.map(r => r.mealTime.toISOString());
+    
+    const existingQuery = `
+      SELECT meal_time
+      FROM flo_health.meal_glucose_responses FINAL
+      WHERE health_id = {healthId:String}
+        AND meal_time IN ({mealTimes:Array(String)})
+    `;
+    
+    const existingResult = await ch.query({
+      query: existingQuery,
+      query_params: { healthId, mealTimes },
+      format: 'JSONEachRow',
+    });
+    
+    const existingMealTimes = new Set(
+      (await existingResult.json<{ meal_time: string }[]>()).map(r => r.meal_time)
+    );
+    
+    // Filter out responses that already exist
+    const newResponses = responses.filter(r => 
+      !existingMealTimes.has(r.mealTime.toISOString())
+    );
+    
+    if (newResponses.length === 0) {
+      logger.debug('[MealGlucose] All responses already exist, skipping insert');
+      return 0;
+    }
+    
+    const rows = newResponses.map(r => ({
       response_id: r.responseId,
       health_id: r.healthId,
       meal_time: r.mealTime.toISOString(),
@@ -458,7 +529,7 @@ async function storeGlucoseResponses(responses: GlucoseResponse[]): Promise<numb
       format: 'JSONEachRow',
     });
 
-    logger.info(`[MealGlucose] Stored ${rows.length} glucose responses in ClickHouse`);
+    logger.info(`[MealGlucose] Stored ${rows.length} new glucose responses (skipped ${responses.length - newResponses.length} duplicates)`);
     return rows.length;
   } catch (error) {
     logger.error('[MealGlucose] Error storing responses:', error);
@@ -480,7 +551,7 @@ export async function getMealGlucoseInsights(healthId: string, days: number = 7)
   }
 
   try {
-    // Get recent responses
+    // Get recent responses (FINAL ensures deduplicated results)
     const recentQuery = `
       SELECT 
         meal_time,
@@ -491,7 +562,7 @@ export async function getMealGlucoseInsights(healthId: string, days: number = 7)
         delta_from_baseline,
         time_to_peak_min,
         response_grade
-      FROM flo_health.meal_glucose_responses
+      FROM flo_health.meal_glucose_responses FINAL
       WHERE health_id = {healthId:String}
         AND meal_date >= today() - {days:UInt32}
       ORDER BY meal_time DESC
@@ -505,7 +576,7 @@ export async function getMealGlucoseInsights(healthId: string, days: number = 7)
     });
     const recentResponses = await recentResult.json();
 
-    // Get average metrics
+    // Get average metrics (FINAL ensures deduplicated results)
     const avgQuery = `
       SELECT 
         avg(peak_glucose) as avg_peak,
@@ -515,7 +586,7 @@ export async function getMealGlucoseInsights(healthId: string, days: number = 7)
         countIf(response_grade = 'A') as grade_a_count,
         countIf(response_grade = 'D') as grade_d_count,
         count() as total_meals
-      FROM flo_health.meal_glucose_responses
+      FROM flo_health.meal_glucose_responses FINAL
       WHERE health_id = {healthId:String}
         AND meal_date >= today() - {days:UInt32}
     `;
@@ -528,7 +599,7 @@ export async function getMealGlucoseInsights(healthId: string, days: number = 7)
     const avgRows = await avgResult.json();
     const avgMetrics = avgRows.length > 0 ? avgRows[0] : null;
 
-    // Get top glucose spikers (high carb meals with grade D)
+    // Get top glucose spikers (high carb meals with grade D, FINAL ensures deduplicated results)
     const spikersQuery = `
       SELECT 
         meal_source,
@@ -537,7 +608,7 @@ export async function getMealGlucoseInsights(healthId: string, days: number = 7)
         max(peak_glucose) as max_peak,
         avg(delta_from_baseline) as avg_delta,
         count() as occurrence_count
-      FROM flo_health.meal_glucose_responses
+      FROM flo_health.meal_glucose_responses FINAL
       WHERE health_id = {healthId:String}
         AND meal_date >= today() - 30
         AND response_grade IN ('C', 'D')
