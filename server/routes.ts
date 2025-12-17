@@ -17234,6 +17234,49 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     }
   });
 
+  // GET /api/cgm/meal-glucose-insights - Get meal-glucose correlation insights
+  app.get("/api/cgm/meal-glucose-insights", isAuthenticated, async (req: any, res) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    try {
+      const { isClickHouseEnabled } = await import('./services/clickhouseService');
+      if (!isClickHouseEnabled()) {
+        return res.json({ 
+          recentResponses: [], 
+          topSpikers: [], 
+          avgMetrics: null,
+          message: "Meal-glucose analysis not available" 
+        });
+      }
+
+      const { getMealGlucoseInsights, formatGlucoseResponseInsight } = await import('./services/mealGlucoseCorrelator');
+      const { getHealthId } = await import('./services/supabaseHealthStorage');
+      const healthId = await getHealthId(userId);
+      
+      const days = parseInt(req.query.days as string) || 7;
+      const insights = await getMealGlucoseInsights(healthId, days);
+      
+      // Format recent responses with human-readable insights
+      const formattedResponses = insights.recentResponses.map((r: any) => ({
+        ...r,
+        insightText: formatGlucoseResponseInsight(r),
+      }));
+
+      res.json({
+        recentResponses: formattedResponses,
+        topSpikers: insights.topSpikers,
+        avgMetrics: insights.avgMetrics,
+        analysisWindowDays: days,
+      });
+    } catch (error: any) {
+      logger.error('[MealGlucose] Get insights error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===============================
   // ACTION PLAN API
   // ===============================
