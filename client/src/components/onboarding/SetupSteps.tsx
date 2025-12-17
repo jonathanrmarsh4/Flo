@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint, MapPin, Watch, ExternalLink } from 'lucide-react';
+import { ChevronRight, Check, Bell, Heart, User, Upload, Bone, Loader2, Shield, Fingerprint, MapPin, Watch, ExternalLink, Sparkles } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App } from '@capacitor/app';
@@ -18,7 +18,7 @@ interface SetupStepsProps {
   onComplete: () => void;
 }
 
-type SetupStep = 'notifications' | 'location' | 'profile' | 'bloodwork' | 'optional' | 'integrations' | 'security' | 'complete';
+type SetupStep = 'notifications' | 'location' | 'profile' | 'bloodwork' | 'optional' | 'integrations' | 'security' | 'ai_consent' | 'complete';
 
 // Generate year options (100 years back from current year)
 const currentYear = new Date().getFullYear();
@@ -110,6 +110,7 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
     { id: 'optional' as const, title: 'Optional Scans', icon: Bone, required: false },
     { id: 'integrations' as const, title: 'Connect Wearables', icon: Watch, required: false },
     { id: 'security' as const, title: 'Secure Your Account', icon: Shield, required: false },
+    { id: 'ai_consent' as const, title: 'AI Features', icon: Sparkles, required: true },
   ];
 
   const currentStepIndex = steps.findIndex(step => step.id === currentStep);
@@ -781,13 +782,52 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
 
   const handleSecurityNext = () => {
     setCompletedSteps([...completedSteps, 'security']);
-    onComplete();
+    setCurrentStep('ai_consent');
   };
 
   const handleSkipSecurity = () => {
     // Mark as complete even when skipping so progress tracking works
     setCompletedSteps([...completedSteps, 'security']);
-    onComplete();
+    setCurrentStep('ai_consent');
+  };
+
+  // AI Consent handlers
+  const handleAIConsentComplete = async (consented: boolean) => {
+    try {
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch('/api/user/ai-consent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({
+          consented,
+          version: '1.0',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save consent preference');
+      }
+
+      if (consented) {
+        toast({
+          title: 'AI Features Enabled',
+          description: 'You can now use personalized insights and Flō Oracle.',
+        });
+      }
+
+      setCompletedSteps([...completedSteps, 'ai_consent']);
+      onComplete();
+    } catch (error) {
+      console.error('[Onboarding] Failed to save AI consent:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save your preference. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const isStepComplete = (stepId: SetupStep) => completedSteps.includes(stepId);
@@ -1709,9 +1749,116 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                   className="flex-1 py-4 rounded-xl font-medium transition-all bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-lg hover:shadow-xl"
                 >
                   <div className="flex items-center justify-center gap-2">
-                    <span>Finish Setup</span>
-                    <Check className="w-5 h-5" />
+                    <span>Continue</span>
+                    <ChevronRight className="w-5 h-5" />
                   </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Consent Step */}
+          {currentStep === 'ai_consent' && (
+            <div 
+              className="space-y-6"
+              style={{ animation: 'fadeSlideIn 0.4s ease-out' }}
+            >
+              <div className="text-center mb-8">
+                <div className="inline-flex p-4 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 mb-4 shadow-2xl">
+                  <Sparkles className="w-10 h-10 text-white" />
+                </div>
+                <h3 className={`text-xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Power Up with AI
+                </h3>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Get personalized health insights powered by advanced AI
+                </p>
+              </div>
+
+              {/* Privacy Assurances */}
+              <div className="space-y-3">
+                <div className={`p-4 rounded-2xl flex items-start gap-3 ${
+                  isDark ? 'bg-white/5' : 'bg-gray-50'
+                }`}>
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex-shrink-0">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Your data is anonymized
+                    </h4>
+                    <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                      We remove your name and identifying information before any AI analysis
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl flex items-start gap-3 ${
+                  isDark ? 'bg-white/5' : 'bg-gray-50'
+                }`}>
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0">
+                    <Heart className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Health data stored separately
+                    </h4>
+                    <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                      Your health records are stored in a separate database from your identity
+                    </p>
+                  </div>
+                </div>
+
+                <div className={`p-4 rounded-2xl flex items-start gap-3 ${
+                  isDark ? 'bg-white/5' : 'bg-gray-50'
+                }`}>
+                  <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h4 className={`font-medium text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      AI-powered features
+                    </h4>
+                    <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                      Flō Oracle voice assistant, daily insights, and personalized recommendations
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Providers Info */}
+              <div className={`p-4 rounded-2xl ${
+                isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                  <strong>AI Providers:</strong> Google AI (Gemini), OpenAI, ElevenLabs. 
+                  All data is anonymized before processing. You can change this anytime in Settings.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={() => handleAIConsentComplete(true)}
+                  className="w-full py-4 rounded-xl font-medium transition-all bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white shadow-lg hover:shadow-xl"
+                  data-testid="button-enable-ai-onboarding"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <Check className="w-5 h-5" />
+                    <span>Enable AI Features</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleAIConsentComplete(false)}
+                  className={`w-full py-4 rounded-xl font-medium transition-all ${
+                    isDark 
+                      ? 'text-white/60 hover:text-white hover:bg-white/5' 
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                  data-testid="button-skip-ai-onboarding"
+                >
+                  Continue Without AI
                 </button>
               </div>
             </div>

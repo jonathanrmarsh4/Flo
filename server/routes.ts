@@ -209,6 +209,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/user/ai-consent - Update AI features consent status
+  // Required for Apple App Store compliance (Nov 2025) - users must consent before sending health data to third-party AI
+  app.post('/api/user/ai-consent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { consented, version } = req.body;
+
+      if (typeof consented !== 'boolean') {
+        return res.status(400).json({ error: "consented must be a boolean" });
+      }
+
+      // Update user's AI consent in database
+      await db.update(users)
+        .set({
+          aiConsentGranted: consented,
+          aiConsentDate: new Date(),
+          aiConsentVersion: version || '1.0',
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, userId));
+
+      logger.info('[AIConsent] Updated consent', { userId, consented, version });
+      res.json({ success: true, consented });
+    } catch (error) {
+      logger.error('[AIConsent] Error updating consent:', error);
+      res.status(500).json({ error: "Failed to update consent" });
+    }
+  });
+
+  // GET /api/user/ai-consent - Get current AI consent status
+  app.get('/api/user/ai-consent', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json({
+        consented: user.aiConsentGranted ?? false,
+        consentDate: user.aiConsentDate,
+        consentVersion: user.aiConsentVersion,
+      });
+    } catch (error) {
+      logger.error('[AIConsent] Error fetching consent:', error);
+      res.status(500).json({ error: "Failed to fetch consent status" });
+    }
+  });
+
   // DELETE /api/user/data - Delete all user data (for testing/cleanup)
   app.delete('/api/user/data', isAuthenticated, async (req: any, res) => {
     try {

@@ -224,6 +224,12 @@ export const users = pgTable("users", {
   // Flō Oracle voice preference
   voicePreference: voicePreferenceEnum("voice_preference").default("Amanda").notNull(),
   
+  // AI Features Consent (Apple App Store compliance - Nov 2025)
+  // Tracks user consent for sending anonymized health data to third-party AI providers
+  aiConsentGranted: boolean("ai_consent_granted").default(false).notNull(),
+  aiConsentDate: timestamp("ai_consent_date"), // When consent was granted/revoked
+  aiConsentVersion: varchar("ai_consent_version").default("1.0"), // Version for re-prompting on policy changes
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
