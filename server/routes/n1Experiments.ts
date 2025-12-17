@@ -432,9 +432,10 @@ router.post('/experiments/:id/explain', async (req, res) => {
     const genAI = new GoogleGenAI({ apiKey });
     
     // Format check-in data (cap notes to 50 chars to reduce tokens)
+    // Note: Subjective metrics use 0-10 scale as defined in supplementConfig.ts
     const checkinSummary = checkins.slice(-7).map((c: any) => {
       const notesTruncated = c.notes ? c.notes.slice(0, 50) + (c.notes.length > 50 ? '...' : '') : '';
-      return `- ${c.checkin_date} (${c.phase}): ${Object.entries(c.ratings).map(([k, v]) => `${k}: ${v}/5`).join(', ')}${notesTruncated ? ` - "${notesTruncated}"` : ''}`;
+      return `- ${c.checkin_date} (${c.phase}): ${Object.entries(c.ratings).map(([k, v]) => `${k}: ${v}/10`).join(', ')}${notesTruncated ? ` - "${notesTruncated}"` : ''}`;
     }).join('\n') || 'No check-ins recorded yet';
     
     // Format objective metrics

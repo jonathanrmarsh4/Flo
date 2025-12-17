@@ -269,7 +269,12 @@ async function generateDailyAdvice(
 
     const topDrivers = drivers.slice(0, 3).map(d => d.title).join('; ');
 
-    const systemPrompt = `You are Flō, an elite longevity coach and data scientist. Generate ONE personalized, motivational daily message (2-3 sentences max) for someone working on their weight goals.
+    const systemPrompt = `You are Flō, an elite longevity coach and data scientist. Generate ONE personalized, motivational daily message (2-3 COMPLETE sentences) for someone working on their weight goals.
+
+CRITICAL RULES:
+- Every sentence MUST be complete with proper punctuation at the end
+- NEVER cut off mid-sentence or mid-thought
+- If running out of space, finish the current sentence properly
 
 Style:
 - Be specific with numbers from the data
@@ -307,7 +312,36 @@ Generate today's personalized advice.`;
     });
 
     const latencyMs = Date.now() - startTime;
-    const adviceText = result.text?.trim() || null;
+    let adviceText = result.text?.trim() || null;
+
+    // Post-processing: Ensure text ends with proper punctuation (not truncated mid-sentence)
+    if (adviceText) {
+      // If text doesn't end with proper sentence-ending punctuation, try to fix it
+      const sentenceEndingPunctuation = ['.', '!', '?'];
+      const lastChar = adviceText.slice(-1);
+      
+      if (!sentenceEndingPunctuation.includes(lastChar)) {
+        // Find the last complete sentence
+        let lastSentenceEnd = -1;
+        for (const punct of sentenceEndingPunctuation) {
+          const idx = adviceText.lastIndexOf(punct);
+          if (idx > lastSentenceEnd) {
+            lastSentenceEnd = idx;
+          }
+        }
+        
+        if (lastSentenceEnd > adviceText.length * 0.5) {
+          // Truncate to last complete sentence if it's at least half the text
+          const truncated = adviceText.slice(0, lastSentenceEnd + 1);
+          logger.warn(`[ForecastWorker] AI advice truncated mid-sentence. Original: "${adviceText.slice(-50)}..." Truncated to: "${truncated.slice(-50)}"`);
+          adviceText = truncated;
+        } else {
+          // Otherwise, add a period to complete the thought
+          adviceText = adviceText + '.';
+          logger.warn(`[ForecastWorker] AI advice missing ending punctuation, appended period`);
+        }
+      }
+    }
 
     const usage = result.usageMetadata;
     if (usage) {
@@ -554,6 +588,7 @@ function generateForecast(
   baseSigma: number,
   bandMultiplier: number
 ): ForecastBand {
+  // Primary: use ClickHouse-computed slope
   const withTrend = features.filter(f => f.weight_trend_slope_kg_per_day !== null);
   let slopeKgPerDay = withTrend.length > 0 ? withTrend[0].weight_trend_slope_kg_per_day! : 0;
   
@@ -561,6 +596,56 @@ function generateForecast(
     const recentSlopes = withTrend.slice(0, 7).map(f => f.weight_trend_slope_kg_per_day!);
     slopeKgPerDay = recentSlopes.reduce((a, b) => a + b, 0) / recentSlopes.length;
   }
+  
+  // Fallback: Compute slope locally from raw weight data to validate/override stale ClickHouse values
+  // This ensures fresh weight entries are reflected immediately in the trend direction
+  // IMPORTANT: Create a copy to avoid mutating the shared features array
+  const withWeight = features.filter(f => f.weight_kg !== null);
+  
+  // Only attempt local slope calculation with sufficient data (at least 10 entries for two-week comparison)
+  if (withWeight.length >= 10) {
+    // Create a copy and sort by date ascending (do NOT mutate original)
+    const sortedByDate = [...withWeight].sort((a, b) => a.local_date_key.localeCompare(b.local_date_key));
+    
+    // Use fixed 7-day windows anchored to the latest date for consistency
+    // Newer window: last 7 entries (most recent)
+    // Older window: 7 entries before that (days 8-14)
+    const newerWeek = sortedByDate.slice(-7); // Last 7 days
+    const olderWeek = sortedByDate.slice(-14, -7); // Days 8-14 from end
+    
+    // Only proceed if BOTH windows have at least 3 data points each (strict guard against sparse data)
+    if (newerWeek.length >= 3 && olderWeek.length >= 3) {
+      const olderAvg = olderWeek.reduce((sum, f) => sum + f.weight_kg!, 0) / olderWeek.length;
+      const newerAvg = newerWeek.reduce((sum, f) => sum + f.weight_kg!, 0) / newerWeek.length;
+      
+      // Calculate local slope: positive = gaining, negative = losing
+      // Use actual date difference between the midpoints of each window for accuracy
+      const olderMidIdx = Math.floor(olderWeek.length / 2);
+      const newerMidIdx = Math.floor(newerWeek.length / 2);
+      const olderMidDate = new Date(olderWeek[olderMidIdx].local_date_key).getTime();
+      const newerMidDate = new Date(newerWeek[newerMidIdx].local_date_key).getTime();
+      const daysBetweenMids = (newerMidDate - olderMidDate) / (1000 * 60 * 60 * 24);
+      
+      // Additional guard: only proceed if windows are at least 3 days apart
+      if (daysBetweenMids >= 3) {
+        const localSlopeKgPerDay = (newerAvg - olderAvg) / daysBetweenMids;
+        
+        // Use local calculation if ClickHouse slope disagrees on direction AND local slope is significant
+        const clickhouseDirection = slopeKgPerDay > 0 ? 'gaining' : slopeKgPerDay < 0 ? 'losing' : 'stable';
+        const localDirection = localSlopeKgPerDay > 0 ? 'gaining' : localSlopeKgPerDay < 0 ? 'losing' : 'stable';
+        
+        if (clickhouseDirection !== localDirection && Math.abs(localSlopeKgPerDay) > 0.01) {
+          logger.warn(`[ForecastWorker] Slope direction mismatch! ClickHouse=${slopeKgPerDay.toFixed(4)} (${clickhouseDirection}), Local=${localSlopeKgPerDay.toFixed(4)} (${localDirection}). Using local calculation based on ${olderWeek.length}+${newerWeek.length} weights over ${daysBetweenMids.toFixed(1)} days.`);
+          slopeKgPerDay = localSlopeKgPerDay;
+        }
+      }
+    }
+  }
+  
+  // Log final slope for debugging
+  const direction = slopeKgPerDay > 0 ? 'gaining' : slopeKgPerDay < 0 ? 'losing' : 'stable';
+  const weeklyRate = Math.abs(slopeKgPerDay * 7);
+  logger.debug(`[ForecastWorker] Final slope: ${slopeKgPerDay.toFixed(4)} kg/day = ${weeklyRate.toFixed(2)} kg/week ${direction}, from ${withTrend.length} ClickHouse points, ${withWeight.length} raw weights`);
 
   const startWeight = currentMetrics.currentWeightKg ?? 70;
   const today = new Date();

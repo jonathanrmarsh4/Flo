@@ -48,6 +48,10 @@ The platform features a mobile-first, content-focused minimalist design inspired
 - **Dexcom CGM Integration:** Direct OAuth2 integration with Dexcom API for continuous glucose monitoring, automatic 5-minute data sync, and real-time glucose dashboard tile.
 - **Apple Push Notifications (APNs):** Configurable via Admin Dashboard, configuration stored in Neon database.
 - **Movement Quality / Gait Metrics (Dec 2025):** iOS now syncs 8 walking/mobility metrics from HealthKit: walkingSpeed, walkingStepLength, walkingDoubleSupportPercentage, walkingAsymmetryPercentage, appleWalkingSteadiness, sixMinuteWalkTestDistance, stairAscentSpeed, stairDescentSpeed. Data flows: iOS HealthKitNormalisationService → NormalizedDailyMetrics → backend /api/healthkit/daily-metrics → Supabase user_daily_metrics table. **Required Supabase migration:** 8 new columns (walking_speed_ms, walking_step_length_m, walking_double_support_pct, walking_asymmetry_pct, apple_walking_steadiness, six_minute_walk_distance_m, stair_ascent_speed_ms, stair_descent_speed_ms).
+- **Weight Management Fixes (Dec 2025):**
+  - **Weight Trend Direction Fix:** Added local slope validation in `forecastWorker.ts` that computes weight trend from raw weight data when ClickHouse-computed slope disagrees on direction (gaining vs losing). Uses fixed 7-day windows anchored to latest entries without mutating shared arrays.
+  - **AI Text Truncation Fix:** Enhanced AI prompt to require complete sentences with post-processing that detects incomplete sentences (missing ending punctuation) and either truncates to last complete sentence or appends a period.
+  - **Nutrition Data Detection Fix:** Extended field name matching in `weightManagementContext.ts` to support variations (energy_kcal, kcal, protein_g, etc.) with fallback logic to count tracked days even when users log macros without calorie totals.
 
 ## External Dependencies
 

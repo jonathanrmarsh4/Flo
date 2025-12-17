@@ -419,18 +419,44 @@ async function populateNutritionData(userId: string, context: WeightContextJson)
       endDate: new Date(),
     });
 
-    if (!nutritionData || nutritionData.length === 0) return;
+    if (!nutritionData || nutritionData.length === 0) {
+      logger.debug(`[WeightManagementContext] No nutrition data found for user ${userId}`);
+      return;
+    }
+
+    logger.debug(`[WeightManagementContext] Found ${nutritionData.length} nutrition days for user ${userId}`);
+    if (nutritionData.length > 0) {
+      const sample = nutritionData[0];
+      logger.debug(`[WeightManagementContext] Sample nutrition fields: ${JSON.stringify(Object.keys(sample))}`);
+    }
 
     context.confidence_inputs.nutrition_data_days = nutritionData.length;
     context.nutrition_data.days_tracked_14d = nutritionData.length;
 
     // Field names from healthStorageRouter: energyKcal, proteinG, carbohydratesG, fatTotalG, fiberG, sodiumMg
-    const withCalories = nutritionData.filter((d: any) => (d.energyKcal || d.calories) && (d.energyKcal || d.calories) > 0);
+    // Also check for alternative field names that different sources may use
+    const withCalories = nutritionData.filter((d: any) => {
+      const cal = d.energyKcal || d.calories || d.energy_kcal || d.kcal || 0;
+      return cal > 0;
+    });
+    
     if (withCalories.length > 0) {
       context.nutrition_data.avg_daily_calories_14d = Math.round(
-        withCalories.reduce((sum: number, d: any) => sum + (d.energyKcal || d.calories || 0), 0) / withCalories.length
+        withCalories.reduce((sum: number, d: any) => sum + (d.energyKcal || d.calories || d.energy_kcal || d.kcal || 0), 0) / withCalories.length
       );
       context.nutrition_data.adherence_days = withCalories.length;
+    } else {
+      // If no calories but we have other nutrition data, still count as tracked days
+      // This handles cases where user logs macros but not total calories
+      const withAnyMacro = nutritionData.filter((d: any) => {
+        return (d.proteinG || d.protein || d.protein_g || 0) > 0 ||
+               (d.carbohydratesG || d.carbs || d.carbs_g || 0) > 0 ||
+               (d.fatTotalG || d.fat || d.fat_g || 0) > 0;
+      });
+      if (withAnyMacro.length > 0) {
+        context.nutrition_data.adherence_days = withAnyMacro.length;
+        logger.debug(`[WeightManagementContext] User ${userId} has ${withAnyMacro.length} days with macro data but no calorie totals`);
+      }
     }
 
     const sumField = (fields: string[]) => {
@@ -449,11 +475,12 @@ async function populateNutritionData(userId: string, context: WeightContextJson)
       }, 0) / values.length);
     };
 
-    context.nutrition_data.avg_protein_g = sumField(['proteinG', 'protein']);
-    context.nutrition_data.avg_carbs_g = sumField(['carbohydratesG', 'carbs']);
-    context.nutrition_data.avg_fat_g = sumField(['fatTotalG', 'fat']);
-    context.nutrition_data.avg_fiber_g = sumField(['fiberG', 'fiber']);
-    context.nutrition_data.avg_sodium_mg = sumField(['sodiumMg', 'sodium']);
+    // Support multiple field name conventions from different data sources
+    context.nutrition_data.avg_protein_g = sumField(['proteinG', 'protein', 'protein_g', 'proteinGrams']);
+    context.nutrition_data.avg_carbs_g = sumField(['carbohydratesG', 'carbs', 'carbs_g', 'carbohydrates', 'carbsGrams']);
+    context.nutrition_data.avg_fat_g = sumField(['fatTotalG', 'fat', 'fat_g', 'fatTotal', 'fatGrams']);
+    context.nutrition_data.avg_fiber_g = sumField(['fiberG', 'fiber', 'fiber_g', 'fiberGrams']);
+    context.nutrition_data.avg_sodium_mg = sumField(['sodiumMg', 'sodium', 'sodium_mg']);
   } catch (error) {
     logger.error('[WeightManagementContext] Error fetching nutrition data:', error);
   }
