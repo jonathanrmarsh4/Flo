@@ -941,7 +941,9 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
                                     ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
                                     : isDark ? 'bg-gray-500/20 text-gray-400' : 'bg-gray-100 text-gray-600'
                               }`}>
-                                {driver.confidence_level.charAt(0) + driver.confidence_level.slice(1).toLowerCase()}
+                                {driver.confidence_level 
+                                  ? driver.confidence_level.charAt(0) + driver.confidence_level.slice(1).toLowerCase()
+                                  : 'Low'}
                               </div>
                               
                               <ChevronRight className={`w-4 h-4 ${isDark ? 'text-white/30' : 'text-gray-400'}`} />
@@ -1019,7 +1021,9 @@ export function WeightModuleScreen({ isDark, onClose, onTalkToFlo }: WeightModul
                                       ? isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
                                       : isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-700'
                                 }`}>
-                                  {result.effort.charAt(0).toUpperCase() + result.effort.slice(1).toLowerCase()}
+                                  {result.effort 
+                                    ? result.effort.charAt(0).toUpperCase() + result.effort.slice(1).toLowerCase()
+                                    : 'Medium'}
                                 </div>
                                 
                                 <div className="text-center">
