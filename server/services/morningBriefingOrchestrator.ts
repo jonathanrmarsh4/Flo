@@ -679,9 +679,11 @@ async function fetchWeather(healthId: string, eventDate: string): Promise<DailyU
     const lon = latestLocation?.longitude || 151.2093;
     
     const { getCurrentWeather } = await import('./openWeatherService');
-    const liveWeather = await getCurrentWeather(lat, lon);
+    const weatherResult = await getCurrentWeather(lat, lon);
     
-    if (liveWeather) {
+    // getCurrentWeather returns { data: WeatherData, timestamp, isStale } or null
+    if (weatherResult && weatherResult.data) {
+      const liveWeather = weatherResult.data;
       logger.debug(`[MorningBriefing] Fetched live weather for ${healthId}: ${liveWeather.weatherMain} ${liveWeather.temperature}°C`);
       return {
         temp_c: liveWeather.temperature,
