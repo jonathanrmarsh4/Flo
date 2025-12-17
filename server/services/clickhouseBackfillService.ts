@@ -13,6 +13,7 @@
  * - Body temperature deviation (from sleep_nights)
  * - Respiratory rate (from sleep_nights)
  * - SpO2/oxygen saturation (from sleep_nights)
+ * - Nutrition: calories, protein, carbs, fat (from nutrition_daily_metrics)
  */
 
 import { getClickHouseClient, isClickHouseEnabled } from './clickhouseService';
@@ -31,6 +32,7 @@ interface BackfillResult {
     sleep: number;
     activity: number;
     heartMetrics: number;
+    nutrition: number;
     total: number;
   };
   error?: string;
@@ -83,6 +85,7 @@ async function markBackfillComplete(userId: string, metrics: BackfillResult['met
         sleep: metrics.sleep,
         activity: metrics.activity,
         heartMetrics: metrics.heartMetrics,
+        nutrition: metrics.nutrition,
         total: metrics.total,
         completedAt: new Date().toISOString(),
       },
@@ -115,7 +118,7 @@ export async function runFullBackfill(
   if (!isClickHouseEnabled()) {
     return {
       success: false,
-      metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, total: 0 },
+      metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, nutrition: 0, total: 0 },
       error: 'ClickHouse not enabled',
     };
   }
@@ -127,7 +130,7 @@ export async function runFullBackfill(
       logger.info(`[ClickHouseBackfill] User ${userId} already backfilled on ${status.clickhouseBackfillDate}`);
       return {
         success: true,
-        metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, total: 0 },
+        metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, nutrition: 0, total: 0 },
       };
     }
   }
@@ -137,7 +140,7 @@ export async function runFullBackfill(
   if (!client) {
     return {
       success: false,
-      metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, total: 0 },
+      metrics: { weight: 0, bodyComp: 0, sleep: 0, activity: 0, heartMetrics: 0, nutrition: 0, total: 0 },
       error: 'ClickHouse client not available',
     };
   }
@@ -155,6 +158,7 @@ export async function runFullBackfill(
     sleep: 0,
     activity: 0,
     heartMetrics: 0,
+    nutrition: 0,
     total: 0,
   };
 
@@ -171,7 +175,11 @@ export async function runFullBackfill(
     metrics.sleep += sleepResult.sleep;
     metrics.heartMetrics += sleepResult.heartMetrics;
 
-    metrics.total = metrics.weight + metrics.bodyComp + metrics.sleep + metrics.activity + metrics.heartMetrics;
+    // 3. Backfill nutrition from nutrition_daily_metrics
+    const nutritionResult = await backfillNutritionMetrics(client, supabase, healthId, userId, startDateStr, timezone);
+    metrics.nutrition += nutritionResult;
+
+    metrics.total = metrics.weight + metrics.bodyComp + metrics.sleep + metrics.activity + metrics.heartMetrics + metrics.nutrition;
 
     // Mark backfill complete
     await markBackfillComplete(userId, metrics);
@@ -204,8 +212,8 @@ export async function runFullBackfill(
               logger.warn(`[ClickHouseBackfill] Forecast generation returned false for ${userId}`);
             }
           }
-        } catch (jobErr) {
-          logger.warn('[ClickHouseBackfill] Post-backfill jobs failed:', jobErr);
+        } catch (jobErr: any) {
+          logger.warn('[ClickHouseBackfill] Post-backfill jobs failed:', { error: jobErr?.message || String(jobErr) });
         }
       });
     }
@@ -594,6 +602,72 @@ async function backfillSleepNights(
   }
 
   return result;
+}
+
+/**
+ * Backfill nutrition metrics from nutrition_daily_metrics to ClickHouse raw_nutrition_daily
+ */
+async function backfillNutritionMetrics(
+  client: any,
+  supabase: any,
+  healthId: string,
+  userId: string,
+  startDateStr: string,
+  timezone: string
+): Promise<number> {
+  const { data: nutritionData, error } = await supabase
+    .from('nutrition_daily_metrics')
+    .select('local_date, timezone, energy_kcal, protein_g, carbohydrates_g, fat_total_g')
+    .eq('health_id', healthId)
+    .gte('local_date', startDateStr)
+    .order('local_date', { ascending: true });
+
+  if (error) {
+    logger.error('[ClickHouseBackfill] Error fetching nutrition metrics:', error);
+    return 0;
+  }
+
+  if (!nutritionData || nutritionData.length === 0) {
+    logger.debug(`[ClickHouseBackfill] No nutrition metrics found for ${healthId}`);
+    return 0;
+  }
+
+  logger.info(`[ClickHouseBackfill] Found ${nutritionData.length} nutrition records for ${healthId}`);
+
+  const nutritionEvents: any[] = [];
+
+  for (const nutrition of nutritionData) {
+    // Only include records with at least calories or protein data
+    if (nutrition.energy_kcal || nutrition.protein_g) {
+      nutritionEvents.push({
+        user_id: userId,
+        local_date_key: nutrition.local_date,
+        user_timezone: nutrition.timezone || timezone,
+        calories_kcal: nutrition.energy_kcal || null,
+        protein_g: nutrition.protein_g || null,
+        carbs_g: nutrition.carbohydrates_g || null,
+        fat_g: nutrition.fat_total_g || null,
+        nutrition_coverage_pct: 100.0, // Assume full day coverage for tracked days
+      });
+    }
+  }
+
+  if (nutritionEvents.length > 0) {
+    try {
+      await client.insert({
+        table: 'flo_ml.raw_nutrition_daily',
+        values: nutritionEvents,
+        format: 'JSONEachRow',
+      });
+      logger.info(`[ClickHouseBackfill] Inserted ${nutritionEvents.length} nutrition records`);
+      return nutritionEvents.length;
+    } catch (e) {
+      logger.error('[ClickHouseBackfill] Nutrition insert error:', e);
+      return 0;
+    }
+  }
+
+  return 0;
 }
 
 /**
