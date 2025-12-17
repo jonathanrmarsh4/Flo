@@ -666,7 +666,7 @@ Be conversational, warm, and speak as if you're their knowledgeable health compa
 
           {/* AI Provider Attribution */}
           <p className={`text-center text-[10px] mt-3 ${isDark ? 'text-white/20' : 'text-gray-300'}`}>
-            Powered by Google AI & ElevenLabs · Your data is anonymized
+            Powered by Google AI · Your data is anonymized
           </p>
         </div>
       </motion.div>

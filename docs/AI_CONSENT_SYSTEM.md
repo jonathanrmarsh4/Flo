@@ -10,9 +10,8 @@ Flō uses the following AI services:
 
 | Provider | Purpose | Data Shared |
 |----------|---------|-------------|
-| **Google AI (Gemini)** | Insight generation, pattern analysis, Flō Oracle chat, morning briefings | Anonymized health metrics, biomarkers, sleep/activity patterns |
+| **Google AI (Gemini)** | Insight generation, pattern analysis, Flō Oracle chat, voice assistant, morning briefings | Anonymized health metrics, biomarkers, sleep/activity patterns |
 | **OpenAI (GPT-4o)** | Lab report analysis, blood work extraction | Lab PDF text (no PII) |
-| **ElevenLabs** | Voice synthesis for Flō Oracle | Text responses only (no health data) |
 
 ## Privacy Architecture
 
@@ -157,7 +156,7 @@ Footer shows: "Powered by Google AI"
 ### VoiceChatScreen
 **Location:** `client/src/components/VoiceChatScreen.tsx`
 
-Footer shows: "Powered by Google AI & ElevenLabs"
+Footer shows: "Powered by Google AI"
 
 ## Privacy Policy Updates
 

@@ -246,9 +246,8 @@ export function PrivacyPolicyScreen({ isDark, onClose }: PrivacyPolicyScreenProp
                     To deliver AI-powered features, we use the following trusted providers:
                   </p>
                   <ul className="text-sm space-y-1 pl-4">
-                    <li>• <strong>Google AI (Gemini)</strong> – Insight generation, pattern analysis, conversational AI</li>
+                    <li>• <strong>Google AI (Gemini)</strong> – Insight generation, pattern analysis, conversational AI, voice assistant</li>
                     <li>• <strong>OpenAI</strong> – Lab report analysis and data extraction</li>
-                    <li>• <strong>ElevenLabs</strong> – Voice synthesis for Flō Oracle</li>
                   </ul>
                 </div>
 

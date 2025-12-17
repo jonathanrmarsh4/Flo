@@ -13,7 +13,6 @@ const AI_CONSENT_VERSION = '1.0';
 const aiVendors = [
   { name: 'Google AI (Gemini)', purpose: 'Health insights, voice assistant, pattern analysis' },
   { name: 'OpenAI', purpose: 'Blood work extraction, document processing' },
-  { name: 'ElevenLabs', purpose: 'Voice synthesis for Flō Oracle' },
 ];
 
 const privacyPoints = [
