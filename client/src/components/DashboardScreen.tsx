@@ -414,7 +414,7 @@ export function DashboardScreen({ isDark, onSettingsClick, onThemeToggle, onLogo
           return (
             <SortableItem key={tileId} id={tileId} isDark={isDark}>
               {canAccessInsights ? (
-                <AIInsightsTile />
+                <AIInsightsTile isDark={isDark} />
               ) : (
                 <LockedTile
                   title="AI Insights"

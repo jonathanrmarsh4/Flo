@@ -66,7 +66,11 @@ const getCategoryLabel = (category: string) => {
   }
 };
 
-export function AIInsightsTile() {
+interface AIInsightsTileProps {
+  isDark?: boolean;
+}
+
+export function AIInsightsTile({ isDark = true }: AIInsightsTileProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { data, isLoading } = useQuery<{ insights: DailyInsight[]; count: number }>({
     queryKey: ['/api/daily-insights'],
@@ -76,17 +80,24 @@ export function AIInsightsTile() {
   const newCount = insights.filter(i => i.isNew).length;
 
   return (
-    <div className="backdrop-blur-xl rounded-3xl border p-6 bg-slate-800/40 border-white/10" data-testid="tile-ai-insights">
+    <div 
+      className={`backdrop-blur-xl rounded-3xl border p-6 ${
+        isDark 
+          ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+          : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
+      }`} 
+      data-testid="tile-ai-insights"
+    >
       <div className="flex flex-col gap-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-purple-500/20">
-              <Sparkles className="w-5 h-5 text-purple-400" />
+            <div className={`p-2.5 rounded-2xl ${isDark ? 'bg-purple-500/20' : 'bg-purple-100'}`}>
+              <Sparkles className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-white">AI Insights</h2>
-              <p className="text-xs text-white/50">Personalized health recommendations</p>
+              <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>AI Insights</h2>
+              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>Personalized health recommendations</p>
             </div>
           </div>
           {newCount > 0 && (
@@ -103,8 +114,8 @@ export function AIInsightsTile() {
           </div>
         ) : insights.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Sparkles className="w-12 h-12 text-muted-foreground/20 mb-3" />
-            <p className="text-sm text-muted-foreground">
+            <Sparkles className={`w-12 h-12 mb-3 ${isDark ? 'text-white/20' : 'text-gray-300'}`} />
+            <p className={`text-sm ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
               No new insights today. Check back tomorrow!
             </p>
           </div>
@@ -115,15 +126,19 @@ export function AIInsightsTile() {
               <div
                 key={insight.id}
                 onClick={() => setIsModalOpen(true)}
-                className="p-4 rounded-xl bg-slate-700/30 border border-slate-600/30 hover:bg-slate-700/50 transition-all cursor-pointer"
+                className={`p-4 rounded-xl transition-all cursor-pointer ${
+                  isDark 
+                    ? 'bg-white/5 border border-white/10 hover:bg-white/10' 
+                    : 'bg-white/60 border border-black/5 hover:bg-white/80'
+                }`}
                 data-testid={`preview-insight-${insight.id}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <h3 className="text-base font-semibold text-white mb-2">
+                    <h3 className={`text-base font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       {insight.pattern}
                     </h3>
-                    <p className="text-sm text-white/60 line-clamp-2">
+                    <p className={`text-sm line-clamp-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
                       {insight.supportingData}
                     </p>
                   </div>
@@ -140,7 +155,11 @@ export function AIInsightsTile() {
             {/* View all button */}
             <button
               onClick={() => setIsModalOpen(true)}
-              className="w-full px-4 py-3 mt-2 rounded-xl border border-white/10 flex items-center justify-between transition-colors hover:bg-white/5 text-white/70 text-sm"
+              className={`w-full px-4 py-3 mt-2 rounded-xl border flex items-center justify-between transition-colors text-sm ${
+                isDark 
+                  ? 'border-white/10 hover:bg-white/5 text-white/70' 
+                  : 'border-black/10 hover:bg-black/5 text-gray-600'
+              }`}
               data-testid="button-view-all-insights"
             >
               <span>View all insights</span>
