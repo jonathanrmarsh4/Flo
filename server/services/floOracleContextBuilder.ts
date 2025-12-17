@@ -1963,6 +1963,15 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
         }
       });
       
+      // Helper to format deviation values (temperature metrics use °C, others use %)
+      const TEMPERATURE_DEVIATION_METRICS = ['wrist_temperature_deviation', 'wrist_temp_deviation_c', 'skin_temp_deviation_c', 'skin_temp_trend_deviation_c', 'body_temperature_deviation'];
+      const formatDeviation = (metricType: string, deviationPct: number) => {
+        if (TEMPERATURE_DEVIATION_METRICS.includes(metricType)) {
+          return `${Math.abs(deviationPct).toFixed(1)}°C`;
+        }
+        return `${Math.abs(Math.round(deviationPct))}%`;
+      };
+      
       // Format NEW anomalies first (these should be proactively discussed)
       if (newAnomalies.length > 0) {
         lines.push('');
@@ -1970,7 +1979,7 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
         newAnomalies.forEach(a => {
           const direction = a.direction === 'above' ? 'elevated' : 'low';
           const metricName = a.metricType.replace(/_/g, ' ');
-          const deviationStr = Math.abs(Math.round(a.deviationPct));
+          const deviationStr = formatDeviation(a.metricType, a.deviationPct);
           const confidenceStr = Math.round(a.modelConfidence * 100);
           
           let patternNote = '';
@@ -1980,7 +1989,7 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
             patternNote = ' [recovery concern]';
           }
           
-          lines.push(`  • [NEW] ${metricName}: ${direction} (${deviationStr}% from baseline) - ${a.severity} severity, ${confidenceStr}% confidence${patternNote}`);
+          lines.push(`  • [NEW] ${metricName}: ${direction} (${deviationStr} from baseline) - ${a.severity} severity, ${confidenceStr}% confidence${patternNote}`);
         });
       }
       
@@ -1991,9 +2000,9 @@ export async function getCorrelationInsightsContext(userId: string): Promise<str
         previouslyDiscussed.forEach(a => {
           const direction = a.direction === 'above' ? 'elevated' : 'low';
           const metricName = a.metricType.replace(/_/g, ' ');
-          const deviationStr = Math.abs(Math.round(a.deviationPct));
+          const deviationStr = formatDeviation(a.metricType, a.deviationPct);
           
-          lines.push(`  • ${metricName}: ${direction} (${deviationStr}% from baseline) - ${a.severity} severity`);
+          lines.push(`  • ${metricName}: ${direction} (${deviationStr} from baseline) - ${a.severity} severity`);
         });
       }
       

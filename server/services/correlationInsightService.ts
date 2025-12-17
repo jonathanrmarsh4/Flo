@@ -270,10 +270,15 @@ class CorrelationInsightService {
   }
 
   private getMetricAlertDescription(anomaly: AnomalyResult): string {
-    const pct = Math.abs(Math.round(anomaly.deviationPct));
+    // Temperature deviation metrics use absolute °C values, not percentages
+    const TEMPERATURE_DEVIATION_METRICS = ['wrist_temperature_deviation', 'wrist_temp_deviation_c', 'skin_temp_deviation_c', 'skin_temp_trend_deviation_c', 'body_temperature_deviation'];
+    const isTemperatureMetric = TEMPERATURE_DEVIATION_METRICS.includes(anomaly.metricType);
+    const deviationStr = isTemperatureMetric 
+      ? `${Math.abs(anomaly.deviationPct).toFixed(1)}°C`
+      : `${Math.abs(Math.round(anomaly.deviationPct))}%`;
     const direction = anomaly.direction === 'above' ? 'higher' : 'lower';
     
-    return `Your ${anomaly.metricType.replace(/_/g, ' ')} is ${pct}% ${direction} than your typical baseline. This is worth monitoring.`;
+    return `Your ${anomaly.metricType.replace(/_/g, ' ')} is ${deviationStr} ${direction} than your typical baseline. This is worth monitoring.`;
   }
 
   private async storeInsights(healthId: string, insights: CorrelationInsight[]): Promise<void> {
@@ -512,6 +517,7 @@ class CorrelationInsightService {
         triggerMetrics: row.triggerMetrics || {},
         urgency: row.urgency,
         suggestedChannel: 'push',
+        focusMetric: row.focusMetric || undefined, // CRITICAL: Include focusMetric for cooldown deduplication
       },
       createdAt: row.createdAt,
       expiresAt: row.expiresAt,

@@ -12,11 +12,30 @@ const logger = createLogger('ClickHouseML');
 const anomalyDetectionCooldowns = new Map<string, number>();
 const ANOMALY_DETECTION_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
+// Metrics that are ALREADY deviation values (e.g., skin_temp_deviation_c)
+// These use ABSOLUTE thresholds in their native units, NOT percentage deviation
+const ABSOLUTE_THRESHOLD_METRICS = new Set([
+  'wrist_temperature_deviation',
+  'wrist_temp_deviation_c',
+  'skin_temp_deviation_c',
+  'skin_temp_trend_deviation_c',
+  'body_temperature_deviation',
+]);
+
+// Maximum physiologically plausible values - values beyond these are sensor errors
+const SENSOR_ERROR_THRESHOLDS: Record<string, number> = {
+  wrist_temperature_deviation: 2.5,  // Max 2.5°C deviation is plausible (high fever)
+  wrist_temp_deviation_c: 2.5,
+  skin_temp_deviation_c: 2.5,
+  skin_temp_trend_deviation_c: 2.5,
+  body_temperature_deviation: 3.0,   // Body temp can vary more during illness
+};
+
 const METRIC_THRESHOLDS: Record<string, {
   zScoreThreshold: number;
-  percentageThreshold: number;
+  percentageThreshold: number;  // For absolute threshold metrics, this is the ABSOLUTE value threshold
   direction: 'both' | 'high' | 'low';
-  severity: { moderate: number; high: number };
+  severity: { moderate: number; high: number };  // For absolute metrics, these are absolute values too
 }> = {
   hrv_ms: {
     zScoreThreshold: 1.5,
@@ -30,11 +49,37 @@ const METRIC_THRESHOLDS: Record<string, {
     direction: 'both',
     severity: { moderate: 8, high: 15 },
   },
+  // Temperature deviation metrics use ABSOLUTE thresholds in °C
+  // A deviation of 0.5°C is significant, 1.0°C is high
   wrist_temperature_deviation: {
     zScoreThreshold: 2.0,
-    percentageThreshold: 50,
+    percentageThreshold: 0.4,  // Alert if deviation > 0.4°C (ABSOLUTE, not percentage)
     direction: 'high',
-    severity: { moderate: 0.3, high: 0.5 },
+    severity: { moderate: 0.4, high: 0.7 },  // Absolute °C values
+  },
+  wrist_temp_deviation_c: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 0.4,
+    direction: 'high',
+    severity: { moderate: 0.4, high: 0.7 },
+  },
+  skin_temp_deviation_c: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 0.4,
+    direction: 'high',
+    severity: { moderate: 0.4, high: 0.7 },
+  },
+  skin_temp_trend_deviation_c: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 0.4,
+    direction: 'high',
+    severity: { moderate: 0.4, high: 0.7 },
+  },
+  body_temperature_deviation: {
+    zScoreThreshold: 2.0,
+    percentageThreshold: 0.5,  // Body temp deviation may vary more than wrist
+    direction: 'high',
+    severity: { moderate: 0.5, high: 0.8 },
   },
   respiratory_rate_bpm: {
     zScoreThreshold: 1.5,
@@ -1114,16 +1159,44 @@ export class ClickHouseBaselineEngine {
         };
 
         const deviation = metric.current_value - baseline.meanValue;
-        const deviationPct = (deviation / baseline.meanValue) * 100;
         const zScore = baseline.stdDev && baseline.stdDev > 0
           ? deviation / baseline.stdDev
           : null;
-
-        const absDeviationPct = Math.abs(deviationPct);
         const absZScore = zScore !== null ? Math.abs(zScore) : 0;
-
-        const isAnomaly = absDeviationPct >= threshold.percentageThreshold ||
-          (zScore !== null && absZScore >= threshold.zScoreThreshold);
+        
+        // Check if this is an absolute threshold metric (already a deviation value)
+        const isAbsoluteThresholdMetric = ABSOLUTE_THRESHOLD_METRICS.has(metric.metric_type);
+        
+        let isAnomaly = false;
+        let deviationPct: number;
+        
+        if (isAbsoluteThresholdMetric) {
+          // For deviation metrics, use ABSOLUTE value comparison, not percentage
+          // The current_value IS the deviation (e.g., 0.6°C deviation from personal baseline)
+          const absValue = Math.abs(metric.current_value);
+          
+          // Check for sensor errors - physiologically impossible values
+          const sensorErrorThreshold = SENSOR_ERROR_THRESHOLDS[metric.metric_type];
+          if (sensorErrorThreshold && absValue > sensorErrorThreshold) {
+            logger.debug(`[ClickHouseML] Rejecting ${metric.metric_type} value ${metric.current_value}°C as sensor error (threshold: ${sensorErrorThreshold}°C)`);
+            continue;
+          }
+          
+          // For absolute metrics, percentageThreshold is actually the absolute threshold
+          isAnomaly = absValue >= threshold.percentageThreshold ||
+            (zScore !== null && absZScore >= threshold.zScoreThreshold);
+          
+          // Store the actual deviation value (not percentage) in deviationPct for these metrics
+          // This is semantically clearer in logs/insights
+          deviationPct = metric.current_value; // Store actual °C deviation
+        } else {
+          // For regular metrics, use percentage deviation from baseline
+          deviationPct = baseline.meanValue !== 0 ? (deviation / baseline.meanValue) * 100 : 0;
+          const absDeviationPct = Math.abs(deviationPct);
+          
+          isAnomaly = absDeviationPct >= threshold.percentageThreshold ||
+            (zScore !== null && absZScore >= threshold.zScoreThreshold);
+        }
 
         if (!isAnomaly) continue;
 
@@ -1132,11 +1205,14 @@ export class ClickHouseBaselineEngine {
         if (threshold.direction === 'low' && direction === 'above') continue;
 
         let severity: 'low' | 'moderate' | 'high' = 'low';
-        if (metric.metric_type === 'wrist_temperature_deviation') {
+        if (isAbsoluteThresholdMetric) {
+          // For temperature deviation metrics, severity is based on absolute °C value
           const absValue = Math.abs(metric.current_value);
           if (absValue >= threshold.severity.high) severity = 'high';
           else if (absValue >= threshold.severity.moderate) severity = 'moderate';
         } else {
+          // For regular metrics, severity is based on percentage deviation
+          const absDeviationPct = Math.abs(deviationPct);
           if (absDeviationPct >= threshold.severity.high) severity = 'high';
           else if (absDeviationPct >= threshold.severity.moderate) severity = 'moderate';
         }
@@ -1169,30 +1245,62 @@ export class ClickHouseBaselineEngine {
       // Filter isolated temperature anomalies that lack corroborating vital sign deviations
       // Skin/wrist temperature spikes can be data integrity issues (sensor placement, ambient temp, etc.)
       // Only alert for temperature anomalies when accompanied by at least one other vital sign change
-      // that survives confidence filtering AND has medically consistent direction
-      const temperatureMetrics = ['wrist_temperature_deviation', 'skin_temp_deviation_c', 'skin_temp_trend_deviation_c', 'body_temperature', 'body_temperature_c'];
+      // that survives confidence filtering AND has medically consistent direction WITH meaningful deviation
+      const temperatureMetrics = ['wrist_temperature_deviation', 'wrist_temp_deviation_c', 'skin_temp_deviation_c', 'skin_temp_trend_deviation_c', 'body_temperature', 'body_temperature_c'];
       
-      // Find corroborating vitals with medically consistent directions for fever/illness:
-      // - Elevated HR (above baseline) indicates stress/illness
-      // - Elevated respiration (above baseline) indicates respiratory distress
-      // - Lowered HRV (below baseline) indicates sympathetic activation/stress
-      // - Lowered SpO2 (below baseline) indicates respiratory compromise
-      const hasValidCorroboratingVital = confidenceFilteredAnomalies.some(a => {
-        if (a.metricType === 'resting_heart_rate_bpm' && a.direction === 'above') return true;
-        if (a.metricType === 'respiratory_rate_bpm' && a.direction === 'above') return true;
-        if (a.metricType === 'hrv_ms' && a.direction === 'below') return true;
-        if (a.metricType === 'oxygen_saturation_pct' && a.direction === 'below') return true;
+      // Find corroborating vitals with medically consistent directions for fever/illness
+      // REQUIRE MEANINGFUL DEVIATION - not just barely crossing threshold
+      // Minimum deviations for corroboration: HR +5%, RR +8%, HRV -10%, SpO2 -1.5%
+      const CORROBORATION_MIN_DEVIATION: Record<string, number> = {
+        resting_heart_rate_bpm: 5,
+        respiratory_rate_bpm: 8,
+        hrv_ms: 10,
+        oxygen_saturation_pct: 1.5,
+      };
+      
+      const corroboratingVitals: AnomalyResult[] = confidenceFilteredAnomalies.filter(a => {
+        const minDeviation = CORROBORATION_MIN_DEVIATION[a.metricType];
+        if (!minDeviation) return false;
+        
+        const absDeviation = Math.abs(a.deviationPct);
+        
+        // Check direction and minimum deviation
+        if (a.metricType === 'resting_heart_rate_bpm' && a.direction === 'above' && absDeviation >= minDeviation) return true;
+        if (a.metricType === 'respiratory_rate_bpm' && a.direction === 'above' && absDeviation >= minDeviation) return true;
+        if (a.metricType === 'hrv_ms' && a.direction === 'below' && absDeviation >= minDeviation) return true;
+        if (a.metricType === 'oxygen_saturation_pct' && a.direction === 'below' && absDeviation >= minDeviation) return true;
         return false;
       });
+      
+      const hasValidCorroboratingVital = corroboratingVitals.length > 0;
+      
+      // Build a map of temperature anomalies to their corroborating vitals for inclusion in insights
+      const tempCorroborationMap = new Map<string, AnomalyResult[]>();
       
       const filteredAnomalies = confidenceFilteredAnomalies.filter(a => {
         // If this is a temperature anomaly, require at least one corroborating vital sign
         // with medically consistent direction that also passed confidence threshold
         if (temperatureMetrics.includes(a.metricType)) {
           if (!hasValidCorroboratingVital) {
-            logger.debug(`[ClickHouseML] Filtering isolated temperature anomaly ${a.metricType} - no medically corroborating vital signs detected`);
+            logger.debug(`[ClickHouseML] Filtering isolated temperature anomaly ${a.metricType} - no medically corroborating vital signs with meaningful deviation detected`);
             return false;
           }
+          // Store corroborating vitals for this temperature anomaly
+          tempCorroborationMap.set(a.anomalyId, corroboratingVitals);
+          
+          // Add corroborating vital info to relatedMetrics for insight generation
+          const corroborationDetails: Record<string, any> = {};
+          for (const vital of corroboratingVitals) {
+            corroborationDetails[vital.metricType] = {
+              value: vital.currentValue,
+              deviation: vital.deviationPct,
+              direction: vital.direction,
+              isCorroboratingVital: true,
+            };
+          }
+          a.relatedMetrics = { ...a.relatedMetrics, ...corroborationDetails };
+          
+          logger.info(`[ClickHouseML] Temperature anomaly ${a.metricType} corroborated by: ${corroboratingVitals.map(v => `${v.metricType} (${v.deviationPct.toFixed(1)}%)`).join(', ')}`);
         }
         return true;
       });

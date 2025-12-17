@@ -9,6 +9,24 @@ import { getMetricHealthContext, getClassificationLabel } from './healthContextK
 
 const genai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY });
 
+// Temperature deviation metrics use absolute °C values, not percentages
+const TEMPERATURE_DEVIATION_METRICS = new Set([
+  'wrist_temperature_deviation',
+  'wrist_temp_deviation_c',
+  'skin_temp_deviation_c',
+  'skin_temp_trend_deviation_c',
+  'body_temperature_deviation',
+]);
+
+// Helper function to format deviation values appropriately
+// Temperature metrics store °C deviation, others store percentage deviation
+function formatDeviationDisplay(metricType: string, deviationPct: number): string {
+  if (TEMPERATURE_DEVIATION_METRICS.has(metricType)) {
+    return `${Math.abs(deviationPct).toFixed(1)}°C`;
+  }
+  return `${Math.abs(Math.round(deviationPct))}%`;
+}
+
 // Interface for behavioral context around an anomaly
 interface BehavioralContext {
   recentLifeEvents: Array<{
@@ -157,8 +175,8 @@ export class DynamicFeedbackGenerator {
       .map(a => {
         const name = METRIC_DISPLAY_NAMES[a.metricType] || a.metricType;
         const direction = a.direction === 'above' ? 'elevated' : 'lower than usual';
-        const pct = Math.abs(Math.round(a.deviationPct));
-        return `${name} is ${direction} (${pct}% from your baseline)`;
+        const deviationStr = formatDeviationDisplay(a.metricType, a.deviationPct);
+        return `${name} is ${direction} (${deviationStr} from your baseline)`;
       })
       .join(', ');
 
@@ -267,8 +285,8 @@ Respond with JSON only:
       .map(a => {
         const name = METRIC_DISPLAY_NAMES[a.metricType] || a.metricType;
         const direction = a.direction === 'above' ? 'elevated' : 'lower than usual';
-        const pct = Math.abs(Math.round(a.deviationPct));
-        return `${name}: ${direction} (${pct}% deviation, ${a.severity} severity)`;
+        const deviationStr = formatDeviationDisplay(a.metricType, a.deviationPct);
+        return `${name}: ${direction} (${deviationStr} deviation, ${a.severity} severity)`;
       })
       .join('\n');
 
@@ -279,12 +297,12 @@ Respond with JSON only:
       const focusAnomaly = topAnomalies[i];
       const focusMetricName = METRIC_DISPLAY_NAMES[focusAnomaly.metricType] || focusAnomaly.metricType;
       const focusDirection = focusAnomaly.direction === 'above' ? 'higher' : 'lower';
-      const focusPct = Math.abs(Math.round(focusAnomaly.deviationPct));
+      const focusDeviationStr = formatDeviationDisplay(focusAnomaly.metricType, focusAnomaly.deviationPct);
 
       const prompt = `You are a health AI assistant generating a personalized check-in question for a user.
 
 FOCUS METRIC (this question should specifically ask about):
-${focusMetricName} is ${focusPct}% ${focusDirection} than the user's baseline
+${focusMetricName} is ${focusDeviationStr} ${focusDirection} than the user's baseline
 
 FULL CONTEXT (all detected changes for awareness):
 ${fullContextDescription}
@@ -642,12 +660,17 @@ Respond with JSON only:
       
       // Gate 2: Require minimum deviation magnitude to filter out noise
       // Activity metrics need 30%+ deviation, sleep/HRV need 20%+, others 25%+
+      // Temperature deviation metrics use ABSOLUTE thresholds (°C), not percentages
       const MIN_DEVIATION_BY_METRIC: Record<string, number> = {
         active_energy: 30, active_calories: 30, workout_minutes: 30, steps: 30,
         hrv: 20, hrv_rmssd: 20, sleep_duration: 20, deep_sleep: 20,
+        // Temperature metrics: min 0.3°C deviation to be meaningful
+        wrist_temperature_deviation: 0.3, wrist_temp_deviation_c: 0.3, 
+        skin_temp_deviation_c: 0.3, skin_temp_trend_deviation_c: 0.3,
+        body_temperature_deviation: 0.4, // Body temp needs slightly higher threshold
       };
       const normalizedMetric = anomaly.metricType.toLowerCase().replace(/[-_\s]/g, '_');
-      const minDeviation = MIN_DEVIATION_BY_METRIC[normalizedMetric] || 25;
+      const minDeviation = MIN_DEVIATION_BY_METRIC[normalizedMetric] ?? MIN_DEVIATION_BY_METRIC[anomaly.metricType] ?? 25;
       
       if (Math.abs(anomaly.deviationPct) < minDeviation) {
         logger.info('[FeedbackGenerator] QUALITY GATE 2 FAILED: Deviation too small to be meaningful', {
@@ -655,6 +678,7 @@ Respond with JSON only:
           metricType: anomaly.metricType,
           deviationPct: anomaly.deviationPct,
           threshold: minDeviation,
+          isTemperatureMetric: TEMPERATURE_DEVIATION_METRICS.has(anomaly.metricType),
         });
         return null;
       }
@@ -681,7 +705,22 @@ Respond with JSON only:
       
       const metricName = METRIC_DISPLAY_NAMES[anomaly.metricType] || anomaly.metricType;
       const direction = anomaly.direction === 'above' ? 'higher' : 'lower';
-      const pct = Math.abs(Math.round(anomaly.deviationPct));
+      
+      // For temperature deviation metrics, display °C instead of percentage
+      const deviationDisplay = formatDeviationDisplay(anomaly.metricType, anomaly.deviationPct);
+      
+      // Extract corroborating vital signs from relatedMetrics if present
+      const corroboratingVitals: { metric: string; deviation: string; direction: string }[] = [];
+      if (anomaly.relatedMetrics) {
+        for (const [metricKey, data] of Object.entries(anomaly.relatedMetrics)) {
+          if (typeof data === 'object' && data && 'isCorroboratingVital' in data && data.isCorroboratingVital) {
+            const vitalName = METRIC_DISPLAY_NAMES[metricKey] || metricKey;
+            const vitalDeviation = typeof data.deviation === 'number' ? `${Math.abs(Math.round(data.deviation))}%` : 'unknown';
+            const vitalDirection = data.direction === 'above' ? 'elevated' : 'lowered';
+            corroboratingVitals.push({ metric: vitalName, deviation: vitalDeviation, direction: vitalDirection });
+          }
+        }
+      }
 
       // Get health context for this metric
       const healthContext = getMetricHealthContext(anomaly.metricType, anomaly.direction);
@@ -719,10 +758,19 @@ ${healthContext.conditionsToConsider.map(c => `- ${c}`).join('\n')}` : ''}
 Recommended Action: ${healthContext.actionableAdvice}
 ` : '';
 
+      // Build corroborating vitals section for temperature alerts
+      const corroboratingVitalsSection = corroboratingVitals.length > 0
+        ? `
+CORROBORATING VITAL SIGNS (supporting evidence for this alert):
+${corroboratingVitals.map(v => `- ${v.metric}: ${v.deviation} ${v.direction}`).join('\n')}
+These vital signs show medically consistent patterns that support this temperature change being significant.
+IMPORTANT: You MUST mention these corroborating vital signs in the insight text to explain why this alert is being shown.`
+        : '';
+
       const prompt = `You are a health AI assistant creating a personalized insight for a user. Your goal is to explain not just WHAT changed, but WHY it matters for their health.
 
 DETECTED CHANGE:
-${healthContext?.displayName || metricName} is ${pct}% ${direction} than the user's personal baseline
+${healthContext?.displayName || metricName} is ${deviationDisplay} ${direction} than the user's personal baseline${corroboratingVitalsSection}
 
 ${healthContextSection}
 
