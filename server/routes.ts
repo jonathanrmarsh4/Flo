@@ -16985,6 +16985,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   });
 
   // GET /api/cgm/data - Get CGM data for the CGM screen (formatted for frontend)
+  // Supports both Dexcom CGM readings and HealthKit glucose samples
   app.get("/api/cgm/data", isAuthenticated, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
@@ -17001,10 +17002,62 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       // Get readings for the time range
       const endDate = new Date();
       const startDate = new Date(Date.now() - hours * 60 * 60 * 1000);
-      const readings = await dexcomService.getReadingsForRange(userId, startDate, endDate);
       
-      // Get latest reading
-      const latestReading = await dexcomService.getLatestReading(userId);
+      // First try Dexcom readings
+      let readings = await dexcomService.getReadingsForRange(userId, startDate, endDate);
+      let latestReading = await dexcomService.getLatestReading(userId);
+      let dataSource = 'dexcom';
+      
+      // If no Dexcom readings, try HealthKit glucose samples
+      if (readings.length === 0) {
+        logger.info('[CGM] No Dexcom readings, checking HealthKit glucose samples');
+        const healthId = await healthRouter.getHealthId(userId);
+        
+        if (healthId) {
+          // Query healthkit_samples for glucose data
+          // HealthKit data types for glucose: HKQuantityTypeIdentifierBloodGlucose
+          const { data: healthkitGlucose, error: hkError } = await supabase
+            .from('healthkit_samples')
+            .select('*')
+            .eq('health_id', healthId)
+            .in('data_type', ['HKQuantityTypeIdentifierBloodGlucose', 'bloodGlucose', 'BloodGlucose'])
+            .gte('start_date', startDate.toISOString())
+            .lte('start_date', endDate.toISOString())
+            .order('start_date', { ascending: true });
+          
+          if (!hkError && healthkitGlucose && healthkitGlucose.length > 0) {
+            logger.info(`[CGM] Found ${healthkitGlucose.length} HealthKit glucose samples`);
+            dataSource = 'healthkit';
+            
+            // Convert HealthKit samples to cgm_readings format
+            // HealthKit glucose is typically in mg/dL or mmol/L depending on device
+            readings = healthkitGlucose.map((sample: any) => {
+              // HealthKit stores values - need to check unit
+              let glucoseValue = sample.value;
+              const unit = sample.unit?.toLowerCase() || 'mg/dl';
+              
+              // If value is in mmol/L (usually < 30), convert to mg/dL
+              if (unit.includes('mmol') || (glucoseValue < 30 && glucoseValue > 0)) {
+                glucoseValue = glucoseValue * 18.0182;
+              }
+              
+              return {
+                glucose_value: glucoseValue,
+                glucose_unit: 'mg/dL',
+                recorded_at: sample.start_date,
+                trend: null,
+                trend_rate: null,
+                source: sample.source_name || 'HealthKit',
+              };
+            });
+            
+            // Get latest reading from HealthKit
+            if (readings.length > 0) {
+              latestReading = readings[readings.length - 1];
+            }
+          }
+        }
+      }
       
       // Target range in mmol/L
       const targetRange = { low: 3.9, high: 7.8 };
@@ -17040,15 +17093,35 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         }),
       }));
       
+      // Calculate trend for HealthKit data (compare last 2 readings)
+      let calculatedTrend = 'stable';
+      let calculatedTrendRate = 0;
+      if (dataSource === 'healthkit' && readings.length >= 2) {
+        const lastTwo = readings.slice(-2);
+        const timeDiffMins = (new Date(lastTwo[1].recorded_at).getTime() - new Date(lastTwo[0].recorded_at).getTime()) / 60000;
+        if (timeDiffMins > 0 && timeDiffMins <= 15) { // Only calculate if readings are within 15 mins
+          const valueDiff = lastTwo[1].glucose_value - lastTwo[0].glucose_value;
+          calculatedTrendRate = valueDiff / timeDiffMins; // mg/dL per minute
+          if (calculatedTrendRate > 2) calculatedTrend = 'rising_rapidly';
+          else if (calculatedTrendRate > 1) calculatedTrend = 'rising';
+          else if (calculatedTrendRate > 0.5) calculatedTrend = 'rising_slowly';
+          else if (calculatedTrendRate < -2) calculatedTrend = 'falling_rapidly';
+          else if (calculatedTrendRate < -1) calculatedTrend = 'falling';
+          else if (calculatedTrendRate < -0.5) calculatedTrend = 'falling_slowly';
+        }
+      }
+      
       // Format current reading with mmol/L conversion
       // Note: trend_rate from Dexcom is in mg/dL/min, convert to mmol/L/min
       const currentReading = latestReading ? {
         value: latestReading.glucose_value,
         valueMmol: parseFloat(convertToMmol(latestReading.glucose_value || 0).toFixed(1)),
-        trend: latestReading.trend || 'flat',
-        trendRate: latestReading.trend_rate ? parseFloat(convertToMmol(latestReading.trend_rate).toFixed(2)) : 0,
+        trend: latestReading.trend || (dataSource === 'healthkit' ? calculatedTrend : 'flat'),
+        trendRate: latestReading.trend_rate 
+          ? parseFloat(convertToMmol(latestReading.trend_rate).toFixed(2)) 
+          : parseFloat(convertToMmol(calculatedTrendRate).toFixed(2)),
         recordedAt: latestReading.recorded_at,
-        source: 'dexcom',
+        source: dataSource,
       } : null;
       
       res.json({
@@ -17063,6 +17136,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
           lowAlerts,
         },
         targetRange,
+        dataSource, // Include data source in response
       });
     } catch (error: any) {
       logger.error('[CGM] Get data error:', error);

@@ -74,6 +74,7 @@ interface CGMData {
     low: number;
     high: number;
   };
+  dataSource?: 'dexcom' | 'healthkit';
 }
 
 // Generate demo data for testing
@@ -154,12 +155,16 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     staleTime: 60 * 1000,
   });
 
+  // Always fetch CGM data - backend will return HealthKit glucose if Dexcom isn't connected
   const { data: cgmData, isLoading: dataLoading } = useQuery<CGMData>({
     queryKey: ['/api/cgm/data', { range: trendRange }],
-    enabled: cgmStatus?.connected === true,
     staleTime: 60 * 1000,
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
   });
+  
+  // Determine if we have any glucose data (Dexcom or HealthKit)
+  const hasGlucoseData = cgmData?.readings && cgmData.readings.length > 0;
+  const glucoseSource = cgmData?.dataSource || (cgmData?.currentReading?.source as 'dexcom' | 'healthkit') || 'dexcom';
 
   const disconnectMutation = useMutation({
     mutationFn: async () => {
@@ -240,8 +245,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     );
   }
 
-  // Not connected and not in demo mode - show connection card
-  if (!cgmStatus?.connected && !demoMode) {
+  // Not connected, no HealthKit glucose data, and not in demo mode - show connection card
+  if (!cgmStatus?.connected && !hasGlucoseData && !demoMode && !dataLoading) {
     return (
       <div className={`fixed inset-0 z-50 ${isDark 
         ? 'bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900' 
@@ -330,8 +335,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
     );
   }
 
-  // Demo mode or connected - show full CGM screen
-  // Use demo data when in demo mode, otherwise use real data
+  // Demo mode, Dexcom connected, or HealthKit glucose data available - show full CGM screen
+  // Use demo data when in demo mode, otherwise use real data from Dexcom or HealthKit
   const demoData = demoMode ? generateDemoData(trendRange) : null;
   const displayData = demoMode ? demoData : cgmData;
   
@@ -399,6 +404,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
               className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 ${
                 demoMode
                   ? 'bg-purple-500/20 text-purple-400'
+                  : glucoseSource === 'healthkit'
+                  ? 'bg-blue-500/20 text-blue-400'
                   : cgmStatus?.isSandbox
                   ? 'bg-yellow-500/20 text-yellow-400'
                   : 'bg-green-500/20 text-green-400'
@@ -407,6 +414,8 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
               <div className="w-1.5 h-1.5 rounded-full bg-current" />
               {demoMode 
                 ? 'Demo Mode' 
+                : glucoseSource === 'healthkit'
+                ? 'Connected • HealthKit'
                 : `Connected • Dexcom${cgmStatus?.isSandbox ? ' (Sandbox)' : ''}`}
             </div>
           </div>
@@ -470,7 +479,7 @@ export function CGMScreen({ isDark, onBack }: CGMScreenProps) {
                       : 'bg-gray-100 text-gray-600'
                   }`}
                 >
-                  Source: Dexcom
+                  Source: {glucoseSource === 'healthkit' ? 'HealthKit' : 'Dexcom'}
                 </div>
               </div>
             </>
