@@ -515,6 +515,60 @@ export async function initializeClickHouse(): Promise<boolean> {
       `,
     });
 
+    // Meal-Glucose Response Correlations - links meals to their glucose impact
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.meal_glucose_responses (
+          response_id String,
+          health_id String,
+          meal_time DateTime64(3),
+          meal_date Date,
+          meal_source String,
+          meal_calories Nullable(Float64),
+          meal_carbs_g Nullable(Float64),
+          meal_protein_g Nullable(Float64),
+          meal_fat_g Nullable(Float64),
+          meal_fiber_g Nullable(Float64),
+          meal_sugar_g Nullable(Float64),
+          pre_meal_glucose Nullable(Float64),
+          peak_glucose Float64,
+          peak_time DateTime64(3),
+          time_to_peak_min Float64,
+          delta_from_baseline Float64,
+          glucose_auc_2hr Float64,
+          time_above_140_min Float64,
+          time_above_180_min Float64,
+          recovery_time_min Nullable(Float64),
+          glucose_samples_count UInt32,
+          response_grade LowCardinality(String),
+          ingested_at DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(ingested_at)
+        PARTITION BY toYYYYMM(meal_date)
+        ORDER BY (health_id, meal_date, meal_time, response_id)
+      `,
+    });
+
+    // Per-Food Glucose Response Statistics - learns which foods spike glucose
+    await ch.command({
+      query: `
+        CREATE TABLE IF NOT EXISTS flo_health.food_glucose_profiles (
+          profile_id String,
+          health_id String,
+          food_category LowCardinality(String),
+          avg_peak_glucose Float64,
+          avg_delta Float64,
+          avg_time_to_peak_min Float64,
+          avg_auc_2hr Float64,
+          std_peak_glucose Float64,
+          response_count UInt32,
+          last_updated DateTime64(3) DEFAULT now64(3)
+        )
+        ENGINE = ReplacingMergeTree(last_updated)
+        ORDER BY (health_id, food_category, profile_id)
+      `,
+    });
+
     // CGM Learned Baselines - population baselines from synthetic CGM data
     await ch.command({
       query: `
