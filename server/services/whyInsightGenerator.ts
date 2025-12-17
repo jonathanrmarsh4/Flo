@@ -20,8 +20,9 @@ export interface WhyInsightResult {
   title: string;
   score: number | string | null;
   tileType: string;
-  aiExplanation: string;
+  explanation: string;
   keyInsights: string[];
+  generatedAt: string;
   rawData?: Record<string, any>;
 }
 
@@ -492,8 +493,9 @@ export async function generateWhyInsight(
       title: `${title} ${context.score ?? '—'}`,
       score: context.score,
       tileType: tileLabel,
-      aiExplanation: parsed.explanation || 'Unable to generate explanation',
+      explanation: parsed.explanation || 'Unable to generate explanation',
       keyInsights: parsed.keyInsights || [],
+      generatedAt: new Date().toISOString(),
       rawData: context.components,
     };
   } catch (error: any) {
@@ -517,8 +519,9 @@ export async function generateWhyInsight(
       title: `${title} ${context.score ?? '—'}`,
       score: context.score,
       tileType: tileLabel,
-      aiExplanation: `Your ${tileLabel} score is ${context.score ?? 'currently unavailable'}. We're having trouble generating a detailed explanation right now. Please try again in a moment.`,
+      explanation: `Your ${tileLabel} score is ${context.score ?? 'currently unavailable'}. We're having trouble generating a detailed explanation right now. Please try again in a moment.`,
       keyInsights: [],
+      generatedAt: new Date().toISOString(),
       rawData: context.components,
     };
   }

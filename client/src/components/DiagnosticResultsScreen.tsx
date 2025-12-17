@@ -1,4 +1,4 @@
-import { X, Heart, Activity, Brain, Bone, Stethoscope, FileText, Droplet } from 'lucide-react';
+import { Heart, Activity, FileText, Droplet } from 'lucide-react';
 import { Link } from 'wouter';
 import { CalciumScoreTile } from './CalciumScoreTile';
 import { DexaScanTile } from './DexaScanTile';
@@ -88,14 +88,6 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
                 riskLevel={calciumScore?.riskLevel ?? null}
                 testDate={calciumScore?.studyDate ?? null}
               />
-              
-              {/* Coming Soon Cards */}
-              <ComingSoonTile 
-                title="Carotid IMT"
-                description="Ultrasound measurement"
-                icon={<Activity className="w-5 h-5" />}
-                isDark={isDark}
-              />
             </div>
           </section>
 
@@ -119,31 +111,6 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
                 testDate={dexaScan?.studyDate ?? null}
                 userSex={userSex}
               />
-              <ComingSoonTile 
-                title="VO2 Max Test"
-                description="Cardiorespiratory fitness"
-                icon={<Stethoscope className="w-5 h-5" />}
-                isDark={isDark}
-              />
-            </div>
-          </section>
-
-          {/* Cognitive Section */}
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <Brain className={`w-5 h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
-              <h2 className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Cognitive Health
-              </h2>
-            </div>
-            
-            <div className="space-y-3">
-              <ComingSoonTile 
-                title="Brain MRI"
-                description="Structural brain imaging"
-                icon={<Brain className="w-5 h-5" />}
-                isDark={isDark}
-              />
             </div>
           </section>
 
@@ -165,40 +132,3 @@ export function DiagnosticResultsScreen({ isDark, onClose, calciumScore, dexaSca
   );
 }
 
-interface ComingSoonTileProps {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  isDark: boolean;
-}
-
-function ComingSoonTile({ title, description, icon, isDark }: ComingSoonTileProps) {
-  return (
-    <div className={`backdrop-blur-xl rounded-3xl border p-5 transition-all opacity-60 ${
-      isDark ? 'bg-white/5 border-white/10' : 'bg-white/60 border-black/10'
-    }`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-xl ${
-            isDark ? 'bg-white/10' : 'bg-black/5'
-          }`}>
-            {icon}
-          </div>
-          <div>
-            <h3 className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {title}
-            </h3>
-            <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-              {description}
-            </p>
-          </div>
-        </div>
-        <div className={`px-3 py-1 rounded-full text-xs ${
-          isDark ? 'bg-white/10 text-white/60' : 'bg-gray-200 text-gray-600'
-        }`}>
-          Coming Soon
-        </div>
-      </div>
-    </div>
-  );
-}
