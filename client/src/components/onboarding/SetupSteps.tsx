@@ -1831,7 +1831,7 @@ export function SetupSteps({ isDark, onComplete }: SetupStepsProps) {
                 isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'
               }`}>
                 <p className={`text-xs ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
-                  <strong>AI Providers:</strong> Google AI (Gemini), OpenAI, ElevenLabs. 
+                  <strong>AI Providers:</strong> Google AI (Gemini), OpenAI. 
                   All data is anonymized before processing. You can change this anytime in Settings.
                 </p>
               </div>
