@@ -1130,12 +1130,38 @@ export class ClickHouseBaselineEngine {
         severity: { moderate: 25, high: 40 },
       };
 
+      // Cumulative daily metrics that accumulate throughout the day
+      // These should NOT trigger anomalies mid-day because partial-day values
+      // will always be lower than full-day baselines
+      const CUMULATIVE_DAILY_METRICS = new Set([
+        'steps',
+        'active_energy',
+        'exercise_minutes',
+        'workout_minutes',
+        'distance_walking_running',
+        'stand_hours',
+        'stand_time',
+        'move_minutes',
+        'active_calories',
+      ]);
+      
+      // Only allow cumulative metric anomalies after 9 PM (21:00) when the day is mostly complete
+      const currentHour = new Date().getHours();
+      const isEndOfDay = currentHour >= 21;
+
       for (const metric of recentMetrics) {
         // Skip metrics that user has suppressed due to data quality issues
         if (suppressedMetrics.has(metric.metric_type)) {
           logger.debug(`[ClickHouseML] Skipping suppressed metric ${metric.metric_type} for ${healthId}`);
           continue;
         }
+        
+        // Skip cumulative daily metrics during the day - they only make sense at end of day
+        if (CUMULATIVE_DAILY_METRICS.has(metric.metric_type) && !isEndOfDay) {
+          logger.debug(`[ClickHouseML] Skipping cumulative metric ${metric.metric_type} during daytime (hour: ${currentHour})`);
+          continue;
+        }
+        
         const baseline = baselineMap.get(metric.metric_type);
         if (!baseline || baseline.sampleCount < 3) continue;
 

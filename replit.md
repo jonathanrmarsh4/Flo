@@ -52,6 +52,7 @@ The platform features a mobile-first, content-focused minimalist design inspired
   - **Weight Trend Direction Fix:** Added local slope validation in `forecastWorker.ts` that computes weight trend from raw weight data when ClickHouse-computed slope disagrees on direction (gaining vs losing). Uses fixed 7-day windows anchored to latest entries without mutating shared arrays.
   - **AI Text Truncation Fix:** Enhanced AI prompt to require complete sentences with post-processing that detects incomplete sentences (missing ending punctuation) and either truncates to last complete sentence or appends a period.
   - **Nutrition Data Detection Fix:** Extended field name matching in `weightManagementContext.ts` to support variations (energy_kcal, kcal, protein_g, etc.) with fallback logic to count tracked days even when users log macros without calorie totals.
+- **Cumulative Activity Metrics Fix (Dec 2025):** `detectAnomalies()` in `clickhouseBaselineEngine.ts` now skips cumulative daily metrics (steps, active_energy, exercise_minutes, workout_minutes, distance_walking_running, stand_hours, stand_time, move_minutes, active_calories) during daytime hours (before 9 PM). This prevents false "low activity" alerts mid-day when comparing partial-day accumulations to full-day baselines. Anomalies for these metrics are only evaluated after 21:00 when daily totals are mostly complete.
 
 ## External Dependencies
 
