@@ -20,6 +20,7 @@ import {
   canSendOracleMsg,
   canAccessInsights,
   canAccessFlomentum,
+  requireAIConsent,
 } from "./middleware/planEnforcement";
 import { aiEndpointRateLimiter, uploadRateLimiter } from "./middleware/rateLimiter";
 import { logger } from "./logger";
@@ -239,6 +240,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/user/ai-consent - Get current AI consent status
+  // Returns user's consent status and whether re-consent is needed due to policy changes
+  const CURRENT_AI_CONSENT_VERSION = '1.0'; // Increment this when AI vendors or data usage changes
+  
   app.get('/api/user/ai-consent', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -248,10 +252,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
+      // Check if user needs to re-consent due to version change
+      const needsReconsent = user.aiConsentGranted && 
+        user.aiConsentVersion !== CURRENT_AI_CONSENT_VERSION;
+
       res.json({
         consented: user.aiConsentGranted ?? false,
         consentDate: user.aiConsentDate,
         consentVersion: user.aiConsentVersion,
+        currentVersion: CURRENT_AI_CONSENT_VERSION,
+        needsReconsent,
       });
     } catch (error) {
       logger.error('[AIConsent] Error fetching consent:', error);
@@ -14605,7 +14615,7 @@ Important: This is for educational purposes. Include a brief note that users sho
   });
 
   // Flō Oracle - Text-only chat with Grok (personalized health coaching)
-  app.post("/api/flo-oracle/chat", isAuthenticated, canAccessOracle, canSendOracleMsg, aiEndpointRateLimiter, async (req: any, res) => {
+  app.post("/api/flo-oracle/chat", isAuthenticated, requireAIConsent, canAccessOracle, canSendOracleMsg, aiEndpointRateLimiter, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
 
     try {
@@ -15803,7 +15813,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ────────────────────────────────────────────────────────────────
   
   // Process voice input: Whisper STT → Grok → OpenAI TTS
-  app.post("/api/voice/speech-relay", isAuthenticated, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
+  app.post("/api/voice/speech-relay", isAuthenticated, requireAIConsent, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       
@@ -15892,7 +15902,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   });
 
   // Generate personalized greeting to start conversation (AI speaks first)
-  app.post("/api/voice/greeting", isAuthenticated, canAccessOracle, async (req: any, res) => {
+  app.post("/api/voice/greeting", isAuthenticated, requireAIConsent, canAccessOracle, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = req.user.claims;
@@ -15944,7 +15954,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   });
 
   // Streaming voice processing with SSE - lower latency by streaming audio chunks
-  app.post("/api/voice/speech-relay-stream", isAuthenticated, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
+  app.post("/api/voice/speech-relay-stream", isAuthenticated, requireAIConsent, canAccessOracle, canSendOracleMsg, async (req: any, res) => {
     const userId = req.user.claims.sub;
     
     try {
@@ -16213,7 +16223,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ===============================
 
   // GET /api/insights - Fetch insight cards for current user
-  app.get("/api/insights", isAuthenticated, canAccessInsights, async (req: any, res) => {
+  app.get("/api/insights", isAuthenticated, requireAIConsent, canAccessInsights, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -16239,7 +16249,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   });
 
   // POST /api/insights/generate - Manually trigger insight generation
-  app.post("/api/insights/generate", isAuthenticated, canAccessInsights, async (req: any, res) => {
+  app.post("/api/insights/generate", isAuthenticated, requireAIConsent, canAccessInsights, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -16292,7 +16302,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ===============================
 
   // GET /api/daily-insights - Fetch today's generated insights
-  app.get("/api/daily-insights", isAuthenticated, async (req: any, res) => {
+  app.get("/api/daily-insights", isAuthenticated, requireAIConsent, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -16618,7 +16628,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
 
   // POST /api/briefing/generate - Manually trigger briefing generation (for testing)
   // Pass { force: true } in body to delete and regenerate existing briefing
-  app.post("/api/briefing/generate", isAuthenticated, async (req: any, res) => {
+  app.post("/api/briefing/generate", isAuthenticated, requireAIConsent, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -16804,7 +16814,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   // ===============================
 
   // POST /api/tiles/why/:tileType - Generate AI insight explaining why a score is what it is
-  app.post("/api/tiles/why/:tileType", isAuthenticated, async (req: any, res) => {
+  app.post("/api/tiles/why/:tileType", isAuthenticated, requireAIConsent, async (req: any, res) => {
     const userId = req.user?.claims?.sub;
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });

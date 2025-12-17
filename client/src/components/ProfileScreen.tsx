@@ -42,6 +42,8 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
   const [selectedVoice, setSelectedVoice] = useState('Amanda');
   const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [isLoadingVoicePreference, setIsLoadingVoicePreference] = useState(true);
+  const [aiConsentEnabled, setAIConsentEnabled] = useState<boolean | null>(null);
+  const [isUpdatingAIConsent, setIsUpdatingAIConsent] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
@@ -201,6 +203,68 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
     };
     fetchVoicePreference();
   }, []);
+
+  // Fetch AI consent status on mount
+  useEffect(() => {
+    const fetchAIConsentStatus = async () => {
+      try {
+        const authHeaders = await getAuthHeaders();
+        const response = await fetch('/api/user/ai-consent', {
+          headers: authHeaders,
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setAIConsentEnabled(data.consented ?? false);
+        }
+      } catch (error) {
+        console.error('[AIConsent] Failed to fetch status:', error);
+        setAIConsentEnabled(false);
+      }
+    };
+    fetchAIConsentStatus();
+  }, []);
+
+  // Handle AI consent toggle
+  const handleToggleAIConsent = async () => {
+    const newValue = !aiConsentEnabled;
+    setIsUpdatingAIConsent(true);
+    
+    try {
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch('/api/user/ai-consent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({
+          consented: newValue,
+          version: '1.0',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update AI consent');
+      }
+
+      setAIConsentEnabled(newValue);
+      toast({
+        title: newValue ? 'AI Features Enabled' : 'AI Features Disabled',
+        description: newValue 
+          ? 'You can now use personalized insights and Flō Oracle.'
+          : 'AI features have been turned off. Your data is no longer processed by AI services.',
+      });
+    } catch (error) {
+      console.error('[AIConsent] Failed to update:', error);
+      toast({
+        title: 'Update Failed',
+        description: 'Could not save your preference. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingAIConsent(false);
+    }
+  };
 
   // Audio reference for voice playback
   const audioRef = { current: null as HTMLAudioElement | null };
@@ -1440,6 +1504,62 @@ export function ProfileScreen({ isDark, onClose, user }: ProfileScreenProps) {
           </div>
 
           <div className="space-y-2">
+            {/* AI Features Toggle */}
+            <div className={`p-4 rounded-xl ${
+              isDark ? 'bg-white/5' : 'bg-gray-50'
+            }`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className={`p-2 rounded-lg ${
+                    aiConsentEnabled 
+                      ? 'bg-gradient-to-br from-purple-500 to-pink-500' 
+                      : isDark ? 'bg-white/10' : 'bg-gray-200'
+                  }`}>
+                    <Sparkles className={`w-4 h-4 ${aiConsentEnabled ? 'text-white' : isDark ? 'text-white/50' : 'text-gray-500'}`} />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      AI-Powered Features
+                    </h4>
+                    <p className={`text-xs mt-0.5 ${isDark ? 'text-white/50' : 'text-gray-500'}`}>
+                      Flō Oracle, daily insights, and personalized recommendations
+                    </p>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                      Providers: Google AI, OpenAI, ElevenLabs
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleToggleAIConsent}
+                  disabled={isUpdatingAIConsent || aiConsentEnabled === null}
+                  className={`relative w-12 h-7 rounded-full transition-all ${
+                    aiConsentEnabled 
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                      : isDark ? 'bg-white/20' : 'bg-gray-300'
+                  } ${isUpdatingAIConsent ? 'opacity-50' : ''}`}
+                  data-testid="toggle-ai-consent"
+                >
+                  <div className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    aiConsentEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}>
+                    {isUpdatingAIConsent && (
+                      <Loader2 className="w-3 h-3 animate-spin absolute top-1 left-1 text-gray-400" />
+                    )}
+                  </div>
+                </button>
+              </div>
+              {!aiConsentEnabled && aiConsentEnabled !== null && (
+                <p className={`text-xs mt-3 p-2 rounded-lg ${
+                  isDark ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'
+                }`}>
+                  AI features are disabled. Enable to use Flō Oracle and get personalized insights.
+                </p>
+              )}
+            </div>
+
+            {/* Divider */}
+            <div className={`border-t my-3 ${isDark ? 'border-white/10' : 'border-gray-200'}`} />
+
             <button 
               onClick={() => setShowUserData(true)}
               className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${

@@ -8,8 +8,41 @@ import {
   getUserPlan,
 } from '../services/planService';
 import { db } from '../db';
-import { biomarkerTestSessions, biomarkerMeasurements } from '@shared/schema';
+import { biomarkerTestSessions, biomarkerMeasurements, users } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
+
+/**
+ * Middleware to check if user has granted AI consent for third-party AI processing
+ * Required for Apple App Store compliance - users must opt-in before health data is sent to AI providers
+ */
+export async function requireAIConsent(req: any, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const [user] = await db
+      .select({ aiConsentGranted: users.aiConsentGranted })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user?.aiConsentGranted) {
+      return res.status(403).json({
+        error: 'AI features not enabled',
+        code: 'AI_CONSENT_REQUIRED',
+        message: 'Please enable AI features in Settings > Privacy to use this feature.',
+        paywallModal: 'enable_ai_consent',
+      });
+    }
+
+    next();
+  } catch (error: any) {
+    logger.error('[PlanEnforcement] requireAIConsent error:', error);
+    res.status(500).json({ error: 'Failed to check AI consent status' });
+  }
+}
 
 /**
  * Middleware to check if user can upload lab reports

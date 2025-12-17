@@ -237,6 +237,39 @@ export function PrivacyPolicyScreen({ isDark, onClose }: PrivacyPolicyScreenProp
                   <li>Improve the accuracy of predictions and pattern detection (e.g., correlations between sleep, training, biomarkers)</li>
                   <li>Maintain a personal health timeline and "memory" so that your experience is more tailored over time</li>
                 </ul>
+
+                <div className={`p-4 rounded-xl mt-4 ${
+                  isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'
+                }`}>
+                  <p className="font-medium mb-2">Third-Party AI Providers</p>
+                  <p className="text-sm mb-3">
+                    To deliver AI-powered features, we use the following trusted providers:
+                  </p>
+                  <ul className="text-sm space-y-1 pl-4">
+                    <li>• <strong>Google AI (Gemini)</strong> – Insight generation, pattern analysis, conversational AI</li>
+                    <li>• <strong>OpenAI</strong> – Lab report analysis and data extraction</li>
+                    <li>• <strong>ElevenLabs</strong> – Voice synthesis for Flō Oracle</li>
+                  </ul>
+                </div>
+
+                <div className={`p-4 rounded-xl mt-4 ${
+                  isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'
+                }`}>
+                  <p className="font-medium mb-2">Data Anonymization</p>
+                  <p className="text-sm">
+                    Before sending any data to AI providers, we remove personally identifiable information including your name, email address, and user ID. Health data is linked via a pseudonymous health identifier that cannot be traced back to your identity. Your health data is stored in a separate database from your account information for additional privacy protection.
+                  </p>
+                </div>
+
+                <div className={`p-4 rounded-xl mt-4 ${
+                  isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-200'
+                }`}>
+                  <p className="font-medium mb-2">Your Consent Controls</p>
+                  <p className="text-sm">
+                    AI features are opt-in. You can enable or disable AI data processing at any time in Settings {'>'} Data & Privacy. When disabled, your health data will not be sent to third-party AI services.
+                  </p>
+                </div>
+
                 <div className={`p-4 rounded-xl mt-4 ${
                   isDark ? 'bg-amber-500/10 border border-amber-500/20' : 'bg-amber-50 border border-amber-200'
                 }`}>

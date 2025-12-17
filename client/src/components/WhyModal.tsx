@@ -261,6 +261,11 @@ export function WhyModal({
               <p className={`text-center text-xs mt-4 ${isDark ? 'text-white/40' : 'text-gray-400'}`}>
                 {error ? 'Get help from Flō directly' : 'Get personalized insights, recommendations, and action steps'}
               </p>
+
+              {/* AI Provider Attribution */}
+              <p className={`text-center text-[10px] mt-3 ${isDark ? 'text-white/25' : 'text-gray-300'}`}>
+                Powered by Google AI · Your data is anonymized
+              </p>
             </div>
           )}
         </div>
