@@ -135,8 +135,15 @@ public class HealthKitNormalisationService {
                                     print("[Sync] Nutrition sync failed but continuing: \(nutritionError?.localizedDescription ?? "unknown")")
                                 }
                                 
-                                // All syncs complete
-                                completion(true, nil)
+                                // Sync glucose data for CGM screen
+                                self.syncGlucoseData(for: dayBoundaries) { glucoseSuccess, glucoseError in
+                                    if !glucoseSuccess {
+                                        print("[Sync] Glucose sync failed but continuing: \(glucoseError?.localizedDescription ?? "unknown")")
+                                    }
+                                    
+                                    // All syncs complete
+                                    completion(true, nil)
+                                }
                             }
                         }
                     }
@@ -3113,6 +3120,101 @@ public class HealthKitNormalisationService {
             print("[Nutrition] Total samples collected: \(allSamples.count)")
             completion(allSamples)
         }
+    }
+    
+    // MARK: - Glucose Data Sync (for CGM screen)
+    
+    /// Sync blood glucose data to backend as raw samples for CGM display
+    func syncGlucoseData(for dayBoundaries: [(Date, Date, String)], completion: @escaping (Bool, Error?) -> Void) {
+        guard let token = getJWTToken() else {
+            print("[Glucose] No auth token for glucose upload")
+            completion(false, NSError(domain: "NormalisationService", code: 2, userInfo: [NSLocalizedDescriptionKey: "No authentication token found"]))
+            return
+        }
+        
+        let dispatchGroup = DispatchGroup()
+        var allSamples: [[String: Any]] = []
+        let lock = NSLock()
+        
+        for (dayStart, dayEnd, dateStr) in dayBoundaries {
+            dispatchGroup.enter()
+            collectGlucoseSamples(dayStart: dayStart, dayEnd: dayEnd) { samples in
+                lock.lock()
+                allSamples.append(contentsOf: samples)
+                lock.unlock()
+                dispatchGroup.leave()
+            }
+        }
+        
+        dispatchGroup.notify(queue: .main) {
+            if allSamples.isEmpty {
+                print("[Glucose] No glucose data found")
+                completion(true, nil)
+                return
+            }
+            
+            print("[Glucose] Uploading \(allSamples.count) glucose samples to backend")
+            self.uploadRawSamplesToBackend(samples: allSamples, token: token, dataTypeName: "Glucose") { success, error in
+                completion(success, error)
+            }
+        }
+    }
+    
+    /// Collect blood glucose samples for a day from HealthKit
+    private func collectGlucoseSamples(dayStart: Date, dayEnd: Date, completion: @escaping ([[String: Any]]) -> Void) {
+        guard let glucoseType = HKObjectType.quantityType(forIdentifier: .bloodGlucose) else {
+            print("[Glucose] Could not create blood glucose quantity type")
+            completion([])
+            return
+        }
+        
+        let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
+        let sortDescriptors = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        
+        let query = HKSampleQuery(sampleType: glucoseType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: sortDescriptors) { (_, samples, error) in
+            if let error = error {
+                print("[Glucose] Query error: \(error.localizedDescription)")
+                DispatchQueue.main.async { completion([]) }
+                return
+            }
+            
+            guard let samples = samples as? [HKQuantitySample] else {
+                print("[Glucose] No samples returned")
+                DispatchQueue.main.async { completion([]) }
+                return
+            }
+            
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            let dateStr = dateFormatter.string(from: dayStart)
+            
+            print("[Glucose] Found \(samples.count) glucose samples for \(dateStr)")
+            
+            let iso8601 = ISO8601DateFormatter()
+            iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            
+            // HealthKit stores glucose in mg/dL (using milli-gram per deci-liter unit)
+            let mgdLUnit = HKUnit.gramUnit(with: .milli).unitDivided(by: .literUnit(with: .deci))
+            
+            let rawSamples = samples.map { sample -> [String: Any] in
+                let glucoseValue = sample.quantity.doubleValue(for: mgdLUnit)
+                
+                return [
+                    "dataType": "HKQuantityTypeIdentifierBloodGlucose",
+                    "value": glucoseValue,
+                    "unit": "mg/dL",
+                    "startDate": iso8601.string(from: sample.startDate),
+                    "endDate": iso8601.string(from: sample.endDate),
+                    "sourceName": sample.sourceRevision.source.name,
+                    "sourceBundleId": sample.sourceRevision.source.bundleIdentifier ?? "unknown",
+                    "uuid": sample.uuid.uuidString
+                ]
+            }
+            
+            DispatchQueue.main.async { completion(rawSamples) }
+        }
+        
+        healthStore.execute(query)
     }
     
     /// Generic function to upload raw samples to /api/healthkit/samples endpoint
