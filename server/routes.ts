@@ -17106,14 +17106,23 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         if (healthId) {
           // Query healthkit_samples for glucose data
           // HealthKit data types for glucose: HKQuantityTypeIdentifierBloodGlucose
-          const { data: healthkitGlucose, error: hkError } = await supabase
-            .from('healthkit_samples')
-            .select('*')
-            .eq('health_id', healthId)
-            .in('data_type', ['HKQuantityTypeIdentifierBloodGlucose', 'bloodGlucose', 'BloodGlucose'])
-            .gte('start_date', startDate.toISOString())
-            .lte('start_date', endDate.toISOString())
-            .order('start_date', { ascending: true });
+          const { getSupabaseClient } = await import('./services/supabaseClient');
+          const supabaseClient = getSupabaseClient();
+          
+          if (!supabaseClient) {
+            logger.error('[CGM] Supabase client not available for HealthKit glucose fallback');
+          }
+          
+          const { data: healthkitGlucose, error: hkError } = supabaseClient 
+            ? await supabaseClient
+                .from('healthkit_samples')
+                .select('*')
+                .eq('health_id', healthId)
+                .in('data_type', ['HKQuantityTypeIdentifierBloodGlucose', 'bloodGlucose', 'BloodGlucose'])
+                .gte('start_date', startDate.toISOString())
+                .lte('start_date', endDate.toISOString())
+                .order('start_date', { ascending: true })
+            : { data: null, error: new Error('Supabase client not available') };
           
           if (!hkError && healthkitGlucose && healthkitGlucose.length > 0) {
             logger.info(`[CGM] Found ${healthkitGlucose.length} HealthKit glucose samples`);
