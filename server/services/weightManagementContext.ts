@@ -424,25 +424,36 @@ async function populateNutritionData(userId: string, context: WeightContextJson)
     context.confidence_inputs.nutrition_data_days = nutritionData.length;
     context.nutrition_data.days_tracked_14d = nutritionData.length;
 
-    const withCalories = nutritionData.filter((d: any) => d.calories && d.calories > 0);
+    // Field names from healthStorageRouter: energyKcal, proteinG, carbohydratesG, fatTotalG, fiberG, sodiumMg
+    const withCalories = nutritionData.filter((d: any) => (d.energyKcal || d.calories) && (d.energyKcal || d.calories) > 0);
     if (withCalories.length > 0) {
       context.nutrition_data.avg_daily_calories_14d = Math.round(
-        withCalories.reduce((sum: number, d: any) => sum + (d.calories || 0), 0) / withCalories.length
+        withCalories.reduce((sum: number, d: any) => sum + (d.energyKcal || d.calories || 0), 0) / withCalories.length
       );
       context.nutrition_data.adherence_days = withCalories.length;
     }
 
-    const sumField = (field: string) => {
-      const values = nutritionData.filter((d: any) => d[field] && d[field] > 0);
+    const sumField = (fields: string[]) => {
+      const values = nutritionData.filter((d: any) => {
+        for (const field of fields) {
+          if (d[field] && d[field] > 0) return true;
+        }
+        return false;
+      });
       if (values.length === 0) return null;
-      return Math.round(values.reduce((sum: number, d: any) => sum + (d[field] || 0), 0) / values.length);
+      return Math.round(values.reduce((sum: number, d: any) => {
+        for (const field of fields) {
+          if (d[field] && d[field] > 0) return sum + d[field];
+        }
+        return sum;
+      }, 0) / values.length);
     };
 
-    context.nutrition_data.avg_protein_g = sumField('protein');
-    context.nutrition_data.avg_carbs_g = sumField('carbs');
-    context.nutrition_data.avg_fat_g = sumField('fat');
-    context.nutrition_data.avg_fiber_g = sumField('fiber');
-    context.nutrition_data.avg_sodium_mg = sumField('sodium');
+    context.nutrition_data.avg_protein_g = sumField(['proteinG', 'protein']);
+    context.nutrition_data.avg_carbs_g = sumField(['carbohydratesG', 'carbs']);
+    context.nutrition_data.avg_fat_g = sumField(['fatTotalG', 'fat']);
+    context.nutrition_data.avg_fiber_g = sumField(['fiberG', 'fiber']);
+    context.nutrition_data.avg_sodium_mg = sumField(['sodiumMg', 'sodium']);
   } catch (error) {
     logger.error('[WeightManagementContext] Error fetching nutrition data:', error);
   }
