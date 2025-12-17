@@ -168,6 +168,20 @@ export const dataToolDeclarations: FunctionDeclaration[] = [
       required: ['metric1', 'metric2'],
     },
   },
+  {
+    name: 'get_meal_glucose_insights',
+    description: 'Get meal-glucose correlation data showing how different meals affect blood sugar levels. Use when user asks about glucose spikes from food, which meals spike their blood sugar, or their glucose response to eating.',
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        days: {
+          type: Type.INTEGER,
+          description: 'Number of days to look back (default 7, max 30)',
+        },
+      },
+      required: [],
+    },
+  },
 ];
 
 
@@ -206,6 +220,8 @@ export async function executeDataTool(
         return await executeLifeEvents(userId, args);
       case 'correlate_metrics':
         return await executeCorrelateMetrics(userId, args);
+      case 'get_meal_glucose_insights':
+        return await executeMealGlucoseInsights(userId, args);
       default:
         return { success: false, error: `Unknown tool: ${toolName}` };
     }
@@ -853,4 +869,105 @@ function formatVitalsSummary(hr: number | null, hrv: number | null, spo2: number
 function formatLifeEventsSummary(total: number, byType: Record<string, number>, days: number): string {
   const topTypes = Object.entries(byType).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([t, c]) => `${t}: ${c}`).join(', ');
   return `${total} life events logged in ${days} days. Breakdown: ${topTypes}`;
+}
+
+// ==================== MEAL-GLUCOSE TOOL ====================
+
+async function executeMealGlucoseInsights(userId: string, args: Record<string, any>): Promise<ToolResult> {
+  const days = Math.min(args.days || 7, 30);
+  
+  try {
+    const { isClickHouseEnabled } = await import('./clickhouseService');
+    if (!isClickHouseEnabled()) {
+      return {
+        success: true,
+        data: null,
+        summary: 'Meal-glucose correlation analysis is not currently available.',
+      };
+    }
+
+    const { getMealGlucoseInsights, formatGlucoseResponseInsight } = await import('./mealGlucoseCorrelator');
+    const { getHealthId } = await import('./supabaseHealthStorage');
+    const healthId = await getHealthId(userId);
+    
+    const insights = await getMealGlucoseInsights(healthId, days);
+    
+    if (!insights.recentResponses || insights.recentResponses.length === 0) {
+      return {
+        success: true,
+        data: null,
+        summary: `No meal-glucose correlation data found for the past ${days} days. This feature requires both meal logging and glucose monitoring data.`,
+      };
+    }
+    
+    // Format insights for conversation
+    const formattedResponses = insights.recentResponses.slice(0, 10).map((r: any) => ({
+      mealTime: r.meal_time,
+      source: r.meal_source,
+      carbsG: r.meal_carbs_g,
+      peakGlucose: r.peak_glucose,
+      delta: r.delta_from_baseline,
+      timeToPeakMin: r.time_to_peak_min,
+      grade: r.response_grade,
+      insight: formatGlucoseResponseInsight(r),
+    }));
+    
+    return {
+      success: true,
+      data: {
+        analysisWindowDays: days,
+        totalMealsAnalyzed: insights.recentResponses.length,
+        recentResponses: formattedResponses,
+        topSpikers: insights.topSpikers,
+        averages: insights.avgMetrics ? {
+          avgPeakGlucose: Math.round(insights.avgMetrics.avg_peak),
+          avgDelta: Math.round(insights.avgMetrics.avg_delta),
+          avgTimeToPeakMin: Math.round(insights.avgMetrics.avg_time_to_peak),
+          gradeACount: insights.avgMetrics.grade_a_count,
+          gradeDCount: insights.avgMetrics.grade_d_count,
+        } : null,
+      },
+      summary: formatMealGlucoseSummary(insights),
+    };
+  } catch (error: any) {
+    logger.error('[DataTools] Meal-glucose insights error:', error);
+    return {
+      success: false,
+      error: `Failed to get meal-glucose insights: ${error.message}`,
+    };
+  }
+}
+
+function formatMealGlucoseSummary(insights: any): string {
+  if (!insights.recentResponses || insights.recentResponses.length === 0) {
+    return 'No meal-glucose data available.';
+  }
+  
+  const total = insights.recentResponses.length;
+  const avgMetrics = insights.avgMetrics;
+  
+  if (!avgMetrics) {
+    return `${total} meals analyzed with glucose responses.`;
+  }
+  
+  const avgPeak = Math.round(avgMetrics.avg_peak);
+  const avgDelta = Math.round(avgMetrics.avg_delta);
+  const gradeA = avgMetrics.grade_a_count || 0;
+  const gradeD = avgMetrics.grade_d_count || 0;
+  
+  let summary = `${total} meals analyzed. Average peak glucose: ${avgPeak} mg/dL (+${avgDelta} from baseline).`;
+  
+  if (gradeA > 0) {
+    summary += ` ${gradeA} excellent responses (grade A).`;
+  }
+  if (gradeD > 0) {
+    summary += ` ${gradeD} concerning responses (grade D) with significant spikes.`;
+  }
+  
+  if (insights.topSpikers && insights.topSpikers.length > 0) {
+    const topSpiker = insights.topSpikers[0];
+    summary += ` Top spike-causing meal source: ${topSpiker.meal_source || 'unknown'} (avg delta: +${Math.round(topSpiker.avg_delta)} mg/dL).`;
+  }
+  
+  return summary;
 }
