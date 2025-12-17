@@ -58,7 +58,8 @@ interface MorningBriefingProps {
   onTalkToFlo?: (context: string) => void;
 }
 
-function getWeatherIcon(condition: string) {
+function getWeatherIcon(condition: string | undefined | null) {
+  if (!condition) return Sun;
   const lowerCondition = condition.toLowerCase();
   if (lowerCondition.includes('rain') || lowerCondition.includes('shower')) {
     return CloudRain;
