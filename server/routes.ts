@@ -17100,8 +17100,9 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       
       // If no Dexcom readings, try HealthKit glucose samples
       if (readings.length === 0) {
-        logger.info('[CGM] No Dexcom readings, checking HealthKit glucose samples');
+        logger.info('[CGM] No Dexcom readings, checking HealthKit glucose samples', { userId });
         const healthId = await healthRouter.getHealthId(userId);
+        logger.info('[CGM] HealthKit fallback lookup', { userId, healthId: healthId || 'NOT_FOUND' });
         
         if (healthId) {
           // Query healthkit_samples for glucose data
@@ -17113,6 +17114,18 @@ If there's nothing worth remembering, just respond with "No brain updates needed
             logger.error('[CGM] Supabase client not available for HealthKit glucose fallback');
           }
           
+          // First check what data_types exist for this user
+          const { data: existingTypes, error: typesError } = supabaseClient
+            ? await supabaseClient
+                .from('healthkit_samples')
+                .select('data_type')
+                .eq('health_id', healthId)
+                .limit(100)
+            : { data: null, error: new Error('Supabase client not available') };
+          
+          const uniqueTypes = existingTypes ? [...new Set(existingTypes.map((r: any) => r.data_type))] : [];
+          logger.info('[CGM] HealthKit samples data_types for user', { healthId, uniqueTypes, sampleCount: existingTypes?.length || 0 });
+          
           const { data: healthkitGlucose, error: hkError } = supabaseClient 
             ? await supabaseClient
                 .from('healthkit_samples')
@@ -17123,6 +17136,14 @@ If there's nothing worth remembering, just respond with "No brain updates needed
                 .lte('start_date', endDate.toISOString())
                 .order('start_date', { ascending: true })
             : { data: null, error: new Error('Supabase client not available') };
+          
+          logger.info('[CGM] HealthKit glucose query result', { 
+            healthId, 
+            found: healthkitGlucose?.length || 0, 
+            error: hkError?.message || null,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString()
+          });
           
           if (!hkError && healthkitGlucose && healthkitGlucose.length > 0) {
             logger.info(`[CGM] Found ${healthkitGlucose.length} HealthKit glucose samples`);
