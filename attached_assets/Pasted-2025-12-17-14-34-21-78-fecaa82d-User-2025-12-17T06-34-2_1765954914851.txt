@@ -1,0 +1,40 @@
+2025-12-17 14:34:21.78
+fecaa82d
+User
+[2025-12-17T06:34:21.781Z] [INFO] [Dexcom] Generated OAuth URL for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-17 14:34:48.77
+fecaa82d
+User
+[2025-12-17T06:34:48.779Z] [INFO] [Dexcom] Connection saved for health_id 29d2a63e-44a2-472c-a825-89be5a07cbeb
+2025-12-17 14:34:48.77
+fecaa82d
+User
+[2025-12-17T06:34:48.779Z] [INFO] [Dexcom] Successfully connected for user 095f8978-a3ad-4fe1-af39-1bba9b6e8d78
+2025-12-17 14:34:49.34
+fecaa82d
+User
+[2025-12-17T06:34:49.342Z] [ERROR] [Dexcom] Failed to fetch EGVs: {"error":{"status":400,"error":"{\"path\":\"/egvs\",\"message\":\"Invalid Date Range Error\",\"errors\":[{\"parameter\":\"dateRange\",\"detail\":\"Invalid startDate and/or endDate format. Please provide in format: YYYY-MM-DDThh:mm:ss\"}]}"}}
+2025-12-17 14:34:49.58
+fecaa82d
+User
+[2025-12-17T06:34:49.584Z] [INFO] [Dexcom] Initial sync: 0 readings
+2025-12-17 14:40:00.85
+fecaa82d
+User
+[2025-12-17T06:40:00.857Z] [ERROR] [Dexcom] Failed to fetch EGVs: {"error":{"status":400,"error":"{\"path\":\"/egvs\",\"message\":\"Invalid Date Range Error\",\"errors\":[{\"parameter\":\"dateRange\",\"detail\":\"Invalid startDate and/or endDate format. Please provide in format: YYYY-MM-DDThh:mm:ss\"}]}"}}
+2025-12-17 14:45:01.02
+fecaa82d
+User
+[2025-12-17T06:45:01.028Z] [ERROR] [Dexcom] Failed to fetch EGVs: {"error":{"status":400,"error":"{\"path\":\"/egvs\",\"message\":\"Invalid Date Range Error\",\"errors\":[{\"parameter\":\"dateRange\",\"detail\":\"Invalid startDate and/or endDate format. Please provide in format: YYYY-MM-DDThh:mm:ss\"}]}"}}
+2025-12-17 14:50:01.01
+fecaa82d
+User
+[2025-12-17T06:50:01.013Z] [ERROR] [Dexcom] Failed to fetch EGVs: {"error":{"status":400,"error":"{\"path\":\"/egvs\",\"message\":\"Invalid Date Range Error\",\"errors\":[{\"parameter\":\"dateRange\",\"detail\":\"Invalid startDate and/or endDate format. Please provide in format: YYYY-MM-DDThh:mm:ss\"}]}"}}
+2025-12-17 14:55:01.22
+fecaa82d
+User
+[2025-12-17T06:55:01.222Z] [ERROR] [Dexcom] Failed to fetch EGVs: {"error":{"status":400,"error":"{\"path\":\"/egvs\",\"message\":\"Invalid Date Range Error\",\"errors\":[{\"parameter\":\"dateRange\",\"detail\":\"Invalid startDate and/or endDate format. Please provide in format: YYYY-MM-DDThh:mm:ss\"}]}"}}
+2025-12-17 15:00:01.00
+fecaa82d
+User
+[2025-12-17T07:00:01.003Z] [ERROR] [Dexcom] Failed to fetch EGVs: {"error":{"status":400,"error":"{\"path\":\"/egvs\",\"message\":\"Invalid Date Range Error\",\"errors\":[{\"parameter\":\"dateRange\",\"detail\":\"Invalid startDate and/or endDate format. Please provide in format: YYYY-MM-DDThh:mm:ss\"}]}"}}

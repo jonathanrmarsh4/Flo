@@ -283,10 +283,15 @@ export class DexcomService {
     }
   }
 
+  // Format date to Dexcom's required format: YYYY-MM-DDThh:mm:ss (no milliseconds, no timezone)
+  private formatDexcomDate(date: Date): string {
+    return date.toISOString().replace(/\.\d{3}Z$/, '');
+  }
+
   async fetchEGVs(accessToken: string, startDate: Date, endDate: Date): Promise<DexcomEGVResponse | null> {
     const params = new URLSearchParams({
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString(),
+      startDate: this.formatDexcomDate(startDate),
+      endDate: this.formatDexcomDate(endDate),
     });
 
     const response = await fetch(`${this.baseUrl}/v3/users/self/egvs?${params}`, {
