@@ -51,10 +51,10 @@ export function BodyCompositionTile({ isDark, onTalkToFlo }: BodyCompositionTile
   if (tileLoading) {
     return (
       <div 
-        className={`backdrop-blur-xl rounded-2xl border p-5 animate-pulse ${
+        className={`backdrop-blur-xl rounded-3xl border p-5 animate-pulse ${
           isDark 
-            ? 'bg-white/5 border-white/10' 
-            : 'bg-white/60 border-black/10'
+            ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+            : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
         }`}
         data-testid="tile-body-composition-loading"
       >
@@ -130,10 +130,10 @@ export function BodyCompositionTile({ isDark, onTalkToFlo }: BodyCompositionTile
     <>
       <div 
         onClick={() => setShowModule(true)}
-        className={`backdrop-blur-xl rounded-2xl border p-5 transition-all cursor-pointer hover:scale-[1.01] ${
+        className={`backdrop-blur-xl rounded-3xl border p-5 transition-all cursor-pointer hover:scale-[1.01] ${
           isDark 
-            ? 'bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-white/10 hover:border-white/20' 
-            : 'bg-gradient-to-br from-white to-gray-50 border-gray-200 hover:border-gray-300'
+            ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20 hover:border-white/30' 
+            : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10 hover:border-black/20'
         }`}
         data-testid="tile-body-composition"
       >

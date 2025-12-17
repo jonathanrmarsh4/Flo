@@ -35,17 +35,21 @@ export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
     <motion.button
       onClick={onTap}
       whileTap={{ scale: 0.98 }}
-      className="w-full text-left rounded-3xl backdrop-blur-xl border border-white/20 p-5 bg-gradient-to-br from-purple-900/40 via-indigo-900/40 to-teal-900/40 shadow-xl"
+      className={`w-full text-left rounded-3xl backdrop-blur-xl border p-5 transition-all ${
+        isDark 
+          ? 'bg-gradient-to-br from-purple-900/40 via-blue-900/40 to-teal-900/40 border-white/20' 
+          : 'bg-gradient-to-br from-purple-50 via-blue-50 to-teal-50 border-black/10'
+      }`}
       data-testid="tile-insights"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-teal-400" />
-          <span className="text-xs tracking-wide text-white/60">INSIGHTS</span>
+          <Sparkles className={`w-4 h-4 ${isDark ? 'text-teal-400' : 'text-teal-600'}`} />
+          <span className={`text-xs tracking-wide ${isDark ? 'text-white/60' : 'text-gray-600'}`}>INSIGHTS</span>
         </div>
         {newCount > 0 && (
-          <span className="text-[10px] bg-teal-500/30 text-teal-400 px-2 py-0.5 rounded-full">
+          <span className={`text-[10px] px-2 py-0.5 rounded-full ${isDark ? 'bg-teal-500/30 text-teal-400' : 'bg-teal-100 text-teal-700'}`}>
             {newCount} new
           </span>
         )}
@@ -69,8 +73,8 @@ export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
         </div>
       ) : (
         <div className="text-center py-6">
-          <Search className="w-10 h-10 text-white/40 mx-auto mb-2" />
-          <p className="text-xs text-white/60">
+          <Search className={`w-10 h-10 mx-auto mb-2 ${isDark ? 'text-white/40' : 'text-gray-400'}`} />
+          <p className={`text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
             Building your insights...
           </p>
         </div>
@@ -79,7 +83,7 @@ export function InsightsTile({ isDark, onTap }: InsightsTileProps) {
       {/* Footer CTA */}
       {topInsights.length > 0 && (
         <div className="text-center mt-4">
-          <span className="text-xs text-teal-400">See all insights →</span>
+          <span className={`text-xs ${isDark ? 'text-teal-400' : 'text-teal-600'}`}>See all insights →</span>
         </div>
       )}
     </motion.button>
