@@ -10108,6 +10108,36 @@ Important: This is for educational purposes. Include a brief note that users sho
         })();
       }
 
+      // Process meal-glucose correlations when glucose samples arrive (non-blocking)
+      const glucoseTypes = ['HKQuantityTypeIdentifierBloodGlucose', 'bloodGlucose', 'BloodGlucose'];
+      const hasGlucoseSamples = samples.some((s: any) => glucoseTypes.includes(s.dataType));
+      
+      if (hasGlucoseSamples && inserted > 0) {
+        setImmediate(async () => {
+          try {
+            const { isClickHouseEnabled } = await import('./services/clickhouseService');
+            if (isClickHouseEnabled()) {
+              const { processMealGlucoseCorrelations } = await import('./services/mealGlucoseCorrelator');
+              const { getHealthId } = await import('./services/supabaseHealthStorage');
+              const healthId = await getHealthId(userId);
+              
+              // Process correlations for the window of samples received
+              const sampleTimes = samples.filter((s: any) => glucoseTypes.includes(s.dataType))
+                .map((s: any) => new Date(s.startDate).getTime());
+              const startDate = new Date(Math.min(...sampleTimes) - 3 * 60 * 60 * 1000); // Look back 3hrs for meals
+              const endDate = new Date(Math.max(...sampleTimes));
+              
+              const result = await processMealGlucoseCorrelations(healthId, startDate, endDate);
+              if (result.stored > 0) {
+                logger.info(`[MealGlucose] Processed ${result.processed} meals, stored ${result.stored} responses for ${userId}`);
+              }
+            }
+          } catch (mealGlucoseError: any) {
+            logger.warn(`[MealGlucose] Background correlation failed for ${userId}:`, mealGlucoseError.message);
+          }
+        });
+      }
+
       res.json({ 
         inserted,
         duplicates,

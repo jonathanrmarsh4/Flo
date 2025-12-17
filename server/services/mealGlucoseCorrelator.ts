@@ -105,7 +105,8 @@ export async function processMealGlucoseCorrelations(
 
   try {
     // Get nutrition and glucose samples from Supabase
-    const { isSupabaseHealthEnabled, getSupabaseClient } = await import('./healthStorageRouter');
+    const { isSupabaseHealthEnabled } = await import('./healthStorageRouter');
+    const { getSupabaseClient } = await import('./supabaseClient');
     
     if (!isSupabaseHealthEnabled()) {
       logger.warn('[MealGlucose] Supabase not enabled, cannot process');
