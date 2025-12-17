@@ -117,6 +117,187 @@ const FACTOR_CATEGORIES = {
   LOCATION: 'location',
 } as const;
 
+/**
+ * METRIC-TO-FACTOR RELEVANCE WHITELIST
+ * Maps outcome metrics to the factor categories/keys that have SCIENTIFIC BASIS to affect them.
+ * This prevents spurious correlations like "magnesium supplement → active calorie burn"
+ * 
+ * If a factor category is not listed for an outcome metric, it cannot be cited as a "likely cause"
+ * This enforces causal plausibility, not just statistical correlation.
+ */
+const METRIC_FACTOR_RELEVANCE: Record<string, {
+  allowedCategories: string[];
+  allowedFactorKeys?: string[]; // If provided, only these specific keys within allowed categories
+  blockedFactorKeys?: string[]; // Explicitly blocked keys even if category is allowed
+}> = {
+  // Activity metrics - TIGHTLY constrained to only factors with direct causal evidence
+  // Only workout parameters and actual illness/injury markers can affect activity output
+  active_energy: {
+    allowedCategories: ['workout', 'recovery', 'life_event'],
+    allowedFactorKeys: [
+      'total_duration_min', 'workout_count', 'avg_intensity', 'max_intensity',
+      'first_workout_time', 'cardio_minutes', 'strength_minutes',
+      'sleep_score', 'recovery_score',
+      'illness', 'injury', 'travel', 'sick_day', 'rest_day',
+    ],
+  },
+  active_calories: {
+    allowedCategories: ['workout', 'recovery', 'life_event'],
+    allowedFactorKeys: [
+      'total_duration_min', 'workout_count', 'avg_intensity', 'max_intensity',
+      'first_workout_time', 'cardio_minutes', 'strength_minutes',
+      'sleep_score', 'recovery_score',
+      'illness', 'injury', 'travel', 'sick_day', 'rest_day',
+    ],
+  },
+  workout_minutes: {
+    allowedCategories: ['workout', 'recovery', 'life_event'],
+    allowedFactorKeys: [
+      'total_duration_min', 'workout_count', 'avg_intensity',
+      'sleep_score', 'recovery_score',
+      'illness', 'injury', 'travel', 'sick_day', 'rest_day',
+    ],
+  },
+  steps: {
+    allowedCategories: ['workout', 'recovery', 'life_event', 'environment'],
+    allowedFactorKeys: [
+      'total_duration_min', 'walking_minutes',
+      'sleep_score', 'recovery_score',
+      'illness', 'injury', 'travel', 'sick_day', 'rest_day',
+      'temperature_c', 'precipitation',
+    ],
+  },
+  exercise_time: {
+    allowedCategories: ['workout', 'recovery', 'life_event'],
+    allowedFactorKeys: [
+      'total_duration_min', 'workout_count',
+      'sleep_score', 'recovery_score',
+      'illness', 'injury', 'travel', 'sick_day', 'rest_day',
+    ],
+  },
+  training_load: {
+    allowedCategories: ['workout', 'recovery'],
+    allowedFactorKeys: [
+      'total_duration_min', 'workout_count', 'avg_intensity', 'max_intensity',
+      'sleep_score', 'recovery_score',
+    ],
+  },
+
+  // Sleep metrics - influenced by supplements (melatonin, magnesium), lifestyle, environment
+  sleep_duration: {
+    allowedCategories: ['supplement', 'lifestyle', 'nutrition', 'environment', 'life_event'],
+    allowedFactorKeys: ['caffeine_mg', 'alcohol_units', 'last_meal_time', 'supplement_magnesium', 'supplement_melatonin', 'supplement_glycine'],
+  },
+  sleep_efficiency: {
+    allowedCategories: ['supplement', 'lifestyle', 'nutrition', 'environment', 'life_event'],
+    allowedFactorKeys: ['caffeine_mg', 'alcohol_units', 'last_meal_time', 'supplement_magnesium', 'supplement_melatonin'],
+  },
+  deep_sleep_minutes: {
+    allowedCategories: ['supplement', 'lifestyle', 'nutrition', 'environment', 'workout', 'life_event'],
+    allowedFactorKeys: ['caffeine_mg', 'alcohol_units', 'supplement_magnesium', 'supplement_melatonin', 'workout_intensity'],
+  },
+  rem_sleep_minutes: {
+    allowedCategories: ['supplement', 'lifestyle', 'nutrition', 'environment', 'life_event'],
+  },
+  time_in_bed: {
+    allowedCategories: ['lifestyle', 'life_event', 'environment'],
+  },
+  
+  // HRV - influenced by recovery, sleep, stress, alcohol, training load
+  hrv: {
+    allowedCategories: ['workout', 'recovery', 'nutrition', 'lifestyle', 'environment', 'life_event'],
+    allowedFactorKeys: ['alcohol_units', 'caffeine_mg', 'workout_intensity', 'sleep_score', 'training_load'],
+  },
+  hrv_rmssd: {
+    allowedCategories: ['workout', 'recovery', 'nutrition', 'lifestyle', 'environment', 'life_event'],
+    allowedFactorKeys: ['alcohol_units', 'caffeine_mg', 'workout_intensity', 'sleep_score', 'training_load'],
+  },
+  
+  // Resting heart rate - influenced by fitness, recovery, stress, illness
+  resting_heart_rate: {
+    allowedCategories: ['workout', 'recovery', 'nutrition', 'lifestyle', 'environment', 'life_event'],
+    allowedFactorKeys: ['alcohol_units', 'caffeine_mg', 'workout_intensity', 'training_load'],
+  },
+
+  // Body composition - influenced by nutrition, workouts
+  weight: {
+    allowedCategories: ['nutrition', 'workout', 'lifestyle', 'life_event'],
+    allowedFactorKeys: ['total_calories', 'protein_g', 'carbs_g', 'fat_g', 'sodium_mg', 'water_intake'],
+  },
+  body_fat_percentage: {
+    allowedCategories: ['nutrition', 'workout', 'lifestyle'],
+  },
+  
+  // Blood glucose - influenced by nutrition, activity
+  blood_glucose: {
+    allowedCategories: ['nutrition', 'workout', 'lifestyle', 'supplement'],
+    allowedFactorKeys: ['total_calories', 'carbs_g', 'sugar_g', 'fiber_g', 'workout_minutes', 'supplement_berberine', 'supplement_chromium'],
+  },
+};
+
+/**
+ * Normalize a factor key for comparison - strip prefixes, underscores, lowercase
+ */
+function normalizeFactorKey(key: string): string {
+  return key
+    .toLowerCase()
+    .replace(/^(supplement_|life_event_|workout_|recovery_|nutrition_|lifestyle_|environment_)/, '')
+    .replace(/[-_\s]+/g, '_')
+    .trim();
+}
+
+/**
+ * Check if a factor is scientifically relevant to an outcome metric.
+ * Uses EXACT MATCH after normalization to prevent loose matches.
+ */
+function isFactorRelevantToOutcome(
+  outcomeMetric: string,
+  factorCategory: string,
+  factorKey: string
+): boolean {
+  // Normalize the metric name (handle variations)
+  const normalizedMetric = outcomeMetric.toLowerCase().replace(/[-_\s]/g, '_');
+  const normalizedKey = normalizeFactorKey(factorKey);
+  
+  // Check if we have explicit rules for this metric
+  const rules = METRIC_FACTOR_RELEVANCE[normalizedMetric];
+  
+  if (!rules) {
+    // No explicit rules - BLOCK all factors for unknown metrics
+    // This is a conservative approach - better to miss an insight than show spurious ones
+    logger.debug(`[BehaviorAttribution] No rules defined for metric ${outcomeMetric} - blocking all factors`);
+    return false;
+  }
+  
+  // Check if category is allowed
+  if (!rules.allowedCategories.includes(factorCategory)) {
+    logger.debug(`[BehaviorAttribution] Category ${factorCategory} not relevant to ${outcomeMetric}`);
+    return false;
+  }
+  
+  // Check if factor key is explicitly blocked
+  if (rules.blockedFactorKeys) {
+    const normalizedBlocked = rules.blockedFactorKeys.map(k => normalizeFactorKey(k));
+    if (normalizedBlocked.includes(normalizedKey)) {
+      logger.debug(`[BehaviorAttribution] Factor ${factorKey} explicitly blocked for ${outcomeMetric}`);
+      return false;
+    }
+  }
+  
+  // If allowedFactorKeys is specified, require EXACT MATCH (after normalization)
+  if (rules.allowedFactorKeys && rules.allowedFactorKeys.length > 0) {
+    const normalizedAllowed = rules.allowedFactorKeys.map(k => normalizeFactorKey(k));
+    const isAllowed = normalizedAllowed.includes(normalizedKey);
+    
+    if (!isAllowed) {
+      logger.debug(`[BehaviorAttribution] Factor ${factorKey} (normalized: ${normalizedKey}) not in exact whitelist for ${outcomeMetric}. Allowed: ${normalizedAllowed.join(', ')}`);
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 export class BehaviorAttributionEngine {
   private initialized = false;
 
@@ -1002,7 +1183,8 @@ export class BehaviorAttributionEngine {
   private async enrichWithBaselines(healthId: string, localDate: string, factors: BehaviorFactor[]): Promise<void> {
     if (!isClickHouseEnabled()) return;
 
-    // Calculate 30-day baselines for each factor
+    // Calculate 30-day baselines for each factor with IQR-based outlier filtering
+    // This prevents erroneous data points from skewing baselines
     const startDate = new Date(localDate);
     startDate.setDate(startDate.getDate() - 30);
     const startDateStr = startDate.toISOString().split('T')[0];
@@ -1011,20 +1193,44 @@ export class BehaviorAttributionEngine {
       if (factor.numeric_value == null) continue;
 
       try {
+        // Use IQR-based outlier filtering to calculate robust baselines
+        // This excludes values outside [Q1 - 1.5*IQR, Q3 + 1.5*IQR] from the average
         const baselineQuery = `
+          WITH percentiles AS (
+            SELECT
+              quantile(0.25)(numeric_value) as q1,
+              quantile(0.75)(numeric_value) as q3
+            FROM flo_health.daily_behavior_factors
+            WHERE health_id = {healthId:String}
+              AND factor_category = {category:String}
+              AND factor_key = {factorKey:String}
+              AND local_date >= {startDate:Date}
+              AND local_date < {localDate:Date}
+              AND numeric_value IS NOT NULL
+          )
           SELECT 
-            avg(numeric_value) as mean_value,
-            stddevPop(numeric_value) as std_dev
-          FROM flo_health.daily_behavior_factors
-          WHERE health_id = {healthId:String}
-            AND factor_category = {category:String}
-            AND factor_key = {factorKey:String}
-            AND local_date >= {startDate:Date}
-            AND local_date < {localDate:Date}
-            AND numeric_value IS NOT NULL
+            avg(f.numeric_value) as mean_value,
+            stddevPop(f.numeric_value) as std_dev,
+            count() as sample_count
+          FROM flo_health.daily_behavior_factors f
+          CROSS JOIN percentiles p
+          WHERE f.health_id = {healthId:String}
+            AND f.factor_category = {category:String}
+            AND f.factor_key = {factorKey:String}
+            AND f.local_date >= {startDate:Date}
+            AND f.local_date < {localDate:Date}
+            AND f.numeric_value IS NOT NULL
+            -- IQR-based outlier filtering: exclude values outside [Q1 - 1.5*IQR, Q3 + 1.5*IQR]
+            -- When IQR is negligible (< 0.01), skip filtering to avoid floating-point issues
+            AND (
+              (p.q3 - p.q1) < 0.01 OR (
+                f.numeric_value >= p.q1 - 1.5 * (p.q3 - p.q1)
+                AND f.numeric_value <= p.q3 + 1.5 * (p.q3 - p.q1)
+              )
+            )
         `;
 
-        const result = await clickhouse.query<{ mean_value: number; std_dev: number }>(
+        const result = await clickhouse.query<{ mean_value: number; std_dev: number; sample_count: number }>(
           baselineQuery,
           {
             healthId,
@@ -1035,7 +1241,19 @@ export class BehaviorAttributionEngine {
           }
         );
 
+        // MINIMUM SAMPLE REQUIREMENT: Need at least 7 days of data for reliable baseline
+        // This prevents single bad data points from dominating the baseline
+        const MIN_SAMPLES_FOR_BASELINE = 7;
+        
         if (result.length > 0 && result[0].mean_value != null) {
+          const sampleCount = result[0].sample_count;
+          
+          if (sampleCount < MIN_SAMPLES_FOR_BASELINE) {
+            // Insufficient data - skip baseline calculation entirely rather than use unreliable data
+            logger.debug(`[BehaviorAttribution] Skipping baseline for ${factor.factor_key}: only ${sampleCount} samples (need ${MIN_SAMPLES_FOR_BASELINE}+)`);
+            continue;
+          }
+          
           const baseline = result[0].mean_value;
           const stdDev = result[0].std_dev || 1;
           const deviation = baseline > 0 
@@ -1045,10 +1263,12 @@ export class BehaviorAttributionEngine {
           factor.baseline_value = baseline;
           factor.deviation_from_baseline = deviation;
           
-          // Mark as notable if deviation is significant (>30%)
-          if (Math.abs(deviation) >= 30) {
+          // Mark as notable if deviation is significant (>40%) - raised from 30% for more selectivity
+          if (Math.abs(deviation) >= 40) {
             factor.is_notable = true;
           }
+          
+          logger.debug(`[BehaviorAttribution] IQR-filtered baseline for ${factor.factor_key}: ${baseline.toFixed(2)} (${sampleCount} samples, deviation: ${deviation.toFixed(1)}%)`);
         }
       } catch (error) {
         logger.debug(`[BehaviorAttribution] Could not calculate baseline for ${factor.factor_key}:`, error as Error);
@@ -1080,7 +1300,7 @@ export class BehaviorAttributionEngine {
           AND local_date = {anomalyDate:Date}
           AND (is_notable = 1 OR abs(deviation_from_baseline) >= 25)
         ORDER BY abs(deviation_from_baseline) DESC
-        LIMIT 10
+        LIMIT 20
       `;
 
       const factors = await clickhouse.query<{
@@ -1093,7 +1313,19 @@ export class BehaviorAttributionEngine {
         is_notable: number;
       }>(query, { healthId, anomalyDate });
 
-      return factors.map(f => ({
+      // CRITICAL: Filter factors by scientific relevance to the outcome metric
+      // This prevents spurious correlations like "magnesium supplement → active calories"
+      const relevantFactors = factors.filter(f => {
+        const isRelevant = isFactorRelevantToOutcome(outcomeMetric, f.factor_category, f.factor_key);
+        if (!isRelevant) {
+          logger.debug(`[BehaviorAttribution] Filtered out irrelevant factor: ${f.factor_category}/${f.factor_key} for metric ${outcomeMetric}`);
+        }
+        return isRelevant;
+      });
+
+      logger.info(`[BehaviorAttribution] Filtered ${factors.length} factors to ${relevantFactors.length} scientifically relevant factors for ${outcomeMetric}`);
+
+      return relevantFactors.slice(0, 10).map(f => ({
         category: f.factor_category,
         key: f.factor_key,
         value: f.numeric_value != null ? f.numeric_value.toString() : (f.string_value || ''),

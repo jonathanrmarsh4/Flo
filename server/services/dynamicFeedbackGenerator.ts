@@ -610,6 +610,75 @@ Respond with JSON only:
         positivePatternsCount: mlAttribution.positivePatterns.length,
       });
       
+      // QUALITY GATE: Stricter evidence requirements for generating insights
+      // These gates prevent speculative/low-quality insights from reaching users
+      
+      // Gate 1: Only count HIGH or MEDIUM contribution causes - ignore LOW contribution
+      // This filters out weak correlations that don't meaningfully explain the anomaly
+      const significantCauses = mlAttribution.rankedCauses.filter(c => 
+        c.contribution === 'high' || c.contribution === 'medium'
+      );
+      const validCausesCount = significantCauses.length;
+      
+      // Require at least 2 significant causes OR strong historical pattern (3+ matches with 50%+ confidence)
+      const hasStrongHistoricalPattern = mlAttribution.historicalPattern?.matchCount && 
+        mlAttribution.historicalPattern.matchCount >= 3 &&
+        mlAttribution.historicalPattern.confidence >= 0.5;
+      
+      const hasMinimumEvidence = validCausesCount >= 2 || hasStrongHistoricalPattern;
+      
+      if (!hasMinimumEvidence) {
+        logger.info('[FeedbackGenerator] QUALITY GATE 1 FAILED: Insufficient causal evidence', {
+          healthId,
+          metricType: anomaly.metricType,
+          totalCauses: mlAttribution.rankedCauses.length,
+          significantCauses: validCausesCount,
+          lowContributionFiltered: mlAttribution.rankedCauses.length - validCausesCount,
+          patternMatches: mlAttribution.historicalPattern?.matchCount || 0,
+          patternConfidence: mlAttribution.historicalPattern?.confidence || 0,
+        });
+        return null;
+      }
+      
+      // Gate 2: Require minimum deviation magnitude to filter out noise
+      // Activity metrics need 30%+ deviation, sleep/HRV need 20%+, others 25%+
+      const MIN_DEVIATION_BY_METRIC: Record<string, number> = {
+        active_energy: 30, active_calories: 30, workout_minutes: 30, steps: 30,
+        hrv: 20, hrv_rmssd: 20, sleep_duration: 20, deep_sleep: 20,
+      };
+      const normalizedMetric = anomaly.metricType.toLowerCase().replace(/[-_\s]/g, '_');
+      const minDeviation = MIN_DEVIATION_BY_METRIC[normalizedMetric] || 25;
+      
+      if (Math.abs(anomaly.deviationPct) < minDeviation) {
+        logger.info('[FeedbackGenerator] QUALITY GATE 2 FAILED: Deviation too small to be meaningful', {
+          healthId,
+          metricType: anomaly.metricType,
+          deviationPct: anomaly.deviationPct,
+          threshold: minDeviation,
+        });
+        return null;
+      }
+      
+      // Gate 3: Calculate overall quality score and require minimum threshold
+      const qualityScore = this.calculateInsightQualityScore(mlAttribution, anomaly);
+      const MIN_QUALITY_THRESHOLD = 0.4; // Raised from 0.3 for stricter filtering
+      
+      if (qualityScore < MIN_QUALITY_THRESHOLD) {
+        logger.info('[FeedbackGenerator] QUALITY GATE 3 FAILED: Quality score below threshold', {
+          healthId,
+          metricType: anomaly.metricType,
+          qualityScore,
+          threshold: MIN_QUALITY_THRESHOLD,
+        });
+        return null;
+      }
+      
+      logger.info('[FeedbackGenerator] All quality gates passed', { 
+        qualityScore, 
+        validCausesCount,
+        deviationPct: anomaly.deviationPct,
+      });
+      
       const metricName = METRIC_DISPLAY_NAMES[anomaly.metricType] || anomaly.metricType;
       const direction = anomaly.direction === 'above' ? 'higher' : 'lower';
       const pct = Math.abs(Math.round(anomaly.deviationPct));
@@ -746,6 +815,60 @@ Respond with JSON only:
       logger.error('[FeedbackGenerator] Error generating smart insight', { error });
       return null;
     }
+  }
+
+  /**
+   * Calculate insight quality score based on evidence strength.
+   * Higher scores indicate more trustworthy insights.
+   * 
+   * Stricter scoring factors:
+   * - Number of scientifically relevant causes with high contribution (0-0.35)
+   * - Historical pattern matches with sufficient confidence (0-0.35)  
+   * - Deviation significance above noise threshold (0-0.30)
+   */
+  private calculateInsightQualityScore(
+    mlAttribution: MLAttribution,
+    anomaly: AnomalyResult
+  ): number {
+    let score = 0;
+    
+    // Factor 1: Number of valid causes with high/medium contribution (max 0.35)
+    // Only count causes with meaningful contribution levels
+    const highContributionCauses = mlAttribution.rankedCauses.filter(c => 
+      c.contribution === 'high' || c.contribution === 'medium'
+    ).length;
+    const causesScore = Math.min(0.35, highContributionCauses * 0.12); // Need 3 high/medium causes for max
+    score += causesScore;
+    
+    // Factor 2: Historical pattern matches (max 0.35)
+    // Require 3+ matches AND 40%+ confidence for full credit
+    const patternMatches = mlAttribution.historicalPattern?.matchCount || 0;
+    const patternConfidence = mlAttribution.historicalPattern?.confidence || 0;
+    
+    if (patternMatches >= 3 && patternConfidence >= 0.4) {
+      // Strong pattern - full credit
+      score += 0.35;
+    } else if (patternMatches >= 2 && patternConfidence >= 0.3) {
+      // Moderate pattern - partial credit
+      score += 0.2;
+    } else if (patternMatches >= 1) {
+      // Weak pattern - minimal credit
+      score += 0.1;
+    }
+    
+    // Factor 3: Deviation significance (max 0.30)
+    // Larger deviations are more meaningful - need 50%+ for full score
+    const deviationMagnitude = Math.abs(anomaly.deviationPct);
+    if (deviationMagnitude >= 50) {
+      score += 0.30;
+    } else if (deviationMagnitude >= 35) {
+      score += 0.20;
+    } else if (deviationMagnitude >= 25) {
+      score += 0.10;
+    }
+    // Below 25% deviation gets no score contribution
+    
+    return Math.min(1, score);
   }
 
   private formatFactorDescription(category: string, key: string): string {
