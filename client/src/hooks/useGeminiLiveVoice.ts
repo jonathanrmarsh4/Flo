@@ -94,7 +94,7 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const initializedRef = useRef(false);
   if (!initializedRef.current) {
     initializedRef.current = true;
-    console.log('[GeminiLive] HOOK INITIALIZED - v4 ' + new Date().toISOString());
+    console.log('[GeminiLive] HOOK INITIALIZED - v5 ' + new Date().toISOString());
   }
   
   const [state, setState] = useState<GeminiLiveState>({
@@ -125,6 +125,16 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   
   // Minimum batch size in samples (target ~200ms of audio at 24kHz = 4800 samples)
   const MIN_BATCH_SAMPLES = 4800;
+  
+  // ===== FREEZE DETECTION & AUTO-RECONNECT =====
+  const lastAudioReceivedRef = useRef<number>(Date.now());
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const freezeCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptRef = useRef<number>(0);
+  const isReconnectingRef = useRef<boolean>(false);
+  const MAX_RECONNECT_ATTEMPTS = 3;
+  const FREEZE_TIMEOUT_MS = 8000; // Consider frozen if no audio for 8 seconds
+  const HEARTBEAT_INTERVAL_MS = 15000; // Send heartbeat every 15 seconds
 
   // Wake lock management - keeps screen awake during voice chat
   const acquireWakeLock = useCallback(async () => {
@@ -300,6 +310,9 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   // Decode and queue incoming audio (24kHz PCM from Gemini)
   // Batches small chunks together for smooth playback
   const handleAudioData = useCallback(async (base64Audio: string) => {
+    // Track last audio received for freeze detection
+    lastAudioReceivedRef.current = Date.now();
+    
     try {
       // Initialize playback context if needed (24kHz to match Gemini output)
       if (!playbackContextRef.current) {
@@ -421,6 +434,57 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
               setState(prev => ({ ...prev, isConnected: true }));
               // Acquire wake lock to keep screen on during voice chat
               acquireWakeLock();
+              
+              // Reset reconnect counter on successful connect
+              reconnectAttemptRef.current = 0;
+              isReconnectingRef.current = false;
+              lastAudioReceivedRef.current = Date.now();
+              
+              // Start heartbeat - send ping every 15 seconds to keep connection alive
+              if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
+              heartbeatIntervalRef.current = setInterval(() => {
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  try {
+                    wsRef.current.send(JSON.stringify({ type: 'ping' }));
+                    console.log('[GeminiLive] Heartbeat ping sent');
+                  } catch (e) {
+                    console.error('[GeminiLive] Failed to send heartbeat');
+                  }
+                }
+              }, HEARTBEAT_INTERVAL_MS);
+              
+              // Start freeze detection - check if audio stopped flowing
+              if (freezeCheckIntervalRef.current) clearInterval(freezeCheckIntervalRef.current);
+              freezeCheckIntervalRef.current = setInterval(() => {
+                const timeSinceLastAudio = Date.now() - lastAudioReceivedRef.current;
+                
+                // Only check for freeze if we're supposed to be connected and speaking
+                if (wsRef.current?.readyState === WebSocket.OPEN && timeSinceLastAudio > FREEZE_TIMEOUT_MS) {
+                  console.warn('[GeminiLive] FREEZE DETECTED - No audio for', (timeSinceLastAudio / 1000).toFixed(1), 'seconds');
+                  
+                  // Trigger auto-reconnect
+                  if (!isReconnectingRef.current && reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+                    isReconnectingRef.current = true;
+                    reconnectAttemptRef.current++;
+                    console.log('[GeminiLive] Attempting auto-reconnect, attempt', reconnectAttemptRef.current, 'of', MAX_RECONNECT_ATTEMPTS);
+                    
+                    // Close current connection and reconnect
+                    try {
+                      wsRef.current?.close();
+                    } catch (e) {}
+                    
+                    // Reconnect after brief delay
+                    setTimeout(() => {
+                      if (isReconnectingRef.current) {
+                        options.onError?.('Connection froze - reconnecting...');
+                        // The onclose handler will be called, but we set isReconnecting flag
+                        // so we can distinguish between user-initiated close and freeze-recovery
+                      }
+                    }, 500);
+                  }
+                }
+              }, 2000); // Check every 2 seconds
+              
               options.onConnected?.();
               break;
 
@@ -463,9 +527,75 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
 
       ws.onclose = (event) => {
         console.log('[GeminiLive] WebSocket closed:', event.code, event.reason);
+        
+        // Clear heartbeat and freeze check intervals
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+          heartbeatIntervalRef.current = null;
+        }
+        if (freezeCheckIntervalRef.current) {
+          clearInterval(freezeCheckIntervalRef.current);
+          freezeCheckIntervalRef.current = null;
+        }
+        
         setState(prev => ({ ...prev, isConnected: false, isListening: false }));
         wsRef.current = null;
-        options.onDisconnected?.();
+        
+        // Check if this was a freeze-triggered close - auto-reconnect
+        if (isReconnectingRef.current && reconnectAttemptRef.current <= MAX_RECONNECT_ATTEMPTS) {
+          console.log('[GeminiLive] Auto-reconnecting after freeze...');
+          // Delay reconnect slightly to allow cleanup
+          setTimeout(async () => {
+            try {
+              // Re-establish connection
+              const reconnectAttempt = reconnectAttemptRef.current;
+              console.log('[GeminiLive] Reconnect attempt', reconnectAttempt);
+              
+              // Get fresh auth token
+              let authToken = await getAuthToken();
+              if (!authToken && !Capacitor.isNativePlatform()) {
+                const response = await fetch('/api/auth/ws-token', { credentials: 'include' });
+                if (response.ok) {
+                  const data = await response.json();
+                  authToken = data.token;
+                }
+              }
+              
+              if (authToken) {
+                const voiceEndpoint = options.endpoint || 'gemini-live';
+                let wsUrl: string;
+                if (Capacitor.isNativePlatform()) {
+                  wsUrl = `wss://get-flo.com/api/voice/${voiceEndpoint}?token=${encodeURIComponent(authToken)}`;
+                } else {
+                  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                  wsUrl = `${protocol}//${window.location.host}/api/voice/${voiceEndpoint}?token=${encodeURIComponent(authToken)}`;
+                }
+                
+                console.log('[GeminiLive] Creating new WebSocket for reconnect');
+                const newWs = new WebSocket(wsUrl);
+                wsRef.current = newWs;
+                
+                // Reattach all handlers (they're defined in the outer scope)
+                newWs.onopen = ws.onopen;
+                newWs.onmessage = ws.onmessage;
+                newWs.onerror = ws.onerror;
+                newWs.onclose = ws.onclose;
+              } else {
+                console.error('[GeminiLive] Failed to get auth token for reconnect');
+                isReconnectingRef.current = false;
+                options.onDisconnected?.();
+              }
+            } catch (e) {
+              console.error('[GeminiLive] Reconnect failed:', e);
+              isReconnectingRef.current = false;
+              options.onDisconnected?.();
+            }
+          }, 1000);
+        } else {
+          // Normal disconnect or max retries reached
+          isReconnectingRef.current = false;
+          options.onDisconnected?.();
+        }
       };
 
     } catch (error: any) {
@@ -601,10 +731,14 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
   const disconnect = useCallback(() => {
     console.log('[GeminiLive] Disconnecting...');
     
+    // IMPORTANT: Disable auto-reconnect for user-initiated disconnect
+    isReconnectingRef.current = false;
+    reconnectAttemptRef.current = MAX_RECONNECT_ATTEMPTS + 1; // Prevent reconnect
+    
     // Release wake lock immediately
     releaseWakeLock();
     
-    // Clear all timeouts
+    // Clear all timeouts and intervals
     if (playbackTimeoutRef.current) {
       clearTimeout(playbackTimeoutRef.current);
       playbackTimeoutRef.current = null;
@@ -612,6 +746,14 @@ export function useGeminiLiveVoice(options: UseGeminiLiveVoiceOptions = {}) {
     if (batchTimeoutRef.current) {
       clearTimeout(batchTimeoutRef.current);
       batchTimeoutRef.current = null;
+    }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    if (freezeCheckIntervalRef.current) {
+      clearInterval(freezeCheckIntervalRef.current);
+      freezeCheckIntervalRef.current = null;
     }
     
     stopListening();
