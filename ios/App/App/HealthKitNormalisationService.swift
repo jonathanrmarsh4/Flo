@@ -2045,25 +2045,27 @@ public class HealthKitNormalisationService {
         healthStore.execute(query)
     }
     
-    /// Get total stand hours for the day (Apple Watch stand goal)
+    /// Get total stand hours for the day (Apple Watch stand ring)
+    /// Uses HKCategoryTypeIdentifierAppleStandHour which records each hour where the user stood for at least 1 minute
+    /// This matches Apple's Activity Ring counting (0-12+ hours where stand goal was met)
     private func aggregateStandHours(dayStart: Date, dayEnd: Date, completion: @escaping (Int?) -> Void) {
-        guard let standType = HKObjectType.quantityType(forIdentifier: .appleStandTime) else {
+        guard let standHourType = HKObjectType.categoryType(forIdentifier: .appleStandHour) else {
             completion(nil)
             return
         }
         
         let predicate = HKQuery.predicateForSamples(withStart: dayStart, end: dayEnd, options: .strictStartDate)
         
-        let query = HKStatisticsQuery(quantityType: standType, quantitySamplePredicate: predicate, options: .cumulativeSum) { (query, result, error) in
-            guard let sum = result?.sumQuantity(), error == nil else {
+        let query = HKSampleQuery(sampleType: standHourType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { (query, samples, error) in
+            guard let categorySamples = samples as? [HKCategorySample], error == nil else {
                 completion(nil)
                 return
             }
             
-            // Stand time is in minutes, convert to hours
-            let standMinutes = sum.doubleValue(for: .minute())
-            let standHours = Int(standMinutes / 60.0)
-            completion(standHours > 0 ? standHours : nil)
+            // Count samples where value == HKCategoryValueAppleStandHourStood (1)
+            // Value 0 = did not stand, Value 1 = stood for that hour
+            let standCount = categorySamples.filter { $0.value == HKCategoryValueAppleStandHour.stood.rawValue }.count
+            completion(standCount > 0 ? standCount : nil)
         }
         
         healthStore.execute(query)

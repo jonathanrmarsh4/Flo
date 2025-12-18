@@ -72,6 +72,7 @@ async function processBriefingGeneration(catchUpMode: boolean = false) {
     
     // Get all active PREMIUM/ADMIN users with timezone and healthId
     // Free users don't get morning briefings to conserve API quota
+    // APPLE COMPLIANCE: Only include users who have granted AI consent
     const allUsers = await db
       .select({
         id: users.id,
@@ -79,6 +80,7 @@ async function processBriefingGeneration(catchUpMode: boolean = false) {
         timezone: users.timezone,
         healthId: users.healthId,
         role: users.role,
+        aiConsentGranted: users.aiConsentGranted,
       })
       .from(users)
       .where(
@@ -87,7 +89,9 @@ async function processBriefingGeneration(catchUpMode: boolean = false) {
           isNotNull(users.timezone),
           isNotNull(users.healthId),
           // Only premium and admin users get morning briefings (conserves OpenWeather API quota)
-          inArray(users.role, ['premium', 'admin'])
+          inArray(users.role, ['premium', 'admin']),
+          // APPLE COMPLIANCE: Must have AI consent to send health data to third-party AI services
+          eq(users.aiConsentGranted, true)
         )
       );
     

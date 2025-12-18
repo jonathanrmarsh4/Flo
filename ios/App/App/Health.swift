@@ -54,6 +54,7 @@ enum FloHealthDataType: String, CaseIterable {
     case dietaryWater
     case appleExerciseTime
     case appleStandTime
+    case appleStandHour  // Category type: counts hours where stand goal was met (Apple Watch ring)
     case sleepAnalysis
     
     // MARK: - Nutrition (38 types)
@@ -123,6 +124,11 @@ enum FloHealthDataType: String, CaseIterable {
             return type
         case .mindfulSession:
             guard let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) else {
+                throw FloHealthError.dataTypeUnavailable(rawValue)
+            }
+            return type
+        case .appleStandHour:
+            guard let type = HKObjectType.categoryType(forIdentifier: .appleStandHour) else {
                 throw FloHealthError.dataTypeUnavailable(rawValue)
             }
             return type
