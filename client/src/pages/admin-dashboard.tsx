@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AdminReportModelSettings } from '@/components/admin/AdminReportModelSettings';
 import { AdminAnalyticsTab } from '@/components/admin/AdminAnalyticsTab';
 import { AdminSandboxVoice } from '@/components/admin/AdminSandboxVoice';
+import { AdminGrokSandbox } from '@/components/admin/AdminGrokSandbox';
 import { AdminMessagesManager } from '@/components/admin/AdminMessagesManager';
 import { AdminSIE } from '@/components/admin/AdminSIE';
 import { AdminMLSettings } from '@/components/admin/AdminMLSettings';
@@ -1835,6 +1836,8 @@ export default function AdminDashboard() {
             <AdminSIE />
 
             <AdminSandboxVoice />
+
+            <AdminGrokSandbox />
 
             <AdminReportModelSettings />
 

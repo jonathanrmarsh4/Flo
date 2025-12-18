@@ -17991,7 +17991,7 @@ If there's nothing worth remembering, just respond with "No brain updates needed
   httpServer.on('upgrade', (request, socket, head) => {
     const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
     
-    if (pathname === '/api/voice/gemini-live' || pathname === '/api/voice/admin-sandbox' || pathname === '/api/voice/sie-brainstorm') {
+    if (pathname === '/api/voice/gemini-live' || pathname === '/api/voice/admin-sandbox' || pathname === '/api/voice/sie-brainstorm' || pathname === '/api/voice/grok-sandbox') {
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
@@ -18013,6 +18013,12 @@ If there's nothing worth remembering, just respond with "No brain updates needed
     // Route to SIE brainstorm handler if that's the path
     if (pathname === '/api/voice/sie-brainstorm') {
       handleSIEBrainstormConnection(ws, req, WebSocket);
+      return;
+    }
+    
+    // Route to Grok sandbox handler if that's the path
+    if (pathname === '/api/voice/grok-sandbox') {
+      handleGrokSandboxConnection(ws, req, WebSocket);
       return;
     }
     
@@ -18528,6 +18534,202 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       
     } catch (error: any) {
       logger.error('[SIE Brainstorm WS] Connection error', { error: error.message });
+      ws.close(4002, 'Server error');
+    }
+  }
+
+  // Grok Sandbox connection handler function (xAI Voice Agent)
+  async function handleGrokSandboxConnection(ws: any, req: any, WebSocket: any) {
+    logger.info('[GrokSandbox WS] New connection attempt');
+    
+    let userId: string | null = null;
+    let sessionId: string | null = null;
+    
+    try {
+      const url = new URL(req.url || '', `http://${req.headers.host}`);
+      const token = url.searchParams.get('token');
+      
+      const jwtSecret = process.env.SESSION_SECRET;
+      if (!jwtSecret) {
+        logger.error('[GrokSandbox WS] SESSION_SECRET not configured');
+        ws.close(4003, 'Server configuration error');
+        return;
+      }
+      
+      if (token) {
+        const jwt = await import('jsonwebtoken');
+        try {
+          const decoded = jwt.default.verify(token, jwtSecret) as { sub: string };
+          userId = decoded.sub;
+        } catch (jwtError: any) {
+          logger.error('[GrokSandbox WS] JWT verification failed', { error: jwtError.message });
+          ws.close(4001, 'Invalid token');
+          return;
+        }
+      } else {
+        logger.warn('[GrokSandbox WS] No token provided');
+        ws.close(4001, 'Authentication required');
+        return;
+      }
+      
+      if (!userId) {
+        ws.close(4001, 'Invalid authentication');
+        return;
+      }
+      
+      // CRITICAL: Verify user is an admin
+      const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user || user.role !== 'admin') {
+        logger.warn('[GrokSandbox WS] Non-admin access attempt', { userId, role: user?.role });
+        ws.close(4003, 'Admin access required');
+        return;
+      }
+      
+      logger.info('[GrokSandbox WS] Admin authenticated', { userId });
+      
+      const { grokVoiceService } = await import('./services/grokVoiceService');
+      
+      if (!grokVoiceService.isAvailable()) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Grok Voice not available - XAI_API_KEY not configured' }));
+        ws.close(4003, 'Service unavailable');
+        return;
+      }
+      
+      // Build system prompt for Grok sandbox
+      const systemPrompt = `You are Grok, an advanced AI assistant created by xAI. You are being tested in an admin sandbox environment.
+
+CAPABILITIES:
+- You have access to real-time web search to answer questions about current events
+- You can discuss any topic freely and provide detailed analysis
+- Be witty, direct, and genuinely helpful
+- Demonstrate the full range of your capabilities
+
+USER INFO:
+- Name: ${user.firstName || 'Admin'}
+- Role: Admin (full access)
+
+Start by greeting the user and asking how you can help them today.`;
+
+      sessionId = `grok_${userId}_${Date.now()}`;
+      
+      // Start Grok voice session
+      try {
+        await grokVoiceService.createSession(sessionId, {
+          systemInstruction: systemPrompt,
+          voiceName: 'Ara',
+          userId,
+        }, {
+          onAudioChunk: (audioData: string) => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'audio',
+                data: audioData,
+              }));
+            }
+          },
+          onTranscript: (text: string, isFinal: boolean) => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'transcript',
+                text,
+                isFinal,
+              }));
+            }
+          },
+          onModelText: (text: string) => {
+            if (ws.readyState === WebSocket.default.OPEN && text) {
+              ws.send(JSON.stringify({
+                type: 'text',
+                text,
+              }));
+            }
+          },
+          onTurnComplete: () => {
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'turnComplete',
+              }));
+            }
+          },
+          onError: (error: Error) => {
+            logger.error('[GrokSandbox WS] Session error callback', { error: error.message });
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.send(JSON.stringify({
+                type: 'error',
+                message: error.message,
+              }));
+            }
+          },
+          onClose: () => {
+            logger.info('[GrokSandbox WS] Session closed callback');
+            if (ws.readyState === WebSocket.default.OPEN) {
+              ws.close(1000, 'Session ended');
+            }
+          },
+        });
+        
+        ws.send(JSON.stringify({ type: 'connected', sessionId }));
+        logger.info('[GrokSandbox WS] Session started successfully', { userId, sessionId });
+      } catch (sessionError: any) {
+        logger.error('[GrokSandbox WS] Failed to start session', { 
+          userId, 
+          error: sessionError.message,
+          stack: sessionError.stack 
+        });
+        ws.send(JSON.stringify({ type: 'error', message: 'Failed to start Grok voice session: ' + sessionError.message }));
+        ws.close(4004, 'Session start failed');
+        return;
+      }
+      
+      // Handle incoming messages
+      ws.on('message', async (data: Buffer) => {
+        try {
+          const message = JSON.parse(data.toString());
+          
+          if (message.type === 'audio' && sessionId) {
+            grokVoiceService.sendAudio(sessionId, message.data);
+          } else if (message.type === 'text' && sessionId) {
+            grokVoiceService.sendText(sessionId, message.text);
+          } else if (message.type === 'end') {
+            if (sessionId) {
+              grokVoiceService.endSession(sessionId);
+              sessionId = null;
+            }
+            ws.close(1000, 'Session ended by client');
+          }
+        } catch (error: any) {
+          logger.error('[GrokSandbox WS] Message error', { error: error.message });
+        }
+      });
+      
+      // Handle close
+      ws.on('close', async () => {
+        logger.info('[GrokSandbox WS] Connection closed', { userId, sessionId });
+        if (sessionId) {
+          try {
+            grokVoiceService.endSession(sessionId);
+            sessionId = null;
+          } catch (cleanupError: any) {
+            logger.error('[GrokSandbox WS] Session cleanup error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+      // Handle errors
+      ws.on('error', async (error: Error) => {
+        logger.error('[GrokSandbox WS] WebSocket error', { userId, sessionId, error: error.message });
+        if (sessionId) {
+          try {
+            grokVoiceService.endSession(sessionId);
+            sessionId = null;
+          } catch (cleanupError: any) {
+            logger.error('[GrokSandbox WS] Session cleanup error on error', { error: cleanupError.message });
+          }
+        }
+      });
+      
+    } catch (error: any) {
+      logger.error('[GrokSandbox WS] Connection error', { error: error.message });
       ws.close(4002, 'Server error');
     }
   }
