@@ -15,7 +15,10 @@ interface GrokVoiceState {
   error: string | null;
 }
 
+type GrokVoiceName = 'Ara' | 'Eve' | 'Leo' | 'Sal' | 'Rex' | 'Mika' | 'Valentin';
+
 interface UseGrokVoiceOptions {
+  voiceName?: GrokVoiceName;
   onTranscript?: (text: string, isFinal: boolean) => void;
   onGrokResponse?: (text: string) => void;
   onTurnComplete?: () => void;
@@ -155,8 +158,16 @@ export function useGrokVoice(options: UseGrokVoiceOptions = {}) {
       let wsUrl = `${protocol}//${host}/api/voice/grok-sandbox`;
 
       const token = await getAuthToken();
+      const params = new URLSearchParams();
       if (token) {
-        wsUrl += `?token=${encodeURIComponent(token)}`;
+        params.set('token', token);
+      }
+      if (options.voiceName) {
+        params.set('voice', options.voiceName);
+      }
+      const paramString = params.toString();
+      if (paramString) {
+        wsUrl += `?${paramString}`;
       }
 
       console.log('[GrokVoice] Connecting to:', wsUrl.split('?')[0]);

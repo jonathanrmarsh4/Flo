@@ -1,9 +1,22 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Mic, MicOff, Volume2, VolumeX, MessageSquare, Zap, XCircle } from 'lucide-react';
+import { Mic, MicOff, Volume2, VolumeX, MessageSquare, Zap, XCircle, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useGrokVoice } from '@/hooks/useGrokVoice';
 import { useToast } from '@/hooks/use-toast';
+
+type GrokVoiceName = 'Ara' | 'Eve' | 'Leo' | 'Sal' | 'Rex' | 'Mika' | 'Valentin';
+
+const GROK_VOICES: { value: GrokVoiceName; label: string; description: string }[] = [
+  { value: 'Ara', label: 'Ara', description: 'Confident & clear' },
+  { value: 'Eve', label: 'Eve', description: 'Warm & friendly' },
+  { value: 'Leo', label: 'Leo', description: 'Energetic & engaging' },
+  { value: 'Sal', label: 'Sal', description: 'Calm & professional' },
+  { value: 'Rex', label: 'Rex', description: 'Bold & direct' },
+  { value: 'Mika', label: 'Mika', description: 'Bright & cheerful' },
+  { value: 'Valentin', label: 'Valentin', description: 'Sophisticated & smooth' },
+];
 
 interface TranscriptEntry {
   role: 'user' | 'ai';
@@ -16,6 +29,7 @@ export function AdminGrokSandbox() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [currentUserText, setCurrentUserText] = useState('');
   const [aiResponseText, setAiResponseText] = useState('');
+  const [selectedVoice, setSelectedVoice] = useState<GrokVoiceName>('Valentin');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -78,6 +92,7 @@ export function AdminGrokSandbox() {
     startListening,
     stopListening,
   } = useGrokVoice({
+    voiceName: selectedVoice,
     onTranscript: handleTranscript,
     onGrokResponse: handleGrokResponse,
     onConnected: handleConnected,
@@ -116,11 +131,33 @@ export function AdminGrokSandbox() {
           <h3 className="text-lg text-cyan-400">Grok Voice Agent (xAI)</h3>
         </div>
         <p className="text-sm text-white/60">
-          Test xAI's Grok Voice Agent API. Sub-1s latency, web search enabled, voice: Ara.
+          Test xAI's Grok Voice Agent API. Sub-1s latency, with full health data access.
         </p>
       </div>
       <div className="p-6 space-y-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <User className="w-4 h-4 text-white/60" />
+            <Select
+              value={selectedVoice}
+              onValueChange={(value) => setSelectedVoice(value as GrokVoiceName)}
+              disabled={isConnected}
+            >
+              <SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white" data-testid="select-grok-voice">
+                <SelectValue placeholder="Select voice" />
+              </SelectTrigger>
+              <SelectContent>
+                {GROK_VOICES.map((voice) => (
+                  <SelectItem key={voice.value} value={voice.value}>
+                    <div className="flex flex-col">
+                      <span>{voice.label}</span>
+                      <span className="text-xs text-muted-foreground">{voice.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Button
             onClick={handleToggleConnection}
             variant={isConnected ? 'destructive' : 'default'}
@@ -249,8 +286,9 @@ export function AdminGrokSandbox() {
 
         <div className="p-3 rounded-lg bg-white/5 border border-white/10">
           <p className="text-xs text-white/50">
-            <strong className="text-cyan-400">xAI Grok Voice:</strong> Testing xAI's new Voice Agent API 
-            with sub-second latency and built-in web search. Voice: Ara (confident, clear).
+            <strong className="text-cyan-400">xAI Grok Voice:</strong> Testing xAI's Voice Agent API 
+            with sub-second latency, full health data context, and built-in web search. 
+            Voice: {selectedVoice} ({GROK_VOICES.find(v => v.value === selectedVoice)?.description}).
             Pricing: $0.05/min.
           </p>
         </div>

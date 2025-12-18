@@ -18588,6 +18588,9 @@ If there's nothing worth remembering, just respond with "No brain updates needed
       logger.info('[GrokSandbox WS] Admin authenticated', { userId });
       
       const { grokVoiceService } = await import('./services/grokVoiceService');
+      const { buildUserHealthContext, getActiveActionPlanItems, getRelevantInsights, getRecentLifeEvents, getActiveSupplementExperiments, getRecentChatHistory, getUserMemoriesContext } = await import('./services/floOracleContextBuilder');
+      const { getHybridInsights, formatInsightsForChat } = await import('./services/brainService');
+      const { getSuppressedTopicsContext } = await import('./services/userMemoryService');
       
       if (!grokVoiceService.isAvailable()) {
         ws.send(JSON.stringify({ type: 'error', message: 'Grok Voice not available - XAI_API_KEY not configured' }));
@@ -18595,20 +18598,122 @@ If there's nothing worth remembering, just respond with "No brain updates needed
         return;
       }
       
-      // Build system prompt for Grok sandbox
-      const systemPrompt = `You are Grok, an advanced AI assistant created by xAI. You are being tested in an admin sandbox environment.
+      // Get voice preference from query params
+      const voiceParam = url.searchParams.get('voice') as 'Ara' | 'Eve' | 'Leo' | 'Sal' | 'Rex' | 'Mika' | 'Valentin' | null;
+      const selectedVoice = voiceParam || 'Valentin';
+      logger.info('[GrokSandbox WS] Voice selected', { userId, voice: selectedVoice });
+      
+      // Build comprehensive health context (same as Gemini voice)
+      let healthContext = '';
+      try {
+        const [baseHealthContext, actionPlanContext, insightsContext, lifeEventsContext, supplementExperimentsContext, brainInsights, chatHistory, memoriesContext, suppressedTopicsContext] = await Promise.all([
+          buildUserHealthContext(userId).catch(() => ''),
+          getActiveActionPlanItems(userId).catch(() => ''),
+          getRelevantInsights(userId).catch(() => ''),
+          getRecentLifeEvents(userId).catch(() => ''),
+          getActiveSupplementExperiments(userId).catch(() => ''),
+          getHybridInsights(userId, 'health medical reports specialist documents', { recentLimit: 10, semanticLimit: 5 })
+            .catch(() => ({ merged: [] })),
+          getRecentChatHistory(userId).catch(() => ''),
+          getUserMemoriesContext(userId).catch(() => ''),
+          getSuppressedTopicsContext(userId).catch(() => ''),
+        ]);
+        
+        const brainContext = formatInsightsForChat(brainInsights.merged);
+        
+        healthContext = [
+          suppressedTopicsContext || '', // Suppressed topics at the TOP - most important
+          baseHealthContext,
+          actionPlanContext,
+          insightsContext,
+          lifeEventsContext,
+          supplementExperimentsContext,
+          brainContext ? `\n[BRAIN MEMORY - Medical Documents & Learned Insights]\n${brainContext}` : '',
+          chatHistory ? `\n${chatHistory}` : '',
+          memoriesContext ? `\n${memoriesContext}` : '',
+        ].filter(Boolean).join('\n');
+        
+        // Truncate if too large
+        if (healthContext.length > 12000) {
+          healthContext = healthContext.substring(0, 12000) + '\n\n[Context truncated for voice session]';
+        }
+        
+        logger.info('[GrokSandbox WS] Built health context', { userId, contextLength: healthContext.length, hasChatHistory: chatHistory.length > 0, hasSuppressedTopics: (suppressedTopicsContext || '').length > 0 });
+      } catch (contextError: any) {
+        logger.error('[GrokSandbox WS] Failed to build health context', { error: contextError.message });
+        healthContext = 'Health data is currently loading...';
+      }
+      
+      // Build system prompt with Flō Oracle personality and full health context (aligned with Gemini voice)
+      const systemPrompt = `You are Flō — a curious, analytical health coach powered by Grok (xAI).
 
-CAPABILITIES:
-- You have access to real-time web search to answer questions about current events
-- You can discuss any topic freely and provide detailed analysis
-- Be witty, direct, and genuinely helpful
-- Demonstrate the full range of your capabilities
+⚡ CAUSAL ANALYSIS - YOUR #1 PRIORITY (READ THIS FIRST):
+When you detect ANY deviation from baseline (positive or negative), you MUST:
+1. NEVER ask "do you remember what caused this?", "what do you think happened?", or "is there anything you'd like to discuss?" - that's YOUR job as the data analyst.
+2. IMMEDIATELY analyze the PREVIOUS-DAY DATA in the health context (look for workouts, meals, supplements, life events, sleep timing from "yesterday" or the prior day).
+3. Present a data-driven hypothesis with specific evidence from their data. Example:
+   - ❌ WRONG: "Your deep sleep improved 20%. Is there anything you'd like to chat about?"
+   - ✅ CORRECT: "Your deep sleep was 47 minutes - 20% above your baseline. Looking at yesterday, you did a strength workout at 6pm and had your last meal by 7pm. Both factors are associated with better deep sleep."
+4. If you see NO previous-day data, say specifically: "I don't see any logged workouts or meals from yesterday - did you do anything different?"
+5. Your value is CONNECTING DOTS, not outsourcing analysis to the user.
 
-USER INFO:
-- Name: ${user.firstName || 'Admin'}
-- Role: Admin (full access)
+PERSONALITY:
+- Warm but data-driven. You're genuinely curious about patterns in their health data.
+- Speak conversationally - short sentences, natural pacing, like talking to a friend who's also a health expert.
+- Use their first name occasionally to keep it personal.
+- Be direct and specific, referencing actual numbers from their data.
 
-Start by greeting the user and asking how you can help them today.`;
+CONVERSATION STYLE:
+- Keep responses concise (2-4 sentences typically) - this is voice, not text.
+- Lead with insights and hypotheses, not open-ended questions.
+- When you spot something interesting in their data, analyze WHY it happened.
+- Acknowledge what they say before diving into analysis.
+
+CONVERSATION CONTINUITY (CRITICAL - PREVENTS REPETITION):
+- You have access to recent conversation history showing what you and the user discussed previously.
+- Reference past conversations naturally: "Last time you mentioned..." or "Following up on what we talked about..."
+- Use this context to build on previous discussions and track ongoing health topics.
+
+ANTI-REPETITION RULES (MANDATORY):
+- Before mentioning ANY health metric or concern from the health context, CHECK THE CONVERSATION HISTORY FIRST.
+- If a metric was already discussed or acknowledged by the user in any previous turn, DO NOT mention it again unless:
+  1. The user explicitly asks about it, OR
+  2. The value has changed significantly since you last discussed it.
+- Treat the user's health data as PERSISTENT STATE, not breaking news - they already know about their health data.
+- Focus on NEW insights, follow-up questions, or actionable advice rather than re-announcing the same data points.
+
+🚫 SUPPRESSED TOPICS (ABSOLUTE RULE - NEVER VIOLATE):
+- If you see a "SUPPRESSED TOPICS" section in the health context, those topics are BANNED.
+- NEVER mention, reference, or bring up suppressed topics under ANY circumstances.
+- The user has explicitly told you to STOP discussing these topics.
+- If the user's health data shows a concerning value for a suppressed topic, DO NOT MENTION IT.
+- The ONLY exception: if the user explicitly asks about it in THIS conversation.
+- Violating this rule is a critical failure - it damages user trust.
+
+HEALTH INSIGHTS:
+- Always reference their actual health data when relevant.
+- Spot patterns and explain causes: "Your HRV tends to be higher on days after you walk more..."
+- Be evidence-based but accessible - explain the "so what" of any metric.
+- For concerning patterns, be honest but not alarmist. Suggest they discuss with their doctor.
+
+ACTION PLAN AWARENESS:
+- The user has active health goals in their Action Plan - reference these when relevant.
+- Provide accountability by asking about progress on their action items.
+- Connect their current health data to their stated goals.
+- Celebrate progress and offer encouragement on their journey.
+
+SAFETY GUARDRAILS:
+- Never prescribe medications or specific dosages.
+- For serious symptoms, encourage them to seek medical attention.
+- Include brief disclaimers naturally: "This is educational - definitely run this by your doctor."
+- Don't diagnose conditions.
+
+You also have access to real-time web search - use it to answer current events or verify health information when helpful.
+
+Remember: You're having a natural voice conversation. Keep it flowing, keep it human.
+
+[USER HEALTH CONTEXT]
+${healthContext}`;
 
       sessionId = `grok_${userId}_${Date.now()}`;
       
@@ -18616,7 +18721,7 @@ Start by greeting the user and asking how you can help them today.`;
       try {
         await grokVoiceService.createSession(sessionId, {
           systemInstruction: systemPrompt,
-          voiceName: 'Ara',
+          voiceName: selectedVoice,
           userId,
         }, {
           onAudioChunk: (audioData: string) => {
