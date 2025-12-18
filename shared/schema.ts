@@ -1035,6 +1035,7 @@ export const healthkitWorkouts = pgTable("healthkit_workouts", {
   deviceModel: text("device_model"), // Device model
   metadata: jsonb("metadata"), // Additional metadata (weather, indoor/outdoor, etc.)
   uuid: text("uuid").unique(), // HealthKit workout UUID (for deduplication)
+  notes: text("notes"), // User-provided workout details (e.g., "Leg day", "Upper body strength", "HIIT cardio")
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("idx_healthkit_workouts_user_date").on(table.userId, table.startDate),
