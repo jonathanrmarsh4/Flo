@@ -348,6 +348,8 @@ enum FloHealthDataType: String, CaseIterable {
             return HKUnit.literUnit(with: .milli)
         case .appleExerciseTime, .appleStandTime:
             return HKUnit.minute()
+        case .appleStandHour:
+            return HKUnit.count()  // Category type - counts hours where stand goal was met
         case .sleepAnalysis:
             return HKUnit.count()
         
@@ -426,6 +428,8 @@ enum FloHealthDataType: String, CaseIterable {
             return "mL"
         case .appleExerciseTime, .appleStandTime:
             return "min"
+        case .appleStandHour:
+            return "hours"  // Category type - integer count of hours
         case .sleepAnalysis:
             return "category"
         
