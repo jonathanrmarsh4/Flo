@@ -300,7 +300,7 @@ enum FloHealthDataType: String, CaseIterable {
                 identifier = .stairDescentSpeed
             
             // Category types handled above
-            case .sleepAnalysis, .mindfulSession:
+            case .sleepAnalysis, .mindfulSession, .appleStandHour:
                 fatalError("Should never reach here")
             }
             
