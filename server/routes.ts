@@ -18975,13 +18975,56 @@ Return ONLY valid JSON array, no markdown.`;
                 },
               },
               {
-                text: `Analyze this food image and identify all visible food items. For each item, provide complete nutritional estimates.
+                text: `Analyze this food image and identify all visible food items. For each item, provide accurate nutritional data based on USDA FoodData Central reference values.
+
+CRITICAL RULES:
+1. Estimate macros (protein, carbs, fat) in grams based on USDA reference data for each specific food
+2. Calculate energyKcal using the Atwater formula: (proteinG × 4) + (carbohydratesG × 4) + (fatTotalG × 9)
+3. Each food item must have its own unique nutritional profile - do NOT distribute totals evenly
+4. Be specific about portion sizes in grams
+
+USDA FoodData Central Reference Values (use these as baseline):
+PROTEINS:
+- Chicken breast grilled (4oz/113g): 31g protein, 0g carbs, 3.6g fat = 155 kcal
+- Ground beef 80/20 cooked (4oz/113g): 22g protein, 0g carbs, 23g fat = 287 kcal
+- Salmon Atlantic cooked (4oz/113g): 25g protein, 0g carbs, 12g fat = 208 kcal
+- Egg large (50g): 6.3g protein, 0.4g carbs, 5g fat = 72 kcal
+- Bacon cooked (3 slices/24g): 9g protein, 0.1g carbs, 9g fat = 117 kcal
+- Shrimp cooked (4oz/113g): 24g protein, 0g carbs, 1g fat = 99 kcal
+
+CARBS:
+- Rice white cooked (1 cup/158g): 4.3g protein, 45g carbs, 0.4g fat = 206 kcal
+- Pasta cooked (1 cup/140g): 8g protein, 43g carbs, 1.3g fat = 221 kcal
+- Bread white (1 slice/25g): 2g protein, 13g carbs, 1g fat = 67 kcal
+- Potato baked (1 medium/173g): 4g protein, 37g carbs, 0.2g fat = 161 kcal
+- Banana (1 medium/118g): 1.3g protein, 27g carbs, 0.4g fat = 105 kcal
+- Apple (1 medium/182g): 0.5g protein, 25g carbs, 0.3g fat = 95 kcal
+
+FATS:
+- Avocado (1/2 medium/68g): 1.3g protein, 5.9g carbs, 10g fat = 114 kcal
+- Olive oil (1 tbsp/14g): 0g protein, 0g carbs, 14g fat = 126 kcal
+- Butter (1 tbsp/14g): 0.1g protein, 0g carbs, 11.5g fat = 102 kcal
+- Almonds (1oz/28g): 6g protein, 6g carbs, 14g fat = 164 kcal
+- Cheese cheddar (1oz/28g): 7g protein, 0.4g carbs, 9g fat = 113 kcal
+
+VEGETABLES:
+- Broccoli cooked (1 cup/156g): 3.7g protein, 11g carbs, 0.6g fat = 55 kcal
+- Lettuce iceberg (1 cup/72g): 0.6g protein, 2.1g carbs, 0.1g fat = 10 kcal
+- Tomato (1 medium/123g): 1.1g protein, 4.8g carbs, 0.2g fat = 22 kcal
+- Onion (1/2 cup chopped/80g): 0.9g protein, 7.5g carbs, 0.1g fat = 32 kcal
+- Spinach raw (1 cup/30g): 0.9g protein, 1.1g carbs, 0.1g fat = 7 kcal
+
+BEVERAGES:
+- Whiskey (1.5 fl oz/44ml): 0g protein, 0g carbs, 0g fat = 97 kcal (alcohol calories)
+- Beer regular (12 fl oz/355ml): 1.6g protein, 13g carbs, 0g fat = 153 kcal
+- Wine red (5 fl oz/148ml): 0.1g protein, 4g carbs, 0g fat = 125 kcal
+- Orange juice (1 cup/248ml): 1.7g protein, 26g carbs, 0.5g fat = 112 kcal
 
 Respond in JSON format only:
 {
   "foods": [
     { 
-      "name": "food name (be specific)",
+      "name": "food name (be specific about preparation)",
       "portion": "1 medium (118g)",
       "energyKcal": 105,
       "proteinG": 1.3,
