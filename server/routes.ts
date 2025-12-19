@@ -19037,12 +19037,13 @@ If no food is visible, respond with: { "foods": [] }`,
       }
       
       // Get user's health_id from Supabase
-      const userProfile = await supabaseHealthStorage.getHealthProfile(userId);
-      if (!userProfile?.health_id) {
+      const healthId = await supabaseHealthStorage.getHealthId(userId);
+      if (!healthId) {
         return res.status(400).json({ error: 'Health profile not found' });
       }
       
-      const healthId = userProfile.health_id;
+      // Get user's timezone from Neon profile
+      const user = await storage.getUser(userId);
       const now = new Date();
       const mealId = crypto.randomUUID();
       
@@ -19104,8 +19105,8 @@ If no food is visible, respond with: { "foods": [] }`,
       
       // Also update daily nutrition metrics by re-aggregating from healthkit_samples
       const dateStr = format(now, 'yyyy-MM-dd');
-      // Get user's timezone from profile or default to UTC
-      const timezone = userProfile?.timezone || 'UTC';
+      // Get user's timezone from Neon user profile
+      const timezone = user?.timezone || 'UTC';
       await upsertNutritionDaily(userId, dateStr, timezone);
       
       logger.info('[FoodLog] Meal logged', { 
