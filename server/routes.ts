@@ -12037,23 +12037,18 @@ Important: This is for educational purposes. Include a brief note that users sho
       const recentMetrics = await healthRouter.getUserDailyMetrics(userId, { limit: 1 });
       const userTimezone = recentMetrics.length > 0 ? recentMetrics[0].timezone : 'UTC';
       
-      // Calculate date range for last 7 days
-      const today = new Date();
-      const endDate = today.toLocaleString('en-CA', { 
-        timeZone: userTimezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).split(',')[0];
+      // Calculate date range for last 7 days IN USER'S TIMEZONE
+      // Use TZDate from @date-fns/tz to get the correct "today" in user's timezone
+      const { TZDate } = await import('@date-fns/tz');
+      const { format, subDays } = await import('date-fns');
       
-      const startDateObj = new Date(today);
-      startDateObj.setDate(startDateObj.getDate() - 6);
-      const startDate = startDateObj.toLocaleString('en-CA', { 
-        timeZone: userTimezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).split(',')[0];
+      // Get current time in user's timezone
+      const nowInUserTz = new TZDate(new Date(), userTimezone);
+      const endDate = format(nowInUserTz, 'yyyy-MM-dd');
+      
+      // Get date 6 days ago in user's timezone
+      const startDateObj = subDays(nowInUserTz, 6);
+      const startDate = format(startDateObj, 'yyyy-MM-dd');
       
       // Helper to calculate workout duration in MINUTES
       const getWorkoutDurationMinutes = (w: any): number => {
@@ -12073,14 +12068,8 @@ Important: This is for educational purposes. Include a brief note that users sho
       const workouts = await healthRouter.getHealthkitWorkoutsByDateRange(userId, startDate, endDate);
       
       // Get all-time workouts for best week calculation (limit to last 365 days)
-      const yearAgo = new Date(today);
-      yearAgo.setDate(yearAgo.getDate() - 365);
-      const yearAgoDate = yearAgo.toLocaleString('en-CA', { 
-        timeZone: userTimezone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).split(',')[0];
+      const yearAgoObj = subDays(nowInUserTz, 365);
+      const yearAgoDate = format(yearAgoObj, 'yyyy-MM-dd');
       
       const allWorkouts = await healthRouter.getHealthkitWorkoutsByDateRange(userId, yearAgoDate, endDate);
       
@@ -12099,34 +12088,20 @@ Important: This is for educational purposes. Include a brief note that users sho
         }>;
       }> = [];
       
-      // Create entries for each of the last 7 days
+      // Create entries for each of the last 7 days (in user's timezone)
       for (let i = 6; i >= 0; i--) {
-        const dateObj = new Date(today);
-        dateObj.setDate(dateObj.getDate() - i);
-        const dateStr = dateObj.toLocaleString('en-CA', { 
-          timeZone: userTimezone,
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }).split(',')[0];
+        const dateObj = subDays(nowInUserTz, i);
+        const dateStr = format(dateObj, 'yyyy-MM-dd');
         
         const dayOfWeek = dateObj.getDay();
         const displayDay = i === 0 ? 'Today' : dayNames[dayOfWeek];
-        const displayDate = dateObj.toLocaleString('en-US', { 
-          timeZone: userTimezone,
-          month: 'short',
-          day: 'numeric'
-        });
+        const displayDate = format(dateObj, 'MMM d');
         
-        // Filter workouts for this day
+        // Filter workouts for this day (convert workout start_date to user's timezone)
         const dayWorkouts = workouts.filter(w => {
-          const workoutDate = new Date(w.start_date).toLocaleString('en-CA', { 
-            timeZone: userTimezone,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-          }).split(',')[0];
-          return workoutDate === dateStr;
+          const workoutTz = new TZDate(new Date(w.start_date), userTimezone);
+          const workoutDateStr = format(workoutTz, 'yyyy-MM-dd');
+          return workoutDateStr === dateStr;
         });
         
         // Determine intensity based on heart rate zones
