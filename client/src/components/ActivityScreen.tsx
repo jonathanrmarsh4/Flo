@@ -1050,7 +1050,13 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
     return <LoadingSpinner isDark={isDark} />;
   }
 
-  const today = nutritionData?.[0];
+  // Get today's date in local timezone (YYYY-MM-DD format)
+  const todayLocalDate = new Date().toLocaleDateString('en-CA'); // Returns YYYY-MM-DD
+  
+  // Find today's nutrition record - don't assume [0] is today!
+  // If no record for today exists, use empty data
+  const todayRecord = nutritionData?.find(r => r.localDate === todayLocalDate);
+  const today = todayRecord || null;
   
   if (!today) {
     return <EmptyState isDark={isDark} message="No nutrition data available. Start logging your meals to see insights." />;
