@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Activity, Apple, Gauge, TrendingUp, TrendingDown, Footprints, Dumbbell, Heart, Battery, Waves, ChevronRight, Loader2, Droplet, Award, X, Link2, Flame, Plus } from 'lucide-react';
@@ -186,6 +186,16 @@ interface MacrosWeeklyData {
 
 export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenProps) {
   const [activeTab, setActiveTab] = useState<TabType>('activity');
+  const [showFoodLogging, setShowFoodLogging] = useState(false);
+
+  // Handle Flō button click based on active tab
+  const handleAddClick = useCallback(() => {
+    if (activeTab === 'nutrition') {
+      setShowFoodLogging(true);
+    } else if (onAddClick) {
+      onAddClick();
+    }
+  }, [activeTab, onAddClick]);
 
   // CGMScreen has its own full-page layout with header, so render it separately
   // CGMScreen handles its own padding, BottomNav is included in CGMScreen layout
@@ -262,7 +272,18 @@ export function ActivityScreen({ isDark, onClose, onAddClick }: ActivityScreenPr
         </div>
       </main>
 
-      <BottomNav isDark={isDark} onAddClick={onAddClick} />
+      <BottomNav isDark={isDark} onAddClick={handleAddClick} />
+      
+      {showFoodLogging && (
+        <FoodLoggingFlow
+          isDark={isDark}
+          onClose={() => setShowFoodLogging(false)}
+          onMealLogged={() => {
+            queryClient.invalidateQueries({ queryKey: ['/api/food/meals'] });
+            queryClient.invalidateQueries({ queryKey: ['/api/nutrition/daily'] });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -975,7 +996,6 @@ interface LoggedMeal {
 function NutritionTabContent({ isDark }: { isDark: boolean }) {
   const [showMacrosDetails, setShowMacrosDetails] = useState(false);
   const [showMealDetails, setShowMealDetails] = useState<Date | null>(null);
-  const [showFoodLogging, setShowFoodLogging] = useState(false);
   
   const { data: nutritionData, isLoading } = useQuery<NutritionDaily[]>({
     queryKey: ['/api/nutrition/daily'],
@@ -1227,26 +1247,6 @@ function NutritionTabContent({ isDark }: { isDark: boolean }) {
         todaysTotals={todaysTotals}
         onMealClick={(date) => setShowMealDetails(date)}
       />
-      
-      <Button
-        onClick={() => setShowFoodLogging(true)}
-        className="w-full gap-2"
-        data-testid="button-log-food"
-      >
-        <Plus className="w-4 h-4" />
-        Log a Meal
-      </Button>
-      
-      {showFoodLogging && (
-        <FoodLoggingFlow
-          isDark={isDark}
-          onClose={() => setShowFoodLogging(false)}
-          onMealLogged={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/food/meals'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/nutrition/daily'] });
-          }}
-        />
-      )}
     </div>
   );
 }
