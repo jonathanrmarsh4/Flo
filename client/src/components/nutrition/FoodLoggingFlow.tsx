@@ -233,16 +233,40 @@ export function FoodLoggingFlow({ isDark, onClose, onMealLogged }: FoodLoggingFl
   }, [searchFoodsMutation, toast]);
 
   const handlePhotoCapture = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[FoodLog] Photo capture triggered');
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log('[FoodLog] No file selected');
+      return;
+    }
+    
+    console.log('[FoodLog] File selected:', { name: file.name, size: file.size, type: file.type });
 
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = reader.result as string;
-      photoRecognizeMutation.mutate(base64);
+      console.log('[FoodLog] FileReader loaded, base64 length:', base64?.length);
+      if (base64 && base64.length > 100) {
+        photoRecognizeMutation.mutate(base64);
+      } else {
+        console.error('[FoodLog] Invalid base64 data');
+        toast({
+          title: 'Photo capture failed',
+          description: 'Unable to read the photo. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    };
+    reader.onerror = (error) => {
+      console.error('[FoodLog] FileReader error:', error);
+      toast({
+        title: 'Photo capture failed',
+        description: 'Unable to read the photo. Please try again.',
+        variant: 'destructive',
+      });
     };
     reader.readAsDataURL(file);
-  }, [photoRecognizeMutation]);
+  }, [photoRecognizeMutation, toast]);
 
   const handleBarcodeInput = useCallback((barcode: string) => {
     if (barcode.trim()) {
