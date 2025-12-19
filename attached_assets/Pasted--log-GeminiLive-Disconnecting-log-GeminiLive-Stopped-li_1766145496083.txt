@@ -1,0 +1,69 @@
+
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+⚡️  [log] - [GeminiLive] Disconnecting...
+⚡️  [log] - [GeminiLive] Stopped listening
+⚡️  [log] - [GeminiLive] Disconnected and reset
+[Normalisation] Successfully uploaded metrics for 2025-12-13
+[Normalisation] Upload completed with 1 errors
+❌ [HealthSyncPlugin] Background sync failed: Upload failed with status 500 - {"error":"<html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n<center><h1>502 Bad Gateway</h1></center>\r\n<hr><center>cloudflare</center>\r\n</body>\r\n</html>\r\n"}
+📊 [HealthSyncPlugin] Sync #1 completed, 1 active syncs remaining
+[Normalisation] Successfully uploaded metrics for 2025-12-13
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] Checking ML Kit barcode scanner support...
+⚡️  To Native ->  BarcodeScanner isSupported 62672854
+⚡️  TO JS {"supported":true}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] ML Kit isSupported result: true
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+🎤 Media capture permission requested - type: WKMediaCaptureType(rawValue: 1)
+✅ Granting microphone permission
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] Voice recognition started
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  To Native ->  BarcodeScanner isSupported 62672855
+⚡️  [log] - [BarcodeScanner] Checking ML Kit barcode scanner support...
+⚡️  TO JS {"supported":true}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: false platform: ios
+⚡️  [log] - [BarcodeScanner] ML Kit isSupported result: true
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+Attempted to change to mode Portrait with an unsupported device (BackTriple). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+Attempted to change to mode Portrait with an unsupported device (BackTriple). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+Attempted to change to mode Portrait with an unsupported device (BackAuto). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+Attempted to change to mode Portrait with an unsupported device (BackTriple). Auto device for both positions unsupported, returning Auto device for same position anyway (BackAuto).
+(Fig) signalled err=-12710 at <>:601
+(Fig) signalled err=-12710 at <>:601
+(Fig) signalled err=-12710 at <>:601
+<<<< FigXPCUtilities >>>> signalled err=-17281 at <>:308
+<<<< FigCaptureSourceRemote >>>> Fig assert: "err == 0 " at bail (FigCaptureSourceRemote.m:569) - (err=-17281)
+Unexpected constituent device type (null) for device (null)
+Unexpected constituent device type (null) for device (null)
+[Normalisation] Successfully uploaded metrics for 2025-12-16
+[Normalisation] Upload completed with 1 errors
+❌ [HealthSyncPlugin] Background sync failed: Upload failed with status 500 - {"error":"<html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n<center><h1>502 Bad Gateway</h1></center>\r\n<hr><center>cloudflare</center>\r\n</body>\r\n</html>\r\n"}
+📊 [HealthSyncPlugin] Sync #2 completed, 0 active syncs remaining
+🧹 [HealthSyncPlugin] All syncs complete, clearing auth token
+⚡️  [error] - [ERROR] API request failed {"status":400,"response":"{\"error\":\"No biomarker measurements found. Please add test results to calculate biological age.\",\"missingData\":\"biomarkers\"}"}
+<<<< FigXPCUtilities >>>> signalled err=-17281 at <>:308
+<<<< FigCaptureSourceRemote >>>> Fig assert: "err == 0 " at bail (FigCaptureSourceRemote.m:569) - (err=-17281)
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+-[RTIInputSystemClient remoteTextInputSessionWithID:performInputOperation:]  perform input operation requires a valid sessionID. inputModality = Keyboard, inputOperation = <null selector>, customInfoType = UIEmojiSearchOperations
+⚡️  [log] - [FoodLog] File input onChange fired, files: 1
+⚡️  [log] - [FoodLog] Photo capture triggered
+⚡️  [log] - [FoodLog] File selected: {"name":"image.jpg","size":2493361,"type":"image/jpeg"}
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [FoodLog] FileReader loaded, base64 length: 3324507
+⚡️  [log] - [API] Making request: POST https://get-flo.com/api/food/recognize
+⚡️  [log] - [API] Headers prepared: ["Content-Type","Authorization"]
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+<<<< FigXPCUtilities >>>> signalled err=-17281 at <>:308
+<<<< FigCaptureSourceRemote >>>> Fig assert: "err == 0 " at bail (FigCaptureSourceRemote.m:569) - (err=-17281)
+⚡️  [log] - [API] Response received: 200 
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios
+⚡️  [log] - [BarcodeScanner] Hook state - isNative: true isSupported: true platform: ios

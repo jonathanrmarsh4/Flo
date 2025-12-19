@@ -18957,6 +18957,11 @@ Return ONLY valid JSON array, no markdown.`;
       const base64Match = image.match(/^data:image\/\w+;base64,(.+)$/);
       const imageData = base64Match ? base64Match[1] : image;
       
+      logger.info('[FoodRecognize] Starting Gemini analysis', { 
+        imageLength: imageData?.length,
+        hasApiKey: !!process.env.GOOGLE_AI_API_KEY 
+      });
+      
       const result = await genAI.models.generateContent({
         model: 'gemini-2.0-flash',
         contents: [
@@ -18972,26 +18977,61 @@ Return ONLY valid JSON array, no markdown.`;
               {
                 text: `Analyze this food image and identify all visible food items. For each item, provide:
 1. The most specific name possible (e.g., "grilled chicken breast" not just "chicken")
-2. An estimated portion size
+2. An estimated portion size in grams or common units
+3. Complete nutritional estimates
 
 Respond in JSON format only:
 {
   "foods": [
-    { "name": "food name", "portion": "portion estimate" }
+    { 
+      "name": "food name", 
+      "portion": "1 medium (118g)",
+      "calories": 105,
+      "protein": 1.3,
+      "carbs": 27,
+      "fat": 0.4,
+      "fiber": 3.1,
+      "sugar": 14,
+      "sodium": 1,
+      "saturatedFat": 0.1,
+      "cholesterol": 0
+    }
   ]
 }
 
-If no food is visible, respond with: { "foods": [] }`,
+Be accurate with your estimates based on typical portion sizes. If no food is visible, respond with: { "foods": [] }`,
               },
             ],
           },
         ],
       });
       
-      const responseText = result.text || '';
+      // The @google/genai SDK returns text directly on result or in candidates
+      const responseText = result.text || 
+        result.candidates?.[0]?.content?.parts?.[0]?.text || 
+        '';
+      
+      logger.info('[FoodRecognize] Gemini response received', { 
+        responseLength: responseText?.length,
+        responsePreview: responseText?.substring(0, 200)
+      });
       
       // Parse the AI response
-      let identifiedFoods: Array<{ name: string; portion: string }> = [];
+      interface GeminiFoodItem {
+        name: string;
+        portion: string;
+        calories?: number;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+        fiber?: number;
+        sugar?: number;
+        sodium?: number;
+        saturatedFat?: number;
+        cholesterol?: number;
+      }
+      
+      let identifiedFoods: GeminiFoodItem[] = [];
       try {
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -18999,25 +19039,36 @@ If no food is visible, respond with: { "foods": [] }`,
           identifiedFoods = parsed.foods || [];
         }
       } catch (parseError) {
-        logger.error('[FoodRecognize] Failed to parse AI response:', parseError);
+        logger.error('[FoodRecognize] Failed to parse AI response:', { 
+          error: parseError,
+          responseText: responseText?.substring(0, 500)
+        });
       }
       
-      // Search FatSecret for each identified food
-      const searchPromises = identifiedFoods.slice(0, 5).map(async (food) => {
-        const results = await fatSecretService.searchFoods(food.name, 3);
-        return results.map(r => ({
-          ...r,
-          suggestedPortion: food.portion,
-        }));
-      });
+      logger.info('[FoodRecognize] Parsed foods', { count: identifiedFoods.length, foods: identifiedFoods });
       
-      const searchResults = await Promise.all(searchPromises);
-      const flatResults = searchResults.flat();
+      // Use Gemini's macro estimates directly (no FatSecret lookup for now)
+      const results = identifiedFoods.map((food, index) => ({
+        id: `gemini-${Date.now()}-${index}`,
+        name: food.name,
+        type: 'AI Estimated',
+        description: `${food.portion} - Estimated by AI`,
+        calories: food.calories || 0,
+        protein: food.protein || 0,
+        carbs: food.carbs || 0,
+        fat: food.fat || 0,
+        fiber: food.fiber || 0,
+        sugar: food.sugar || 0,
+        sodium: food.sodium || 0,
+        saturatedFat: food.saturatedFat || 0,
+        cholesterol: food.cholesterol || 0,
+        servingDescription: food.portion,
+      }));
       
-      logger.info('[FoodRecognize] Identified foods', { count: identifiedFoods.length, results: flatResults.length });
+      logger.info('[FoodRecognize] Results prepared', { count: results.length });
       
       res.json({ 
-        results: flatResults,
+        results,
         identified: identifiedFoods,
       });
     } catch (error: any) {
