@@ -18842,7 +18842,7 @@ ${healthContext}`;
   
   // ==================== FOOD LOGGING API ====================
   
-  // POST /api/food/search - Search for foods using FatSecret API
+  // POST /api/food/search - Search for foods using FatSecret API with AI fallback
   app.post('/api/food/search', isAuthenticated, async (req: any, res) => {
     try {
       const { query } = req.body;
@@ -18853,8 +18853,66 @@ ${healthContext}`;
         return res.status(400).json({ error: 'Query is required' });
       }
       
-      const results = await fatSecretService.searchFoods(query, 20);
-      logger.info('[FoodSearch] Found foods', { query, count: results.length, firstResult: results[0]?.name });
+      // Try FatSecret first
+      let results: any[] = [];
+      try {
+        results = await fatSecretService.searchFoods(query, 20);
+        logger.info('[FoodSearch] FatSecret found foods', { query, count: results.length });
+      } catch (fatSecretError: any) {
+        logger.warn('[FoodSearch] FatSecret failed, will use AI fallback', { error: fatSecretError.message });
+      }
+      
+      // If FatSecret returns no results, use AI to estimate nutrition
+      if (results.length === 0) {
+        logger.info('[FoodSearch] Using AI fallback for:', query);
+        try {
+          const { GoogleGenAI } = await import('@google/genai');
+          const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+          
+          const prompt = `Parse this food description and provide nutrition estimates: "${query}"
+
+Return a JSON array of foods mentioned. For each food item, provide:
+- name: the food name (capitalized properly)
+- type: "Generic" 
+- description: a brief serving description like "Per 1 medium - Calories: 105kcal | Fat: 0.4g | Carbs: 27g | Protein: 1.3g"
+- calories: estimated calories per serving (number)
+- protein: grams of protein (number)
+- carbs: grams of carbs (number)  
+- fat: grams of fat (number)
+- servingDescription: typical serving size like "1 medium" or "1 cup"
+
+Use typical USDA values. If multiple foods mentioned, return multiple items.
+Return ONLY valid JSON array, no markdown.`;
+
+          const result = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          });
+          
+          const responseText = result.text || '';
+          logger.debug('[FoodSearch] AI response:', responseText.substring(0, 200));
+          
+          // Parse AI response
+          const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const aiFoods = JSON.parse(jsonMatch[0]);
+            results = aiFoods.map((food: any, idx: number) => ({
+              id: `ai-${Date.now()}-${idx}`,
+              name: food.name || query,
+              type: 'AI Estimate',
+              description: food.description || '',
+              calories: food.calories || 0,
+              protein: food.protein || 0,
+              carbs: food.carbs || 0,
+              fat: food.fat || 0,
+              servingDescription: food.servingDescription || '1 serving',
+            }));
+            logger.info('[FoodSearch] AI generated foods', { count: results.length });
+          }
+        } catch (aiError: any) {
+          logger.error('[FoodSearch] AI fallback failed:', aiError.message);
+        }
+      }
       
       res.json({ results });
     } catch (error: any) {
