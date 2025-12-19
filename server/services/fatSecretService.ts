@@ -307,13 +307,20 @@ class FatSecretService {
 
   async findByBarcode(barcode: string): Promise<ParsedFoodItem | null> {
     try {
+      // FatSecret API requires GTIN-13 format (13-digit zero-padded barcode)
+      // UPC-A (12 digits) -> add leading zero
+      // EAN-13 (13 digits) -> use as-is
+      // EAN-8 (8 digits) -> zero-pad to 13 digits
+      const normalizedBarcode = barcode.replace(/\D/g, '').padStart(13, '0');
+      logger.info(`[FatSecret] Barcode lookup: original="${barcode}" normalized="${normalizedBarcode}"`);
+      
       const response = await this.apiRequest<BarcodeResponse>({
         method: 'food.find_id_for_barcode',
-        barcode: barcode,
+        barcode: normalizedBarcode,
       });
 
       if (!response.food_id?.value) {
-        logger.info(`[FatSecret] No food found for barcode: ${barcode}`);
+        logger.info(`[FatSecret] No food found for barcode: ${normalizedBarcode}`);
         return null;
       }
 
